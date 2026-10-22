@@ -44,3 +44,17 @@ Owner intent, canonical PRD, Finish Contract and approved UI govern this graph. 
 No parallel mutable frontier remains. One builder performed the dependent source path; controller serially imported and evaluated. B1 required layout/canonical-transaction proof; B2 used two materially distinct repairs (wrapped source cues, then composed alias citation). Sol returned to the Finish Contract and issued one bounded R1 integration repair for complete-row replay stability. Failed effects were inspected before retry. Original public bodies and baseline database remain preserved. Automatic cross-project reconciliation is not enabled. Migrations remain 0035 then 0036; no new schema or UI redesign.
 
 F22 opens two disjoint implementation frontiers under Sol's direction. Only B uses disposable test state; A runs units/static checks and authors a separate API integration regression for root's post-join serialized run. The ordering change is a reversible execution lesson from four interrupted automatic-review gate attempts, not a reduced acceptance requirement or a claimed speedup.
+
+
+## October 22 owner-authorized review and merge continuation
+
+The owner now authorizes validated merge and redundant-PR closure; earlier “do not merge” entries are historical. Deployment and provider/accounting changes remain excluded. Preserve all prior failed candidates and actual-source labels.
+
+| Node | Current gate | Evidence / dependency |
+|---|---|---|
+| F25 correction evidence and ordering | Implemented; controller 50 focused PASS | Exact current semantic support, normal current view, stale identity exclusion, equal-time expected-version chains and idempotent replay. Final gates still required. |
+| Inherited PR102/103 regressions | Bounded repair and validation | Title-only MW, exact supply provenance, Industrial asset group, compact Notifications and card-present lifecycle/priority explanations. |
+| Retained/local acceptance | Replacement exact freeze required | Exclusive local clone; original 16-table hashes match ; 16 cards, 95 fields/all 10 categories, replay/history, five widths and API/web restart required. No private transfer or external provider. |
+| PR105 disposition | Depends on final independent review/full gates/CI | No old PASS transfer. Update acceptance with exact final SHA and verify remote merge/main checks. |
+| PR91/97/98 | Reviewed historical documents; CI dependency blocked | Main pypdf6.20.1 audit fails; PR105 pins6.21.1. Inherit validated PR105/main, rerun exact CI, merge. Original archives retained. |
+| PR96 | Closed superseded | Exact prior implementation preserved in4cc6668 via PR99; later main safeguards remain. Branch retained. |

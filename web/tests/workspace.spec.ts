@@ -1255,6 +1255,97 @@ test('tablet direct selection keeps detail and header reachable and restores the
   await expect(identity).toBeVisible()
 })
 
+for (const width of [768, 390]) {
+  test(`Notifications reveals queue after repeated selection and preserves Back at ${width}px`, async ({ page }) => {
+    const secondNeed = { ...need, id: 'need-b', project_id: 'project-b', name: 'Second data center' }
+    const change = {
+      event_key: `compact-change-${width}`, category: 'changed', title: 'Source changed',
+      detail: 'Permit text was updated and needs review.', created_at: '2026-10-20T12:00:00Z',
+      source_date: null, project_id: 'project-a', before_state: null, after_state: null,
+      needs: [], sources: [],
+    }
+    await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+    await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([need, secondNeed]) }))
+    await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: { ...emptyChanges, items: [change], total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 } } }))
+    await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
+    await page.route('**/api/opportunities/needs/need-b*', route => route.fulfill({ json: secondNeed }))
+    await page.goto('/?view=workspace')
+    await page.locator('[data-need-row="need-a"]').click()
+    await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+    await page.locator('[data-need-row="need-b"]').click()
+    await expect(page.getByRole('heading', { name: 'Second data center' })).toBeVisible()
+    await page.setViewportSize({ width, height: 900 })
+    await page.getByRole('button', { name: 'Notifications' }).click()
+    const list = page.locator('.wh-list')
+    await expect(list).toBeVisible()
+    const disclosure = page.locator('.wh-change-disclosure')
+    await expect(disclosure).toHaveAttribute('open', '')
+    await expect(disclosure).toContainText('Permit text was updated and needs review.')
+    await expect(disclosure).toBeInViewport()
+    await page.goBack()
+    await expect(page.getByRole('heading', { name: 'Second data center' })).toBeVisible()
+    await page.getByRole('button', { name: 'Notifications' }).click()
+    await expect(list).toBeVisible()
+    await expect(disclosure).toBeInViewport()
+  })
+}
+
+test('industrial group filters canonical asset types, carries URL cohorts, and resets exact filters', async ({ page }) => {
+  const assets = [
+    ...Array.from({ length: 10 }, (_, index) => ({ ...need, id: `gas-${index}`, name: `Gas plant ${index}`, asset_type: 'gas_processing_plant', industry: 'gas_processing_plant' })),
+    ...Array.from({ length: 10 }, (_, index) => ({ ...need, id: `compressor-${index}`, name: `Compressor ${index}`, asset_type: 'compressor_station', industry: 'compressor_station' })),
+    ...Array.from({ length: 10 }, (_, index) => ({ ...need, id: `well-${index}`, name: `Upstream well ${index}`, asset_type: 'upstream_well', industry: 'upstream_well' })),
+    { ...need, id: 'data-center', name: 'Data center', asset_type: 'data_center', industry: 'data_center' },
+    { ...need, id: 'unknown-asset', name: 'Unclassified asset', asset_type: 'unknown', industry: 'unknown' },
+  ]
+  const requests: URL[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', async route => {
+    const url = new URL(route.request().url())
+    requests.push(url)
+    const group = url.searchParams.get('industry_group')
+    const exact = url.searchParams.get('industry')
+    const selected = group === 'industrial'
+      ? assets.filter(item => ['gas_processing_plant', 'compressor_station', 'upstream_well'].includes(item.asset_type))
+      : exact ? assets.filter(item => item.asset_type === exact) : assets
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const items = selected.slice(offset, offset + 25)
+    const cohort = group === 'industrial' ? 'industrial-cohort' : exact ? 'exact-cohort' : 'all-cohort'
+    await route.fulfill({ json: { ...response(items), total: selected.length, offset, next_offset: offset + items.length < selected.length ? offset + items.length : null, cohort_token: cohort } })
+  })
+  await page.goto('/?view=workspace&industry=gas_processing_plant')
+  await expect(page.getByLabel('Industry (exact match)')).toHaveValue('gas_processing_plant')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry')).toBe('gas_processing_plant')
+  await page.locator('.wh-tools > summary').click()
+  await page.locator('.wh-filter-disclosure summary').click()
+  await page.getByLabel('Industry (exact match)').fill('compressor_station')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry')).toBe('compressor_station')
+  await page.getByRole('button', { name: 'Industrial', exact: true }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry_group')).toBe('industrial')
+  await expect(page.getByLabel('Industry (exact match)')).toHaveValue('')
+  await expect(page).toHaveURL(/industry_group=industrial/)
+  await expect(page).not.toHaveURL(/industry=gas_processing_plant|industry=compressor_station/)
+  await expect(page.locator('.wh-queue-heading')).toContainText('30 opportunities')
+  await expect(page.locator('[data-need-row]')).toHaveCount(25)
+  await expect(page.locator('[data-need-row="data-center"]')).toHaveCount(0)
+  await expect(page.locator('[data-need-row="unknown-asset"]')).toHaveCount(0)
+  await expect(page.locator('.wh-paging')).toContainText('of 30')
+  await page.locator('.wh-paging').getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('25')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('cohort_token')).toBe('industrial-cohort')
+  await page.getByRole('button', { name: 'Data centers', exact: true }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry')).toBe('data_center')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('0')
+  await expect(requests.at(-1)?.searchParams.has('industry_group')).toBe(false)
+  await expect(requests.at(-1)?.searchParams.has('cohort_token')).toBe(false)
+  await page.goBack()
+  await expect(page).toHaveURL(/industry_group=industrial.*offset=25.*cohort_token=industrial-cohort/)
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry_group')).toBe('industrial')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('25')
+  await page.reload()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('cohort_token')).toBe('industrial-cohort')
+})
+
 test('Power gap shows only backend-qualified ranges and keeps null or conflicted gaps unknown', async ({ page }) => {
   const qualified = { ...need, id: 'need-qualified', name: 'Qualified power need', tier: 'Lead', required_mw: '4–6 MW', supply: '2–3 MW', qualified_remaining_gap: { required_mw_min: '4', required_mw_max: '6', available_mw_min: '2', available_mw_max: '3', remaining_mw_min: '1', remaining_mw_max: '4', start_window: 'Q2 2027', duration: '90–120 days', basis_quote: 'Service letter states 2–3 MW available.', value_kind: 'Derived', calculation: 'range intersection from supported demand and supply', version: 'qual-v1' }, qualification_version: 'qual-v1' }
   const unknown = { ...need, id: 'need-unknown', name: 'Unknown power need', qualified_remaining_gap: null, qualification_version: null }
@@ -1332,7 +1423,16 @@ for (const width of [1280, 390]) {
     }
     await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
     await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
-    await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, intelligence_card: card } }))
+    await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: {
+      ...need, asset_type: 'gas_processing_plant', lifecycle_state: 'operation',
+      expected_next_milestone: 'Integrity inspection', expected_power_event: 'Compression upgrade',
+      time_to_power_window: 'Within 90 days', estimate_version: 'lifecycle-v2',
+      estimate_basis: { confidence: 'medium' },
+      lifecycle_timeline: [{ event_type: 'permit', date: '2026-10-20', state: 'permit', evidence_url: source.url, value_kind: 'reported', current: true, published_at: '2026-10-20' }],
+      monitoring_requirements: ['Monitor compressor replacement schedule'], lifecycle_open_questions: ['Confirm the power package owner'],
+      rank_score: 8, rank_version: 'rank-v1', rank_reasons: ['Near-term power event', 'Known industrial asset'],
+      intelligence_card: card,
+    } }))
     await page.route('**/api/power-needs/*/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
     await page.route('**/api/power-needs/*/brief', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
     let researchBody: unknown
@@ -1340,6 +1440,13 @@ for (const width of [1280, 390]) {
     await page.goto('/?view=workspace&need=need-a')
     const panel = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
     await expect(panel).toBeVisible()
+    await page.getByRole('button', { name: 'Overview', exact: true }).click()
+    await page.locator('.wh-provenance-disclosure summary').click()
+    await expect(page.locator('.wh-provenance-disclosure')).toContainText('Integrity inspection')
+    await expect(page.locator('.wh-provenance-disclosure')).toContainText('Confirm the power package owner')
+    const priority = page.getByRole('region', { name: 'Priority explanation' })
+    await expect(priority).toContainText('Canonical rank score: 8 · rank-v1')
+    await expect(priority).toContainText('Known industrial asset')
     await expect(panel.getByText('Example Owner', { exact: true }).first()).toBeVisible()
     await expect(panel.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
     await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)

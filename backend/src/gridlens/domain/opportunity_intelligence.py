@@ -595,19 +595,34 @@ def assemble_card(
         quote = item.get("power_field_provenance", {}).get(kind)
         if kind == "demand":
             quote = quote or item.get("demand_quote")
-        refs = [
-            source.model_copy(update={"passage": quote})
-            for source in current
-            if quote and source.passage and quote in source.passage
-        ]
+        elif kind == "supply":
+            quote = quote or item.get("supply_quote") or (gap.get("basis_quote") if gap else None)
+        refs = []
+        if quote:
+            for source in current:
+                matched = next(
+                    (text for text in (source.passage, source.title) if text and quote in text),
+                    None,
+                )
+                if matched is not None:
+                    refs.append(source.model_copy(update={"passage": quote}))
         fact_types = {
             "demand": {"demand"},
             "start": {"timing"},
             "duration": {"timing"},
             "supply": {"suitable_supply"},
         }[kind]
+        selected_supply_id = str(gap.get("suitable_supply_fact_id") or "") if gap else ""
+        selected_supply_hash = str(gap.get("suitable_supply_fact_hash") or "") if gap else ""
         for fact in item.get("operator_fact_refs", []):
             if fact.get("fact_type") not in fact_types:
+                continue
+            if kind == "supply" and (
+                not selected_supply_id
+                or not selected_supply_hash
+                or str(fact.get("fact_version_id") or "") != selected_supply_id
+                or str(fact.get("content_hash") or "") != selected_supply_hash
+            ):
                 continue
             refs.append(
                 IntelligenceSource(

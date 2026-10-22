@@ -44,6 +44,7 @@ from gridlens.domain.commercial_triage import (
     grouped_need_groups,
 )
 from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
+from gridlens.domain.lifecycle import is_industrial_asset_type
 from gridlens.domain.opportunity_intelligence import IntelligenceCard
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
@@ -590,7 +591,7 @@ def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
 def _validate_browse_query(request: Request) -> None:
     allowed = _BROWSE_QUERY_NAMES
     if request.url.path == "/api/opportunities/export.csv":
-        allowed = allowed - {"offset", "sort"}
+        allowed = (allowed - {"offset", "sort"}) | {"industry_group"}
     elif request.url.path == "/api/opportunities/map-window":
         allowed = _BROWSE_FILTER_NAMES | {"tier", "search", "decision"}
     unsupported = sorted(set(request.query_params.keys()) - allowed)
@@ -619,6 +620,7 @@ def _normalized_browse_filters(
     priority_segment: str | None,
     status: str | None,
     search: str | None,
+    industry_group: str | None = None,
 ) -> dict[str, Any]:
     if tier is not None:
         tiers = {value.casefold(): value for value in ("Signal", "Prospect", "Lead")}
@@ -650,6 +652,10 @@ def _normalized_browse_filters(
     timing = enum("timing", timing, {"KNOWN", "UNKNOWN"})
     mw_status = enum("mw_status", mw_status, {"KNOWN", "UNKNOWN"})
     status = enum("status", status, {"UNKNOWN", *(value.upper() for value in WORKFLOW_STATUSES)})
+    if industry_group is not None:
+        industry_group = industry_group.strip().casefold()
+        if industry_group != "industrial":
+            raise HTTPException(422, "industry_group must be industrial")
 
     def decimal_bound(name: str, value: str | None) -> str | None:
         if value is None:
@@ -695,6 +701,7 @@ def _normalized_browse_filters(
         "decision": decision,
         "geography": dimension("geography", geography),
         "industry": dimension("industry", industry),
+        "industry_group": industry_group,
         "activity": dimension("activity", activity),
         "timing": timing,
         "mw_status": mw_status,
@@ -730,6 +737,10 @@ def _filter_opportunity_summaries(
         if not dimension_matches(item, "location", filters.get("geography")):
             continue
         if not dimension_matches(item, "asset_type", filters.get("industry"), unknown_word=True):
+            continue
+        if filters.get("industry_group") == "industrial" and not is_industrial_asset_type(
+            item.get("asset_type")
+        ):
             continue
         if not dimension_matches(item, "activity", filters.get("activity")):
             continue
@@ -1959,6 +1970,7 @@ def pursuit_workspace(
     disposition: Literal["ACTION NOW", "RESEARCH", "WATCH", "REJECT"] | None = None,
     geography: str | None = None,
     industry: str | None = None,
+    industry_group: Literal["industrial"] | None = None,
     activity: str | None = None,
     timing: Literal["KNOWN", "UNKNOWN"] | None = None,
     mw_status: Literal["KNOWN", "UNKNOWN"] | None = None,
@@ -1975,6 +1987,7 @@ def pursuit_workspace(
         "disposition",
         "geography",
         "industry",
+        "industry_group",
         "activity",
         "timing",
         "mw_status",
@@ -2000,6 +2013,7 @@ def pursuit_workspace(
         priority_segment=None,
         status=None,
         search=search,
+        industry_group=industry_group,
     )
     filters = {
         "search": (normalized["search"] or "")[:100].casefold().strip(),
@@ -2007,6 +2021,7 @@ def pursuit_workspace(
         "disposition": disposition,
         "geography": normalized["geography"],
         "industry": normalized["industry"],
+        "industry_group": normalized["industry_group"],
         "activity": normalized["activity"],
         "timing": normalized["timing"],
         "mw_status": normalized["mw_status"],
@@ -2792,6 +2807,7 @@ def export_opportunities_csv(
     *,
     geography: str | None = None,
     industry: str | None = None,
+    industry_group: Literal["industrial"] | None = None,
     activity: str | None = None,
     timing: str | None = None,
     mw_status: str | None = None,
@@ -2813,6 +2829,7 @@ def export_opportunities_csv(
         priority_segment=priority_segment,
         status=status,
         search=search,
+        industry_group=industry_group,
     )
     tier = filters["tier"]
     decision = filters["decision"]

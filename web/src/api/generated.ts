@@ -4773,6 +4773,7 @@ export interface operations {
                 disposition?: ("ACTION NOW" | "RESEARCH" | "WATCH" | "REJECT") | null;
                 geography?: string | null;
                 industry?: string | null;
+                industry_group?: "industrial" | null;
                 activity?: string | null;
                 timing?: ("KNOWN" | "UNKNOWN") | null;
                 mw_status?: ("KNOWN" | "UNKNOWN") | null;
@@ -4953,6 +4954,7 @@ export interface operations {
                 limit?: number;
                 geography?: string | null;
                 industry?: string | null;
+                industry_group?: "industrial" | null;
                 activity?: string | null;
                 timing?: string | null;
                 mw_status?: string | null;

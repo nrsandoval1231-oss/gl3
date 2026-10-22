@@ -47,6 +47,96 @@ def test_completeness_never_promotes_or_turns_facility_load_into_power_gap():
     assert all("disabled" in f.basis for f in card.research_gaps)
 
 
+def test_title_only_current_demand_quote_is_cited_but_stale_or_unmatched_title_is_not():
+    record = item()
+    record.update(required_mw="5 MW", demand_quote="Construction requires 5 MW")
+    record["evidence"][0]["title"] = "Permit: Construction requires 5 MW"
+    card = assemble_card(record, {}, {}, [], research_enabled=False)
+    field = next(field for field in card.fields if field.key == "required_mw")
+    assert field.value == "5 MW"
+    assert len(field.sources) == 1
+    assert field.sources[0].passage == record["demand_quote"]
+    assert field.sources[0].content_hash == record["evidence"][0]["content_hash"]
+
+    stale = deepcopy(record)
+    stale["evidence"][0]["assessment_current"] = False
+    stale_card = assemble_card(stale, {}, {}, [], research_enabled=False)
+    stale_field = next(field for field in stale_card.fields if field.key == "required_mw")
+    assert stale_field.value is None
+    assert stale_field.sources == []
+
+    unmatched = deepcopy(record)
+    unmatched["evidence"][0]["title"] = "Permit: electrical work"
+    unmatched["evidence"][0]["abstract"] = "Construction at Example project."
+    unmatched_card = assemble_card(unmatched, {}, {}, [], research_enabled=False)
+    unmatched_field = next(field for field in unmatched_card.fields if field.key == "required_mw")
+    assert unmatched_field.value is None
+    assert unmatched_field.sources == []
+
+
+def test_supply_fact_citation_requires_exact_canonical_fact_id_and_hash():
+    record = item()
+    record.update(
+        tier="Lead",
+        qualification_version="qualified-v1",
+        required_mw="4–6 MW",
+        supply_quote="Official service letter supplies 2–3 MW throughout the activity.",
+        qualified_remaining_gap={
+            "required_mw_min": "4",
+            "required_mw_max": "6",
+            "available_mw_min": "2",
+            "available_mw_max": "3",
+            "remaining_mw_min": "1",
+            "remaining_mw_max": "4",
+            "basis_quote": "Official service letter supplies 2–3 MW throughout the activity.",
+            "suitable_supply_fact_id": "used-fact",
+            "suitable_supply_fact_hash": "b" * 64,
+        },
+        operator_fact_refs=[
+            {
+                "fact_type": "suitable_supply",
+                "fact_version_id": "unused-partial-supply",
+                "content_hash": "c" * 64,
+                "value": {"mw": "1", "window": "partial", "quality": "unknown"},
+            },
+            {
+                "fact_type": "suitable_supply",
+                "fact_version_id": "used-fact",
+                "content_hash": "b" * 64,
+                "value": {"mw": "2-3", "quality": "suitable"},
+            },
+        ],
+    )
+    record["evidence"][0]["abstract"] = record["supply_quote"]
+    card = assemble_card(record, {}, {}, [], research_enabled=False)
+    supply = next(field for field in card.fields if field.key == "supply")
+    gap = next(field for field in card.fields if field.key == "gap")
+    assert supply.value.replace("–", "-") == "2-3 MW"
+    assert [source.reference for source in supply.sources] == [
+        "evidence:" + record["evidence"][0]["id"],
+        "operator-fact:used-fact",
+    ]
+    assert "operator-fact:used-fact" in [source.reference for source in gap.sources]
+    assert "operator-fact:unused-partial-supply" not in [source.reference for source in gap.sources]
+
+    for mismatch in (
+        {"suitable_supply_fact_id": None, "suitable_supply_fact_hash": None},
+        {"suitable_supply_fact_id": "different-fact", "suitable_supply_fact_hash": "c" * 64},
+        {"suitable_supply_fact_id": "used-fact", "suitable_supply_fact_hash": "d" * 64},
+    ):
+        changed = deepcopy(record)
+        changed["qualified_remaining_gap"].update(mismatch)
+        changed_card = assemble_card(changed, {}, {}, [], research_enabled=False)
+        changed_supply = next(field for field in changed_card.fields if field.key == "supply")
+        changed_gap = next(field for field in changed_card.fields if field.key == "gap")
+        assert all(
+            not source.reference.startswith("operator-fact:") for source in changed_supply.sources
+        )
+        assert all(
+            not source.reference.startswith("operator-fact:") for source in changed_gap.sources
+        )
+
+
 def test_failed_research_is_not_proof_information_is_not_public():
     card = assemble_card(
         item(), {}, {}, [{"category": "load", "status": "FAILED"}], research_enabled=True

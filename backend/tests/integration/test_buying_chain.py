@@ -14,11 +14,14 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.domain.opportunity_intelligence import contact_projection
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument, parse_document
 from gridlens.intelligence.buying_chain import (
+    _attach_identity_ids,
     buying_chain_view,
     buying_chain_views,
     enrich_buying_chain,
 )
 from gridlens.intelligence.buying_chain_corrections import (
+    _has_current_semantic_support,
+    _ordered_correction_chain,
     correct_buying_chain_claim,
     overlay_corrections,
 )
@@ -1297,13 +1300,21 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
             "expected_version": candidate["fingerprint"],
             "idempotency_key": "correction-test-001",
             "action": "correct",
-            "values": {"category": "electrical_contractor"},
+            "values": {"category": "general_contractor"},
             "source_evidence_id": str(evidence["id"]),
             "source_hash": evidence["content_hash"],
             "reason": "Operator verified title in cited source.",
         }
     client = TestClient(api.app)
     path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    import gridlens.intelligence.buying_chain_corrections as corrections
+
+    class SameTimestamp(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return NOW
+
+    monkeypatch.setattr(corrections, "datetime", SameTimestamp)
     assert client.post(path, json=payload).status_code == 401
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     assert (
@@ -1314,14 +1325,25 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
     assert response.status_code == 200, response.text
     replay = client.post(path, headers={"origin": "http://testserver"}, json=payload)
     assert replay.json()["id"] == response.json()["id"]
-    stale = {**payload, "idempotency_key": "correction-test-002"}
+    sequential = {
+        **payload,
+        "expected_version": response.json()["id"],
+        "idempotency_key": "correction-test-002",
+        "values": {"organization_relationship": "UNKNOWN"},
+    }
+    second = client.post(path, headers={"origin": "http://testserver"}, json=sequential)
+    assert second.status_code == 200, second.text
+    second_replay = client.post(path, headers={"origin": "http://testserver"}, json=sequential)
+    assert second_replay.status_code == 200, second_replay.text
+    assert second_replay.json()["id"] == second.json()["id"]
+    stale = {**payload, "idempotency_key": "correction-test-008"}
     assert client.post(path, headers={"origin": "http://testserver"}, json=stale).status_code == 409
     current = client.get(f"/api/projects/{project_id}/buying-chain").json()
     edited = next(item for item in current["candidates"] if item["id"] == str(claim_id))
-    assert edited["category"] == "electrical_contractor"
-    assert edited["correction_version"] == response.json()["id"]
+    assert edited["category"] == "general_contractor"
+    assert edited["correction_version"] == second.json()["id"]
     unsupported_contact = {
-        "expected_version": response.json()["id"],
+        "expected_version": second.json()["id"],
         "idempotency_key": "correction-test-005",
         "action": "correct",
         "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0100"},
@@ -1345,7 +1367,7 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
         == 422
     )
     arbitrary_identity = {
-        "expected_version": response.json()["id"],
+        "expected_version": second.json()["id"],
         "idempotency_key": "correction-test-007",
         "action": "correct",
         "values": {},
@@ -1386,14 +1408,14 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
     stale_item = next(item for item in stale_history["candidates"] if item["id"] == str(claim_id))
     assert stale_item["correction_stale"] is True
     assert stale_item["category"] == "general_contractor"
-    assert len(stale_item["correction_history"]) == 1
+    assert len(stale_item["correction_history"]) == 2
     replay_after_stale = client.post(path, headers={"origin": "http://testserver"}, json=payload)
     assert replay_after_stale.status_code == 200, replay_after_stale.text
     assert replay_after_stale.json()["id"] == response.json()["id"]
     stale_current = client.get(f"/api/projects/{project_id}/buying-chain").json()
     assert all(item["id"] != str(claim_id) for item in stale_current["candidates"])
     report = {
-        "expected_version": response.json()["id"],
+        "expected_version": second.json()["id"],
         "idempotency_key": "correction-test-003",
         "action": "correct",
         "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0100"},
@@ -1403,7 +1425,7 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
     reported = client.post(path, headers={"origin": "http://testserver"}, json=report)
     assert reported.status_code == 409, reported.text
     retract = {
-        "expected_version": response.json()["id"],
+        "expected_version": second.json()["id"],
         "idempotency_key": "correction-test-004",
         "action": "retract",
         "reason": "Operator withdrew the relationship.",
@@ -1418,18 +1440,31 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
     history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()
     edited_history = next(item for item in history["candidates"] if item["id"] == str(claim_id))
     assert edited_history["category"] == "general_contractor"
-    assert edited_history["correction_version"] == response.json()["id"]
-    assert len(edited_history["correction_history"]) == 1
-
-    import gridlens.intelligence.buying_chain_corrections as corrections
+    assert edited_history["correction_version"] == second.json()["id"]
+    assert len(edited_history["correction_history"]) == 2
+    assert [row["id"] for row in edited_history["correction_history"]] == [
+        response.json()["id"],
+        second.json()["id"],
+    ]
+    assert (
+        edited_history["correction_history"][0]["created_at"]
+        == edited_history["correction_history"][1]["created_at"]
+    )
 
     original_view = corrections.buying_chain_view
 
     def stale_chain_with_current_citation(session, selected_project_id, **kwargs):
         result = original_view(session, selected_project_id, **kwargs)
         item = next(
-            candidate for candidate in result["candidates"] if str(candidate["id"]) == str(claim_id)
+            (
+                candidate
+                for candidate in result["candidates"]
+                if str(candidate["id"]) == str(claim_id)
+            ),
+            None,
         )
+        if item is None:
+            return result
         item["correction_stale"] = True
         item["stale"] = False
         current_citation = next(
@@ -1444,7 +1479,7 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
 
     monkeypatch.setattr(corrections, "buying_chain_view", stale_chain_with_current_citation)
     current_cited = {
-        "expected_version": response.json()["id"],
+        "expected_version": second.json()["id"],
         "idempotency_key": "correction-after-stale-chain",
         "action": "correct",
         "values": {"category": "electrical_contractor"},
@@ -1463,13 +1498,192 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
                 .select_from(BuyingChainCorrection)
                 .where(BuyingChainCorrection.claim_id == claim_id)
             )
-            == 1
+            == 2
         )
     other = client.get(f"/api/projects/{project_b.id}/buying-chain").json()
     other_candidate = next(
         item for item in other["candidates"] if item["id"] == str(b["candidates"][0]["id"])
     )
     assert other_candidate["category"] == "general_contractor"
+
+
+def test_semantic_corrections_require_current_subject_and_project_evidence(db, monkeypatch):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    with db.begin() as session:
+        project = seed(
+            session, external_id="semantic-correction", identity_key="semantic-correction"
+        )
+        observation = session.scalar(
+            select(Observation).where(Observation.external_id == "semantic-correction")
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": project.identity_key,
+        }
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        candidate = result["candidates"][0]
+        claim_id, project_id = candidate["id"], project.id
+        claim = session.get(BuyingChainClaim, claim_id)
+        assert claim is not None
+        # Exercise a positive relationship promotion while retaining the source's
+        # explicit organization/project statement as the only valid proof.
+        claim.organization_relationship = "UNKNOWN"
+
+        def cite_document(url: str, text: str, evidence_id: UUID) -> BuyingChainEvidence:
+            row = BuyingChainEvidence(
+                id=evidence_id,
+                project_id=project.id,
+                url=url,
+                title="Project role update",
+                excerpt=text,
+                content_hash=("d" if "electrical contractor" in text else "e") * 64,
+                extraction_location="article body",
+                published_at=date(2026, 9, 25),
+                observed_at=NOW,
+                last_seen_at=NOW,
+                project_match_reason="same named project",
+            )
+            session.add(row)
+            session.flush()
+            quote = text
+            claim.citations = [
+                *claim.citations,
+                {
+                    "evidence_id": str(row.id),
+                    "url": row.url,
+                    "quote": quote,
+                    "supports": "project_organization",
+                },
+            ]
+            session.flush()
+            return row
+
+        electrical = cite_document(
+            "https://news.example/orion-electrical",
+            "Acme is the electrical contractor for Orion Data Center in Austin, TX.",
+            UUID("00000000-0000-0000-0000-000000000101"),
+        )
+        unrelated = cite_document(
+            "https://news.example/vega-electrical",
+            "Acme is the electrical contractor for Vega Data Center in Austin, TX.",
+            UUID("00000000-0000-0000-0000-000000000102"),
+        )
+        contact_only = cite_document(
+            "https://news.example/orion-contact",
+            "Contact Acme about Orion Data Center in Austin, TX.",
+            UUID("00000000-0000-0000-0000-000000000103"),
+        )
+        initial_version = candidate["fingerprint"]
+
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    import gridlens.intelligence.buying_chain_corrections as corrections
+
+    original_view = corrections.buying_chain_view
+
+    def with_unrelated_stale_contact(session, selected_project_id, **kwargs):
+        view = original_view(session, selected_project_id, **kwargs)
+        candidate = next(item for item in view["candidates"] if str(item["id"]) == str(claim_id))
+        candidate["stale"] = True
+        return view
+
+    monkeypatch.setattr(corrections, "buying_chain_view", with_unrelated_stale_contact)
+    with db.begin() as session:
+        before_edit = with_unrelated_stale_contact(
+            session, project_id, history=False, include_identity_ids=False
+        )
+        stale_contact_candidate = next(
+            item for item in before_edit["candidates"] if str(item["id"]) == str(claim_id)
+        )
+        assert stale_contact_candidate["stale"] is True
+
+    def payload(
+        key: str,
+        evidence: BuyingChainEvidence,
+        field: str,
+        value: str,
+        expected_version: str = initial_version,
+    ) -> dict:
+        return {
+            "expected_version": expected_version,
+            "idempotency_key": key,
+            "action": "correct",
+            "values": {field: value},
+            "source_evidence_id": str(evidence.id),
+            "source_hash": evidence.content_hash,
+            "reason": "Checked the cited role statement.",
+        }
+
+    unsupported = client.post(
+        path,
+        headers={"origin": "http://testserver"},
+        json=payload("semantic-contact-only", contact_only, "organization_relationship", "DIRECT"),
+    )
+    assert unsupported.status_code == 422, unsupported.text
+    unrelated_result = client.post(
+        path,
+        headers={"origin": "http://testserver"},
+        json=payload("semantic-other-project", unrelated, "category", "electrical_contractor"),
+    )
+    assert unrelated_result.status_code == 422, unrelated_result.text
+    with db.begin() as session:
+        assert session.scalar(select(func.count()).select_from(BuyingChainCorrection)) == 0
+
+    matching_values = payload(
+        "semantic-matching-role-and-category",
+        electrical,
+        "category",
+        "electrical_contractor",
+    )
+    matching_values["values"]["organization_relationship"] = "DIRECT"
+    matched = client.post(
+        path,
+        headers={"origin": "http://testserver"},
+        json=matching_values,
+    )
+    assert matched.status_code == 200, matched.text
+    unsupported_person_relationship = client.post(
+        path,
+        headers={"origin": "http://testserver"},
+        json=payload(
+            "semantic-person-organization-direct",
+            electrical,
+            "person_organization_relationship",
+            "DIRECT",
+            matched.json()["id"],
+        ),
+    )
+    assert unsupported_person_relationship.status_code == 422, unsupported_person_relationship.text
+    unsupported_assignment = client.post(
+        path,
+        headers={"origin": "http://testserver"},
+        json=payload(
+            "semantic-person-project-role",
+            electrical,
+            "person_project_relationship",
+            "ROLE_SUPPORTED",
+            matched.json()["id"],
+        ),
+    )
+    assert unsupported_assignment.status_code == 422, unsupported_assignment.text
+    readback = client.get(f"/api/projects/{project_id}/buying-chain").json()
+    corrected = next(item for item in readback["candidates"] if item["id"] == str(claim_id))
+    assert corrected["category"] == "electrical_contractor"
+    assert corrected["organization_relationship"] == "DIRECT"
+    with db.begin() as session:
+        assert session.scalar(select(func.count()).select_from(BuyingChainCorrection)) == 1
 
 
 def test_correction_rejects_null_required_organization_without_persisted_effects(db, monkeypatch):
@@ -2119,7 +2333,7 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
             source_evidence_id=second_source,
             source_version_hash="b" * 64,
             created_at=NOW + timedelta(seconds=1),
-            expected_version="first",
+            expected_version="00000000-0000-0000-0000-000000000021",
             idempotency_key="second",
             reason="Correction two",
             actor="operator",
@@ -2133,7 +2347,7 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
             source_evidence_id=UUID("00000000-0000-0000-0000-000000000013"),
             source_version_hash="c" * 64,
             created_at=NOW + timedelta(seconds=2),
-            expected_version="second",
+            expected_version="00000000-0000-0000-0000-000000000022",
             idempotency_key="stale-third",
             reason="Stale correction source",
             actor="operator",
@@ -2236,6 +2450,7 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
     stale_retraction.id = UUID("00000000-0000-0000-0000-000000000025")
     stale_retraction.action = "retract"
     stale_retraction.values = {"contact_status": "operator_report"}
+    stale_retraction.expected_version = str(corrections[0].id)
     stale_subject_to_retraction = deepcopy(base_candidate)
     stale_subject_to_retraction["evidence"][0]["current_support"] = False
     overlay_corrections(
@@ -2263,6 +2478,7 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
     unsupported["evidence"][-1]["supports"] = "project_organization"
     unsupported_row = SimpleNamespace(**vars(corrections[1]))
     unsupported_row.id = UUID("00000000-0000-0000-0000-000000000024")
+    unsupported_row.expected_version = "initial"
     unsupported_row.values = {
         "public_contact_kind": "phone",
         "public_contact_value": "512-555-0177",
@@ -2293,7 +2509,7 @@ def test_operator_report_replaces_same_kind_current_report_without_action():
         source_evidence_id=None,
         source_version_hash=None,
         created_at=NOW,
-        expected_version="old",
+        expected_version="initial",
         idempotency_key="new-report",
         reason="Operator confirmed a new number.",
         actor="operator",
@@ -2362,7 +2578,7 @@ def test_null_contact_clear_is_scoped_by_kind_and_unscoped_clear_removes_all():
         source_evidence_id=evidence_id,
         source_version_hash="a" * 64,
         created_at=NOW,
-        expected_version="old",
+        expected_version="initial",
         idempotency_key="clear-phone",
         reason="Operator cleared an obsolete phone action.",
         actor="operator",
@@ -2424,6 +2640,429 @@ def test_null_contact_clear_is_scoped_by_kind_and_unscoped_clear_removes_all():
     assert [item["kind"] for item in blank["public_contacts"]] == ["email"]
 
 
+def test_stale_correction_chain_hides_later_company_and_person_rebinds(db):
+    with db.begin() as session:
+        project = seed(session, external_id="stale-identity-chain")
+        old_source = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://news.example/old-role",
+            title="Old role statement",
+            excerpt="Acme is the general contractor for Orion Data Center in Austin, TX.",
+            content_hash="a" * 64,
+            extraction_location="article body",
+            published_at=date(2026, 9, 20),
+            observed_at=NOW,
+            last_seen_at=NOW + timedelta(days=1),
+            project_match_reason="named project",
+        )
+        changed_source = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://news.example/old-role",
+            title="Updated role statement",
+            excerpt="Acme is no longer the general contractor for Orion Data Center in Austin, TX.",
+            content_hash="b" * 64,
+            extraction_location="article body",
+            published_at=date(2026, 9, 21),
+            observed_at=NOW + timedelta(days=1),
+            last_seen_at=NOW + timedelta(days=3),
+            project_match_reason="named project",
+        )
+        current_source = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://news.example/current-role",
+            title="Current role statement",
+            excerpt=(
+                "Acme is the general contractor for Orion Data Center in Austin, TX. "
+                "Alice Smith is Project Director at Acme for Orion Data Center in Austin, TX."
+            ),
+            content_hash="c" * 64,
+            extraction_location="article body",
+            published_at=date(2026, 9, 22),
+            observed_at=NOW + timedelta(days=2),
+            last_seen_at=NOW + timedelta(days=2),
+            project_match_reason="named project",
+        )
+        session.add_all([old_source, changed_source, current_source])
+        company = CompanyIdentity()
+        person = PersonIdentity()
+        session.add_all([company, person])
+        session.flush()
+        claim = BuyingChainClaim(
+            project_id=project.id,
+            entity_key="stale-identity-claim",
+            fingerprint="f" * 64,
+            policy_version="test",
+            organization="Acme",
+            person_name="Alice Smith",
+            title="Project Director",
+            category="general_contractor",
+            organization_relationship="DIRECT",
+            person_organization_relationship="CURRENT",
+            person_project_relationship="ROLE_SUPPORTED",
+            evidence_strength="Medium",
+            reason="Current cited project role.",
+            citations=[
+                {
+                    "evidence_id": str(old_source.id),
+                    "url": old_source.url,
+                    "quote": "Acme is the general contractor for Orion Data Center in Austin, TX.",
+                    "supports": "project_organization",
+                },
+                {
+                    "evidence_id": str(current_source.id),
+                    "url": current_source.url,
+                    "quote": "Acme is the general contractor for Orion Data Center in Austin, TX.",
+                    "supports": "project_organization",
+                },
+                {
+                    "evidence_id": str(current_source.id),
+                    "url": current_source.url,
+                    "quote": (
+                        "Alice Smith is Project Director at Acme for Orion Data Center "
+                        "in Austin, TX."
+                    ),
+                    "supports": "organization_person_role",
+                },
+            ],
+            public_contacts=[],
+            observed_at=NOW,
+        )
+        session.add(claim)
+        session.flush()
+        session.add_all(
+            [
+                BuyingChainIdentityLink(
+                    claim_id=claim.id,
+                    entity_type="company",
+                    company_identity_id=company.id,
+                    reason="reviewed company",
+                    basis="reviewed_alias",
+                    reviewed_by="operator",
+                    source_evidence_id=current_source.id,
+                    source_version_hash=current_source.content_hash,
+                    state="current",
+                ),
+                BuyingChainIdentityLink(
+                    claim_id=claim.id,
+                    entity_type="person",
+                    person_identity_id=person.id,
+                    reason="reviewed person",
+                    basis="reviewed_alias",
+                    reviewed_by="operator",
+                    source_evidence_id=current_source.id,
+                    source_version_hash=current_source.content_hash,
+                    state="current",
+                ),
+            ]
+        )
+        session.add_all(
+            [
+                BuyingChainCorrection(
+                    project_id=project.id,
+                    claim_id=claim.id,
+                    expected_version=claim.fingerprint,
+                    idempotency_key="stale-first",
+                    action="correct",
+                    values={"category": "electrical_contractor"},
+                    source_evidence_id=old_source.id,
+                    source_version_hash=old_source.content_hash,
+                    reason="Older cited role is stale.",
+                    actor="operator",
+                    created_at=NOW,
+                ),
+                BuyingChainCorrection(
+                    project_id=project.id,
+                    claim_id=claim.id,
+                    expected_version="stale-first",
+                    idempotency_key="late-company-rebind",
+                    action="correct",
+                    values={
+                        "organization": "Beta",
+                        "identity_reference": {"type": "company", "id": str(company.id)},
+                    },
+                    source_evidence_id=current_source.id,
+                    source_version_hash=current_source.content_hash,
+                    reason="Later company rebind.",
+                    actor="operator",
+                    created_at=NOW + timedelta(seconds=1),
+                ),
+                BuyingChainCorrection(
+                    project_id=project.id,
+                    claim_id=claim.id,
+                    expected_version="late-company-rebind",
+                    idempotency_key="late-person-rebind",
+                    action="correct",
+                    values={
+                        "person_name": "Bob Jones",
+                        "identity_reference": {"type": "person", "id": str(person.id)},
+                    },
+                    source_evidence_id=current_source.id,
+                    source_version_hash=current_source.content_hash,
+                    reason="Later person rebind.",
+                    actor="operator",
+                    created_at=NOW + timedelta(seconds=2),
+                ),
+            ]
+        )
+        session.add(
+            BuyingChainRun(
+                project_id=project.id,
+                input_hash="d" * 64,
+                evidence_ids=[str(old_source.id), str(current_source.id)],
+                claim_ids=[str(claim.id)],
+                policy_version="test",
+                status="completed",
+                documents_checked=2,
+                candidates_added=1,
+                unresolved=[],
+                created_at=NOW + timedelta(days=2),
+            )
+        )
+        project_id, claim_id = project.id, claim.id
+
+    with db.begin() as session:
+        normal = buying_chain_view(session, project_id)
+        normal_item = next(item for item in normal["candidates"] if item["id"] == claim_id)
+        assert normal_item["correction_stale"] is True
+        assert normal_item.get("company_identity_id") is None
+        assert normal_item.get("person_identity_id") is None
+        batch = buying_chain_views(session, {project_id})[str(project_id)]
+        batch_item = next(item for item in batch["candidates"] if item["id"] == claim_id)
+        assert batch_item["correction_stale"] is True
+        assert batch_item.get("company_identity_id") is None
+        assert batch_item.get("person_identity_id") is None
+
+
+def test_correction_order_follows_expected_version_links_and_rejects_forks():
+    first_id = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+    second_id = UUID("00000000-0000-0000-0000-000000000001")
+    first = SimpleNamespace(id=first_id, expected_version="initial", created_at=NOW)
+    second = SimpleNamespace(id=second_id, expected_version=str(first_id), created_at=NOW)
+    assert _ordered_correction_chain("initial", [second, first]) == [first, second]
+
+    fork = SimpleNamespace(
+        id=UUID("00000000-0000-0000-0000-000000000002"),
+        expected_version="initial",
+        created_at=NOW,
+    )
+    assert _ordered_correction_chain("initial", [first, fork]) is None
+    disconnected = SimpleNamespace(
+        id=UUID("00000000-0000-0000-0000-000000000003"),
+        expected_version="missing-version",
+        created_at=NOW,
+    )
+    assert _ordered_correction_chain("initial", [disconnected]) is None
+
+
+@pytest.mark.parametrize("sparse", [False, True])
+@pytest.mark.parametrize("person_name", [None, "Jordan Lee"])
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "Acme is the owner for Orion Data Center in Austin, TX. "
+            "Beta delivered a chair to Orion Data Center in Austin, TX.",
+            False,
+        ),
+        ("Beta is the owner for Orion Data Center in Austin, TX.", True),
+    ],
+)
+def test_company_subject_change_revalidates_inherited_semantics(
+    sparse, person_name, text, expected
+):
+    project_id = UUID("00000000-0000-0000-0000-000000000010")
+    source_id = UUID("00000000-0000-0000-0000-000000000011")
+    quote = text.split(". ")[0]
+    project = SimpleNamespace(
+        id=project_id,
+        name="Orion Data Center",
+        location="Austin, TX",
+        identity_facts={},
+        source_id="news",
+    )
+    source = SimpleNamespace(
+        id=source_id,
+        retained_evidence_id=None,
+        url="https://news.example/orion",
+        title="Orion update",
+        excerpt=text,
+        published_at=None,
+        observed_at=NOW,
+        extraction_location="article body",
+        content_hash="a" * 64,
+    )
+    candidate = {
+        "organization": "Acme",
+        "person_name": person_name,
+        "category": "owner_developer",
+        "organization_relationship": "DIRECT",
+        "person_organization_relationship": "DIRECT" if person_name else "UNKNOWN",
+        "person_project_relationship": "DIRECT" if person_name else "UNKNOWN",
+        "evidence": [
+            {
+                "id": source_id,
+                "current_source_version_id": source_id,
+                "content_hash": source.content_hash,
+                "current_support": True,
+                "quote": quote,
+                "supports": "project_organization",
+            }
+        ],
+    }
+
+    class Session:
+        def get(self, _model, key):
+            return project if key == project_id else None
+
+    values = {"organization": "Beta"}
+    if not sparse:
+        values.update(category="owner_developer", organization_relationship="DIRECT")
+    assert _has_current_semantic_support(
+        session=Session(),
+        project_id=project_id,
+        candidate=candidate,
+        source=source,
+        values=values,
+    ) is (expected and person_name is None)
+
+
+@pytest.mark.parametrize("cleared_name", [None, "   "])
+def test_optional_person_clear_is_a_downgrade(cleared_name):
+    project_id = UUID("00000000-0000-0000-0000-000000000020")
+    source_id = UUID("00000000-0000-0000-0000-000000000021")
+    project = SimpleNamespace(
+        id=project_id,
+        name="Orion Data Center",
+        location="Austin, TX",
+        identity_facts={},
+        source_id="news",
+    )
+    source = SimpleNamespace(
+        id=source_id,
+        retained_evidence_id=None,
+        url="https://news.example/orion",
+        title="Orion update",
+        excerpt="Acme owns Orion Data Center in Austin, TX.",
+        published_at=None,
+        observed_at=NOW,
+        extraction_location="article body",
+        content_hash="b" * 64,
+    )
+    candidate = {
+        "organization": "Acme",
+        "person_name": "Jordan Lee",
+        "category": "owner_developer",
+        "organization_relationship": "DIRECT",
+        "person_organization_relationship": "UNKNOWN",
+        "person_project_relationship": "UNKNOWN",
+        "evidence": [
+            {
+                "id": source_id,
+                "current_source_version_id": source_id,
+                "content_hash": source.content_hash,
+                "current_support": True,
+                "quote": source.excerpt,
+                "supports": "project_organization",
+            }
+        ],
+    }
+
+    class Session:
+        def get(self, _model, key):
+            return project if key == project_id else None
+
+    assert _has_current_semantic_support(
+        session=Session(),
+        project_id=project_id,
+        candidate=candidate,
+        source=source,
+        values={"person_name": cleared_name},
+    )
+
+
+@pytest.mark.parametrize(
+    ("entity_type", "subject_field", "support"),
+    [
+        ("company", "organization", "project_organization"),
+        ("person", "person_name", "organization_person_role"),
+    ],
+)
+def test_identity_attachment_uses_expected_version_order_for_equal_timestamps(
+    entity_type, subject_field, support
+):
+    claim_id = UUID("00000000-0000-0000-0000-000000000010")
+    source_id = UUID("00000000-0000-0000-0000-000000000011")
+    identity_id = UUID("00000000-0000-0000-0000-000000000012")
+    first_id = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+    second_id = UUID("00000000-0000-0000-0000-000000000001")
+    first = SimpleNamespace(
+        id=first_id,
+        claim_id=claim_id,
+        expected_version="initial",
+        created_at=NOW,
+        source_evidence_id=source_id,
+        source_version_hash="a" * 64,
+        values={subject_field: "Updated subject"},
+    )
+    second = SimpleNamespace(
+        id=second_id,
+        claim_id=claim_id,
+        expected_version=str(first_id),
+        created_at=NOW,
+        source_evidence_id=source_id,
+        source_version_hash="a" * 64,
+        values={"identity_reference": {"type": entity_type, "id": str(identity_id)}},
+    )
+    link = SimpleNamespace(
+        id=UUID("00000000-0000-0000-0000-000000000013"),
+        claim_id=claim_id,
+        entity_type=entity_type,
+        company_identity_id=identity_id if entity_type == "company" else None,
+        person_identity_id=identity_id if entity_type == "person" else None,
+        source_evidence_id=source_id,
+        source_version_hash="a" * 64,
+        created_at=NOW,
+    )
+    candidate = {
+        "id": claim_id,
+        "fingerprint": "initial",
+        "stale": False,
+        "evidence": [
+            {
+                "id": source_id,
+                "current_source_version_id": source_id,
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": support,
+            }
+        ],
+    }
+
+    class Result:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def all(self):
+            return self.rows
+
+    class Session:
+        calls = 0
+
+        def scalars(self, _query):
+            self.calls += 1
+            # This is the actual SQL secondary order: it reverses the valid
+            # API chain when the UUIDs share a timestamp.
+            rows = (
+                [link]
+                if self.calls == 1
+                else sorted([first, second], key=lambda row: (row.created_at, row.id))
+            )
+            return Result(rows)
+
+    _attach_identity_ids(Session(), [{"candidates": [candidate]}])
+    assert candidate[f"{entity_type}_identity_id"] == str(identity_id)
+
+
 def test_corrected_company_hides_old_identity_until_reviewed_rebind_and_keeps_rebind(db):
     with db.begin() as session:
         project = seed(
@@ -2452,7 +3091,17 @@ def test_corrected_company_hides_old_identity_until_reviewed_rebind_and_keeps_re
         candidate = result["candidates"][0]
         claim = session.get(BuyingChainClaim, candidate["id"])
         evidence = session.get(BuyingChainEvidence, candidate["evidence"][0]["id"])
-        evidence.excerpt += " Beta"
+        replacement_quote = "Beta is the general contractor for Orion Data Center in Austin, TX."
+        evidence.excerpt += " " + replacement_quote
+        claim.citations = [
+            *claim.citations,
+            {
+                "evidence_id": str(evidence.id),
+                "url": evidence.url,
+                "quote": replacement_quote,
+                "supports": "project_organization",
+            },
+        ]
         old_identity = CompanyIdentity()
         new_identity = CompanyIdentity()
         session.add_all([old_identity, new_identity])

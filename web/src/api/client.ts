@@ -44,10 +44,11 @@ export type WorkspaceChangeNeed = components['schemas']['WorkspaceChangeNeedOut'
 export type WorkspaceChangesReviewBody = components['schemas']['WorkspaceChangesReviewBody']
 export type WorkspaceChangesReviewReceipt = components['schemas']['WorkspaceChangesReviewReceiptOut']
 export type WorkspaceHistoricalNeed = components['schemas']['WorkspaceHistoricalNeedOut']
-export type WorkspaceFilters = { search?: string; tier?: 'Signal' | 'Prospect' | 'Lead'; disposition?: string; geography?: string; industry?: string; activity?: string; timing?: 'KNOWN' | 'UNKNOWN'; mw_min?: string; mw_max?: string; sort?: 'priority' | 'project' | 'mw' | 'start' | 'updated'; offset?: number; cohort_token?: string }
+export type WorkspaceFilters = { search?: string; tier?: 'Signal' | 'Prospect' | 'Lead'; disposition?: string; geography?: string; industry?: string; industry_group?: 'industrial'; activity?: string; timing?: 'KNOWN' | 'UNKNOWN'; mw_min?: string; mw_max?: string; sort?: 'priority' | 'project' | 'mw' | 'start' | 'updated'; offset?: number; cohort_token?: string }
 export type OpportunityBrowseFilters = {
   geography?: string
   industry?: string
+  industryGroup?: 'industrial'
   activity?: string
   timing?: 'KNOWN' | 'UNKNOWN' | ''
   mwStatus?: 'KNOWN' | 'UNKNOWN' | ''
@@ -123,7 +124,7 @@ async function api<T>(path: string, init?: RequestInit, includeSafeDetail = fals
 
 function addBrowseFilters(params: URLSearchParams, filters: OpportunityBrowseFilters = {}) {
   const entries: [string, string | undefined][] = [
-    ['geography', filters.geography], ['industry', filters.industry], ['activity', filters.activity],
+    ['geography', filters.geography], ['industry', filters.industry], ['industry_group', filters.industryGroup], ['activity', filters.activity],
     ['timing', filters.timing], ['mw_status', filters.mwStatus], ['mw_min', filters.mwMin],
     ['mw_max', filters.mwMax], ['priority_segment', filters.prioritySegment], ['status', filters.status],
   ]

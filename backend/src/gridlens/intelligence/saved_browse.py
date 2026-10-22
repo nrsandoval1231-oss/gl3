@@ -22,6 +22,7 @@ from sqlalchemy import delete, func, insert, literal, or_, select, text, union, 
 
 from gridlens.domain.commercial_triage import _priority, work_group_identity
 from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
+from gridlens.domain.lifecycle import INDUSTRIAL_ASSET_VALUES
 from gridlens.domain.ranking import RANKING_VERSION
 from gridlens.intelligence.opportunity_browse import (
     normalized,
@@ -666,6 +667,10 @@ def _filtered_cte(filters: dict) -> tuple[str, dict]:
         else:
             predicates.append(f"{column} = :{field}")
             params[field] = value
+    if filters.get("industry_group") == "industrial":
+        names = [f"industrial_asset_{index}" for index in range(len(INDUSTRIAL_ASSET_VALUES))]
+        predicates.append(f"industry IN ({', '.join(':' + name for name in names)})")
+        params.update(dict(zip(names, INDUSTRIAL_ASSET_VALUES, strict=True)))
     if filters.get("timing"):
         predicates.append("has_timing = :has_timing")
         params["has_timing"] = filters["timing"] == "KNOWN"

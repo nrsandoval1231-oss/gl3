@@ -2198,8 +2198,13 @@ def buying_chain_view(
 
 def _attach_identity_ids(session: Session, views: list[dict]) -> None:
     """Attach current claim IDs with one batched link read and no contact aggregation."""
+    from gridlens.intelligence.buying_chain_corrections import _ordered_correction_chain
+
     candidates = [
-        candidate for view in views for candidate in view["candidates"] if not candidate["stale"]
+        candidate
+        for view in views
+        for candidate in view["candidates"]
+        if not candidate["stale"] and not candidate.get("correction_stale")
     ]
     claim_ids = {candidate["id"] for candidate in candidates}
     if not claim_ids:
@@ -2224,6 +2229,10 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
     by_correction_claim: dict[UUID, list[BuyingChainCorrection]] = defaultdict(list)
     for correction in corrections:
         by_correction_claim[correction.claim_id].append(correction)
+    ordered_by_claim = {
+        claim_id: _ordered_correction_chain(str(by_claim[claim_id]["fingerprint"]), rows)
+        for claim_id, rows in by_correction_claim.items()
+    }
     seen: set[tuple[UUID, str]] = set()
     identity_supports = {
         "company": {"project_organization"},
@@ -2241,9 +2250,12 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
         if not supported_by or identity_value is None:
             continue
         candidate = by_claim[link.claim_id]
+        correction_chain = ordered_by_claim.get(link.claim_id, [])
+        if correction_chain is None:
+            continue
         invalidated = False
         explicit_rebind: tuple[str, str] | None = None
-        for correction in by_correction_claim.get(link.claim_id, []):
+        for correction in correction_chain:
             if correction.source_evidence_id is not None and not any(
                 str(item.get("id")) == str(correction.source_evidence_id)
                 and str(item.get("current_source_version_id")) == str(correction.source_evidence_id)

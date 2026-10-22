@@ -493,3 +493,63 @@ def test_signal_decision_counts_uses_canonical_cohort_when_saved_browse_is_disab
     assert response.status_code == 200, response.text
     counts = response.json()
     assert sum(counts.values()) == 52
+
+
+def test_workspace_industrial_group_uses_known_asset_types_and_binds_cohort(saved_db):
+    from test_saved_browse import seed
+
+    from gridlens.domain.lifecycle import AssetType
+    from gridlens.persistence.models import PowerNeed, Project
+
+    need_ids = seed(saved_db, count=6, histories=1)
+    asset_types = [
+        AssetType.GAS_PROCESSING_PLANT,
+        AssetType.COMPRESSOR_STATION,
+        AssetType.UPSTREAM_WELL,
+        AssetType.CRYOGENIC_PLANT,
+        AssetType.DATA_CENTER,
+        AssetType.UNKNOWN,
+    ]
+    with saved_db.begin() as session:
+        for need_id, asset_type in zip(need_ids, asset_types, strict=True):
+            need = session.get(PowerNeed, need_id)
+            session.get(Project, need.project_id).asset_type = asset_type.value
+    assert rebuild(saved_db)["status"] == "published"
+    filters = {
+        "search": "",
+        "tier": None,
+        "disposition": None,
+        "geography": None,
+        "industry": None,
+        "industry_group": "industrial",
+        "activity": None,
+        "timing": None,
+        "mw_status": None,
+        "mw_min": None,
+        "mw_max": None,
+        "sort": "priority",
+    }
+    with saved_db() as session:
+        industrial = page(session, filters, limit=25, offset=0, token=None)
+        assert industrial["total"] == 4
+        assert {item["asset_type"] for item in industrial["items"]} == {
+            asset.value for asset in asset_types[:4]
+        }
+        exact = page(
+            session,
+            {**filters, "industry_group": None, "industry": "gas_processing_plant"},
+            limit=25,
+            offset=0,
+            token=None,
+        )
+        assert exact["total"] == 1
+        assert exact["items"][0]["asset_type"] == "gas_processing_plant"
+        with pytest.raises(HTTPException) as changed:
+            page(
+                session,
+                {**filters, "industry_group": None, "industry": "gas_processing_plant"},
+                limit=25,
+                offset=25,
+                token=industrial["cohort_token"],
+            )
+        assert changed.value.status_code == 409

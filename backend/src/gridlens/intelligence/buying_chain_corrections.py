@@ -3,21 +3,31 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.intelligence.buying_chain import buying_chain_view
+from gridlens.intelligence.buying_chain_extraction import (
+    extract_organizations,
+    extract_people,
+    extract_retained_permit_organizations,
+    organization_key,
+)
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainCorrection,
     BuyingChainEvidence,
     BuyingChainIdentityLink,
     CompanyIdentity,
+    Evidence,
+    Observation,
     PersonIdentity,
+    Project,
 )
 
 EDITABLE = {
@@ -52,9 +62,203 @@ ALLOWED_VALUES = {
     "public_contact_kind": {"phone", "email", "profile", "website", "general"},
 }
 
+_SEMANTIC_FIELDS = {
+    "organization",
+    "person_name",
+    "category",
+    "organization_relationship",
+    "person_organization_relationship",
+    "person_project_relationship",
+}
+
 
 def _version(claim: BuyingChainClaim, latest: BuyingChainCorrection | None) -> str:
     return str(latest.id) if latest else claim.fingerprint
+
+
+def _ordered_correction_chain(
+    fingerprint: str, rows: Sequence[BuyingChainCorrection]
+) -> list[BuyingChainCorrection] | None:
+    """Order append-only decisions by their expected-version links, failing closed on forks."""
+    by_expected: dict[str, BuyingChainCorrection] = {}
+    for row in sorted(rows, key=lambda item: (item.created_at, item.id)):
+        if row.expected_version in by_expected:
+            return None
+        by_expected[row.expected_version] = row
+    ordered: list[BuyingChainCorrection] = []
+    seen: set[UUID] = set()
+    version = fingerprint
+    while version in by_expected:
+        row = by_expected[version]
+        if row.id in seen:
+            return None
+        ordered.append(row)
+        seen.add(row.id)
+        version = str(row.id)
+    return ordered if len(ordered) == len(rows) else None
+
+
+def _has_current_semantic_support(
+    *,
+    session: Session,
+    project_id: UUID,
+    candidate: dict[str, Any],
+    source: BuyingChainEvidence,
+    values: dict[str, Any],
+) -> bool:
+    """Require the existing conservative extraction to support each positive edit."""
+    requested = {key: value for key, value in values.items() if key in _SEMANTIC_FIELDS}
+    if not requested:
+        return True
+    project = session.get(Project, project_id)
+    if project is None:
+        return False
+    structured: tuple[dict[str, Any], ...] = ()
+    retained_source_id = None
+    from gridlens.ingestion.adapters.retained_document import SOURCES
+
+    if source.retained_evidence_id is not None:
+        retained = session.get(Evidence, source.retained_evidence_id)
+        observation = session.get(Observation, retained.observation_id) if retained else None
+        if retained is not None and observation is not None:
+            retained_source_id = observation.source_id
+            if retained_source_id in SOURCES:
+                structured = (
+                    {
+                        "f17_retained": {
+                            "source_id": retained_source_id,
+                            "evidence_content_hash": retained.content_hash,
+                            "project_name": project.name,
+                            "project_location": project.location,
+                            "retained_document": (retained.provenance or {}).get(
+                                "retained_document"
+                            ),
+                        }
+                    },
+                )
+    doc = PublicDocument(
+        url=source.url,
+        title=source.title,
+        text=source.excerpt,
+        published_at=source.published_at,
+        observed_at=source.observed_at,
+        extraction_location=source.extraction_location,
+        structured=structured,
+        retained_version=source.content_hash,
+    )
+    current_citations = {
+        (str(item.get("quote", "")), str(item.get("supports", "")))
+        for item in candidate.get("evidence", [])
+        if str(item.get("id")) == str(source.id)
+        and str(item.get("current_source_version_id")) == str(source.id)
+        and item.get("content_hash") == source.content_hash
+        and item.get("current_support")
+    }
+    if not current_citations:
+        return False
+
+    effective_organization = requested.get("organization", candidate.get("organization"))
+    effective_person_value = requested.get("person_name", candidate.get("person_name"))
+    effective_person = (
+        effective_person_value.strip()
+        if isinstance(effective_person_value, str) and effective_person_value.strip()
+        else None
+    )
+    subject_changed = {
+        field
+        for field in ("organization", "person_name")
+        if field in requested
+        and requested[field] != candidate.get(field)
+        and (field != "person_name" or effective_person is not None)
+    }
+    revalidate: set[str] = set()
+    if "organization" in subject_changed:
+        revalidate.update(
+            {
+                "category",
+                "organization_relationship",
+                "person_organization_relationship",
+                "person_project_relationship",
+            }
+        )
+    if "person_name" in subject_changed:
+        revalidate.update(
+            {"category", "person_project_relationship", "person_organization_relationship"}
+        )
+    for field in revalidate:
+        if field not in requested:
+            requested[field] = candidate.get(field)
+    if retained_source_id in SOURCES:
+        extracted_organizations = extract_retained_permit_organizations(doc, retained_source_id)
+    elif retained_source_id is not None:
+        extracted_organizations = [
+            *extract_retained_permit_organizations(doc, retained_source_id),
+            *extract_organizations(doc, project),
+        ]
+    elif project.source_id == "houston-weekly-permits" and "/ibi_apps/WFServlet.ibfs" in doc.url:
+        extracted_organizations = extract_retained_permit_organizations(doc, project.source_id)
+    else:
+        extracted_organizations = extract_organizations(doc, project)
+    organizations = [
+        item
+        for item in extracted_organizations
+        if organization_key(item.organization)
+        == organization_key(str(effective_organization or ""))
+    ]
+    people = extract_people(doc, organizations, project, project_scoped=True, today=date.today())
+    if effective_person:
+        people = [
+            item
+            for item in people
+            if str(item.person_name or "").casefold() == str(effective_person).casefold()
+        ]
+    else:
+        people = []
+
+    def has_cited_support(item: Any) -> bool:
+        return any(
+            (str(citation.get("quote", "")), str(citation.get("supports", ""))) in current_citations
+            for citation in item.citations
+        )
+
+    for field, requested_value in requested.items():
+        if field == "person_name" and effective_person is None:
+            # Clearing an optional person is a downgrade, not a new positive
+            # subject claim that must be re-extracted.
+            continue
+        if (
+            requested_value == candidate.get(field) and field not in revalidate
+        ) or requested_value == "UNKNOWN":
+            continue
+        if field == "organization":
+            if not any(has_cited_support(item) for item in organizations):
+                return False
+        elif field == "person_name":
+            if not any(has_cited_support(item) for item in people):
+                return False
+        elif field == "person_organization_relationship":
+            # Extraction reports CURRENT/UNKNOWN. The correction enum has a
+            # different contract, so do not silently equate CURRENT with DIRECT.
+            return False
+        if field == "category":
+            matches = people if effective_person else organizations
+            if not any(
+                item.category == requested_value and has_cited_support(item) for item in matches
+            ):
+                return False
+        elif field == "organization_relationship":
+            if not any(
+                item.organization_relationship == requested_value and has_cited_support(item)
+                for item in organizations
+            ):
+                return False
+        elif field == "person_project_relationship":
+            if not any(
+                item.person_project_relationship == requested_value and has_cited_support(item)
+                for item in people
+            ):
+                return False
+    return True
 
 
 def correct_buying_chain_claim(
@@ -108,20 +312,30 @@ def correct_buying_chain_claim(
         ):
             raise ValueError("Idempotency key was already used for a different correction")
         return prior
-    current = buying_chain_view(session, project_id, history=True)
-    candidate = next(
+    current = buying_chain_view(session, project_id, history=False, include_identity_ids=False)
+    current_candidate = next(
         (item for item in current["candidates"] if str(item["id"]) == str(claim_id)), None
     )
+    candidate = current_candidate
+    if candidate is None:
+        historical = buying_chain_view(
+            session, project_id, history=True, include_identity_ids=False
+        )
+        candidate = next(
+            (item for item in historical["candidates"] if str(item["id"]) == str(claim_id)),
+            None,
+        )
     if candidate is not None and candidate.get("correction_stale"):
         raise RuntimeError(
             "Correction history is stale; restore current cited evidence before adding decisions"
         )
-    latest = session.scalar(
-        select(BuyingChainCorrection)
-        .where(BuyingChainCorrection.claim_id == claim_id)
-        .order_by(BuyingChainCorrection.created_at.desc(), BuyingChainCorrection.id.desc())
-        .limit(1)
-    )
+    correction_rows = session.scalars(
+        select(BuyingChainCorrection).where(BuyingChainCorrection.claim_id == claim_id)
+    ).all()
+    ordered_rows = _ordered_correction_chain(claim.fingerprint, correction_rows)
+    if ordered_rows is None:
+        raise RuntimeError("Correction history dependencies are invalid; restore a valid chain")
+    latest = ordered_rows[-1] if ordered_rows else None
     if _version(claim, latest) != expected_version:
         raise RuntimeError("Buying-chain correction version is stale")
     if action not in {"correct", "retract"}:
@@ -159,6 +373,9 @@ def correct_buying_chain_claim(
         source = session.get(BuyingChainEvidence, source_evidence_id)
         if source is None or source.project_id != project_id or source_hash != source.content_hash:
             raise ValueError("Source evidence ID and hash must match this project")
+        if current_candidate is None:
+            raise ValueError("Correction source must be a current cited version for this claim")
+        candidate = current_candidate
         evidence = next(
             (
                 item
@@ -168,14 +385,22 @@ def correct_buying_chain_claim(
             None,
         )
         if (
-            candidate is None
-            or candidate["stale"]
-            or not evidence
+            not evidence
             or not evidence.get("current_support")
             or evidence.get("content_hash") != source_hash
             or evidence.get("current_source_version_id") != source.id
         ):
             raise ValueError("Correction source must be a current cited version for this claim")
+        if not _has_current_semantic_support(
+            session=session,
+            project_id=project_id,
+            candidate=candidate,
+            source=source,
+            values=values,
+        ):
+            raise ValueError(
+                "Positive semantic correction requires matching current cited subject evidence"
+            )
         for key in ("organization", "person_name", "title", "public_contact_value"):
             value = values.get(key)
             if value and str(value).casefold() not in source.excerpt.casefold():
@@ -346,7 +571,16 @@ def overlay_corrections(
     for row in rows:
         by_claim.setdefault(row.claim_id, []).append(row)
     for candidate in candidates:
-        decisions = by_claim.get(candidate["id"], [])
+        unordered = by_claim.get(candidate["id"], [])
+        ordered = _ordered_correction_chain(str(candidate.get("fingerprint", "")), unordered)
+        if ordered is None:
+            candidate["correction_stale"] = True
+            if history:
+                candidate["correction_history"] = [correction_view(row) for row in unordered]
+            if unordered:
+                candidate["correction_version"] = str(unordered[-1].id)
+            continue
+        decisions = ordered
         if history:
             candidate["correction_history"] = [correction_view(row) for row in decisions]
         if not decisions:
