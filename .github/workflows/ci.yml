@@ -127,7 +127,13 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci --prefix web
       - name: Install Chromium and system dependencies
-        run: npx playwright install --with-deps chromium
+        run: |
+          set -euo pipefail
+          mirror_list=/etc/apt/apt-mirrors.txt
+          test "$(grep -oE 'http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)' "$mirror_list" | wc -l)" -eq 1
+          sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)#https://archive.ubuntu.com/ubuntu\1#' "$mirror_list"
+          grep -Eq 'https://archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)' "$mirror_list"
+          npx playwright install --with-deps chromium
         working-directory: web
       # Reuse only this runner's migrated, disposable application database.
       # No ingestion worker or live-source acceptance tests run in PR CI.
