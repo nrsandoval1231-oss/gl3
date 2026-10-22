@@ -1,6 +1,6 @@
 # Recovery handoff, 2026-10-20
 
-Where Grid Lens recovery stands at end of day, and what to pick up next.
+**Historical snapshot only.** These are October 20 observations, not current production state or execution instructions. Later PRs and [operations authority](README.md) supersede this frontier. The October 22 documentation review authorizes no deployment, database rename, provider activation, source canary or backup transfer.
 Statuses: VERIFIED / FAILED / BLOCKED / UNVERIFIED. Full audit trail: #93.
 
 ## Production (read-only checks, about 14:00–17:00 UTC)
@@ -40,24 +40,14 @@ Statuses: VERIFIED / FAILED / BLOCKED / UNVERIFIED. Full audit trail: #93.
 - **The buying chain is nearly empty.** 31 of 1,620 projects (2%) have any buying-chain claim, and no owner, developer or EPC appears anywhere. Research runs only on a manual API click (`POST` buying-chain research). Permit contractor and operator fields already stored for Chicago, Boston, Austin, Dallas, El Paso and RRC are not extracted until someone clicks.
 - **Same organization listed twice.** Many buying-chain claims appear twice per project (same organization, High and Low strength).
 
-## Next actions (in order)
+## Historical proposals and supersession
 
-1. **Deploy main plus #96 (owner go).**
-   - Use the existing backup.
-   - Swap the image tag in `/etc/gridlens/compose.app.yaml` (save a copy as `compose.app.pre-<tag>-<utc>.yaml` first).
-   - Optionally do the #97 step 1B rename to `gridlens_prod` in the same window.
-   - Live check: rerun the source freshness query. Expect Boston, Chicago, Georgia, CEQAnet and TCEQ to show a recent `last_success`.
-2. **Automatic permit-only buying-chain extraction** for permit-derived Signals.
-   - Retained data only: no fetch, no paid AI.
-   - Rate-limited backfill.
-   - Merge the duplicate High/Low claims.
-3. **Off-host backup decision:** DigitalOcean droplet backups, or Spaces.
-4. **TDLR:** bounded live canary, then enable it if it retrieves real projects.
-5. **Commissioning power activity and power-gap math.** These become meaningful once news and buying-chain data flow.
+The original follow-up proposed deploying main plus PR96, automatic retained permit extraction, an off-host backup decision, a TDLR canary, and further commissioning/gap work. These are historical proposals, not current instructions. PR96's code and tests were incorporated into main in `4cc6668`, followed by additional admission and geography safeguards in PR99/100. Review current branches and actual receipts; do not reapply the old module or assume any named source has recovered.
 
-## Host notes
+The original optional live-database rename and direct image-swap instructions are withdrawn. No current command or secret-injection context is established by this snapshot. The initial PR97 proposal is superseded by its later observation and guarded restore requirements; its fixed-name restore target must not be dropped or reused.
 
-- Deploy layout: `/etc/gridlens/compose.app.yaml` plus `/etc/gridlens/runtime.env` and prebuilt image tags. Release trees live in `/opt/gridlens/releases/<tag>`. The repo's `deploy/digitalocean/README.md` (git clone + `.env.prod` + timers) does **not** match production.
-- Scripts are not in the image. To run `backend/scripts/*`, pipe the release copy into `docker exec -i -w /app/backend gridlens-worker-1 uv run python - …`.
-- Read-only database queries: `docker exec -e PGOPTIONS='-c default_transaction_read_only=on' gridlens-db-1 psql -U gridlens -d gridlens_restore_20261014 …`. Source health uses the key `last_success`, not `last_success_at`.
-- About 45 scratch databases sit beside production. Do not clean them up without an explicit list and approval.
+## Historical host layout
+
+The observed host used `/etc/gridlens/compose.app.yaml`, `/etc/gridlens/runtime.env` and prebuilt release trees under `/opt/gridlens/releases/`. This description neither selects a release nor authorizes execution. Do not print secret values, pipe unreviewed scripts into containers, or clean up adjacent databases from this handoff. Any future operation must bind fresh target, approved procedure, recovery evidence and explicit scope.
+
+The original complete handoff remains in [commit f944be9](https://github.com/nrsandoval1231-oss/gl3/blob/f944be98f980c17558b6a7828a3947257ec4f23a/docs/operations/2026-10-20-recovery-handoff.md). Its historical recommendations do not override the current owner's instructions.
