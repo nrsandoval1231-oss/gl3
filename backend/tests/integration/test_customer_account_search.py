@@ -4,11 +4,13 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.customer_accounts import account_browse_page, account_queue
+from gridlens.intelligence.pursuit_workspace import query_plan
 from gridlens.intelligence.saved_browse import POLICY_VERSION
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
@@ -167,6 +169,8 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
         }
         browse = account_browse_page(session, filters, limit=25, offset=0, token=None)
         assert browse["total"] == 1
+        _, need_cohort, _, _, _ = query_plan(session, filters)
+        assert browse["cohort_token"] != need_cohort
         assert browse["items"][0]["project_count"] == 2
         assert browse["items"][0]["need_count"] == 3
         assert browse["items"][0]["matching_project_count"] == 2
@@ -184,3 +188,18 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
         )
         assert need_search["total"] == 1
         assert need_search["items"][0]["matching_need_count"] == 3
+        assert browse["cohort_token"] != need_search["cohort_token"]
+        with pytest.raises(HTTPException) as error:
+            account_browse_page(
+                session,
+                {**filters, "search": "permit"},
+                limit=25,
+                offset=0,
+                token=browse["cohort_token"],
+            )
+        assert error.value.status_code == 409
+        stable_page = account_browse_page(
+            session, filters, limit=25, offset=0, token=browse["cohort_token"]
+        )
+        assert stable_page["cohort_token"] == browse["cohort_token"]
+        assert stable_page["items"][0]["company_identity_id"] == identity_id

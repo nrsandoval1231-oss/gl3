@@ -131,9 +131,15 @@ def account_browse_page(
     """SQL-group eligible saved needs by generation-bound customer membership."""
     from gridlens.intelligence.pursuit_workspace import query_plan
 
-    generation, cohort, base, filtered_without_search, base_params = query_plan(
+    generation, cohort, _cohort_base, _cohort_filtered, _cohort_params = query_plan(
+        session, filters, alias="r"
+    )
+    cohort = f"ca1_{cohort}"
+    sql_generation, _sql_cohort, base, filtered_without_search, base_params = query_plan(
         session, {**filters, "search": None}, alias="r"
     )
+    if sql_generation.id != generation.id:
+        raise HTTPException(409, "Customer account cohort changed; restart pagination")
     search = (filters.get("search") or "").strip().casefold()
     need_or_account_search = (
         "(:search='' OR strpos(r.search_text, :search)>0 OR EXISTS ("

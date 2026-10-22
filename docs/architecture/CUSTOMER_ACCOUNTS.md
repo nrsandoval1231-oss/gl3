@@ -22,7 +22,7 @@ Identity, membership, claim, correction, and evidence changes invalidate the sam
 
 ## API and UI compatibility
 
-`GET /api/opportunities/workspace?group_by=account` provides the company queue using the existing compact workspace contract plus account identity and counts. The explicit need-level API remains available. `count_unit` identifies the result unit; cohort tokens fence pagination against changed filters, policy, or published state.
+`GET /api/opportunities/workspace?group_by=account` provides the company queue using the existing compact workspace contract plus account identity and counts. The explicit need-level API remains available. `count_unit` identifies the result unit; account-specific cohort tokens fence pagination against changed filters, search, grouping unit, policy, or published state.
 
 Authenticated `/api/customer-accounts`, `/api/customer-accounts/{id}/projects`, and `/api/customer-accounts/unresolved` provide bounded secondary projections. Projects and their individual needs page separately. Direct account/need links, browser history, search/filter/sort, source inspection, contacts, facts, notes, research, qualification, and operations retain their existing workflows.
 
