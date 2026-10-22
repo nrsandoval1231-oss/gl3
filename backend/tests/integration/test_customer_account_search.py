@@ -98,7 +98,7 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
                     project_id=project.id,
                     organization_name=("Acme Owner Holdings" if index == 0 else "AOH"),
                     role="owner_developer",
-                    supporting_evidence_count=2,
+                    supporting_evidence_count=2 if index == 0 else 4,
                     last_evidence_update=now,
                 )
             )
@@ -182,6 +182,14 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
         assert alias_queue["total"] == 1
         assert alias_queue["items"][0]["project_count"] == 2
         assert alias_queue["items"][0]["need_count"] == 3
+        assert alias_queue["items"][0]["aliases"] == ["AOH", "Acme Owner Holdings"]
+        assert alias_queue["items"][0]["supporting_evidence_count"] == 4
+        assert alias_queue["items"][0]["last_evidence_update"] == now
+        assert alias_queue["items"][0]["qualification_tiers"] == ["Lead"]
+        assert alias_queue["items"][0]["highest_priority_need"]["id"] == str(need_ids[0])
+        assert account_queue(session, search=None, limit=25, offset=0) == alias_queue
+        assert account_queue(session, search="missing", limit=25, offset=0)["total"] == 0
+        assert account_queue(session, search=None, limit=25, offset=1)["items"] == []
 
         need_search = account_browse_page(
             session, {**filters, "search": "permit"}, limit=25, offset=0, token=None

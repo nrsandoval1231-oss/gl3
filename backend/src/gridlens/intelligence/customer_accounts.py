@@ -47,31 +47,27 @@ def account_queue(
     term = (search or "").strip().casefold()
     params = {"generation": generation.id, "term": term, "limit": limit, "offset": offset}
     base = """
-      WITH matched_accounts AS (
+      WITH matched_accounts AS MATERIALIZED (
         SELECT DISTINCT company_identity_id
         FROM browse_customer_memberships
         WHERE generation_id=:generation AND
           (:term='' OR strpos(lower(organization_name), :term)>0)
       ), matching AS (
         SELECT m.company_identity_id, m.organization_name, r.project_id, r.need_id,
-               r.rank_score, r.updated_at, r.compact,
+               r.rank_score, r.updated_at, r.compact, m.supporting_evidence_count,
+               m.last_evidence_update,
                row_number() OVER (PARTITION BY m.company_identity_id
                  ORDER BY r.rank_score DESC, r.updated_at DESC, r.need_id) best_rank
         FROM browse_customer_memberships m
         JOIN browse_rows r ON r.generation_id=m.generation_id AND r.project_id=m.project_id
-        JOIN matched_accounts ma USING(company_identity_id)
-        WHERE m.generation_id=:generation
-      ), support AS (
-        SELECT m.company_identity_id, max(m.supporting_evidence_count) evidence_count,
-               max(m.last_evidence_update) last_evidence_update
-        FROM browse_customer_memberships m
-        JOIN (SELECT DISTINCT project_id FROM browse_rows WHERE generation_id=:generation) r
-          ON r.project_id=m.project_id
-        WHERE m.generation_id=:generation GROUP BY m.company_identity_id
+        WHERE m.generation_id=:generation AND
+          (:term='' OR m.company_identity_id IN (SELECT company_identity_id FROM matched_accounts))
       ), accounts AS (
         SELECT company_identity_id, min(organization_name) name,
                array_agg(DISTINCT organization_name ORDER BY organization_name) aliases,
                count(DISTINCT project_id) project_count, count(*) need_count,
+               max(supporting_evidence_count) evidence_count,
+               max(last_evidence_update) last_evidence_update,
                array_agg(DISTINCT compact->>'tier')
                  FILTER (WHERE compact->>'tier' IS NOT NULL) tiers
         FROM matching GROUP BY company_identity_id
@@ -84,9 +80,8 @@ def account_queue(
                 base
                 + """
           SELECT a.company_identity_id, a.name, a.aliases, a.project_count, a.need_count,
-                 a.tiers, s.evidence_count, s.last_evidence_update, b.compact
+                 a.tiers, a.evidence_count, a.last_evidence_update, b.compact
           FROM accounts a JOIN matching b USING(company_identity_id)
-          JOIN support s USING(company_identity_id)
           WHERE b.best_rank=1
           ORDER BY lower(a.name), a.company_identity_id LIMIT :limit OFFSET :offset
         """

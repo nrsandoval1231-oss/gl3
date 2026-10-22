@@ -18,6 +18,8 @@ Account browsing filters eligible needs on the server, groups by company UUID, c
 
 Company search includes supported published account names and aliases as well as existing saved need text. A name/alias match selects the identity before account totals are aggregated, so a name present on only one member does not shrink the account's whole-project counts. Legacy need-level search keeps its existing semantics.
 
+The secondary account queue materializes its matched identity set and folds support totals into the same account aggregation. Fresh-generation query plans must compute those sets once even before planner statistics recognize the newly published generation UUID; warm-only timing can conceal repeated scans.
+
 Identity, membership, claim, correction, and evidence changes invalidate the same saved-browse revision. Incremental refresh copies unaffected account summaries with the need generation. A stale or failed refresh remains unavailable until maintenance publishes a coherent generation; it must not mix account and need revisions.
 
 ## API and UI compatibility
