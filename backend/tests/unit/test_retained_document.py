@@ -13,7 +13,15 @@ from gridlens.domain.signal_admission import (
     admitted_from_source,
 )
 from gridlens.ingestion.adapters import retained_document
-from gridlens.ingestion.adapters.retained_document import SOURCES, extract
+from gridlens.ingestion.adapters.retained_document import (
+    SOURCES,
+    STACK_CONFLICT_ACTION,
+    STACK_CONFLICT_REASON,
+    extract,
+    interpret_retained_document,
+    retained_organization_claims,
+    stack_service_conflict,
+)
 
 IMPORT_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "import_retained_document.py"
 IMPORT_SPEC = importlib.util.spec_from_file_location("retained_document_unit_cli", IMPORT_SCRIPT)
@@ -99,6 +107,44 @@ def test_retained_pdf_size_is_checked_before_read(tmp_path, monkeypatch):
 def test_unreviewed_source_id_fails_closed(tmp_path):
     with pytest.raises(ValueError, match="Unreviewed"):
         extract("f17-unreviewed", tmp_path)
+
+
+def test_stack_conflict_proof_only_carries_attributed_context_for_current_exact_sources():
+    item = {
+        "name": "SVY02A / Memorex Junction data center",
+        "location": "1200 Memorex Drive, Santa Clara, CA",
+        "evidence": [
+            {
+                "id": source_id,
+                "source_id": source_id,
+                "url": SOURCES[source_id]["url"],
+                "content_hash": SOURCES[source_id]["sha256"],
+                "abstract": passage,
+                "assessment_current": True,
+            }
+            for source_id, passage in (
+                (
+                    "f17-stack-city-claim",
+                    "At 1200 Memorex Drive in Santa Clara, STACK reports an 18 MVA "
+                    "cap until 2028 rather than 28 MVA and 31 MVA.",
+                ),
+                (
+                    "f17-stack-cec-filing",
+                    "At 1200 Memorex Drive in Santa Clara, the draft Table E1 "
+                    "capacity schedule (MVA) lists 28 and 31.",
+                ),
+            )
+        ],
+    }
+    proof = stack_service_conflict(item)
+    assert proof.status == "verified"
+    assert proof.reason == STACK_CONFLICT_REASON
+    assert proof.next_action == STACK_CONFLICT_ACTION
+
+    item["evidence"][1]["content_hash"] = "0" * 64
+    stale = stack_service_conflict(item)
+    assert stale.status == "handled_without_proof"
+    assert stale.reason is None and stale.next_action is None
 
 
 @pytest.mark.parametrize(
@@ -237,3 +283,91 @@ def test_cec_admission_normalizes_only_pdf_whitespace_wrapping():
         identified_project=True,
     )
     assert result.admitted
+
+
+@pytest.mark.parametrize(
+    ("source_id", "text", "expected_role", "expected_quotes"),
+    [
+        (
+            "f17-stack-city-claim",
+            "SVY02A Memorex Junction at 1200 Memorex Drive, Santa Clara. "
+            "1220 Santa Clara Propco, LLC is the current owner of SVY02A "
+            "at 1200 Memorex Drive, Santa Clara.",
+            "owner",
+            1,
+        ),
+        (
+            "f17-stack-cec-filing",
+            "Memorex Junction at 1200 Memorex Drive, Santa Clara. "
+            '1220 Santa Clara Propco, LLC ("Customer"). Draft rev 0 - 9/30/2021.',
+            "unknown",
+            1,
+        ),
+        (
+            "f17-crusoe-impact",
+            "The Abilene Stargate campus exemplifies Crusoe's energy-first, vertically "
+            "integrated model near Abilene, Texas. In the Abilene Stargate campus, we use "
+            "natural gas turbines to provide temporary bridge power.",
+            "operator",
+            2,
+        ),
+    ],
+)
+def test_source_native_f17_organization_claims_keep_roles_quotes_and_hash_gate(
+    source_id, text, expected_role, expected_quotes
+):
+    policy = SOURCES[source_id]
+    project_name = policy["project_cue"]
+    marker = {
+        "source_id": source_id,
+        "evidence_content_hash": "accepted-evidence-hash",
+        "project_name": project_name,
+        "project_location": policy["location"],
+        "retained_document": {
+            "path": policy["path"],
+            "sha256": policy["sha256"],
+            "source_site": policy["location"],
+            "project_name": project_name,
+            "reviewed_spans": ["PDF pp. 1-1"],
+        },
+    }
+
+    def claims() -> tuple:
+        return retained_organization_claims(
+            source_id,
+            url=policy["url"],
+            text=text,
+            retained_version="accepted-evidence-hash",
+            extraction_location="PDF pp. 1-1",
+            structured=({"f17_retained": marker},),
+        )
+
+    result = claims()
+    assert result is not None and len(result) == 1
+    assert result[0].role == expected_role
+    assert len(result[0].quotes) == expected_quotes
+    assert all(quote in text for quote, _supports in result[0].quotes)
+    marker["retained_document"]["sha256"] = "wrong-original-body-hash"
+    assert claims() == ()
+
+
+def test_source_native_f17_interpretation_preserves_rationale_and_site_gate():
+    source_id = "f17-stack-city-claim"
+    policy = SOURCES[source_id]
+    record = {
+        "title": "SVY02A retained claim",
+        "abstract": "At 1200 Memorex Drive",
+        "retained_document": {
+            "sha256": policy["sha256"],
+            "source_site": policy["location"],
+            "project_name": "SVY02A",
+        },
+    }
+    result = interpret_retained_document(source_id, record)
+    assert result is not None
+    assert result.name == "SVY02A"
+    assert result.activity_key == "utility-service"
+    assert result.location == policy["location"]
+    assert result.rationale.startswith("STACK's June 24, 2024 claim")
+    record["retained_document"]["sha256"] = "wrong-original-body-hash"
+    assert interpret_retained_document(source_id, record) is None

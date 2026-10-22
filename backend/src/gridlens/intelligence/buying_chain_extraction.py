@@ -22,7 +22,9 @@ from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.ingestion.adapters.retained_permits import (
     GEORGIA,
     chicago_contacts,
+    fort_worth_owner,
     georgia_identity,
+    georgia_named_owner,
     georgia_proponent,
 )
 from gridlens.ingestion.adapters.retained_permits import (
@@ -246,9 +248,32 @@ CHICAGO_CATEGORIES = {
 
 
 def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -> list[Extracted]:
-    f17 = _f17_retained_context(doc, source_id)
+    from gridlens.ingestion.adapters.retained_document import retained_organization_claims
+
+    f17 = retained_organization_claims(
+        source_id,
+        url=doc.url,
+        text=doc.text,
+        retained_version=doc.retained_version,
+        extraction_location=doc.extraction_location,
+        structured=doc.structured,
+    )
     if f17 is not None:
-        return _extract_f17_organizations(doc, source_id, f17)
+        return [
+            Extracted(
+                claim.organization,
+                {
+                    "owner": Category.OWNER.value,
+                    "unknown": Category.UNKNOWN.value,
+                    "operator": Category.OPERATOR.value,
+                }[claim.role],
+                organization_relationship=claim.relationship,
+                evidence_strength=claim.evidence_strength,
+                reason=claim.reason,
+                citations=[_citation(doc, quote, supports) for quote, supports in claim.quotes],
+            )
+            for claim in f17
+        ]
     if source_id == "ma-ccc-cultivation-applications":
         applicant = permit_fields(source_id, doc.text).get("applicant_org")
         if not applicant or _RENTAL.search(applicant[0]):
@@ -452,18 +477,12 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
             )
         ]
     if source_id in {"fort-worth-development-permits", "fort-worth-permits"}:
-        owner = permit_fields(source_id, doc.text).get("Owner of record")
-        if not owner or owner[0].strip().casefold() in {"not stated", "unknown", "none"}:
-            return []
-        if not re.search(
-            r"\b(?:LLC|L\.L\.C\.?|Inc\.?|Corp\.?|Corporation|Company|LP|L\.P\.)\b",
-            owner[0],
-            re.I,
-        ):
+        owner = fort_worth_owner(source_id, doc.text)
+        if not owner:
             return []
         return [
             Extracted(
-                owner[0].strip(),
+                owner[0],
                 Category.OWNER.value,
                 reason=(
                     "Organization named in the Fort Worth permit's explicit Owner of record field; "
@@ -490,25 +509,21 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
             if proponent
             else []
         )
-        owner_match = re.search(
-            r"(?P<relationship>TA Digital Realty \(TADG\)\s*[–-]\s*ATL02,\s*which is owned by\s+"
-            r"(?P<owner>[A-Z][A-Za-z0-9&'’., -]{1,100}?(?:LLC|L\.L\.C\.?|Inc\.?|Corporation)))\b",
-            doc.text,
-        )
+        owner = georgia_named_owner(source_id, doc.text)
         owned = (
             [
                 Extracted(
-                    owner_match.group("owner").strip(),
+                    owner[0],
                     Category.OWNER.value,
                     reason=(
                         "Organization explicitly identified as owner of the named Georgia permit "
                         "facility; current operation, responsibility for temporary power and "
                         "buying authority are UNKNOWN."
                     ),
-                    citations=[_citation(doc, owner_match.group(0), "permit_listed_owner")],
+                    citations=[_citation(doc, owner[1], "permit_listed_owner")],
                 )
             ]
-            if owner_match
+            if owner
             else []
         )
         return (
@@ -543,140 +558,6 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
         for name, kind, name_quote, type_quote in chicago_contacts(doc.text)
         if kind.upper() in CHICAGO_CATEGORIES and not _RENTAL.search(name)
     ]
-
-
-def _f17_retained_context(doc: PublicDocument, source_id: str) -> dict | None:
-    """Accept F17 role extraction only from a current, exact imported source version."""
-    from gridlens.ingestion.adapters.retained_document import SOURCES
-
-    policy = SOURCES.get(source_id)
-    if policy is None:
-        return None
-    markers = [row.get("f17_retained") for row in doc.structured if isinstance(row, dict)]
-    if len(markers) != 1 or not isinstance(markers[0], dict):
-        return {}
-    context = markers[0]
-    retained = context.get("retained_document")
-    if not isinstance(retained, dict):
-        return {}
-    project_name = context.get("project_name")
-    retained_project_name = retained.get("project_name")
-    if (
-        context.get("source_id") != source_id
-        or context.get("evidence_content_hash") != doc.retained_version
-        or not doc.retained_version
-        or doc.url != policy["url"]
-        or retained.get("path") != policy["path"]
-        or retained.get("sha256") != policy["sha256"]
-        or retained.get("source_site") != policy["location"]
-        or not isinstance(retained_project_name, str)
-        or retained_project_name not in doc.text
-        or context.get("project_location") != policy["location"]
-        or not isinstance(project_name, str)
-        or project_name not in doc.text
-        or not isinstance(retained.get("reviewed_spans"), list)
-        or not retained.get("reviewed_spans")
-        or not all(span in doc.extraction_location for span in retained["reviewed_spans"])
-    ):
-        return {}
-    return context
-
-
-def _extract_f17_organizations(
-    doc: PublicDocument, source_id: str, context: dict
-) -> list[Extracted]:
-    """Parse only literal, site-scoped company relations from the three F17 versions."""
-    if not context:
-        return []
-    from gridlens.ingestion.adapters.retained_document import SOURCES
-
-    policy = SOURCES[source_id]
-    text = doc.text
-    normalized_text = re.sub(r"\s+", " ", text).casefold()
-    cues = [policy["project_cue"], policy["site_cue"], *policy["location_cues"]]
-    if not all(cue.casefold() in normalized_text for cue in cues):
-        return []
-    city_claim = "f17-stack-city-claim"
-    cec_filing = "f17-stack-cec-filing"
-    crusoe_report = "f17-crusoe-impact"
-    if source_id == city_claim:
-        pattern = (
-            r"1220\s+Santa Clara\s+Propco,\s*LLC.{0,180}?current\s+owner\s+of\s+"
-            r"SVY02A.{0,180}?1200\s+Memorex\s+Drive.{0,80}?Santa\s+Clara"
-        )
-        match = re.search(pattern, text, re.I | re.S)
-        if not match:
-            return []
-        quote = match.group(0)
-        return [
-            Extracted(
-                "1220 Santa Clara Propco, LLC",
-                Category.OWNER.value,
-                organization_relationship="DIRECT",
-                reason=(
-                    "STACK's June 24, 2024 city-filed claim explicitly identifies 1220 Santa Clara "
-                    "Propco, LLC as current owner of the SVY02A facility at 1200 Memorex Drive. "
-                    "This is an attributed claimant statement, not a legal finding; current "
-                    "tenant, "
-                    "temporary-generation buyer and procurement authority are UNKNOWN."
-                ),
-                citations=[_citation(doc, quote, "project_organization")],
-            )
-        ]
-    if source_id == cec_filing:
-        pattern = r"1220\s+Santa Clara\s+Propco,\s*LLC.{0,180}?\(\s*\"Customer\"\s*\)"
-        match = re.search(pattern, text, re.I | re.S)
-        if not match or not re.search(r"Draft\s+rev\s+0\s*[-–]\s*9/30/2021", text, re.I):
-            return []
-        quote = match.group(0)
-        return [
-            Extracted(
-                "1220 Santa Clara Propco, LLC",
-                Category.UNKNOWN.value,
-                organization_relationship="UNKNOWN",
-                evidence_strength="Low",
-                reason=(
-                    "STACK's February 2025 CEC filing attaches a September 30, 2021 draft "
-                    "agreement that labels 1220 Santa Clara PropCo, LLC as Customer. The draft "
-                    "designation does not establish a current tenant, current owner, temporary-"
-                    "generation buyer or procurement authority."
-                ),
-                citations=[_citation(doc, quote, "project_organization")],
-            )
-        ]
-    if source_id == crusoe_report:
-        project_quote = re.search(
-            r"The\s+Abilene\s+Stargate\s+campus\s+exemplifies\s+Crusoe's\s+"
-            r"energy-first,\s+vertically\s+integrated\s+model",
-            text,
-            re.I,
-        )
-        operator_quote = re.search(
-            r"In\s+the\s+Abilene\s+Stargate\s+campus,\s+we\s+use\s+natural\s+gas\s+"
-            r"turbines\s+to\s+provide\s+temporary\s+bridge\s+power",
-            text,
-            re.I,
-        )
-        if not project_quote or not operator_quote:
-            return []
-        return [
-            Extracted(
-                "Crusoe",
-                Category.OPERATOR.value,
-                organization_relationship="DIRECT",
-                reason=(
-                    "Crusoe's 2025 Impact Report identifies the Abilene Stargate campus as part "
-                    "of its vertically integrated model and says it uses natural-gas turbines "
-                    "there as temporary bridge power while grid upgrades catch up. This is a "
-                    "reported in-use operator configuration, not an open purchase or buyer claim."
-                ),
-                citations=[
-                    _citation(doc, project_quote.group(0), "project_organization"),
-                    _citation(doc, operator_quote.group(0), "organization_category"),
-                ],
-            )
-        ]
-    return []
 
 
 def extract_organizations(doc: PublicDocument, project: Project) -> list[Extracted]:
