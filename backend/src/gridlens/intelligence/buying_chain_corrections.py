@@ -65,6 +65,7 @@ ALLOWED_VALUES = {
 _SEMANTIC_FIELDS = {
     "organization",
     "person_name",
+    "title",
     "category",
     "organization_relationship",
     "person_organization_relationship",
@@ -179,11 +180,17 @@ def _has_current_semantic_support(
                 "organization_relationship",
                 "person_organization_relationship",
                 "person_project_relationship",
+                "title",
             }
         )
     if "person_name" in subject_changed:
         revalidate.update(
-            {"category", "person_project_relationship", "person_organization_relationship"}
+            {
+                "category",
+                "person_project_relationship",
+                "person_organization_relationship",
+                "title",
+            }
         )
     for field in revalidate:
         if field not in requested:
@@ -215,9 +222,11 @@ def _has_current_semantic_support(
     else:
         people = []
 
-    def has_cited_support(item: Any) -> bool:
+    def has_cited_support(item: Any, support: str | None = None) -> bool:
         return any(
-            (str(citation.get("quote", "")), str(citation.get("supports", ""))) in current_citations
+            (support is None or citation.get("supports") == support)
+            and (str(citation.get("quote", "")), str(citation.get("supports", "")))
+            in current_citations
             for citation in item.citations
         )
 
@@ -225,6 +234,13 @@ def _has_current_semantic_support(
         if field == "person_name" and effective_person is None:
             # Clearing an optional person is a downgrade, not a new positive
             # subject claim that must be re-extracted.
+            continue
+        if field == "title" and (
+            requested_value is None
+            or (isinstance(requested_value, str) and not requested_value.strip())
+        ):
+            # Clearing an optional title is a downgrade, not a new positive
+            # title claim that must be re-extracted.
             continue
         if (
             requested_value == candidate.get(field) and field not in revalidate
@@ -235,6 +251,14 @@ def _has_current_semantic_support(
                 return False
         elif field == "person_name":
             if not any(has_cited_support(item) for item in people):
+                return False
+        elif field == "title":
+            title = str(requested_value).strip().casefold()
+            if not any(
+                str(item.title or "").strip().casefold() == title
+                and has_cited_support(item, "organization_person_role")
+                for item in people
+            ):
                 return False
         elif field == "person_organization_relationship":
             # Extraction reports CURRENT/UNKNOWN. The correction enum has a

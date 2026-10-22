@@ -11,7 +11,11 @@ from gridlens.domain.commercial_triage import (
     surfaced_on,
 )
 from gridlens.domain.pursuits import CommercialTriageHistoryVersion
-from gridlens.ingestion.adapters.retained_document import SOURCES
+from gridlens.ingestion.adapters.retained_document import (
+    SOURCES,
+    STACK_CONFLICT_ACTION,
+    STACK_CONFLICT_REASON,
+)
 
 
 def _item(**overrides):
@@ -101,6 +105,8 @@ def test_f17_stack_watch_surfaces_attributed_conflict_and_verification_action():
     card = build_card(record, None, date(2026, 10, 21))
 
     assert card["disposition"] == "WATCH"
+    assert card["reason"] == STACK_CONFLICT_REASON
+    assert card["next_action"] == STACK_CONFLICT_ACTION
     assert "STACK's June 24, 2024 city claim reports" in card["reason"]
     assert "28 MVA (2026) / 31 MVA (2027)" in card["reason"]
     assert "September 2021 draft Substation Agreement" in card["reason"]
@@ -140,8 +146,8 @@ def test_f17_stack_narrative_falls_back_without_exact_current_sources(mutation):
 
     card = build_card(record, None, date(2026, 10, 21))
     assert card["disposition"] == "WATCH"
-    assert "STACK's city claim reports" not in card["reason"]
-    assert "Verify the current utility delivery schedule" not in card["next_action"]
+    assert card["reason"] != STACK_CONFLICT_REASON
+    assert card["next_action"] != STACK_CONFLICT_ACTION
 
 
 def test_power_schedule_refs_do_not_change_commercial_research_fingerprint():

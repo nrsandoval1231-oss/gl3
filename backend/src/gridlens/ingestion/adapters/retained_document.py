@@ -93,6 +93,20 @@ SOURCES: dict[str, dict[str, Any]] = {
 }
 MAX_BODY_BYTES = 80_000_000
 MAX_EXCERPT_CHARS = 80_000
+STACK_CONFLICT_REASON = (
+    "STACK's June 24, 2024 city claim reports an earlier 28 MVA (2026) / "
+    "31 MVA (2027) schedule, and says SVP told STACK on March 14, 2024 "
+    "that service would be capped at 18 MVA or less until at least 2028 "
+    "at this Memorex site. The September 2021 draft Substation Agreement "
+    "is attached to STACK's February 2025 CEC filing. These are attributed "
+    "claims, not an adjudicated current-service determination; actual "
+    "temporary-power need remains UNKNOWN."
+)
+STACK_CONFLICT_ACTION = (
+    "Verify the current utility delivery schedule and any temporary-power "
+    "scope with the utility; use the dated STACK city claim and attached "
+    "draft Substation Agreement as the source history."
+)
 
 
 @dataclass(frozen=True)
@@ -100,6 +114,8 @@ class StackProof:
     """Source-owned outcome for the exact retained STACK service conflict."""
 
     status: str
+    reason: str | None = None
+    next_action: str | None = None
 
 
 @dataclass(frozen=True)
@@ -110,6 +126,185 @@ class StackAliasProof:
     value: str | None = None
     evidence_id: str | None = None
     quotes: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RetainedInterpretation:
+    name: str
+    activity_key: str
+    rationale: str
+    location: str
+
+
+@dataclass(frozen=True)
+class RetainedOrganizationClaim:
+    organization: str
+    role: str
+    relationship: str
+    evidence_strength: str
+    reason: str
+    quotes: tuple[tuple[str, str], ...]
+
+
+def interpret_retained_document(
+    source_id: str, record: Mapping[str, Any]
+) -> RetainedInterpretation | None:
+    """Interpret only exact F17 source IDs and reviewed physical-site cues."""
+    policy = SOURCES.get(source_id)
+    retained = record.get("retained_document")
+    if not policy or not isinstance(retained, dict):
+        return None
+    if (
+        retained.get("sha256") != policy["sha256"]
+        or retained.get("source_site") != policy["location"]
+        or not retained.get("project_name")
+    ):
+        return None
+    name = str(retained["project_name"])
+    if name.casefold() not in f"{record.get('title', '')} {record.get('abstract', '')}".casefold():
+        return None
+    rationale = {
+        "stack_claim": (
+            "STACK's June 24, 2024 claim reports a later 18 MVA cap through at least 2028, "
+            "contrasting it with the earlier 28 MVA in 2026 and 31 MVA by 2027 schedule. "
+            "These are attributed claims, not an adjudicated finding; MVA is not converted to MW."
+        ),
+        "stack_cec": (
+            "STACK's February 2025 CEC filing reports underservice at Memorex Junction and "
+            "includes a September 2021 draft agreement. The party submission is not a CEC finding."
+        ),
+        "crusoe_bridge": (
+            "Crusoe reports natural-gas turbines providing temporary bridge power at its "
+            "Abilene Stargate campus while grid upgrades catch up. This is reported in-use "
+            "configuration, not an open purchase; exact bridge and grid-ready dates are unknown."
+        ),
+    }.get(policy["rationale_kind"])
+    if not rationale:
+        return None
+    return RetainedInterpretation(name, policy["activity"], rationale, policy["location"])
+
+
+def retained_organization_claims(
+    source_id: str,
+    *,
+    url: str,
+    text: str,
+    retained_version: str | None,
+    extraction_location: str,
+    structured: Sequence[Mapping[str, Any]],
+) -> tuple[RetainedOrganizationClaim, ...] | None:
+    """Return exact F17 source roles, or None for an unrelated source."""
+    policy = SOURCES.get(source_id)
+    if policy is None:
+        return None
+    markers = [row.get("f17_retained") for row in structured if isinstance(row, dict)]
+    if len(markers) != 1 or not isinstance(markers[0], dict):
+        return ()
+    context = markers[0]
+    retained = context.get("retained_document")
+    if not isinstance(retained, dict):
+        return ()
+    project_name = context.get("project_name")
+    retained_project_name = retained.get("project_name")
+    if (
+        context.get("source_id") != source_id
+        or context.get("evidence_content_hash") != retained_version
+        or not retained_version
+        or url != policy["url"]
+        or retained.get("path") != policy["path"]
+        or retained.get("sha256") != policy["sha256"]
+        or retained.get("source_site") != policy["location"]
+        or not isinstance(retained_project_name, str)
+        or retained_project_name not in text
+        or context.get("project_location") != policy["location"]
+        or not isinstance(project_name, str)
+        or project_name not in text
+        or not isinstance(retained.get("reviewed_spans"), list)
+        or not retained.get("reviewed_spans")
+        or not all(span in extraction_location for span in retained["reviewed_spans"])
+    ):
+        return ()
+    normalized_text = re.sub(r"\s+", " ", text).casefold()
+    cues = [policy["project_cue"], policy["site_cue"], *policy["location_cues"]]
+    if not all(cue.casefold() in normalized_text for cue in cues):
+        return ()
+    if source_id == "f17-stack-city-claim":
+        pattern = (
+            r"1220\s+Santa Clara\s+Propco,\s*LLC.{0,180}?current\s+owner\s+of\s+"
+            r"SVY02A.{0,180}?1200\s+Memorex\s+Drive.{0,80}?Santa\s+Clara"
+        )
+        match = re.search(pattern, text, re.I | re.S)
+        if not match:
+            return ()
+        return (
+            RetainedOrganizationClaim(
+                "1220 Santa Clara Propco, LLC",
+                "owner",
+                "DIRECT",
+                "High",
+                (
+                    "STACK's June 24, 2024 city-filed claim explicitly identifies 1220 Santa Clara "
+                    "Propco, LLC as current owner of the SVY02A facility at 1200 Memorex Drive. "
+                    "This is an attributed claimant statement, not a legal finding; current "
+                    "tenant, temporary-generation buyer and procurement authority are UNKNOWN."
+                ),
+                ((match.group(0), "project_organization"),),
+            ),
+        )
+    if source_id == "f17-stack-cec-filing":
+        pattern = r"1220\s+Santa Clara\s+Propco,\s*LLC.{0,180}?\(\s*\"Customer\"\s*\)"
+        match = re.search(pattern, text, re.I | re.S)
+        if not match or not re.search(r"Draft\s+rev\s+0\s*[-–]\s*9/30/2021", text, re.I):
+            return ()
+        return (
+            RetainedOrganizationClaim(
+                "1220 Santa Clara Propco, LLC",
+                "unknown",
+                "UNKNOWN",
+                "Low",
+                (
+                    "STACK's February 2025 CEC filing attaches a September 30, 2021 draft "
+                    "agreement that labels 1220 Santa Clara PropCo, LLC as Customer. The draft "
+                    "designation does not establish a current tenant, current owner, temporary-"
+                    "generation buyer or procurement authority."
+                ),
+                ((match.group(0), "project_organization"),),
+            ),
+        )
+    if source_id == "f17-crusoe-impact":
+        project_quote = re.search(
+            r"The\s+Abilene\s+Stargate\s+campus\s+exemplifies\s+Crusoe's\s+"
+            r"energy-first,\s+vertically\s+integrated\s+model",
+            text,
+            re.I,
+        )
+        operator_quote = re.search(
+            r"In\s+the\s+Abilene\s+Stargate\s+campus,\s+we\s+use\s+natural\s+gas\s+"
+            r"turbines\s+to\s+provide\s+temporary\s+bridge\s+power",
+            text,
+            re.I,
+        )
+        if not project_quote or not operator_quote:
+            return ()
+        return (
+            RetainedOrganizationClaim(
+                "Crusoe",
+                "operator",
+                "DIRECT",
+                "High",
+                (
+                    "Crusoe's 2025 Impact Report identifies the Abilene Stargate campus as part "
+                    "of its vertically integrated model and says it uses natural-gas turbines "
+                    "there as temporary bridge power while grid upgrades catch up. This is a "
+                    "reported in-use operator configuration, not an open purchase or buyer claim."
+                ),
+                (
+                    (project_quote.group(0), "project_organization"),
+                    (operator_quote.group(0), "organization_category"),
+                ),
+            ),
+        )
+    return ()
 
 
 def stack_service_conflict(item: Mapping[str, Any]) -> StackProof:
@@ -147,7 +342,7 @@ def stack_service_conflict(item: Mapping[str, Any]) -> StackProof:
         )
         if not all(term in text for term in required_terms):
             return StackProof("handled_without_proof")
-    return StackProof("verified")
+    return StackProof("verified", STACK_CONFLICT_REASON, STACK_CONFLICT_ACTION)
 
 
 def stack_project_alias(item: Mapping[str, Any], sources: Sequence[Any]) -> StackAliasProof:

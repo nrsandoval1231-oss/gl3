@@ -6,7 +6,10 @@ import hashlib
 import json
 import re
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from gridlens.ingestion.adapters.retained_document import StackProof
 
 POLICY_VERSION = "commercial-triage-v2.1"
 MAX_CARDS = 50
@@ -91,11 +94,11 @@ def _is_rental_intermediary(category: Any, organization: Any, reason: Any = "") 
     )
 
 
-def _f17_stack_service_conflict(item: dict[str, Any]) -> bool:
+def _f17_stack_service_conflict(item: dict[str, Any]) -> StackProof:
     """Apply the existing WATCH policy to adapter-verified source proof."""
     from gridlens.ingestion.adapters.retained_document import stack_service_conflict
 
-    return stack_service_conflict(item).status == "verified"
+    return stack_service_conflict(item)
 
 
 class PriorityInputAccumulator:
@@ -716,17 +719,9 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "Wait for the cited next project milestone; current evidence does not "
             "support a stronger commercial action.",
         )
-    retained_stack_conflict = disposition == "WATCH" and _f17_stack_service_conflict(item)
-    if retained_stack_conflict:
-        reason = (
-            "STACK's June 24, 2024 city claim reports an earlier 28 MVA (2026) / "
-            "31 MVA (2027) schedule, and says SVP told STACK on March 14, 2024 "
-            "that service would be capped at 18 MVA or less until at least 2028 "
-            "at this Memorex site. The September 2021 draft Substation Agreement "
-            "is attached to STACK's February 2025 CEC filing. These are attributed "
-            "claims, not an adjudicated current-service determination; actual "
-            "temporary-power need remains UNKNOWN."
-        )
+    stack_proof = _f17_stack_service_conflict(item) if disposition == "WATCH" else None
+    if stack_proof is not None and stack_proof.status == "verified":
+        reason = stack_proof.reason or reason
     if item.get("asset_type") == "data_center" and phase_specific_scope:
         question = (
             "Who is supplying temporary construction or commissioning power, and "
@@ -768,12 +763,8 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "Call the cited public project contact to confirm stage, need-specific MW, "
             "timing, duration, and purchasing role."
         )
-    elif retained_stack_conflict:
-        next_action = (
-            "Verify the current utility delivery schedule and any temporary-power "
-            "scope with the utility; use the dated STACK city claim and attached "
-            "draft Substation Agreement as the source history."
-        )
+    elif stack_proof is not None and stack_proof.status == "verified":
+        next_action = stack_proof.next_action or reason
     else:
         next_action = reason
     watch = None
