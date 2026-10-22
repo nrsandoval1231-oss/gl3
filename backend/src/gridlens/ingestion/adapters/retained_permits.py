@@ -7,7 +7,9 @@ in the original Evidence abstract; no reconstructed JSON is treated as evidence.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 from gridlens.ingestion.adapters.socrata_permits import MAPS
 
@@ -84,6 +86,8 @@ LABELS = {
     "application_status": "Permit application status",
     "geocode_status": "Geocoding status (not permit lifecycle)",
     "owner_name": "Permit-listed owner",
+    "owner_of_record": "Permit-listed owner of record",
+    "work_description": "Permit work description",
     "report_start": "Weekly report period start",
     "report_end": "Weekly report period end (exclusive)",
     "layer_feature_count": "El Paso layer feature count (metadata)",
@@ -104,6 +108,187 @@ LABELS = {
     "zip": "Reported ZIP code",
 }
 GEORGIA = "georgia-air-draft-title-v"
+
+
+@dataclass(frozen=True)
+class RetainedPermitClaim:
+    field: str
+    value: str
+    quote: str
+    value_kind: str
+
+
+@dataclass(frozen=True)
+class RetainedPermitExtraction:
+    status: str
+    claims: tuple[RetainedPermitClaim, ...] = ()
+
+
+@dataclass(frozen=True)
+class RetainedIdentity:
+    value: str
+    quote: str
+    verification_status: str
+
+
+@dataclass(frozen=True)
+class RetainedLocation:
+    value: str
+    quote: str
+    verification_status: str
+
+
+def source_native_georgia_location(source_id: str, passage: str) -> RetainedLocation | None:
+    """Extract a Georgia permit narrative site address, never its mailing address."""
+    if source_id != GEORGIA:
+        return None
+    address = re.compile(
+        r"(?i)\bto be located at\s+(?P<address>"
+        r"\d{1,6}\s+[\w.'’#/-]+(?:[ \t]+[\w.'’#/-]+){0,8},"
+        r"[ \t]*[^,\r\n.;]+,[ \t]*[^,\r\n.;]*\bCounty)"
+    )
+    for match in address.finditer(passage):
+        value = " ".join(match.group("address").split())
+        if not value:
+            continue
+        quote = next((line for line in passage.splitlines() if match.group(0) in line), "")
+        if quote:
+            return RetainedLocation(value, quote, "Current permit narrative address")
+    return None
+
+
+_SOURCE_NATIVE_IDENTITY_IDS = frozenset({"texas-rrc-drilling-permits", "austin-building-permits"})
+
+
+def source_native_project_identity(source_id: str, passage: str) -> RetainedIdentity | None:
+    """Extract supported RRC/Austin project identity with its exact source quote."""
+    if source_id == "texas-rrc-drilling-permits":
+        lease = re.search(r"(?mi)^lease:[ \t]*(?P<value>[^\r\n]*)", passage)
+        well = re.search(r"(?mi)^well:[ \t]*(?P<value>[^\r\n]*)", passage)
+        if lease and well:
+            lease_value = lease.group("value").strip()
+            well_value = well.group("value").strip()
+            if not lease_value or not well_value:
+                return None
+            value = f"{lease_value}, well {well_value}"
+            quote = f"{lease.group(0).strip()}\n{well.group(0).strip()}"
+            if value.strip(" ,") and quote in passage:
+                return RetainedIdentity(value, quote, "Current RRC lease and well identity")
+    elif source_id == "austin-building-permits":
+        match = re.search(r"(?i)\bTXDOT[ \t]+project[ \t]*#[ \t]*(?P<id>[A-Z0-9-]+)", passage)
+        if match:
+            value = f"TXDOT project # {match.group('id')}"
+            quote = next((line for line in passage.splitlines() if match.group(0) in line), "")
+            if quote and quote in passage:
+                return RetainedIdentity(value, quote, "Current Austin permit project reference")
+    return None
+
+
+def source_record_identifier(source_id: str, passage: str) -> RetainedIdentity | None:
+    """Parse a raw row identifier only for the explicitly supported source adapters."""
+    if source_id not in _SOURCE_NATIVE_IDENTITY_IDS:
+        return None
+    row = re.search(r"(?mi)^row:[ \t]*(?P<value>[^\r\n]*)", passage)
+    if not row:
+        return None
+    value = row.group("value").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 -]{0,79}", value):
+        return None
+    quote = row.group(0).strip()
+    if quote not in passage:
+        return None
+    return RetainedIdentity(value, quote, "Current source record identifier")
+
+
+_MW_VALUE = re.compile(r"(?<![\w.])(\d+(?:,\d{3})*(?:\.\d+)?)\s*MW\b", re.I)
+_EQUIPMENT_CUE = re.compile(
+    r"\b(?:emergency|backup|standby|generator|turbine|rental|temporary plant|equipment)\b", re.I
+)
+_FACILITY_MW_CUE = re.compile(
+    r"(?:\b(?:data\s*cent(?:er|re)|facility|campus)\s+(?:size|scale|capacity)|"
+    r"\b(?:size|scale|capacity)\s+of\s+(?:the\s+)?(?:data\s*cent(?:er|re)|facility|campus))"
+    r"\s*(?:is|of|at|:|=)?\s*$",
+    re.I,
+)
+_SERVICE_CUE = re.compile(
+    r"\b(?:utility|service|feed|feeder|transformer|substation|switchgear|"
+    r"distribution|transmission|connection)\b",
+    re.I,
+)
+
+
+def extract_retained_claims(
+    source_id: str, text: str, *, activity_key: str
+) -> RetainedPermitExtraction:
+    """Decode source-native Fort Worth/Boston field claims without date or tier policy."""
+    if source_id in {"fort-worth-development-permits", "fort-worth-permits"}:
+        description = fields(source_id, text).get("Work description")
+        if not description:
+            return RetainedPermitExtraction("not_applicable")
+        values: list[tuple[str, str]] = []
+        # The binding and the number must share a local clause. Equipment
+        # ratings are excluded even when the clause also mentions a facility.
+        for clause in re.split(r"[;\n]+|(?<=[.!?])\s+(?=[A-Z])", description[0]):
+            for match in _MW_VALUE.finditer(clause):
+                left = clause[max(0, match.start() - 48) : match.start()]
+                right = clause[match.end() : min(len(clause), match.end() + 32)]
+                context = left + " " + right
+                if _EQUIPMENT_CUE.search(context) or _SERVICE_CUE.search(context):
+                    continue
+                bound_after = bool(re.match(r"\s*data\s*cent(?:er|re)\b", right, re.I))
+                bound_explicit = bool(_FACILITY_MW_CUE.search(left))
+                if not (bound_after or bound_explicit):
+                    continue
+                value = match.group(1).replace(",", "")
+                if Decimal(value) > 0:
+                    values.append((value, match.group(0)))
+        unique_values = {value for value, _ in values}
+        if not values:
+            return RetainedPermitExtraction("no_claim")
+        status = "conflict" if len(unique_values) > 1 else "verified"
+        return RetainedPermitExtraction(
+            status,
+            tuple(
+                RetainedPermitClaim(
+                    "facility_scale_mw",
+                    format(Decimal(value).normalize(), "f"),
+                    description[1],
+                    "Reported facility scale",
+                )
+                for value in sorted(unique_values, key=Decimal)
+            ),
+        )
+    if source_id == "boston-building-permits" and activity_key in {
+        "temporary-power",
+        "construction-power",
+        "electrical-construction",
+    }:
+        comments = fields(source_id, text).get("Comments")
+        if comments and re.search(r"\btemporary electrical work\b", comments[0], re.I):
+            voltages = list(
+                dict.fromkeys(
+                    f"{int(match[1])} V, {int(match[2])} phase"
+                    for match in re.finditer(
+                        r"(?<!\d)(\d{2,4})\s*V\s*(\d{1,2})\s*Ph\b",
+                        comments[0],
+                        re.I,
+                    )
+                )
+            )
+            if voltages:
+                return RetainedPermitExtraction(
+                    "verified",
+                    (
+                        RetainedPermitClaim(
+                            "voltage",
+                            "; ".join(voltages),
+                            comments[1],
+                            "Permit-listed electrical constraint",
+                        ),
+                    ),
+                )
+        return RetainedPermitExtraction("no_claim")
+    return RetainedPermitExtraction("not_applicable")
 
 
 def requires_achieved_lifecycle_milestone(source_id: str) -> bool:
@@ -146,6 +331,11 @@ BOSTON_FIELDS = {
     "Address": "Boston permit site address",
     "City": "Boston permit city",
     "State": "Boston permit state",
+}
+FORT_WORTH_FIELDS = {
+    "Project": "Permit project name",
+    "Work description": "Permit work description",
+    "Owner of record": "Permit-listed owner of record",
 }
 CITY_MAPS = {
     "dallas-monthly-permits": {
@@ -225,6 +415,8 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
         and source_id not in CITY_MAPS
         and source_id
         not in {
+            "fort-worth-development-permits",
+            "fort-worth-permits",
             GEORGIA,
             "houston-weekly-permits",
             "texas-rrc-drilling-permits",
@@ -238,6 +430,8 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
         if source_id in MAPS
         else set(CITY_MAPS[source_id])
         if source_id in CITY_MAPS
+        else set(FORT_WORTH_FIELDS)
+        if source_id in {"fort-worth-development-permits", "fort-worth-permits"}
         else set(BOSTON_FIELDS)
         if source_id == "boston-building-permits"
         else set(LABELS)
@@ -263,6 +457,8 @@ def facts(source_id: str, text: str) -> list[dict[str, str]]:
     selected_labels = (
         CULTIVATION_FIELDS.items()
         if source_id == "ma-ccc-cultivation-applications"
+        else FORT_WORTH_FIELDS.items()
+        if source_id in {"fort-worth-development-permits", "fort-worth-permits"}
         else BOSTON_FIELDS.items()
         if source_id == "boston-building-permits"
         else LABELS.items()
@@ -349,6 +545,34 @@ def chicago_contacts(text: str) -> list[tuple[str, str, str, str]]:
         # permit does not tell us their employer or current organization role.
         and not re.fullmatch(r"[A-Z'-]+,\s*[A-Z .'-]+", parsed[f"contact_{n}_name"][0])
     ]
+
+
+def fort_worth_owner(source_id: str, text: str) -> tuple[str, str] | None:
+    """Accept the explicit Fort Worth owner field only when it names an organization."""
+    if source_id not in {"fort-worth-development-permits", "fort-worth-permits"}:
+        return None
+    owner = fields(source_id, text).get("Owner of record")
+    if not owner or owner[0].strip().casefold() in {"not stated", "unknown", "none"}:
+        return None
+    if not re.search(
+        r"\b(?:LLC|L\.L\.C\.?|Inc\.?|Corp\.?|Corporation|Company|LP|L\.P\.)\b",
+        owner[0],
+        re.I,
+    ):
+        return None
+    return owner[0].strip(), owner[1]
+
+
+def georgia_named_owner(source_id: str, text: str) -> tuple[str, str] | None:
+    """Extract only the explicit named-facility ownership clause."""
+    if source_id != GEORGIA:
+        return None
+    match = re.search(
+        r"(?P<relationship>TA Digital Realty \(TADG\)\s*[–-]\s*ATL02,\s*which is owned by\s+"
+        r"(?P<owner>[A-Z][A-Za-z0-9&'’., -]{1,100}?(?:LLC|L\.L\.C\.?|Inc\.?|Corporation)))\b",
+        text,
+    )
+    return (match.group("owner").strip(), match.group(0)) if match else None
 
 
 def georgia_identity(text: str) -> list[tuple[str, str, str]]:

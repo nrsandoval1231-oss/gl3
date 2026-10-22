@@ -22,7 +22,9 @@ from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.ingestion.adapters.retained_permits import (
     GEORGIA,
     chicago_contacts,
+    fort_worth_owner,
     georgia_identity,
+    georgia_named_owner,
     georgia_proponent,
 )
 from gridlens.ingestion.adapters.retained_permits import (
@@ -246,10 +248,37 @@ CHICAGO_CATEGORIES = {
 
 
 def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -> list[Extracted]:
+    from gridlens.ingestion.adapters.retained_document import retained_organization_claims
+
+    f17 = retained_organization_claims(
+        source_id,
+        url=doc.url,
+        text=doc.text,
+        retained_version=doc.retained_version,
+        extraction_location=doc.extraction_location,
+        structured=doc.structured,
+    )
+    if f17 is not None:
+        return [
+            Extracted(
+                claim.organization,
+                {
+                    "owner": Category.OWNER.value,
+                    "unknown": Category.UNKNOWN.value,
+                    "operator": Category.OPERATOR.value,
+                }[claim.role],
+                organization_relationship=claim.relationship,
+                evidence_strength=claim.evidence_strength,
+                reason=claim.reason,
+                citations=[_citation(doc, quote, supports) for quote, supports in claim.quotes],
+            )
+            for claim in f17
+        ]
     if source_id == "ma-ccc-cultivation-applications":
         applicant = permit_fields(source_id, doc.text).get("applicant_org")
         if not applicant or _RENTAL.search(applicant[0]):
             return []
+
         return [
             Extracted(
                 applicant[0],
@@ -447,6 +476,22 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
                 citations=[_citation(doc, owner[1], "permit_listed_owner")],
             )
         ]
+    if source_id in {"fort-worth-development-permits", "fort-worth-permits"}:
+        owner = fort_worth_owner(source_id, doc.text)
+        if not owner:
+            return []
+        return [
+            Extracted(
+                owner[0],
+                Category.OWNER.value,
+                reason=(
+                    "Organization named in the Fort Worth permit's explicit Owner of record field; "
+                    "current operation, responsibility for temporary power and buying authority "
+                    "are UNKNOWN."
+                ),
+                citations=[_citation(doc, owner[1], "permit_listed_owner")],
+            )
+        ]
     if source_id == GEORGIA:
         proponent = georgia_proponent(doc.text)
         proponents = (
@@ -464,20 +509,41 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
             if proponent
             else []
         )
-        return proponents + [
-            Extracted(
-                value,
-                "permit_entity",
-                reason=(
-                    "Facility name on the draft permit; ownership, current operation "
-                    "and buying authority are UNKNOWN."
-                ),
-                citations=[_citation(doc, quote, "project_organization")],
-            )
-            for label, value, quote in georgia_identity(doc.text)
-            if label == "Draft permit entity"
-            and re.search(r"\b(?:LLC|Inc\.?|Corporation|Company)\b", value, re.I)
-        ]
+        owner = georgia_named_owner(source_id, doc.text)
+        owned = (
+            [
+                Extracted(
+                    owner[0],
+                    Category.OWNER.value,
+                    reason=(
+                        "Organization explicitly identified as owner of the named Georgia permit "
+                        "facility; current operation, responsibility for temporary power and "
+                        "buying authority are UNKNOWN."
+                    ),
+                    citations=[_citation(doc, owner[1], "permit_listed_owner")],
+                )
+            ]
+            if owner
+            else []
+        )
+        return (
+            proponents
+            + owned
+            + [
+                Extracted(
+                    value,
+                    "permit_entity",
+                    reason=(
+                        "Facility name on the draft permit; ownership, current operation "
+                        "and buying authority are UNKNOWN."
+                    ),
+                    citations=[_citation(doc, quote, "project_organization")],
+                )
+                for label, value, quote in georgia_identity(doc.text)
+                if label == "Draft permit entity"
+                and re.search(r"\b(?:LLC|Inc\.?|Corporation|Company)\b", value, re.I)
+            ]
+        )
     if source_id != "chicago-building-permits":
         return []
     return [

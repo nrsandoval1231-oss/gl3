@@ -11,6 +11,11 @@ from gridlens.domain.commercial_triage import (
     surfaced_on,
 )
 from gridlens.domain.pursuits import CommercialTriageHistoryVersion
+from gridlens.ingestion.adapters.retained_document import (
+    SOURCES,
+    STACK_CONFLICT_ACTION,
+    STACK_CONFLICT_REASON,
+)
 
 
 def _item(**overrides):
@@ -51,6 +56,134 @@ def _item(**overrides):
     }
     item.update(overrides)
     return item
+
+
+def _f17_stack_item():
+    record = _item(
+        name="SVY02A / Memorex Junction data center",
+        location="1200 Memorex Drive, Santa Clara, CA",
+        asset_type=None,
+        activity="utility-service",
+        lifecycle_state="paused",
+        supported_action=None,
+        missing_facts=[],
+        required_mw=1,
+        start_window="2027",
+        duration="1 year",
+        supply="Reported supply",
+    )
+    record["evidence"] = []
+    for source_id, abstract in (
+        (
+            "f17-stack-city-claim",
+            "At 1200 Memorex Drive in Santa Clara, STACK reported an 18 MVA cap until "
+            "at least 2028, against an earlier 28MVA 2026 and 31MVA 2027 schedule.",
+        ),
+        (
+            "f17-stack-cec-filing",
+            "At 1200 Memorex Drive in Santa Clara, STACK's draft Table E1 available "
+            "capacity schedule (MVA) lists 28 for 2026 and 31 for 2027.",
+        ),
+    ):
+        policy = SOURCES[source_id]
+        record["evidence"].append(
+            {
+                "id": uuid4(),
+                "source_id": source_id,
+                "url": policy["url"],
+                "content_hash": policy["sha256"],
+                "abstract": abstract,
+                "title": "Retained source excerpt",
+                "assessment_current": True,
+            }
+        )
+    return record
+
+
+def test_f17_stack_watch_surfaces_attributed_conflict_and_verification_action():
+    record = _f17_stack_item()
+    card = build_card(record, None, date(2026, 10, 21))
+
+    assert card["disposition"] == "WATCH"
+    assert card["reason"] == STACK_CONFLICT_REASON
+    assert card["next_action"] == STACK_CONFLICT_ACTION
+    assert "STACK's June 24, 2024 city claim reports" in card["reason"]
+    assert "28 MVA (2026) / 31 MVA (2027)" in card["reason"]
+    assert "September 2021 draft Substation Agreement" in card["reason"]
+    assert "attached to STACK's February 2025 CEC filing" in card["reason"]
+    assert "SVP told STACK on March 14, 2024" in card["reason"]
+    assert "not an adjudicated" in card["reason"]
+    assert "temporary-power need remains UNKNOWN" in card["reason"]
+    assert "Verify the current utility delivery schedule" in card["next_action"]
+    assert "temporary-power scope" in card["next_action"]
+    assert {source["url"] for source in card["sources"]} == {
+        SOURCES["f17-stack-city-claim"]["url"],
+        SOURCES["f17-stack-cec-filing"]["url"],
+    }
+    assert card["required_mw"] == record["required_mw"]
+    assert card["start_window"] == record["start_window"]
+    assert card["duration"] == record["duration"]
+    assert card["supply"] == record["supply"]
+
+
+@pytest.mark.parametrize(
+    "mutation", ["missing", "stale", "wrong_hash", "wrong_url", "wrong_site", "wrong_alias"]
+)
+def test_f17_stack_narrative_falls_back_without_exact_current_sources(mutation):
+    record = _f17_stack_item()
+    if mutation == "missing":
+        record["evidence"].pop()
+    elif mutation == "stale":
+        record["evidence"][1]["assessment_current"] = False
+    elif mutation == "wrong_hash":
+        record["evidence"][1]["content_hash"] = "0" * 64
+    elif mutation == "wrong_url":
+        record["evidence"][1]["url"] = "https://example.test/cec"
+    elif mutation == "wrong_alias":
+        record["name"] = "SVY02A / Another Project data center"
+    else:
+        record["location"] = "1200 Other Street, Santa Clara, CA"
+
+    card = build_card(record, None, date(2026, 10, 21))
+    assert card["disposition"] == "WATCH"
+    assert card["reason"] != STACK_CONFLICT_REASON
+    assert card["next_action"] != STACK_CONFLICT_ACTION
+
+
+def test_power_schedule_refs_do_not_change_commercial_research_fingerprint():
+    base = _item()
+    legacy_ref = {
+        "need_id": str(base["id"]),
+        "fact_version_id": str(uuid4()),
+        "content_hash": "a" * 64,
+        "authority": "User-confirmed",
+        "fact_type": "demand",
+        "value": {"mw": "5"},
+    }
+    schedule_ref = {
+        "need_id": str(base["id"]),
+        "fact_version_id": str(uuid4()),
+        "content_hash": "b" * 64,
+        "authority": "User-confirmed",
+        "fact_type": "power_schedule",
+        "value": {"phases": []},
+    }
+    no_facts = build_card(base, {}, date(2026, 10, 21))
+    demand = build_card({**base, "operator_fact_refs": [legacy_ref]}, {}, date(2026, 10, 21))
+    demand_and_schedule = build_card(
+        {**base, "operator_fact_refs": [legacy_ref, schedule_ref]}, {}, date(2026, 10, 21)
+    )
+    schedule_only = build_card(
+        {**base, "operator_fact_refs": [schedule_ref]}, {}, date(2026, 10, 21)
+    )
+
+    assert demand["input_hash"] != no_facts["input_hash"]
+    assert demand_and_schedule["input_hash"] == demand["input_hash"]
+    assert schedule_only["input_hash"] == no_facts["input_hash"]
+    assert all(
+        set(reference) == {"need_id", "fact_version_id", "content_hash", "authority"}
+        for reference in demand_and_schedule["operator_fact_refs"]
+    )
 
 
 def test_permit_contact_is_action_now_with_unknown_need_and_no_inferred_company():

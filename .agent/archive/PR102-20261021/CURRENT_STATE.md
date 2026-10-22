@@ -1,0 +1,15 @@
+# Current state
+
+Owner request October 20: make approved v3 Pursuit Workspace the canonical GridLens UI in a PR and retire conflicting active presentation repositorywide. The new UI-only authority supersedes older visual locks, including the application logo proportions and surface/accent styling. Product/evidence/qualification/security rules remain unchanged.
+
+Repository gl3; isolated branch feat/canonical-pursuit-ui; base a4d77d821ed229834b678b2dfb79c4d0f246dd8d includes merged PR99. Original recovery checkout and all unrelated worktrees are preserved. Prior state bytes are archived at archive/CANONICAL-UI-20261020/pre-CURRENT_STATE.md; that dated state is not current release authority.
+
+Authorities: docs/product/PRD.md, docs/design/UI_CANON.md, docs/design/PURSUIT_WORKSPACE.md, .agent/AGENT_RULES.md and .agent/FINISH_CONTRACT.md. Bounded graph/Tribunal/packet: artifacts/CANONICAL-UI/PACKET.md. UI-1 frontend and UI-2 active-docs reconciliation are implemented. The frozen candidate passed controller validation: 2336 backend tests with3 existing skips, 149 browser tests with1 seeded-environment skip, dependency audits, type/build, schema/migration, docs and diff gates. Validation and exact indexed-file manifest are in artifacts/CANONICAL-UI/VALIDATION.json and CANDIDATE.json.
+
+Implementation direction: one shared silver/white horizontal application shell, briefing/queue/context, approved equal-height logo, existing real persisted research/evidence/fact/call workflows. Keep Signals grouped-source browsing distinct from need-level Opportunities while removing duplicate visual shells and the map scene. Historical evidence is preserved but explicitly non-authoritative. No prototype data or local-only persistence enters production.
+
+Local validation uses a dedicated loopback PostgreSQL clone with 1619 retained needs, migrated through0034, and a separate disposable _test database. Providers disabled and no ingestion worker started. Desktop and390px mobile evidence confirms the approved lockup/layout and visible mobile next action without horizontal overflow. Local validation and a PR do not imply deployment, real outreach, or parent product completion.
+
+Next gate is independent Sol review of the frozen Git commit. Review and delivery receipts are recorded separately under ignored artifacts/CANONICAL-UI/REVIEW.json and DELIVERY.json so recording the verdict cannot silently mutate the reviewed candidate. A PASS permits the already-authorized push/open-PR action only. User has not authorized merge/deploy. The parent Finish Contract's acquisition, cloud scheduling, and launch gates remain outside this UI slice and are not claimed complete.
+
+Review repair: independent Sol returned FIX on473a330 for cross-section URL/filter mismatch. Terra repaired destination-state isolation and added two reload/history regressions. Controller repeated all frontend gates:149 passed/1 existing skip; audit/typecheck/build/docs/diff pass. Previous failed candidate review and raw logs are retained outside the tracked candidate. A fresh independent review of the repaired commit remains required.

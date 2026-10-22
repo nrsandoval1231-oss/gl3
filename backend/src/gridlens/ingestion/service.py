@@ -154,7 +154,26 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
         for label, value in raw_links.items():
             if isinstance(label, str) and label and isinstance(value, str) and value:
                 links[label] = [value]
-    return {"raw_source_links": links} if links else {}
+    provenance: dict[str, Any] = {"raw_source_links": links} if links else {}
+    retained = record.get("retained_document")
+    if isinstance(retained, dict):
+        provenance["retained_document"] = retained
+    return provenance
+
+
+def _interpret_retained_document(source_id: str, record: dict[str, Any]) -> dict[str, str] | None:
+    """Project source-native retained interpretation into the ingestion shape."""
+    from gridlens.ingestion.adapters.retained_document import interpret_retained_document
+
+    claim = interpret_retained_document(source_id, record)
+    if claim is None:
+        return None
+    return {
+        "name": claim.name,
+        "activity_key": claim.activity_key,
+        "rationale": claim.rationale,
+        "location": claim.location,
+    }
 
 
 def _merge_source_link_provenance(
@@ -2898,7 +2917,9 @@ def process_records(
         try:
             permit_assessment = assess_permit(record) if is_permit_source else None
             interpreted = (
-                {
+                _interpret_retained_document(source.id, record)
+                if source_definition.get("retrieval_method") == "retained-document"
+                else {
                     "name": permit_assessment["subject"],
                     "activity_key": permit_assessment["power_activity"],
                     "rationale": permit_assessment["reason"],
@@ -3815,6 +3836,7 @@ def process_records(
             )
             material_change = False
             reopened = need is not None and not need.active
+            retained_document = source.retrieval_method == "retained-document"
             if need is None:
                 need = PowerNeed(
                     project_id=project.id,
@@ -3827,11 +3849,18 @@ def process_records(
                 session.flush()
                 counts["signals"] += 1
                 material_change = True
-            elif not need.active or need.rationale != rationale or not same_version:
+            elif (
+                not need.active
+                or not same_version
+                or (need.rationale != rationale and not retained_document)
+            ):
                 material_change = True
                 need.active = True
-                need.rationale = rationale
-            need.admission_basis = admission.as_basis(source.id, evidence_digest)
+                if not retained_document:
+                    need.rationale = rationale
+            incoming_basis = admission.as_basis(source.id, evidence_digest)
+            if source.retrieval_method != "retained-document":
+                need.admission_basis = incoming_basis
             if (
                 session.scalar(
                     select(NeedObservation.id).where(
@@ -3842,6 +3871,23 @@ def process_records(
                 is None
             ):
                 session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+            if retained_document:
+                # A second retained document can add support to the same
+                # physical need. Preserve its already-current admission basis
+                # so additive evidence does not churn the need on replay.
+                # Invalid or stale bases are repaired from accepted support.
+                session.flush()
+                basis_matches_incoming = need.admission_basis == incoming_basis
+                preserve_current_retained_basis = (
+                    not basis_matches_incoming
+                    and _need_admission_basis_is_current(session, need, project)
+                    and not reopened
+                )
+                if not preserve_current_retained_basis and not basis_matches_incoming:
+                    need.admission_basis = incoming_basis
+                    if need.rationale != rationale:
+                        material_change = True
+                        need.rationale = rationale
             if material_change:
                 event_kind = change_kind
                 if same_version and prior_interpretation_status in {"accepted", "rejected"}:

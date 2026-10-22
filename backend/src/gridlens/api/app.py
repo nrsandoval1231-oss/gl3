@@ -21,7 +21,12 @@ from sqlalchemy.orm import joinedload
 
 from gridlens.api.intelligence import router as intelligence_router
 from gridlens.api.verticals import vertical_source_tags
-from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
+from gridlens.domain.buying_chain import (
+    BuyingChainCorrectionBody,
+    BuyingChainCorrectionOut,
+    BuyingChainOut,
+    BuyingEnrichBody,
+)
 from gridlens.domain.call_facts import (
     CurrentOperatorInputBoundExceeded,
     _source_lead_timing_bounds,
@@ -39,6 +44,7 @@ from gridlens.domain.commercial_triage import (
     grouped_need_groups,
 )
 from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
+from gridlens.domain.lifecycle import is_industrial_asset_type
 from gridlens.domain.opportunity_intelligence import IntelligenceCard
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
@@ -68,6 +74,10 @@ from gridlens.intelligence.buying_chain import (
     buying_chain_view,
     buying_chain_views,
     enqueue_buying_chain_research,
+)
+from gridlens.intelligence.buying_chain_corrections import (
+    correct_buying_chain_claim,
+    correction_view,
 )
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.opportunity_browse import (
@@ -581,7 +591,7 @@ def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
 def _validate_browse_query(request: Request) -> None:
     allowed = _BROWSE_QUERY_NAMES
     if request.url.path == "/api/opportunities/export.csv":
-        allowed = allowed - {"offset", "sort"}
+        allowed = (allowed - {"offset", "sort"}) | {"industry_group"}
     elif request.url.path == "/api/opportunities/map-window":
         allowed = _BROWSE_FILTER_NAMES | {"tier", "search", "decision"}
     unsupported = sorted(set(request.query_params.keys()) - allowed)
@@ -610,6 +620,7 @@ def _normalized_browse_filters(
     priority_segment: str | None,
     status: str | None,
     search: str | None,
+    industry_group: str | None = None,
 ) -> dict[str, Any]:
     if tier is not None:
         tiers = {value.casefold(): value for value in ("Signal", "Prospect", "Lead")}
@@ -641,6 +652,10 @@ def _normalized_browse_filters(
     timing = enum("timing", timing, {"KNOWN", "UNKNOWN"})
     mw_status = enum("mw_status", mw_status, {"KNOWN", "UNKNOWN"})
     status = enum("status", status, {"UNKNOWN", *(value.upper() for value in WORKFLOW_STATUSES)})
+    if industry_group is not None:
+        industry_group = industry_group.strip().casefold()
+        if industry_group != "industrial":
+            raise HTTPException(422, "industry_group must be industrial")
 
     def decimal_bound(name: str, value: str | None) -> str | None:
         if value is None:
@@ -686,6 +701,7 @@ def _normalized_browse_filters(
         "decision": decision,
         "geography": dimension("geography", geography),
         "industry": dimension("industry", industry),
+        "industry_group": industry_group,
         "activity": dimension("activity", activity),
         "timing": timing,
         "mw_status": mw_status,
@@ -721,6 +737,10 @@ def _filter_opportunity_summaries(
         if not dimension_matches(item, "location", filters.get("geography")):
             continue
         if not dimension_matches(item, "asset_type", filters.get("industry"), unknown_word=True):
+            continue
+        if filters.get("industry_group") == "industrial" and not is_industrial_asset_type(
+            item.get("asset_type")
+        ):
             continue
         if not dimension_matches(item, "activity", filters.get("activity")):
             continue
@@ -1950,6 +1970,7 @@ def pursuit_workspace(
     disposition: Literal["ACTION NOW", "RESEARCH", "WATCH", "REJECT"] | None = None,
     geography: str | None = None,
     industry: str | None = None,
+    industry_group: Literal["industrial"] | None = None,
     activity: str | None = None,
     timing: Literal["KNOWN", "UNKNOWN"] | None = None,
     mw_status: Literal["KNOWN", "UNKNOWN"] | None = None,
@@ -1966,6 +1987,7 @@ def pursuit_workspace(
         "disposition",
         "geography",
         "industry",
+        "industry_group",
         "activity",
         "timing",
         "mw_status",
@@ -1991,6 +2013,7 @@ def pursuit_workspace(
         priority_segment=None,
         status=None,
         search=search,
+        industry_group=industry_group,
     )
     filters = {
         "search": (normalized["search"] or "")[:100].casefold().strip(),
@@ -1998,6 +2021,7 @@ def pursuit_workspace(
         "disposition": disposition,
         "geography": normalized["geography"],
         "industry": normalized["industry"],
+        "industry_group": normalized["industry_group"],
         "activity": normalized["activity"],
         "timing": normalized["timing"],
         "mw_status": normalized["mw_status"],
@@ -2691,40 +2715,56 @@ def opportunity_need_detail(
             return detail
     with SessionLocal() as session:
         _begin_consistent_read(session)
-        summaries = _filter_opportunity_summaries(
-            opportunity_projection(session, tier=tier, summary_only=True), filters
-        )
-        summaries = [
-            {
-                **item,
-                "_browse_first_evidence": {},
-                "_browse_action_candidates": item.get("_browse_action_candidates", []),
-            }
-            for item in summaries
-        ]
-        evidence_matches = _opportunity_evidence_search_matches(session, summaries, search)
-        groups = grouped_opportunities(summaries)
-        member_matches = {
-            str(member["id"]): matched_opportunity(
-                member, search or "", evidence_matches.get(str(member["id"]), False)
+        unfiltered = (
+            cohort_token is None
+            and not normalized_dimension(search)
+            and filters["decision"] in {None, "ALL"}
+            and all(
+                value is None for key, value in filters.items() if key not in {"search", "decision"}
             )
-            for member in summaries
-        }
-        group_keys_by_id = {str(member["id"]): key for key, members in groups for member in members}
-        selected_groups = [
-            (key, members)
-            for key, members in groups
-            if any(member_matches[str(member["id"])] for member in members)
-            and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
-        ]
-        selected = [member for _key, members in selected_groups for member in members]
-        selected.sort(key=lambda item: str(item["id"]))
-        selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
-        selected_keys = [group_keys_by_id[str(item["id"])] for item in selected]
-        current_token = build_opportunity_cohort_token(filters, selected, selected_keys)
-        if cohort_token is not None and _membership_token(cohort_token) != current_token:
-            raise HTTPException(409, "Opportunity cohort changed; reopen the selected record")
-        summary = next((item for item in selected if item["id"] == need_id), None)
+        )
+        if unfiltered:
+            summaries = opportunity_projection(
+                session, summary_only=True, selected_need_ids={need_id}
+            )
+            summary = summaries[0] if summaries else None
+        else:
+            summaries = _filter_opportunity_summaries(
+                opportunity_projection(session, tier=tier, summary_only=True), filters
+            )
+            summaries = [
+                {
+                    **item,
+                    "_browse_first_evidence": {},
+                    "_browse_action_candidates": item.get("_browse_action_candidates", []),
+                }
+                for item in summaries
+            ]
+            evidence_matches = _opportunity_evidence_search_matches(session, summaries, search)
+            groups = grouped_opportunities(summaries)
+            member_matches = {
+                str(member["id"]): matched_opportunity(
+                    member, search or "", evidence_matches.get(str(member["id"]), False)
+                )
+                for member in summaries
+            }
+            group_keys_by_id = {
+                str(member["id"]): key for key, members in groups for member in members
+            }
+            selected_groups = [
+                (key, members)
+                for key, members in groups
+                if any(member_matches[str(member["id"])] for member in members)
+                and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
+            ]
+            selected = [member for _key, members in selected_groups for member in members]
+            selected.sort(key=lambda item: str(item["id"]))
+            selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+            selected_keys = [group_keys_by_id[str(item["id"])] for item in selected]
+            current_token = build_opportunity_cohort_token(filters, selected, selected_keys)
+            if cohort_token is not None and _membership_token(cohort_token) != current_token:
+                raise HTTPException(409, "Opportunity cohort changed; reopen the selected record")
+            summary = next((item for item in selected if item["id"] == need_id), None)
         if summary is None:
             raise HTTPException(404, "Opportunity is outside the requested filtered cohort")
         _preflight_opportunity_details(session, [summary])
@@ -2767,6 +2807,7 @@ def export_opportunities_csv(
     *,
     geography: str | None = None,
     industry: str | None = None,
+    industry_group: Literal["industrial"] | None = None,
     activity: str | None = None,
     timing: str | None = None,
     mw_status: str | None = None,
@@ -2788,6 +2829,7 @@ def export_opportunities_csv(
         priority_segment=priority_segment,
         status=status,
         search=search,
+        industry_group=industry_group,
     )
     tier = filters["tier"]
     decision = filters["decision"]
@@ -4024,17 +4066,40 @@ def opportunity_projection(
                 )
             )
         if include_operator_fact_refs:
-            accepted_facts = fact_rows_by_need.get(need.id, [])
+            accepted_facts = [
+                fact
+                for fact in fact_rows_by_need.get(need.id, [])
+                if fact.fact_type != "power_schedule"
+                or (
+                    fact.need_id == need.id
+                    and fact.project_id == need.project_id
+                    and fact.activity_key == need.activity_key
+                    and " ".join(fact.facility_scope.split()).casefold()
+                    == " ".join((project.location or "").split()).casefold()
+                )
+            ]
             if accepted_facts:
                 result[-1]["operator_fact_refs"] = [
                     {
                         "need_id": str(need.id),
+                        **(
+                            {
+                                "project_id": str(fact.project_id),
+                                "activity_key": fact.activity_key,
+                                "facility_scope": fact.facility_scope,
+                            }
+                            if fact.fact_type == "power_schedule"
+                            else {}
+                        ),
                         "fact_version_id": str(fact.id),
                         "content_hash": fact.content_hash,
                         "authority": "User-confirmed",
                         "fact_type": fact.fact_type,
                         "source_reference": fact.source_reference,
                         "confirmed_at": fact.confirmed_at,
+                        "reporter_name": fact.reporter_name,
+                        "reporter_organization": fact.reporter_organization,
+                        "reporter_role": fact.reporter_role,
                         "value": fact.value,
                     }
                     for fact in sorted(
@@ -4445,6 +4510,42 @@ def project_buying_chain(project_id: UUID, history: bool = False):
             return result
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
+
+
+@app.post(
+    "/api/projects/{project_id}/buying-chain/{claim_id}/corrections",
+    response_model=BuyingChainCorrectionOut,
+    dependencies=[Depends(require_session)],
+)
+def correct_project_buying_chain(
+    project_id: UUID, claim_id: UUID, request: Request, body: BuyingChainCorrectionBody
+):
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        try:
+            row = correct_buying_chain_claim(
+                session,
+                project_id=project_id,
+                claim_id=claim_id,
+                expected_version=body.expected_version,
+                idempotency_key=body.idempotency_key,
+                action=body.action,
+                values=body.values,
+                source_evidence_id=body.source_evidence_id,
+                source_hash=body.source_hash,
+                reason=body.reason,
+                actor="authenticated_operator",
+                reported_contact=body.reported_contact,
+                identity_type=body.identity_type,
+                identity_id=body.identity_id,
+            )
+            return correction_view(row)
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
 
 @app.get(

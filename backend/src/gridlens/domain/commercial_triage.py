@@ -6,7 +6,10 @@ import hashlib
 import json
 import re
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from gridlens.ingestion.adapters.retained_document import StackProof
 
 POLICY_VERSION = "commercial-triage-v2.1"
 MAX_CARDS = 50
@@ -89,6 +92,13 @@ def _is_rental_intermediary(category: Any, organization: Any, reason: Any = "") 
             re.I,
         )
     )
+
+
+def _f17_stack_service_conflict(item: dict[str, Any]) -> StackProof:
+    """Apply the existing WATCH policy to adapter-verified source proof."""
+    from gridlens.ingestion.adapters.retained_document import stack_service_conflict
+
+    return stack_service_conflict(item)
 
 
 class PriorityInputAccumulator:
@@ -709,6 +719,9 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "Wait for the cited next project milestone; current evidence does not "
             "support a stronger commercial action.",
         )
+    stack_proof = _f17_stack_service_conflict(item) if disposition == "WATCH" else None
+    if stack_proof is not None and stack_proof.status == "verified":
+        reason = stack_proof.reason or reason
     if item.get("asset_type") == "data_center" and phase_specific_scope:
         question = (
             "Who is supplying temporary construction or commissioning power, and "
@@ -750,6 +763,8 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "Call the cited public project contact to confirm stage, need-specific MW, "
             "timing, duration, and purchasing role."
         )
+    elif stack_proof is not None and stack_proof.status == "verified":
+        next_action = stack_proof.next_action or reason
     else:
         next_action = reason
     watch = None
@@ -918,8 +933,31 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
                 str(reference["content_hash"]),
             ),
         )
+    # Schedules enrich the intelligence card, but they do not change the saved
+    # commercial research question. Filter from the typed projection before its
+    # compatibility shape has discarded fact_type.
+    semantic_input = dict(card)
+    typed_refs = [
+        reference
+        for reference in (operator_fact_refs or [])
+        if reference.get("fact_type") != "power_schedule"
+    ]
+    if operator_fact_refs:
+        if typed_refs:
+            semantic_input["operator_fact_refs"] = [
+                {
+                    key: reference[key]
+                    for key in ("need_id", "fact_version_id", "content_hash", "authority")
+                    if key in reference
+                }
+                for reference in typed_refs
+            ]
+        else:
+            semantic_input.pop("operator_fact_refs", None)
     card["input_hash"] = hashlib.sha256(
-        json.dumps([POLICY_VERSION, _semantic_card(card)], sort_keys=True, default=str).encode()
+        json.dumps(
+            [POLICY_VERSION, _semantic_card(semantic_input)], sort_keys=True, default=str
+        ).encode()
     ).hexdigest()
     return card
 

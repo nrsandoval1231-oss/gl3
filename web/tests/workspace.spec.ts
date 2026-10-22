@@ -993,6 +993,172 @@ test('accepted fact read-back refreshes the material changes count and list', as
   await expect(panel.getByRole('heading', { name: 'Call fact accepted: demand' })).toBeVisible()
 })
 
+test('row-based schedule drafts, accepts, corrects and retracts with dated utility metadata', async ({ page }) => {
+  await page.unrouteAll()
+  let currentVersion = 0
+  const facts: Array<Record<string, any>> = []
+  const postedValues: Record<string, any>[] = []
+  const pageResult = () => ({
+    items: [...facts].reverse(), total: facts.length, limit: 50, offset: 0, next_offset: null,
+    current_fact_version: currentVersion,
+    current_reported_timing_correction_target: {
+      available: false, unavailable_reason: 'no_current_admitted_lead', need_id: 'need-a',
+      project_id: 'project-a', project_identity_key: null, activity_key: 'construction', facility_identity: null,
+      source_semantic_hash: null, source_evidence_hash: null, retained_evidence_id: null, source_id: null,
+      earliest_possible_start: null, latest_possible_start: null, minimum_duration_days: null,
+      maximum_duration_days: null, current_fact_version: currentVersion,
+    },
+  })
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    const method = request.method()
+    if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: response() })
+    if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: emptyChanges })
+    if (path === '/api/opportunities/needs/need-a') return route.fulfill({ json: need })
+    if (path === '/api/needs/need-a/facts' && method === 'GET') return route.fulfill({ json: pageResult() })
+    if (path === '/api/needs/need-a/facts' && method === 'POST') {
+      currentVersion += 1
+      postedValues.push(request.postDataJSON())
+      const fact = { ...(postedValues.at(-1) as object), id: `schedule-${facts.length + 1}`, need_id: 'need-a', project_id: 'project-a', decision: 'draft', decision_version: currentVersion, decision_reason: 'Draft', decision_actor: 'Operator', authority_label: 'Reported / not accepted', recorded_by: 'Operator', created_at: '2026-10-20T12:00:00Z', content_hash: 'a'.repeat(64) }
+      facts.push(fact)
+      return route.fulfill({ json: fact })
+    }
+    const decisionMatch = path.match(/^\/api\/needs\/need-a\/facts\/([^/]+)\/decision$/)
+    if (decisionMatch && method === 'POST') {
+      currentVersion += 1
+      const body = request.postDataJSON() as { decision: string; reason: string }
+      const fact = facts.find(row => row.id === decisionMatch[1])!
+      fact.decision = body.decision; fact.decision_version = currentVersion
+      fact.decision_reason = body.reason; fact.decision_actor = 'Operator'
+      fact.authority_label = body.decision === 'accepted' || body.decision === 'corrected' ? 'User-confirmed' : 'Retracted'
+      return route.fulfill({ json: { id: `decision-${currentVersion}`, version: currentVersion, decision: body.decision, fact_version_id: fact.id, reason: body.reason, actor: 'Operator', created_at: '2026-10-20T12:00:00Z' } })
+    }
+    if (path === '/api/needs/need-a/workflow-status') return route.fulfill({ json: { need_id: 'need-a', status: 'New', version: 0, events: [] } })
+    if (path === '/api/power-needs/need-a/title') return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    if (path === '/api/projects/project-a/buying-chain') return route.fulfill({ json: { project_id: 'project-a', candidates: [], permit_summaries: [], unresolved: [], runs: [], status: 'unavailable' } })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Next steps', exact: true }).click()
+  const panel = page.getByRole('region', { name: 'Exact-Need facts and operator status' })
+  const enterSchedule = async (correction: boolean) => {
+    await panel.getByLabel('Fact type').selectOption('power_schedule')
+    await panel.getByLabel('Reporter name').fill('Synthetic operator')
+    await panel.getByLabel('Reporter organization').fill('Example Owner')
+    await panel.getByLabel('Reporter role').fill('Project Engineer')
+    await panel.getByLabel('Phase name').fill(correction ? 'commissioning-revised' : 'commissioning')
+    await panel.getByLabel('Start date').fill('2027-01-01')
+    await panel.getByLabel('End date').fill('2027-02-01')
+    await panel.getByLabel('Demand minimum (MW)').fill(correction ? '11' : '10')
+    await panel.getByLabel('Demand maximum (MW)').fill('12')
+    await panel.getByLabel('Demand basis').fill('Owner-described commissioning demand')
+    await panel.getByLabel('Supply coverage').selectOption('partial')
+    await panel.getByLabel('Coverage basis').fill('Utility date remains subject to confirmation')
+    const fillPhase = async (ordinal: number, start: string, end: string) => {
+      const phase = panel.getByRole('group', { name: `Demand phase ${ordinal}` })
+      await phase.getByLabel('Start date').fill(start)
+      await phase.getByLabel('End date').fill(end)
+      await phase.getByLabel('Demand minimum (MW)').fill('10')
+      await phase.getByLabel('Demand maximum (MW)').fill('12')
+      await phase.getByLabel('Demand basis').fill('Owner-described phased demand')
+      await phase.getByLabel('Supply coverage').selectOption('partial')
+      await phase.getByLabel('Coverage basis').fill('Other supply remains unconfirmed')
+    }
+    await panel.getByRole('button', { name: 'Add demand phase' }).click()
+    await panel.getByRole('button', { name: 'Add demand phase' }).click()
+    await panel.getByRole('button', { name: 'Add demand phase' }).click()
+    await fillPhase(2, '2027-02-01', '2027-03-01')
+    await fillPhase(3, '2027-03-01', '2027-04-01')
+    await fillPhase(4, '2027-04-01', '2027-05-01')
+    await panel.getByRole('group', { name: 'Demand phase 3' }).getByRole('button', { name: 'Remove phase' }).click()
+    await panel.getByRole('button', { name: 'Add demand phase' }).click()
+    await fillPhase(4, '2027-05-01', '2027-06-01')
+    await panel.getByRole('button', { name: 'Add supply entry' }).click()
+    const utility = panel.getByRole('group', { name: 'Supply entry 1' })
+    await utility.getByLabel('Entry name').fill('utility-service')
+    await utility.getByLabel('Start date').fill('2027-01-15')
+    await utility.getByLabel('End date').fill('2027-02-01')
+    await utility.getByLabel('Supply minimum (MW)').fill('4')
+    await utility.getByLabel('Supply maximum (MW)').fill('5')
+    await utility.getByLabel('Supply state').selectOption('committed')
+    await utility.getByLabel('Suitability').selectOption('suitable')
+    await utility.getByLabel('Supply source kind').selectOption('utility_grid')
+    await utility.getByLabel('Service-ready / energization date').fill('2027-01-15')
+    await utility.getByLabel('Date basis').fill('Utility service letter')
+    await utility.getByLabel('Supply basis').fill('Utility committed service')
+    await panel.getByRole('button', { name: 'Add supply entry' }).click()
+    const proposed = panel.getByRole('group', { name: 'Supply entry 2' })
+    await proposed.getByLabel('Entry name').fill('future-utility-option')
+    await proposed.getByLabel('Start date').fill('2027-03-01')
+    await proposed.getByLabel('End date').fill('2027-04-01')
+    await proposed.getByLabel('Supply minimum (MW)').fill('4')
+    await proposed.getByLabel('Supply maximum (MW)').fill('5')
+    await proposed.getByLabel('Supply state').selectOption('proposed')
+    await proposed.getByLabel('Suitability').selectOption('suitable')
+    await proposed.getByLabel('Supply source kind').selectOption('utility_grid')
+    await proposed.getByLabel('Service-ready / energization date').fill('2027-03-15')
+    await proposed.getByLabel('Date basis').fill('Draft utility schedule')
+    await proposed.getByLabel('Supply basis').fill('Proposed future grid service')
+    await panel.getByRole('button', { name: 'Add supply entry' }).click()
+    const generator = panel.getByRole('group', { name: 'Supply entry 3' })
+    await generator.getByLabel('Entry name').fill('supply-3')
+    await generator.getByLabel('Start date').fill('2027-01-01')
+    await generator.getByLabel('End date').fill('2027-02-01')
+    await generator.getByLabel('Supply minimum (MW)').fill('1')
+    await generator.getByLabel('Supply maximum (MW)').fill('1')
+    await generator.getByLabel('Supply state').selectOption('hypothetical')
+    await generator.getByLabel('Suitability').selectOption('suitable')
+    await generator.getByLabel('Supply source kind').selectOption('onsite')
+    await generator.getByLabel('Service-ready / energization date').fill('2027-01-15')
+    await generator.getByLabel('Date basis').fill('Hypothetical generator schedule')
+    await generator.getByLabel('Supply basis').fill('Hypothetical generation')
+    await proposed.getByRole('button', { name: 'Remove supply entry' }).click()
+    await panel.getByRole('button', { name: 'Add supply entry' }).click()
+    const replacement = panel.getByRole('group', { name: 'Supply entry 3' })
+    await replacement.getByLabel('Start date').fill('2027-03-01')
+    await replacement.getByLabel('End date').fill('2027-04-01')
+    await replacement.getByLabel('Supply minimum (MW)').fill('4')
+    await replacement.getByLabel('Supply maximum (MW)').fill('5')
+    await replacement.getByLabel('Supply state').selectOption('proposed')
+    await replacement.getByLabel('Suitability').selectOption('suitable')
+    await replacement.getByLabel('Supply source kind').selectOption('utility_grid')
+    await replacement.getByLabel('Service-ready / energization date').fill('2027-03-15')
+    await replacement.getByLabel('Date basis').fill('Draft utility schedule')
+    await replacement.getByLabel('Supply basis').fill('Proposed future grid service')
+    await panel.getByLabel('Basis', { exact: true }).fill('Operator-reported phased work plan')
+    await panel.locator('form').getByLabel('Source reference', { exact: true }).last().fill('utility-letter-1')
+    if (correction) await panel.getByLabel('Predecessor fact version (for correction)').selectOption({ label: 'v2 · power_schedule · accepted' })
+  }
+  await enterSchedule(false)
+  await panel.getByRole('button', { name: 'Save fact draft' }).click()
+  await expect(panel.getByText(/Draft persisted and confirmed/)).toBeVisible()
+  const savedSchedule = postedValues.at(-1)?.value
+  expect(savedSchedule.phases[0]).toMatchObject({ phase_id: 'commissioning', mw_min: '10' })
+  expect(savedSchedule.supplies).toMatchObject([{ supply_id: 'utility-service', source_kind: 'utility_grid', service_ready_date: '2027-01-15' }, { supply_id: 'supply-3', state: 'hypothetical' }, { supply_id: 'supply-1', state: 'proposed', source_kind: 'utility_grid', service_ready_date: '2027-03-15' }])
+  expect(new Set(savedSchedule.phases.map((phase: { phase_id: string }) => phase.phase_id)).size).toBe(savedSchedule.phases.length)
+  expect(new Set(savedSchedule.supplies.map((supply: { supply_id: string }) => supply.supply_id)).size).toBe(savedSchedule.supplies.length)
+  expect(savedSchedule.phases.map((phase: { phase_id: string }) => phase.phase_id)).toContain('phase-3')
+  expect(savedSchedule.supplies.map((supply: { supply_id: string }) => supply.supply_id)).toContain('supply-3')
+  expect(savedSchedule.supplies.map((supply: { supply_id: string }) => supply.supply_id)).toContain('supply-1')
+  await panel.getByLabel('Reason for decision').fill('Schedule confirmed for test')
+  await panel.getByRole('button', { name: 'Accept fact' }).click()
+  await expect(panel.getByText('power_schedule · accepted · User-confirmed')).toBeVisible()
+
+  await enterSchedule(true)
+  await panel.getByRole('button', { name: 'Save fact draft' }).click()
+  await expect(panel.getByText(/Draft persisted and confirmed/)).toBeVisible()
+  await panel.getByLabel('Reason for decision').fill('Corrected commissioning estimate')
+  await panel.getByRole('button', { name: 'Record correction' }).click()
+  await expect(panel.getByText('power_schedule · corrected · User-confirmed')).toBeVisible()
+  await panel.getByLabel('Reason for retraction').fill('Source schedule withdrawn')
+  const corrected = panel.locator('article').filter({ hasText: 'power_schedule · corrected · User-confirmed' })
+  await corrected.getByRole('button', { name: 'Retract this accepted version' }).click()
+  await expect(panel.getByText('power_schedule · retracted · Retracted')).toBeVisible()
+})
+
 test('active change links use canonical workspace readback instead of historical stored tier', async ({ page }) => {
   await page.unrouteAll()
   const activeChange = {
@@ -1089,6 +1255,97 @@ test('tablet direct selection keeps detail and header reachable and restores the
   await expect(identity).toBeVisible()
 })
 
+for (const width of [768, 390]) {
+  test(`Notifications reveals queue after repeated selection and preserves Back at ${width}px`, async ({ page }) => {
+    const secondNeed = { ...need, id: 'need-b', project_id: 'project-b', name: 'Second data center' }
+    const change = {
+      event_key: `compact-change-${width}`, category: 'changed', title: 'Source changed',
+      detail: 'Permit text was updated and needs review.', created_at: '2026-10-20T12:00:00Z',
+      source_date: null, project_id: 'project-a', before_state: null, after_state: null,
+      needs: [], sources: [],
+    }
+    await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+    await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([need, secondNeed]) }))
+    await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: { ...emptyChanges, items: [change], total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 } } }))
+    await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
+    await page.route('**/api/opportunities/needs/need-b*', route => route.fulfill({ json: secondNeed }))
+    await page.goto('/?view=workspace')
+    await page.locator('[data-need-row="need-a"]').click()
+    await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+    await page.locator('[data-need-row="need-b"]').click()
+    await expect(page.getByRole('heading', { name: 'Second data center' })).toBeVisible()
+    await page.setViewportSize({ width, height: 900 })
+    await page.getByRole('button', { name: 'Notifications' }).click()
+    const list = page.locator('.wh-list')
+    await expect(list).toBeVisible()
+    const disclosure = page.locator('.wh-change-disclosure')
+    await expect(disclosure).toHaveAttribute('open', '')
+    await expect(disclosure).toContainText('Permit text was updated and needs review.')
+    await expect(disclosure).toBeInViewport()
+    await page.goBack()
+    await expect(page.getByRole('heading', { name: 'Second data center' })).toBeVisible()
+    await page.getByRole('button', { name: 'Notifications' }).click()
+    await expect(list).toBeVisible()
+    await expect(disclosure).toBeInViewport()
+  })
+}
+
+test('industrial group filters canonical asset types, carries URL cohorts, and resets exact filters', async ({ page }) => {
+  const assets = [
+    ...Array.from({ length: 10 }, (_, index) => ({ ...need, id: `gas-${index}`, name: `Gas plant ${index}`, asset_type: 'gas_processing_plant', industry: 'gas_processing_plant' })),
+    ...Array.from({ length: 10 }, (_, index) => ({ ...need, id: `compressor-${index}`, name: `Compressor ${index}`, asset_type: 'compressor_station', industry: 'compressor_station' })),
+    ...Array.from({ length: 10 }, (_, index) => ({ ...need, id: `well-${index}`, name: `Upstream well ${index}`, asset_type: 'upstream_well', industry: 'upstream_well' })),
+    { ...need, id: 'data-center', name: 'Data center', asset_type: 'data_center', industry: 'data_center' },
+    { ...need, id: 'unknown-asset', name: 'Unclassified asset', asset_type: 'unknown', industry: 'unknown' },
+  ]
+  const requests: URL[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', async route => {
+    const url = new URL(route.request().url())
+    requests.push(url)
+    const group = url.searchParams.get('industry_group')
+    const exact = url.searchParams.get('industry')
+    const selected = group === 'industrial'
+      ? assets.filter(item => ['gas_processing_plant', 'compressor_station', 'upstream_well'].includes(item.asset_type))
+      : exact ? assets.filter(item => item.asset_type === exact) : assets
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const items = selected.slice(offset, offset + 25)
+    const cohort = group === 'industrial' ? 'industrial-cohort' : exact ? 'exact-cohort' : 'all-cohort'
+    await route.fulfill({ json: { ...response(items), total: selected.length, offset, next_offset: offset + items.length < selected.length ? offset + items.length : null, cohort_token: cohort } })
+  })
+  await page.goto('/?view=workspace&industry=gas_processing_plant')
+  await expect(page.getByLabel('Industry (exact match)')).toHaveValue('gas_processing_plant')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry')).toBe('gas_processing_plant')
+  await page.locator('.wh-tools > summary').click()
+  await page.locator('.wh-filter-disclosure summary').click()
+  await page.getByLabel('Industry (exact match)').fill('compressor_station')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry')).toBe('compressor_station')
+  await page.getByRole('button', { name: 'Industrial', exact: true }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry_group')).toBe('industrial')
+  await expect(page.getByLabel('Industry (exact match)')).toHaveValue('')
+  await expect(page).toHaveURL(/industry_group=industrial/)
+  await expect(page).not.toHaveURL(/industry=gas_processing_plant|industry=compressor_station/)
+  await expect(page.locator('.wh-queue-heading')).toContainText('30 opportunities')
+  await expect(page.locator('[data-need-row]')).toHaveCount(25)
+  await expect(page.locator('[data-need-row="data-center"]')).toHaveCount(0)
+  await expect(page.locator('[data-need-row="unknown-asset"]')).toHaveCount(0)
+  await expect(page.locator('.wh-paging')).toContainText('of 30')
+  await page.locator('.wh-paging').getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('25')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('cohort_token')).toBe('industrial-cohort')
+  await page.getByRole('button', { name: 'Data centers', exact: true }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry')).toBe('data_center')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('0')
+  await expect(requests.at(-1)?.searchParams.has('industry_group')).toBe(false)
+  await expect(requests.at(-1)?.searchParams.has('cohort_token')).toBe(false)
+  await page.goBack()
+  await expect(page).toHaveURL(/industry_group=industrial.*offset=25.*cohort_token=industrial-cohort/)
+  await expect.poll(() => requests.at(-1)?.searchParams.get('industry_group')).toBe('industrial')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('25')
+  await page.reload()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('cohort_token')).toBe('industrial-cohort')
+})
+
 test('Power gap shows only backend-qualified ranges and keeps null or conflicted gaps unknown', async ({ page }) => {
   const qualified = { ...need, id: 'need-qualified', name: 'Qualified power need', tier: 'Lead', required_mw: '4–6 MW', supply: '2–3 MW', qualified_remaining_gap: { required_mw_min: '4', required_mw_max: '6', available_mw_min: '2', available_mw_max: '3', remaining_mw_min: '1', remaining_mw_max: '4', start_window: 'Q2 2027', duration: '90–120 days', basis_quote: 'Service letter states 2–3 MW available.', value_kind: 'Derived', calculation: 'range intersection from supported demand and supply', version: 'qual-v1' }, qualification_version: 'qual-v1' }
   const unknown = { ...need, id: 'need-unknown', name: 'Unknown power need', qualified_remaining_gap: null, qualification_version: null }
@@ -1132,7 +1389,8 @@ test('utility service status stays distinct from an energization date and facili
   await expect(metrics).toContainText('Facility DemandNot established')
   await expect(metrics).not.toContainText('18 MW')
   await expect(metrics).toContainText('Utility EnergizationUtility service application filed')
-  await expect(metrics).toContainText('Utility service status; date not established.')
+  await expect(metrics).toContainText('Public utility filing; no date stated.')
+  await expect(metrics).not.toContainText('date not established')
 })
 
 for (const width of [1280, 390]) {
@@ -1148,10 +1406,33 @@ for (const width of [1280, 390]) {
       research_gaps: [{ key: 'start', label: 'Power needed', section: 'power', value: null, status: 'Research in progress', basis: 'No supported date yet.', research_category: 'timing', research_status: 'NOT_SCHEDULED', sources: [] }],
       completeness: { supported: 1, total: 2, percent: 50, basis: 'Independent of qualification' },
       last_intelligence_update: '2026-10-20T10:00:00Z', power_gap: null, evidence: [source], research_enabled: true,
+      power_schedule: {
+        status: 'UNRESOLVED', basis: 'Operator-reported phased work plan',
+        fact_refs: [{ fact_version_id: 'schedule-v1', content_hash: 'b'.repeat(64), authority: 'User-confirmed', source_reference: 'utility-letter-1', confirmed_at: '2026-10-20T10:00:00Z', reporter_name: 'A. Operator', reporter_organization: 'Example Owner', reporter_role: 'Project Engineer', source_quote: 'January commissioning schedule.' }],
+        supplies: [
+          { supply_id: 'utility-service', start_date: '2027-01-15', end_date: '2027-02-01', mw_min: '4', mw_max: '5', state: 'committed', suitability: 'suitable', source_kind: 'utility_grid', service_ready_date: '2027-01-15', date_basis: 'Utility service letter', basis: 'Committed service', source_reference: 'utility-letter-1' },
+          { supply_id: 'future-grid-option', start_date: '2027-03-01', end_date: '2027-04-01', mw_min: '4', mw_max: '5', state: 'proposed', suitability: 'suitable', source_kind: 'utility_grid', service_ready_date: '2027-03-15', date_basis: 'Draft utility schedule', basis: 'Proposed service', source_reference: null },
+        ],
+        segments: [
+          { phase_id: 'commissioning', start_date: '2027-01-01', end_date: '2027-02-01', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: null, supply_max_mw: null, residual_min_mw: null, residual_max_mw: null, supply_ids: [], unresolved_supply_ids: [], supply_basis: [], unresolved_reason: 'Other supply is unknown', scenario: 'base' },
+          { phase_id: 'future phase', start_date: '2027-03-01', end_date: '2027-03-15', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: '0', supply_max_mw: '0', residual_min_mw: '10', residual_max_mw: '12', supply_ids: [], unresolved_supply_ids: [], supply_basis: [], unresolved_reason: null, scenario: 'base' },
+          { phase_id: 'future phase', start_date: '2027-03-15', end_date: '2027-04-01', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: '0', supply_max_mw: '0', residual_min_mw: '10', residual_max_mw: '12', supply_ids: [], unresolved_supply_ids: [], supply_basis: [], unresolved_reason: null, scenario: 'base' },
+          { phase_id: 'future phase', start_date: '2027-03-15', end_date: '2027-04-01', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: '4', supply_max_mw: '5', residual_min_mw: '5', residual_max_mw: '8', supply_ids: ['future-grid-option'], unresolved_supply_ids: [], supply_basis: ['future-grid-option: Proposed service (Draft utility schedule)'], unresolved_reason: null, scenario: 'alternative' },
+        ],
+      },
     }
     await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
     await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
-    await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, intelligence_card: card } }))
+    await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: {
+      ...need, asset_type: 'gas_processing_plant', lifecycle_state: 'operation',
+      expected_next_milestone: 'Integrity inspection', expected_power_event: 'Compression upgrade',
+      time_to_power_window: 'Within 90 days', estimate_version: 'lifecycle-v2',
+      estimate_basis: { confidence: 'medium' },
+      lifecycle_timeline: [{ event_type: 'permit', date: '2026-10-20', state: 'permit', evidence_url: source.url, value_kind: 'reported', current: true, published_at: '2026-10-20' }],
+      monitoring_requirements: ['Monitor compressor replacement schedule'], lifecycle_open_questions: ['Confirm the power package owner'],
+      rank_score: 8, rank_version: 'rank-v1', rank_reasons: ['Near-term power event', 'Known industrial asset'],
+      intelligence_card: card,
+    } }))
     await page.route('**/api/power-needs/*/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
     await page.route('**/api/power-needs/*/brief', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
     let researchBody: unknown
@@ -1159,6 +1440,13 @@ for (const width of [1280, 390]) {
     await page.goto('/?view=workspace&need=need-a')
     const panel = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
     await expect(panel).toBeVisible()
+    await page.getByRole('button', { name: 'Overview', exact: true }).click()
+    await page.locator('.wh-provenance-disclosure summary').click()
+    await expect(page.locator('.wh-provenance-disclosure')).toContainText('Integrity inspection')
+    await expect(page.locator('.wh-provenance-disclosure')).toContainText('Confirm the power package owner')
+    const priority = page.getByRole('region', { name: 'Priority explanation' })
+    await expect(priority).toContainText('Canonical rank score: 8 · rank-v1')
+    await expect(priority).toContainText('Known industrial asset')
     await expect(panel.getByText('Example Owner', { exact: true }).first()).toBeVisible()
     await expect(panel.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
     await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)
@@ -1166,8 +1454,16 @@ for (const width of [1280, 390]) {
     await panel.getByRole('button', { name: 'Research missing information' }).click()
     await expect.poll(() => researchBody).toEqual({ force: false, complete_intelligence: true })
     await expect(panel.getByRole('status')).toContainText('Targeted research queued')
-  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Intelligence card sources' })).toContainText('evidence:test')
+    await page.getByRole('button', { name: 'Commercial Assessment' }).click()
+    const schedule = page.getByRole('region', { name: 'Reported phased power schedule' })
+    await expect(schedule.getByText('Reported grid energization: 2027-01-15')).toBeVisible()
+    await expect(schedule.getByText(/scenario date, not committed service/)).toBeVisible()
+    await expect(schedule.getByRole('row').filter({ hasText: '2027-03-01 to 2027-03-15' }).filter({ hasText: 'current reported' })).toContainText('10–12 MW scenario')
+    await expect(schedule.getByRole('row').filter({ hasText: '2027-03-15 to 2027-04-01' }).filter({ hasText: 'proposed / hypothetical' })).toContainText('5–8 MW scenario')
+    await schedule.getByText('Schedule attribution and source').click()
+    await expect(schedule.getByText(/reported by A. Operator, Example Owner · Project Engineer/)).toBeVisible()
+    await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Intelligence card sources' })).toContainText('evidence:test')
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
     await page.screenshot({ path: testInfo.outputPath(`intelligence-card-${width}.png`), fullPage: true })
     await page.getByRole('button', { name: /Back to power needs/ }).click()

@@ -4055,3 +4055,56 @@ def test_positive_chain_collector_equals_fresh_canonical_fallback(saved_db, monk
     actual.pop("evaluated_at")
     assert actual == expected
     assert any(c["organization"] == "Acme" for c in actual["items"])
+
+
+def test_industrial_asset_group_survives_workspace_and_both_export_paths(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from gridlens.domain.lifecycle import AssetType
+    from gridlens.persistence.models import PowerNeed, Project
+    from gridlens.security import token_for
+
+    need_ids = seed(saved_db, count=6, histories=1)
+    asset_types = [
+        AssetType.GAS_PROCESSING_PLANT,
+        AssetType.COMPRESSOR_STATION,
+        AssetType.UPSTREAM_WELL,
+        AssetType.CRYOGENIC_PLANT,
+        AssetType.DATA_CENTER,
+        AssetType.UNKNOWN,
+    ]
+    with saved_db.begin() as session:
+        for need_id, asset_type in zip(need_ids, asset_types, strict=True):
+            need = session.get(PowerNeed, need_id)
+            session.get(Project, need.project_id).asset_type = asset_type.value
+    assert rebuild(saved_db)["status"] == "published"
+    expected_ids = {str(need_id) for need_id in need_ids[:4]}
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    workspace = client.get("/api/opportunities/workspace?industry_group=industrial")
+    assert workspace.status_code == 200, workspace.text
+    assert workspace.json()["total"] == 4
+    assert {item["id"] for item in workspace.json()["items"]} == expected_ids
+    saved_export = client.get("/api/opportunities/export.csv?tier=Signal&industry_group=industrial")
+    assert saved_export.status_code == 200, saved_export.text
+    saved_ids = {row["need_id"] for row in csv.DictReader(StringIO(saved_export.text))}
+    assert saved_ids == expected_ids
+
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    legacy_export = client.get(
+        "/api/opportunities/export.csv?tier=Signal&industry_group=industrial"
+    )
+    assert legacy_export.status_code == 200, legacy_export.text
+    legacy_ids = {row["need_id"] for row in csv.DictReader(StringIO(legacy_export.text))}
+    assert legacy_ids == expected_ids
+    exact_export = client.get(
+        "/api/opportunities/export.csv?tier=Signal&industry=gas_processing_plant"
+    )
+    assert exact_export.status_code == 200, exact_export.text
+    assert {row["need_id"] for row in csv.DictReader(StringIO(exact_export.text))} == {
+        str(need_ids[0])
+    }
+    assert client.get("/api/opportunities?industry_group=industrial").status_code == 422
+    assert client.get("/api/opportunities/map-window?industry_group=industrial").status_code == 422

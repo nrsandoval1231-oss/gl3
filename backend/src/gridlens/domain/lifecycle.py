@@ -63,6 +63,18 @@ FIXED_ASSETS = frozenset(AssetType) - {
     AssetType.DATA_CENTER,
     AssetType.UPSTREAM_WELL,
 }
+INDUSTRIAL_ASSETS = frozenset(AssetType) - {AssetType.UNKNOWN, AssetType.DATA_CENTER}
+INDUSTRIAL_ASSET_VALUES = tuple(sorted(asset.value for asset in INDUSTRIAL_ASSETS))
+
+
+def is_industrial_asset_type(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        return AssetType(value) in INDUSTRIAL_ASSETS
+    except (TypeError, ValueError):
+        return False
+
 
 LIFECYCLE_ORDER: dict[AssetType, tuple[str, ...]] = {
     AssetType.DATA_CENTER: tuple(state.value for state in DataCenterState),

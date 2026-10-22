@@ -34,6 +34,8 @@ export type IntelligenceOperations = {
 export type OwnerFeedbackBody = { client_id: string; job_id: string; logical_call_id: string; decision: 'SUPPORTED' | 'CONFLICT' | 'UNRESOLVED' | 'OTHER'; note: string; next_action?: string; follow_up?: string | null; candidate: { field: string; value: string; unit?: string | null; original_value?: string | null; original_unit?: string | null; precision?: number | null; date_precision?: string | null; speaker?: string | null; speaker_organization?: string | null; speaker_role?: string | null; evidence_id: string; evidence_hash: string; quote: string; section: string; page?: number | null; span_start: number; span_end: number; publisher: string; published_date?: string | null; support: string; status: string; source_url: string; source_id?: string | null }; evidence_refs: { evidence_id: string; content_hash: string; source_url: string }[] }
 
 export type BuyingChainResult = components['schemas']['BuyingChainOut']
+export type BuyingChainCorrectionBody = components['schemas']['BuyingChainCorrectionBody']
+export type BuyingChainCorrection = components['schemas']['BuyingChainCorrectionOut']
 export type Opportunity = components['schemas']['OpportunityOut']
 export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
 export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
@@ -42,10 +44,11 @@ export type WorkspaceChangeNeed = components['schemas']['WorkspaceChangeNeedOut'
 export type WorkspaceChangesReviewBody = components['schemas']['WorkspaceChangesReviewBody']
 export type WorkspaceChangesReviewReceipt = components['schemas']['WorkspaceChangesReviewReceiptOut']
 export type WorkspaceHistoricalNeed = components['schemas']['WorkspaceHistoricalNeedOut']
-export type WorkspaceFilters = { search?: string; tier?: 'Signal' | 'Prospect' | 'Lead'; disposition?: string; geography?: string; industry?: string; activity?: string; timing?: 'KNOWN' | 'UNKNOWN'; mw_min?: string; mw_max?: string; sort?: 'priority' | 'project' | 'mw' | 'start' | 'updated'; offset?: number; cohort_token?: string }
+export type WorkspaceFilters = { search?: string; tier?: 'Signal' | 'Prospect' | 'Lead'; disposition?: string; geography?: string; industry?: string; industry_group?: 'industrial'; activity?: string; timing?: 'KNOWN' | 'UNKNOWN'; mw_min?: string; mw_max?: string; sort?: 'priority' | 'project' | 'mw' | 'start' | 'updated'; offset?: number; cohort_token?: string }
 export type OpportunityBrowseFilters = {
   geography?: string
   industry?: string
+  industryGroup?: 'industrial'
   activity?: string
   timing?: 'KNOWN' | 'UNKNOWN' | ''
   mwStatus?: 'KNOWN' | 'UNKNOWN' | ''
@@ -121,7 +124,7 @@ async function api<T>(path: string, init?: RequestInit, includeSafeDetail = fals
 
 function addBrowseFilters(params: URLSearchParams, filters: OpportunityBrowseFilters = {}) {
   const entries: [string, string | undefined][] = [
-    ['geography', filters.geography], ['industry', filters.industry], ['activity', filters.activity],
+    ['geography', filters.geography], ['industry', filters.industry], ['industry_group', filters.industryGroup], ['activity', filters.activity],
     ['timing', filters.timing], ['mw_status', filters.mwStatus], ['mw_min', filters.mwMin],
     ['mw_max', filters.mwMax], ['priority_segment', filters.prioritySegment], ['status', filters.status],
   ]
@@ -238,7 +241,8 @@ export const client = {
   pursuits: (signal?: AbortSignal, includeDropped = false, offset = 0) => api<PursuitsResult>(`/api/pursuits${includeDropped ? `?include_dropped=true&offset=${offset}` : ''}`, { signal }),
   refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
   savePursuitNote: (pursuitId: string, body: CallNoteBody) => api<components['schemas']['CallNoteOut']>(`/api/pursuits/${encodeURIComponent(pursuitId)}/notes`, { method: 'POST', body: JSON.stringify(body) }),
-  buyingChain: (projectId: string, signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain`, { signal }),
+  buyingChain: (projectId: string, signal?: AbortSignal, history = false) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain${history ? '?history=true' : ''}`, { signal }),
+  correctBuyingChain: (projectId: string, claimId: string, body: BuyingChainCorrectionBody) => api<BuyingChainCorrection>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/${encodeURIComponent(claimId)}/corrections`, { method: 'POST', body: JSON.stringify(body) }, true),
   enrichBuyingChain: (projectId: string, sourceUrls: string[], signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }), signal }),
   brief: (needId: string) => api<Brief>(`/api/power-needs/${encodeURIComponent(needId)}/brief`),
   requestBrief: (needId: string) => api<BriefRequest>(`/api/power-needs/${encodeURIComponent(needId)}/brief`, { method: 'POST', body: '{}' }),

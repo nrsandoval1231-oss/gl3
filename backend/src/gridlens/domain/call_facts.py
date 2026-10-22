@@ -14,7 +14,15 @@ from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.power_qualification import VERSION as POWER_QUALIFICATION_VERSION
 
 FACT_TYPES = frozenset(
-    {"demand", "unsuitable_supply", "suitable_supply", "timing", "buyer", "closure"}
+    {
+        "demand",
+        "unsuitable_supply",
+        "suitable_supply",
+        "timing",
+        "buyer",
+        "closure",
+        "power_schedule",
+    }
 )
 MAX_CURRENT_OPERATOR_FACTS_PER_NEED = 50
 MAX_CURRENT_OPERATOR_FACT_BYTES_PER_NEED = 512 * 1024
@@ -48,7 +56,12 @@ def validate_fact(fact_type: str, value: dict[str, Any]) -> dict[str, Any]:
         },
         "buyer": {"organization", "role"},
         "closure": {"state"},
+        "power_schedule": {"phases", "supplies", "basis", "zero_supply_basis", "source_quote"},
     }
+    if fact_type == "power_schedule":
+        from gridlens.domain.power_schedule import validate_schedule
+
+        return validate_schedule(value)
     allowed = fields_by_type[fact_type] | {"basis", "source_quote"}
     if set(value) - allowed:
         raise ValueError("Fact value contains unsupported fields")
@@ -462,11 +475,12 @@ def qualification_from_facts(
     """Augment only a live public-source claim; facts alone never create qualification."""
     if not base:
         return None
+    qualification_facts = [row for row in facts if row.fact_type != "power_schedule"]
     if any(
         row.project_id != need.project_id
         or row.activity_key != need.activity_key
         or row.facility_scope.strip().casefold() != (project.location or "").strip().casefold()
-        for row in facts
+        for row in qualification_facts
     ):
         return {
             **base,
@@ -476,7 +490,7 @@ def qualification_from_facts(
         }
     fields: dict[str, list[Any]] = {}
     rows_by_type: dict[str, list[Any]] = {}
-    for row in facts:
+    for row in qualification_facts:
         fields.setdefault(row.fact_type, []).append(row.value)
         rows_by_type.setdefault(row.fact_type, []).append(row)
     for fact_type, values in fields.items():
@@ -1000,4 +1014,12 @@ def qualification_from_facts(
 
 
 def fact_digest(facts: list[Any]) -> str:
-    return canonical_hash({"facts": [[str(row.id), row.content_hash] for row in facts]})
+    return canonical_hash(
+        {
+            "facts": [
+                [str(row.id), row.content_hash]
+                for row in facts
+                if row.fact_type != "power_schedule"
+            ]
+        }
+    )
