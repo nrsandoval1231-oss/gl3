@@ -312,7 +312,12 @@ def test_original_retained_permit_claims_are_version_bound_and_activity_scoped(d
                         evaluator_version=RESEARCH_VERSION,
                         content_hash=observation_hash,
                         status="accepted",
-                        assessment={"evidence_hash": evidence_hash},
+                        assessment={
+                            "evidence_hash": evidence_hash,
+                            "project_identity_key": project.identity_key,
+                            "power_activity": need.activity_key,
+                            "location": project.location,
+                        },
                     ),
                     NeedObservation(need_id=need.id, observation_id=observation.id),
                 ]
@@ -391,7 +396,12 @@ def test_boston_permit_research_needs_source_date_not_retrieval_day(db):
             evaluator_version=RESEARCH_VERSION,
             content_hash=observation.content_hash,
             status="accepted",
-            assessment={"evidence_hash": observation.content_hash},
+            assessment={
+                "evidence_hash": observation.content_hash,
+                "project_identity_key": project.identity_key,
+                "power_activity": need.activity_key,
+                "location": project.location,
+            },
         )
         session.add_all(
             [
@@ -426,6 +436,129 @@ def test_boston_permit_research_needs_source_date_not_retrieval_day(db):
         assert raw_evidence.event_date is None
         assert raw_evidence.published_at is None
         assert raw_evidence.observed_at == retrieved
+
+
+def test_retained_permit_claims_require_current_project_activity_and_site_binding(db):
+    from gridlens.domain.project_research import VERSION as RESEARCH_VERSION
+
+    today = date.today()
+    abstract = (
+        "Permit number: ETS1870328\nDescription: Electrical\n"
+        "Comments: Provide temporary electrical work required to support Boss steel "
+        "Office trailer 100A 208v 1Ph $5000"
+    )
+    labels = ("valid", "wrong_identity", "wrong_site", "wrong_activity", "missing", "blank_site")
+    with db.begin() as session:
+        session.add(
+            Source(
+                id="boston-building-permits",
+                publisher="City of Boston",
+                endpoint="https://data.boston.gov/api/3/action/datastore_search",
+                family="construction-permits",
+                geography="Boston, Massachusetts",
+                industries=[],
+                retrieval_method="test",
+                health={},
+            )
+        )
+        session.flush()
+        results = {}
+        valid_row = None
+        for label in labels:
+            location = "500 Permit Avenue, East Boston, Massachusetts"
+            project = Project(
+                source_id="state-test",
+                external_id=f"retained-binding-{label}",
+                name=f"Binding Test {label}",
+                location=location,
+                identity_key=f"retained-binding-{label}",
+                identity_facts={},
+            )
+            need = PowerNeed(
+                project_id=project.id,
+                activity_key="temporary-power",
+                tier="Signal",
+                rationale="retained permit binding test",
+                active=True,
+            )
+            session.add(project)
+            session.flush()
+            need.project_id = project.id
+            session.add(need)
+            session.flush()
+            digest = f"retained-binding-{label}"
+            observation = Observation(
+                source_id="boston-building-permits",
+                external_id=digest,
+                title="Boston retained permit",
+                abstract=abstract,
+                url=f"https://permits.example/{digest}",
+                published_at=today,
+                content_hash=digest,
+            )
+            session.add(observation)
+            session.flush()
+            evidence = Evidence(
+                observation_id=observation.id,
+                title=observation.title,
+                abstract=abstract,
+                url=observation.url,
+                content_hash=digest,
+                event_date=today,
+                published_at=today,
+                observed_at=NOW,
+            )
+            assessment = {
+                "evidence_hash": digest,
+                "project_identity_key": project.identity_key,
+                "power_activity": need.activity_key,
+                "location": "500 Permit Ave, East Boston, MA",
+            }
+            if label == "wrong_identity":
+                assessment["project_identity_key"] = "another-project"
+            elif label == "wrong_site":
+                assessment["location"] = "501 Permit Ave, East Boston, MA"
+            elif label == "wrong_activity":
+                assessment["power_activity"] = "construction"
+            elif label == "missing":
+                assessment = {"evidence_hash": digest}
+            elif label == "blank_site":
+                assessment["location"] = "  "
+            interpretation = Interpretation(
+                observation_id=observation.id,
+                evaluator_version=RESEARCH_VERSION,
+                content_hash=digest,
+                status="accepted",
+                assessment=assessment,
+            )
+            session.add_all(
+                [
+                    evidence,
+                    interpretation,
+                    NeedObservation(need_id=need.id, observation_id=observation.id),
+                ]
+            )
+            results[label] = (project, need, observation, evidence, interpretation)
+            if label == "valid":
+                valid_row = (need, observation, evidence, interpretation)
+        session.flush()
+
+        valid_project, valid_need, *_ = results["valid"]
+        valid_state = current_research_state(session, valid_project.id)
+        assert valid_state[str(valid_need.id)]["voltage"]["status"] == "SUPPORTED"
+        for label in labels[1:]:
+            project, need, *_ = results[label]
+            assert current_research_state(session, project.id).get(str(need.id), {}) == {}
+
+        assert valid_row is not None
+        other_project, *_ = results["wrong_identity"]
+        assert (
+            current_research_state(
+                session, other_project.id, project=other_project, rows=[valid_row]
+            )
+            == {}
+        )
+        assert session.scalars(select(Evidence)).all()
 
 
 def test_need_state_excludes_reassigned_and_supplemental_evidence(db):

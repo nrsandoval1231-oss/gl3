@@ -307,7 +307,7 @@ def test_card_contains_typed_schedule_and_operator_report_provenance():
     record = {
         "id": "n",
         "project_id": "p",
-        "activity_key": "construction",
+        "activity": "construction",
         "location": "Dallas, TX",
         "tier": "Lead",
         "qualification_version": "qualified-v1",
@@ -350,7 +350,8 @@ def test_card_contains_typed_schedule_and_operator_report_provenance():
     "mutation",
     [
         {"location": "Austin, TX"},
-        {"activity_key": "temporary_power"},
+        {"activity": "temporary_power"},
+        {"activity": None},
         {"project_id": "other-project"},
         {"operator_fact_refs": [{"fact_type": "power_schedule", "need_id": "another-need"}]},
         {"operator_fact_refs": [{"fact_type": "power_schedule"}]},
@@ -360,7 +361,7 @@ def test_schedule_scope_must_match_current_canonical_need(mutation):
     record = {
         "id": "n",
         "project_id": "p",
-        "activity_key": "construction",
+        "activity": "construction",
         "location": "Dallas, TX",
         "tier": "Lead",
         "qualification_version": "qualified-v1",

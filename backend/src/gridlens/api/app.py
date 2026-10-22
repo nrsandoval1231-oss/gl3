@@ -3852,7 +3852,6 @@ def opportunity_projection(
                     workflow_by_need[need.id].status if need.id in workflow_by_need else "UNKNOWN"
                 ),
                 "activity": need.activity_key,
-                "activity_key": need.activity_key,
                 "rationale": (
                     "The latest linked Taylor revision withdraws this planning application. "
                     "Earlier project evidence remains historical; current project viability "

@@ -64,6 +64,23 @@ def _supported(value: Any, evidence: list[Evidence]) -> dict[str, Any]:
     )
 
 
+def _retained_permit_binding_matches(
+    project: Project, need: PowerNeed, assessment: dict[str, Any]
+) -> bool:
+    location = assessment.get("location")
+    project_location = project.location
+    activity = assessment.get("power_activity") or assessment.get("activity_key")
+    return bool(
+        assessment.get("project_identity_key") == project.identity_key
+        and activity == need.activity_key
+        and isinstance(location, str)
+        and location.strip()
+        and isinstance(project_location, str)
+        and project_location.strip()
+        and canonical_site_claim(location) == canonical_site_claim(project_location)
+    )
+
+
 def _conflict(values: list[tuple[Any, Evidence]], *, mw: bool = False) -> dict[str, Any]:
     if not values:
         return _unknown()
@@ -93,7 +110,7 @@ def current_research_state(
     or interpretation now represents a different version or a rejection.
     """
     project = project or session.get(Project, project_id)
-    if project is None:
+    if project is None or project.id != project_id:
         return {}
     if rows is None:
         query = (
@@ -109,11 +126,14 @@ def current_research_state(
         rows = [tuple(row) for row in session.execute(query).all()]
     claims: dict[str, list[dict]] = defaultdict(list)
     for need, observation, evidence, interpretation in rows:
+        if need.project_id != project_id or (need_id is not None and need.id != need_id):
+            continue
         assessment = interpretation.assessment or {}
         current_version = bool(
             interpretation.status == "accepted"
             and observation.content_hash == evidence.content_hash == interpretation.content_hash
             and assessment.get("evidence_hash", evidence.content_hash) == evidence.content_hash
+            and _retained_permit_binding_matches(project, need, assessment)
         )
         if current_version and observation.source_id in {
             "fort-worth-development-permits",
