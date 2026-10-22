@@ -751,6 +751,60 @@ class CompanyIdentity(Base):
 
     __tablename__ = "company_identities"
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    rrc_operator_number: Mapped[str | None] = mapped_column(String(6), unique=True, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CompanyProjectMembership(Base):
+    """Versioned source-bound company role on one physical project."""
+
+    __tablename__ = "company_project_memberships"
+    __table_args__ = (
+        CheckConstraint("role <> ''", name="ck_company_project_membership_role"),
+        CheckConstraint(
+            "state IN ('current', 'superseded', 'retracted', 'conflicted')",
+            name="ck_company_project_membership_state",
+        ),
+        Index("ix_company_project_membership_current", "company_identity_id", "state"),
+        Index(
+            "uq_company_project_membership_source_current",
+            "project_id",
+            "source_id",
+            "role",
+            unique=True,
+            postgresql_where=text("state = 'current'"),
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    company_identity_id: Mapped[UUID] = mapped_column(ForeignKey("company_identities.id"))
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    role: Mapped[str] = mapped_column(String(40))
+    organization_name: Mapped[str] = mapped_column(Text)
+    source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
+    source_evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id"))
+    source_version_hash: Mapped[str] = mapped_column(String(64))
+    decision_basis: Mapped[str] = mapped_column(String(80))
+    operator_number: Mapped[str] = mapped_column(String(6))
+    version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    state: Mapped[str] = mapped_column(String(16), default="current", server_default="current")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CompanyProjectMembershipCorrection(Base):
+    """Append-only, expected-version operator retraction decisions."""
+
+    __tablename__ = "company_project_membership_corrections"
+    __table_args__ = (
+        UniqueConstraint("membership_id", "idempotency_key", name="uq_membership_correction_idem"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    membership_id: Mapped[UUID] = mapped_column(ForeignKey("company_project_memberships.id"))
+    expected_version: Mapped[int] = mapped_column(Integer)
+    idempotency_key: Mapped[str] = mapped_column(String(120))
+    action: Mapped[str] = mapped_column(String(16))
+    reason: Mapped[str] = mapped_column(Text)
+    actor: Mapped[str] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -1061,6 +1115,38 @@ class BrowseRow(Base):
     commercial_date: Mapped[int | None] = mapped_column(Integer)
     summary: Mapped[dict] = mapped_column(JSONB)
     compact: Mapped[dict] = mapped_column(JSONB)
+
+
+class BrowseCustomerMembership(Base):
+    """Generation-bound customer projection for bounded account browse SQL."""
+
+    __tablename__ = "browse_customer_memberships"
+    __table_args__ = (Index("ix_browse_customer_project", "generation_id", "project_id"),)
+    generation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("browse_generations.id", ondelete="CASCADE"), primary_key=True
+    )
+    company_identity_id: Mapped[UUID] = mapped_column(
+        ForeignKey("company_identities.id"), primary_key=True
+    )
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), primary_key=True)
+    organization_name: Mapped[str] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(String(40))
+    supporting_evidence_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_evidence_update: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BrowseUnresolvedCustomer(Base):
+    """Generation-bound unresolved project customer claims for bounded review."""
+
+    __tablename__ = "browse_unresolved_customers"
+    __table_args__ = (Index("ix_browse_unresolved_project", "generation_id", "project_id"),)
+    generation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("browse_generations.id", ondelete="CASCADE"), primary_key=True
+    )
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), primary_key=True)
+    organization_name: Mapped[str] = mapped_column(Text, primary_key=True)
+    role: Mapped[str] = mapped_column(String(40), primary_key=True)
+    reason: Mapped[str] = mapped_column(Text)
 
 
 class LogicalCall(Base):

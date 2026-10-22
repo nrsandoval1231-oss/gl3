@@ -25,6 +25,7 @@ type Props = {
   loading: boolean
   error: string
   tab: WorkspaceTab
+  associationNotice?: string
   onTab: (tab: WorkspaceTab) => void
   onBack: () => void
   onRetry: () => void
@@ -32,8 +33,13 @@ type Props = {
   correctionNotice?: string
   onTitleReady: () => void
 }
+function associatedAccountBasisLabel(basis: string) {
+  return basis === 'typed_rrc_operator_number_v1'
+    ? 'Supported by retained RRC operator evidence.'
+    : 'Supported by current retained evidence.'
+}
 
-export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback, onTitleReady, correctionNotice }: Props) {
+export function WorkspaceDetail({ item, pending, loading, error, tab, associationNotice, onTab, onBack, onRetry, onReadback, onTitleReady, correctionNotice }: Props) {
   const [shareState, setShareState] = useState('')
   const [sourceFilter, setSourceFilter] = useState('All sources')
   const [brief, setBrief] = useState<Brief | null>(null)
@@ -156,6 +162,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   const visibleCardEvidence = sourceFilter === 'All sources' ? cardEvidence : cardEvidence.filter(source => source.reference === sourceFilter)
   const callEvidence = evidence.find(source => source.assessment_current) ?? evidence[0]
   const customer = item.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? null
+  const displayOrganization = item.associated_account?.name ?? customer
   const intelligenceProject = item.intelligence_card?.fields.find(field => field.key === 'project' && field.value)?.value ?? null
   const intelligenceLocation = item.intelligence_card?.fields.find(field => field.key === 'location' && field.value)?.value ?? null
   const company = item.commercial_organization || item.title_company
@@ -226,17 +233,19 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
 
   return <aside className="wh-detail" aria-label="Opportunity detail">
     <div className="wh-detail-head">
-      <div className="wh-identity-toolbar"><div className="wh-breadcrumb"><button className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button><span aria-hidden="true">/</span><span>{customer || 'Project'}</span><span aria-hidden="true">/</span><span>{displayTitle}</span></div><div className="wh-record-actions"><button className="wh-share" onClick={() => void copyShareLink()}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.7 6.3 8.1 8.9m0 2.2 4.6 2.6"/><circle cx="14.8" cy="5.1" r="2.1"/><circle cx="5.3" cy="10" r="2.1"/><circle cx="14.8" cy="14.9" r="2.1"/></svg>Share</button><button className="wh-primary-action" onClick={openNextSteps}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg>Update workflow</button>{shareState && <span role="status">{shareState}</span>}</div></div>
+      <div className="wh-identity-toolbar"><div className="wh-breadcrumb"><button className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button><span aria-hidden="true">/</span><span>{displayOrganization || 'Project'}</span><span aria-hidden="true">/</span><span>{displayTitle}</span></div><div className="wh-record-actions"><button className="wh-share" onClick={() => void copyShareLink()}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.7 6.3 8.1 8.9m0 2.2 4.6 2.6"/><circle cx="14.8" cy="5.1" r="2.1"/><circle cx="5.3" cy="10" r="2.1"/><circle cx="14.8" cy="14.9" r="2.1"/></svg>Share</button><button className="wh-primary-action" onClick={openNextSteps}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg>Update workflow</button>{shareState && <span role="status">{shareState}</span>}</div></div>
       <div className="wh-record-hero">
-        <span className="wh-customer-monogram" aria-hidden="true">{(customer || displayTitle).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span>
+        <span className="wh-customer-monogram" aria-hidden="true">{(displayOrganization || displayTitle).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span>
         <div className="wh-record-identity">
-          <h2>{customer || displayTitle}</h2>
-          {customer && <p className="wh-record-project">{displayTitle}</p>}
+          <h2>{displayOrganization || displayTitle}</h2>
+          {displayOrganization && <p className="wh-record-project">{displayTitle}</p>}
           <p className="wh-record-subtitle">{displayLocation} · {item.activity.replaceAll('-', ' ')}</p>
         </div>
-        <div className="wh-record-qualification"><span className="wh-tier-badge">{item.tier} · {item.commercial_disposition ?? 'Disposition unavailable'}</span><span>{item.intelligence_card?.last_intelligence_update ? `Evidence updated ${new Date(item.intelligence_card.last_intelligence_update).toLocaleDateString()}` : 'Evidence update date unavailable'}</span></div>
+        <div className="wh-record-qualification"><span className="wh-tier-badge">{item.tier} · {item.commercial_disposition ?? item.intelligence_card?.disposition ?? 'Disposition unavailable'}</span><span>{item.intelligence_card?.last_intelligence_update ? `Evidence updated ${new Date(item.intelligence_card.last_intelligence_update).toLocaleDateString()}` : 'Evidence update date unavailable'}</span></div>
         {item.intelligence_card && <div className="wh-completeness"><span>Intelligence completeness</span><strong>{item.intelligence_card.completeness.supported}/{item.intelligence_card.completeness.total}</strong><progress aria-label="Intelligence completeness" max={item.intelligence_card.completeness.total} value={item.intelligence_card.completeness.supported}/></div>}
-      </div>      {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
+      </div>      {item.associated_account && <p className="wh-group-context"><strong>Current account association:</strong> {item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p>}
+      {associationNotice && <p role="status" className="wh-integrity">{associationNotice}</p>}
+      {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
       {item.signal_evidence_state === 'planning_status_unknown' && <p className="wh-integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}
       {item.signal_evidence_state === 'source_listing_absent' && <p className="wh-integrity"><strong>Status review needed.</strong> This filing is no longer in the source current listing; it may have been issued, denied, or withdrawn. Its evidence is retained.</p>}
       {item.group_total_filtered && item.group_total_filtered > 1 && <p className="wh-group-context">Part of a group with {item.group_total_filtered} retained records. Each record and its evidence remain separate and available.</p>}

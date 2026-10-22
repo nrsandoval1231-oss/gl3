@@ -13,16 +13,16 @@ from gridlens.domain.lifecycle import INDUSTRIAL_ASSET_VALUES
 from gridlens.intelligence.saved_browse import canonical_json, current_generation
 
 
-def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: str | None):
+def query_plan(session, filters: dict[str, Any], *, alias: str = ""):
+    """Return the canonical SQL eligibility predicates shared by need/account pages."""
     generation = current_generation(session)
     identity = hashlib.sha256(
         canonical_json([str(generation.id), generation.digest, filters]).encode()
     ).hexdigest()
     cohort = f"pw1_{identity}"
-    if token is not None and token != cohort:
-        raise HTTPException(409, "Opportunity cohort changed; restart pagination")
-    clauses = ["generation_id=:generation"]
-    params: dict[str, Any] = {"generation": generation.id, "limit": limit, "offset": offset}
+    prefix = f"{alias}." if alias else ""
+    clauses = [f"{prefix}generation_id=:generation"]
+    params: dict[str, Any] = {"generation": generation.id}
     dimensions = (
         ("tier", "tier"),
         ("geography", "location"),
@@ -33,52 +33,64 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
         if filters.get(key):
             if filters[key] == "UNKNOWN" and key in {"geography", "industry", "activity"}:
                 clauses.append(
-                    f"{column} IN ('', 'unknown')" if key == "industry" else f"{column} = ''"
+                    f"{prefix}{column} IN ('', 'unknown')"
+                    if key == "industry"
+                    else f"{prefix}{column} = ''"
                 )
             else:
-                clauses.append(f"{column}=:f_{key}")
+                clauses.append(f"{prefix}{column}=:f_{key}")
                 params[f"f_{key}"] = filters[key]
     if filters.get("industry_group") == "industrial":
         names = [f"industrial_asset_{index}" for index in range(len(INDUSTRIAL_ASSET_VALUES))]
-        clauses.append(f"industry IN ({', '.join(':' + name for name in names)})")
+        clauses.append(f"{prefix}industry IN ({', '.join(':' + name for name in names)})")
         params.update(dict(zip(names, INDUSTRIAL_ASSET_VALUES, strict=True)))
     if filters.get("timing"):
-        clauses.append("has_timing=:has_timing")
+        clauses.append(f"{prefix}has_timing=:has_timing")
         params["has_timing"] = filters["timing"] == "KNOWN"
     if filters.get("mw_status"):
         clauses.append(
-            "mw_low IS NOT NULL" if filters["mw_status"] == "KNOWN" else "mw_low IS NULL"
+            f"{prefix}mw_low IS NOT NULL"
+            if filters["mw_status"] == "KNOWN"
+            else f"{prefix}mw_low IS NULL"
         )
     if filters.get("mw_min"):
         bound = Decimal(filters["mw_min"])
         if bound and bound.adjusted() > 512:
             clauses.append("false")
         elif bound and bound.adjusted() < -512:
-            clauses.append("mw_high > 0")
+            clauses.append(f"{prefix}mw_high > 0")
         else:
-            clauses.append("mw_high >= CAST(:mw_min AS numeric)")
+            clauses.append(f"{prefix}mw_high >= CAST(:mw_min AS numeric)")
             params["mw_min"] = filters["mw_min"]
     if filters.get("mw_max"):
         bound = Decimal(filters["mw_max"])
         if bound and bound.adjusted() > 512:
-            clauses.append("mw_low IS NOT NULL")
+            clauses.append(f"{prefix}mw_low IS NOT NULL")
         elif bound and bound.adjusted() < -512:
-            clauses.append("mw_low = 0")
+            clauses.append(f"{prefix}mw_low = 0")
         else:
-            clauses.append("mw_low <= CAST(:mw_max AS numeric)")
+            clauses.append(f"{prefix}mw_low <= CAST(:mw_max AS numeric)")
             params["mw_max"] = filters["mw_max"]
     if filters.get("search"):
-        clauses.append("strpos(search_text, :search)>0")
+        clauses.append(f"strpos({prefix}search_text, :search)>0")
         params["search"] = filters["search"].casefold().strip()
     base = " AND ".join(clauses)
     disposition = filters.get("disposition")
     filtered = (
-        f"{base} AND compact->'commercial_preview'->>'disposition'=:disposition"
+        f"{base} AND {prefix}compact->'commercial_preview'->>'disposition'=:disposition"
         if disposition
         else base
     )
     if disposition:
         params["disposition"] = disposition
+    return generation, cohort, base, filtered, params
+
+
+def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: str | None):
+    generation, cohort, base, filtered, params = query_plan(session, filters)
+    if token is not None and token != cohort:
+        raise HTTPException(409, "Opportunity cohort changed; restart pagination")
+    params = {**params, "limit": limit, "offset": offset}
     sort_sql = {
         "priority": "rank_score DESC, updated_at DESC, need_id",
         "project": "lower(display_title), display_title, need_id",

@@ -1227,6 +1227,11 @@ def _safe_provider_audit(value: Any) -> Any:
         return fallback("UNSAFE_PROVIDER_RESPONSE_TREE")
 
 
+def _provider_response_id(data: dict[str, Any]) -> str | None:
+    value = data.get("provider_response_id")
+    return value if isinstance(value, str) and value.strip() and len(value) <= 256 else None
+
+
 def _provider_audit_exceeds_bound(value: Any) -> bool:
     """Measure original provider JSON before any redaction or list truncation."""
     try:
@@ -1356,7 +1361,7 @@ def _provider_error_quarantine_details(
             response_payload["raw_response_bytes"] = raw_size
     else:
         response_payload = {
-            "provider_response_id": getattr(error, "request_id", None),
+            "provider_request_id": getattr(error, "request_id", None),
             "model": actual_model,
             "usage": usage,
             "response_status": response_status,
@@ -1795,6 +1800,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
     provider_response_complete = False
     billing_quarantined = False
     error: str | None = None
+    validation_reason: str | None = None
     # Prepare bounded input and the ledger identity while holding only the job
     # fence. reserve_call commits its own transaction, so never pass it this
     # session or retain a job row lock across that call.
@@ -1824,6 +1830,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 current = _bound_grounded_payload(current)
             if _digest(current) != checkpoint.get("request_digest"):
                 checkpoint.update(status="stale", error="INPUT_CHANGED_BEFORE_DISPATCH")
+                checkpoint.update(
+                    validation_outcome="BLOCKED", validation_reason="INPUT_CHANGED_BEFORE_DISPATCH"
+                )
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
                 _record_research_receipt(session, checkpoint)
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1833,6 +1842,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             )
             if not enabled:
                 checkpoint.update(status="blocked", error=reason)
+                checkpoint.update(validation_outcome="BLOCKED", validation_reason=reason)
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
                 _record_research_receipt(session, checkpoint)
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1865,6 +1875,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 or settings.intelligence_max_active_calls <= 0
             ):
                 checkpoint.update(status="blocked", error="FINITE_BUDGET_REQUIRED")
+                checkpoint.update(
+                    validation_outcome="BLOCKED", validation_reason="FINITE_BUDGET_REQUIRED"
+                )
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
                 _record_research_receipt(session, checkpoint)
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1897,6 +1910,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
         except (ValueError, KeyError, TypeError) as exc:
             checkpoint = locals().get("checkpoint", {})
             checkpoint.update(status="blocked", error=type(exc).__name__)
+            checkpoint.update(validation_outcome="BLOCKED", validation_reason=type(exc).__name__)
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
             return {"status": "blocked", "error": type(exc).__name__, "job_id": str(job_id)}
@@ -1908,6 +1922,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             job = assert_fence(session, job_id, worker_id, fence_token)
             checkpoint = json.loads(job.checkpoint or "{}")
             checkpoint.update(status="blocked", error=reservation.blocked_reason)
+            checkpoint.update(
+                validation_outcome="BLOCKED", validation_reason=reservation.blocked_reason
+            )
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             _record_research_receipt(session, checkpoint)
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1921,11 +1938,23 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             cached = session.get(LogicalCall, call_id)
             result = cached.result_payload if cached else None
             checkpoint = json.loads(job.checkpoint or "{}")
+            validation_outcome = (
+                result.get("validation_outcome", "UNKNOWN")
+                if isinstance(result, dict)
+                else "UNKNOWN"
+            )
             checkpoint.update(
                 status="completed",
                 result=result,
                 logical_call_id=str(call_id),
                 cached=True,
+                validation_outcome=validation_outcome,
+                validation_reason=result.get("validation_reason")
+                if isinstance(result, dict)
+                else None,
+                provider_response_id=result.get("provider_response_id")
+                if isinstance(result, dict)
+                else None,
             )
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
             _record_research_receipt(session, checkpoint)
@@ -1961,6 +1990,10 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             job = assert_fence(session, job_id, worker_id, fence_token)
             checkpoint = json.loads(job.checkpoint or "{}")
             checkpoint.update(status="blocked", error=dispatch_reason or dispatched.blocked_reason)
+            checkpoint.update(
+                validation_outcome="BLOCKED",
+                validation_reason=dispatch_reason or dispatched.blocked_reason,
+            )
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             _record_research_receipt(session, checkpoint)
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1976,7 +2009,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 payload={key: value for key, value in typesafe_payload.items() if key != "model"},
             )
             provider_response_complete = True
-            provider_response_id = data.get("provider_response_id")
+            provider_response_id = _provider_response_id(data)
             usage_value = data.get("usage")
             response_usage = usage_value if isinstance(usage_value, dict) else {}
             actual_model = data.get("model")
@@ -2031,6 +2064,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 billing_quarantined = True
                 status = "unknown"
                 error = quarantined.blocked_reason or quarantine_reason
+                validation_reason = quarantine_reason
                 call_result = {
                     "provider": provider,
                     "actual_model": actual_model,
@@ -2057,7 +2091,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 max_output_tokens=output_limit,
             )
             provider_response_complete = True
-            provider_response_id = data.get("provider_response_id")
+            provider_response_id = _provider_response_id(data)
             response_model = data.get("model")
             input_tokens, output_tokens = data.get("input_tokens"), data.get("output_tokens")
             actual_model = response_model
@@ -2107,6 +2141,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 billing_quarantined = True
                 status = "unknown"
                 error = quarantined.blocked_reason or quarantine_reason
+                validation_reason = quarantine_reason
                 call_result = {
                     "provider": provider,
                     "actual_model": actual_model,
@@ -2124,7 +2159,10 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "provider": provider,
                 "actual_model": actual_model,
                 "latency_ms": data.get("latency_ms", data.get("provider_latency_ms")),
+                "validation_outcome": "VALIDATED",
             }
+            if provider_response_id:
+                call_result["provider_response_id"] = provider_response_id
             estimated_cost = _estimated_cost_from_usage(
                 provider, task_type, input_tokens, output_tokens
             )
@@ -2153,7 +2191,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             status = "completed"
             error = None
     except Exception as exc:
-        provider_response_id = provider_response_id or getattr(exc, "request_id", None)
+        provider_request_id = getattr(exc, "request_id", None)
         error_quarantine = _provider_error_quarantine_details(
             exc, provider=provider, task_type=task_type, expected_model=model
         )
@@ -2180,6 +2218,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             billing_quarantined = True
             status = "unknown"
             error = quarantined.blocked_reason or quarantine_reason
+            validation_reason = quarantine_reason
             call_result = {
                 "provider": provider,
                 "actual_model": actual_model,
@@ -2189,7 +2228,8 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 },
                 "billing_quarantine": quarantine_reason,
             }
-        response_ref = f"response:{provider_response_id}" if provider_response_id else None
+        response_identity = provider_response_id or provider_request_id
+        response_ref = f"response:{response_identity}" if response_identity else None
         terminal_failure = False
         if (
             not billing_quarantined
@@ -2208,6 +2248,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
         if not billing_quarantined:
             status = "failed" if terminal_failure else "unknown"
             error, call_result = type(exc).__name__, None
+            validation_reason = error
 
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence_token)
@@ -2226,6 +2267,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 result=call_result,
                 result_status="stale_context",
                 error="INPUT_CHANGED_DURING_PROVIDER_CALL",
+                validation_outcome="VALIDATED",
+                validation_reason=None,
+                provider_response_id=provider_response_id,
                 usage={
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
@@ -2268,11 +2312,29 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             if status == "completed" and fresh and job.target_id is not None and call_result
             else None
         )
+        validation_outcome = (
+            "QUARANTINED"
+            if billing_quarantined
+            else "VALIDATED"
+            if status == "completed"
+            else "REJECTED"
+            if status == "failed"
+            else "UNKNOWN"
+        )
+        if isinstance(call_result, dict):
+            call_result.setdefault("validation_outcome", validation_outcome)
+            if validation_reason:
+                call_result.setdefault("validation_reason", validation_reason)
+            if provider_response_id:
+                call_result.setdefault("provider_response_id", provider_response_id)
         checkpoint.update(
             status=status,
             completed_at=datetime.now(UTC).isoformat(),
             result=call_result,
             error=error,
+            validation_outcome=validation_outcome,
+            validation_reason=validation_reason or (error if status != "completed" else None),
+            provider_response_id=provider_response_id,
             usage={
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
@@ -2309,6 +2371,9 @@ def _record_research_receipt(session: Session, checkpoint: dict[str, Any]) -> No
             "job_id": checkpoint.get("job_id"),
             "logical_call_id": checkpoint.get("logical_call_id"),
             "status": checkpoint.get("status"),
+            "validation_outcome": checkpoint.get("validation_outcome", "UNKNOWN"),
+            "validation_reason": checkpoint.get("validation_reason"),
+            "provider_response_id": checkpoint.get("provider_response_id"),
             "result": checkpoint.get("result"),
             "error": checkpoint.get("error"),
             "evidence_ids": [
@@ -2344,6 +2409,9 @@ def intelligence_history(session: Session, need_id: UUID, limit: int = 50) -> li
                 "need_id": str(need_id),
                 "status": status,
                 "result": checkpoint.get("result"),
+                "validation_outcome": checkpoint.get("validation_outcome", "UNKNOWN"),
+                "validation_reason": checkpoint.get("validation_reason"),
+                "provider_response_id": checkpoint.get("provider_response_id"),
                 "result_status": checkpoint.get("result_status"),
                 "error": checkpoint.get("error"),
                 "reassessment_job_id": checkpoint.get("reassessment_job_id"),

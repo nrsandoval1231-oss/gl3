@@ -39,6 +39,9 @@ export type BuyingChainCorrection = components['schemas']['BuyingChainCorrection
 export type Opportunity = components['schemas']['OpportunityOut']
 export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
 export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
+export type CustomerAccount = components['schemas']['CustomerAccountOut']
+export type CustomerProjectsPage = components['schemas']['CustomerProjectsPageOut']
+export type UnresolvedCustomerProjectsPage = components['schemas']['UnresolvedCustomerProjectsPageOut']
 export type WorkspaceChanges = components['schemas']['WorkspaceChangesOut']
 export type WorkspaceChangeNeed = components['schemas']['WorkspaceChangeNeedOut']
 export type WorkspaceChangesReviewBody = components['schemas']['WorkspaceChangesReviewBody']
@@ -221,12 +224,28 @@ async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, sig
 export const client = {
   workspace: async (filters: WorkspaceFilters = {}, signal?: AbortSignal): Promise<WorkspacePage> => {
     const params = new URLSearchParams({ limit: '25' })
+    params.set('group_by', 'account')
     for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await fetch(`/api/opportunities/workspace?${params}`, { credentials: 'same-origin', signal })
     if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
     if (response.status === 409) throw new OpportunityCohortChangedError()
     if (!response.ok) throw new Error(response.status === 503 ? 'The workspace cohort is unavailable. Retry to reload current opportunities.' : `GridLens could not complete this request (${response.status}).`)
     return response.json() as Promise<WorkspacePage>
+  },
+  customerAccountProjects: async (companyIdentityId: string, offset = 0, needOffset = 0, signal?: AbortSignal): Promise<CustomerProjectsPage> => {
+    const params = new URLSearchParams({ limit: '25', offset: String(offset), need_limit: '25', need_offset: String(needOffset) })
+    const response = await fetch(`/api/customer-accounts/${encodeURIComponent(companyIdentityId)}/projects?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    if (!response.ok) throw new Error(`GridLens could not load this account's projects (${response.status}).`)
+    return response.json() as Promise<CustomerProjectsPage>
+  },
+  unresolvedCustomerProjects: async (search = '', offset = 0, signal?: AbortSignal): Promise<UnresolvedCustomerProjectsPage> => {
+    const params = new URLSearchParams({ limit: '25', offset: String(offset) })
+    if (search) params.set('search', search)
+    const response = await fetch(`/api/customer-accounts/unresolved?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    if (!response.ok) throw new Error(`GridLens could not load unresolved customer projects (${response.status}).`)
+    return response.json() as Promise<UnresolvedCustomerProjectsPage>
   },
   workspaceChanges: (limit = 50, offset = 0, signal?: AbortSignal) => {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })

@@ -340,6 +340,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/customer-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer Accounts
+         * @description Browse current source-supported customer identities without provider work.
+         */
+        get: operations["customer_accounts_api_customer_accounts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customer-accounts/unresolved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unresolved Customer Projects
+         * @description Browse current owner/operator claims that lack a safe cross-project link.
+         */
+        get: operations["unresolved_customer_projects_api_customer_accounts_unresolved_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customer-accounts/{company_identity_id}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer Account Projects
+         * @description Return a bounded project page for one canonical company identity.
+         */
+        get: operations["customer_account_projects_api_customer_accounts__company_identity_id__projects_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customer-account-memberships/{membership_id}/retractions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retract Customer Account Membership */
+        post: operations["retract_customer_account_membership_api_customer_account_memberships__membership_id__retractions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunities/map-window": {
         parameters: {
             query?: never;
@@ -929,6 +1006,39 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AssociatedAccountEvidenceRefOut */
+        AssociatedAccountEvidenceRefOut: {
+            /**
+             * Namespace
+             * @enum {string}
+             */
+            namespace: "retained-evidence" | "buying-chain-evidence";
+            /** Id */
+            id: string;
+            /** Retained Evidence Id */
+            retained_evidence_id?: string | null;
+        };
+        /** AssociatedAccountOut */
+        AssociatedAccountOut: {
+            /**
+             * Company Identity Id
+             * Format: uuid
+             */
+            company_identity_id: string;
+            /** Name */
+            name: string;
+            /** Role */
+            role: string;
+            /** Basis */
+            basis: string;
+            /**
+             * Support Status
+             * @constant
+             */
+            support_status: "current";
+            /** Evidence Refs */
+            evidence_refs: components["schemas"]["AssociatedAccountEvidenceRefOut"][];
+        };
         /** AutonomousResearchBody */
         AutonomousResearchBody: {
             /**
@@ -1990,6 +2100,152 @@ export interface components {
             /** Evidence Id */
             evidence_id: string | null;
         };
+        /** CustomerAccountNeedOut */
+        CustomerAccountNeedOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Tier */
+            tier: string;
+            /** Activity Key */
+            activity_key: string;
+            /** Required Mw */
+            required_mw?: string | null;
+            /** Start Window */
+            start_window?: string | null;
+            /** Duration */
+            duration?: string | null;
+            /** Supply */
+            supply: string;
+            /** Commercial Disposition */
+            commercial_disposition?: string | null;
+            /** Commercial Reason */
+            commercial_reason?: string | null;
+            /** Commercial Next Action */
+            commercial_next_action?: string | null;
+            /** Project Title */
+            project_title?: string | null;
+            /** Industry */
+            industry?: string | null;
+            /** Location */
+            location?: string | null;
+            /** Rank Score */
+            rank_score?: number | null;
+        };
+        /** CustomerAccountOut */
+        CustomerAccountOut: {
+            /**
+             * Company Identity Id
+             * Format: uuid
+             */
+            company_identity_id: string;
+            /** Name */
+            name: string;
+            /** Aliases */
+            aliases?: string[];
+            /** Project Count */
+            project_count: number;
+            /** Need Count */
+            need_count: number;
+            /**
+             * Supporting Evidence Count
+             * @default 0
+             */
+            supporting_evidence_count: number;
+            /** Last Evidence Update */
+            last_evidence_update?: string | null;
+            /** Qualification Tiers */
+            qualification_tiers: string[];
+            highest_priority_need?: components["schemas"]["CustomerAccountNeedOut"] | null;
+        };
+        /** CustomerAccountsPageOut */
+        CustomerAccountsPageOut: {
+            /** Items */
+            items: components["schemas"]["CustomerAccountOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** CustomerMembershipCorrectionBody */
+        CustomerMembershipCorrectionBody: {
+            /** Expected Version */
+            expected_version: number;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Reason */
+            reason: string;
+        };
+        /** CustomerMembershipCorrectionOut */
+        CustomerMembershipCorrectionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Membership Id
+             * Format: uuid
+             */
+            membership_id: string;
+            /** Expected Version */
+            expected_version: number;
+            /**
+             * Action
+             * @constant
+             */
+            action: "retracted";
+            /** Reason */
+            reason: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CustomerProjectOut */
+        CustomerProjectOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            /** Customer Role */
+            customer_role: string;
+            /** Need Count */
+            need_count: number;
+            /** Needs */
+            needs: components["schemas"]["CustomerAccountNeedOut"][];
+            /** Need Next Offset */
+            need_next_offset?: number | null;
+        };
+        /** CustomerProjectsPageOut */
+        CustomerProjectsPageOut: {
+            /** Items */
+            items: components["schemas"]["CustomerProjectOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Next Offset */
+            next_offset?: number | null;
+            account?: components["schemas"]["CustomerAccountOut"] | null;
+        };
         /** EvidenceOut */
         EvidenceOut: {
             /**
@@ -2408,6 +2664,15 @@ export interface components {
             result: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Validation Outcome
+             * @default UNKNOWN
+             */
+            validation_outcome: string;
+            /** Validation Reason */
+            validation_reason?: string | null;
+            /** Provider Response Id */
+            provider_response_id?: string | null;
             /** Result Status */
             result_status?: string | null;
             /** Error */
@@ -2454,6 +2719,15 @@ export interface components {
             result: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Validation Outcome
+             * @default UNKNOWN
+             */
+            validation_outcome: string;
+            /** Validation Reason */
+            validation_reason?: string | null;
+            /** Provider Response Id */
+            provider_response_id?: string | null;
             /** Result Status */
             result_status?: string | null;
             /** Error */
@@ -2739,6 +3013,7 @@ export interface components {
         /** OpportunityOut */
         OpportunityOut: {
             intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
+            associated_account?: components["schemas"]["AssociatedAccountOut"] | null;
             /**
              * Id
              * Format: uuid
@@ -3359,6 +3634,7 @@ export interface components {
         /** PursuitWorkspaceItemOut */
         PursuitWorkspaceItemOut: {
             intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
+            associated_account?: components["schemas"]["AssociatedAccountOut"] | null;
             /**
              * Id
              * Format: uuid
@@ -3524,6 +3800,24 @@ export interface components {
             commercial_next_action: string;
             /** Commercial Organization */
             commercial_organization?: string | null;
+            /** Company Identity Id */
+            company_identity_id?: string | null;
+            /** Account Name */
+            account_name?: string | null;
+            /** Project Count */
+            project_count?: number | null;
+            /** Need Count */
+            need_count?: number | null;
+            /** Account Aliases */
+            account_aliases?: string[];
+            /** Supporting Evidence Count */
+            supporting_evidence_count?: number | null;
+            /** Last Evidence Update */
+            last_evidence_update?: string | null;
+            /** Matching Project Count */
+            matching_project_count?: number | null;
+            /** Matching Need Count */
+            matching_need_count?: number | null;
         };
         /** PursuitWorkspacePageOut */
         PursuitWorkspacePageOut: {
@@ -3542,9 +3836,15 @@ export interface components {
             cohort_token: string;
             /**
              * Count Unit
+             * @enum {string}
+             */
+            count_unit: "power needs" | "company accounts";
+            /**
+             * Disposition Count Unit
+             * @default power needs
              * @constant
              */
-            count_unit: "power needs";
+            disposition_count_unit: "power needs";
             /** Changes Available */
             changes_available: boolean;
         };
@@ -3923,6 +4223,39 @@ export interface components {
             maximum_duration_days: number | null;
             /** Current Fact Version */
             current_fact_version: number;
+        };
+        /** UnresolvedCustomerProjectOut */
+        UnresolvedCustomerProjectOut: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+            /** Location */
+            location: string | null;
+            /** Organization */
+            organization: string;
+            /** Role */
+            role: string;
+            /** Need Id */
+            need_id: string | null;
+            /** No Eligible Need */
+            no_eligible_need: boolean;
+            /** Reason */
+            reason: string;
+        };
+        /** UnresolvedCustomerProjectsPageOut */
+        UnresolvedCustomerProjectsPageOut: {
+            /** Items */
+            items: components["schemas"]["UnresolvedCustomerProjectOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -4783,6 +5116,7 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 cohort_token?: string | null;
+                group_by?: "need" | "account";
             };
             header?: never;
             path?: never;
@@ -4797,6 +5131,143 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PursuitWorkspacePageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    customer_accounts_api_customer_accounts_get: {
+        parameters: {
+            query?: {
+                search?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerAccountsPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unresolved_customer_projects_api_customer_accounts_unresolved_get: {
+        parameters: {
+            query?: {
+                search?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnresolvedCustomerProjectsPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    customer_account_projects_api_customer_accounts__company_identity_id__projects_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                need_limit?: number;
+                need_offset?: number;
+            };
+            header?: never;
+            path: {
+                company_identity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerProjectsPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retract_customer_account_membership_api_customer_account_memberships__membership_id__retractions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerMembershipCorrectionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerMembershipCorrectionOut"];
                 };
             };
             /** @description Validation Error */

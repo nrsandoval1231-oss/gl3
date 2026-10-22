@@ -1283,6 +1283,20 @@
               ],
               "title": "Cohort Token"
             }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "need",
+                "account"
+              ],
+              "type": "string",
+              "default": "need",
+              "title": "Group By"
+            }
           }
         ],
         "responses": {
@@ -1292,6 +1306,283 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PursuitWorkspacePageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer-accounts": {
+      "get": {
+        "summary": "Customer Accounts",
+        "description": "Browse current source-supported customer identities without provider work.",
+        "operationId": "customer_accounts_api_customer_accounts_get",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerAccountsPageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer-accounts/unresolved": {
+      "get": {
+        "summary": "Unresolved Customer Projects",
+        "description": "Browse current owner/operator claims that lack a safe cross-project link.",
+        "operationId": "unresolved_customer_projects_api_customer_accounts_unresolved_get",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnresolvedCustomerProjectsPageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer-accounts/{company_identity_id}/projects": {
+      "get": {
+        "summary": "Customer Account Projects",
+        "description": "Return a bounded project page for one canonical company identity.",
+        "operationId": "customer_account_projects_api_customer_accounts__company_identity_id__projects_get",
+        "parameters": [
+          {
+            "name": "company_identity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Company Identity Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "need_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 1,
+              "default": 25,
+              "title": "Need Limit"
+            }
+          },
+          {
+            "name": "need_offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Need Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerProjectsPageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer-account-memberships/{membership_id}/retractions": {
+      "post": {
+        "summary": "Retract Customer Account Membership",
+        "operationId": "retract_customer_account_membership_api_customer_account_memberships__membership_id__retractions_post",
+        "parameters": [
+          {
+            "name": "membership_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Membership Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerMembershipCorrectionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerMembershipCorrectionOut"
                 }
               }
             }
@@ -3929,6 +4220,82 @@
   },
   "components": {
     "schemas": {
+      "AssociatedAccountEvidenceRefOut": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "enum": [
+              "retained-evidence",
+              "buying-chain-evidence"
+            ],
+            "title": "Namespace"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "retained_evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retained Evidence Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "namespace",
+          "id"
+        ],
+        "title": "AssociatedAccountEvidenceRefOut"
+      },
+      "AssociatedAccountOut": {
+        "properties": {
+          "company_identity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Identity Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "support_status": {
+            "type": "string",
+            "const": "current",
+            "title": "Support Status"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/AssociatedAccountEvidenceRefOut"
+            },
+            "type": "array",
+            "title": "Evidence Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "company_identity_id",
+          "name",
+          "role",
+          "basis",
+          "support_status",
+          "evidence_refs"
+        ],
+        "title": "AssociatedAccountOut"
+      },
       "AutonomousResearchBody": {
         "properties": {
           "force": {
@@ -7010,6 +7377,435 @@
         ],
         "title": "CommercialTriageStage"
       },
+      "CustomerAccountNeedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "activity_key": {
+            "type": "string",
+            "title": "Activity Key"
+          },
+          "required_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Mw"
+          },
+          "start_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Window"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "supply": {
+            "type": "string",
+            "title": "Supply"
+          },
+          "commercial_disposition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Disposition"
+          },
+          "commercial_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Reason"
+          },
+          "commercial_next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Next Action"
+          },
+          "project_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Title"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "rank_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "tier",
+          "activity_key",
+          "supply"
+        ],
+        "title": "CustomerAccountNeedOut"
+      },
+      "CustomerAccountOut": {
+        "properties": {
+          "company_identity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Identity Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "project_count": {
+            "type": "integer",
+            "title": "Project Count"
+          },
+          "need_count": {
+            "type": "integer",
+            "title": "Need Count"
+          },
+          "supporting_evidence_count": {
+            "type": "integer",
+            "title": "Supporting Evidence Count",
+            "default": 0
+          },
+          "last_evidence_update": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Evidence Update"
+          },
+          "qualification_tiers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Qualification Tiers"
+          },
+          "highest_priority_need": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAccountNeedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "company_identity_id",
+          "name",
+          "project_count",
+          "need_count",
+          "qualification_tiers"
+        ],
+        "title": "CustomerAccountOut"
+      },
+      "CustomerAccountsPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerAccountOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "CustomerAccountsPageOut"
+      },
+      "CustomerMembershipCorrectionBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 8,
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version",
+          "idempotency_key",
+          "reason"
+        ],
+        "title": "CustomerMembershipCorrectionBody"
+      },
+      "CustomerMembershipCorrectionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "membership_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Membership Id"
+          },
+          "expected_version": {
+            "type": "integer",
+            "title": "Expected Version"
+          },
+          "action": {
+            "type": "string",
+            "const": "retracted",
+            "title": "Action"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "membership_id",
+          "expected_version",
+          "action",
+          "reason",
+          "created_at"
+        ],
+        "title": "CustomerMembershipCorrectionOut"
+      },
+      "CustomerProjectOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "customer_role": {
+            "type": "string",
+            "title": "Customer Role"
+          },
+          "need_count": {
+            "type": "integer",
+            "title": "Need Count"
+          },
+          "needs": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerAccountNeedOut"
+            },
+            "type": "array",
+            "title": "Needs"
+          },
+          "need_next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "location",
+          "customer_role",
+          "need_count",
+          "needs"
+        ],
+        "title": "CustomerProjectOut"
+      },
+      "CustomerProjectsPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerProjectOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAccountOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "CustomerProjectsPageOut"
+      },
       "EvidenceOut": {
         "properties": {
           "id": {
@@ -8045,6 +8841,33 @@
             ],
             "title": "Result"
           },
+          "validation_outcome": {
+            "type": "string",
+            "title": "Validation Outcome",
+            "default": "UNKNOWN"
+          },
+          "validation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Reason"
+          },
+          "provider_response_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Response Id"
+          },
           "result_status": {
             "anyOf": [
               {
@@ -8203,6 +9026,33 @@
               }
             ],
             "title": "Result"
+          },
+          "validation_outcome": {
+            "type": "string",
+            "title": "Validation Outcome",
+            "default": "UNKNOWN"
+          },
+          "validation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Reason"
+          },
+          "provider_response_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Response Id"
           },
           "result_status": {
             "anyOf": [
@@ -9078,6 +9928,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IntelligenceCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "associated_account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssociatedAccountOut"
               },
               {
                 "type": "null"
@@ -11010,6 +11870,16 @@
               }
             ]
           },
+          "associated_account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssociatedAccountOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -11629,6 +12499,103 @@
               }
             ],
             "title": "Commercial Organization"
+          },
+          "company_identity_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Identity Id"
+          },
+          "account_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Name"
+          },
+          "project_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Count"
+          },
+          "need_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Count"
+          },
+          "account_aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Account Aliases"
+          },
+          "supporting_evidence_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supporting Evidence Count"
+          },
+          "last_evidence_update": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Evidence Update"
+          },
+          "matching_project_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matching Project Count"
+          },
+          "matching_need_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matching Need Count"
           }
         },
         "type": "object",
@@ -11695,8 +12662,17 @@
           },
           "count_unit": {
             "type": "string",
-            "const": "power needs",
+            "enum": [
+              "power needs",
+              "company accounts"
+            ],
             "title": "Count Unit"
+          },
+          "disposition_count_unit": {
+            "type": "string",
+            "const": "power needs",
+            "title": "Disposition Count Unit",
+            "default": "power needs"
           },
           "changes_available": {
             "type": "boolean",
@@ -12801,6 +13777,101 @@
           "current_fact_version"
         ],
         "title": "TimingCorrectionTargetOut"
+      },
+      "UnresolvedCustomerProjectOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "need_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Id"
+          },
+          "no_eligible_need": {
+            "type": "boolean",
+            "title": "No Eligible Need"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_name",
+          "location",
+          "organization",
+          "role",
+          "need_id",
+          "no_eligible_need",
+          "reason"
+        ],
+        "title": "UnresolvedCustomerProjectOut"
+      },
+      "UnresolvedCustomerProjectsPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UnresolvedCustomerProjectOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "UnresolvedCustomerProjectsPageOut"
       },
       "ValidationError": {
         "properties": {
