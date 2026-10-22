@@ -1,0 +1,74 @@
+# TITLE-02 six-intent controller review
+
+2026-10-20 UTC. Static review only: the controller was not executed, and no provider, database, runtime, or product-source changes were made. This report is the sole local edit.
+
+Reviewed initial controller SHA256 `c977ea57731528b088acf4ecc62ac4ba84af569fe9df829ffa036dbad9a3895f` and the in-review revision SHA256 `7377db4df6d987c0c561ead73c05e4dd3390818a58d9665ae9ea824e6dde9cf1`. The ordinary production handlers were checked against reviewed HEAD `38d7499b6726fc9dd835944f301e50fd06c82095` / backend candidate `8f5d19165ab53d529457d16984e4a9e87dad6973fd59d795ad48e0a55f4f0242`.
+
+Verdict: **read-only restored-database preflight is suitable with normal Python and network disabled. Execute-path approval is pending the two small fixes below and final hash rebinding.** This is not authorization to run the public-data validation or continuing activation.
+
+## Remaining findings in revision 7377db4d
+
+1. **P2 — Reject optimized Python and keep dispatch out of assertions.** Most scope, gate, image/source, record, and accounting checks are assertions. `assert worker.run_one(...)` also puts the actual worker invocation inside an expression that disappears under `python -O` or `PYTHONOPTIMIZE`. An optimized run therefore bypasses the gate checks, can enqueue database work, and skips the intended dispatch/verification sequence. Small fix: explicitly raise if `sys.flags.optimize != 0` at entry, before settings changes or database work; assign the return from `worker.run_one` normally and then check it. The execution wrapper should also run without optimization.
+
+2. **P2 — Use one fixed durable journal identity for this release.** Checking only that the journal's parent is `/release-control` allows distinct filenames for two concurrent invocations. Both can pass the early no-work checks, then `request_title` can reuse a job created by the other invocation; a failed controller's cleanup can consequently hold the other controller's queued jobs. Pin an exact journal pathname for this validation window, or bind the pathname in the reviewed gate and also use one fixed exclusive release lock. Retain `O_CREAT|O_EXCL` and the journal permanently; do not support automatic resume or journal replacement.
+
+## Findings fixed during review
+
+- The original draft did not bind the preflight receipt or executing application version. Revision 7377db4d binds the preflight receipt SHA256 and Git manifest SHA256 in the execution gate, checks revision/full candidate equality, verifies shipped production/migration/config/metadata Git blobs under `/app`, and checks the actual title module path. The parent will additionally inspect the launched immutable image identity. The gate must be populated only from actual authorization and verified deployment evidence; the script does not generate that evidence.
+- Original cleanup handled only queued jobs with `attempts == 0`. A generic ordinary-worker retry could leave an attempted but unsent validation job queued after abort. Revised cleanup holds all of this controller's remaining queued/running jobs, requires no foreign lease owner, clears leases, and preserves checkpoints, logical-call identities and all accounting. It neither releases a reservation nor rewrites a sent/unknown ledger outcome.
+
+## Controls and practical assumptions checked
+
+- `preflight` executes `SET TRANSACTION READ ONLY`, performs reads and request construction only, and returns before queueing, journal creation or worker calls. In-process setting overrides do not activate the normal application processes. Its credential-presence check does not invoke a provider.
+- Execution requires the canonical live database name, the separately supplied initial-six authorization gate, stopped ordinary workers, and disabled normal new-contract settings. The controller supplies exact job IDs to `worker.run_one`; `lease_one` applies those IDs to both candidate selection and abandoned-lease cleanup. No unrestricted polling loop or source-recovery path is invoked.
+- The three approved records are checked for exact observation/evidence hashes, accepted/current interpretation, enabled sources, active needs, project/source anchors and URL. Title evidence must consist only of the selected retained evidence ID. Preflight title-input/title-request/Jev-request fingerprints are recomputed before job creation and before every targeted run. Ordinary handlers additionally recheck their own evidence and fences before dispatch/acceptance.
+- Six intents are created in one transaction and journaled with exclusive creation and fsync before commit. A journal surviving an uncertain commit deliberately blocks a retry. Existing title state, active target jobs and matching logical calls block new execution. No existing paid call is replaced. A process kill cannot run Python cleanup; the host must keep ordinary new-contract flags disabled and inspect/hold recorded jobs before any later normal-worker activation.
+- Reservations use the existing shared ledger and scopes. Each call is at most $0.01, and actual ledger reservations are checked after each job against $0.06 total. Decimal rounding in the ledger does not invalidate this six-times-$0.01 limit. The retained preflight's three title estimates round to $0.000426, $0.000447 and $0.000434; with three Jev reservations the scenario totals $0.031307, below $0.06. These are application reservations, not provider invoice maxima.
+- Any active/unknown logical call stops the sequence before another job. Completion requires the expected fingerprint, context/evidence digest, provider/model, original job association, null actual bill, and persisted title/Jev output. A completed ledger call with failed semantic output does not count as a successful validation. Cached-call verification supplies a transport function that raises, and the title-action cache check must create no job. This cannot by itself prove UI behavior or restart persistence; those remain separate release checks.
+- The expanded cleanup preserves provider quarantine, reservations and job checkpoints. It does not create a replacement intent or continue after uncertainty. The recorded six-job scope does not authorize later feature activation; that remains a separate decision.
+
+No controller execution was performed during this review. Final execute-path PASS requires review of the two fixes and binding the final controller hash, gate input hashes and immutable application identity. The existing application's financial review remains separate and unchanged.
+
+## Final static re-review — 2026-10-20 UTC
+
+**PASS for static controller review; suitable for read-only restored-database preflight.** This final verdict supersedes the pending status above and binds exactly to controller SHA256 `7ab66acbbafbe79adbd327020e48c3c72f60589168edb7eab4620811ec58c385`, independently read and hashed after the last repair. The underlying application binding remains HEAD `38d7499b6726fc9dd835944f301e50fd06c82095` / backend candidate `8f5d19165ab53d529457d16984e4a9e87dad6973fd59d795ad48e0a55f4f0242` / full candidate `5750769c0b4cbd316fd5d70d30a5f40accb4bb33ef500b33682d1e2e88dbc778`.
+
+All four controller findings are resolved in this revision:
+
+- An unconditional `RuntimeError` rejects nonzero `sys.flags.optimize` before application imports. The worker invocation is now a separate ordinary statement, followed by its assertion.
+- The journal is pinned to `/release-control/title02-six-intents.jsonl`. An exclusive, fixed `/release-control/title02-six-intents.lock` is claimed and fsynced before any queue writes, and persists on failure. Distinct journal arguments cannot bypass the release claim.
+- The exact preflight receipt, controller and Git manifest are bound by the execution gate; production source blobs and the actual title import location are checked before writes.
+- Cleanup holds this controller's queued/running leftovers regardless of attempt count, checks ownership, and leaves logical-call status, checkpoints and reservations intact.
+
+The execution branch has no remaining blocking static finding in the reviewed scope. This is a technical review, not evidence that authorization, worker drain, deployment identity or live settings have been verified. Before execute, the separate host wrapper must verify the launched pinned image identity, supply the gate from actual authorization and observed controls, preserve the durable bind mount, and keep ordinary new-contract processing disabled if the process is interrupted. That wrapper is not yet reviewed here. Continuing activation remains separate from this six-intent validation.
+
+No controller invocation, database operation or provider call was performed by this reviewer. A network-disabled read-only restored-database preflight is the appropriate next validation step; execution readiness still depends on its result and the separately reviewed host wrapper and real gate evidence.
+
+## Host wrapper and publication-hook review — 2026-10-20 UTC
+
+Reviewed host wrapper SHA256 `c5ecb6f72087f78a1cf022c0bd44b18f625f2d5cae95fe033073901cf5ce9ca4` and updated controller SHA256 `56f3c25cd674a287de730cc9ad40563e52b94c86bc44b67de8d249fc27a89225`. **Controller static PASS remains valid; host execute path requires the two admission/recovery fixes below.** The host's read-only preflight has no worker-stop, queue-write or provider-call path; unlike the earlier isolated restored-database check, its Docker network is the normal application network and must not be described as network-disabled.
+
+1. **P2 — An unreadable controller state must not authorize worker restart.** `controller_running()` returns false for every failed `docker inspect`. The wrapper's `finally` interprets that as proof the controller stopped. A daemon/permission/transient query failure is inconclusive and can overlap a controller that still runs. Use a tri-state result; restart only after positively observing stopped state or proving absence from a successful Docker listing. Preserve the stopped worker and record unknown state on query failure.
+2. **P2 — Bind the application database to the database being drained.** The wrapper drains `gridlens_restore_20261014` in the named db container, but forwards the API's unchecked `DATABASE_URL`; the worker's URL can also differ. The volume test accepts `gridlens_postgres-data` mounted at any destination. Privately verify matching API/worker connection targets and the canonical host/port/database, and verify that the expected volume contains the effective PostgreSQL data directory. Never print connection credentials. This makes the idle fence and canonical-volume admission apply to the actual execution database.
+
+Other reviewed controls are appropriate: exact image IDs and OCI revision labels for running services, fixed reviewed input hashes, explicit authorization evidence for execute, private environment forwarding by key name, an exclusive release-control directory, shared-table-lock idle drain before stopping the worker, durable controller journal and fixed release lock, no Docker-run client timeout, and original worker ID/image/environment checks before restart. Passing authorization booleans remains the host operator's evidence responsibility; this wrapper does not itself establish user approval. The read-only query helper suppresses database error output, and ordinary new-contract flags remain disabled.
+
+The controller addition installs `install_worker_publication(SessionLocal)` after execution admission and the durable release claim, before queue writes. Inspection of the ordinary hook confirms it attaches the existing transaction callback, does not start a polling planner or provider, and publishes only transaction-dirtied canonical data through the existing bounded refresh. Read-only preflight returns before this installation. This is consistent with normal worker behavior.
+
+Compared Git manifests for `38d7499b6726fc9dd835944f301e50fd06c82095` and `802cbb4055c515699ce998445f77f98ab96d65b1`: the listed differences are four `.agent` status/packet documents; application code remains identical and full source candidate remains `5750769c0b4cbd316fd5d70d30a5f40accb4bb33ef500b33682d1e2e88dbc778`. Full-suite completion is not attested by this review. No host/controller execution, live read, database write or provider call was performed.
+
+### Host repair re-review
+
+Host revision SHA256 `5e30c8f4b44c8ba7330aaa4ead61302a5fa4adaedeafd1594024333d08ac85c5` fixes Docker recovery: running/stopped/absent/unknown are distinct; an inspect error requires a successful all-container listing to establish absence; only positively stopped/absent permits restart. Recovery errors are recorded without proceeding to restart. The local offline receipt `title02-controller-host-offline.json` reports all six state cases passed, with zero Docker/provider/database actions. This reviewer inspected the receipt and code rather than executing the tests.
+
+Database admission now requires equal API/worker URLs with the canonical scheme, host, port, database and username. The named volume must be mounted at `/var/lib/postgresql`, effective `SHOW data_directory` must equal configured PGDATA beneath it, and an overlapping other mount is rejected. One final narrow correction remains at this revision: reject URL query/fragment (or explicitly allow only known harmless options), since a connection query parameter can override a canonical authority/path. The parent has been notified. Controller SHA256 remains unchanged at `56f3c25cd674a287de730cc9ad40563e52b94c86bc44b67de8d249fc27a89225`.
+
+### Final host/controller binding
+
+**PASS — no remaining blocking static finding for the reviewed six-intent host/controller path.** The URL admission now also rejects query and fragment, closing the final connection-target override. Independently read and measured final files:
+
+- Host `title02-six-intent-host.py`: SHA256 `13440a1fc090fb4b763cc6b6392f6b407d02b4ac0cc69d4ee2d15092b856556e`.
+- Controller `title02-six-intent-controller.py`: SHA256 `56f3c25cd674a287de730cc9ad40563e52b94c86bc44b67de8d249fc27a89225`.
+- Reviewed release revision `802cbb4055c515699ce998445f77f98ab96d65b1`, full source candidate `5750769c0b4cbd316fd5d70d30a5f40accb4bb33ef500b33682d1e2e88dbc778`; application financial review is unchanged.
+
+This supersedes the host's pending-findings status above. The static PASS supports the planned read-only preflight and, when real authorization and successful deployment/test evidence are supplied, the bounded six-intent validation. It does not create authorization, attest live admission checks, or authorize continuing activation. The isolated restored-database preflight being run by the parent is separate from the host wrapper's live read-only preflight. No execution or live access was performed by this reviewer.
