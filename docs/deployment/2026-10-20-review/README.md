@@ -1,8 +1,12 @@
-# GL3 saved-work review and operational handoff
+# Historical GL3 saved-work review — October 20, 2026
 
-Saved at Nick's October 20, 2026 01:13 UTC instruction: **save all work and open an unmerged review PR**. Further recovery, inference, activation, merge and deployment actions are stopped. This documentation PR does not deploy or enable anything. Scripts below are historical review material, not instructions to execute them.
+**Historical snapshot, not a current runtime report or executable runbook.** The October 22 review-and-merge request supersedes this snapshot's merge pause only. Deployment, provider activation and accounting changes remain outside this documentation review. Consult [operations authority](../../operations/README.md) and fresh release receipts before any separately authorized operation.
 
-## What is already deployed
+The later [October 20 observation](../../operations/observations/2026-10-20-production-readonly.md) records the formerly unknown call as RECONCILED with zero active slots. Do not replay the call or repeat the historical recovery proposal. The original uncertainty and failed validation below remain historical evidence.
+
+Saved at Nick's October 20, 2026 01:13 UTC instruction: **save all work and open an unmerged review PR**. At that time, further recovery, inference, activation, merge and deployment actions were stopped. This documentation PR does not deploy or enable anything. The linked original scripts are historical review material, not instructions to execute them.
+
+## Deployment observed at the snapshot time
 
 Live URL: **https://app.grid-lens.com/** on the existing DigitalOcean `gridlens-production` host (droplet 609407604, NYC1). No new infrastructure was purchased.
 
@@ -71,7 +75,9 @@ No rollback is requested now. If later authorized, first recheck current state, 
 
 ## Saved work, exclusions and separate unpublished work
 
-This PR saves the title/Jev operator scripts, independent reviews, this handoff, and a hash manifest of retained local evidence. It adds no application implementation and changes no runtime defaults. Raw runtime artifacts, logs, databases, screenshots, credentials, session material and secret-bearing environment files remain outside Git as required by `.agent/AGENT_RULES.md`. Their safe filenames/content hashes are inventoried; originals remain in this task workspace.
+This archive saves independent reviews, this handoff, and a hash manifest of retained local evidence. The original operator scripts remain unchanged in [historical commit de9d212](https://github.com/nrsandoval1231-oss/gl3/tree/de9d21225d60a6966d2f2ff859cd0576c283f43e/docs/deployment/2026-10-20-review/operator-scripts) and the original local task; they are intentionally excluded from the current checkout so they cannot be mistaken for supported commands. That link is archival evidence, not execution authority. It adds no application implementation and changes no runtime defaults. Raw runtime artifacts, logs, databases, screenshots, credentials, session material and secret-bearing environment files remain outside Git as required by `.agent/AGENT_RULES.md`. Their safe filenames/content hashes are inventoried; originals remain in this task workspace.
+
+The unchanged [local artifact manifest](local-artifact-manifest.json) describes the original `de9d212` snapshot: its `git_copy` paths resolve against that historical commit, not this reduced archive checkout. Its original hashes remain unchanged.
 
 The [repository inventory](repository-inventory.json) records checkout branches, commits and dirty paths before this handoff branch was created. Existing changes in other checkouts are preserved and have not been folded into this PR:
 
@@ -81,9 +87,8 @@ The [repository inventory](repository-inventory.json) records checkout branches,
 - `gl3-preload`: historical dirty `.agent` state/graph/archive/packet files remain in that checkout.
 - Other inventoried GL3 checkouts were clean. TITLE-02 implementation checkout was clean at `802cbb4` before this documentation branch.
 
-## Next steps after review
+## Historical follow-up and present boundary
 
-1. Review this PR; **do not merge or deploy automatically**.
-2. Recheck final list/detail consistency after the completed browse rebuild; no additional inference is needed for that check.
-3. Decide separately whether to authorize an exact-call accounting isolation design and/or a duplicate-risk replacement. Preserve the original failed six-job journal and unknown outcome in any follow-up.
-4. Only after reviewed recovery and truthful validation should a new activation plan enable ongoing titles/Jev. Source recovery, bulk historical replay, broader feed coverage, Research selected-need reload/citation compatibility, and long-duration PC-off acceptance remain separate unresolved work.
+The original pause requested list/detail rechecking, an exact-call recovery decision and a possible future activation plan. Subsequent PRs and the later dated observation supersede that frontier. Preserve the failed six-job journal and original accounting evidence; do not rerun recovery, provider calls, scripts or bulk replay from this archive.
+
+The October 22 change reviews and integrates documentation only. Current release, source coverage, PC-off operation and live-provider acceptance require their own exact evidence. No current deployment or activation readiness is asserted here.
