@@ -1,0 +1,43 @@
+{
+  "packet": "AUDIT-WORKSPACE-PERF",
+  "objective": "Remove per-history-item SQL enrichment from the workspace change briefing while preserving page/count/token/provenance/review semantics.",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-workspace-perf-20261020",
+  "branch": "repair/audit-workspace-perf-20261020",
+  "base_sha": "c847babe61756058fbaef98cab209561ef6d6bf4",
+  "source_commit": "82136e4986a236faae061165a657ffc40fac597e",
+  "finish_utc": "2026-10-20 20:25:20 UTC",
+  "start_utc": "UNKNOWN",
+  "model_config": "UNKNOWN",
+  "tokens": "UNKNOWN",
+  "planning_build_validation_audit_durations": "UNKNOWN",
+  "materially_different_repair_attempts": 0,
+  "routine_verification_fixes": 2,
+  "changed_files": [
+    "backend/src/gridlens/intelligence/workspace_changes.py",
+    "backend/tests/integration/test_workspace_review_integration.py",
+    "web/src/features/workspace/WorkspaceChanges.tsx",
+    "web/tests/workspace.spec.ts"
+  ],
+  "implementation": [
+    "Classify retained event and call-fact changes without per-item database reads; maintain prior accepted assertion state in one linear journal pass.",
+    "Filter acknowledged change IDs before classification and compute complete counts, stable order, exact typed keys and page token before hydration.",
+    "Batch-hydrate need/project links, source-listing siblings, fact metadata, Evidence, and buying-chain evidence for the displayed page only.",
+    "Remove persisted active tier from the briefing link label; use event transition/activity context and retain canonical active-detail navigation."
+  ],
+  "validation": [
+    {"command": "uv run --extra dev ruff format src/gridlens/intelligence/workspace_changes.py tests/integration/test_workspace_review_integration.py", "exit": 0},
+    {"command": "uv run --extra dev ruff check src/gridlens/intelligence/workspace_changes.py tests/integration/test_workspace_review_integration.py", "exit": 0},
+    {"command": "uv run --extra dev mypy src/gridlens/intelligence/workspace_changes.py", "exit": 0},
+    {"command": "uv run --extra dev pytest -q tests/integration/test_workspace_review_integration.py", "exit": 0, "result": "5 passed, including the four prior behavioral tests and 3,059 material-event / 3,009 acknowledged-row query regression."},
+    {"command": "query-count assertion inside test_workspace_change_get_has_constant_query_count_with_acknowledged_history", "exit": 0, "result": "Fewer than 30 SQL statements for GET; exact count not emitted by the test."},
+    {"command": "npm test -- --project=regression tests/workspace.spec.ts --grep \"active change links|active change link hides\"", "exit": 0, "result": "2 passed."},
+    {"command": "npm run typecheck", "exit": 0},
+    {"command": "npm run build", "exit": 0, "note": "Existing >500 kB chunk warning."},
+    {"command": "git diff --check", "exit": 0},
+    {"command": "git diff --cached --check", "exit": 0}
+  ],
+  "dependency_install": "npm ci exit 0; npm reported one moderate dependency advisory. No dependency files changed.",
+  "performance_evidence": "The new deterministic query-bound test passed. Wall-clock and exact query-count comparison on the restored-data clone remain for controller measurement; no local latency improvement claim is made.",
+  "scope_and_authority": "Only assigned projection, related integration tests, active-link label, and focused browser selectors changed. No app.py, model, migration, generated API, publication, ingestion, provider, production, push, merge, or deployment effects.",
+  "independent_review": "Pending controller; no self-acceptance claim."
+}

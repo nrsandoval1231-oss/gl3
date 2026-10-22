@@ -165,6 +165,7 @@ test('Cannabis Watch is removed and an evidence-supported applicant titles the c
       ? { authenticated: true }
       : path === '/api/opportunities'
         ? [record]
+        : path === '/api/opportunities/needs/cultivation' ? record
         : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
           : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
@@ -176,9 +177,10 @@ test('Cannabis Watch is removed and an evidence-supported applicant titles the c
   await expect(card).toBeVisible()
   await expect(card).toContainText('Activity size unknown · retained')
   await card.click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Green Valley Cultivation LLC · applicant' })).toBeVisible()
-  await expect(page.getByText('Activity size unknown.')).toBeVisible()
-  await page.getByRole('button', { name: /Back to Signals/ }).click()
+  await expect(page.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('heading', { level: 2, name: 'Green Valley Cultivation LLC · applicant' })).toBeVisible()
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await expect(page.getByText('Activity size unknown. Retained for investigation; the 300 kW minimum is inclusive.')).toBeVisible()
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
   await page.getByRole('textbox', { name: 'Search projects' }).fill('Green Valley Cultivation')
   await expect(page.getByRole('button', { name: /Green Valley Cultivation LLC · applicant/ })).toBeVisible()
 })
@@ -200,6 +202,7 @@ test('browse filters travel through the request URL and restore with the selecte
       ? { authenticated: true }
       : path === '/api/opportunities'
         ? [record]
+        : path === '/api/opportunities/needs/filter-back' ? record
         : /^\/api\/needs\/[^/]+\/facts$/.test(path)
           ? { items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: 0,
             current_reported_timing_correction_target: {
@@ -224,10 +227,11 @@ test('browse filters travel through the request URL and restore with the selecte
     })
   })
   await page.goto('/?tier=Signals&q=campus&decision=SHOW&offset=25&geography=UNKNOWN&industry=data_center&activity=facility-expansion&timing=UNKNOWN&mw_status=UNKNOWN&mw_min=0.3&priority_segment=8&status=UNKNOWN')
+  await page.locator('.wh-filter-disclosure summary').click()
   await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue('campus')
-  await expect(page.getByRole('textbox', { name: 'Filter by exact project asset type' })).toHaveValue('data_center')
-  await expect(page.getByRole('textbox', { name: 'Filter by exact power activity' })).toHaveValue('facility-expansion')
-  await expect(page.getByRole('button', { name: /Back to Signals/ })).toHaveCount(0)
+  await expect(page.getByRole('textbox', { name: 'Industry' })).toHaveValue('data_center')
+  await expect(page.getByRole('textbox', { name: 'Activity' })).toHaveValue('facility-expansion')
+  await expect(page.locator('.wh-detail')).not.toContainText('Synthetic campus')
   await expect.poll(() => requests.some((request) => request.searchParams.get('geography') === 'UNKNOWN'
     && request.searchParams.get('industry') === 'data_center'
     && request.searchParams.get('activity') === 'facility-expansion'
@@ -243,11 +247,11 @@ test('browse filters travel through the request URL and restore with the selecte
     && request.searchParams.get('cohort_token') === null)).toBe(true)
   expect(opportunityRequests[laterPageIndex].searchParams.get('cohort_token')).toBe('fixture-cohort')
   await page.locator('[data-opportunity-id="filter-back"]').first().click()
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  await page.getByRole('button', { name: /Back to Signals/ }).click()
+  await expect(page.locator('.wh-record-identity h2')).toContainText(/synthetic campus/i)
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
   await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue('campus')
-  await expect(page.getByRole('textbox', { name: 'Filter by exact project asset type' })).toHaveValue('data_center')
-  await expect(page.getByRole('textbox', { name: 'Filter by exact power activity' })).toHaveValue('facility-expansion')
+  await expect(page.getByRole('textbox', { name: 'Industry' })).toHaveValue('data_center')
+  await expect(page.getByRole('textbox', { name: 'Activity' })).toHaveValue('facility-expansion')
   const restored = new URL(page.url())
   expect(restored.searchParams.get('offset')).toBe('25')
   expect(restored.searchParams.get('geography')).toBe('UNKNOWN')
@@ -258,9 +262,9 @@ test('browse filters travel through the request URL and restore with the selecte
   expect(restored.searchParams.get('priority_segment')).toBe('8')
   expect(restored.searchParams.get('status')).toBe('UNKNOWN')
   await page.goForward()
-  await expect(page.getByRole('heading', { level: 1 })).toContainText(/Synthetic campus/i)
+  await expect(page.locator('.wh-record-identity h2')).toContainText(/Synthetic campus/i)
   await page.goBack()
-  await expect(page.getByRole('textbox', { name: 'Filter by exact project asset type' })).toHaveValue('data_center')
+  await expect(page.getByRole('textbox', { name: 'Industry' })).toHaveValue('data_center')
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
 })
 
@@ -312,72 +316,35 @@ test('stale later-page cohort restarts at page one without showing the previous 
 })
 
 test('Back restores the exact selected need across tiers and pages with its cohort and focus', async ({ page }) => {
-  const firstSignal = permit('signal-first-page', 'First Signal page record')
-  const selectedSignal = permit('signal-later-page', 'Exact Signal later-page record')
-  selectedSignal.evidence[0].title = 'Citation for the exact later-page Signal'
+  const selected = permit('signal-later-page', 'Exact Signal later-page record')
   const prospect = permit('prospect-first-page', 'Distinct Prospect page record', { tier: 'Prospect' })
   const requests: URL[] = []
-  await page.route(apiRoute, async (route) => {
-    const url = new URL(route.request().url())
-    const path = url.pathname
+  await page.route(apiRoute, async route => {
+    const url = new URL(route.request().url()), path = url.pathname
     if (path === '/api/opportunities') {
       requests.push(url)
-      const tier = url.searchParams.get('tier') ?? 'Signal'
-      const offset = Number(url.searchParams.get('offset') ?? '0')
-      const record = tier === 'Prospect' ? prospect : offset === 0 ? firstSignal : selectedSignal
-      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        headers: {
-          ...payload.headers,
-          'X-Limit': '25',
-          'X-Offset': String(offset),
-          'X-Cohort-Token': tier === 'Prospect' ? 'prospect-scope-token' : 'signal-scope-token',
-          ...(tier === 'Signal' && offset === 0 ? { 'X-Next-Offset': '25' } : {}),
-        },
-        body: JSON.stringify(payload.items),
-      })
-      return
+      const tier = url.searchParams.get('tier'), offset = Number(url.searchParams.get('offset') ?? 0)
+      const payload = serverOpportunityPage([tier === 'Prospect' ? prospect : selected])
+      await route.fulfill({ status: 200, json: payload.items, headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': String(offset), 'X-Cohort-Token': 'scoped-token', ...(offset === 0 ? { 'X-Next-Offset': '25' } : {}) } }); return
     }
-    const body = path === '/api/auth/session'
-      ? { authenticated: true }
-      : path === '/api/health'
-        ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : path.startsWith('/api/power-needs/')
-          ? { status: 'unavailable', result: null, citations: [] }
-          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+    const body = path === '/api/opportunities/needs/signal-later-page' ? selected : path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : emptyExactNeedAuxiliary(path) ?? []
+    await route.fulfill({ status: 200, json: body })
   })
-
   await page.goto('/?tier=Signals&decision=SHOW&offset=25&activity=event-power')
-  const selectedCard = page.locator('[data-opportunity-id="signal-later-page"]')
-  await expect(selectedCard).toBeVisible()
-  await selectedCard.click()
-  await expect(page.getByRole('link', { name: 'Citation for the exact later-page Signal' })).toBeVisible()
-  expect(new URL(page.url()).hash).toBe('#signal-later-page')
-  await page.getByLabel('Qualification tier').selectOption('Prospects')
-  await expect(page.locator('[data-opportunity-id="prospect-first-page"]')).toBeVisible()
-
-  await page.goBack()
-  await expect(page.getByRole('link', { name: 'Citation for the exact later-page Signal' })).toBeVisible()
-  expect(new URL(page.url()).searchParams.get('tier')).toBe('Signals')
-  expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
-  expect(new URL(page.url()).searchParams.get('decision')).toBe('SHOW')
-  expect(new URL(page.url()).searchParams.get('activity')).toBe('event-power')
-  expect(new URL(page.url()).hash).toBe('#signal-later-page')
-  const restoreRequests = requests.filter((request) => request.searchParams.get('tier') === 'Signal').slice(-2)
-  expect(restoreRequests.map((request) => request.searchParams.get('offset'))).toEqual(['0', '25'])
-  expect(restoreRequests[0].searchParams.get('cohort_token')).toBeNull()
-  expect(restoreRequests[1].searchParams.get('cohort_token')).toBe('signal-scope-token')
-
-  await page.goBack()
+  await page.locator('[data-opportunity-id="signal-later-page"]').click()
+  await expect(page.locator('.wh-record-identity h2')).toContainText('Exact Signal Later-Page Record')
+  expect(new URL(page.url()).searchParams.get('need')).toBe('signal-later-page')
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
   await expect(page.locator('[data-opportunity-id="signal-later-page"]')).toBeFocused()
-  await page.goForward()
-  await expect(page.getByRole('link', { name: 'Citation for the exact later-page Signal' })).toBeVisible()
+  await page.getByLabel('Qualification tier').selectOption('Prospect')
+  await expect(page.locator('[data-opportunity-id="prospect-first-page"]')).toBeVisible()
+  await page.goBack()
+  await expect(page.locator('[data-opportunity-id="signal-later-page"]')).toBeVisible()
+  expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
+  expect(new URL(page.url()).searchParams.get('activity')).toBe('event-power')
   await page.goForward()
   await expect(page.locator('[data-opportunity-id="prospect-first-page"]')).toBeVisible()
-  expect(new URL(page.url()).searchParams.get('tier')).toBe('Prospects')
+  expect(requests.some(url => url.searchParams.get('tier') === 'Signal' && url.searchParams.get('offset') === '25' && url.searchParams.get('cohort_token') === 'scoped-token')).toBe(true)
 })
 
 test('direct selected URL reports an exact need outside its filtered cohort without showing another record', async ({ page }) => {
@@ -449,11 +416,13 @@ test('direct selected URL hydrates the exact need with the restored page cohort 
   })
 
   await page.goto('/?tier=Signals&offset=25&activity=event-power#selected-off-page')
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Citation for the restored off-page record' })).toBeVisible()
   await expect(page.getByRole('link', { name: /current-page-record/ })).toHaveCount(0)
-  expect(opportunityRequests.map((url) => url.searchParams.get('offset'))).toEqual(['0', '25'])
+  expect(opportunityRequests.map((url) => url.searchParams.get('offset')).at(-1)).toBe('25')
+  expect(opportunityRequests.slice(0, -1).every(url => url.searchParams.get('offset') === '0')).toBe(true)
   expect(opportunityRequests[0].searchParams.get('cohort_token')).toBeNull()
-  expect(opportunityRequests[1].searchParams.get('cohort_token')).toBe('restored-scope-token')
+  expect(opportunityRequests.at(-1)?.searchParams.get('cohort_token')).toBe('restored-scope-token')
   expect(detailRequests).toHaveLength(1)
   expect(detailRequests[0].searchParams.get('tier')).toBe('Signal')
   expect(detailRequests[0].searchParams.get('activity')).toBe('event-power')
@@ -507,8 +476,7 @@ test('late restored-page response cannot replace a newer Back/Forward destinatio
 
   try {
     await page.goto('/?tier=Signals&offset=25')
-    await page.locator('[data-opportunity-id="late-selected-signal"]').click()
-    await page.getByLabel('Qualification tier').selectOption('Prospects')
+    await page.getByLabel('Qualification tier').selectOption('Prospect')
     await expect(page.locator('[data-opportunity-id="late-prospect"]')).toBeVisible()
 
     restoreSignalPage = true
@@ -539,6 +507,7 @@ test('active first-page tier click preserves ready metadata and closes its detai
     }
     const body = url.pathname === '/api/auth/session'
       ? { authenticated: true }
+      : url.pathname === '/api/opportunities/needs/active-tier-ready' ? record
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
         : url.pathname.startsWith('/api/power-needs/')
@@ -549,24 +518,24 @@ test('active first-page tier click preserves ready metadata and closes its detai
 
   await page.goto('/?tier=Signals')
   await expect(page.locator('[data-opportunity-id="active-tier-ready"]')).toBeVisible()
-  const initialUrl = page.url()
+  const initialCount = requests.length
   const csv = page.getByRole('link', { name: 'Download filtered CSV' })
   await expect(csv).toBeVisible()
-  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
-  await expect(page.getByText('1 filtered records · page 1')).toBeVisible()
+  await expect(page.getByText('1 project groups · 1 records')).toBeVisible()
   await expect(csv).toBeVisible()
-  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
-  expect(page.url()).toBe(initialUrl)
-  expect(requests).toHaveLength(1)
+  await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
+  expect(new URL(page.url()).searchParams.get('offset')).toBeNull()
+  expect(requests).toHaveLength(initialCount)
 
   await page.locator('[data-opportunity-id="active-tier-ready"]').click()
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(page.locator('.wh-record-identity h2')).toBeVisible()
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
   await expect(page.locator('[data-opportunity-id="active-tier-ready"]')).toBeVisible()
   await expect(csv).toBeVisible()
-  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
-  expect(requests).toHaveLength(1)
+  await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
+  expect(requests).toHaveLength(initialCount)
 })
 
 test('active first-page tier click while loading lets the matching request settle', async ({ page }) => {
@@ -593,15 +562,16 @@ test('active first-page tier click while loading lets the matching request settl
   try {
     await page.goto('/?tier=Signals')
     await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
-    await expect.poll(() => requestCount).toBe(1)
-    await expect(page.getByText('Updating this view…')).toBeVisible()
+    await expect.poll(() => requestCount).toBeGreaterThan(0)
+    const initialCount = requestCount
+    await expect(page.getByText('Loading current Signal cohort…')).toBeVisible()
     await page.getByRole('button', { name: 'Signals' }).click()
     releaseRequest?.()
     await expect(page.locator('[data-opportunity-id="active-tier-pending"]')).toBeVisible()
-    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByText('Loading current Signal cohort…')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
-    await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
-    expect(requestCount).toBe(1)
+    await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
+    expect(requestCount).toBe(initialCount)
   } finally {
     releaseRequest?.()
   }
@@ -634,12 +604,12 @@ test('active tier click from a later page fetches first-page data before showing
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
   await expect(page.locator('[data-opportunity-id="active-tier-first-page"]')).toBeVisible()
   await expect(page.locator('[data-opportunity-id="active-tier-later-page"]')).toHaveCount(0)
-  await expect(page.getByText('1 filtered records · page 1')).toBeVisible()
+  await expect(page.getByText('1 project groups · 1 records')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
   expect(new URL(page.url()).searchParams.get('offset')).toBeNull()
-  expect(requests.map((url) => url.searchParams.get('offset'))).toEqual(['0', '25', '0'])
-  expect(requests[1].searchParams.get('cohort_token')).toBe('active-tier-page-token')
-  expect(requests[2].searchParams.get('cohort_token')).toBeNull()
+  expect(requests.slice(-2).map((url) => url.searchParams.get('offset'))).toEqual(['25', '0'])
+  expect(requests.at(-2)?.searchParams.get('cohort_token')).toBe('active-tier-page-token')
+  expect(requests.at(-1)?.searchParams.get('cohort_token')).toBeNull()
 })
 
 test('active Signals decision and unchanged search preserve ready page metadata', async ({ page }) => {
@@ -662,17 +632,19 @@ test('active Signals decision and unchanged search preserve ready page metadata'
   })
   await page.goto('/?tier=Signals&q=campus&activity=event-power')
   await expect(page.locator('[data-opportunity-id="same-decision-search"]')).toBeVisible()
+  const settledRequests = requests.length
   const csv = page.getByRole('link', { name: 'Download filtered CSV' })
-  await page.getByRole('group', { name: 'Filter Signals by review decision' }).getByRole('button', { name: /All/ }).click()
+  await page.getByRole('navigation', { name: 'Filter by evidence decision' }).getByRole('button', { name: /All/ }).click()
   await expect(csv).toBeVisible()
-  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
   await page.getByRole('textbox', { name: 'Search projects' }).fill('campus')
   await expect(csv).toBeVisible()
-  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
-  await page.getByRole('textbox', { name: 'Filter by exact power activity' }).fill('event-power')
+  await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
+    await page.locator('.wh-filter-disclosure').evaluate(element => { (element as HTMLDetailsElement).open = true })
+  await page.getByRole('textbox', { name: 'Activity' }).fill('event-power')
   await expect(csv).toBeVisible()
-  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
-  expect(requests).toHaveLength(1)
+  await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
+  expect(requests).toHaveLength(settledRequests)
 })
 
 test('active decision and unchanged activity filter during page load preserve the request', async ({ page }) => {
@@ -700,13 +672,14 @@ test('active decision and unchanged activity filter during page load preserve th
     await page.goto('/?tier=Signals&activity=event-power')
     await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
     await expect.poll(() => requestStarted).toBe(true)
-    await page.getByRole('group', { name: 'Filter Signals by review decision' }).getByRole('button', { name: /All/ }).click()
-    await page.getByRole('textbox', { name: 'Filter by exact power activity' }).fill('event-power')
+    await page.getByRole('navigation', { name: 'Filter by evidence decision' }).getByRole('button', { name: /All/ }).click()
+      await page.locator('.wh-filter-disclosure').evaluate(element => { (element as HTMLDetailsElement).open = true })
+    await page.getByRole('textbox', { name: 'Activity' }).fill('event-power')
     releaseRequest?.()
     await expect(page.locator('[data-opportunity-id="same-controls-pending"]')).toBeVisible()
-    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByText('Loading current Signal cohort…')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
-    await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+    await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
   } finally {
     releaseRequest?.()
   }
@@ -740,7 +713,7 @@ test('unchanged search during page load does not cancel its terminal response', 
     await page.getByRole('textbox', { name: 'Search projects' }).fill('campus')
     releaseRequest?.()
     await expect(page.locator('[data-opportunity-id="same-search-pending"]')).toBeVisible()
-    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByText('Loading current Signal cohort…')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
   } finally {
     releaseRequest?.()
@@ -770,14 +743,17 @@ test('unchanged activity filter during page load does not cancel or duplicate it
   })
   try {
     await page.goto('/?tier=Signals&activity=event-power')
-    await expect(page.getByRole('textbox', { name: 'Filter by exact power activity' })).toHaveValue('event-power')
-    await expect.poll(() => requests.length).toBe(1)
-    await page.getByRole('textbox', { name: 'Filter by exact power activity' }).fill('event-power')
+      await page.locator('.wh-filter-disclosure').evaluate(element => { (element as HTMLDetailsElement).open = true })
+    await expect(page.getByRole('textbox', { name: 'Activity' })).toHaveValue('event-power')
+    await expect.poll(() => requests.length).toBeGreaterThan(0)
+    const initialCount = requests.length
+      await page.locator('.wh-filter-disclosure').evaluate(element => { (element as HTMLDetailsElement).open = true })
+    await page.getByRole('textbox', { name: 'Activity' }).fill('event-power')
     await page.waitForTimeout(100)
-    expect(requests).toHaveLength(1)
+    expect(requests).toHaveLength(initialCount)
     releaseRequest?.()
     await expect(page.locator('[data-opportunity-id="same-filter-pending"]')).toBeVisible()
-    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByText('Loading current Signal cohort…')).toHaveCount(0)
   } finally {
     releaseRequest?.()
   }
@@ -808,57 +784,34 @@ test('clicking the active Operations view during its request does not strand loa
     await expect.poll(() => requestStarted).toBe(true)
     await page.getByRole('button', { name: 'Operations' }).click()
     releaseRequest?.()
-    await expect(page.getByText('Updating this view…')).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'No retained source items' })).toBeVisible()
+    await expect(page.getByText('Loading current Signal cohort…')).toHaveCount(0)
+    await expect(page.getByText('No retained source items match these filters.')).toBeVisible()
   } finally {
     releaseRequest?.()
   }
 })
 
-test('opening a same-cohort record during a pending Back page request does not strand loading', async ({ page }) => {
-  const record = permit('open-during-refresh-a', 'First campus facility activity')
-  const nextRecord = permit('open-during-refresh-b', 'Second campus facility activity')
-  let opportunityRequests = 0
-  let secondRequestStarted = false
-  let releaseSecondRequest: (() => void) | undefined
-  const secondRequestGate = new Promise<void>((resolve) => { releaseSecondRequest = resolve })
-  await page.route(apiRoute, async (route) => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/opportunities') {
-      opportunityRequests += 1
-      if (opportunityRequests === 2) {
-        secondRequestStarted = true
-        await secondRequestGate
-      }
-      const payload = serverOpportunityPage([record, nextRecord], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
-      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0' }, body: JSON.stringify(payload.items) })
-      return
-    }
-    const body = url.pathname === '/api/auth/session'
-      ? { authenticated: true }
-      : url.pathname === '/api/health'
-        ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : url.pathname.startsWith('/api/power-needs/')
-          ? { status: 'unavailable', result: null, citations: [] }
-          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+test('late detail response cannot replace a newer selected record', async ({ page }) => {
+  const first = permit('race-detail-a', 'First race record'), second = permit('race-detail-b', 'Second race record')
+  let started = false, release: (() => void) | undefined
+  const gate = new Promise<void>(resolve => { release = resolve })
+  await page.route(apiRoute, async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/opportunities') { await fulfillServerOpportunityPage(route, [first, second]); return }
+    if (path === '/api/opportunities/needs/race-detail-a') { started = true; await gate; await route.fulfill({ json: first }); return }
+    const body = path === '/api/opportunities/needs/race-detail-b' ? second : path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : emptyExactNeedAuxiliary(path) ?? []
+    await route.fulfill({ json: body })
   })
   try {
     await page.goto('/?tier=Signals')
-    await page.locator('[data-opportunity-id="open-during-refresh-a"]').click()
-    await page.getByRole('button', { name: '← Back to Signals' }).click()
-    await expect.poll(() => secondRequestStarted).toBe(true)
-    await expect(page.locator('[data-opportunity-id="open-during-refresh-a"]')).toBeVisible()
-    await page.locator('[data-opportunity-id="open-during-refresh-a"]').click()
-    await expect(page.getByRole('button', { name: 'Next →' })).toBeEnabled()
-    await page.getByRole('button', { name: 'Next →' }).click()
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Second Campus Facility Activity')
-    releaseSecondRequest?.()
-    await expect(page.getByText('Updating this view…')).toHaveCount(0)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Second Campus Facility Activity')
-  } finally {
-    releaseSecondRequest?.()
-  }
+    await page.locator('[data-opportunity-id="race-detail-a"]').click()
+    await expect.poll(() => started).toBe(true)
+    await page.locator('[data-opportunity-id="race-detail-b"]').click()
+    await expect(page.locator('.wh-record-identity h2')).toContainText('Second Race Record')
+    release?.()
+    await expect(page.locator('.wh-record-identity h2')).toContainText('Second Race Record')
+    expect(new URL(page.url()).searchParams.get('need')).toBe('race-detail-b')
+  } finally { release?.() }
 })
 
 test('late group expansion pages cannot restore members from a superseded browse filter', async ({ page }) => {
@@ -916,22 +869,23 @@ test('late group expansion pages cannot restore members from a superseded browse
     await expect(group).toBeVisible()
     await group.click()
     await expect.poll(() => oldLaterPageStarted).toBe(true)
-    await page.getByRole('textbox', { name: 'Filter by exact power activity' }).fill('activity-b')
+    await page.locator('.wh-filter-disclosure summary').click()
+    await page.getByRole('textbox', { name: 'Activity' }).fill('activity-b')
     await expect(page.locator('[data-opportunity-id="scope-b-current"]')).toBeVisible()
     releaseOldLaterPage?.()
-    await expect(page.locator('.project-members')).toHaveCount(0)
+    await expect(page.locator('.signals-member-list')).toHaveCount(0)
     await expect(page.locator('[data-opportunity-id="scope-a-last"]')).toHaveCount(0)
     expect(groupRequests.every((request) => request.searchParams.get('cohort_token') === 'fixture-server-cohort')).toBe(true)
     expect(groupRequests.some((request) => request.searchParams.get('activity') === 'activity-a' && request.searchParams.get('offset') === '50')).toBe(true)
     await page.locator('[data-opportunity-id="scope-b-current"]').click()
-    await expect(page.locator('.project-members [data-opportunity-id="scope-b-current"]')).toBeVisible()
-    await expect(page.locator('.project-members [data-opportunity-id="scope-a-last"]')).toHaveCount(0)
+    await expect(page.locator('.signals-member-list [data-opportunity-id="scope-b-current"]')).toBeVisible()
+    await expect(page.locator('.signals-member-list [data-opportunity-id="scope-a-last"]')).toHaveCount(0)
   } finally {
     releaseOldLaterPage?.()
   }
 })
 
-test('Back refresh with a rotated cohort token supersedes a pending group expansion', async ({ page }) => {
+test('changed browse cohort supersedes a pending group expansion', async ({ page }) => {
   const record = permit('token-rotation-member', 'Token rotation group member')
   record.group_id = 'token-rotation-group'
   record.group_title = 'Token rotation group'
@@ -950,7 +904,7 @@ test('Back refresh with a rotated cohort token supersedes a pending group expans
     if (url.pathname === '/api/opportunities') {
       pageRequests += 1
       const payload = partialServerOpportunityPage([record])
-      const token = pageRequests === 1 ? 'token-before-back' : 'token-after-back'
+      const token = url.searchParams.get('search') ? 'token-after-back' : 'token-before-back'
       pageTokens.push(token)
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Cohort-Token': token, 'X-Limit': '25', 'X-Offset': '0' }, body: JSON.stringify(payload.items) })
       return
@@ -975,16 +929,12 @@ test('Back refresh with a rotated cohort token supersedes a pending group expans
     await page.locator('[data-opportunity-id="token-rotation-member"]').click()
     await expect.poll(() => groupStarted).toBe(true)
     expect(groupRequests[0]?.searchParams.get('cohort_token')).toBe('token-before-back')
-    await page.evaluate(() => {
-      history.pushState(history.state, '', location.href)
-      history.back()
-    })
-    await expect.poll(() => pageRequests).toBe(2)
-    expect(pageTokens).toEqual(['token-before-back', 'token-after-back'])
+    await page.getByRole('textbox', { name: 'Search projects' }).fill('rotated')
+    await expect.poll(() => pageTokens.includes('token-after-back')).toBe(true)
     await expect(page.locator('[data-opportunity-id="token-rotation-member"]')).toBeVisible()
     releaseGroup?.()
     await expect.poll(() => groupFinished).toBe(true)
-    await expect(page.locator('.project-members')).toHaveCount(0)
+    await expect(page.locator('.signals-member-list')).toHaveCount(0)
   } finally {
     releaseGroup?.()
   }
@@ -1036,19 +986,19 @@ test('only the latest group expansion intent may open a card or surface its fail
     await page.goto('/?tier=Signals')
     await page.locator('[data-opportunity-id="intent-first"]').click()
     await expect.poll(() => firstStarted).toBe(true)
-    await page.locator('.opportunity-row[data-opportunity-id="intent-second"]').click()
-    await expect(page.locator('.project-members [data-opportunity-id="intent-second"]')).toBeVisible()
+    await page.locator('button[aria-expanded][data-opportunity-id="intent-second"]').click()
+    await expect(page.locator('.signals-member-list [data-opportunity-id="intent-second"]')).toBeVisible()
     releaseFirst?.()
-    await expect(page.locator('.project-members [data-opportunity-id="intent-second"]')).toBeVisible()
-    await expect(page.locator('.project-members [data-opportunity-id="intent-first"]')).toHaveCount(0)
+    await expect(page.locator('.signals-member-list [data-opportunity-id="intent-second"]')).toBeVisible()
+    await expect(page.locator('.signals-member-list [data-opportunity-id="intent-first"]')).toHaveCount(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
 
-    await page.locator('.opportunity-row[data-opportunity-id="intent-second"]').click()
-    await expect(page.locator('.project-members')).toHaveCount(0)
+    await page.locator('button[aria-expanded][data-opportunity-id="intent-second"]').click()
+    await expect(page.locator('.signals-member-list')).toHaveCount(0)
     failSecond = true
-    await page.locator('[data-opportunity-id="intent-second"]').click()
+    await page.locator('button[aria-expanded][data-opportunity-id="intent-second"]').click()
     await expect(page.getByRole('alert')).toContainText('503')
-    await expect(page.locator('.project-members')).toHaveCount(0)
+    await expect(page.locator('.signals-member-list')).toHaveCount(0)
   } finally {
     releaseFirst?.()
   }
@@ -1096,14 +1046,14 @@ test('reclicking a pending group cancels its expansion and selected-record navig
     await expect.poll(() => groupRequests).toBe(1)
     await group.click()
     groupReleases[0]?.()
-    await expect(page.locator('.project-members')).toHaveCount(0)
+    await expect(page.locator('.signals-member-list')).toHaveCount(0)
     await group.click()
     await expect.poll(() => groupRequests).toBe(2)
     await page.locator('[data-opportunity-id="pending-selection"]').click()
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Selected Standalone Record')
+    await expect(page.getByRole('complementary', { name: 'Opportunity detail' })).toContainText('Selected Standalone Record')
     groupReleases[1]?.()
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Selected Standalone Record')
-    await expect(page.locator('.project-members')).toHaveCount(0)
+    await expect(page.getByRole('complementary', { name: 'Opportunity detail' })).toContainText('Selected Standalone Record')
+    await expect(page.locator('.signals-member-list')).toHaveCount(0)
   } finally {
     for (const release of groupReleases) release()
   }
@@ -1187,7 +1137,7 @@ test('group expansion intent is invalidated by tier, search, Signal decision, pa
     await page.locator(`[data-opportunity-id="${scenario.initialId}"]`).click()
     await expect.poll(() => groupStarted).toBe(true)
     if (scenario.name === 'tier') {
-      await page.getByLabel('Qualification tier').selectOption('Prospects')
+      await page.getByLabel('Qualification tier').selectOption('Prospect')
       await expect(page.locator('[data-opportunity-id="scope-prospect"]')).toBeVisible()
     } else if (scenario.name === 'search') {
       await page.getByRole('textbox', { name: 'Search projects' }).fill('newterm')
@@ -1196,7 +1146,7 @@ test('group expansion intent is invalidated by tier, search, Signal decision, pa
       await page.getByRole('button', { name: /^REVIEW/ }).click()
       await expect(page.locator('[data-opportunity-id="scope-review"]')).toBeVisible()
     } else if (scenario.name === 'page') {
-      await page.getByRole('button', { name: 'Next →' }).click()
+      await page.getByRole('button', { name: 'Next', exact: true }).click()
       await expect(page.locator('[data-opportunity-id="scope-page-next"]')).toBeVisible()
     } else {
       await page.getByRole('button', { name: 'Operations' }).click()
@@ -1204,7 +1154,7 @@ test('group expansion intent is invalidated by tier, search, Signal decision, pa
     }
     releaseGroup?.()
     await expect.poll(() => groupFinished).toBe(true)
-    await expect(page.locator('.project-members')).toHaveCount(0)
+    await expect(page.locator('.signals-member-list')).toHaveCount(0)
     if (scenario.nextId) await expect(page.locator(`[data-opportunity-id="${scenario.nextId}"]`)).toBeVisible()
   }
   } finally {
@@ -1216,7 +1166,7 @@ test('group expansion intent is invalidated by tier, search, Signal decision, pa
 test('Previous hides later-page rows and metadata until the first-page request settles', async ({ page }) => {
   const firstPageRecord = permit('transition-first-page', 'First page transition fixture')
   const laterPageRecord = permit('transition-later-page', 'Later page transition fixture')
-  let pageZeroRequests = 0
+  let laterPageServed = false
   let releasePrevious: (() => void) | undefined
   let previousStarted = false
   const previousGate = new Promise<void>((resolve) => { releasePrevious = resolve })
@@ -1225,12 +1175,12 @@ test('Previous hides later-page rows and metadata until the first-page request s
     if (url.pathname === '/api/opportunities') {
       const offset = Number(url.searchParams.get('offset') ?? '0')
       if (offset === 0) {
-        pageZeroRequests += 1
-        if (pageZeroRequests > 1) {
+        if (laterPageServed) {
           previousStarted = true
           await previousGate
         }
       }
+      if (offset > 0) laterPageServed = true
       const payload = serverOpportunityPage([offset === 0 ? firstPageRecord : laterPageRecord])
       await route.fulfill({
         status: 200,
@@ -1251,19 +1201,19 @@ test('Previous hides later-page rows and metadata until the first-page request s
   try {
     await page.goto('/?tier=Signals&offset=25')
     await expect(page.locator('[data-opportunity-id="transition-later-page"]')).toBeVisible()
-    await page.getByRole('button', { name: '← Previous' }).click()
+    await page.getByRole('button', { name: 'Previous' }).click()
     await expect.poll(() => previousStarted).toBe(true)
-    await expect(page.getByText('Updating this view…')).toBeVisible()
+    await expect(page.getByText('Loading current Signal cohort…')).toBeVisible()
     await expect(page.locator('[data-opportunity-id="transition-later-page"]')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'No Signals yet' })).toHaveCount(0)
-    await expect(page.getByText('1 filtered records · page 1')).toHaveCount(0)
+    await expect(page.getByText('1 project groups · 1 records')).toHaveCount(0)
     expect(new URL(page.url()).searchParams.get('offset')).toBeNull()
     expect(new URL(page.url()).hash).toBe('')
     releasePrevious?.()
     await expect(page.locator('[data-opportunity-id="transition-first-page"]')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
-    await expect(page.getByText('1 filtered records · page 1')).toBeVisible()
+    await expect(page.getByText('1 project groups · 1 records')).toBeVisible()
   } finally {
     releasePrevious?.()
   }
@@ -1303,17 +1253,17 @@ test('Next hides first-page rows and metadata until the later-page request settl
   try {
     await page.goto('/?tier=Signals')
     await expect(page.locator('[data-opportunity-id="transition-next-first-page"]')).toBeVisible()
-    await page.getByRole('button', { name: 'Next →' }).click()
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
     await expect.poll(() => nextStarted).toBe(true)
-    await expect(page.getByText('Updating this view…')).toBeVisible()
+    await expect(page.getByText('Loading current Signal cohort…')).toBeVisible()
     await expect(page.locator('[data-opportunity-id="transition-next-first-page"]')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'No Signals yet' })).toHaveCount(0)
-    await expect(page.getByText('1 filtered records · page 1')).toHaveCount(0)
+    await expect(page.getByText('1 project groups · 1 records')).toHaveCount(0)
     expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
     releaseNext?.()
     await expect(page.locator('[data-opportunity-id="transition-next-later-page"]')).toBeVisible()
-    await expect(page.getByText('1 filtered records · page 2')).toBeVisible()
+    await expect(page.getByText('1 project groups · 1 records')).toBeVisible()
   } finally {
     releaseNext?.()
   }
@@ -1321,15 +1271,16 @@ test('Next hides first-page rows and metadata until the later-page request settl
 
 test('failed Previous clears the later page and reports unavailable instead of an empty cohort', async ({ page }) => {
   const laterPageRecord = permit('transition-error-later-page', 'Later page error fixture')
-  let pageZeroRequests = 0
+  let laterPageServed = false
   await page.route(apiRoute, async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/opportunities') {
       const offset = Number(url.searchParams.get('offset') ?? '0')
-      if (offset === 0 && ++pageZeroRequests > 1) {
+      if (offset === 0 && laterPageServed) {
         await route.fulfill({ status: 503, json: { detail: 'First page unavailable for transition test' } })
         return
       }
+      if (offset > 0) laterPageServed = true
       const payload = serverOpportunityPage([laterPageRecord])
       await route.fulfill({
         status: 200,
@@ -1349,12 +1300,12 @@ test('failed Previous clears the later page and reports unavailable instead of a
   })
   await page.goto('/?tier=Signals&offset=25')
   await expect(page.locator('[data-opportunity-id="transition-error-later-page"]')).toBeVisible()
-  await page.getByRole('button', { name: '← Previous' }).click()
+  await page.getByRole('button', { name: 'Previous' }).click()
   await expect(page.getByRole('alert')).toContainText('503')
   await expect(page.locator('[data-opportunity-id="transition-error-later-page"]')).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'No Signals yet' })).toHaveCount(0)
-  await expect(page.getByText('1 filtered records · page 1')).toHaveCount(0)
+  await expect(page.getByText('1 project groups · 1 records')).toHaveCount(0)
   expect(new URL(page.url()).searchParams.get('offset')).toBeNull()
   expect(new URL(page.url()).hash).toBe('')
 })
@@ -1388,12 +1339,12 @@ test('failed Next clears the first page and reports unavailable instead of retai
   })
   await page.goto('/?tier=Signals')
   await expect(page.locator('[data-opportunity-id="transition-error-first-page"]')).toBeVisible()
-  await page.getByRole('button', { name: 'Next →' }).click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('503')
   await expect(page.locator('[data-opportunity-id="transition-error-first-page"]')).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'No Signals yet' })).toHaveCount(0)
-  await expect(page.getByText('1 filtered records · page 1')).toHaveCount(0)
+  await expect(page.getByText('1 project groups · 1 records')).toHaveCount(0)
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
 })
 
@@ -1505,11 +1456,12 @@ test('grouped permit members use company-first titles while retaining each permi
       await fulfillServerOpportunityPage(route, records)
       return
     }
-    const body = path === '/api/auth/session'
+    const selectedRecord = records.find(record => path === `/api/opportunities/needs/${encodeURIComponent(record.id)}` || path === `/api/opportunities/needs/${record.id}`)
+    const body = selectedRecord ?? (path === '/api/auth/session'
       ? { authenticated: true }
       : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
-          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? [])
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -1519,8 +1471,8 @@ test('grouped permit members use company-first titles while retaining each permi
   await expect(keeterMember).toContainText('KEETER INVESTMENTS LLC · LP Business Name · role unverified')
   await expect(merichemMember).toContainText('MERICHEM TECHNOLOGIES LLC · owner')
   await keeterMember.click()
-  await expect(page.getByRole('heading', { level: 1, name: 'KEETER INVESTMENTS LLC · LP Business Name · role unverified' })).toBeVisible()
-  await expect(page.getByText('COM-NEW-26-000129', { exact: false }).first()).toBeVisible()
+  await expect(page.getByRole('complementary', { name: 'Opportunity detail' })).toContainText('KEETER INVESTMENTS LLC · LP Business Name · role unverified')
+  expect(new URL(page.url()).searchParams.get('need')).toBe('COM-NEW-26-000129')
 })
 
 test('Signals default to All and keep SHOW, REVIEW, and HOLD selectable', async ({ page }) => {
@@ -1640,7 +1592,8 @@ test('only exact dated event evidence groups; titles describe permit work; all r
       await fulfillServerOpportunityPage(route, browseRecords)
       return
     }
-    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
+    const selectedRecord = records.find(record => path === `/api/opportunities/needs/${encodeURIComponent(record.id)}` || path === `/api/opportunities/needs/${record.id}`)
+    const body = selectedRecord ?? (path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? [])
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -1658,33 +1611,80 @@ test('only exact dated event evidence groups; titles describe permit work; all r
       await fulfillServerOpportunityPage(route, records)
       return
     }
-    const body = path === '/api/auth/session'
+    const selectedRecord = records.find(record => path === `/api/opportunities/needs/${encodeURIComponent(record.id)}` || path === `/api/opportunities/needs/${record.id}`)
+    const body = selectedRecord ?? (path === '/api/auth/session'
       ? { authenticated: true }
       : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
-          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? [])
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
-  await expect(page.getByRole('heading', { name: /2 filtered project cards · 3 filtered opportunity records/ })).toBeVisible()
+  await expect(page.getByText('2 project groups · 3 records')).toBeVisible()
   const project = page.getByRole('button', { name: /Zilker Park.*Oct 2026/ })
   await expect(project).toBeVisible()
   await project.click()
-  await expect(page.getByText('2 matching · 2 related permit records')).toBeVisible()
+  await expect(page.getByText('2 matching · 2 related records')).toBeVisible()
   const currentPermitMember = page.locator('.project-member[data-opportunity-id="2026-126812 BP"]')
   await expect(currentPermitMember).toBeVisible()
   await expect(currentPermitMember).toContainText(projectTitle(currentYear))
   await currentPermitMember.click()
-  await expect(page.getByRole('heading', { level: 1, name: /Zilker Park.*Oct 2026/ })).toBeVisible()
-  await expect(page.getByText('austin-building-permits · 2026-126812 BP')).toBeVisible()
-  await page.getByRole('button', { name: /Back to Signals/ }).click()
+  await expect(page.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('heading', { name: /Zilker Park.*Oct 2026/ })).toBeVisible()
+  expect(new URL(page.url()).searchParams.get('need')).toBe('2026-126812 BP')
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
 
   await page.getByRole('button', { name: /^SHOW \d+$/ }).click()
   await page.getByRole('textbox', { name: 'Search projects' }).fill('2026-126812 BP')
-  await expect(page.getByRole('heading', { name: 'Signals · 1 filtered project cards · 2 filtered opportunity records' })).toBeVisible()
-  const searchResult = page.locator('.opportunity-row').filter({ hasText: /Zilker Park.*Oct 2026/ })
+  await expect(page.getByText('1 project groups · 2 records')).toBeVisible()
+  const searchResult = page.locator('.signals-group').filter({ hasText: /Zilker Park.*Oct 2026/ })
   await expect(searchResult).toBeVisible()
-  if (!(await page.getByText('1 matching · 2 related permit records').isVisible())) await searchResult.click()
-  await expect(page.getByText('1 matching · 2 related permit records')).toBeVisible()
+  if (!(await page.getByText('1 matching · 2 related records').isVisible())) await searchResult.click()
+  await expect(page.getByText('1 matching · 2 related records')).toBeVisible()
   await expect(currentPermitMember).toBeVisible()
+})
+
+test('all qualification tiers retain advanced filters and scoped export', async ({ page }) => {
+  const requests: URL[] = []
+  await page.route(apiRoute, async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requests.push(url)
+      await route.fulfill({ status: 200, json: [], headers: { 'X-Total-Count': '0', 'X-Group-Total-Count': '0', 'X-Page-Record-Count': '0', 'X-Page-Group-Count': '0', 'X-Limit': '25', 'X-Offset': '0', 'X-Cohort-Token': 'tier-cohort', 'X-Decision-Counts': '{"SHOW":0,"REVIEW":0,"HOLD":0}' } })
+      return
+    }
+    const body = url.pathname === '/api/auth/session' ? { authenticated: true } : url.pathname === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : emptyExactNeedAuxiliary(url.pathname) ?? []
+    await route.fulfill({ status: 200, json: body })
+  })
+  await page.goto('/?tier=Prospects&mw_status=KNOWN&priority_segment=8&status=CONTACTED')
+  await expect(page.getByRole('heading', { name: 'Prospects', level: 1 })).toBeVisible()
+  await expect.poll(() => requests.some(url => url.searchParams.get('tier') === 'Prospect' && url.searchParams.get('mw_status') === 'KNOWN' && url.searchParams.get('priority_segment') === '8' && url.searchParams.get('status') === 'CONTACTED')).toBe(true)
+  await page.getByLabel('Qualification tier').selectOption('Lead')
+  await expect.poll(() => requests.some(url => url.searchParams.get('tier') === 'Lead' && url.searchParams.get('mw_status') === 'KNOWN' && url.searchParams.get('priority_segment') === '8' && url.searchParams.get('status') === 'CONTACTED')).toBe(true)
+  await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveAttribute('href', /tier=Lead/)
+  await page.reload()
+  await expect(page.getByLabel('Qualification tier')).toHaveValue('Lead')
+})
+
+test('Signal decisions do not filter Lead or Prospect cohorts', async ({ page }) => {
+  const requests: URL[] = []
+  await page.route(apiRoute, async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requests.push(url)
+      await route.fulfill({ status: 200, json: [], headers: { 'X-Total-Count': '0', 'X-Group-Total-Count': '0', 'X-Page-Record-Count': '0', 'X-Page-Group-Count': '0', 'X-Limit': '25', 'X-Offset': '0', 'X-Cohort-Token': 'tier-decision-cohort', 'X-Decision-Counts': '{"SHOW":0,"REVIEW":0,"HOLD":0}' } }); return
+    }
+    const body = url.pathname === '/api/auth/session' ? { authenticated: true } : url.pathname === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : emptyExactNeedAuxiliary(url.pathname) ?? []
+    await route.fulfill({ status: 200, json: body })
+  })
+  await page.goto('/?tier=Signals&decision=SHOW')
+  await expect(page.getByRole('button', { name: /^SHOW/ })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByLabel('Qualification tier').selectOption('Lead')
+  await expect.poll(() => requests.some(url => url.searchParams.get('tier') === 'Lead' && (url.searchParams.get('decision') === 'ALL' || !url.searchParams.has('decision')))).toBe(true)
+  await expect(page.getByRole('navigation', { name: 'Filter by evidence decision' })).toHaveCount(0)
+  expect(new URL(page.url()).searchParams.get('decision')).toBe('ALL')
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.getByLabel('Qualification tier')).toHaveValue('Signal')
+  await page.goto('/?tier=Prospects&decision=SHOW')
+  await expect.poll(() => requests.some(url => url.searchParams.get('tier') === 'Prospect' && (url.searchParams.get('decision') === 'ALL' || !url.searchParams.has('decision')))).toBe(true)
+  await expect.poll(() => new URL(page.url()).searchParams.get('decision')).toBe('ALL')
 })

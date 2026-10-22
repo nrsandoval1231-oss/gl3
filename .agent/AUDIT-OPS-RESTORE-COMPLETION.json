@@ -1,0 +1,81 @@
+{
+  "packet": "AUDIT-OPS-RESTORE",
+  "objective": "Document the verified repeatable local PostgreSQL 18 restore drill and correct the production-versus-local UNKNOWN boundary.",
+  "worktree": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-docs-20261020",
+  "branch": "repair/audit-docs-20261020",
+  "base_commit": "a94301dc37ccd6a79891ade238c07c52c649e94d",
+  "status": "IMPLEMENTED_PENDING_CONTROLLER_VALIDATION",
+  "started_utc": "UNKNOWN",
+  "finished_utc": "2026-10-20T20:01:25Z",
+  "changed_files": [
+    ".agent/AUDIT-OPS-RESTORE-COMPLETION.json",
+    ".agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTORY-20261020.md",
+    ".agent/archive/AUDIT-20261020/README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__deploy__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__delivery__milestones.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__operations__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__sources__coverage.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__scripts__README.md",
+    "docs/README.md",
+    "docs/operations/README.md",
+    "docs/operations/local-restore-drill.md",
+    "docs/operations/observations/2026-10-20-production-readonly.md"
+  ],
+  "validation": [
+    {
+      "command": "uv run --project backend python scripts/check_docs.py",
+      "exit_code": 0,
+      "result": "Maintained documentation graph passed: 40 documents, 139 local targets, 2 anchors."
+    },
+    {
+      "command": "PowerShell Language.Parser.ParseInput over the local restore drill PowerShell block",
+      "exit_code": 0,
+      "result": "Syntax parsed successfully; commands were not executed against a database."
+    },
+    {
+      "command": "Compare archive Git objects to their source Git objects",
+      "exit_code": 0,
+      "result": "15 baseline copies equal packet-base fc5afbb blobs; 4 follow-up copies equal pre-edit 8163f13 blobs. Windows worktree line-ending identity is not claimed."
+    },
+    {
+      "command": "Get-FileHash on named restore_corpus.py and retained-restore.log only",
+      "exit_code": 0,
+      "result": "Harness SHA-256 921c6601f9b142206d6f768c7786c9f203498066e5d01ef42c1dafef65d31f8a; empty log SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed; Git emitted configured LF-to-CRLF warnings for archived/source markdown."
+    }
+  ],
+  "observed_local_restore": {
+    "execution_date": "2026-10-20",
+    "database": "gl3_audit_20261020_corpus_test",
+    "endpoint": "127.0.0.1:55520",
+    "postgres_major": 18,
+    "dump_bytes": 18796646,
+    "dump_sha256": "b74583c19cf03fc6a290d736d4aa942388157cece729358da7c6f2e834d742e1",
+    "pg_restore_flags": [
+      "--no-owner",
+      "--no-privileges",
+      "--exit-on-error"
+    ],
+    "exit_code": 0,
+    "schema_revision": "0032_power_need_titles",
+    "projects": 1620,
+    "evidence_versions": 18016,
+    "observations": 16694,
+    "password_handling": "process environment only, not command arguments or logs"
+  },
+  "limitations": {
+    "new_procedure_end_to_end_execution": "NOT_RUN_BY_THIS_PACKET; it is a documented procedure based on the executed harness and its exact source; only its PowerShell syntax was parsed here.",
+    "production_host_backup_or_restore": "UNKNOWN",
+    "offhost_retention": "UNKNOWN",
+    "host_secret_injection_wrapper": "UNKNOWN",
+    "production_deploy_rollback_cutover": "UNKNOWN; production remains on hold",
+    "raw_dump_or_secret_files": "NOT_READ_OR_COMMITTED"
+  },
+  "authority": "The operations README remains the production status authority. The new local restore guide is a supporting local-only procedure and does not claim production recovery readiness."
+}

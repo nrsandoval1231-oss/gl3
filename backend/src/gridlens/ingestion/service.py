@@ -1210,8 +1210,6 @@ def _retained_candidate_lock_ids(
         for project in projects
         if target_identity and project.identity_key == target_identity
     }
-    if admitted and ids:
-        return ids
     if claim.get("decision") != "accepted" or not claim.get("subject") or not claim.get("location"):
         return ids
     site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
@@ -1311,16 +1309,28 @@ def assess_retained_news(
             claim["reason"] = rejection_reason
         else:
             claim = assess_news(observation.title, observation.abstract).as_dict()
+        if (
+            evidence.observation_id != observation.id
+            or evidence.title != observation.title
+            or (evidence.abstract or "") != (observation.abstract or "")
+        ):
+            raise ValueError("Evidence does not match the current observation")
         payload = _assessment_payload(observation, evidence, claim)
         payload["admission_policy_version"] = ADMISSION_POLICY_VERSION
         if rejection_reason is not None:
             payload["admission_status"] = "research_quarantine"
         activity_key = news_power_activity(claim)
-        if claim.get("decision") == "accepted" and activity_key is None:
+        if (
+            claim.get("decision") == "accepted"
+            and claim.get("tier") == "Prospect"
+            and activity_key is None
+        ):
             raise ValueError(
                 "Prospect evidence does not bind demand and supply to one power activity"
             )
         if claim.get("decision") == "accepted":
+            if claim.get("tier") == "Signal" and activity_key is None:
+                activity_key = "project-discovery"
             payload["power_activity"] = activity_key
             payload["project_identity_key"] = _news_identity_key(
                 observation.title,
@@ -1382,6 +1392,9 @@ def assess_retained_news(
         title=evidence.title,
         abstract=evidence.abstract,
     )
+
+    if source.family == "news" and source.retrieval_method == "publisher-rss":
+        admission = admitted_from_source(source, payload, evidence)
 
     old_project_ids = set(
         session.scalars(
@@ -1451,6 +1464,32 @@ def assess_retained_news(
     interpretation.status = "accepted" if claim["decision"] == "accepted" else "rejected"
 
     current_need: PowerNeed | None = None
+    # A site-specific news Signal can stand alone, but an existing official
+    # same-project/same-activity need retains its identity and authority.
+    news_admitted = (
+        claim["decision"] == "accepted"
+        and admission.admitted
+        and source.family == "news"
+        and source.retrieval_method == "publisher-rss"
+    )
+    if news_admitted:
+        current_need, matched_payload = _attach_news_supplement(
+            session,
+            observation,
+            evidence,
+            claim,
+            payload,
+            material_baselines,
+            candidate_project_ids,
+        )
+        if (
+            current_need is not None
+            or matched_payload.get("admission_status") == "supplement_unknown"
+        ):
+            payload = matched_payload
+            payload["admission_origin"] = admission.origin
+            interpretation.assessment = {**payload}
+            flag_modified(interpretation, "assessment")
     supplemental_only = claim["decision"] == "accepted" and not admission.admitted
     if supplemental_only:
         current_need, payload = _attach_news_supplement(
@@ -1465,7 +1504,11 @@ def assess_retained_news(
         payload["admission_origin"] = admission.origin
         interpretation.assessment = {**payload}
         flag_modified(interpretation, "assessment")
-    elif claim["decision"] == "accepted":
+    elif (
+        claim["decision"] == "accepted"
+        and current_need is None
+        and payload.get("admission_status") != "supplement_unknown"
+    ):
         identity_key = payload["project_identity_key"]
         project = session.scalar(
             select(Project)
@@ -1786,6 +1829,12 @@ def assess_retained_news(
     # Reassign after in-place edits so SQLAlchemy marks the JSON value dirty.
     interpretation.assessment = {**payload}
     flag_modified(interpretation, "assessment")
+    if current_need is not None and interpretation.status == "accepted":
+        from gridlens.intelligence.buying_chain import enqueue_retained_buying_chain_research
+
+        enqueue_retained_buying_chain_research(
+            session, current_need.project_id, evidence.id, evidence.content_hash
+        )
     if job_id is not None:
         assert worker_id is not None and fence is not None
         job = assert_fence(session, job_id, worker_id, fence)
@@ -3873,6 +3922,13 @@ def process_records(
                     )
                 # Snapshot diff excludes retry metadata, timestamps and rationale-only churn.
                 record_material_diff(session, project, lifecycle_evidence, material_baseline)
+                from gridlens.intelligence.buying_chain import (
+                    enqueue_retained_buying_chain_research,
+                )
+
+                enqueue_retained_buying_chain_research(
+                    session, project.id, lifecycle_evidence.id, lifecycle_evidence.content_hash
+                )
 
         job = assert_fence(session, job_id, worker_id, fence)
         if commit:
@@ -4049,13 +4105,35 @@ def _process_collection_only(
                 if current_source is not None
                 else None
             )
-            if current_admission and current_admission.admitted:
-                counts["signals"] += int(interpretation.assessment.get("tier") == "Signal")
-            if (
+            assessment = interpretation.assessment
+            current_need = session.scalar(
+                select(PowerNeed)
+                .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+                .join(Project, Project.id == PowerNeed.project_id)
+                .where(
+                    NeedObservation.observation_id == observation.id,
+                    PowerNeed.active.is_(True),
+                    PowerNeed.activity_key == assessment.get("power_activity"),
+                    Project.identity_key == assessment.get("project_identity_key"),
+                )
+            )
+            current_project = (
+                session.get(Project, current_need.project_id) if current_need else None
+            )
+            supported = bool(
                 current_admission
                 and current_admission.admitted
-                and interpretation.assessment.get("tier") == "Signal"
-            ):
+                and assessment.get("tier") == "Signal"
+                and assessment.get("semantic_hash") == observation.content_hash
+                and assessment.get("evidence_hash") == evidence.content_hash
+                and assessment.get("admission_status")
+                not in {"supplement_unknown", "supplement_unmatched", "research_quarantine"}
+                and current_need
+                and current_project
+                and _need_has_current_support(session, current_need, current_project)
+            )
+            if supported:
+                counts["signals"] += 1
                 adjudicate_signal(session, observation, evidence)
         if not changed_decision:
             job = assert_fence(session, job_id, worker_id, fence)

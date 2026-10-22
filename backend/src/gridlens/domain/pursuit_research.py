@@ -10,6 +10,9 @@ from typing import Any
 POLICY_VERSION = "autonomous-pursuit-research-v3"
 ACTIVE = ("QUEUED", "SEARCHING", "REVIEWING_EVIDENCE")
 ROUTES = {
+    "identity": ("owner-projects", "official-company", "municipal-records"),
+    "duration": ("contractor-schedules", "owner-updates", "utility-filings"),
+    "suitability": ("engineering-drawings", "equipment-schedules", "public-bids"),
     "power_need": (
         "temporary-service-permits",
         "public-bids",
@@ -67,6 +70,9 @@ ROUTES = {
     "conflict": ("original-cited-sources", "official-corrections", "public-web"),
 }
 QUESTIONS = {
+    "identity": "Which source identifies the end-user owner/operator of this exact project?",
+    "duration": "What dated evidence establishes this activity-specific power duration?",
+    "suitability": "What source establishes fuel, voltage and load-profile constraints?",
     "power_need": (
         "Is a temporary-power requirement documented for this exact activity, "
         "separately from its supply adequacy?"
@@ -92,6 +98,9 @@ QUESTIONS = {
     ),
 }
 WHY = {
+    "identity": "Identify the customer without treating a contractor as the end user.",
+    "duration": "Establish the bounded bridge-power window without inferring from facility life.",
+    "suitability": "Confirm deployment constraints without assuming fuel or voltage compatibility.",
     "power_need": "Establish whether a real unresolved commercial power requirement exists.",
     "phase": "Determine whether this is an active commercial window or work to watch or reject.",
     "buyer": "Establish a reachable discovery-call path without assigning purchasing authority.",
@@ -102,6 +111,9 @@ WHY = {
     "conflict": "Prevent commercial action based on unresolved contradictory evidence.",
 }
 FRESHNESS_HOURS = {
+    "identity": 168,
+    "duration": 168,
+    "suitability": 168,
     "power_need": 168,
     "phase": 24,
     "buyer": 168,
@@ -172,6 +184,22 @@ def blocker_resolved(category: str, card: dict, context: dict | None = None) -> 
             and all(supported(field) for field in fields)
             and (not native or card.get("qualification_conflict") is False)
         )
+    if category == "identity":
+        return (
+            bool(card.get("owner_organizations"))
+            or bool(card.get("organization"))
+            and card.get("organization_role")
+            in {
+                "owner_developer",
+                "asset_operator",
+                "owner_construction",
+                "owner_energy",
+            }
+        )
+    if category == "duration":
+        return bool(card.get("duration"))
+    if category == "suitability":
+        return False  # No canonical suitability contract yet; retain unresolved receipts.
     if category == "buyer":
         return any(
             c.get("value") and re.search(r"phone|telephone|email", str(c.get("kind", "")), re.I)
@@ -209,14 +237,18 @@ def blocker_resolved(category: str, card: dict, context: dict | None = None) -> 
 
 
 def plan_questions(
-    card: dict[str, Any], *, resolved_categories: set[str] | None = None
+    card: dict[str, Any], *, resolved_categories: set[str] | None = None, enrich: bool = False
 ) -> list[dict[str, Any]]:
     """At most two independently answerable blockers; known fields are excluded."""
-    if card["disposition"] not in {"RESEARCH", "WATCH"}:
+    if card["disposition"] not in (
+        {"RESEARCH", "WATCH", "ACTION NOW"} if enrich else {"RESEARCH", "WATCH"}
+    ):
         return []
     categories = []
     if card.get("conflict_state") in {"CONFLICT", "conflict", "unresolved conflict"}:
         categories.append("conflict")
+    if enrich and not blocker_resolved("identity", card):
+        categories.append("identity")
     if not explicit_temporary_scope(card.get("facts", [])):
         categories.append("power_need")
     stage = str((card.get("stage") or {}).get("stage") or "unknown").casefold()
@@ -241,6 +273,27 @@ def plan_questions(
         categories.append("load")
     if card.get("supply") in {None, "Unknown"}:
         categories.append("supply")
+    if enrich and not card.get("duration"):
+        categories.append("duration")
+    if enrich:
+        priority = {
+            name: rank
+            for rank, name in enumerate(
+                (
+                    "conflict",
+                    "identity",
+                    "power_need",
+                    "load",
+                    "timing",
+                    "buyer",
+                    "supply",
+                    "duration",
+                    "commissioning",
+                    "phase",
+                )
+            )
+        }
+        categories.sort(key=lambda category: priority[category])
     categories = [
         category
         for category in categories
@@ -274,6 +327,17 @@ def targeted_queries(context: dict[str, Any], category: str) -> list[str]:
     if not site:
         return []
     terms = {
+        "identity": [
+            "project owner operator",
+            "official project announcement",
+            "developer project",
+        ],
+        "duration": ["temporary power duration", "energization schedule", "construction schedule"],
+        "suitability": [
+            "power fuel voltage requirements",
+            "electrical specifications",
+            "power procurement",
+        ],
         "power_need": ["temporary power", "construction power package", "temporary service"],
         "phase": ["construction update", "inspection", "project status"],
         "buyer": [

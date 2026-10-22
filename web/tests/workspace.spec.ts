@@ -7,6 +7,11 @@ const need = {
   missing_facts: ['Activity-specific load', 'Suitable utility supply'], project_identity_key: 'test', commercial_disposition: 'RESEARCH', commercial_reason: 'Load and supply remain unknown.', commercial_next_question: 'Who owns the electrical scope?', commercial_next_action: 'Research the project contractor.', commercial_organization: null,
 } as any
 const response = (items = [need]) => ({ items, total: items.length, counts: { action_now: 0, research: items.length, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-a', count_unit: 'power needs', changes_available: false })
+const emptyChanges = { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: '2026-10-20T12:00:00Z', baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] }
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: emptyChanges }))
+})
 
 test('retired editorial URL alias falls through to the private pursuit workspace', async ({ page }) => {
   const apiPaths: string[] = []
@@ -17,7 +22,7 @@ test('retired editorial URL alias falls through to the private pursuit workspace
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
   await page.goto('/?view=editorial')
-  await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Editorial review' })).toHaveCount(0)
   expect(apiPaths).toContain('/api/opportunities/workspace')
   expect(apiPaths.some(path => path.toLowerCase().includes('editorial'))).toBe(false)
@@ -29,27 +34,66 @@ test('workspace sends server filters, opens canonical detail, and restores list 
   await page.route('**/api/opportunities/workspace?*', async route => { const url = new URL(route.request().url()); requests.push(url); await route.fulfill({ json: response(url.searchParams.get('geography') === 'Austin, TX' ? [need] : []) }) })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, required_mw: '3 MW' } }))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
+  await page.locator('.wh-tools > summary').click()
+  await page.locator('.wh-filter-disclosure summary').click()
   await page.getByLabel('Geography (exact match)').fill('Austin, TX')
   await expect.poll(() => requests.some(url => url.searchParams.get('geography') === 'Austin, TX')).toBeTruthy()
   await expect(page.getByRole('button', { name: /Test data center/ })).toBeVisible()
   await page.getByRole('button', { name: /Test data center/ }).click()
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
-  await expect(page.locator('.wh-facts')).toContainText('Evidence status unavailable')
+  await expect(page.locator('.wh-metrics')).toContainText('No facility-wide demand is supported by retained evidence.')
   await expect(page.locator('.wh-detail-head [role="status"]')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Unknowns' })).toBeVisible()
-  await page.getByRole('button', { name: 'Unknowns' }).click()
+  await expect(page.getByRole('button', { name: 'Research Gaps' })).toBeVisible()
+  await page.getByRole('button', { name: 'Research Gaps' }).click()
   await expect(page.getByText(/Buying authority: not evaluated in this summary/)).toBeVisible()
   await page.getByRole('button', { name: 'Overview' }).click()
-  expect(await page.locator('.wh-table tbody tr:first-child td:nth-child(2)').evaluate(el => getComputedStyle(el).whiteSpace)).toBe('nowrap')
+  expect(await page.locator('.wh-queue-item:first-child').evaluate(el => getComputedStyle(el).display)).toBe('flex')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280)
   await expect(page.getByText('A numerical gap is unavailable')).toHaveCount(0)
   await page.getByRole('button', { name: 'Evidence' }).click()
   await expect(page.getByRole('link', { name: 'Permit filing' })).toBeVisible()
-  await page.getByRole('button', { name: /Research the project contractor/ }).click()
+  await page.locator('.wh-record-actions').getByRole('button', { name: 'Update workflow' }).click()
   await expect(page).toHaveURL(/section=next-steps/)
   await page.getByRole('button', { name: /Back to power needs/ }).click()
-  await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
+})
+
+test('browser Back re-reads the same selected need after identity is cleared', async ({ page }) => {
+  let detailReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/workspace/changes?*', route => {
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+    const items = Array.from({ length: 50 }, (_, index) => ({
+      event_key: `change:${offset + index + 1}`, category: 'changed', title: `Change ${offset + index + 1}`,
+      detail: 'Synthetic retained change', created_at: '2026-10-20T12:00:00Z', source_date: null,
+      project_id: null, before_state: null, after_state: null, needs: [], sources: [],
+    }))
+    return route.fulfill({ json: { ...emptyChanges, items, total_unreviewed: 100, offset, next_offset: offset === 0 ? 50 : null } })
+  })
+  await page.route('**/api/opportunities/needs/need-a*', route => {
+    detailReads += 1
+    return route.fulfill({ json: need })
+  })
+  await page.goto('/?view=workspace')
+  const panel = page.locator('.wh-changes')
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  await panel.locator(':scope > details > summary').click()
+  await panel.getByRole('button', { name: 'Next changes' }).click()
+  await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
+  await expect(panel.getByText('Showing 51–100 of 100 unreviewed')).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect.poll(() => new URL(page.url()).searchParams.get('need')).toBe('need-a')
+  const readsBeforeBack = detailReads
+  await page.goBack()
+  await expect.poll(() => detailReads).toBeGreaterThan(readsBeforeBack)
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.getByText('Loading current need detail.')).toHaveCount(0)
+  await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
+  await expect(panel.getByText('Showing 51–100 of 100 unreviewed')).toBeVisible()
 })
 
 test('table uses its source-backed browse title and settled detail recomputes from current evidence', async ({ page }) => {
@@ -67,11 +111,12 @@ test('table uses its source-backed browse title and settled detail recomputes fr
   await page.goto('/?view=workspace')
   const rowButton = page.locator('[data-need-row="need-a"]')
   await expect(rowButton.locator('strong')).toHaveText('JLC Electrical Contractor corp · contractor')
-  await expect(rowButton).toContainText('Source record: Austin permit 2026-127192 EP')
   await rowButton.click()
   await expect(page.getByRole('heading', { name: 'Current project electrician · contractor' })).toBeVisible()
-  await expect(page.locator('.wh-detail-head')).toContainText('Source record: Austin permit 2026-127192 EP')
-  await expect(page.locator('.wh-detail-head')).not.toContainText('JLC Electrical Contractor corp · contractor')
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await page.locator('.wh-source-context summary').click()
+  await expect(page.locator('.wh-source-context')).toContainText('Source record: Austin permit 2026-127192 EP')
+  await expect(page.locator('.wh-source-context')).not.toContainText('JLC Electrical Contractor corp · contractor')
 })
 
 test('off-page detail reload ignores historical company evidence and keeps the source name visible', async ({ page }) => {
@@ -90,11 +135,15 @@ test('off-page detail reload ignores historical company evidence and keeps the s
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: detail }))
   await page.goto('/?view=workspace&need=need-a')
   await expect(page.getByRole('heading', { name: 'Temporary power · Austin, TX' })).toBeVisible()
-  await expect(page.locator('.wh-detail-head')).toContainText('Source record: Austin permit 2026-127192 EP')
-  await expect(page.locator('.wh-detail-head')).not.toContainText('Historical Owner LLC')
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await page.locator('.wh-source-context summary').click()
+  await expect(page.locator('.wh-source-context')).toContainText('Source record: Austin permit 2026-127192 EP')
+  await expect(page.locator('.wh-source-context')).not.toContainText('Historical Owner LLC')
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Temporary power · Austin, TX' })).toBeVisible()
-  await expect(page.locator('.wh-detail-head')).toContainText('Source record: Austin permit 2026-127192 EP')
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await page.locator('.wh-source-context summary').click()
+  await expect(page.locator('.wh-source-context')).toContainText('Source record: Austin permit 2026-127192 EP')
 })
 
 test('workspace gives an honest retry state when the current cohort is unavailable', async ({ page }) => {
@@ -115,20 +164,185 @@ test('workspace selection switches to a full detail view on mobile and has a cle
   await page.getByRole('button', { name: /Test data center/ }).click()
   await expect(page.getByRole('button', { name: /Back to power needs/ })).toBeVisible()
   await page.getByRole('button', { name: /Back to power needs/ }).click()
-  await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
 })
 
-test('mobile Next action opens detail and Back restores the selected row focus', async ({ page }) => {
+test('mobile Next action opens a visible next step and Back restores the selected row focus', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
   await page.goto('/?view=workspace')
-  await page.getByRole('button', { name: 'Research the project contractor.' }).click()
-  await expect(page.getByRole('button', { name: 'Next steps', exact: true })).toBeInViewport()
+  await page.locator('[data-need-row="need-a"]').click()
+  const mobileAction = page.getByRole('region', { name: 'Next action' })
+  await expect(mobileAction).toBeInViewport()
+  await mobileAction.getByRole('button', { name: 'Update workflow' }).click()
   await expect(page.getByRole('heading', { name: 'Record call facts' })).toBeVisible()
   await page.getByRole('button', { name: /Back to power needs/ }).click()
   await expect(page.getByRole('button', { name: /Test data center/ })).toBeFocused()
+})
+
+test('mobile history Back keeps the selected shell through delayed readback and focuses Back', async ({ page }) => {
+  const needA = { ...need, id: 'need-a', project_id: 'project-a', name: 'ACS project' }
+  const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
+  let bReads = 0
+  let releaseSecondB!: () => void
+  let signalSecondB!: () => void
+  const secondBStarted = new Promise<void>(resolve => { signalSecondB = resolve })
+  const secondBResponse = new Promise<void>(resolve => { releaseSecondB = resolve })
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
+  await page.route('**/api/opportunities/needs/need-b*', async route => {
+    bReads += 1
+    if (bReads === 2) { signalSecondB(); await secondBResponse }
+    await route.fulfill({ json: needB })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
+  await secondBStarted
+  await expect(page).toHaveURL(/need=need-b/)
+  await expect(page.locator('.wh-detail-loading')).toBeVisible()
+  await expect(page.locator('.wh-list')).toBeHidden()
+  const pendingBack = page.getByRole('button', { name: /Back to power needs/ })
+  await expect(pendingBack).toBeVisible()
+  await expect(pendingBack).toBeEnabled()
+  releaseSecondB()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Back to power needs/ })).toBeFocused()
+})
+
+test('desktop history readback does not steal Search focus after resizing to phone', async ({ page }) => {
+  const needA = { ...need, id: 'need-a', name: 'ACS project' }
+  const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
+  await page.route('**/api/opportunities/needs/need-b*', route => route.fulfill({ json: needB }))
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  const search = page.getByRole('textbox', { name: 'Search workspace' })
+  await search.focus()
+  await expect(search).toBeFocused()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(search).toBeFocused()
+  await expect(page.locator('.wh-list')).toBeHidden()
+})
+
+test('mobile Back can leave a held history readback and late response cannot restore it', async ({ page }) => {
+  const needA = { ...need, id: 'need-a', project_id: 'project-a', name: 'ACS project' }
+  const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
+  let bReads = 0
+  let releaseSecondB!: () => void
+  let signalSecondB!: () => void
+  let finishSecondB!: () => void
+  const secondBStarted = new Promise<void>(resolve => { signalSecondB = resolve })
+  const secondBResponse = new Promise<void>(resolve => { releaseSecondB = resolve })
+  const secondBFinished = new Promise<void>(resolve => { finishSecondB = resolve })
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
+  await page.route('**/api/opportunities/needs/need-b*', async route => {
+    bReads += 1
+    if (bReads === 2) {
+      signalSecondB()
+      await secondBResponse
+      try { await route.fulfill({ json: needB }) } catch { /* The selected-detail request is expected to be aborted by Back. */ }
+      finishSecondB()
+      return
+    }
+    await route.fulfill({ json: needB })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
+  await secondBStarted
+  const pendingBack = page.getByRole('button', { name: /Back to power needs/ })
+  await expect(pendingBack).toBeVisible()
+  await expect(pendingBack).toBeEnabled()
+  await pendingBack.click()
+  await expect(page).toHaveURL(/view=workspace/)
+  await expect(page).not.toHaveURL(/need=need-b/)
+  await expect(page.locator('.wh-list')).toBeVisible()
+  releaseSecondB()
+  await secondBFinished
+  await expect(page).not.toHaveURL(/need=need-b/)
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toHaveCount(0)
+  await expect(page.locator('.wh-list')).toBeVisible()
+})
+
+test('mobile failed history readback keeps Retry and Back available', async ({ page }) => {
+  const needA = { ...need, id: 'need-a', project_id: 'project-a', name: 'ACS project' }
+  const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
+  let bReads = 0
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
+  await page.route('**/api/opportunities/needs/need-b*', route => {
+    bReads += 1
+    return bReads === 2
+      ? route.fulfill({ status: 503, json: { detail: 'selected detail temporarily unavailable' } })
+      : route.fulfill({ json: needB })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
+  await expect(page.getByRole('alert')).toContainText('could not complete this request (503)')
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible()
+  const errorBack = page.getByRole('button', { name: /Back to power needs/ })
+  await expect(errorBack).toBeVisible()
+  await expect(errorBack).toBeEnabled()
+  await errorBack.click()
+  await expect(page).not.toHaveURL(/need=need-b/)
+  await expect(page.locator('.wh-list')).toBeVisible()
+})
+
+test('mobile selected detail starts at the next action with the compact header', async ({ page }) => {
+  const realistic = {
+    ...need,
+    name: 'North Austin Advanced Manufacturing and Logistics Campus Phase Two',
+    location: 'North Austin, Texas · approximate site location',
+    required_mw: 'Unknown',
+    commercial_next_action: 'Confirm the electrical package owner and expected utility service date.',
+    commercial_reason: 'A retained source supports construction activity, but does not establish the facility-specific load or available supply.',
+    missing_facts: ['Activity-specific load', 'Utility service timing', 'Suitable supply availability'],
+  }
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([realistic]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: realistic }))
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  const action = page.getByRole('region', { name: 'Next action' })
+  await expect(action).toBeInViewport()
+  await expect(action.getByRole('button', { name: 'Update workflow' })).toBeInViewport()
+  await expect(page.locator('.wh-title-row')).toBeHidden()
+  await expect(page.locator('.wh-briefing')).toBeHidden()
+  await expect(page.locator('.wh-global-search > span')).toBeHidden()
+  expect(await page.locator('.wh-header>a img').evaluate(node => getComputedStyle(node).width)).toBe('112px')
+  await expect(page.getByRole('button', { name: /Back to power needs/ })).toBeVisible()
 })
 
 test('Next steps presents supported organization, retained permit person and phone, dated reason and question before forms', async ({ page }) => {
@@ -141,8 +355,8 @@ test('Next steps presents supported organization, retained permit person and pho
     permit_summaries: [{ evidence_id: 'permit-evidence', title: 'Austin Electrical Permit', url: 'https://example.test/permit', facts: [{ label: 'Contractor company name', value: 'Wrongly inferred company' }, { label: 'Permit-listed contractor name', value: 'Jose Rivera-Lopez' }, { label: 'Contractor permit-listed phone (permit field)', value: '512-555-0100' }] }], unresolved: [], runs: [], status: 'complete',
   } }))
   await page.goto('/?view=workspace')
-  await page.getByRole('button', { name: /Austin permit 2026-127192/ }).click()
-  await page.getByRole('button', { name: /Research the project contractor/ }).click()
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.locator('.wh-record-actions').getByRole('button', { name: 'Update workflow' }).click()
   const brief = page.getByRole('region', { name: 'Call preparation' })
   await expect(brief).toContainText('JLC Electrical Contractor corp')
   await expect(brief).toContainText('Electrical Contractor')
@@ -154,7 +368,7 @@ test('Next steps presents supported organization, retained permit person and pho
   await expect(brief).toContainText('Active temporary-loop permit issued September 29')
   await expect(brief).toContainText('Who is handling the temporary power package')
   await expect(brief).toContainText('purchasing authority')
-  const briefIndex = await brief.evaluate(el => el.compareDocumentPosition(document.querySelector('.wh-detail-content h3')!) & Node.DOCUMENT_POSITION_FOLLOWING)
+  const briefIndex = await brief.evaluate(el => el.compareDocumentPosition([...document.querySelectorAll('.wh-detail-content h3')].find(heading => heading.textContent?.includes('Record call facts'))!) & Node.DOCUMENT_POSITION_FOLLOWING)
   expect(briefIndex).toBeTruthy()
   await expect(page.getByRole('heading', { name: 'Record call facts' })).toBeVisible()
 })
@@ -165,7 +379,7 @@ test('Research link carries the selected need into the research queue', async ({
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
   await page.route('**/api/commercial/triage?*', route => route.fulfill({ json: { items: [], total: 0, offset: 0, limit: 50 } }))
   await page.goto('/?view=workspace&need=need-a')
-  await page.getByRole('link', { name: 'Research' }).click()
+  await page.getByRole('button', { name: 'Research', exact: true }).click()
   await expect(page).toHaveURL(/pursuitNeed=need-a/)
 })
 
@@ -184,10 +398,12 @@ for (const resolved of [false, true]) test(`call-prep excludes prior project con
   })
   await page.route('**/api/projects/project-b/buying-chain', route => route.fulfill({ json: { project_id: 'project-b', candidates: [], permit_summaries: [], unresolved: [], runs: [], status: 'complete' } }))
   await page.goto('/?view=workspace')
-  await page.locator('.wh-action').nth(0).click()
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.locator('.wh-record-actions').getByRole('button', { name: 'Update workflow' }).click()
   await expect.poll(() => oldRequestSeen).toBeTruthy()
   if (resolved) await expect(page.getByRole('region', { name: 'Call preparation' })).toContainText('Old project contact')
-  await page.locator('.wh-action').nth(1).click()
+  await page.locator('[data-need-row="need-b"]').click()
+  await page.locator('.wh-record-actions').getByRole('button', { name: 'Update workflow' }).click()
   await expect(page.getByRole('heading', { name: 'Second project' })).toBeVisible()
   releaseOld()
   await expect(page.getByRole('region', { name: 'Call preparation' })).not.toContainText('Old project contact')
@@ -264,7 +480,7 @@ test('workspace selection is restored through Back, Forward, and a deep-link ref
   await page.getByRole('button', { name: /Test data center/ }).click()
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await page.goBack()
-  await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
   await page.goForward()
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await page.reload()
@@ -539,7 +755,7 @@ test('Signal tier deep links stay on workspace and a changed cohort resets pagin
     return route.fulfill({ json: response() })
   })
   await page.goto('/?view=workspace&tier=Signal&offset=25&cohort_token=old')
-  await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
   await expect.poll(() => requested.length).toBeGreaterThan(1)
   expect(requested[0].searchParams.get('tier')).toBe('Signal')
   expect(requested[0].searchParams.get('cohort_token')).toBe('old')
@@ -557,6 +773,8 @@ test('stale list responses cannot replace a newer filter result', async ({ page 
     return route.fulfill({ json: response() })
   })
   await page.goto('/')
+  await page.locator('.wh-tools > summary').click()
+  await page.locator('.wh-filter-disclosure summary').click()
   await page.getByLabel('Geography (exact match)').fill('Old')
   await page.getByLabel('Geography (exact match)').fill('New')
   await expect(page.getByRole('button', { name: /Current result/ })).toBeVisible()
@@ -564,13 +782,311 @@ test('stale list responses cannot replace a newer filter result', async ({ page 
   await expect(page.getByRole('button', { name: /Stale result/ })).toHaveCount(0)
 })
 
+test('a failed workspace filter hides rows, counts, and pagination from the prior cohort', async ({ page }) => {
+  const oldCohortAction = 'Austin cohort only action'
+  const selectedRow = { ...need, name: 'Austin retained row', commercial_next_action: oldCohortAction }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => {
+    const geography = new URL(route.request().url()).searchParams.get('geography')
+    if (geography === 'Houston') return route.fulfill({ status: 503, json: { detail: 'workspace unavailable' } })
+    return route.fulfill({ json: response([selectedRow]) })
+  })
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, name: 'Fresh canonical detail' } }))
+  await page.route('**/api/power-needs/need-a/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
+  await page.route('**/api/needs/need-a/facts*', route => route.fulfill({ json: { items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: 0 } }))
+  await page.route('**/api/needs/need-a/workflow-status', route => route.fulfill({ json: { need_id: 'need-a', status: 'New', version: 0, events: [] } }))
+  await page.goto('/?view=workspace&geography=Austin')
+  await expect(page.getByRole('button', { name: /Austin retained row/ })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Fresh canonical detail' })).toBeVisible()
+  await page.getByRole('button', { name: 'Next steps', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Call preparation' }).getByText(oldCohortAction)).toBeVisible()
+  await page.locator('.wh-tools > summary').click()
+  await page.locator('.wh-filter-disclosure summary').click()
+  await page.getByLabel('Geography (exact match)').fill('Houston')
+  await expect(page.locator('.wh-error[role="alert"]')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fresh canonical detail' })).toBeVisible()
+  await expect(page.getByText(oldCohortAction)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Austin retained row/ })).toHaveCount(0)
+  await expect(page.locator('.wh-queue-heading')).toContainText('Opportunity results unavailable')
+  await expect(page.locator('.wh-paging')).toContainText('of —')
+})
+
+test('canonical priority score and reasons are explained separately from disposition', async ({ page }) => {
+  const ranked = { ...need, rank_score: 8, rank_reasons: ['Near-term start', 'Supported project scale'], rank_version: 'rank-v1' }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([ranked]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: ranked }))
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Overview' }).click()
+  const priority = page.getByRole('region', { name: 'Priority explanation' })
+  await expect(priority).toContainText('Canonical rank score: 8 · rank-v1')
+  await expect(priority).toContainText('Near-term start')
+  await expect(priority).toContainText('separate from qualification and commercial disposition')
+})
+
+test('material change review acknowledges only the displayed page and keeps health exceptions visible', async ({ page }) => {
+  await page.unrouteAll()
+  const change = {
+    event_key: 'fact:11111111-1111-4111-8111-111111111111', category: 'changed', title: 'Call fact accepted: demand',
+    detail: 'Austin DC · Synthetic Facility', created_at: '2026-10-20T11:00:00Z', source_date: '2026-10-20',
+    project_id: 'project-a', before_state: null, after_state: { fact_type: 'demand', value: { mw: '12' } },
+    needs: [{ id: 'need-a', name: 'Synthetic Facility', location: 'Austin, TX', active: false, tier: 'Signal' }],
+    sources: [], fact_version_id: '22222222-2222-4222-8222-222222222222', fact_type: 'demand', decision: 'accepted',
+    reason: 'Confirmed by operator', actor: 'Operator', confirmed_at: '2026-10-20T10:00:00Z', source_reference: null,
+  }
+  let reads = 0
+  let reviewed = false
+  let reviewBody: Record<string, unknown> | null = null
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/workspace/changes*', route => {
+    reads += 1
+    return route.fulfill({ json: reviewed ? { ...emptyChanges, first_use: false, baseline_reviewed_at: '2026-10-20T12:01:00Z', source_health_exceptions: [{ source_id: 'source-a', status: 'Partial', error: 'partial run', parse_failures: 1 }] } : { ...emptyChanges, items: [change], total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 }, source_health_exceptions: [{ source_id: 'source-a', status: 'Partial', error: 'partial run', parse_failures: 1 }] } })
+  })
+  await page.route('**/api/opportunities/workspace/changes/review', async route => {
+    reviewBody = route.request().postDataJSON() as Record<string, unknown>
+    reviewed = true
+    await route.fulfill({ json: { baseline_identity: emptyChanges.baseline_identity, reviewed_at: '2026-10-20T12:01:00Z', reviewed_count: 1, event_keys: [change.event_key], token: emptyChanges.token, remaining_counts: emptyChanges.counts } })
+  })
+  await page.route('**/api/opportunities/needs/need-a/history', route => route.fulfill({ json: { id: 'need-a', project_id: 'project-a', name: 'Synthetic Facility', location: 'Austin, TX', activity: 'construction', active: false, tier: 'Signal', rationale: 'Closed historical need', required_mw: null, start_window: null, duration: null, supply: 'Unknown', updated_at: '2026-10-20T10:30:00Z', evidence: [] } }))
+  await page.goto('/?view=workspace')
+  const panel = page.locator('.wh-changes')
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  await panel.getByText('Material changes · 1 unreviewed items').click()
+  await expect(panel).toContainText('Call fact accepted: demand')
+  await expect(panel).toContainText('Source-health exceptions')
+  await page.screenshot({ path: 'test-results/audit-workspace-briefing.png', fullPage: true })
+  await panel.getByRole('button', { name: /Synthetic Facility · Austin, TX/ }).click()
+  await expect(panel).toContainText('Inactive historical need')
+  await panel.getByRole('button', { name: 'Close historical detail' }).click()
+  await panel.getByRole('button', { name: 'Mark these displayed changes reviewed' }).click()
+  await expect.poll(() => reviewBody).toEqual({ baseline_identity: emptyChanges.baseline_identity, token: emptyChanges.token, limit: 50, offset: 0 })
+  await expect.poll(() => reads).toBeGreaterThan(1)
+  await expect(panel).toContainText('No unreviewed material changes on this page.')
+  await expect(panel).toContainText('source-a · Partial · partial run · 1 parse failures')
+})
+
+test('reviewing page two resets to the remaining first page without changing its exact token', async ({ page }) => {
+  await page.unrouteAll()
+  let pageTwoReviewed = false
+  let failFirstReview = true
+  const reviewBodies: Record<string, unknown>[] = []
+  const changes = (offset: number) => {
+    const start = pageTwoReviewed ? 1 : offset + 1
+    const count = pageTwoReviewed ? 50 : 100 - offset
+    const items = Array.from({ length: Math.min(50, count) }, (_, index) => ({
+      event_key: `change:${start + index}`,
+      category: 'changed',
+      title: `Change ${start + index}`,
+      detail: 'Synthetic remaining material change',
+      created_at: '2026-10-20T12:00:00Z',
+      source_date: null, project_id: null, before_state: null, after_state: null,
+      needs: [], sources: [],
+    }))
+    return {
+      ...emptyChanges,
+      items,
+      total_unreviewed: pageTwoReviewed ? 50 : 100,
+      offset: pageTwoReviewed ? 0 : offset,
+      next_offset: pageTwoReviewed ? null : offset === 0 ? 50 : null,
+      token: `token-${pageTwoReviewed ? 'remaining' : offset}`,
+    }
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/workspace/changes?*', async route => {
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+    return route.fulfill({ json: changes(offset) })
+  })
+  await page.route('**/api/opportunities/workspace/changes/review', async route => {
+    reviewBodies.push(route.request().postDataJSON() as Record<string, unknown>)
+    if (failFirstReview) {
+      failFirstReview = false
+      return route.fulfill({ status: 503, json: { detail: 'Synthetic review response failure' } })
+    }
+    pageTwoReviewed = true
+    return route.fulfill({ json: { baseline_identity: emptyChanges.baseline_identity, reviewed_count: 50, token: 'token-50', event_keys: [] } })
+  })
+  await page.goto('/?view=workspace')
+  const panel = page.locator('.wh-changes')
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  await panel.locator(':scope > details > summary').click()
+  await expect(panel.getByRole('heading', { name: 'Change 1', exact: true })).toBeVisible()
+  await panel.getByRole('button', { name: 'Next changes' }).click()
+  await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
+  await panel.getByRole('button', { name: 'Mark these displayed changes reviewed' }).click()
+  await expect(panel.getByRole('alert')).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
+  await panel.getByRole('button', { name: 'Mark these displayed changes reviewed' }).click()
+  await expect.poll(() => reviewBodies).toHaveLength(2)
+  expect(reviewBodies[0]).toEqual({ baseline_identity: emptyChanges.baseline_identity, token: 'token-50', limit: 50, offset: 50 })
+  expect(reviewBodies[1]).toEqual(reviewBodies[0])
+  await expect(panel.getByRole('heading', { name: 'Change 1', exact: true })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 50', exact: true })).toBeVisible()
+  await expect(panel.getByText('Showing 1–50 of 50 unreviewed')).toBeVisible()
+})
+
+test('accepted fact read-back refreshes the material changes count and list', async ({ page }) => {
+  await page.unrouteAll()
+  let fact: Record<string, any> | null = null
+  let currentVersion = 0
+  let changeReads = 0
+  const emptyFactPage = () => ({ items: fact ? [fact] : [], total: fact ? 1 : 0, limit: 50, offset: 0, next_offset: null, current_fact_version: currentVersion })
+  const materialChange = {
+    ...emptyChanges,
+    items: [{
+      event_key: 'fact:accepted-fact', category: 'changed', title: 'Call fact accepted: demand',
+      detail: 'Synthetic facility', created_at: '2026-10-20T12:00:00Z', source_date: null,
+      project_id: 'project-a', before_state: null,
+      after_state: { fact_type: 'demand', value: { mw: '12' }, effective_from: null, effective_until: null },
+      needs: [], sources: [], fact_version_id: 'accepted-fact', fact_type: 'demand', decision: 'accepted',
+      reason: 'Confirmed by operator', actor: 'Operator', confirmed_at: '2026-10-20T12:00:00Z', source_reference: null,
+    }],
+    counts: { ...emptyChanges.counts, changed: 1 }, total_unreviewed: 1,
+  }
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    const method = request.method()
+    if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: response() })
+    if (path === '/api/opportunities/workspace/changes') {
+      changeReads += 1
+      return route.fulfill({ json: fact?.decision === 'accepted' ? materialChange : emptyChanges })
+    }
+    if (path === '/api/opportunities/needs/need-a') return route.fulfill({ json: need })
+    if (path === '/api/needs/need-a/facts' && method === 'GET') return route.fulfill({ json: emptyFactPage() })
+    if (path === '/api/needs/need-a/facts' && method === 'POST') {
+      currentVersion = 1
+      fact = { id: 'accepted-fact', need_id: 'need-a', project_id: 'project-a', predecessor_id: null, activity_key: 'construction', facility_scope: 'Test data center', fact_type: 'demand', value: { mw: '12', basis: 'Synthetic report' }, reporter_name: 'Synthetic operator', reporter_role: 'Project Engineer', confirmation_channel: 'phone', source_reference: null, source_date: null, confirmed_at: '2026-10-20T12:00:00Z', effective_from: '2026-10-20T12:00:00Z', effective_until: null, content_hash: 'a'.repeat(64), decision: 'draft', decision_version: currentVersion, decision_reason: 'Draft', decision_actor: 'Operator', authority_label: 'Reported / not accepted', recorded_by: 'Operator', created_at: '2026-10-20T12:00:00Z' }
+      return route.fulfill({ json: fact })
+    }
+    if (path === '/api/needs/need-a/facts/accepted-fact/decision' && method === 'POST') {
+      currentVersion += 1
+      fact = { ...fact!, decision: 'accepted', decision_version: currentVersion, decision_reason: 'Confirmed by operator', decision_actor: 'Operator', authority_label: 'User-confirmed' }
+      return route.fulfill({ json: { id: 'decision-accepted', version: currentVersion, decision: 'accepted', fact_version_id: 'accepted-fact', reason: 'Confirmed by operator', actor: 'Operator', created_at: '2026-10-20T12:00:00Z' } })
+    }
+    if (path === '/api/needs/need-a/workflow-status') return route.fulfill({ json: { need_id: 'need-a', status: 'New', version: 0, events: [] } })
+    if (path === '/api/power-needs/need-a/title') return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    if (path === '/api/projects/project-a/buying-chain') return route.fulfill({ json: { project_id: 'project-a', candidates: [], permit_summaries: [], unresolved: [], runs: [], status: 'unavailable' } })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace')
+  const panel = page.locator('.wh-changes')
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  const summary = panel.locator(':scope > details > summary')
+  await expect(summary).toContainText('0 unreviewed items')
+  await summary.click()
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Next steps', exact: true }).click()
+  await page.getByLabel('Reporter name').fill('Synthetic operator')
+  await page.getByLabel('Reported demand (MW or bounded range)').fill('12')
+  await page.getByRole('button', { name: 'Save fact draft' }).click()
+  await expect(page.getByText(/Draft persisted and confirmed/)).toBeVisible()
+  await page.getByLabel('Reason for decision').fill('Confirmed by operator')
+  await page.getByRole('button', { name: 'Accept fact' }).click()
+  await expect(page.getByRole('option', { name: 'v2 · demand · accepted', exact: true })).toHaveCount(1)
+  await expect.poll(() => changeReads).toBeGreaterThan(1)
+  await expect(summary).toContainText('1 unreviewed items')
+  await expect(panel.getByRole('heading', { name: 'Call fact accepted: demand' })).toBeVisible()
+})
+
+test('active change links use canonical workspace readback instead of historical stored tier', async ({ page }) => {
+  await page.unrouteAll()
+  const activeChange = {
+    ...emptyChanges,
+    items: [{
+      event_key: 'fact:33333333-3333-4333-8333-333333333333', category: 'changed',
+      title: 'Call fact accepted: demand', detail: 'Synthetic fixture',
+      created_at: '2026-10-20T11:00:00Z', source_date: null, project_id: 'project-a',
+      before_state: null, after_state: { fact_type: 'demand', value: { mw: '12' } },
+      needs: [{ id: 'need-a', name: 'Synthetic Facility', location: 'Austin, TX', active: true, tier: 'Lead' }],
+      sources: [], fact_version_id: '44444444-4444-4444-8444-444444444444', fact_type: 'demand',
+      decision: 'accepted', reason: 'Confirmed', actor: 'Operator', confirmed_at: '2026-10-20T10:00:00Z', source_reference: null,
+    }],
+    total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 },
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
+  await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: activeChange }))
+  await page.route('**/api/opportunities/needs/need-a?*', route => route.fulfill({ json: { ...need, tier: 'Signal' } }))
+  let historicalReads = 0
+  await page.route('**/api/opportunities/needs/need-a/history', route => { historicalReads += 1; return route.fulfill({ json: { ...need, active: true, tier: 'Lead' } }) })
+  await page.goto('/?view=workspace')
+  const panel = page.locator('.wh-changes')
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  await panel.locator(':scope > details > summary').click()
+  const link = panel.getByRole('button', { name: /Synthetic Facility · Austin, TX · demand/ })
+  await link.click()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.getByText(/Signal/).first()).toBeVisible()
+  expect(historicalReads).toBe(0)
+})
+
+test('active change link hides a previously stored Lead while canonical readback is pending or fails', async ({ page }) => {
+  await page.unrouteAll()
+  const activeChange = {
+    ...emptyChanges,
+    items: [{
+      event_key: 'fact:55555555-5555-4555-8555-555555555555', category: 'changed',
+      title: 'Call fact accepted: demand', detail: 'Synthetic fixture',
+      created_at: '2026-10-20T11:00:00Z', source_date: null, project_id: 'project-a',
+      before_state: null, after_state: { fact_type: 'demand', value: { mw: '12' } },
+      needs: [{ id: 'need-a', name: 'Synthetic Facility', location: 'Austin, TX', active: true, tier: 'Lead' }],
+      sources: [], fact_version_id: '66666666-6666-4666-8666-666666666666', fact_type: 'demand',
+      decision: 'accepted', reason: 'Confirmed', actor: 'Operator', confirmed_at: '2026-10-20T10:00:00Z', source_reference: null,
+    }],
+    total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 },
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
+  await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: activeChange }))
+  await page.route('**/api/opportunities/needs/need-a?*', route => route.fulfill({ status: 503, json: { detail: 'Fresh qualification unavailable' } }))
+  let historicalReads = 0
+  await page.route('**/api/opportunities/needs/need-a/history', route => { historicalReads += 1; return route.fulfill({ json: { ...need, active: true, tier: 'Lead' } }) })
+  await page.goto('/?view=workspace')
+  const panel = page.locator('.wh-changes')
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  await panel.locator(':scope > details > summary').click()
+  await panel.getByRole('button', { name: /Synthetic Facility · Austin, TX · demand/ }).click()
+  await expect(page.getByRole('alert')).toContainText('GridLens could not complete this request (503)')
+  await expect(page.locator('.wh-detail')).not.toContainText('Lead')
+  expect(historicalReads).toBe(0)
+})
+
 test('tablet workspace has no horizontal overflow and retains readable layout', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 900 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
   await page.goto('/?view=workspace')
-  await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(900)
+})
+
+test('tablet direct selection keeps detail and header reachable and restores the queue', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
+  await page.goto('/?view=workspace&need=need-a')
+  const identity = page.getByRole('heading', { name: 'Test data center' })
+  await expect(identity).toBeVisible()
+  const bounds = await identity.boundingBox()
+  expect(bounds!.y).toBeGreaterThanOrEqual(0)
+  expect(bounds!.y + bounds!.height).toBeLessThan(1024)
+  for (const control of [page.getByRole('link', { name: 'GridLens home' }), page.getByRole('navigation', { name: 'Primary navigation' }), page.getByRole('textbox', { name: 'Search workspace' }), page.getByRole('button', { name: 'Notifications' }), page.locator('.wh-account > summary')]) {
+    const box = await control.boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(768)
+  }
+  await page.getByRole('button', { name: 'Back to power needs' }).click()
+  const row = page.locator('[data-need-row="need-a"]')
+  await expect(row).toBeVisible()
+  await row.click()
+  await expect(identity).toBeVisible()
 })
 
 test('Power gap shows only backend-qualified ranges and keeps null or conflicted gaps unknown', async ({ page }) => {
@@ -585,15 +1101,76 @@ test('Power gap shows only backend-qualified ranges and keeps null or conflicted
   })
   await page.goto('/?view=workspace')
   await page.getByRole('button', { name: /Qualified power need/ }).click()
-  await page.getByRole('button', { name: 'Power gap' }).click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
   await expect(page.getByText(/Qualified remaining gap: 1–4 MW/)).toBeVisible()
   await page.getByRole('button', { name: /Back to power needs/ }).click()
   await page.getByRole('button', { name: /Unknown power need/ }).click()
-  await page.getByRole('button', { name: 'Power gap' }).click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
   await expect(page.getByText('Supply unknown or no supported remaining gap is available for this need.')).toBeVisible()
   await page.getByRole('button', { name: /Back to power needs/ }).click()
   await page.getByRole('button', { name: /Conflicted power need/ }).click()
-  await page.getByRole('button', { name: 'Power gap' }).click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
   await expect(page.getByText('Supply unknown or no supported remaining gap is available for this need.')).toBeVisible()
   await expect(page.locator('.wh-detail-head [role="status"]')).toHaveCount(1)
 })
+
+test('utility service status stays distinct from an energization date and facility demand stays separate from activity size', async ({ page }) => {
+  const card = {
+    policy_version: 'opportunity-intelligence-v1', need_id: need.id, project_id: need.project_id,
+    input_fingerprint: 'a'.repeat(64), qualification: 'Signal', disposition: 'RESEARCH', fields: [
+      { key: 'facility_demand', label: 'Facility Demand', section: 'power', value: null, status: 'Not publicly available', basis: 'No facility-wide demand evidence.' },
+      { key: 'energization', label: 'Utility service status', section: 'power', value: 'Utility service application filed', status: 'Verified', basis: 'Public utility filing; no date stated.' },
+    ], contacts: [], next_contact_path: 'Unknown', next_action: 'Verify utility timing.', research_gaps: [],
+    completeness: { supported: 1, total: 2, percent: 50 }, last_intelligence_update: null, power_gap: null, evidence: [], research_enabled: false,
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([{ ...need, required_mw: '18 MW' }]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, required_mw: '18 MW', intelligence_card: card } }))
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  const metrics = page.getByRole('region', { name: 'Power need metrics' })
+  await expect(metrics).toContainText('Facility DemandNot established')
+  await expect(metrics).not.toContainText('18 MW')
+  await expect(metrics).toContainText('Utility EnergizationUtility service application filed')
+  await expect(metrics).toContainText('Utility service status; date not established.')
+})
+
+for (const width of [1280, 390]) {
+  test(`unified intelligence card preserves evidence, verified actions and research at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    const source = { reference: 'evidence:test', title: 'Official project notice', url: 'https://example.test/project', source_date: '2026-10-20', retained_evidence_id: 'test', content_hash: 'a'.repeat(64), passage: 'Example Owner is developing the site.', extraction_method: 'Official notice', verification_status: 'Current retained support' }
+    const card = {
+      policy_version: 'opportunity-intelligence-v1', need_id: need.id, project_id: need.project_id,
+      input_fingerprint: 'a'.repeat(64), qualification: 'Signal', disposition: 'RESEARCH',
+      fields: [{ key: 'customer', label: 'Customer / end user', section: 'identity', value: 'Example Owner', status: 'Verified', basis: 'Current owner relationship.', sources: [source] }],
+      contacts: [{ claim_id: 'party', company: 'Example Owner', name: null, title: null, role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url }], sources: [source] }],
+      next_contact_path: 'Confirm power procurement with the company office.', next_action: 'Verify the activity-specific power window.',
+      research_gaps: [{ key: 'start', label: 'Power needed', section: 'power', value: null, status: 'Research in progress', basis: 'No supported date yet.', research_category: 'timing', research_status: 'NOT_SCHEDULED', sources: [] }],
+      completeness: { supported: 1, total: 2, percent: 50, basis: 'Independent of qualification' },
+      last_intelligence_update: '2026-10-20T10:00:00Z', power_gap: null, evidence: [source], research_enabled: true,
+    }
+    await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+    await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+    await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, intelligence_card: card } }))
+    await page.route('**/api/power-needs/*/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
+    await page.route('**/api/power-needs/*/brief', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
+    let researchBody: unknown
+    await page.route('**/api/commercial/triage/need-a/autonomous-research', route => { researchBody = route.request().postDataJSON(); return route.fulfill({ json: { items: [{ id: 'queued' }] } }) })
+    await page.goto('/?view=workspace&need=need-a')
+    const panel = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
+    await expect(panel).toBeVisible()
+    await expect(panel.getByText('Example Owner', { exact: true }).first()).toBeVisible()
+    await expect(panel.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
+    await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)
+    await expect(page.locator('.wh-completeness')).toContainText('1/2')
+    await panel.getByRole('button', { name: 'Research missing information' }).click()
+    await expect.poll(() => researchBody).toEqual({ force: false, complete_intelligence: true })
+    await expect(panel.getByRole('status')).toContainText('Targeted research queued')
+  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Intelligence card sources' })).toContainText('evidence:test')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    await page.screenshot({ path: testInfo.outputPath(`intelligence-card-${width}.png`), fullPage: true })
+    await page.getByRole('button', { name: /Back to power needs/ }).click()
+    await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
+  })
+}

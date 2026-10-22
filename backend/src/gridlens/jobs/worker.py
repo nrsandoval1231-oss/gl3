@@ -766,7 +766,13 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
         }
         uses_public_acquisition = (
             kind in public_acquisition_kinds
-            and (kind != "buying_chain_research" or settings.buying_chain_public_research_enabled)
+            and (
+                kind != "buying_chain_research"
+                or (
+                    intelligence_task_type == "buying_chain_research"
+                    and settings.buying_chain_public_research_enabled
+                )
+            )
         ) or (kind == "intelligence_process" and intelligence_task_type == "OCR_EXTRACTION")
         if uses_public_acquisition:
             if source_id is None or lease_expiry is None or deadline is None:

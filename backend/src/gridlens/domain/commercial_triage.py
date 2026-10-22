@@ -872,6 +872,15 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         "organization": direct_owners[0].get("organization")
         if direct_owners
         else item.get("title_company"),
+        "owner_organizations": sorted(
+            {
+                c["organization"]
+                for c in direct_owners
+                if c.get("organization")
+                and c.get("category")
+                in {"owner_developer", "asset_operator", "owner_construction", "owner_energy"}
+            }
+        ),
         "organization_role": direct_owners[0].get("category")
         if direct_owners
         else item.get("title_company_role"),
@@ -896,7 +905,11 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
                     str(reference["need_id"]),
                     str(reference["fact_version_id"]),
                     str(reference["content_hash"]),
-                ): reference
+                ): {
+                    key: value
+                    for key, value in reference.items()
+                    if key in {"need_id", "fact_version_id", "content_hash", "authority"}
+                }
                 for reference in operator_fact_refs
             }.values(),
             key=lambda reference: (
@@ -906,9 +919,32 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             ),
         )
     card["input_hash"] = hashlib.sha256(
-        json.dumps([POLICY_VERSION, card], sort_keys=True, default=str).encode()
+        json.dumps([POLICY_VERSION, _semantic_card(card)], sort_keys=True, default=str).encode()
     ).hexdigest()
     return card
+
+
+def _semantic_card(card: dict) -> dict:
+    """Keep additive display provenance out of the established research fingerprint.
+
+    Owner and fact changes are already represented in canonical chain/source hashes.
+    Rolling out card presentation must not restart unchanged paid research.
+    """
+    result = {
+        k: v
+        for k, v in card.items()
+        if k not in {"input_hash", "owner_organizations", "intelligence_card"}
+    }
+    if result.get("operator_fact_refs"):
+        result["operator_fact_refs"] = [
+            {
+                k: v
+                for k, v in reference.items()
+                if k in {"need_id", "fact_version_id", "content_hash", "authority"}
+            }
+            for reference in result["operator_fact_refs"]
+        ]
+    return result
 
 
 def cards(
@@ -1082,7 +1118,7 @@ def group_cards(
             json.dumps(
                 [
                     POLICY_VERSION,
-                    {key: value for key, value in merged.items() if key != "input_hash"},
+                    _semantic_card(merged),
                 ],
                 sort_keys=True,
                 default=str,

@@ -55,6 +55,8 @@ async function shell(page: import('@playwright/test').Page, buying: (route: impo
     const path = new URL(route.request().url()).pathname
     if (path.includes('/buying-chain')) { await buying(route); return }
     const body = path === '/api/auth/session' ? { authenticated: true }
+      : path === '/api/opportunities/needs/one' ? project('one')
+        : path === '/api/opportunities/needs/two' ? project('two')
       : path === '/api/opportunities' ? [project('one'), project('two')]
       : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 }
         : emptyExactNeedAuxiliary(path) ?? []
@@ -62,6 +64,7 @@ async function shell(page: import('@playwright/test').Page, buying: (route: impo
   })
   await page.goto('/?tier=Signals')
   await page.getByRole('button', { name: /Test facility one/ }).click()
+  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
 }
 
 test('buying chain exposes three separate relationships and retains evidence after enrichment failure', async ({ page }) => {
@@ -100,17 +103,20 @@ test('navigation ignores a late enrichment result and limits repeated requests',
   await expect(button).toBeEnabled()
   await button.click()
   await expect(page.getByRole('button', { name: 'Checking evidence…' })).toBeDisabled()
-  await page.getByRole('button', { name: 'Next →' }).click()
-  await expect(page.getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
+  await page.getByRole('button', { name: /Test facility two/ }).click()
+  await page.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('button', { name: 'Buying chain', exact: true }).click()
+  const selectedChain = page.getByRole('region', { name: 'Buying chain' })
+  await expect(selectedChain.getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
   const finished = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/buying-chain/enrich'))
   finish!()
   await finished
-  await expect(page.getByRole('heading', { name: 'Test Electrical one' })).toHaveCount(0)
+  await expect(selectedChain.getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
+  await expect(selectedChain.getByRole('heading', { name: 'Test Electrical one' })).toHaveCount(0)
   expect(posts).toBe(1)
-  await page.getByRole('button', { name: /Back to Signals/ }).click()
-  await expect(page.getByRole('button', { name: /Test facility one/ })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('region', { name: 'Buying chain' }).getByRole('heading', { name: 'Test Electrical one' })).toBeVisible()
   await page.goForward()
-  await expect(page.getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Buying chain' }).getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
 })
 
 test('queued buying-chain job survives reload and polls to a truthful terminal state', async ({ page }) => {

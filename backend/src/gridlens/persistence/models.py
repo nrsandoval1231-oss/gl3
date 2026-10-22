@@ -567,6 +567,28 @@ class ChangeEvent(Base):
     replay_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
+class WorkspaceChangeBaseline(Base):
+    """Singleton read/review baseline and last exact-page replay receipt."""
+
+    __tablename__ = "workspace_change_baselines"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_workspace_change_baseline_singleton"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    baseline_identity: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_token: Mapped[str | None] = mapped_column(String(64))
+    last_receipt: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+
+
+class WorkspaceChangeAcknowledgment(Base):
+    """Acknowledgment of one displayed immutable, typed change key."""
+
+    __tablename__ = "workspace_change_acknowledgments"
+    __table_args__ = (Index("ix_workspace_change_ack_reviewed_at", "reviewed_at"),)
+    event_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    review_token: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
 class ProjectMaterialState(Base):
     __tablename__ = "project_material_states"
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), primary_key=True)

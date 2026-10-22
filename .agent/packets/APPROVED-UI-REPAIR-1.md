@@ -1,0 +1,28 @@
+# APPROVED-UI integration repair 1
+
+Dependency: UI1 frozen builder handoff. Controller first full-gate run is being retained in `.artifacts/approved-ui/controller-browser.log`; do not edit until controller dispatches this packet after it ends.
+
+One bounded repair batch: deterministic regressions plus measured screenshot discrepancies. Same worktree/branch/base as APPROVED-UI. Allowed frontend files unchanged, plus all `web/tests/*.spec.ts` only where visible controls/copy/containers legitimately moved. Preserve behavioral assertions and cases; never delete, skip, weaken race/provenance/history/auth checks. Backend/schema/provider/other feature implementation exclusions remain. Retry budget: this batch and one materially different recovery if necessary.
+
+## Functional regressions
+
+Read every failure in the completed controller run. Distinguish actual bugs from legitimate locator updates. Account sign-out moved behind Account disclosure; tests must open it and still prove real session termination. Existing changes are nested under another disclosure; keep notification/change access functional and test the new visible path. Auto-select-first introduced hidden mobile rows and breaks selection/Back workflows; preserve the prior selection contract on phone (remove or restrict initial auto-selection to desktop if it cannot be made safe). Preserve direct URL need loading, filters, Back/Forward, stale-response guards and all title/brief/fact/call workflows. Do not mask failures with obsolete aria labels such as visible Opportunity Intelligence being named Your pursuits. Use truthful accessible labels and update corresponding selectors.
+
+## Measured fidelity repair
+
+Inspect owner reference and controller `desktop-1648x928.png`, `desktop-768x1024.png`, `desktop-390x844.png`; measurements in browser-measurements.json. This is geometry repair against supplied image, no new design.
+
+- Keep primary header58px, sidebar412px, main gutter17-18px at1648px. These match.
+- Reference identity card approximately y108..240 (134px tall); current y94..185 (91px). Breadcrumb starts near target but needs proper toolbar height before hero. Share/workflow actions belong to the breadcrumb toolbar above the identity card, as reference. Hero needs customer/monogram/project identity left, actual qualification/last-updated center, completeness right; customer title should be prominent (about28-30px at1648), project secondary (about20px). Real missing customer stays truthful.
+- Reference metrics y251..366 (115px); current218..333. Target exact five labels. Remove inherited `.wh-facts span` treatments contaminating icons/labels with nested gray boxes/padding/borders; narrow legacy selectors or remove obsolete classes instead of adding another override. Supported numeric values about26px, missing values may be smaller to fit. SignalBlue icons currently rendered gray due inherited styles; fix the cause.
+- Reference three columns y377..751 (374px); current341..621 (280px). Use reference-scaled minimum region height (`290px` at1280, `374px` at1648), growing for real long content without clipping. Right column has two distinct surfaces approximately218px and146px at1648 with9px gap. Maintain near-equal three-column proportions. Compact contacts with avatar/name/title/org/role and inline verified methods; caveats/provenance expand. Do not hide missing data with invented details.
+- Evidence tabs target about766px; table header about855px. Add Evidence & Sources heading/subtitle and real source filter/count controls between tabs and table. No invented source classes/counts. Source filters can use supported source_origin/source_id values. Retained record source details remain expandable and links accessible.
+- Reference sidebar first row starts near264px at1648 and each row is about77px (60px native1280). Current starts332 and rows60px. Move default Recent changes/More filters/CSV disclosure chrome into the existing toolbar/notification or a single control without consuming three extra rows. Preserve every workflow. Sidebar needs company/project identity and location/capacity/status summary; do not imply facility demand from activity MW. Long names must remain accessible.
+- Typography remains provisional without ABC Diatype. Current many10px labels at1648 should track reference scaling (~12-13px secondary, ~14px body). Do not shrink phone text; prefer14px normal text and12px compact metadata. Header must remain compact; account control should include a generic avatar rather than invented account identity. No screenshot-only nav routes.
+- Tablet has metric label boxes overflowing their cards; fix inherited style and reflow. At768 prefer readable single-column sections or a deliberate collapsible selector over narrow two-column text. Mobile next action/contact access must not be buried after a long always-expanded project block; allow project details to expand and reorder for commercial priorities. Maintain zero horizontal page overflow.
+
+## Cleanup and validation
+
+Consolidate obsolete workspace CSS declarations that conflict with the new rules. Do not hide layout defects with overflow:hidden. Truncating a genuinely long one-line row is permitted only with full accessible identity; no clipped controls/content. Brand tokens exact for core colors. No extra dependencies.
+
+Run typecheck/build, focused approved/dashboard+workspace+auth+pr101 tests and all repaired files with API8027/web5187. Report commands/exit codes and first-run failures honestly. Controller will rerun full required gates and refreshed five-viewport comparison before independent Sol review. Save REPAIR1_COMPLETION.json outside tracked candidate. No push/merge/deploy or self-certification.

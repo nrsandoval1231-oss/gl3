@@ -40,6 +40,7 @@ async function fixture(page: Page, initial: ResearchQuestion[], progress = false
     await route.fulfill({ json: { items } })
   })
   await page.goto('/?view=pursuits')
+  await page.getByText('Queue details and research updates').click()
   await page.getByRole('button', { name: 'RESEARCH 1', exact: true }).click()
   await page.locator('.commercial-card-heading').filter({ hasText: 'Research fixture project' }).click()
   return { get posts() { return posts }, get gets() { return gets }, get forced() { return forced } }

@@ -1,17 +1,71 @@
-# Local runtime isolation
+# Local runtime and clean-checkout setup
 
-Compose pins `postgres:18.6`, the version `scripts/check.ps1` expects. A fresh PostgreSQL 18 cluster was initialized for gl3 at `.artifacts/local-postgres/data`, listening only on 127.0.0.1:55439. The existing Windows PostgreSQL service on 5432 was not changed. The new `gridlens` and `gridlens_test` databases have a generated SCRAM password stored only in the ignored runtime directory. Never add that directory or `.env` to Git.
+This guide describes a local developer environment. It does not configure production. At the October 20, 2026 packet inspection, `.artifacts/local-postgres/` was absent in this clean worktree, so the ignored database and connection file described in an older receipt were not assumed to exist.
 
-Start this already-initialized cluster from repository root (PowerShell):
+## Prerequisites and isolation
 
-```powershell
-& 'C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe' -D "$PWD\.artifacts\local-postgres\data" -l "$PWD\.artifacts\local-postgres\server.log" start
-```
+Install Python 3.11, uv 0.7.13, Node.js 22+, npm, and PostgreSQL 18.6. `compose.yaml` uses PostgreSQL `18.6`; the repository test setup expects a loopback PostgreSQL endpoint. Use a new data directory under ignored `.artifacts/`, bind only to `127.0.0.1`, and use port `55439` so it does not collide with a system PostgreSQL service on `5432`. Do not reuse production, retained-corpus, or any existing unrelated database.
 
-Stop only this cluster:
+If PostgreSQL 18 is installed at the standard Windows path, these PowerShell commands initialize a **new** local cluster. Verify `$pgBin` points to the installed PostgreSQL 18 `bin` directory and that the target directory does not already exist before running `initdb`; never initialize over an existing directory.
 
 ```powershell
-& 'C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe' -D "$PWD\.artifacts\local-postgres\data" stop -m fast
+$pgBin = 'C:\Program Files\PostgreSQL\18\bin' # replace if PostgreSQL is installed elsewhere
+$data = Join-Path $PWD '.artifacts\local-postgres\data'
+if (Test-Path $data) { throw "Refusing to initialize existing cluster: $data" }
+New-Item -ItemType Directory -Force (Split-Path $data) | Out-Null
+& (Join-Path $pgBin 'initdb.exe') -D $data -U postgres -A scram-sha-256 -W
 ```
 
-Runtime connection values are in `.artifacts/local-postgres/connection.env`. Application startup instructions are maintained in the root README. Use Uvicorn's `--no-proxy-headers` for the direct local API process: otherwise its default middleware trusts forwarded headers from loopback peers and rewrites the client address before the application sees it. The dated [post-GL3-019 handoff](post-gl3-019-handoff.md) remains historical; use the current root README command for local API startup. This local database is not a cloud deployment or a completion of Milestone A. Docker Desktop engine was unavailable during initial checks; the local PostgreSQL cluster provides real integration testing without changing the existing service.
+Start only this cluster on loopback port 55439, then connect as its `postgres` role. The password prompt is interactive; do not put passwords in command arguments or shell history.
+
+```powershell
+& (Join-Path $pgBin 'pg_ctl.exe') -D $data -l (Join-Path (Split-Path $data) 'server.log') -o '-h 127.0.0.1 -p 55439' start
+& (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p 55439 -U postgres -d postgres
+```
+
+In the `psql` session, create an application role and two separate databases. `\password` prompts without echoing the value.
+
+```sql
+CREATE ROLE gridlens LOGIN;
+\password gridlens
+CREATE DATABASE gridlens OWNER gridlens;
+CREATE DATABASE gridlens_test OWNER gridlens;
+\q
+```
+
+Create the ignored helper input file `.artifacts/local-postgres/connection.env` with these placeholders replaced by the same URL-encoded password. Keep it private and never commit it:
+
+```text
+DATABASE_URL=postgresql+psycopg://gridlens:<URL_ENCODED_PASSWORD>@127.0.0.1:55439/gridlens
+TEST_DATABASE_URL=postgresql+psycopg://gridlens:<URL_ENCODED_PASSWORD>@127.0.0.1:55439/gridlens_test
+```
+
+Install locked dependencies and let the checked-in helper write ignored `.env` and `.artifacts/local-auth.txt`:
+
+```powershell
+uv sync --project backend --locked --extra dev
+npm --prefix web ci
+uv run --project backend python scripts/setup_local.py
+```
+
+`setup_local.py` refuses to overwrite existing local credentials unless `--force` is given. Do not use `--force` unless you intend to rotate them. Its `.env` is read by `backend/src/gridlens/settings.py`; environment variables take precedence over the dotenv file. The generated `.env` and local password are ignored files. Never print, commit, or attach them.
+
+Apply migrations once and start API and web in separate terminals:
+
+```powershell
+uv run --directory backend alembic upgrade head
+uv run --project backend uvicorn gridlens.api.app:app --host 127.0.0.1 --port 8000 --no-proxy-headers
+npm --prefix web run dev
+```
+
+The browser is at `http://127.0.0.1:5173`; Vite proxies `/api` to the API on port 8000. Use the password in the ignored `.artifacts/local-auth.txt`. The direct Uvicorn command includes `--no-proxy-headers`; do not trust forwarded headers from arbitrary loopback peers.
+
+Starting `python -m gridlens.jobs.worker` with the code default `WORKER_AUTO_REFRESH=true` plans and fetches due sources on startup and hourly. Omit the worker for UI/API development. If starting it for an approved local acquisition, set `WORKER_AUTO_REFRESH=false` first unless you intend its scheduler behavior. It does not establish a cloud schedule or seven production cycles.
+
+For the repository's containerized local stack, use [`setup_compose.py`](../../scripts/setup_compose.py) and `docker compose --env-file .env.compose up`; that Compose network uses `db:5432`, not the native host's `127.0.0.1:55439`. Do not mix `.env` and `.env.compose`. See [runtime configuration](runtime-configuration.md) for code defaults and feature flags.
+
+To stop only the native local cluster, use the same verified `$pgBin` and `$data`:
+
+```powershell
+& (Join-Path $pgBin 'pg_ctl.exe') -D $data stop -m fast
+```

@@ -1,0 +1,22 @@
+{
+  "packet": "AUDIT-PUBLICATION-FIXTURE-PORT",
+  "status": "IMPLEMENTATION_AND_LOCAL_VALIDATION_PASS_PENDING_CONTROLLER_REVIEW",
+  "acceptance_claim": false,
+  "repository": "GridLens gl3",
+  "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-publication-fixture-20261020",
+  "branch": "repair/audit-publication-fixture-20261020",
+  "base_source_sha": "7c57f7d118b7e910886cbc0f327858af7906b9d3",
+  "source_commit": "3c3494d989d1cded69b7ce1f622a0471ccdf6307",
+  "scope": ["backend/tests/integration/test_fact_draft_publication.py"],
+  "change": "Removed only the hard-coded PostgreSQL port 55520 check; retained loopback, _test suffix, no-corpus, and distinct app/test URL guards.",
+  "validation": {
+    "ruff_format": {"command": "python -m ruff format --check tests/integration/test_fact_draft_publication.py", "result": "1 file already formatted", "exit_code": 0},
+    "ruff_check": {"command": "python -m ruff check tests/integration/test_fact_draft_publication.py", "result": "All checks passed", "exit_code": 0},
+    "focused_postgresql": {"command": "python -m pytest -q tests/integration/test_fact_draft_publication.py", "result": "5 passed, 1 upstream Starlette/httpx warning in 5.42 seconds", "exit_code": 0, "database_guard": "Fresh private databases on 127.0.0.1:55520: gl3_audit_fixture_port_20261020_app and gl3_audit_fixture_port_20261020_test"},
+    "diff_check": {"command": "git diff --check", "result": "PASS", "exit_code": 0}
+  },
+  "recovery_evidence": ["Initial database creation attempt used transactional isolation and failed before creating either target; retried successfully with PostgreSQL autocommit after rechecking targets absent.", "Initial pytest collection failed because the private root dotenv lacked required application auth fields; reran successfully with test-only synthetic auth values confined to the child pytest process."],
+  "timing": {"start_utc": "UNKNOWN", "finish_utc": "UNKNOWN", "planning_seconds": "UNKNOWN", "build_seconds": "UNKNOWN", "validation_seconds": "UNKNOWN", "total_seconds": "UNKNOWN"},
+  "metrics": {"tokens": "UNKNOWN", "model_config_identity": "UNKNOWN", "performance_speedup_claim": false},
+  "limits": ["Focused local validation only; actual CI-port 5432 proof remains controller-owned.", "No production database, corpus, provider, paid call, push, merge, or deployment was used."]
+}

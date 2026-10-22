@@ -28,6 +28,15 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
   }
   const set = (key: string) => (event: { target: { value: string } }) => setValues((current) => ({ ...current, [key]: event.target.value }))
   const has = (...keys: string[]) => keys.some((key) => (values[key] ?? '').trim() !== '')
+  const validMw = (value: string, allowZero: boolean) => {
+    const match = /^\s*((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(kW|MW)?(?:\s*(?:-|\u2013|to)\s*((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(kW|MW)?)?\s*$/i.exec(value)
+    if (!match || value.trim().length > 128 || (match[3] && !match[4])) return false
+    const lowUnit = match[2] ?? match[4]
+    const highUnit = match[4] ?? match[2]
+    const low = Number(match[1].replaceAll(',', '')) * (lowUnit?.toLowerCase() === 'kw' ? 0.001 : 1)
+    const high = Number((match[3] ?? match[1]).replaceAll(',', '')) * (highUnit?.toLowerCase() === 'kw' ? 0.001 : 1)
+    return Number.isFinite(low) && Number.isFinite(high) && low >= (allowZero ? 0 : Number.MIN_VALUE) && high >= low && high <= 1_000_000
+  }
 
   function factsToDraft(): { section: Section; value: Record<string, unknown> }[] {
     const note = (values.quote ?? '').trim()
@@ -57,18 +66,33 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
     if (busy) return
     if (!item.project_id) return setError('No project identity is linked yet.')
     if (contact.name.trim().length < 2) return setError('Enter who you spoke with.')
+    if (contact.name.trim().length > 160 || contact.organization.trim().length > 200 || contact.role.trim().length > 160 || contact.channel.trim().length < 2 || contact.channel.trim().length > 40) {
+      return setError('Contact details exceed the supported field length.')
+    }
     if (!item.location) return setError('This record has no facility location, so call facts cannot be attached to it.')
+    if (item.location.trim().length < 2 || item.location.length > 500) return setError('Facility location must be 2 to 500 characters.')
     const facts = factsToDraft()
     if (!facts.length) return setError('Fill in at least one thing they told you.')
+    if ((values.quote ?? '').trim().length > 2000) return setError('Call note must be 2000 characters or fewer.')
+    if (!Number.isFinite(new Date(contact.at).getTime())) return setError('Call time must be a valid date and time.')
     // Check what the fact API requires up front so a call is never half-saved by a predictable error.
     if (facts.some((fact) => fact.section === 'timing') && !(has('start') && has('end') && has('duration'))) {
       return setError('Timing needs the earliest start, latest start and duration together.')
     }
-    if (has('start') && has('end') && values.start > values.end) return setError('Earliest start must be on or before latest start.')
-    if (has('buyer') && !values.buyerRole) return setError('Choose the buyer role they reported.')
-    if (has('supply') && values.supplyQuality === 'unsuitable' && !/^\s*\d+(\.\d+)?\s*$/.test(values.supply)) {
-      return setError('Unsuitable supply needs one MW number, not a range.')
+    if (facts.some((fact) => fact.section === 'timing') && (![values.start, values.end].every((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(new Date(date).getTime()) && new Date(date).toISOString().slice(0, 10) === date))) {
+      return setError('Timing needs valid calendar dates.')
     }
+    if (has('duration') && (!/^\d+$/.test(values.duration.trim()) || !Number.isSafeInteger(Number(values.duration)) || Number(values.duration) < 1 || Number(values.duration) > 36500)) {
+      return setError('Duration must be a whole number from 1 to 36500 days.')
+    }
+    if (has('start') && has('end') && values.start > values.end) return setError('Earliest start must be on or before latest start.')
+    if (has('buyer') && values.buyer.trim().length < 2) return setError('Buyer organization needs at least 2 characters.')
+    if (has('buyer') && !values.buyerRole) return setError('Choose the buyer role they reported.')
+    if (has('mw') && !validMw(values.mw.trim(), false)) return setError('Power needed must be a positive MW value or a range with an explicit unit, up to 1000000 MW.')
+    if (has('supply') && values.supplyQuality === 'unsuitable' && (!/^\s*\d+(\.\d+)?\s*$/.test(values.supply) || !validMw(values.supply.trim(), false))) {
+      return setError('Unsuitable supply needs one positive MW number within the supported range.')
+    }
+    if (has('supply') && values.supplyQuality !== 'unsuitable' && !validMw(values.supply.trim(), true)) return setError('Suitable supply must be an MW value or supported range from 0 to 1000000 MW.')
     setBusy(true); setError('')
     const saved: CallFact[] = []
     try {
@@ -148,7 +172,7 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
       </fieldset>
       <fieldset disabled={busy}>
         <legend>What they told you · leave blank what wasn't said</legend>
-        <label>Power needed (MW or range, e.g. 10 or 8-12)<input aria-label="Power needed" value={values.mw ?? ''} onChange={set('mw')}/></label>
+        <label>Power needed (e.g. 10 MW or 8-12 MW)<input aria-label="Power needed" value={values.mw ?? ''} onChange={set('mw')}/></label>
         <label>Earliest start<input aria-label="Earliest start" type="date" value={values.start ?? ''} onChange={set('start')}/></label>
         <label>Latest start<input aria-label="Latest start" type="date" value={values.end ?? ''} onChange={set('end')}/></label>
         <label>Duration (days)<input aria-label="Duration days" type="number" min="1" value={values.duration ?? ''} onChange={set('duration')}/></label>
