@@ -20,8 +20,9 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 from pypdf import PdfReader
 
-from gridlens.ingestion.adapters.bounded_http import read_bounded_response
+from gridlens.ingestion.adapters.diagnostics import acquisition_diagnostics
 from gridlens.ingestion.adapters.federal_register import SourceParseError
+from gridlens.ingestion.adapters.tceq_http import read_tceq_response
 
 SOURCE_ID = "texas-tceq-temporary-batch-plants"
 LISTING_URL = (
@@ -172,34 +173,96 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     max_notices = int(source.get("query", {}).get("max_notices", 0))
     if not 0 <= max_notices <= 40:
         raise SourceParseError("TCEQ notice bound is invalid")
-    http = client or httpx.Client(timeout=25, follow_redirects=False)
+    http = client or httpx.Client(timeout=25, follow_redirects=False, trust_env=False)
     try:
-        _, body = read_bounded_response(http, LISTING_URL, MAX_LISTING_BYTES)
+        _, body = read_tceq_response(http, LISTING_URL, MAX_LISTING_BYTES, route="listing")
         rows = [row for row in parse_listing(body) if TEMPORARY.search(row["facility"])]
         records: list[dict[str, Any]] = []
-        attempted = failed = 0
+        attempted = 0
+        rate_limited = False
         for row in rows:
-            presence = {"document_number": f"TCEQ-CBP-{row['project']}", "presence_only": True}
+            if rate_limited:
+                records.append(
+                    _presence_only(
+                        row,
+                        SourceParseError("notice deferred after publisher rate limit"),
+                        deferred=True,
+                    )
+                )
+                continue
             if attempted >= max_notices:
-                records.append(presence)
+                records.append(
+                    _presence_only(row, SourceParseError("notice fetch budget exhausted"))
+                )
                 continue
             attempted += 1
             try:
-                _, pdf = read_bounded_response(
+                _, pdf = read_tceq_response(
                     http,
                     NOTICE_URL.format(registration=row["registration"].lower()),
                     MAX_PDF_BYTES,
+                    route="pdf",
                 )
                 records.append(record(row, parse_notice(pdf, row["registration"])))
-            except (httpx.HTTPError, SourceParseError, ValueError):
-                failed += 1
+            except (httpx.HTTPError, SourceParseError, ValueError) as error:
+                presence = _presence_only(row, error)
                 records.append(presence)
-        # Presence-only rows are not ingested, so any failed notice must fail the run visibly.
-        if failed:
-            raise SourceParseError(
-                f"TCEQ batch plant notices failed for {failed} of {attempted} registrations"
-            )
+                diagnostics = acquisition_diagnostics(error)
+                status = diagnostics.get("http_status")
+                retryable_status = type(status) is int and (
+                    status in {408, 425, 429} or status >= 500
+                )
+                rate_limited = (
+                    status == 429
+                    or retryable_status
+                    and (
+                        "retry_after_seconds" in diagnostics
+                        or diagnostics.get("retry_after_exceeds_bound") == 1
+                    )
+                )
+                if rate_limited:
+                    presence["_acquisition_diagnostics"] = {
+                        key: diagnostics[key]
+                        for key in (
+                            "http_status",
+                            "retry_after_seconds",
+                            "retry_after_exceeds_bound",
+                        )
+                        if key in diagnostics
+                    }
         return records
     finally:
         if client is None:
             http.close()
+
+
+def _presence_only(
+    row: dict[str, Any], error: BaseException, *, deferred: bool = False
+) -> dict[str, Any]:
+    status = error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
+    code = (
+        f"http_status_{status}"
+        if type(status) is int and 100 <= status <= 599
+        else "network_error"
+        if isinstance(error, httpx.RequestError)
+        else "acquisition_timeout"
+        if isinstance(error, TimeoutError)
+        else "document_deferred"
+        if deferred
+        else "invalid_official_document"
+    )
+    registration = str(row["registration"])[:64]
+    identity = f"TCEQ-CBP-{row['project']}"
+    return {
+        "document_number": identity,
+        "presence_only": True,
+        "partial_snapshot": True,
+        "rejected_record": {
+            "identity": identity,
+            "stage": "tceq_document",
+            "error_code": code,
+            "selected_fields": ["registration"],
+            "omitted_fields": ["document_body"],
+            "raw": {"registration": registration},
+        },
+    }

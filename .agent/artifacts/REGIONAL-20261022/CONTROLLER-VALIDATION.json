@@ -1,0 +1,38 @@
+{
+  "captured_at": "2026-10-22T23:46:42.447339+00:00",
+  "scope": "local source-frozen preflight; exact-head full CI and independent review remain required",
+  "backend": {
+    "focused_controller": {
+      "passed": 132,
+      "failed": 0,
+      "duration_seconds": 36.5,
+      "command": "uv run --directory backend --env-file ../.artifacts/regional/recovery-test.env python -m pytest tests/integration/test_tceq_rate_limit.py tests/integration/test_regional_eligibility.py tests/integration/test_regional_evidence_recovery.py tests/integration/test_austin_range_liveness.py tests/integration/test_source_health_backlog.py tests/integration/test_regional_query_performance.py tests/integration/test_retained_document_import.py tests/integration/test_r3b_scope_surfaces.py tests/unit/test_regional_scope.py tests/unit/test_acquisition_recovery.py tests/unit/test_tceq_nsr_pending.py tests/unit/test_tceq_temporary_batch.py tests/unit/test_job_retry.py -q"
+    },
+    "ruff": "passed;304 source/test files formatted",
+    "mypy": "passed;139 source files",
+    "migration": "upgrade head twice and alembic check passed; existing isolated clone; fresh migration proof remains fullCI gate",
+    "scripts_ruff": "four proof utilities check/format passed",
+    "full_final_local": "running; final result must be recorded separately against frozen commit"
+  },
+  "web": {
+    "typecheck": "passed",
+    "build": "passed",
+    "npm_audit_high": "passed;0 vulnerabilities",
+    "regression_checkpoint": {
+      "passed": 191,
+      "skipped": 1,
+      "duration": "runner reported1.7minutes; prior frozen UI/source checkpoint; finalfullCI repeats"
+    },
+    "real_desktop_mobile_checkpoint": {
+      "passed": 4,
+      "failed": 0,
+      "duration_seconds": 15.8,
+      "command": "backend/.venv/Scripts/python.exe .artifacts/regional/run_live_browser.py",
+      "data": "actual isolated retained clone; no API mocks; ephemeral authentication; controller repeat"
+    }
+  },
+  "docs": "48 maintained documents,180localtargets,4anchors passed",
+  "diff_check": "passed",
+  "credential_value_scan": "staged scan passed without emitting values",
+  "production": "not modified/deployed; provider keys blank in proof runtime"
+}

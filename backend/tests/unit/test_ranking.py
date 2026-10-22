@@ -111,3 +111,17 @@ def test_priority_geography_adds_its_weight():
     elsewhere = rank_opportunity(item(location="Boston, Massachusetts"), None, TODAY)
     assert dfw["rank_score"] - elsewhere["rank_score"] == WEIGHTS["geography"]
     assert "Priority geography: DFW" in dfw["rank_reasons"]
+
+
+def test_regional_geography_orders_texas_oklahoma_new_mexico_and_drops_california():
+    texas = rank_opportunity(item(location="Dallas, TX"), None, TODAY)
+    oklahoma = rank_opportunity(item(location="Tulsa, OK"), None, TODAY)
+    new_mexico = rank_opportunity(item(location="Albuquerque, NM"), None, TODAY)
+    california = rank_opportunity(item(location="Santa Clara, CA"), None, TODAY)
+    unknown = rank_opportunity(item(location="Austin"), None, TODAY)
+
+    assert texas["rank_score"] > oklahoma["rank_score"] > new_mexico["rank_score"]
+    assert new_mexico["rank_score"] > california["rank_score"] == unknown["rank_score"]
+    assert "Priority geography: DFW" in texas["rank_reasons"]
+    assert "Priority geography: OK" in oklahoma["rank_reasons"]
+    assert "Priority geography: NM" in new_mexico["rank_reasons"]

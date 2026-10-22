@@ -6,9 +6,13 @@ Only reviewed constant parser messages, bounded HTTP statuses and named stages s
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
+from math import ceil
 from typing import Any
 
 import httpx
@@ -128,6 +132,36 @@ _DYNAMIC_CODES = (
     (r"Georgia PDF page count \d+ exceeds per-document limit \d+", "georgia_pdf_page_limit"),
     (r"Georgia PDFs exceed total run page limit \d+", "georgia_run_page_limit"),
 )
+MAX_RETRY_AFTER_SECONDS = 7 * 24 * 60 * 60
+
+
+def _retry_after_hint(item: BaseException, result: dict[str, str | int]) -> None:
+    retained = getattr(item, "acquisition_retry_after_seconds", None)
+    if type(retained) is int and 0 <= retained <= MAX_RETRY_AFTER_SECONDS:
+        result["retry_after_seconds"] = retained
+        return
+    if getattr(item, "acquisition_retry_after_exceeds_bound", False) is True:
+        result["retry_after_exceeds_bound"] = 1
+        return
+    if not isinstance(item, httpx.HTTPStatusError):
+        return
+    raw = item.response.headers.get("retry-after")
+    if not raw or len(raw) > 128:
+        return
+    try:
+        if re.fullmatch(r"[0-9]{1,10}", raw):
+            delay = int(raw)
+        else:
+            retry_at = parsedate_to_datetime(raw)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=UTC)
+            delay = max(0, ceil((retry_at - datetime.now(UTC)).total_seconds()))
+    except (TypeError, ValueError, OverflowError):
+        return
+    if delay > MAX_RETRY_AFTER_SECONDS:
+        result["retry_after_exceeds_bound"] = 1
+    else:
+        result["retry_after_seconds"] = delay
 
 
 def _valid_code(value: Any) -> bool:
@@ -151,6 +185,8 @@ def acquisition_diagnostics(error: BaseException) -> dict[str, str | int]:
     """Return only bounded allowlisted fields, including through a parser wrapper."""
     chain = list(_chain(error))
     result: dict[str, str | int] = {}
+    for item in chain:
+        _retry_after_hint(item, result)
     for item in chain:
         stage = getattr(item, "acquisition_stage", None)
         if isinstance(stage, str) and stage in _STAGES:
@@ -206,6 +242,78 @@ def acquisition_error_message(error: BaseException) -> str:
         return "Acquisition source response could not be parsed"
     stage = diagnostics.get("error_stage")
     return f"Source acquisition failed: {code}" + (f" [{stage}]" if stage else "")
+
+
+def rejected_record(
+    *,
+    identity: str,
+    error: BaseException,
+    stage: str,
+    raw: dict[str, Any] | None = None,
+    omitted_fields: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build a bounded rejection record from adapter-selected public fields."""
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
+
+    if stage not in _STAGES:
+        raise ValueError("Unknown acquisition diagnostic stage")
+    if not isinstance(identity, str) or len(identity.encode("utf-8")) > 512:
+        raise SourceParseError("Rejected record identity exceeds its diagnostic bound")
+    selected = raw or {}
+    omitted = omitted_fields or []
+    if len(selected) > 16 or any(
+        not isinstance(key, str) or len(key.encode("utf-8")) > 64 or not isinstance(value, str)
+        for key, value in selected.items()
+    ):
+        raise SourceParseError("Rejected record raw fields exceed their diagnostic bound")
+    if len(omitted) > 16 or any(
+        not isinstance(field, str) or len(field.encode("utf-8")) > 64 for field in omitted
+    ):
+        raise SourceParseError("Rejected record omission metadata exceeds its diagnostic bound")
+    diagnostics = acquisition_diagnostics(error)
+    rejection = {
+        "identity": identity,
+        "stage": stage,
+        "error_code": str(diagnostics["error_code"]),
+        "selected_fields": sorted(selected),
+        "omitted_fields": sorted(omitted),
+        "raw": selected,
+    }
+    if len(json.dumps(rejection, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) > 4096:
+        raise SourceParseError("Rejected record diagnostic exceeds 4096 bytes")
+    return rejection
+
+
+def partial_acquisition(
+    records: list[dict[str, Any]],
+    rejected: list[dict[str, Any]],
+    *,
+    rejected_count: int | None = None,
+    duplicate_count: int = 0,
+    partial_reason: str | None = None,
+) -> dict[str, Any]:
+    """Represent a bounded partial snapshot while retaining processable siblings."""
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
+
+    count = len(rejected) if rejected_count is None else rejected_count
+    if type(count) is not int or count < len(rejected) or count < 0:
+        raise SourceParseError("Rejected record count is invalid")
+    if len(rejected) > 50:
+        raise SourceParseError("Rejected record count exceeds the per-run diagnostic bound")
+    result: dict[str, Any] = {
+        "records": records,
+        "partial": True,
+        "rejected_count": count,
+        "rejected_records": rejected,
+        "duplicate_count": duplicate_count,
+    }
+    if partial_reason is not None:
+        if not isinstance(partial_reason, str) or not re.fullmatch(
+            r"[A-Za-z0-9_-]{1,80}", partial_reason
+        ):
+            raise SourceParseError("Partial acquisition reason is invalid")
+        result["partial_reason"] = partial_reason
+    return result
 
 
 @contextmanager

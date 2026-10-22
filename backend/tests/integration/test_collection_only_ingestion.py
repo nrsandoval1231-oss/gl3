@@ -545,7 +545,9 @@ def test_applied_digital_news_admits_unknown_power_signal(db, monkeypatch):
     job_id = _rss_source_job(factory, "applied-digital-news", "Applied Digital News")
     import gridlens.ingestion.service as service
 
-    title = "Applied Digital reveals $3.2bn Delta Forge 2 AI data center will be built in Alabama"
+    title = (
+        "Applied Digital reveals $3.2bn Delta Forge 2 AI data center will be built in Taylor, TX"
+    )
     monkeypatch.setattr(
         service,
         "retrieve_source",
@@ -600,7 +602,7 @@ def test_news_identity_does_not_merge_distinct_sites_for_same_company_and_state(
             "utility-docket",
             "utility-service",
             "Commission approves utility service agreement for Atlas project substation",
-            "Atlas site, Denver, CO; dated energization milestone.",
+            "Atlas site, Austin, TX; dated energization milestone.",
             True,
         ),
         (
@@ -608,7 +610,7 @@ def test_news_identity_does_not_merge_distinct_sites_for_same_company_and_state(
             "public-procurement",
             "temporary-power",
             "Request for proposal: temporary generator rental for Atlas project site",
-            "Atlas site, Denver, CO; bid due October 18.",
+            "Atlas site, Austin, TX; bid due October 18.",
             True,
         ),
         (
@@ -630,6 +632,7 @@ def test_authoritative_utility_and_solicitation_admission_persists_and_displays(
 
     _, factory, _ = db
     source_id = f"synthetic-{method}-{expected}"
+    site = "Atlas site, Austin, TX" if expected else "Atlas site, Denver, CO"
     digest = "a" * 64
     with factory.begin() as session:
         source = Source(
@@ -637,7 +640,7 @@ def test_authoritative_utility_and_solicitation_admission_persists_and_displays(
             publisher="Official test authority",
             endpoint=f"https://authority.example/{source_id}",
             family=family,
-            geography="Colorado",
+            geography="Texas" if expected else "Colorado",
             industries=["data centers"],
             retrieval_method=method,
             health={},
@@ -647,11 +650,11 @@ def test_authoritative_utility_and_solicitation_admission_persists_and_displays(
         project = Project(
             identity_key=f"{source_id}:atlas",
             name="Atlas project",
-            location="Atlas site, Denver, CO",
+            location=site,
             source_id=source_id,
             external_id="atlas",
             asset_type="data_center",
-            identity_facts={"site": "Atlas site, Denver, CO"},
+            identity_facts={"site": site},
         )
         session.add(project)
         session.flush()
@@ -681,7 +684,7 @@ def test_authoritative_utility_and_solicitation_admission_persists_and_displays(
             "decision": "accepted",
             "tier": "Signal",
             "subject": "Atlas project",
-            "location": "Atlas site, Denver, CO",
+            "location": site,
             "reason": "Official dated project-specific activity.",
             "power_activity": activity,
             "project_identity_key": project.identity_key,
@@ -2744,7 +2747,7 @@ def test_news_discovery_unknown_activity_reassessment_and_correction(db):
     _, factory, _ = db
     with factory.begin() as session:
         source = session.get(Source, "mjbizdaily-news")
-        title = "Atlas sells New York smelter to data center developer"
+        title = "Atlas sells Austin, TX smelter site to data center developer"
         observation = Observation(
             source_id=source.id,
             external_id="site-sale",
@@ -2805,7 +2808,7 @@ def test_news_discovery_unknown_activity_reassessment_and_correction(db):
             "signal-admission-v1"
         )
         assert not assess_retained_news(session, observation, evidence)
-        observation.title = "Atlas cancels New York smelter sale"
+        observation.title = "Atlas cancels Austin, TX smelter site sale"
         observation.content_hash = "b" * 64
         revised = Evidence(
             observation_id=observation.id,

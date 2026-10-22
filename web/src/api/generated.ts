@@ -2341,6 +2341,87 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /** Cadence Hours */
+            cadence_hours?: number | null;
+            /**
+             * Operational Status
+             * @default Unknown
+             */
+            operational_status: string;
+            /**
+             * Backlog Jobs
+             * @default 0
+             */
+            backlog_jobs: number;
+            /**
+             * Terminal Failed Jobs
+             * @default 0
+             */
+            terminal_failed_jobs: number;
+            /**
+             * Backlog
+             * @default 0
+             */
+            backlog: number;
+            /**
+             * Pending Interpretations
+             * @default 0
+             */
+            pending_interpretations: number;
+            /** Last Meaningful Update */
+            last_meaningful_update?: string | null;
+            /** Last Valid Record At */
+            last_valid_record_at?: string | null;
+            /** Records Rejected */
+            records_rejected?: number | null;
+            /** Attempt Metrics Status */
+            attempt_metrics_status?: string | null;
+            /** Processing Error */
+            processing_error?: string | null;
+            /** Last Success Counts */
+            last_success_counts?: {
+                [key: string]: number;
+            } | null;
+            /** Collection Status */
+            collection_status?: string | null;
+            /** Collection Lane */
+            collection_lane?: string | null;
+            /** Collection Current Complete */
+            collection_current_complete?: boolean | null;
+            /** Collection Window Start */
+            collection_window_start?: string | null;
+            /** Collection Window End */
+            collection_window_end?: string | null;
+            /** Collection Jobs Remaining */
+            collection_jobs_remaining?: number | null;
+            /** Collection Paused For Budget */
+            collection_paused_for_budget?: boolean | null;
+            /**
+             * Regional Held
+             * @default 0
+             */
+            regional_held: number;
+            /**
+             * Regional Excluded
+             * @default 0
+             */
+            regional_excluded: number;
+            /** Attempt Fetched */
+            attempt_fetched?: number | null;
+            /** Attempt Processed */
+            attempt_processed?: number | null;
+            /** Attempt Rejected */
+            attempt_rejected?: number | null;
+            /** Attempt New */
+            attempt_new?: number | null;
+            /** Attempt Changed */
+            attempt_changed?: number | null;
+            /** Retry State */
+            retry_state?: string | null;
+            /** Retry At */
+            retry_at?: string | null;
+            /** Attempts */
+            attempts?: number | null;
             /**
              * Freshness
              * @default UNKNOWN
@@ -2417,6 +2498,12 @@ export interface components {
             missing_application_documents: number;
             /** Error */
             error?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Error Stage */
+            error_stage?: string | null;
+            /** Http Status */
+            http_status?: number | null;
             /** Latest Publication Date */
             latest_publication_date?: string | null;
             /** Latest Permit Issue Date */
@@ -2460,6 +2547,8 @@ export interface components {
             collection_scope?: string | null;
             /** Coverage Limitation */
             coverage_limitation?: string | null;
+            /** Pending Collection Lanes */
+            pending_collection_lanes?: string[] | null;
         };
         /** IngestionItemOut */
         IngestionItemOut: {

@@ -63,6 +63,7 @@ def saved_db(monkeypatch):
 
 def seed(factory, count=4, histories=3):
     ids = []
+    regional_sites = ("Dallas, TX", "Albuquerque, NM")
     with factory.begin() as session:
         session.add(
             Source(
@@ -85,7 +86,7 @@ def seed(factory, count=4, histories=3):
                     id=pid,
                     identity_key=f"site-{index}",
                     name=f"Synthetic {index}",
-                    location="Dallas, TX" if index % 2 else "California",
+                    location=regional_sites[index % len(regional_sites)],
                     source_id="synthetic-permits",
                     external_id=str(index),
                 )
@@ -145,7 +146,7 @@ def seed(factory, count=4, histories=3):
                             "power_activity": "construction",
                             "decision": "accepted",
                             "subject": f"Synthetic {index}",
-                            "location": "Dallas, TX",
+                            "location": regional_sites[index % len(regional_sites)],
                         },
                     )
                 )
@@ -183,6 +184,8 @@ def test_build_saved_page_matches_canonical_and_does_no_evidence_reads(saved_db,
     expected = api.opportunities(
         response=baseline_response, sort="rank", limit=50, offset=0, cohort=None
     )
+    # Generic fixtures use explicit TX/NM physical sites; out-of-region cases are
+    # constructed explicitly in their focused exclusion tests.
     assert len(expected) == 4
     result = rebuild(saved_db)
     assert result["status"] == "published"
@@ -1191,7 +1194,7 @@ def test_simultaneous_ingestion_research_operator_and_clock_recovery(saved_db, m
             project_id=owners[0],
             client_id=uuid4(),
             activity_key="construction",
-            facility_scope="California",
+            facility_scope="Dallas, TX",
             fact_type="demand",
             value={"mw": "20"},
             reporter_name="Synthetic operator",
@@ -1868,7 +1871,7 @@ def test_future_fact_start_and_end_use_same_prepared_instant(saved_db, monkeypat
             project_id=need.project_id,
             client_id=uuid4(),
             activity_key=need.activity_key,
-            facility_scope="California",
+            facility_scope="Dallas, TX",
             fact_type="demand",
             value={"mw": "20"},
             reporter_name="Synthetic",
@@ -1934,8 +1937,9 @@ def test_prepared_boundary_adds_and_expires_real_qualified_lead(saved_db, monkey
         evidence = session.scalar(select(Evidence))
         interpretation = session.scalar(select(Interpretation))
         observation.abstract = evidence.abstract = (
-            "description: California construction requires 20 to 25 MW. "
-            "Power supply for California construction is insufficient.\naddress: California"
+            "description: Dallas, TX construction requires 20 to 25 MW. "
+            "Power supply for Dallas, TX construction is insufficient.\n"
+            "address: Dallas, TX"
         )
         observation.published_at = evidence.published_at = instant.date()
         interpretation.assessment = {
@@ -1946,8 +1950,8 @@ def test_prepared_boundary_adds_and_expires_real_qualified_lead(saved_db, monkey
             "power_activity": "construction",
             "tier": "Prospect",
             "demand_mw": "20 to 25 MW",
-            "demand_quote": "California construction requires 20 to 25 MW.",
-            "supply_quote": "Power supply for California construction is insufficient.",
+            "demand_quote": "Dallas, TX construction requires 20 to 25 MW.",
+            "supply_quote": "Power supply for Dallas, TX construction is insufficient.",
             "reason": "Current retained exact-site permit support.",
             "subject": project.name,
             "location": project.location,

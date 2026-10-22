@@ -101,6 +101,8 @@ def evaluate_targets(
         .where(PowerNeed.id.in_([UUID(identity) for identity in missing]))
     )
     for need, project in rows:
+        if project.region_status != "ELIGIBLE":
+            continue
         if need.active:
             continue  # Unsupported is unknown, never proof of cancellation.
         item = {

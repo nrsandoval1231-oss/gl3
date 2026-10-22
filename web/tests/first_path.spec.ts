@@ -17,13 +17,19 @@ async function openCardMember(
   card: ReturnType<typeof projectCards>[number],
   opportunityId: string,
 ) {
-  if (card.grouped) {
-    const group = page.locator('.opportunity-row').filter({ hasText: projectTitle(card.members[0]) }).first()
-    if (await group.getAttribute('aria-expanded') !== 'true') await group.click()
+  if (!card.members.some((item) => item.id === opportunityId)) {
+    throw new Error('Selected Signal does not belong to its project card')
+  }
+  const cardButton = page.locator(
+    `.signals-group header button[data-opportunity-id="${opportunityId}"]`,
+  )
+  if (await cardButton.getAttribute('aria-expanded') !== null) {
+    const groupButton = cardButton
+    if (await groupButton.getAttribute('aria-expanded') !== 'true') await groupButton.click()
     await page.locator(`.project-member[data-opportunity-id="${opportunityId}"]`).click()
     return
   }
-  await page.locator(`.opportunity-row[data-opportunity-id="${opportunityId}"]`).click()
+  await cardButton.click()
 }
 
 async function signIn(page: import('@playwright/test').Page) {
@@ -38,37 +44,46 @@ test('authenticated desktop browse, detail, back, and search use a live Signal',
   await signIn(page)
 
   const response = await page.evaluate(async () => {
-    const result = await fetch('/api/opportunities?tier=Signal')
+    const result = await fetch('/api/opportunities?tier=Signal&decision=ALL&sort=rank&limit=25&offset=0')
     return { status: result.status, items: await result.json() as Opportunity[] }
   })
   expect(response.status).toBe(200)
   expect(response.items.length, 'authenticated local API must contain at least one real Signal').toBeGreaterThan(0)
   expect(response.items.every((item) => ['Official permit', 'Official utility filing', 'Temporary-power solicitation', 'Official cultivation application'].includes(item.signal_admission_origin ?? ''))).toBe(true)
   const cards = projectCards(response.items)
-  const signalCard = cards.find((card) => card.members.some((item) => item.evidence.length > 0))
-  const signal = signalCard?.members.find((item) => item.evidence.length > 0)
+  const signal = await page.evaluate(async (items) => {
+    for (const item of items) {
+      const detailResponse = await fetch(`/api/opportunities/needs/${encodeURIComponent(item.id)}`)
+      if (!detailResponse.ok) continue
+      const detail = await detailResponse.json() as Opportunity
+      if (detail.evidence.length > 0) return detail
+    }
+    return null
+  }, response.items)
   expect(signal, 'a browseable Signal must retain linked source evidence').toBeTruthy()
   if (!signal) throw new Error('No Signal with retained source evidence exists in the local database')
+  const signalCard = cards.find((card) => card.members.some((item) => item.id === signal.id))
   if (!signalCard) throw new Error('No project card exists for the selected Signal')
 
   const title = projectTitle(signal)
   const decision = signalDisplayDecision(signalCard.members)
   await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
-  const row = page.locator('.opportunity-row').filter({ hasText: title }).first()
+  const row = page.locator(`[data-opportunity-id="${signal.id}"]`).first()
   await expect(row).toBeVisible()
   await page.getByRole('textbox', { name: 'Search projects' }).fill(title)
   await expect(row).toBeVisible()
   await openCardMember(page, signalCard, signal.id)
-  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible()
+  await page.getByRole('navigation', { name: 'Opportunity detail' }).getByRole('button', { name: 'Evidence', exact: true }).click()
   await expect(page.getByText(signal.evidence[0].source_id, { exact: false }).first()).toBeVisible()
-  await expect(page.getByText(signal.signal_admission_origin ?? '', { exact: true })).toBeVisible()
+  await expect(page.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('cell', { name: signal.signal_admission_origin ?? '', exact: true })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('live-desktop.png'), fullPage: true })
-  await page.getByRole('button', { name: /Back to Signals/ }).click()
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
   await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue(title)
   await expect(page.locator(`[data-opportunity-id="${signal.id}"]`).first()).toBeFocused()
 
   await openCardMember(page, signalCard, signal.id)
-  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible()
   await page.goBack()
   await expect(page.locator(`[data-opportunity-id="${signal.id}"]`).first()).toBeFocused()
 })
@@ -83,9 +98,10 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
   })
   expect(inbox.status).toBe(200)
   expect(inbox.page.total, 'local retained evidence must populate the ingestion inbox').toBeGreaterThan(0)
-  await page.getByRole('button', { name: 'Ingestion' }).click()
+  const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' })
+  await primaryNavigation.getByRole('button', { name: 'Operations' }).click()
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
-  await expect(page.locator('.ingestion-card').first()).toContainText(inbox.page.items[0].title)
+  await expect(page.locator('.wh-ingestion-row').first()).toContainText(inbox.page.items[0].title)
 
   const sourceFilter = page.getByRole('combobox', { name: 'Filter by source', exact: true })
   await sourceFilter.selectOption('el-paso-new-commercial-permits')
@@ -103,7 +119,7 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
     'El Paso New Commercial Permits',
     'Houston Weekly Permits',
   ])
-  await expect(page.locator('.ingestion-card').first()).toContainText('City of El Paso')
+  await expect(page.locator('.wh-ingestion-row').first()).toContainText('City of El Paso')
   await sourceFilter.selectOption('')
 
   await expect(page.getByRole('navigation', { name: 'Workspace views' }).getByRole('button', { name: 'Cannabis watch' })).toHaveCount(0)
@@ -115,29 +131,30 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
     'OGJ Exploration News',
     'Utility Dive News',
   ])
-  await expect(page.locator('.ingestion-card').first()).toContainText(inbox.page.items[0].title)
+  await expect(page.locator('.wh-ingestion-row').first()).toContainText(inbox.page.items[0].title)
   await sourceFilter.selectOption('el-paso-new-commercial-permits')
-  await page.getByRole('button', { name: 'Today’s pursuits' }).click()
+  await primaryNavigation.getByRole('button', { name: 'Research' }).click()
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
   await page.getByText('Saved research workspace and call history', { exact: true }).click()
   await expect(page.getByRole('heading', { name: "Today's Power Pursuits" })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
+  await expect(page.locator('.wh-ingestion-row').first()).toBeVisible()
   await expect(sourceFilter).toHaveValue('el-paso-new-commercial-permits')
 
-  await page.getByRole('button', { name: 'Source health' }).click()
   await expect(page.getByRole('heading', { name: 'Source health' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('live-mobile-health.png') })
-  const rows = page.locator('.health-row')
+  const rows = page.locator('.wh-source-row')
+  await expect(rows.first()).toBeVisible()
   const rowCount = await rows.count()
   expect(rowCount, 'the populated local database must expose configured source health').toBeGreaterThan(0)
-  const panel = await page.locator('.health-panel').boundingBox()
+  const panel = await page.locator('.operations-view .wh-panel').first().boundingBox()
   expect(panel).toBeTruthy()
   for (let index = 0; index < rowCount; index += 1) {
     const row = rows.nth(index)
     const bounds = await row.boundingBox()
     expect(bounds && panel && bounds.x >= panel.x && bounds.x + bounds.width <= panel.x + panel.width).toBeTruthy()
-    await expect(row.locator('.status')).toBeVisible()
+    await expect(row.locator('span').first()).toBeVisible()
     await expect(row).toContainText(/\d+ new · \d+ changed · \d+ parse failures/)
   }
   const widths = await page.evaluate(() => {
@@ -160,59 +177,115 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
 })
 
 
-test('live air documents retain equipment context without creating rental MW', async ({ page }) => {
+test('retained out-of-region permits remain inspectable without active Signals', async ({ page }) => {
   await signIn(page)
-  const items = await page.evaluate(async () => (await fetch('/api/opportunities?tier=Signal')).json() as Promise<Opportunity[]>)
-  const air = items.find((item) => item.evidence.some((e) => e.source_id === 'georgia-air-draft-title-v') && Boolean(item.reported_power_facts?.length))
-  expect(air, 'ordinary-worker Georgia acceptance must retain source power context').toBeTruthy()
-  if (!air) throw new Error('No live air-permit power context is available')
-  expect(air.required_mw).toBeNull()
-  expect(air.supply).toBe('Unknown')
-  const card = projectCards(items).find((candidate) => candidate.members.some((item) => item.id === air.id))
-  if (!card) throw new Error('Missing live project card')
-  const decision = signalDisplayDecision(card.members)
-  await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
-  await openCardMember(page, card, air.id)
-  await expect(page.getByText('Reported power figures (source claims; not rental requirements)')).toBeVisible()
-  await expect(page.getByText('Power need is not established. A Signal does not imply a power gap.')).toBeVisible()
-  const links = page.locator('.evidence a')
-  expect(await links.count()).toBeGreaterThan(1)
-  await expect(links.filter({ hasText: 'Georgia EPD narrative' }).first()).toHaveAttribute('href', /^https:\/\/epd\.georgia\.gov\/document\/document\//)
-  await page.locator('.detail-section').filter({ hasText: 'Reported power figures (source claims; not rental requirements)' }).screenshot({ path: test.info().outputPath('live-air-detail.png') })
+  const retained = await page.evaluate(async () => {
+    const sources = ['georgia-air-draft-title-v', 'chicago-building-permits']
+    const observations = await Promise.all(sources.map(async (source_id) => {
+      const response = await fetch(`/api/ingestion?source_id=${encodeURIComponent(source_id)}&limit=100`)
+      return { source_id, ...(await response.json()) as { items: { title: string; citation_url: string; reported_power_facts: string[] }[] } }
+    }))
+    const health = await fetch('/api/health').then(response => response.json()) as { sources: { id: string; enabled: boolean; status: string }[] }
+    const signals: Opportunity[] = []
+    let offset = 0
+    let cohort = ''
+    do {
+      const params = new URLSearchParams({ tier: 'Signal', decision: 'ALL', sort: 'rank', limit: '50', offset: String(offset) })
+      if (cohort) params.set('cohort_token', cohort)
+      const response = await fetch(`/api/opportunities?${params}`)
+      signals.push(...await response.json() as Opportunity[])
+      cohort = response.headers.get('X-Cohort-Token') ?? cohort
+      const next = response.headers.get('X-Next-Offset')
+      if (!next) break
+      offset = Number(next)
+    } while (true)
+    return { observations, health, signals }
+  })
+  const georgia = retained.observations.find(item => item.source_id === 'georgia-air-draft-title-v')
+  const chicago = retained.observations.find(item => item.source_id === 'chicago-building-permits')
+  expect(georgia?.items.length, 'Georgia air evidence must remain in retained ingestion').toBeGreaterThan(0)
+  expect(chicago?.items.length, 'Chicago permit evidence must remain in retained ingestion').toBeGreaterThan(0)
+  const powerRecord = georgia?.items.find(item => item.reported_power_facts.length > 0)
+  expect(powerRecord, 'source equipment claims must remain preserved as source facts').toBeTruthy()
+  for (const sourceId of ['georgia-air-draft-title-v', 'chicago-building-permits']) {
+    const source = retained.health.sources.find(item => item.id === sourceId)
+    expect(source?.enabled, `${sourceId} must remain disabled outside the active region`).toBe(false)
+    expect(source?.status).toBe('Disabled')
+  }
+  expect(retained.signals.some(item => /(?:,\s*(?:GA|IL)\b|Georgia|Illinois)/i.test(item.location ?? ''))).toBe(false)
+
+  await page.getByRole('button', { name: 'Operations' }).click()
+  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
+  const sourceFilter = page.getByLabel('Filter by source', { exact: true })
+  await sourceFilter.selectOption('georgia-air-draft-title-v')
+  await expect(page.locator('.wh-ingestion-row').first()).toBeVisible()
+  const row = page.locator('.wh-ingestion-row').filter({
+    has: page.getByRole('link', { name: powerRecord!.title, exact: true }),
+  }).first()
+  const inboxPaging = page.locator('.wh-paging')
+  const nextInboxPage = inboxPaging.getByRole('button', { name: 'Next' })
+  while (await row.count() === 0 && await nextInboxPage.isEnabled()) {
+    const priorPage = await inboxPaging.locator('span').innerText()
+    await nextInboxPage.click()
+    await expect(inboxPaging.locator('span')).not.toHaveText(priorPage)
+  }
+  await expect(row).toBeVisible()
+  await row.getByText('Reported power figures', { exact: true }).click()
+  await expect(row).toContainText(powerRecord!.reported_power_facts[0])
+  await expect(row.locator('a').first()).toHaveAttribute('href', powerRecord!.citation_url)
+  await sourceFilter.selectOption('chicago-building-permits')
+  await expect(page.locator('.wh-ingestion-row').first()).toBeVisible()
+  await expect(page.locator('.wh-ingestion-row').first()).toContainText(chicago!.items[0].title)
+  await expect(page.locator('.wh-source-row').filter({ hasText: 'georgia-air-draft-title-v' })).toContainText('Disabled')
+  await expect(page.locator('.wh-source-row').filter({ hasText: 'chicago-building-permits' })).toContainText('Disabled')
+
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await page.getByText('Geography, industry, activity, timing, size, priority and status filters').click()
+  await page.getByLabel('Geography', { exact: true }).fill('Georgia')
+  await expect(page.locator('.wh-empty')).toContainText('No Signals match these filters.')
 })
 
-test('live data-center permit enrichment exposes attributed fields and organizations', async ({ page }) => {
+test('retained Texas data-center permits preserve organization attribution and unknown buyer authority', async ({ page }) => {
   await signIn(page)
-  const items = await page.evaluate(async () => (await fetch('/api/opportunities?tier=Signal')).json() as Promise<Opportunity[]>)
-  const examples = [
-    items.find((item) => item.evidence.some((e) => e.source_id === 'chicago-building-permits' && /data center/i.test(e.abstract ?? ''))),
-    items.find((item) => item.evidence.some((e) => e.source_id === 'georgia-air-draft-title-v' && /QTS ATL3/.test(e.title))),
-  ]
-  for (const [index, opportunity] of examples.entries()) {
-    expect(opportunity, 'live acceptance requires Chicago and Georgia data-center examples').toBeTruthy()
-    if (!opportunity) throw new Error('Missing data-center acceptance example')
-    await page.goto('/?tier=Signals')
-    const card = projectCards(items).find((candidate) => candidate.members.some((item) => item.id === opportunity.id))
-    if (!card) throw new Error('Missing data-center card')
-    const decision = signalDisplayDecision(card.members)
-    await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
-    await openCardMember(page, card, opportunity.id)
-    const section = page.getByRole('region', { name: 'Buying chain' })
-    await expect(section.getByRole('heading', { name: 'Retained permit facts' })).toBeVisible()
-    const response = page.waitForResponse((r) => r.url().endsWith('/buying-chain/enrich') && r.request().method() === 'POST')
-    await section.getByRole('button', { name: 'Enrich buying chain' }).click()
-    const enriched = await response
-    expect(enriched.ok()).toBe(true)
-    const result = await enriched.json() as import('../src/api/client').BuyingChainResult
-    expect(result.permit_summaries?.length).toBeGreaterThan(0)
-    expect(result.candidates?.length).toBeGreaterThan(0)
-    for (const candidate of result.candidates ?? []) {
-      expect(candidate.organization_relationship).toBe('DIRECT')
-      expect(candidate.person_name).toBeNull()
-      expect(candidate.person_project_relationship).toBe('UNKNOWN')
-      expect(candidate.public_contacts).toEqual([])
-      await expect(section.getByRole('heading', { name: candidate.organization, exact: true })).toBeVisible()
+  const proof = await page.evaluate(async () => {
+    const response = await fetch('/api/opportunities?tier=Signal&decision=ALL&sort=rank&search=data%20center&limit=50&offset=0')
+    const items = await response.json() as Opportunity[]
+    for (const item of items) {
+      if (!/\bTX\b/i.test(item.location ?? '')) continue
+      const detailResponse = await fetch(`/api/opportunities/needs/${encodeURIComponent(item.id)}`)
+      if (!detailResponse.ok) continue
+      const detail = await detailResponse.json() as Opportunity
+      const chainResponse = await fetch(`/api/projects/${encodeURIComponent(item.project_id)}/buying-chain`)
+      if (!chainResponse.ok) continue
+      const chain = await chainResponse.json() as import('../src/api/client').BuyingChainResult
+      const candidate = chain.candidates?.find(value => value.organization_relationship === 'DIRECT' && value.person_project_relationship === 'UNKNOWN' && value.person_name === null)
+      if (candidate && chain.permit_summaries?.length && detail.evidence?.length) return { items, item, detail, chain, candidate }
     }
-    await section.locator('.permit-summary').screenshot({ path: test.info().outputPath(`live-dc-permit-${index}.png`) })
-  }
+    return null
+  })
+  expect(proof, 'retained Texas permit and organization claims must preserve unknown person-to-project authority').toBeTruthy()
+  if (!proof) throw new Error('No retained Texas permit with attributed organization and unknown buyer authority is available')
+  expect(proof.chain.permit_summaries?.length).toBeGreaterThan(0)
+  expect(proof.candidate.organization_relationship).toBe('DIRECT')
+  expect(proof.candidate.person_name).toBeNull()
+  expect(proof.candidate.person_project_relationship).toBe('UNKNOWN')
+  expect(proof.candidate.evidence?.length).toBeGreaterThan(0)
+  expect(proof.candidate.evidence?.some(evidence => /^https:\/\//.test(evidence.url))).toBe(true)
+
+  await page.goto('/?view=signals&tier=Signals&decision=ALL&q=data%20center')
+  const card = projectCards(proof.items).find(candidate => candidate.members.some(item => item.id === proof.item.id))
+  if (!card) throw new Error('The retained Texas permit is absent from its live Signal card')
+  const decision = signalDisplayDecision(card.members)
+  await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
+  await openCardMember(page, card, proof.item.id)
+  const detailNavigation = page.getByRole('navigation', { name: 'Opportunity detail' })
+  await detailNavigation.getByRole('button', { name: 'Buying chain', exact: true }).click()
+  const section = page.getByRole('region', { name: 'Buying chain', exact: true })
+  await expect(section.getByRole('heading', { name: 'Retained permit facts' })).toBeVisible()
+  const retainedCandidate = section.locator(`[data-context-owner="${proof.candidate.id}"]`)
+  await expect(retainedCandidate.getByRole('heading', { name: proof.candidate.organization, exact: true })).toBeVisible()
+  await expect(retainedCandidate).toContainText('Person → project')
+  await expect(retainedCandidate).toContainText('Project relationship unknown')
+  await expect(section.getByRole('link', { name: 'Inspect retained claim history' }))
+    .toHaveAttribute('href', /\/buying-chain\?history=true$/)
 })

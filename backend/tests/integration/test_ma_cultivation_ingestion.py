@@ -151,16 +151,16 @@ def test_pending_application_signal_replay_and_source_failure_preserve_last_good
 
     with factory() as session:
         first = process_job(session, job_id, "test", 1, definition)
-    assert first["signals"] == 1
+    assert first["signals"] == 0
     with factory() as session:
         replay = process_job(session, job_id, "test", 1, definition)
         assert replay["unchanged"] == 2
         assert session.scalar(select(func.count()).select_from(Observation)) == 2
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
         assert session.scalar(select(func.count()).select_from(Project)) == 1
-        need = session.scalar(select(PowerNeed))
-        assert need is not None and need.activity_key == "cultivation-license-application"
-        assert need.required_mw is None and need.supply == "Unknown"
+        project = session.scalar(select(Project))
+        assert project is not None and project.region_status == "EXCLUDED"
+        assert session.scalar(select(PowerNeed)) is None
         pending_assessment = session.scalar(
             select(Interpretation).where(Interpretation.content_hash == records[0]["source_hash"])
         ).assessment
@@ -188,4 +188,4 @@ def test_pending_application_signal_replay_and_source_failure_preserve_last_good
             process_job(session, job_id, "test", 1, definition)
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Observation)) == 2
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0

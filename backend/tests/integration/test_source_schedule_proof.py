@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -50,7 +50,15 @@ def source_proof_db(monkeypatch):
                 industries=[],
                 retrieval_method="test",
                 cadence_hours=24,
-                health={"status": "Overdue"},
+                health={
+                    "status": "Overdue",
+                    "last_meaningful_update": "2026-10-20T12:00:00+00:00",
+                    "last_valid_record": "2026-10-20T11:00:00+00:00",
+                    "fetched_records": 12,
+                    "accepted_records": 8,
+                    "rejected_records": 4,
+                    "retry_at": "2026-10-22T12:00:00+00:00",
+                },
             )
         )
     yield factory
@@ -215,3 +223,50 @@ def test_verified_interval_is_counted_by_health_and_operations(source_proof_db):
     assert source_metrics["freshness_30d"] == "FRESH"
     assert source_metrics["verified_success_30d"] == len(slots)
     assert source_metrics["unverified_30d"] == 0
+
+
+def test_health_loads_schedule_epochs_in_one_bulk_query(source_proof_db):
+    import gridlens.api.app as api
+
+    with source_proof_db.begin() as session:
+        for index in range(5):
+            session.add(
+                Source(
+                    id=f"proof-source-{index}",
+                    publisher="Synthetic",
+                    endpoint="https://example.invalid/records",
+                    family="synthetic",
+                    geography="US",
+                    industries=[],
+                    retrieval_method="test",
+                    cadence_hours=24,
+                    health={"status": "Unknown"},
+                )
+            )
+
+    statements = []
+    bind = source_proof_db.kw["bind"]
+
+    def record_schedule_query(_conn, _cursor, statement, _parameters, _context, _many):
+        if "source_schedule_epochs" in statement.lower():
+            statements.append(statement)
+
+    event.listen(bind, "before_cursor_execute", record_schedule_query)
+    try:
+        payload = api.health()
+    finally:
+        event.remove(bind, "before_cursor_execute", record_schedule_query)
+
+    assert len(payload["sources"]) == 6
+    assert len(statements) == 1
+    source = next(item for item in payload["sources"] if item["id"] == "proof-source")
+    assert source["cadence_hours"] == 24
+    assert source["last_meaningful_update"] == "2026-10-20T12:00:00+00:00"
+    assert source["last_valid_record"] == "2026-10-20T11:00:00+00:00"
+    assert (source["fetched_records"], source["accepted_records"], source["rejected_records"]) == (
+        12,
+        8,
+        4,
+    )
+    assert source["retry_at"] == "2026-10-22T12:00:00+00:00"
+    assert source["backlog"] == 0

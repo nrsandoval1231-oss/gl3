@@ -43,6 +43,11 @@ from gridlens.ingestion.adapters import (
     retrieve_source,
 )
 from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
+from gridlens.ingestion.adapters.diagnostics import (
+    MAX_RETRY_AFTER_SECONDS,
+    partial_acquisition,
+    rejected_record,
+)
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN
 from gridlens.ingestion.structured_collection import (
@@ -1711,74 +1716,95 @@ def assess_retained_news(
         if project.id not in material_baselines:
             material_baselines[project.id] = seed_material_state(session, project)
         identity_key = project.identity_key
-        activity_key = payload["power_activity"]
-        if activity_key == "construction":
-            permit_activity_need = session.scalar(
-                select(PowerNeed)
-                .where(
-                    PowerNeed.project_id == project.id,
-                    PowerNeed.activity_key == "facility-expansion",
+        if project.region_status != "ELIGIBLE":
+            current_need = None
+            region_status = project.region_status
+            payload.update(
+                {
+                    "project_identity_key": identity_key,
+                    "admission_status": (
+                        "regional_excluded" if region_status == "EXCLUDED" else "regional_held"
+                    ),
+                    "regional_scope": {
+                        "status": region_status,
+                        "state": project.region_state,
+                        "reason": project.region_reason,
+                        "provenance": project.region_provenance,
+                    },
+                }
+            )
+            interpretation.assessment = {**payload}
+            flag_modified(interpretation, "assessment")
+        else:
+            activity_key = payload["power_activity"]
+            if activity_key == "construction":
+                permit_activity_need = session.scalar(
+                    select(PowerNeed)
+                    .where(
+                        PowerNeed.project_id == project.id,
+                        PowerNeed.activity_key == "facility-expansion",
+                    )
+                    .with_for_update()
                 )
+                if permit_activity_need is not None:
+                    activity_key = "facility-expansion"
+                    payload["power_activity"] = activity_key
+            current_need = session.scalar(
+                select(PowerNeed)
+                .where(PowerNeed.project_id == project.id, PowerNeed.activity_key == activity_key)
                 .with_for_update()
             )
-            if permit_activity_need is not None:
-                activity_key = "facility-expansion"
-                payload["power_activity"] = activity_key
-        current_need = session.scalar(
-            select(PowerNeed)
-            .where(PowerNeed.project_id == project.id, PowerNeed.activity_key == activity_key)
-            .with_for_update()
-        )
-        was_active = current_need.active if current_need else False
-        previous_rationale = current_need.rationale if current_need else None
-        if current_need is None:
-            current_need = PowerNeed(
-                project_id=project.id,
-                activity_key=activity_key,
-                tier=claim["tier"],
-                rationale=claim["reason"],
-                required_mw=_reported_mw(claim),
-                supply="Unknown",
-            )
-            session.add(current_need)
-            session.flush()
-        current_need.active = True
-        current_need.tier = claim["tier"]
-        current_need.rationale = claim["reason"]
-        current_need.required_mw = _reported_mw(claim)
-        current_need.supply = "Reported constraint" if claim["tier"] == "Prospect" else "Unknown"
-        current_need.admission_basis = admission.as_basis(source.id, evidence.content_hash)
-        payload["project_identity_key"] = identity_key
-        # Assign a fresh JSON value before support queries can autoflush it.
-        interpretation.assessment = {**payload}
-        flag_modified(interpretation, "assessment")
-        if (
-            session.scalar(
-                select(NeedObservation.id).where(
-                    NeedObservation.need_id == current_need.id,
-                    NeedObservation.observation_id == observation.id,
+            was_active = current_need.active if current_need else False
+            previous_rationale = current_need.rationale if current_need else None
+            if current_need is None:
+                current_need = PowerNeed(
+                    project_id=project.id,
+                    activity_key=activity_key,
+                    tier=claim["tier"],
+                    rationale=claim["reason"],
+                    required_mw=_reported_mw(claim),
+                    supply="Unknown",
                 )
+                session.add(current_need)
+                session.flush()
+            current_need.active = True
+            current_need.tier = claim["tier"]
+            current_need.rationale = claim["reason"]
+            current_need.required_mw = _reported_mw(claim)
+            current_need.supply = (
+                "Reported constraint" if claim["tier"] == "Prospect" else "Unknown"
             )
-            is None
-        ):
-            session.add(NeedObservation(need_id=current_need.id, observation_id=observation.id))
-        apply_lifecycle_observation(session, project, observation, evidence)
-        if (
-            not was_active
-            or previous_rationale != claim["reason"]
-            or (prior_identity is not None and prior_identity != identity_key)
-            or (
-                prior_assessment
-                and prior_assessment.get("semantic_hash") != observation.content_hash
-            )
-        ):
-            session.add(
-                ChangeEvent(
-                    observation_id=observation.id,
-                    content_hash=observation.content_hash,
-                    kind="reclassified" if prior_assessment else "discovered",
+            current_need.admission_basis = admission.as_basis(source.id, evidence.content_hash)
+            payload["project_identity_key"] = identity_key
+            interpretation.assessment = {**payload}
+            flag_modified(interpretation, "assessment")
+            if (
+                session.scalar(
+                    select(NeedObservation.id).where(
+                        NeedObservation.need_id == current_need.id,
+                        NeedObservation.observation_id == observation.id,
+                    )
                 )
-            )
+                is None
+            ):
+                session.add(NeedObservation(need_id=current_need.id, observation_id=observation.id))
+            apply_lifecycle_observation(session, project, observation, evidence)
+            if (
+                not was_active
+                or previous_rationale != claim["reason"]
+                or (prior_identity is not None and prior_identity != identity_key)
+                or (
+                    prior_assessment
+                    and prior_assessment.get("semantic_hash") != observation.content_hash
+                )
+            ):
+                session.add(
+                    ChangeEvent(
+                        observation_id=observation.id,
+                        content_hash=observation.content_hash,
+                        kind="reclassified" if prior_assessment else "discovered",
+                    )
+                )
 
     impacted_ids = {need.id for need in old_needs}
     if current_need is not None:
@@ -1878,6 +1904,16 @@ def process_job(
         "socrata-permits",
         "boston-ckan-permits",
     }:
+        checkpoint_job = session.get(Job, job_id)
+        try:
+            checkpoint = json.loads(checkpoint_job.checkpoint or "{}") if checkpoint_job else {}
+        except (TypeError, ValueError):
+            checkpoint = {}
+        remaining = (
+            checkpoint.get("collection_jobs_remaining") if isinstance(checkpoint, dict) else None
+        )
+        if type(remaining) is not int or not 1 <= remaining <= 8:
+            remaining = None
         return _process_structured_collection_segment(
             session,
             job_id,
@@ -1885,6 +1921,7 @@ def process_job(
             fence,
             source_definition,
             client,
+            collection_jobs_remaining=remaining,
             deadline=deadline,
             lease_expiry=lease_expiry,
         )
@@ -1923,25 +1960,108 @@ def process_job(
                 "snapshot_newest_publication_date": cached.get("snapshot_newest_publication_date"),
                 "conditional_checked": True,
             }
+        rss_snapshot = retrieved
+        acquisition = _normalize_source_acquisition(source_definition, retrieved)
+        if isinstance(acquisition, list):
+            retrieved = acquisition
+            acquisition_partial = False
+            partial_reason = None
+            rejected_count = 0
+            duplicate_count = 0
+            rejected_records = []
+            rate_limit_metadata = {}
+        else:
+            retrieved = acquisition["records"]
+            acquisition_partial = True
+            partial_reason = acquisition.get("partial_reason")
+            rejected_count = acquisition["rejected_count"]
+            duplicate_count = acquisition.get("duplicate_count", 0)
+            rejected_records = acquisition["rejected_records"]
+            rate_limit_metadata = {
+                key: acquisition[key]
+                for key in (
+                    "source_rate_limited",
+                    "source_http_status",
+                    "source_retry_after_seconds",
+                    "source_retry_after_exceeds_bound",
+                )
+                if key in acquisition
+            }
         counts = _process_collection_only(
             session,
             job_id,
             worker_id,
             fence,
             source_definition,
-            [record for record in retrieved if not record.get("presence_only")],
+            retrieved,
             deadline=deadline,
             lease_expiry=lease_expiry,
         )
         remaining_seconds(deadline)
-        _store_publisher_rss_checkpoint(
-            session, job_id, worker_id, fence, source_definition, retrieved, counts
+        if acquisition_partial:
+            counts.update(
+                {
+                    "partial": True,
+                    "collection_status": "PARTIAL",
+                    "collection_error_class": partial_reason
+                    or ("RecordLocalFailures" if rejected_count else "AcquisitionIncomplete"),
+                    "parse_failures": rejected_count,
+                    "attempt_rejected": rejected_count,
+                    "rejected_records": rejected_records[:50],
+                }
+            )
+        else:
+            _store_publisher_rss_checkpoint(
+                session,
+                job_id,
+                worker_id,
+                fence,
+                source_definition,
+                retrieved,
+                counts,
+                response_metadata=rss_snapshot,
+            )
+        counts.update(rate_limit_metadata)
+        counts.update(
+            {
+                "attempt_fetched": len(retrieved) + rejected_count,
+                "attempt_processed": len(retrieved),
+                "attempt_rejected": rejected_count,
+                "attempt_duplicate": duplicate_count,
+                "attempt_new": counts.get("new", 0),
+                "attempt_changed": counts.get("changed", 0),
+            }
         )
         return counts
 
-    retrieved = _retrieve_source_outside_transaction(
+    acquisition = _retrieve_source_outside_transaction(
         session, job_id, worker_id, fence, source_definition, client, deadline=deadline
     )
+    if isinstance(acquisition, list):
+        retrieved = acquisition
+        acquisition_partial = False
+        partial_reason = None
+        rejected_count = 0
+        duplicate_count = 0
+        rejected_records = []
+        rate_limit_metadata = {}
+    else:
+        retrieved = acquisition["records"]
+        acquisition_partial = True
+        partial_reason = acquisition.get("partial_reason")
+        rejected_count = acquisition["rejected_count"]
+        duplicate_count = acquisition.get("duplicate_count", 0)
+        rejected_records = acquisition["rejected_records"]
+        rate_limit_metadata = {
+            key: acquisition[key]
+            for key in (
+                "source_rate_limited",
+                "source_http_status",
+                "source_retry_after_seconds",
+                "source_retry_after_exceeds_bound",
+            )
+            if key in acquisition
+        }
     # Presence-only rows are listed by the source but withheld from processing this run
     # (for example, enrichment failed). They still count as present in the snapshot.
     records = [record for record in retrieved if not record.get("presence_only")]
@@ -1956,7 +2076,8 @@ def process_job(
         deadline=deadline,
         lease_expiry=lease_expiry,
     )
-    if source_definition.get("snapshot_complete"):
+    incomplete = acquisition_partial or any(record.get("presence_only") for record in retrieved)
+    if source_definition.get("snapshot_complete") and not incomplete:
         remaining_seconds(deadline)
         assert_fence(session, job_id, worker_id, fence)
         transitions = reconcile_snapshot(
@@ -1968,6 +2089,31 @@ def process_job(
         # A listing departure or return is a source change; health must not read "No Change".
         counts["changed"] = counts.get("changed", 0) + sum(transitions.values())
         session.commit()
+    if incomplete:
+        counts.update(
+            {
+                "partial": True,
+                "collection_status": "PARTIAL",
+                "collection_error_class": (
+                    partial_reason
+                    or ("RecordLocalFailures" if rejected_count else "AcquisitionIncomplete")
+                ),
+                "parse_failures": rejected_count,
+                "attempt_rejected": rejected_count,
+                "rejected_records": rejected_records[:50],
+            }
+        )
+    counts.update(rate_limit_metadata)
+    counts.update(
+        {
+            "attempt_fetched": len(retrieved) + rejected_count,
+            "attempt_processed": len(records),
+            "attempt_rejected": rejected_count,
+            "attempt_duplicate": duplicate_count,
+            "attempt_new": counts.get("new", 0),
+            "attempt_changed": counts.get("changed", 0),
+        }
+    )
     return counts
 
 
@@ -2011,10 +2157,15 @@ def _process_structured_collection_segment(
     source_definition: dict[str, Any],
     client: httpx.Client | None,
     *,
+    collection_jobs_remaining: int | None,
     deadline: float | None,
     lease_expiry: datetime | None,
 ) -> dict[str, Any]:
-    progress, digest, lanes = prepare_collection_progress(session, source_definition)
+    progress, digest, lanes = prepare_collection_progress(
+        session,
+        source_definition,
+        collection_jobs_remaining=collection_jobs_remaining,
+    )
     lane = progress.lane
     window_start = progress.window_start
     window_end = progress.window_end
@@ -2302,17 +2453,260 @@ def _retrieve_source_outside_transaction(
     client: httpx.Client | None,
     *,
     deadline: float | None = None,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | dict[str, Any]:
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
-    records = (
+    result = (
         retrieve_source(source_definition, client)
         if deadline is None
         else retrieve_source(source_definition, client, deadline=deadline)
     )
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
-    return records
+    return _normalize_source_acquisition(source_definition, result)
+
+
+def _validate_adapter_rejection(value: object) -> dict[str, Any]:
+    """Keep only the bounded, safe rejection contract emitted by reviewed adapters."""
+    if not isinstance(value, dict):
+        raise SourceParseError("Adapter rejection record is malformed")
+    identity, stage, code = value.get("identity"), value.get("stage"), value.get("error_code")
+    raw = value.get("raw")
+    selected, omitted = value.get("selected_fields"), value.get("omitted_fields")
+    if (
+        not isinstance(identity, str)
+        or not identity
+        or len(identity.encode("utf-8")) > 512
+        or not isinstance(stage, str)
+        or not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", stage)
+        or not isinstance(code, str)
+        or not re.fullmatch(r"[a-z0-9_]{1,80}", code)
+        or not isinstance(raw, dict)
+        or len(raw) > 16
+        or any(
+            not isinstance(key, str) or len(key.encode("utf-8")) > 64 or not isinstance(item, str)
+            for key, item in raw.items()
+        )
+        or not isinstance(selected, list)
+        or not isinstance(omitted, list)
+        or len(selected) > 16
+        or len(omitted) > 16
+        or any(not isinstance(field, str) or len(field.encode("utf-8")) > 64 for field in selected)
+        or any(not isinstance(field, str) or len(field.encode("utf-8")) > 64 for field in omitted)
+        or sorted(selected) != sorted(raw)
+    ):
+        raise SourceParseError("Adapter rejection record is malformed")
+    normalized = {
+        "identity": identity,
+        "stage": stage,
+        "error_code": code,
+        "selected_fields": sorted(selected),
+        "omitted_fields": sorted(omitted),
+        "raw": raw,
+    }
+    if len(json.dumps(normalized, ensure_ascii=False, separators=(",", ":")).encode()) > 4096:
+        raise SourceParseError("Adapter rejection record exceeds its storage bound")
+    return normalized
+
+
+def _normalize_source_acquisition(
+    source_definition: dict[str, Any], result: object
+) -> list[dict[str, Any]] | dict[str, Any]:
+    """Validate canonical rows, isolating bounded malformed siblings as partial results."""
+    if isinstance(result, list):
+        rows = result
+        input_partial = False
+        partial_reason = None
+        rejected_count = 0
+        rejected: list[dict[str, Any]] = []
+        duplicate_count = 0
+    elif (
+        isinstance(result, dict)
+        and isinstance(result.get("records"), list)
+        and result.get("partial") is True
+        and type(result.get("rejected_count")) is int
+        and result["rejected_count"] >= 0
+        and isinstance(result.get("rejected_records"), list)
+        and len(result["rejected_records"]) <= 50
+    ):
+        rows = result["records"]
+        input_partial = True
+        partial_reason = result.get("partial_reason")
+        rejected_count = result["rejected_count"]
+        duplicate_count = result.get("duplicate_count", 0)
+        if type(duplicate_count) is not int or duplicate_count < 0:
+            raise SourceParseError("Acquisition duplicate count is invalid")
+        rejected = [_validate_adapter_rejection(item) for item in result["rejected_records"]]
+        if rejected_count < len(rejected):
+            raise SourceParseError("Adapter rejection count is inconsistent")
+        if partial_reason is not None and (
+            not isinstance(partial_reason, str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", partial_reason)
+        ):
+            raise SourceParseError("Adapter partial reason is invalid")
+    else:
+        raise SourceParseError("Acquisition adapter returned an invalid result contract")
+
+    valid_rows: list[dict[str, Any]] = []
+    rate_limit_seen = False
+    retry_after_seconds: int | None = None
+    retry_after_exceeds_bound = False
+    source_http_status: int | None = None
+    seen_ids: set[str] = set()
+    grouped: dict[str, list[int]] = {}
+    for row_index, candidate in enumerate(rows):
+        if isinstance(candidate, dict) and isinstance(candidate.get("document_number"), str):
+            grouped.setdefault(candidate["document_number"], []).append(row_index)
+    conflicts: dict[int, str] = {}
+    duplicate_indexes: set[int] = set()
+    for grouped_identity, row_indexes in grouped.items():
+        if len(row_indexes) < 2:
+            continue
+        values = [rows[row_index] for row_index in row_indexes]
+        if all(value == values[0] for value in values[1:]):
+            duplicate_indexes.update(row_indexes[1:])
+            duplicate_count += len(row_indexes) - 1
+        else:
+            conflicts.update({row_index: grouped_identity for row_index in row_indexes})
+    required_fields = ("document_number", "title", "html_url")
+    raw_fields = (
+        *required_fields,
+        "extraction_location",
+        "publication_date",
+        "event_date",
+    )
+    for index, row in enumerate(rows):
+        if index in duplicate_indexes:
+            continue
+        if isinstance(row, dict) and row.get("presence_only") is True:
+            metadata = row.get("_acquisition_diagnostics")
+            if metadata is not None:
+                if not isinstance(metadata, dict) or set(metadata) - {
+                    "http_status",
+                    "retry_after_seconds",
+                    "retry_after_exceeds_bound",
+                }:
+                    raise SourceParseError("Acquisition diagnostics are invalid")
+                status = metadata.get("http_status")
+                delay = metadata.get("retry_after_seconds")
+                excessive = metadata.get("retry_after_exceeds_bound")
+                if status is not None and (
+                    type(status) is not int
+                    or not (status == 429 or status in {408, 425} or status >= 500)
+                    or status != 429
+                    and delay is None
+                    and excessive != 1
+                ):
+                    raise SourceParseError("Acquisition throttle status is invalid")
+                if delay is not None and (
+                    type(delay) is not int or not 0 <= delay <= MAX_RETRY_AFTER_SECONDS
+                ):
+                    raise SourceParseError("Acquisition retry delay is invalid")
+                if excessive is not None and (type(excessive) is not int or excessive != 1):
+                    raise SourceParseError("Acquisition retry bound marker is invalid")
+                rate_limit_seen = status == 429 or delay is not None or excessive == 1
+                if status is not None:
+                    source_http_status = status
+                if delay is not None:
+                    retry_after_seconds = max(retry_after_seconds or 0, delay)
+                retry_after_exceeds_bound = retry_after_exceeds_bound or excessive == 1
+            rejection = row.get("rejected_record")
+            if rejection is None:
+                rejection = rejected_record(
+                    identity=str(row.get("document_number") or f"row-{index}"),
+                    error=SourceParseError("Listed source record was not fully acquired"),
+                    stage="public_acquisition",
+                    raw={},
+                    omitted_fields=["record_body"],
+                )
+            rejected_count += 1
+            if len(rejected) < 50:
+                rejected.append(_validate_adapter_rejection(rejection))
+            continue
+
+        errors: list[str] = []
+        if index in conflicts:
+            errors.append("Acquired rows conflict for the same canonical identity")
+        if not isinstance(row, dict):
+            safe_raw = {"record_type": type(row).__name__}
+            errors.append("Acquired row is not an object")
+        else:
+            safe_raw = {
+                field: value[:512]
+                for field in raw_fields
+                if isinstance((value := row.get(field)), str)
+            }
+            for field in required_fields:
+                value = row.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    errors.append(f"Acquired row has invalid {field}")
+            extraction_location = row.get("extraction_location")
+            if extraction_location is not None and (
+                not isinstance(extraction_location, str)
+                or not extraction_location.strip()
+                or len(extraction_location) > 100
+            ):
+                errors.append("Acquired row has invalid extraction_location")
+            document_number = row.get("document_number")
+            if isinstance(document_number, str) and len(document_number.encode("utf-8")) > 200:
+                errors.append("Acquired row has oversized document_number")
+            for field in ("publication_date", "event_date"):
+                value = row.get(field)
+                if value is not None:
+                    try:
+                        if not isinstance(value, str):
+                            raise ValueError
+                        date.fromisoformat(value)
+                    except ValueError:
+                        errors.append(f"Acquired row has invalid {field}")
+            if row.get("abstract") is not None and not isinstance(row.get("abstract"), str):
+                errors.append("Acquired row has invalid abstract")
+            if row.get("permit") is not None and not isinstance(row.get("permit"), dict):
+                errors.append("Acquired row has invalid permit metadata")
+        external_id = row.get("document_number") if isinstance(row, dict) else None
+        if not errors and isinstance(external_id, str) and external_id in seen_ids:
+            errors.append("Acquired row repeats a canonical identity")
+        if not errors and isinstance(external_id, str):
+            seen_ids.add(external_id)
+            valid_rows.append(row)
+            continue
+        identity: str | None = external_id
+        if not isinstance(identity, str) or not identity or len(identity.encode("utf-8")) > 512:
+            digest = hashlib.sha256(
+                json.dumps(safe_raw, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()[:16]
+            identity = f"{source_definition['id']}:row-{index}:{digest}"
+        rejected_count += 1
+        if len(rejected) < 50:
+            rejected.append(
+                rejected_record(
+                    identity=identity,
+                    error=SourceParseError(errors[0]),
+                    stage="public_acquisition",
+                    raw=safe_raw,
+                    omitted_fields=[
+                        field for field in ("abstract", "permit", "additional_source_fields")
+                    ],
+                )
+            )
+    if input_partial or rejected_count or duplicate_count:
+        normalized = partial_acquisition(
+            valid_rows,
+            rejected,
+            rejected_count=rejected_count,
+            duplicate_count=duplicate_count,
+            partial_reason=partial_reason,
+        )
+        if rate_limit_seen:
+            normalized["source_rate_limited"] = True
+            if source_http_status is not None:
+                normalized["source_http_status"] = source_http_status
+            if retry_after_seconds is not None:
+                normalized["source_retry_after_seconds"] = retry_after_seconds
+            if retry_after_exceeds_bound:
+                normalized["source_retry_after_exceeds_bound"] = True
+        return normalized
+    return valid_rows
 
 
 def _retrieve_companion_outside_transaction(
@@ -2407,6 +2801,8 @@ def _retrieve_publisher_rss_conditionally(
         retrieved = retrieve_source(
             source_definition, deadline=deadline, request_headers=request_headers
         )
+        if not isinstance(retrieved, list):
+            raise SourceParseError("Conditional publisher retrieval returned an invalid result")
         remaining_seconds(deadline)
         _current_rss_source(session, source_definition)
         assert_fence(session, job_id, worker_id, fence)
@@ -2434,6 +2830,8 @@ def _retrieve_publisher_rss_conditionally(
             if deadline is None
             else retrieve_source(source_definition, http_client, deadline=deadline)
         )
+        if not isinstance(retrieved, list):
+            raise SourceParseError("Conditional publisher retrieval returned an invalid result")
         remaining_seconds(deadline)
         _current_rss_source(session, source_definition)
         assert_fence(session, job_id, worker_id, fence)
@@ -2479,6 +2877,8 @@ def _store_publisher_rss_checkpoint(
     source_definition: dict[str, Any],
     retrieved: list[dict[str, Any]],
     counts: dict[str, Any],
+    *,
+    response_metadata: object | None = None,
 ) -> None:
     source = session.get(Source, source_definition["id"])
     assert source is not None
@@ -2489,8 +2889,14 @@ def _store_publisher_rss_checkpoint(
         "endpoint": source_definition.get("endpoint"),
         "parser_version": _RSS_PARSER_VERSION,
         "policy_digest": _rss_policy_digest(source_definition),
-        "etag": getattr(retrieved, "etag", None),
-        "last_modified": getattr(retrieved, "last_modified", None),
+        "etag": getattr(
+            response_metadata if response_metadata is not None else retrieved, "etag", None
+        ),
+        "last_modified": getattr(
+            response_metadata if response_metadata is not None else retrieved,
+            "last_modified",
+            None,
+        ),
         "snapshot_item_count": counts.get("snapshot_item_count", 0),
         "snapshot_oldest_publication_date": counts.get("snapshot_oldest_publication_date"),
         "snapshot_newest_publication_date": counts.get("snapshot_newest_publication_date"),
@@ -2546,6 +2952,8 @@ def process_records(
         "records_scanned": len(records),
         "permit_accepted": 0,
         "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
         "latest_publication_date": None,
         "latest_public_comment_deadline": None,
         "pdf_candidates": 0,
@@ -2890,9 +3298,17 @@ def process_records(
                             _need_admission_basis_is_current(session, need, project)
                         ):
                             need.admission_basis = incoming_basis
-            counts[
-                "permit_accepted" if interpretation.status == "accepted" else "permit_rejected"
-            ] += 1
+            regional_scope = (interpretation.assessment or {}).get("regional_scope")
+            if isinstance(regional_scope, dict) and regional_scope.get("status") != "ELIGIBLE":
+                counts[
+                    "regional_excluded"
+                    if regional_scope.get("status") == "EXCLUDED"
+                    else "regional_held"
+                ] += 1
+            else:
+                counts[
+                    "permit_accepted" if interpretation.status == "accepted" else "permit_rejected"
+                ] += 1
             job = assert_fence(session, job_id, worker_id, fence)
             if commit:
                 job.checkpoint = external_id
@@ -3478,8 +3894,6 @@ def process_records(
                     if impacted_project is not None and baseline is not None:
                         record_material_diff(session, impacted_project, current_evidence, baseline)
         else:
-            if permit_assessment:
-                counts["permit_accepted"] += 1
             project_name = interpreted["name"]
             activity_key = interpreted["activity_key"]
             rationale = interpreted["rationale"]
@@ -3771,6 +4185,90 @@ def process_records(
                 project.name = project_name
                 if project_location and project.location != project_location:
                     project.location = project_location
+            # The model hook classifies site changes before this admission gate.
+            session.flush()
+            if project.region_status != "ELIGIBLE":
+                region_key = (
+                    "regional_excluded" if project.region_status == "EXCLUDED" else "regional_held"
+                )
+                counts[region_key] += 1
+                current_evidence = session.scalar(
+                    select(Evidence).where(
+                        Evidence.observation_id == observation.id,
+                        Evidence.content_hash == evidence_digest,
+                    )
+                )
+                if permit_assessment:
+                    regional_assessment = _permit_assessment_payload(
+                        permit_assessment,
+                        current_evidence,
+                        record,
+                        digest,
+                        evidence_digest,
+                        prior_assessment,
+                        prior_evaluator_version,
+                    )
+                    interpretation.evaluator_version = permit_evaluator_version(record)
+                else:
+                    regional_assessment = {
+                        "semantic_hash": digest,
+                        "evidence_hash": evidence_digest,
+                        "decision": "accepted",
+                        "tier": "Signal",
+                        "subject": project_name,
+                        "location": project_location,
+                        "action": rationale,
+                        "reason": rationale,
+                    }
+                    interpretation.evaluator_version = "regional-scope-v1"
+                regional_assessment.update(
+                    {
+                        "project_identity_key": project.identity_key,
+                        "regional_scope": {
+                            "status": project.region_status,
+                            "state": project.region_state,
+                            "reason": project.region_reason,
+                            "provenance": project.region_provenance,
+                        },
+                        "admission_status": region_key,
+                        "evidence": {
+                            "id": str(current_evidence.id) if current_evidence else None,
+                            "url": current_evidence.url if current_evidence else observation.url,
+                        },
+                    }
+                )
+                interpretation.status = "accepted"
+                interpretation.content_hash = digest
+                interpretation.error = None
+                interpretation.assessment = regional_assessment
+                for retained_need in session.scalars(
+                    select(PowerNeed)
+                    .where(PowerNeed.project_id == project.id, PowerNeed.active.is_(True))
+                    .with_for_update()
+                ).all():
+                    retained_need.active = False
+                    if (
+                        current_evidence is not None
+                        and session.scalar(
+                            select(NeedObservation.id).where(
+                                NeedObservation.need_id == retained_need.id,
+                                NeedObservation.observation_id == observation.id,
+                            )
+                        )
+                        is None
+                    ):
+                        session.add(
+                            NeedObservation(need_id=retained_need.id, observation_id=observation.id)
+                        )
+                job = assert_fence(session, job_id, worker_id, fence)
+                if commit:
+                    job.checkpoint = external_id
+                    _advance_job_lease(job, lease_expiry)
+                remaining_seconds(deadline)
+                session.commit() if commit else session.flush()
+                continue
+            if permit_assessment:
+                counts["permit_accepted"] += 1
             material_baseline = seed_material_state(session, project)
             if permit_assessment:
                 superseded = session.scalars(

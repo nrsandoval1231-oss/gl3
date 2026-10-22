@@ -180,6 +180,7 @@ def test_workspace_facets_unknowns_and_stable_sort_use_saved_row_fixture(saved_d
             row.commercial_segment = 1
             row.commercial_geography = 1
             row.commercial_date = 1
+            row.rank_score = 0
             row.project_id = UUID(int=1)
             row.compact = {
                 **row.compact,

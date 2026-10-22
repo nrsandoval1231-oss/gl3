@@ -50,7 +50,10 @@ def canonical_runtime(monkeypatch):
     monkeypatch.setattr(settings, "firecrawl_api_key", None)
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 100)
     with factory.begin() as session:
-        session.add(Source(**{k: v for k, v in source.items() if k in Source.__table__.columns}))
+        if session.get(Source, source["id"]) is None:
+            session.add(
+                Source(**{k: v for k, v in source.items() if k in Source.__table__.columns})
+            )
         session.flush()
         job = Job(
             source_id=source["id"],
@@ -933,32 +936,25 @@ def test_effective_lead_remaining_gap_controls_visibility_without_changing_gross
 def test_retained_relationships_precede_sibling_question_fingerprints(
     canonical_runtime, monkeypatch
 ):
-    """Unchanged Chicago source must not invalidate a queued sibling after Tier A."""
+    """Unchanged Austin source must not invalidate a queued sibling after Tier A."""
     from gridlens.persistence.models import BuyingChainClaim
 
     factory, _, worker, seed_job = canonical_runtime
-    source = next(s for s in load_registry() if s["id"] == "chicago-building-permits")
-    native = render_record(
+    source = next(s for s in load_registry() if s["id"] == "austin-building-permits")
+    native = record(
         source,
-        {
-            "id": "9000001",
-            "permit_status": "ACTIVE",
-            "issue_date": datetime.now(UTC).date().isoformat(),
-            "work_description": (
-                "INTERIOR ALTERATIONS TO EXISTING OFFICE BUILDING TO CONVERT TO A DATA CENTER. "
-                "NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES."
-            ),
-            "permit_type": "PERMIT - RENOVATION/ALTERATION",
-            "street_number": "400",
-            "street_direction": "S",
-            "street_name": "SYNTHETIC",
-            "street_type": "ST",
-            "contact_1_type": "CONTRACTOR-ELECTRICAL",
-            "contact_1_name": "SYNTHETIC ELECTRIC",
-        },
+        "INTERIOR ALTERATIONS TO EXISTING OFFICE BUILDING TO CONVERT TO A DATA CENTER. "
+        "NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES.",
+        permit_number="9000001",
+        permit_type_desc="Electrical Permit",
+        contractor_company_name="SYNTHETIC ELECTRIC",
+        contractor_trade="electrical",
     )
     with factory.begin() as session:
-        session.add(Source(**{k: v for k, v in source.items() if k in Source.__table__.columns}))
+        if session.get(Source, source["id"]) is None:
+            session.add(
+                Source(**{k: v for k, v in source.items() if k in Source.__table__.columns})
+            )
         session.get(Job, seed_job).source_id = source["id"]
         process_records(
             session, seed_job, "seed-test", 1, source, [native], commit=False, allow_model=False

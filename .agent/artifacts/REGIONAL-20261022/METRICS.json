@@ -1,0 +1,19 @@
+{
+  "utc_start": "2026-10-22T20:22:36.808154+00:00",
+  "lane": "full; one or two disjoint Luna packets; serialized proof; independent Sol review required",
+  "controller_model": "gpt-6",
+  "config_identity": "UNKNOWN; saved configuration load not claimed",
+  "tokens": "UNKNOWN",
+  "planning_duration_seconds": "UNKNOWN",
+  "repair_count": "UNKNOWN aggregate; failed attempts and bounded repair packets retained",
+  "builder_model": "gpt-6-luna",
+  "builder_reasoning": "low",
+  "review_model": "gpt-6-sol medium",
+  "build_duration_seconds": "UNKNOWN aggregate; exact per-command durations retained where measured",
+  "validation_duration_seconds": "UNKNOWN aggregate; per-command receipts retained",
+  "audit_duration_seconds": "UNKNOWN; review pending",
+  "elapsed_to_accepted_seconds": "UNKNOWN; independent acceptance pending",
+  "utc_finish": "UNKNOWN; in progress",
+  "utc_candidate_freeze": "2026-10-22T23:46:42.447339+00:00",
+  "next_direction": "VALIDATE exact-head CI and fresh independent Sol review; full local backend suite running"
+}

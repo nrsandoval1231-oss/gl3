@@ -1,0 +1,19 @@
+{
+  "scope": "real official transport only; no current-listing association invented",
+  "url": "https://records.tceq.texas.gov/cs/idcplg?IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&Rendition=Web&dID=7474076",
+  "prior_attempt": {
+    "outcome": "HTTP503",
+    "at_utc": "UNKNOWN",
+    "timestamp_precision": "not captured; original tool output retained"
+  },
+  "attempts": [
+    {
+      "captured_at": "2026-10-22T21:36:11.610887+00:00",
+      "result": "PDF_RETAINED",
+      "content_type": "application/pdf",
+      "bytes": 572150,
+      "sha256": "7f4e1e42d993ec2870c86e849ec38e76acbe528458d2ae3adafedb8816491c39",
+      "signature": "%PDF-1.7"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-22T21:50:05.916417+00:00",
+  "classification": "KNOWN_NO_EVIDENCE_WRITES: source/DB counts identical to before invalid stdin run; child spawn failed before retrieval; verified owning processes terminated",
+  "counts": {
+    "observations": 18834,
+    "evidence": 20740,
+    "projects": 1794,
+    "power_needs": 1794
+  },
+  "recovery": "Only this disposableclone knownjob lease expired; ordinary worker must acquire fence2. No checkpoint or evidence reset."
+}

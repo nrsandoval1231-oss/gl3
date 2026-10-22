@@ -1,0 +1,9 @@
+{
+  "status": "FAILED_DEVELOPMENT_ATTEMPT",
+  "tests_failed": 2,
+  "scope": "existing first_path desktop/mobile tests against actual isolated retained data",
+  "causes": ["Saved browse intentionally returns compact evidence-free list rows; old test must retrieve actual need detail before evidence assertions", "Approved UI moved Ingestion navigation into its existing menu; old visible-button selector is stale"],
+  "direction": "U1 bounded test-only repair preserves real evidence, navigation, focus, history and provenance assertions; no UI/API changes",
+  "raw_traces": "Ignored private local files; do not publish authentication traces",
+  "final_acceptance": "PENDING"
+}

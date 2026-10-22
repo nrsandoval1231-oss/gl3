@@ -423,6 +423,7 @@ def backfill_rrc_operator_memberships(session: Session, *, batch_size: int = 100
             .join(Interpretation, Interpretation.observation_id == Observation.id)
             .where(
                 PowerNeed.active.is_(True),
+                Project.region_status == "ELIGIBLE",
                 Project.source_id == Observation.source_id,
                 Project.external_id == Observation.external_id,
                 Observation.source_id.in_(SOURCES),
@@ -585,6 +586,7 @@ def account_projects(
         .where(
             BrowseCustomerMembership.generation_id == generation.id,
             BrowseCustomerMembership.company_identity_id == company_identity_id,
+            Project.region_status == "ELIGIBLE",
         )
         .group_by(Project.id, BrowseCustomerMembership.role)
         .order_by(Project.name, Project.id)

@@ -1,0 +1,46 @@
+{
+  "packet": "FR4",
+  "status": "PARTIAL_BLOCKED_ON_SEPARATE_SOURCE_FIX",
+  "branch": "feat/regional-stabilization-20261022",
+  "base_sha": "0f876440a1375c502534cc1dd3c08ceff38c7349",
+  "utc_start": "UNKNOWN",
+  "utc_finish": "UNKNOWN",
+  "changed_files": [
+    "backend/tests/integration/test_jobs.py",
+    "backend/tests/integration/test_ma_cultivation_ingestion.py",
+    ".agent/artifacts/REGIONAL-20261022/COMPLETION-FR4.json"
+  ],
+  "changes": [
+    "Health fixtures explicitly register the synthetic source as enabled for API projection tests.",
+    "Permanent parser failures are asserted terminal; the backoff and recovery scenario now uses a transient HTTPX connection failure and advances both source and job retry deadlines before recovery.",
+    "Massachusetts cultivation ingestion asserts zero active signals and no PowerNeed while retaining excluded project, observations, evidence, accepted interpretation, replay counts, and last-good history across source failure."
+  ],
+  "validation": {
+    "focused_owned_non_rss_tests": {
+      "command": "Silently load .artifacts/regional/fixture-test.env; backend/.venv/Scripts/python.exe -m pytest -q tests/integration/test_jobs.py tests/integration/test_ma_cultivation_ingestion.py",
+      "result": "14 passed, 1 warning in 7.75s; exit 0"
+    },
+    "all_three_owned_files": {
+      "command": "Silently load .artifacts/regional/fixture-test.env; backend/.venv/Scripts/python.exe -m pytest -q tests/integration/test_jobs.py tests/integration/test_publisher_rss_conditionals.py tests/integration/test_ma_cultivation_ingestion.py",
+      "result": "15 passed, 4 failed, 1 warning in 10.60s; exit 1",
+      "remaining_failures": [
+        "test_rss_304_preserves_retained_facts_and_failed_refresh_keeps_last_good",
+        "test_invalid_200_does_not_advance_last_good_validator[empty-200]",
+        "test_invalid_200_does_not_advance_last_good_validator[malformed-200]",
+        "test_interrupted_rss_batch_keeps_cursor_and_retry_is_unconditional"
+      ]
+    },
+    "ruff_format": "backend/.venv/Scripts/ruff.exe format on all three owned files: 1 file reformatted, 2 unchanged; exit 0",
+    "ruff_check": "backend/.venv/Scripts/ruff.exe check on all three owned files: All checks passed; exit 0",
+    "diff_check": "git diff --check on all three owned files: passed; exit 0"
+  },
+  "rss_blocker": {
+    "classification": "Concrete service implementation defect; outside FR4 test-only ownership.",
+    "evidence": "In backend/src/gridlens/ingestion/service.py, process_job receives the RSSSnapshot returned by conditional retrieval, but _normalize_source_acquisition at line 2463 builds a plain canonical list. process_job then assigns retrieved = acquisition before _store_publisher_rss_checkpoint reads retrieved.etag and retrieved.last_modified. The metadata is therefore discarded, so the unchanged HTTP validator and cursor assertions fail.",
+    "required_next_action": "Separate service repair packet assigned to R3D; preserve every FR4 HTTP, validator, cursor, retained-fact, and failure assertion. FR4 cannot pass until that candidate is integrated."
+  },
+  "environment": "Dedicated fixture database from .artifacts/regional/fixture-test.env; values were loaded silently and not recorded.",
+  "authority": "Tests-only packet. No production source, network, paid calls, production database, or commit.",
+  "utc_durations": "UNKNOWN",
+  "tokens": "UNKNOWN"
+}

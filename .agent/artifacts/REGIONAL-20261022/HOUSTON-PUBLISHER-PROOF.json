@@ -1,0 +1,16 @@
+{
+  "captured_at": "2026-10-22T23:27:40.565483+00:00",
+  "index": "https://www.houstonpermittingcenter.org/sold-permits-search",
+  "index_bytes": 50824,
+  "index_sha256": "fd17a4412846fc0f8749462c02a1c56793facb46131601a39ebb73103c3edcc5",
+  "dated_report_count": 41,
+  "newest_listed_week": "2026-09-07",
+  "newer_report_links_found": 0,
+  "publisher_staleness_gate_unchanged": true,
+  "scope": "read-only public publisher verification; stale workbook not ingested",
+  "stale_workbook_parse": "PASS",
+  "workbook_bytes": 32174,
+  "workbook_sha256": "1c001ae0815a0566c8001e09539fcd8d0478a70802ba20267939a2e5affb37bf",
+  "period_end": "2026-09-14",
+  "records_parsed": 317
+}

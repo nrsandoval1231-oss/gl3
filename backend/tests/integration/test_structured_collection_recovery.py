@@ -165,8 +165,14 @@ def test_process_job_resumes_modified_history_after_long_outage(structured_db):
     completed = datetime.fromisoformat(counts["acquisition_completed_at"])
     assert started.tzinfo is not None and completed.tzinfo is not None
     assert completed >= started
-    assert f"{next_modified_day.isoformat()}T00:00:00.000Z" in requests[0].url.params["$where"]
-    assert "issue_date IS NOT NULL" in requests[0].url.params["$where"]
+    lower = f"{next_modified_day.isoformat()}T00:00:00.000Z"
+    assert len([r for r in requests if r.url.params.get("$select") == "count(*) AS row_count"]) == 2
+    for request in requests:
+        where = request.url.params["$where"]
+        assert lower in where and ":updated_at <" in where, where
+        assert "issue_date IS NOT NULL" in where
+    modified = datetime.fromisoformat(historical_row[":updated_at"].replace("Z", "+00:00"))
+    assert datetime.combine(next_modified_day, time.min, UTC) <= modified
     with factory.begin() as session:
         progress = session.scalar(
             select(SourceCollectionProgress).where(
@@ -176,8 +182,11 @@ def test_process_job_resumes_modified_history_after_long_outage(structured_db):
             )
         )
         assert progress is not None
-        assert progress.status == "incomplete"
-        assert progress.cursor["day"] == (next_modified_day + timedelta(days=1)).isoformat()
+        assert progress.status == "complete"
+        assert progress.completed_through == progress.window_end
+        assert modified < progress.window_end.astimezone(UTC)
+        assert progress.cursor == {}
+        first_range_end = progress.window_end
         source = session.get(Source, source_definition["id"])
         assert source is not None
         assert source.health["last_success"] == "retained"
@@ -222,7 +231,9 @@ def test_process_job_resumes_modified_history_after_long_outage(structured_db):
             )
         )
         assert progress is not None
-        assert progress.cursor["day"] == (next_modified_day + timedelta(days=2)).isoformat()
+        assert progress.status == "complete"
+        assert progress.cursor == {}
+        assert progress.completed_through == first_range_end + timedelta(days=7)
 
 
 @pytest.mark.parametrize("disabled,stored_fence", [(True, 1), (False, 2)])
@@ -286,7 +297,7 @@ def test_worker_marks_partial_health_and_queues_transactional_continuation(
 
     factory = structured_db
     source_definition = next(
-        item for item in load_registry() if item["id"] == "chicago-building-permits"
+        item for item in load_registry() if item["id"] == "austin-building-permits"
     )
     with factory.begin() as session:
         session.add(
@@ -378,6 +389,21 @@ def test_worker_marks_partial_health_and_queues_transactional_continuation(
             "collection_window_start": "2026-10-01",
             "collection_window_end": "2026-10-07",
             "collection_error_class": "ResultCountChanged",
+            "rejected_records": [
+                {
+                    "identity": "fixture-row-7",
+                    "stage": "public_acquisition",
+                    "error_code": "source_parse_error",
+                    "selected_fields": ["title"],
+                    "omitted_fields": [],
+                    "raw": {"title": "Public fixture row"},
+                }
+            ],
+            "attempt_fetched": 1,
+            "attempt_processed": 0,
+            "attempt_rejected": 1,
+            "attempt_new": 0,
+            "attempt_changed": 0,
         },
     )
 
@@ -397,13 +423,144 @@ def test_worker_marks_partial_health_and_queues_transactional_continuation(
         assert source.health["status"] == "Partial"
         assert source.health["last_success"] == "prior-good"
         assert source.health["new_records"] == 0
+        assert source.health["records_rejected"] == 1
+        assert source.health["last_rejected_records"][0]["identity"] == "fixture-row-7"
+        assert source.health["attempt_processed"] == 0
+        assert source.health["retry_state"] == "not_scheduled"
         receipt = session.scalar(
             select(SourceCheckReceipt).where(SourceCheckReceipt.job_id == job_id)
         )
         assert receipt is not None
         assert receipt.disposition == "partial"
+        assert receipt.check_counts["rejected_records"][0]["identity"] == "fixture-row-7"
+        assert json.loads(finished.checkpoint)["last_acquisition_rejections"][0]["identity"] == (
+            "fixture-row-7"
+        )
         assert len(queued) == 1
         assert json.loads(queued[0].checkpoint) == {
             "collection_continuation": True,
             "collection_jobs_remaining": 7,
         }
+
+
+@pytest.mark.parametrize(
+    ("failure", "diagnostics", "expected_job_status", "retry_class"),
+    [
+        (RuntimeError("fixture"), {"error_code": "network_error"}, "queued", "TRANSIENT"),
+        (
+            RuntimeError("fixture"),
+            {
+                "error_code": "http_status_429",
+                "http_status": 429,
+                "retry_after_seconds": 120,
+            },
+            "queued",
+            "TRANSIENT",
+        ),
+        (
+            RuntimeError("fixture"),
+            {"error_code": "http_status_403", "http_status": 403},
+            "failed",
+            "PERMANENT",
+        ),
+        (
+            SourceParseError("schema changed"),
+            {"error_code": "source_parse_error"},
+            "failed",
+            "PERMANENT",
+        ),
+    ],
+)
+def test_worker_retry_policy_preserves_last_success(
+    structured_db, monkeypatch, failure, diagnostics, expected_job_status, retry_class
+):
+    import gridlens.jobs.worker as worker
+
+    factory = structured_db
+    source_definition = next(
+        item for item in load_registry() if item["id"] == "austin-building-permits"
+    )
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=source_definition["id"],
+                publisher=source_definition["publisher"],
+                endpoint=source_definition["endpoint"],
+                family=source_definition["family"],
+                geography=source_definition["geography"],
+                industries=source_definition["industries"],
+                retrieval_method=source_definition["retrieval_method"],
+                cadence_hours=source_definition["cadence_hours"],
+                enabled=True,
+                registry_enabled=True,
+                health={
+                    "last_success": "prior-good",
+                    "retrieved_records": 12,
+                    "parsed_records": 8,
+                    "new_records": 3,
+                    "changed_records": 2,
+                    "permit_accepted": 5,
+                    "permit_rejected": 1,
+                },
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=source_definition["id"],
+            status="queued",
+            available_at=datetime.now(UTC) - timedelta(seconds=5),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    class Admitted:
+        def __enter__(self):
+            return True
+
+        def __exit__(self, *_args):
+            return False
+
+    class NoopRenewer:
+        def __init__(self, *_args):
+            pass
+
+        def start(self):
+            return self
+
+        def stop(self):
+            pass
+
+    def fail_processing(*_args, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "WORKER_ID", "retry-policy-test")
+    monkeypatch.setattr(worker, "load_registry", lambda: [source_definition])
+    monkeypatch.setattr(worker, "_park_if_disabled", lambda *_args: False)
+    monkeypatch.setattr(worker, "try_public_acquisition_admission", lambda *_args: Admitted())
+    monkeypatch.setattr(worker, "FencedLeaseRenewer", NoopRenewer)
+    monkeypatch.setattr(worker, "process_job", fail_processing)
+    monkeypatch.setattr(worker, "acquisition_diagnostics", lambda _error: diagnostics)
+
+    assert worker.run_one({source_definition["id"]: source_definition}, job_ids=[job_id])
+    with factory() as session:
+        finished = session.get(Job, job_id)
+        source = session.get(Source, source_definition["id"])
+        assert finished.status == expected_job_status
+        assert source.health["last_success"] == "prior-good"
+        assert source.health["retrieved_records"] == 0
+        assert source.health["parsed_records"] == 0
+        assert source.health["new_records"] == 0
+        assert source.health["last_success_counts"] == {
+            "retrieved_records": 12,
+            "parsed_records": 8,
+            "new_records": 3,
+            "changed_records": 2,
+            "permit_accepted": 5,
+            "permit_rejected": 1,
+        }
+        assert source.health["retry_class"] == retry_class
+        assert (source.health.get("retry_at") is not None) == (expected_job_status == "queued")
+        if "retry_after_seconds" in diagnostics:
+            assert finished.available_at >= datetime.now(UTC) + timedelta(seconds=118)

@@ -1,0 +1,65 @@
+{
+  "packet": "R3D",
+  "status": "bounded implementation handoff",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-regional-20261022",
+  "base_head": "0f876440a1375c502534cc1dd3c08ceff38c7349",
+  "candidate_state": "Uncommitted shared working tree on the specified base; root must rerun gates against the frozen integrated candidate.",
+  "owned_files": [
+    "backend/src/gridlens/ingestion/structured_collection.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/tests/integration/test_austin_range_liveness.py"
+  ],
+  "candidate_file_sha256_at_handoff": {
+    "backend/src/gridlens/ingestion/structured_collection.py": "1D1F67ECA002AB0FFD6B2630E576AB9B2BD7042F69A0DF1EB7A2701F970D29AC",
+    "backend/src/gridlens/ingestion/service.py": "71B95533BB9FC4D2B85B234DA85D89D8D5F2C818AF9A52D0B30B9F157DFC80B6",
+    "backend/tests/integration/test_austin_range_liveness.py": "DA03E9CBA8487CC7A57B44F233084AD85887CA3ECC8601AB92713E57A7A28DC6"
+  },
+  "implementation": [
+    "Structured lane selection receives the existing collection_jobs_remaining checkpoint value. It picks recent overlap on two of each three available slots and history on the third, while preserving oldest-attempt fairness within the selected subset. Direct calls without a valid budget prefer pending recent lanes; after recent completion, pending lanes resume the existing fair selection.",
+    "The Austin fixture now has 1,201 count-checked current rows, with the dense modified-date overlap split across two bounded date ranges. It verifies both current recent lanes complete within an eight-job budget and history completed_through advances.",
+    "RSS normalization converts list-compatible snapshots to plain normalized lists. The original snapshot is now retained as metadata input when writing a successful checkpoint, preserving ETag and Last-Modified, including for an empty complete snapshot. Partial normalization still does not advance validators because the checkpoint call remains in the full-success branch."
+  ],
+  "recovery": [
+    "The first dense fixture run failed because its mocked data page did not follow the adapter's declared date-and-row ordering. Sorting the fixture response by the requested keys fixed the simulated source contract; the Austin liveness test then passed.",
+    "The first passing liveness result reopened an already advanced history window later in the chain, so its current status was incomplete even though completed_through advanced. The assertion now checks the packet requirement, actual advancement, instead of requiring history to stay complete."
+  ],
+  "validation": [
+    {
+      "command": "From backend/.venv: ruff format --check src/gridlens/ingestion/structured_collection.py src/gridlens/ingestion/service.py tests/integration/test_austin_range_liveness.py",
+      "exit_code": 0,
+      "result": "3 files already formatted."
+    },
+    {
+      "command": "From backend/.venv: ruff check src/gridlens/ingestion/structured_collection.py src/gridlens/ingestion/service.py tests/integration/test_austin_range_liveness.py",
+      "exit_code": 0,
+      "result": "All checks passed."
+    },
+    {
+      "command": "From backend/.venv: mypy src/gridlens/ingestion/structured_collection.py src/gridlens/ingestion/service.py",
+      "exit_code": 0,
+      "result": "Success: no issues found in 2 source files."
+    },
+    {
+      "command": "Load .artifacts/regional/range-test.env into the process without printing values, then from backend/.venv: pytest tests/integration/test_austin_range_liveness.py tests/integration/test_structured_collection_recovery.py tests/unit/test_structured_permit_segments.py tests/integration/test_publisher_rss_conditionals.py -q",
+      "exit_code": 0,
+      "result": "28 passed in 7.52s."
+    },
+    {
+      "command": "git diff --check -- backend/src/gridlens/ingestion/structured_collection.py backend/src/gridlens/ingestion/service.py backend/tests/integration/test_austin_range_liveness.py",
+      "exit_code": 0,
+      "result": "No whitespace errors."
+    }
+  ],
+  "timing_and_tokens": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-10-22T22:15:37Z",
+    "elapsed": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "limitations": [
+    "Validation used the dedicated range-test database and mocked Austin HTTP responses; no live provider, application database, paid call, or production state was used.",
+    "service.py and structured_collection.py contain other already-dirty parallel work. The recorded hashes identify the shared file snapshots at handoff and do not imply every line in those files belongs to R3D.",
+    "Root's separately requested actual worker/live progress proof remains outstanding."
+  ],
+  "authority": "No adapter, worker, queue, migration, provider, UI, PRD, external state, commit, merge, or deployment was changed."
+}

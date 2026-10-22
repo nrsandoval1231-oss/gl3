@@ -1,0 +1,26 @@
+{
+  "packet": "FR3",
+  "type": "BUILDER_HANDOFF_CLAIM",
+  "files": [
+    "backend/tests/integration/test_autonomous_questions_integration.py",
+    "backend/tests/integration/test_call_fact_workflow_integration.py",
+    "backend/tests/integration/test_collection_only_ingestion.py"
+  ],
+  "baseline": {
+    "failed": 14,
+    "passed": 92
+  },
+  "focused": {
+    "passed": 106,
+    "warnings": 1,
+    "seconds": 81.9
+  },
+  "checks": [
+    "Ruff check PASS",
+    "Ruff format --check PASS",
+    "git diff --check PASS"
+  ],
+  "scope": "Explicit consistent Austin/TX positivefixturelocations/citedtext; Denver/CO policynegative retained; NewYorktoAustin reassessment semantics retained. Noimplementationchanges.",
+  "durations_and_tokens": "UNKNOWN",
+  "note": "Root copied builderhandoff claim into durableartifact; finalcontrollerfullgate required."
+}

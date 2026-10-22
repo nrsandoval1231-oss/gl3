@@ -8005,6 +8005,286 @@
             "title": "Enabled",
             "default": true
           },
+          "cadence_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadence Hours"
+          },
+          "operational_status": {
+            "type": "string",
+            "title": "Operational Status",
+            "default": "Unknown"
+          },
+          "backlog_jobs": {
+            "type": "integer",
+            "title": "Backlog Jobs",
+            "default": 0
+          },
+          "terminal_failed_jobs": {
+            "type": "integer",
+            "title": "Terminal Failed Jobs",
+            "default": 0
+          },
+          "backlog": {
+            "type": "integer",
+            "title": "Backlog",
+            "default": 0
+          },
+          "pending_interpretations": {
+            "type": "integer",
+            "title": "Pending Interpretations",
+            "default": 0
+          },
+          "last_meaningful_update": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Meaningful Update"
+          },
+          "last_valid_record_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Valid Record At"
+          },
+          "records_rejected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Records Rejected"
+          },
+          "attempt_metrics_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Metrics Status"
+          },
+          "processing_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processing Error"
+          },
+          "last_success_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success Counts"
+          },
+          "collection_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Status"
+          },
+          "collection_lane": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Lane"
+          },
+          "collection_current_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Current Complete"
+          },
+          "collection_window_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Window Start"
+          },
+          "collection_window_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Window End"
+          },
+          "collection_jobs_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Jobs Remaining"
+          },
+          "collection_paused_for_budget": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Paused For Budget"
+          },
+          "regional_held": {
+            "type": "integer",
+            "title": "Regional Held",
+            "default": 0
+          },
+          "regional_excluded": {
+            "type": "integer",
+            "title": "Regional Excluded",
+            "default": 0
+          },
+          "attempt_fetched": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Fetched"
+          },
+          "attempt_processed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Processed"
+          },
+          "attempt_rejected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Rejected"
+          },
+          "attempt_new": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt New"
+          },
+          "attempt_changed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Changed"
+          },
+          "retry_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry State"
+          },
+          "retry_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry At"
+          },
+          "attempts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempts"
+          },
           "freshness": {
             "type": "string",
             "title": "Freshness",
@@ -8107,6 +8387,39 @@
               }
             ],
             "title": "Error"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Stage"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
           },
           "latest_publication_date": {
             "anyOf": [
@@ -8231,6 +8544,20 @@
               }
             ],
             "title": "Coverage Limitation"
+          },
+          "pending_collection_lanes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Collection Lanes"
           }
         },
         "type": "object",

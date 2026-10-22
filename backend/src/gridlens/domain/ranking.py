@@ -13,8 +13,9 @@ from typing import Any
 
 from gridlens.domain.buying_chain import Category
 from gridlens.domain.commercial_triage import _priority
+from gridlens.domain.regional_scope import REGIONAL_STATES, classify_project_region
 
-RANKING_VERSION = "ranking-v1"
+RANKING_VERSION = "ranking-v2-regional-geography"
 
 # Points per factor. They sum to 100.
 WEIGHTS = {
@@ -43,7 +44,6 @@ _PRIORITY_METROS = (
     (r"austin", "Austin"),
     (r"houston", "Houston"),
     (r"el paso", "El Paso"),
-    (r"california|, ca\b", "California"),
 )
 # Direct users and responsible contractors (Req 28); rental intermediaries are excluded.
 _BUYER_CATEGORIES = {category.value for category in Category} - {"unknown"}
@@ -126,14 +126,21 @@ def rank_opportunity(
         access, access_reason = 0.0, "Buying party unknown"
     parts.append((WEIGHTS["buyer_access"] * access, access_reason))
 
-    location = str(item.get("location") or "").casefold()
-    metro = next((name for pattern, name in _PRIORITY_METROS if re.search(pattern, location)), None)
-    if metro:
-        parts.append((WEIGHTS["geography"], f"Priority geography: {metro}"))
-    elif re.search(r"\btexas\b|, tx\b", location):
-        parts.append((WEIGHTS["geography"] * 0.5, "Texas outside priority metros"))
+    location = str(item.get("location") or "")
+    region = classify_project_region(location)
+    if region.state in REGIONAL_STATES:
+        regional_position = REGIONAL_STATES.index(region.state)
+        geo_points = (
+            WEIGHTS["geography"] * (len(REGIONAL_STATES) - regional_position) / len(REGIONAL_STATES)
+        )
+        metro = next(
+            (name for pattern, name in _PRIORITY_METROS if re.search(pattern, location.casefold())),
+            None,
+        )
+        label = metro or region.state
+        parts.append((geo_points, f"Priority geography: {label}"))
     else:
-        parts.append((0.0, "Outside priority geographies"))
+        parts.append((0.0, "Outside priority region"))
 
     score = round(sum(points for points, _ in parts))
     reasons = [reason for points, reason in sorted(parts, key=lambda p: -p[0]) if points > 0][:3]

@@ -1,0 +1,91 @@
+{
+  "packet": "R1-R2",
+  "repository": "gl3-regional-20261022",
+  "base_sha": "0f876440a1375c502534cc1dd3c08ceff38c7349",
+  "branch": "feat/regional-stabilization-20261022",
+  "implementation_start_utc": "UNKNOWN (start timestamp was not recorded)",
+  "validation_finish_utc": "2026-10-22 21:08:18 UTC",
+  "lane": "single builder",
+  "model": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "measured_tokens": "UNKNOWN",
+  "elapsed_to_acceptance": "UNKNOWN (no independent acceptance recorded)",
+  "changed_files_owned": [
+    "backend/migrations/versions/0040_project_region_policy.py",
+    "backend/src/gridlens/domain/regional_scope.py",
+    "backend/src/gridlens/domain/ranking.py",
+    "backend/src/gridlens/intelligence/customer_accounts.py",
+    "backend/src/gridlens/intelligence/saved_browse.py",
+    "backend/src/gridlens/persistence/models.py",
+    "backend/tests/integration/test_regional_eligibility.py",
+    "backend/tests/integration/test_saved_browse.py",
+    "backend/tests/unit/test_ranking.py",
+    "backend/tests/unit/test_regional_scope.py",
+    "config/sources/registry.v1.json"
+  ],
+  "validation": [
+    {
+      "command": "$env:PYTHONUTF8='1'; .\\venv\\Scripts\\python.exe -m pytest -q tests/unit/test_regional_scope.py tests/unit/test_registry.py tests/unit/test_ranking.py",
+      "cwd": "backend",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "24 passed in 0.19s"
+    },
+    {
+      "command": "$env:PYTHONUTF8='1'; .\\venv\\Scripts\\python.exe -m pytest -q tests/integration/test_regional_eligibility.py",
+      "cwd": "backend",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "17 passed in 9.14s"
+    },
+    {
+      "command": "$env:PYTHONUTF8='1'; .\\venv\\Scripts\\python.exe -m pytest -q tests/integration/test_saved_browse.py::test_build_saved_page_matches_canonical_and_does_no_evidence_reads",
+      "cwd": "backend",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "1 passed in 2.03s"
+    },
+    {
+      "command": "$env:PYTHONUTF8='1'; .\\venv\\Scripts\\python.exe -m pytest -q tests/integration/test_source_scheduling.py",
+      "cwd": "backend",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "47 passed in 21.85s"
+    },
+    {
+      "command": "ruff check src/gridlens/domain/regional_scope.py src/gridlens/domain/ranking.py src/gridlens/persistence/models.py src/gridlens/intelligence/saved_browse.py src/gridlens/intelligence/customer_accounts.py tests/unit/test_regional_scope.py tests/unit/test_ranking.py tests/integration/test_regional_eligibility.py",
+      "cwd": "backend",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "All checks passed"
+    },
+    {
+      "command": "$env:PYTHONUTF8='1'; .\\venv\\Scripts\\python.exe -m pytest -q tests/unit/test_regional_scope.py tests/unit/test_registry.py tests/unit/test_ranking.py tests/integration/test_source_scheduling.py tests/integration/test_saved_browse.py::test_build_saved_page_matches_canonical_and_does_no_evidence_reads tests/integration/test_regional_eligibility.py",
+      "cwd": "backend",
+      "result": "UNKNOWN",
+      "exit_code": "UNKNOWN (tool output ended before pytest summary)",
+      "summary": "Progress showed 86 tests completed; this run is not counted as a pass."
+    }
+  ],
+  "verified_claims": {
+    "regional_site_policy_and_15_case_matrix": "PASS for classifier unit cases and persisted project decision integration cases; matrix covers TX/OK/NM, explicit outregion, city-only/absent state, HQ/source-geography non-inference, conflicts, prose mentions, multiple sites, and cross-border supporting fact retention.",
+    "active_api_region_visibility": "PASS for synthetic TX-versus-California opportunity projection integration case.",
+    "source_scheduling_disabled_guards": "PASS for existing source scheduling integration suite (47 tests); direct mutation/reenable protection is within suite coverage.",
+    "ranking_geography": "PASS; geographic component remains max 10 points, TX=10, OK≈6.67, NM≈3.33, other/unknown=0; California priority removed; other weights and tier criteria unchanged.",
+    "saved_generation_policy_invalidation": "PASS for focused saved-browse test after policy version incorporates regional config fingerprint.",
+    "customer_account_region_filter": "Implemented; direct focused customer-account tests not run.",
+    "source_tier_customer_ui_preservation": "UNKNOWN as a full acceptance claim; no broad regression suite or independent review completed."
+  },
+  "handoff_gaps": [
+    "National and cross-border Evidence rows linked through NeedObservation, including retention through actual ingestion replay, are not proven by the new integration file; it tests retained identity_facts only. Handed to R3B/root for integrated pipeline proof.",
+    "Direct-ID API bypass across summary/detail/CSV/map/group/customer/metrics/action routes is not fully proven by this builder's tests; API app.py was released to root's recovery builder. Root must validate the integrated candidate.",
+    "Historical evidence counts unchanged, repeat-ingestion replay idempotency, disabled-source stale queued/run behavior, and migration execution/backfill against a disposable schema remain UNKNOWN unless separately covered by root's integrated validation.",
+    "No full suite, migration upgrade, or independent review was completed."
+  ],
+  "authority": {
+    "commit": false,
+    "merge": false,
+    "deploy": false,
+    "self_certification": false
+  }
+}

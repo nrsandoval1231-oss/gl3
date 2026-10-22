@@ -1,6 +1,6 @@
 # Sources and acquisition documentation
 
-Use [coverage](coverage.md) for the dated source health snapshot and remaining breadth gaps. The versioned [source registry](../../config/sources/registry.v1.json) defines configured sources and policy; an enabled definition alone does not prove recent retrieval, successful parsing, broad coverage, or production scheduling.
+Use the [October 22 regional inventory](regional-inventory-20261022.md) for every configured source and the [engineering report](../operations/regional-stabilization-20261022.md) for this candidate. Use [coverage](coverage.md) for the dated source health snapshot and remaining breadth gaps. The versioned [source registry](../../config/sources/registry.v1.json) defines configured sources and policy; an enabled definition alone does not prove recent retrieval, successful parsing, broad coverage, or production scheduling.
 
 [Onboarding](onboarding.md) defines the acceptance path for a new feed. [Ingestion strategy](ingestion-strategy.md) explains the discovery and monitoring approach. The remaining files in this directory are source-specific contracts, interpretation notes, and dated retrieval/review evidence. Their claims are limited to their named source, date, and candidate. Verify live health in the current coverage snapshot; do not use a source note to claim present availability.
 

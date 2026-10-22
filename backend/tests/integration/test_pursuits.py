@@ -65,7 +65,7 @@ def runtime(monkeypatch):
             source_id="austin-building-permits",
             external_id="2026-100001 EP",
             name="Synthetic Orion",
-            location="100 ORION LN",
+            location="100 ORION LN, Austin, TX",
             identity_key="synthetic-orion",
         )
         session.add(project)
@@ -73,7 +73,7 @@ def runtime(monkeypatch):
         project_id = project.id
     fact = {
         "description": "New modular Data Center foundation",
-        "address": "100 ORION LN",
+        "address": "100 ORION LN, Austin, TX",
         "date": "2026-09-15",
         "status": "Active",
         "contractor_company_name": "Orion Electric",
@@ -83,7 +83,7 @@ def runtime(monkeypatch):
     group = {
         "identity_key": "synthetic-work",
         "source_id": "austin-building-permits",
-        "site": "100 ORION LN",
+        "site": "100 ORION LN, Austin, TX",
         "projects": [{"id": str(project_id), "name": "Orion"}],
         "facts": [fact],
         "input_hash": "a",
@@ -334,9 +334,11 @@ def test_ordinary_refresh_reconciles_saved_dallas_title_and_preserves_history(ru
     group = service.candidates(None)[0]
     group["source_id"] = "dallas-monthly-permits"
     group["records"][0]["external_id"] = "COM-NEW-26-000129"
+    group["site"] = "2444 FABENS RD, Dallas, TX"
     group["facts"] = [
         {
             **group["facts"][0],
+            "address": "2444 FABENS RD, Dallas, TX",
             "lp_business_name": "KEETER INVESTMENTS LLC",
         }
     ]
@@ -352,7 +354,7 @@ def test_ordinary_refresh_reconciles_saved_dallas_title_and_preserves_history(ru
             {
                 "document_number": "COM-NEW-26-000129",
                 "abstract": (
-                    "row: COM-NEW-26-000129\naddress: 100 ORION LN\n"
+                    "row: COM-NEW-26-000129\naddress: 2444 FABENS RD, Dallas, TX\n"
                     "description: New modular Data Center foundation\n"
                     "lp_business_name: KEETER INVESTMENTS LLC\n"
                     "date: 2026-09-15\nstatus: Active"
@@ -373,7 +375,7 @@ def test_ordinary_refresh_reconciles_saved_dallas_title_and_preserves_history(ru
                 publisher="Synthetic Dallas",
                 endpoint="https://example.invalid/dallas",
                 family="construction-permits",
-                geography="Dallas",
+                geography="Dallas, TX",
                 industries=[],
                 retrieval_method="city-permits",
                 health={},
@@ -397,6 +399,11 @@ def test_ordinary_refresh_reconciles_saved_dallas_title_and_preserves_history(ru
             research_status="succeeded",
         )
         session.add(row)
+        project = session.get(Project, project_id)
+        assert project is not None
+        project.source_id = "dallas-monthly-permits"
+        project.external_id = "COM-NEW-26-000129"
+        project.location = "2444 FABENS RD, Dallas, TX"
         session.flush()
         pursuit_id = row.id
         note = PursuitCallNote(
@@ -753,7 +760,7 @@ def test_zero_budget_research_keeps_saved_maps_current_after_every_commit(
                     "project_identity_key": "synthetic-orion",
                     "power_activity": "construction",
                     "subject": "Synthetic Orion",
-                    "location": "100 ORION LN",
+                    "location": "100 ORION LN, Austin, TX",
                 },
             )
         )

@@ -60,6 +60,11 @@ def test_health_reports_unknown_when_source_has_no_health_status(db, monkeypatch
     from gridlens.security import token_for
 
     monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(
+        api,
+        "load_registry",
+        lambda: [{"id": "synthetic-test-source", "enabled": True}],
+    )
     client = TestClient(api.app, raise_server_exceptions=False)
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     response = client.get("/api/health")
@@ -171,6 +176,11 @@ def test_parser_failure_preserves_accepted_health_and_is_visible(db, monkeypatch
     )
     monkeypatch.setattr(api, "SessionLocal", factory)
     monkeypatch.setattr(
+        api,
+        "load_registry",
+        lambda: [{"id": "synthetic-test-source", "enabled": True}],
+    )
+    monkeypatch.setattr(
         worker,
         "process_job",
         lambda *args, **kwargs: (_ for _ in ()).throw(
@@ -191,7 +201,7 @@ def test_parser_failure_preserves_accepted_health_and_is_visible(db, monkeypatch
     assert source["last_success"] == "retained"
     assert source["new_records"] == 0
     with factory() as session:
-        assert session.scalar(select(Job.status)) == "queued"
+        assert session.scalar(select(Job.status)) == "failed"
 
 
 def test_permit_queue_priority_and_news_age_fairness(db):
@@ -520,10 +530,10 @@ def test_runtime_status_is_read_only_and_reconcile_preserves_health_and_jobs(db,
 def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, monkeypatch):
     _, factory = db
     runtime, worker, definition = _runtime_fixture(factory, monkeypatch)
-    from gridlens.ingestion.adapters.federal_register import SourceParseError
+    import httpx
 
     def fail(*args, **kwargs):
-        raise SourceParseError("synthetic incomplete snapshot")
+        raise httpx.ConnectError("synthetic temporary network failure")
 
     monkeypatch.setattr(worker, "process_job", fail)
     with factory.begin() as session:
@@ -535,10 +545,8 @@ def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, m
     assert len(first["checks"]) == 1
     assert first["all_succeeded"] is False
     assert first["checks"][0]["health"]["last_success"] == "retained"
-    assert first["checks"][0]["health"]["error"] == (
-        "Acquisition source response could not be parsed"
-    )
-    assert first["checks"][0]["health"]["error_code"] == "source_parse_error"
+    assert first["checks"][0]["health"]["error"] == ("Source acquisition failed: network_error")
+    assert first["checks"][0]["health"]["error_code"] == "network_error"
     deferred = runtime.check_sources([definition["id"]])
     assert deferred["all_succeeded"] is False
     assert deferred["checks"][0]["attempted"] is False
@@ -547,6 +555,9 @@ def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, m
         job = session.scalar(select(Job))
         assert job is not None
         job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+        source = session.get(Source, definition["id"])
+        assert source is not None
+        source.health = {**source.health, "retry_at": "2000-01-01T00:00:00+00:00"}
     monkeypatch.setattr(
         worker,
         "process_job",

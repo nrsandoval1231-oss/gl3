@@ -28,7 +28,7 @@ from gridlens.settings import settings
 
 
 @pytest.fixture
-def adversarial_db():
+def adversarial_db(monkeypatch):
     target = make_url(settings.test_database_url)
     application = make_url(settings.database_url)
     assert target.database and target.database.endswith("_test"), (
@@ -66,45 +66,61 @@ def adversarial_db():
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
+    import gridlens.ingestion.adapters.socrata_permits as permits
+    import gridlens.ingestion.registry as registry
+
+    monkeypatch.setattr(permits, "PAGE_SIZE", 1)
+    import copy
+
+    configured_registry = copy.deepcopy(load_registry())
+    for source in configured_registry:
+        if source["id"] == "austin-building-permits":
+            source["query"]["per_page"] = 1
+    monkeypatch.setattr(registry, "load_registry", lambda: configured_registry)
+    import gridlens.jobs.worker as worker
+
+    monkeypatch.setattr(worker, "load_registry", lambda: configured_registry)
     yield factory
     Base.metadata.drop_all(engine)
     engine.dispose()
 
 
 def _source_definition() -> dict:
-    return next(item for item in load_registry() if item["id"] == "chicago-building-permits")
+    import copy
+
+    definition = copy.deepcopy(
+        next(item for item in load_registry() if item["id"] == "austin-building-permits")
+    )
+    definition["query"]["per_page"] = 1
+    return definition
 
 
-def _chicago_row(row_id: str = "420001", *, issue_date: str | None = None) -> dict:
+def _austin_row(row_id: str = "420001", *, issue_date: str | None = None) -> dict:
     day = issue_date or datetime.now(UTC).date().isoformat()
-    row = {
-        "id": row_id,
+    return {
+        "permit_number": row_id,
         "issue_date": f"{day}T00:00:00.000",
-        "work_description": "Electrical work at commercial facility",
-        "work_type": "Electrical Work",
-        "permit_type": "PERMIT - RENOVATION/ALTERATION",
-        "permit_status": "Issued",
-        "street_number": "100",
-        "street_direction": "N",
-        "street_name": "MAIN ST",
-        "permit_": row_id,
-        "reported_cost": "10000",
-        "pin_list": "123456789",
-        ":updated_at": f"{day}T10:15:30.123Z",
-        "application_start_date": None,
-        "permit_milestone": "Issued",
+        "description": "Electrical work at commercial facility",
+        "work_class": "Electrical Work",
+        "permit_type_desc": "Building Permit",
+        "permit_class_mapped": "Commercial",
+        "status_current": "Issued",
+        "original_address1": "100 Main Street",
+        "original_city": "Austin",
+        "original_state": "TX",
+        "link": {"url": f"https://abc.austintexas.gov/permit/{row_id}"},
+        "project_id": row_id,
+        "total_job_valuation": "10000",
+        "total_new_add_sqft": "1000",
     }
-    for index in range(1, 16):
-        row[f"contact_{index}_type"] = None
-        row[f"contact_{index}_name"] = None
-    return row
 
 
 def _row_for_request(request: httpx.Request) -> dict:
     where = request.url.params.get("$where", "")
     match = re.search(r"issue_date >= '(\d{4}-\d{2}-\d{2})", where)
     assert match is not None, f"Expected bounded Chicago issue-date query, got {where}"
-    return _chicago_row(issue_date=match.group(1))
+    row_id = "420002" if "permit_number > '420001'" in where else "420001"
+    return _austin_row(row_id=row_id, issue_date=match.group(1))
 
 
 def _make_source_and_job(
@@ -260,7 +276,7 @@ def test_crash_after_evidence_commit_restarts_without_duplicate_evidence(
             result = process_job(session, job_id, "adversarial-test", 1, definition, client)
 
     assert raised and len(requests) == 6
-    assert result["collection_status"] == "PARTIAL"
+    assert result["collection_status"] == "COMPLETE"
     assert result["collection_error_class"] is None
     assert _evidence_count(factory) == 1
     with factory() as session:
@@ -277,10 +293,9 @@ def test_crash_after_evidence_commit_restarts_without_duplicate_evidence(
             evidence.content_hash,
             observation.first_seen_at,
         ) == retained_evidence
-        assert progress is not None and progress.status == "incomplete"
-        assert (
-            progress.cursor.get("day") == (datetime.now(UTC).date() - timedelta(days=5)).isoformat()
-        )
+        assert progress is not None and progress.status == "complete"
+        assert progress.cursor == {}
+        assert _utc_date(progress.completed_through) == datetime.now(UTC).date()
 
 
 def test_stale_fence_after_fetch_cannot_write_evidence_or_checkpoint(adversarial_db):
@@ -387,14 +402,14 @@ def test_concurrent_duplicate_cannot_overwrite_advanced_cursor(adversarial_db):
             return httpx.Response(
                 200,
                 headers={"content-type": "application/json"},
-                json=[{"row_count": 1}],
+                json=[{"row_count": 2}],
             )
         first_at_page.set()
         assert release_first.wait(timeout=10), "concurrent test did not release first fetch"
         return httpx.Response(
             200,
             headers={"content-type": "application/json"},
-            json=[_chicago_row(issue_date=issue_day.isoformat())],
+            json=[_austin_row(issue_date=issue_day.isoformat())],
         )
 
     def second_handler(request: httpx.Request) -> httpx.Response:
@@ -402,12 +417,12 @@ def test_concurrent_duplicate_cannot_overwrite_advanced_cursor(adversarial_db):
             return httpx.Response(
                 200,
                 headers={"content-type": "application/json"},
-                json=[{"row_count": 1}],
+                json=[{"row_count": 2}],
             )
         return httpx.Response(
             200,
             headers={"content-type": "application/json"},
-            json=[_chicago_row(issue_date=issue_day.isoformat())],
+            json=[_austin_row(issue_date=issue_day.isoformat())],
         )
 
     first_client = httpx.Client(transport=httpx.MockTransport(first_handler))
@@ -494,7 +509,7 @@ def test_window_rollover_invalidates_reused_empty_cursor(adversarial_db):
         return httpx.Response(
             200,
             headers={"content-type": "application/json"},
-            json=[_chicago_row(issue_date=old_day.isoformat())],
+            json=[_austin_row(issue_date=old_day.isoformat())],
         )
 
     def zero_count(request: httpx.Request) -> httpx.Response:
@@ -587,8 +602,8 @@ def test_window_rollover_invalidates_reused_empty_cursor(adversarial_db):
         )
         assert progress is not None
         assert _utc_date(progress.window_start) == today - timedelta(days=6)
-        assert progress.status == "incomplete"
-        assert progress.cursor.get("day") == (today - timedelta(days=5)).isoformat()
+        assert progress.status == "complete"
+        assert progress.cursor == {}
 
 
 def _run_process_job(factory, job_id, worker_id, definition, client):
@@ -601,23 +616,40 @@ def test_worker_retry_continues_after_progress_commit_before_job_terminal(
 ):
     factory = adversarial_db
     definition = _source_definition()
+    import gridlens.ingestion.registry as registry
+
+    live_definition = next(
+        item for item in registry.load_registry() if item["id"] == definition["id"]
+    )
+    assert collection_policy_digest(live_definition) == collection_policy_digest(definition)
     job_id = _make_source_and_job(
         factory,
         definition,
         status="queued",
-        checkpoint=json.dumps({"collection_continuation": True}),
+        checkpoint=json.dumps({"collection_continuation": True, "collection_jobs_remaining": 2}),
     )
     _complete_nonrecent_lanes(factory, definition)
+    first_day = datetime.now(UTC).date() - timedelta(days=6)
+    with factory.begin() as session:
+        session.add(
+            SourceCollectionProgress(
+                source_id=definition["id"],
+                lane="issue_recent",
+                policy_digest=collection_policy_digest(definition),
+                window_start=datetime.combine(first_day, datetime.min.time(), UTC),
+                window_end=datetime.combine(datetime.now(UTC).date(), datetime.min.time(), UTC),
+                cursor={"day": first_day.isoformat(), "expected": 2, "scanned": 0},
+                status="incomplete",
+            )
+        )
     import gridlens.ingestion.service as service
     import gridlens.jobs.worker as worker
 
-    count_calls = 0
-
     def handler(request: httpx.Request) -> httpx.Response:
-        nonlocal count_calls
         if request.url.params.get("$select") == "count(*) AS row_count":
-            count_calls += 1
-            count = 1 if count_calls <= 2 else 0
+            where = request.url.params.get("$where", "")
+            first_day_text = first_day.isoformat()
+            count = 2 if f"issue_date >= '{first_day_text}" in where else 0
             return httpx.Response(
                 200,
                 headers={"content-type": "application/json"},
@@ -687,15 +719,27 @@ def test_worker_retry_continues_after_progress_commit_before_job_terminal(
             assert job is not None and job.status == "queued"
             assert progress is not None and progress.status == "incomplete"
             committed_cursor = dict(progress.cursor)
+            assert committed_cursor.get("after_id") == "420001"
+            assert committed_cursor.get("expected") == 2
             assert (
                 committed_cursor.get("day")
-                == (datetime.now(UTC).date() - timedelta(days=5)).isoformat()
+                == (datetime.now(UTC).date() - timedelta(days=6)).isoformat()
             )
+            assert _evidence_count(factory) == 1
 
         with factory.begin() as session:
             job = session.get(Job, job_id)
             assert job is not None
-            job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+            retry_ready_at = datetime.now(UTC) - timedelta(seconds=1)
+            job.available_at = retry_ready_at
+            job.lease_until = retry_ready_at
+            source = session.get(Source, definition["id"])
+            assert source is not None
+            source.health = {
+                **source.health,
+                "retry_state": "scheduled",
+                "retry_at": retry_ready_at.isoformat(),
+            }
         assert worker.run_one({definition["id"]: definition}, job_ids=[job_id]) is True
     finally:
         client.close()
@@ -709,15 +753,23 @@ def test_worker_retry_continues_after_progress_commit_before_job_terminal(
         assert job is not None and job.status == "succeeded"
         assert progress is not None
         assert progress.cursor != committed_cursor
-    assert _evidence_count(factory) == 1
+    assert _evidence_count(factory) == 2
+    with factory() as session:
+        rows = session.scalars(select(Observation).order_by(Observation.external_id)).all()
+        assert {row.external_id for row in rows} == {"420001", "420002"}
+        evidence_counts = session.execute(
+            select(Evidence.observation_id, func.count()).group_by(Evidence.observation_id)
+        ).all()
+        assert len(evidence_counts) == 2
+        assert all(count == 1 for _, count in evidence_counts)
 
 
 @pytest.mark.parametrize(
     ("page_payload", "second_count", "expected_error"),
     [
-        ([{"id": "420001"}], 2, "ResultCountChanged"),
+        ([{"permit_number": "420001"}], 2, "ResultCountChanged"),
         ([], 1, "SourceParseError"),
-        ([{"id": "420001", "issue_date": "not-a-date"}], 1, "SourceParseError"),
+        ([{"permit_number": "420001", "issue_date": "not-a-date"}], 1, None),
     ],
     ids=("count-changed", "unexpected-empty-page", "malformed-row"),
 )
@@ -780,6 +832,9 @@ def test_invalid_or_changed_segment_stays_partial_and_retains_last_good_evidence
     assert result["collection_status"] == "PARTIAL"
     assert result["partial"] is True
     assert result["collection_error_class"] == expected_error
+    if expected_error is None:
+        assert result["collection_expected_count"] == 1
+        assert result["collection_observed_count"] == 1
     with factory() as session:
         progress = session.scalar(select(SourceCollectionProgress))
         retained = session.scalar(

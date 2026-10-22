@@ -53,7 +53,7 @@ def chain_db(monkeypatch, request):
     monkeypatch.setattr(worker, "WORKER_ID", "collection-chain-test")
     monkeypatch.setattr(worker, "try_public_acquisition_admission", lambda *_: nullcontext(True))
     monkeypatch.setattr(worker, "FencedLeaseRenewer", NoopRenewer)
-    source_id = getattr(request, "param", "boston-building-permits")
+    source_id = getattr(request, "param", "austin-building-permits")
     definition = next(x for x in load_registry() if x["id"] == source_id)
     with factory.begin() as session:
         session.add(
@@ -301,16 +301,19 @@ def test_last_job_complete_does_not_report_budget_pause(chain_db, monkeypatch):
             and health["last_success"] != "prior-success"
         )
         assert health["collection_paused_for_budget"] is False and health["error"] is None
-        assert session.scalar(select(Job).where(Job.status == "queued")) is None
+        assert (
+            session.scalar(select(Job).where(Job.kind == "ingestion", Job.status == "queued"))
+            is None
+        )
 
 
 @pytest.mark.parametrize(
     ("chain_db", "legacy_id"),
     [
-        ("boston-building-permits", "ALT123"),
-        ("boston-building-permits", "N2990649"),
-        ("chicago-building-permits", "100123"),
-        ("chicago-building-permits", "N2990649"),
+        ("austin-building-permits", "ALT123"),
+        ("austin-building-permits", "N2990649"),
+        ("austin-building-permits", "100123"),
+        ("austin-building-permits", "N2990649"),
         ("austin-building-permits", "2025-155325 EP"),
     ],
     indirect=["chain_db"],
@@ -414,3 +417,24 @@ def test_retry_preserves_budget_through_service_record_checkpoint(
         tail = session.scalar(select(Job).where(Job.status == "queued"))
         assert json.loads(tail.checkpoint)["collection_jobs_remaining"] == 1
         assert _receipt(session, job_id)["collection_jobs_remaining"] == 1
+
+
+@pytest.mark.parametrize("chain_db", ["boston-building-permits"], indirect=True)
+def test_boston_job_is_parked_without_an_acquisition_attempt(chain_db, monkeypatch):
+    import gridlens.ingestion.service as service
+
+    factory, definition = chain_db
+    job_id = _job(factory, definition)
+    monkeypatch.setattr(
+        service,
+        "retrieve_collection_segment",
+        lambda *_a, **_k: pytest.fail("disabled Boston source reached acquisition"),
+    )
+    assert _run(factory, definition, job_id)
+    with factory() as session:
+        job = session.get(Job, job_id)
+        source = session.get(Source, definition["id"])
+        assert job.status == "queued" and job.attempts == 0
+        assert job.lease_owner is None and job.lease_until is None
+        assert "disabled before acquisition" in job.error
+        assert source.health["status"] == "Disabled"

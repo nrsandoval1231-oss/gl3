@@ -60,7 +60,7 @@ def _project_evidence(session, source_id: str, number: str, slug: str):
     project = Project(
         identity_key=f"{slug}-{uuid4()}",
         name=f"Diamondback site {slug}",
-        location=f"Texas {slug}",
+        location=f"{slug} Synthetic Road, Dallas, TX",
         source_id=source_id,
         external_id=f"permit-{slug}",
     )

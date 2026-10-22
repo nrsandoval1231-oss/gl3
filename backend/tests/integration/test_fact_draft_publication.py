@@ -19,6 +19,7 @@ from gridlens.persistence.models import (
     CallFactDecision,
     CallFactVersion,
     PowerNeed,
+    Project,
 )
 from gridlens.security import token_for
 from gridlens.settings import settings
@@ -112,13 +113,14 @@ def test_draft_create_and_replay_keep_history_without_publication(publication_db
     with factory() as session:
         need = session.get(PowerNeed, need_id)
         project_id = need.project_id
+        facility_scope = session.get(Project, project_id).location
     now = datetime.now(UTC)
     body = {
         "client_id": str(uuid4()),
         "project_id": str(project_id),
         "expected_version": 0,
         "activity_key": "construction",
-        "facility_scope": "California",
+        "facility_scope": facility_scope,
         "fact_type": "demand",
         "value": {"mw": "20", "basis": "Synthetic future draft"},
         "reporter_name": "Synthetic operator",

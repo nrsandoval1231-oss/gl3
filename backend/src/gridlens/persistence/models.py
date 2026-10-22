@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
     func,
     text,
     true,
@@ -270,6 +271,36 @@ class Project(Base):
     external_id: Mapped[str] = mapped_column(String(200))
     asset_type: Mapped[str] = mapped_column(String(60), default="unknown", server_default="unknown")
     identity_facts: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    region_status: Mapped[str] = mapped_column(
+        String(12), default="HOLD", server_default="HOLD", index=True
+    )
+    region_state: Mapped[str | None] = mapped_column(String(2), nullable=True, index=True)
+    region_reason: Mapped[str] = mapped_column(
+        String(80),
+        default="project_site_state_unknown",
+        server_default="project_site_state_unknown",
+    )
+    region_provenance: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+
+@event.listens_for(Project, "before_insert")
+@event.listens_for(Project, "before_update")
+def _persist_project_region(_mapper, _connection, project: Project) -> None:
+    from gridlens.domain.regional_scope import classify_project_region
+
+    decision = classify_project_region(project.location, project.identity_facts)
+    project.region_status = decision.status
+    project.region_state = decision.state
+    project.region_reason = decision.reason
+    project.region_provenance = {
+        **decision.provenance,
+        "project_identity": {
+            "source_id": project.source_id,
+            "external_id": project.external_id,
+        },
+    }
 
 
 class ProjectLifecycle(Base):

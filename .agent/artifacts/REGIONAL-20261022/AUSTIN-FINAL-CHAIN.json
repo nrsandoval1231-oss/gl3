@@ -1,0 +1,241 @@
+{
+  "steps": [
+    {
+      "step": 1,
+      "job_id": "b6933008-5048-4b0a-99fb-02555ea5dfa4",
+      "status": "succeeded",
+      "lane": "issue_backfill",
+      "current_complete": true,
+      "jobs_remaining": 6,
+      "paused_for_budget": false,
+      "retained_delta": {
+        "observations": 0,
+        "evidence": 0,
+        "projects": 0,
+        "power_needs": 0
+      },
+      "elapsed_seconds": 1.0077531999559142
+    },
+    {
+      "step": 2,
+      "job_id": "2336dfea-c6bc-433a-bcaa-de400ca0160b",
+      "status": "succeeded",
+      "lane": "issue_backfill",
+      "current_complete": true,
+      "jobs_remaining": 5,
+      "paused_for_budget": false,
+      "retained_delta": {
+        "observations": 0,
+        "evidence": 0,
+        "projects": 0,
+        "power_needs": 0
+      },
+      "elapsed_seconds": 1.352691300038714
+    },
+    {
+      "step": 3,
+      "job_id": "87ad1db5-87c1-4ee5-90a3-56ff5e65b1dd",
+      "status": "succeeded",
+      "lane": "issue_backfill",
+      "current_complete": true,
+      "jobs_remaining": 4,
+      "paused_for_budget": false,
+      "retained_delta": {
+        "observations": 0,
+        "evidence": 0,
+        "projects": 0,
+        "power_needs": 0
+      },
+      "elapsed_seconds": 1.2193271999713033
+    },
+    {
+      "step": 4,
+      "job_id": "a2d38e8a-6279-44bc-82ff-2d70de511391",
+      "status": "succeeded",
+      "lane": "issue_backfill",
+      "current_complete": true,
+      "jobs_remaining": 3,
+      "paused_for_budget": false,
+      "retained_delta": {
+        "observations": 0,
+        "evidence": 0,
+        "projects": 0,
+        "power_needs": 0
+      },
+      "elapsed_seconds": 1.0726047999924049
+    },
+    {
+      "step": 5,
+      "job_id": "b2ccd6aa-8f07-4a8d-b221-8eee1c65e389",
+      "status": "succeeded",
+      "lane": "issue_backfill",
+      "current_complete": true,
+      "jobs_remaining": 2,
+      "paused_for_budget": false,
+      "retained_delta": {
+        "observations": 0,
+        "evidence": 0,
+        "projects": 0,
+        "power_needs": 0
+      },
+      "elapsed_seconds": 1.4392680000164546
+    },
+    {
+      "step": 6,
+      "job_id": "9e50249c-fd06-4980-8721-414d0db233c1",
+      "status": "succeeded",
+      "lane": "issue_backfill",
+      "current_complete": true,
+      "jobs_remaining": 1,
+      "paused_for_budget": false,
+      "retained_delta": {
+        "observations": 0,
+        "evidence": 0,
+        "projects": 0,
+        "power_needs": 0
+      },
+      "elapsed_seconds": 1.1300033999723382
+    },
+    {
+      "step": 7,
+      "job_id": "be2f3b07-29a6-4edd-a635-bd1deed89ef2",
+      "status": "succeeded",
+      "lane": "issue_backfill",
+      "current_complete": true,
+      "jobs_remaining": 0,
+      "paused_for_budget": true,
+      "retained_delta": {
+        "observations": 0,
+        "evidence": 0,
+        "projects": 0,
+        "power_needs": 0
+      },
+      "elapsed_seconds": 1.3764537000097334
+    }
+  ],
+  "final_health": {
+    "error": "Collection paused at chain job budget",
+    "status": "Partial",
+    "attempts": 1,
+    "retry_at": null,
+    "error_code": null,
+    "attempt_new": 0,
+    "error_stage": null,
+    "http_status": null,
+    "new_records": 0,
+    "retry_class": null,
+    "retry_state": "not_scheduled",
+    "last_attempt": "2026-10-22T23:39:02.285705+00:00",
+    "last_success": "2026-10-22T23:38:59.858188+00:00",
+    "pdf_eligible": 0,
+    "pdf_enriched": 0,
+    "regional_held": 0,
+    "parse_failures": 0,
+    "parsed_records": 1,
+    "pdf_candidates": 0,
+    "attempt_changed": 0,
+    "attempt_fetched": 1,
+    "changed_records": 0,
+    "collection_lane": "issue_backfill",
+    "permit_accepted": 1,
+    "permit_rejected": 0,
+    "records_scanned": 1,
+    "attempt_rejected": 0,
+    "collection_scope": "Commercial Building and Electrical Permits: rolling 30-day issuance / 7-day status changes, plus literal data center/data centre and construction power/temporary service/t-pole initial backfill issued 2026-01-01 through 2026-09-30, rechecked within the same counted query.",
+    "processing_error": null,
+    "records_rejected": 0,
+    "attempt_duplicate": 0,
+    "attempt_processed": 1,
+    "collection_status": "PARTIAL",
+    "pdf_skipped_limit": 0,
+    "regional_excluded": 0,
+    "retrieved_records": 1,
+    "unchanged_records": 1,
+    "coverage_limitation": "City limits only; literal-keyword backfill is not all data-center work. Older status changes outside the overlap or fixed backfill are not comprehensively monitored. Permit-listed names and permit-listed phones do not establish current employment or buying authority.",
+    "last_success_counts": {
+      "new_records": 0,
+      "parsed_records": 0,
+      "changed_records": 0,
+      "permit_accepted": 0,
+      "permit_rejected": 0,
+      "records_scanned": 0,
+      "retrieved_records": 0,
+      "unchanged_records": 0
+    },
+    "last_valid_record_at": "2026-10-22T18:39:03.648282-05:00",
+    "collection_window_end": "2026-03-25",
+    "last_rejected_records": [],
+    "attempt_metrics_status": "KNOWN",
+    "last_meaningful_update": "2026-10-22T17:45:01.678643-05:00",
+    "pdf_skipped_not_signal": 0,
+    "collection_window_start": "2026-03-19",
+    "latest_publication_date": null,
+    "latest_permit_issue_date": "2026-03-06",
+    "collection_jobs_remaining": 0,
+    "collection_current_complete": true,
+    "collection_paused_for_budget": true,
+    "latest_public_comment_deadline": null
+  },
+  "persisted_progress": [
+    {
+      "lane": "issue_recent",
+      "status": "complete",
+      "window_start": "2026-10-13 19:00:00-05:00",
+      "window_end": "2026-10-19 19:00:00-05:00"
+    },
+    {
+      "lane": "modified_recent",
+      "status": "complete",
+      "window_start": "2026-10-13 19:00:00-05:00",
+      "window_end": "2026-10-19 19:00:00-05:00"
+    },
+    {
+      "lane": "modified_history",
+      "status": "complete",
+      "window_start": "2026-10-19 19:00:00-05:00",
+      "window_end": "2026-10-19 19:00:00-05:00"
+    },
+    {
+      "lane": "issue_backfill",
+      "status": "complete",
+      "window_start": "2026-09-23 19:00:00-05:00",
+      "window_end": "2026-09-29 19:00:00-05:00"
+    },
+    {
+      "lane": "issue_history",
+      "status": "complete",
+      "window_start": "2026-10-19 19:00:00-05:00",
+      "window_end": "2026-10-19 19:00:00-05:00"
+    },
+    {
+      "lane": "modified_history",
+      "status": "complete",
+      "window_start": "2026-10-21 19:00:00-05:00",
+      "window_end": "2026-10-21 19:00:00-05:00"
+    },
+    {
+      "lane": "issue_history",
+      "status": "complete",
+      "window_start": "2026-10-19 19:00:00-05:00",
+      "window_end": "2026-10-21 19:00:00-05:00"
+    },
+    {
+      "lane": "issue_recent",
+      "status": "complete",
+      "window_start": "2026-10-15 19:00:00-05:00",
+      "window_end": "2026-10-21 19:00:00-05:00"
+    },
+    {
+      "lane": "modified_recent",
+      "status": "complete",
+      "window_start": "2026-10-15 19:00:00-05:00",
+      "window_end": "2026-10-21 19:00:00-05:00"
+    },
+    {
+      "lane": "issue_backfill",
+      "status": "complete",
+      "window_start": "2026-03-18 19:00:00-05:00",
+      "window_end": "2026-03-24 19:00:00-05:00"
+    }
+  ]
+}

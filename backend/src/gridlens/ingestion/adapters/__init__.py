@@ -37,7 +37,7 @@ def retrieve_source(
     *,
     deadline: float | None = None,
     request_headers: dict[str, str] | None = None,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | dict[str, Any]:
     if client is None:
         absolute_deadline = deadline or time.monotonic() + 25.0
         return run_isolated(
@@ -54,7 +54,7 @@ def _retrieve_source_direct(
     client: httpx.Client | None = None,
     request_headers: dict[str, str] | None = None,
     deadline: float | None = None,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | dict[str, Any]:
     method = source.get("retrieval_method")
     if method in {"federal-register-json", "json-api"}:
         from gridlens.ingestion.adapters.federal_register import retrieve

@@ -1,0 +1,75 @@
+{
+  "database_scope": "isolated local retained clone",
+  "tables": {
+    "evidence": {
+      "before": 20057,
+      "after": 22275,
+      "missing": 0,
+      "changed": 0
+    },
+    "observations": {
+      "before": 18535,
+      "after": 19155,
+      "missing": 0,
+      "changed": 1591
+    },
+    "projects": {
+      "before": 1661,
+      "after": 1804,
+      "missing": 0,
+      "changed": 0
+    },
+    "power_needs": {
+      "before": 1661,
+      "after": 1804,
+      "missing": 0,
+      "changed": 71
+    },
+    "change_events": {
+      "before": 5086,
+      "after": 5593,
+      "missing": 0,
+      "changed": 0
+    }
+  },
+  "region_counts": [
+    {
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "projects": 1741
+    },
+    {
+      "region_status": "EXCLUDED",
+      "region_state": "GA",
+      "projects": 9
+    },
+    {
+      "region_status": "EXCLUDED",
+      "region_state": "IL",
+      "projects": 23
+    },
+    {
+      "region_status": "EXCLUDED",
+      "region_state": "MA",
+      "projects": 24
+    },
+    {
+      "region_status": "EXCLUDED",
+      "region_state": "NY",
+      "projects": 1
+    },
+    {
+      "region_status": "EXCLUDED",
+      "region_state": "WA",
+      "projects": 5
+    },
+    {
+      "region_status": "HOLD",
+      "region_state": null,
+      "projects": 1
+    }
+  ],
+  "duplicate_observations": 0,
+  "duplicate_projects": 0,
+  "historical_evidence_preserved": true
+}

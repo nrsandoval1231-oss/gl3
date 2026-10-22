@@ -136,6 +136,11 @@ def test_replay_versions_and_withdrawal_preserve_evidence(db):
         "and ventilation shafts."
     )
     assert run(factory, job_id, initial)["signals"] == 0
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Observation)) == 1
+        retained = session.scalar(select(Evidence))
+        assert retained is not None
+        assert retained.extraction_location == "title and abstract"
     assert run(factory, job_id, initial)["unchanged"] == 1
     changed = record(initial["abstract"] + " Construction access roads will also be required.")
     assert run(factory, job_id, changed)["changed"] == 1
@@ -2293,3 +2298,176 @@ def test_source_ingestion_queues_jev_without_calling_provider(db, monkeypatch, p
         assert session.get(Job, job_id).checkpoint is not None
     assert provider_calls == []
     assert run()["unchanged"] == 1
+
+
+def test_out_of_region_permit_keeps_evidence_but_never_creates_active_need(db):
+    import gridlens.ingestion.service as service
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=definition["cadence_hours"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    permit = {
+        "source_type": "austin-building-permits",
+        "row_id": "2026-GA-SCOPE-1",
+        "status": "Issued",
+        "description": (
+            "Texas headquarters announces a concert stage with food vendors November 2-4, 2026."
+        ),
+        "address": "1 Festival Way",
+        "city": "Atlanta",
+        "state": "GA",
+    }
+    record_value = {
+        "document_number": permit["row_id"],
+        "title": "Texas headquarters event application",
+        "abstract": permit["description"],
+        "publication_date": "2026-09-27",
+        "html_url": "https://abc.austintexas.gov/permit/ga-scope-1",
+        "extraction_location": "permit fields",
+        "event_date": "2026-09-27",
+        "event_date_label": "Permit issue date",
+        "permit": permit,
+    }
+    with factory() as session:
+        counts = service.process_records(
+            session,
+            job_id,
+            "test",
+            1,
+            definition,
+            [record_value],
+            allow_model=False,
+        )
+    assert counts["regional_excluded"] == 1
+    assert counts["permit_accepted"] == 0
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        evidence = session.scalar(select(Evidence))
+        interpretation = session.scalar(select(Interpretation))
+        project = session.scalar(select(Project))
+        assert observation is not None and evidence is not None and interpretation is not None
+        assert project is not None and project.region_status == "EXCLUDED"
+        assert interpretation.assessment["regional_scope"]["reason"] == (
+            "project_site_outside_region"
+        )
+        assert interpretation.assessment["regional_scope"]["state"] == "GA"
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+
+
+def test_site_reclassification_holds_active_need_and_preserves_evidence_history(db):
+    import gridlens.ingestion.service as service
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=definition["cadence_hours"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    def permit_record(city: str, state: str, description: str) -> dict:
+        permit = {
+            "source_type": "austin-building-permits",
+            "row_id": "2026-SITE-RECLASS-1",
+            "status": "Issued",
+            "description": description,
+            "address": "1 Festival Way",
+            "city": city,
+            "state": state,
+        }
+        return {
+            "document_number": permit["row_id"],
+            "title": "Festival application",
+            "abstract": description,
+            "publication_date": "2026-09-27",
+            "html_url": "https://abc.austintexas.gov/permit/site-reclass-1",
+            "extraction_location": "permit fields",
+            "event_date": "2026-09-27",
+            "event_date_label": "Permit issue date",
+            "permit": permit,
+        }
+
+    initial = permit_record(
+        "Austin",
+        "TX",
+        "Texas headquarters announces a concert stage with food vendors November 2-4, 2026.",
+    )
+    with factory() as session:
+        first = service.process_records(
+            session, job_id, "test", 1, definition, [initial], allow_model=False
+        )
+    assert first["permit_accepted"] == 1
+    with factory.begin() as session:
+        project = session.scalar(select(Project))
+        assert project is not None and project.region_status == "ELIGIBLE"
+        project.identity_facts = {**project.identity_facts, "site": "Dallas, TX"}
+        need = session.scalar(select(PowerNeed))
+        assert need is not None and need.active
+
+    revised = permit_record(
+        "Santa Clara",
+        "CA",
+        "Texas headquarters revises its event filing for a concert stage with food vendors "
+        "November 2-4, 2026.",
+    )
+    with factory() as session:
+        second = service.process_records(
+            session, job_id, "test", 1, definition, [revised], allow_model=False
+        )
+    assert second["regional_held"] == 1
+    with factory() as session:
+        interpretation = session.scalar(select(Interpretation))
+        need = session.scalar(select(PowerNeed))
+        assert interpretation is not None and need is not None
+        assert interpretation.assessment["regional_scope"]["status"] == "HOLD"
+        assert interpretation.assessment["regional_scope"]["reason"] == (
+            "conflicting_project_site_states"
+        )
+        assert need.active is False
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2

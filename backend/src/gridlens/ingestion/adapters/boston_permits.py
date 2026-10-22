@@ -177,6 +177,8 @@ def retrieve_collection_segment(
     window_end: date,
     cursor: dict[str, Any],
     client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
 ) -> dict[str, Any]:
     """Fetch one Boston issue-date segment with an _id keyset cursor."""
     if lane not in {"issue_recent", "issue_history"}:

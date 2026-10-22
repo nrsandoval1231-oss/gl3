@@ -1,0 +1,57 @@
+{
+  "packet": "FR5",
+  "status": "IMPLEMENTED_FOCUSED_VALIDATION_PASS",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-regional-20261022",
+  "base_head": "0f876440a1375c502534cc1dd3c08ceff38c7349",
+  "candidate_state": "Uncommitted integrated working tree; root owns final candidate validation and review.",
+  "utc": {
+    "start": "UNKNOWN (not captured before implementation began)",
+    "finish": "2026-10-22T22:57:18Z",
+    "implementation_elapsed": "UNKNOWN"
+  },
+  "changed_files_owned": [
+    "backend/tests/integration/test_retained_document_import.py",
+    ".agent/artifacts/REGIONAL-20261022/FR5-COMPLETION.json"
+  ],
+  "implementation": [
+    "California F17 city and CEC retained documents are processed through ordinary process_records; tests preserve their accepted interpretation, retained source provenance and PDF locations while verifying the Santa Clara project is EXCLUDED and has no active need. Replay preserves state.",
+    "Real Abilene Crusoe import remains a positive importer path and yields an eligible TX project with an active need.",
+    "Two synthetic retained TX sources with distinct IDs and the same explicit 500 Synthetic Drive physical site prove ordinary source convergence to one project and one need, stable basis/order and idempotent replay. Separate cases retain basis repair, reopening, both source orders, and reviewed hash-version relinking through production admission and interpretation paths.",
+    "A real California retained importer attempt is rejected for lacking an accepted linked need; transaction rollback leaves previously persisted California evidence/project state intact and records a failed importer job."
+  ],
+  "validation": [
+    {
+      "command": "uv run --directory backend --env-file ../.artifacts/regional/fixture-test.env python -m pytest tests/integration/test_retained_document_import.py -q --tb=short",
+      "exit_code": 0,
+      "result": "11 passed in 8.15s"
+    },
+    {
+      "command": "uv run --directory backend --env-file ../.artifacts/regional/fixture-test.env python -m ruff check tests/integration/test_retained_document_import.py",
+      "exit_code": 0,
+      "result": "All checks passed."
+    },
+    {
+      "command": "uv run --directory backend --env-file ../.artifacts/regional/fixture-test.env python -m ruff format --check tests/integration/test_retained_document_import.py",
+      "exit_code": 0,
+      "result": "1 file already formatted"
+    },
+    {
+      "command": "git diff --check -- backend/tests/integration/test_retained_document_import.py",
+      "exit_code": 0,
+      "result": "Passed."
+    }
+  ],
+  "repair_history": [
+    "First focused run: 9 passed, 2 failed. Evidence showed the reopen expectation belonged in the dedicated reopen test, and the synthetic reviewed hash needed a correspondingly reviewed test-only policy digest.",
+    "Applied those bounded test-fixture corrections; second focused run passed all 11 tests."
+  ],
+  "scope_and_handoff": [
+    "No production source, policy, registry, classifier, or UI files were edited. California source IDs, policy provenance, location, and URLs remain unchanged.",
+    "Tests used the dedicated fixture-test.env and isolated test database. No environment values were printed; no network or paid calls, production changes, commits, pushes, merges, or deployments were made.",
+    "This is focused retained-document evidence only. Root owns integration with other packets, final exact-candidate gates, and acceptance."
+  ],
+  "unknowns": [
+    "Implementation start time, aggregate elapsed time, and token usage were not measured.",
+    "Repository-level final gates and independent review remain outstanding."
+  ]
+}

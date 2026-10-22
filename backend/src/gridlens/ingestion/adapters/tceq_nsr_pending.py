@@ -22,8 +22,9 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 from pypdf import PdfReader
 
-from gridlens.ingestion.adapters.bounded_http import read_bounded_response
+from gridlens.ingestion.adapters.diagnostics import acquisition_diagnostics
 from gridlens.ingestion.adapters.federal_register import SourceParseError
+from gridlens.ingestion.adapters.tceq_http import read_tceq_response
 
 SOURCE_ID = "texas-tceq-nsr-pending"
 LISTING_URL = (
@@ -69,6 +70,10 @@ _COORD = re.compile(r"(-?\d{1,3}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})")
 
 def _text(cell: Any) -> str:
     return " ".join(cell.get_text(" ", strip=True).split())
+
+
+def _bounded_text(value: str, max_bytes: int) -> str:
+    return value.encode("utf-8")[:max_bytes].decode("utf-8", errors="ignore")
 
 
 def _received(value: str, today: date) -> date:
@@ -127,7 +132,12 @@ def _notice(url: str) -> str:
     return normalized
 
 
-def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
+def parse_listing(
+    body: bytes,
+    today: date,
+    *,
+    rejected: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     soup = BeautifulSoup(body, "html.parser")
     heading = soup.find(["h1", "h2"], string=re.compile("Pending Applications: New Source Review"))
     if heading is None:
@@ -156,11 +166,6 @@ def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
             if any(_text(cell) for cell in (facility_cell, permit_cell, date_cell)):
                 raise SourceParseError("TCEQ listing application row is missing a required link")
             continue
-        for anchor in applicant_cell.find_all("a"):
-            anchor.extract()
-        applicant = _text(applicant_cell)
-        facility = _text(facility_cell)
-        permits = [p.strip() for p in _text(permit_cell).replace(" ", "").split(",") if p.strip()]
         notice_url = _notice(str(notice["href"]))
         application_url = _official(str(application["href"]))
         if not _APPLICATION_PATH.fullmatch(urlsplit(application_url).path):
@@ -179,18 +184,50 @@ def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
             project = application_project.group(1)
         elif application_project and project != application_project.group(1):
             raise SourceParseError("TCEQ notice and application project identities conflict")
-        if not applicant or not facility or not permits or not project.isdigit():
+        if not project.isdigit() or len(project) > 12:
             raise SourceParseError("TCEQ listing row lacks applicant, facility, permit or project")
         if project in seen:
             raise SourceParseError("TCEQ listing has duplicate project identity")
         seen.add(project)
+        for anchor in applicant_cell.find_all("a"):
+            anchor.extract()
+        applicant = _text(applicant_cell)
+        facility = _text(facility_cell)
+        permits = [p.strip() for p in _text(permit_cell).replace(" ", "").split(",") if p.strip()]
+        raw = {
+            "applicant": _bounded_text(applicant, 256),
+            "facility": _bounded_text(facility, 256),
+            "permits": _bounded_text(_text(permit_cell), 256),
+            "received": _bounded_text(_text(date_cell), 64),
+        }
+        try:
+            if not applicant or not facility or not permits:
+                raise SourceParseError(
+                    "TCEQ listing row lacks applicant, facility, permit or project"
+                )
+            received = _received(raw["received"], today)
+        except SourceParseError as exc:
+            if rejected is None:
+                raise
+            code = "tceq_received_date" if "date" in str(exc).lower() else "tceq_row_identity"
+            rejected.append(
+                {
+                    "identity": f"TCEQ-{project}",
+                    "stage": "tceq_listing_row",
+                    "error_code": code,
+                    "selected_fields": sorted(raw),
+                    "omitted_fields": [],
+                    "raw": raw,
+                }
+            )
+            continue
         rows.append(
             {
                 "project": project,
                 "applicant": applicant,
                 "facility": facility,
                 "permits": permits,
-                "received": _received(_text(date_cell), today),
+                "received": received,
                 "notice_href": str(notice["href"]),
                 "application_href": str(application["href"]),
                 "notice_url": notice_url,
@@ -198,7 +235,8 @@ def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
                 "application_stage": _text(application),
             }
         )
-    if not MIN_ROWS <= len(rows) <= MAX_ROWS:
+    total_rows = len(rows) + len(rejected or [])
+    if not MIN_ROWS <= total_rows <= MAX_ROWS:
         raise SourceParseError("TCEQ listing row count is outside its expected bounds")
     return rows
 
@@ -339,9 +377,36 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
     }
 
 
-def _presence_only(row: dict[str, Any]) -> dict[str, Any]:
-    """Listed this run but withheld from processing; keeps snapshot reconciliation exact."""
-    return {"document_number": f"TCEQ-{row['project']}", "presence_only": True}
+def _presence_only(
+    row: dict[str, Any], error: BaseException, *, deferred: bool = False
+) -> dict[str, Any]:
+    """Keep source identity for snapshot reconciliation and a bounded failure reason."""
+    status = error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
+    code = (
+        f"http_status_{status}"
+        if type(status) is int and 100 <= status <= 599
+        else "network_error"
+        if isinstance(error, httpx.RequestError)
+        else "acquisition_timeout"
+        if isinstance(error, TimeoutError)
+        else "document_deferred"
+        if deferred
+        else "invalid_official_document"
+    )
+    permit = str(row["permits"][0])[:64]
+    return {
+        "document_number": f"TCEQ-{row['project']}",
+        "presence_only": True,
+        "partial_snapshot": True,
+        "rejected_record": {
+            "identity": f"TCEQ-{row['project']}",
+            "stage": "tceq_document",
+            "error_code": code,
+            "selected_fields": ["permit"],
+            "omitted_fields": ["document_body"],
+            "raw": {"permit": permit},
+        },
+    }
 
 
 def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list[dict[str, Any]]:
@@ -351,37 +416,80 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     if not 0 <= max_summaries <= 60:
         raise SourceParseError("TCEQ summary bound is invalid")
     today = datetime.now(ZoneInfo("America/Chicago")).date()
-    http = client or httpx.Client(timeout=25, follow_redirects=False)
+    http = client or httpx.Client(timeout=25, follow_redirects=False, trust_env=False)
     try:
-        _, body = read_bounded_response(http, LISTING_URL, MAX_LISTING_BYTES)
-        rows = parse_listing(body, today)
-        records = []
-        attempted = failed = 0
+        _, body = read_tceq_response(http, LISTING_URL, MAX_LISTING_BYTES, route="listing")
+        rejected_rows: list[dict[str, Any]] = []
+        rows = parse_listing(body, today, rejected=rejected_rows)
+        records = [
+            {
+                "document_number": item["identity"],
+                "presence_only": True,
+                "partial_snapshot": True,
+                "rejected_record": item,
+            }
+            for item in rejected_rows
+        ]
+        attempted = 0
         # Newest relevant filings get the bounded summary budget first. A relevant row is
         # emitted only with a successfully parsed summary: emitting it without one would
         # replace prior enrichment with an unsited version and could retire a valid Signal.
         # Skipped rows keep their last stored version and are retried on the next run.
+        rate_limited = False
         for row in sorted(rows, key=lambda item: item["received"], reverse=True):
             if not RELEVANT_NAME.search(f"{row['applicant']} {row['facility']}"):
                 records.append(_record(row, None))
                 continue
+            if rate_limited:
+                records.append(
+                    _presence_only(
+                        row,
+                        SourceParseError("summary deferred after publisher rate limit"),
+                        deferred=True,
+                    )
+                )
+                continue
             if attempted >= max_summaries:
-                records.append(_presence_only(row))
+                records.append(
+                    _presence_only(row, SourceParseError("summary fetch budget exhausted"))
+                )
                 continue
             attempted += 1
             permit = row["permits"][0]
             try:
-                _, pdf = read_bounded_response(
-                    http, SUMMARY_URL.format(permit=permit.lower()), MAX_PDF_BYTES
+                _, pdf = read_tceq_response(
+                    http,
+                    SUMMARY_URL.format(permit=permit.lower()),
+                    MAX_PDF_BYTES,
+                    route="pdf",
                 )
                 records.append(_record(row, parse_summary(pdf, permit)))
-            except (httpx.HTTPError, SourceParseError, ValueError):
-                failed += 1
-                records.append(_presence_only(row))
-        if attempted and failed * 2 > attempted:
-            raise SourceParseError(
-                f"TCEQ summaries failed for {failed} of {attempted} relevant filings"
-            )
+            except (httpx.HTTPError, SourceParseError, ValueError) as error:
+                presence = _presence_only(row, error)
+                records.append(presence)
+                diagnostics = acquisition_diagnostics(error)
+                status = diagnostics.get("http_status")
+                retryable_status = type(status) is int and (
+                    status in {408, 425, 429} or status >= 500
+                )
+                rate_limited = (
+                    status == 429
+                    or retryable_status
+                    and (
+                        "retry_after_seconds" in diagnostics
+                        or diagnostics.get("retry_after_exceeds_bound") == 1
+                    )
+                )
+                if rate_limited:
+                    presence["_acquisition_diagnostics"] = {
+                        key: diagnostics[key]
+                        for key in (
+                            "http_status",
+                            "retry_after_seconds",
+                            "retry_after_exceeds_bound",
+                        )
+                        if key in diagnostics
+                    }
         return records
     finally:
         if client is None:

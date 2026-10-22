@@ -72,7 +72,7 @@ def runtime(monkeypatch):
                 publisher="Synthetic City",
                 endpoint="https://example.test",
                 family="construction-permits",
-                geography="Test City",
+                geography="Austin, TX",
                 industries=["construction"],
                 retrieval_method="socrata-permits",
                 health={},
@@ -82,7 +82,8 @@ def runtime(monkeypatch):
         project = Project(
             identity_key=f"a6-project-{uuid4()}",
             name="Synthetic Test Facility",
-            location="Test City",
+            location="Austin, TX",
+            identity_facts={"site": "Austin, TX"},
             source_id="a6-test-source",
             external_id="synthetic-1",
         )
@@ -126,7 +127,7 @@ def _body(project_id, pursuit_id, *, client_id=None, expected_version=0, predece
         "expected_version": expected_version,
         "predecessor_id": str(predecessor_id) if predecessor_id else None,
         "activity_key": "construction",
-        "facility_scope": "Test City",
+        "facility_scope": "Austin, TX",
         "fact_type": "demand",
         "value": {"mw": "20", "basis": "Synthetic operator-confirmed fixture"},
         "reporter_name": "Synthetic Account Manager",
@@ -167,7 +168,7 @@ def test_authenticated_power_schedule_draft_correct_conflict_retract_current_car
             source_id="a6-test-source",
             external_id="power-schedule-fixture",
             title="Construction milestone",
-            abstract="Synthetic construction milestone in Test City.",
+            abstract="Synthetic construction milestone at the Austin, TX site.",
             published_at=now.date(),
             url="https://example.test/construction-milestone",
             content_hash=source_hash,
@@ -233,7 +234,7 @@ def test_authenticated_power_schedule_draft_correct_conflict_retract_current_car
             "expected_version": expected,
             "predecessor_id": predecessor,
             "activity_key": "construction",
-            "facility_scope": "Test City",
+            "facility_scope": "Austin, TX",
             "fact_type": "power_schedule",
             "value": value,
             "reporter_name": "Synthetic Account Manager",
@@ -750,7 +751,7 @@ def test_discovery_facts_remain_signal_and_preserve_history(runtime, monkeypatch
             source_id="a6-test-source",
             external_id="neutral-site",
             title="Synthetic facility site milestone",
-            abstract="A facility site milestone in Test City.",
+            abstract="A facility site milestone in Austin, TX.",
             published_at=datetime.now(UTC).date(),
             url="https://example.test/neutral-site",
             content_hash=content_hash,
@@ -856,9 +857,9 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         sibling_need_id = sibling.id
     content_hash = "a" * 64
     source_abstract = (
-        "description: Test City construction requires 20 to 25 MW. "
-        "Power supply for Test City construction is insufficient.\n"
-        "address: Test City"
+        "description: Austin, TX construction requires 20 to 25 MW. "
+        "Power supply for Austin, TX construction is insufficient.\n"
+        "address: Austin, TX"
     )
     with factory.begin() as session:
         need = session.get(PowerNeed, need_id)
@@ -895,8 +896,8 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
                 "power_activity": "construction",
                 "tier": "Prospect",
                 "demand_mw": "20 to 25 MW",
-                "demand_quote": "Test City construction requires 20 to 25 MW.",
-                "supply_quote": "Power supply for Test City construction is insufficient.",
+                "demand_quote": "Austin, TX construction requires 20 to 25 MW.",
+                "supply_quote": "Power supply for Austin, TX construction is insufficient.",
                 "reason": "Current retained exact-site permit support.",
                 "subject": project.name,
                 "location": project.location,
@@ -1145,9 +1146,9 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         conflicting_hash = "b" * 64
         observation.content_hash = conflicting_hash
         observation.abstract = (
-            "description: Test City construction requires 30 MW. "
-            "Power supply for Test City construction is insufficient.\n"
-            "address: Test City"
+            "description: Austin, TX construction requires 30 MW. "
+            "Power supply for Austin, TX construction is insufficient.\n"
+            "address: Austin, TX"
         )
         session.add(
             Evidence(
@@ -1197,8 +1198,8 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
             "evidence_hash": restored_hash,
             "tier": "Signal",
             "demand_mw": "20 to 25 MW",
-            "demand_quote": "Test City construction requires 20 to 25 MW.",
-            "supply_quote": "Power supply for Test City construction is insufficient.",
+            "demand_quote": "Austin, TX construction requires 20 to 25 MW.",
+            "supply_quote": "Power supply for Austin, TX construction is insufficient.",
             "reason": "Compatible current source support restored.",
         }
         interpretation.status = "accepted"
@@ -1306,7 +1307,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         assert interpretation.assessment["demand_mw"] == "20 to 25 MW"
         assert (
             interpretation.assessment["supply_quote"]
-            == "Power supply for Test City construction is insufficient."
+            == "Power supply for Austin, TX construction is insufficient."
         )
 
     # Replaying a new compatible public source version cannot reopen a Need
@@ -1488,15 +1489,15 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
     from gridlens.domain.power_qualification import qualify_official_power
 
     source_description = (
-        "Test City construction requires 20 to 25 MW. "
-        "Power supply for Test City construction is insufficient. "
-        "Test City construction starts between 2027-01-01 and 2027-02-01. "
-        "Test City construction lasts 31 to 62 days. "
-        "No suitable power supply is available for Test City construction throughout this "
+        "Austin, TX construction requires 20 to 25 MW. "
+        "Power supply for Austin, TX construction is insufficient. "
+        "Austin, TX construction starts between 2027-01-01 and 2027-02-01. "
+        "Austin, TX construction lasts 31 to 62 days. "
+        "No suitable power supply is available for Austin, TX construction throughout this "
         "start window and duration. The electrical contractor is responsible for power "
-        "procurement for Test City construction."
+        "procurement for Austin, TX construction."
     )
-    source_text = f"description: {source_description}\naddress: Test City"
+    source_text = f"description: {source_description}\naddress: Austin, TX"
     source_hash = "e" * 64
     changed_source_hash = "f" * 64
     with factory.begin() as session:
@@ -1505,9 +1506,9 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         assert need is not None and project is not None
         claim = qualify_official_power(
             text=source_description,
-            site="Test City",
+            site="Austin, TX",
             activity_key="construction",
-            location="Test City",
+            location="Austin, TX",
         )
         assert claim["tier"] == "Lead"
         claim.update(
@@ -1987,7 +1988,7 @@ def test_saved_commercial_card_binds_accepted_fact_versions_as_of(runtime):
             source_id="a6-test-source",
             external_id="triage-asof-1",
             title="Synthetic current construction permit",
-            abstract="Current public permit supports construction activity at Test City.",
+            abstract="Current public permit supports construction activity at the Austin, TX site.",
             published_at=datetime.now(UTC).date(),
             url="https://example.test/triage-asof-1",
             content_hash=original_hash,
@@ -2259,7 +2260,7 @@ def test_current_fact_preflight_fails_closed_before_fact_orm_hydration(runtime, 
                     predecessor_id=None,
                     client_id=uuid4(),
                     activity_key="construction",
-                    facility_scope="Test City",
+                    facility_scope="Austin, TX",
                     fact_type="demand",
                     value={"mw": "20", "basis": "Synthetic bounded fixture"},
                     reporter_name="Synthetic operator",

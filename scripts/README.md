@@ -15,3 +15,9 @@ From the repository root, run the docs graph check as `uv run --project backend 
 Other scripts are purpose-specific. A successful local or synthetic command is not production, live-provider, or commercial acceptance evidence.
 
 Retained-only operator tools: [news reassessment](../docs/sources/project-interpretation.md#bounded-operator-reassessment) and [buying-chain backfill](../docs/operations/retained-buying-chain-backfill.md). Both use bounded pages and explicit database identity for apply; application/production actions require separate authorization. Use `uv run --project backend python scripts/<script>.py --help` from the repository root.
+
+## Regional stabilization proof utilities
+
+`ingestion_performance.py` compares local TestClient routing/SQL timings on a fixed retained clone and configuration, without network/authentication latency. `verify_ingestion_recovery.py` runs explicitly selected enabled sources through the real worker only in an isolated loopback `*_app` database, clears model keys and retains private source receipts. `regional_preservation.py` checks that every pre-existing evidence/change-event version and retained identity survives migration and ingestion, and rejects duplicate source/project identities. These utilities neither authorize nor prove production operation. Raw receipts and database files belong in ignored `.artifacts/`.
+
+`prove_ingestion_interruption.py` deliberately exits after the first committed real TCEQ evidence row in an empty loopback `*_recovery_app` database, then proves expired-lease recovery and unchanged replay. Its destructive process interruption is restricted to its own disposable verification process/database; it must never target the application or production database.

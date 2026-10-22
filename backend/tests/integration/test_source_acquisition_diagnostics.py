@@ -184,7 +184,7 @@ def _assert_private_details_absent(job, source, receipts):
         assert forbidden not in persisted
 
 
-def test_wrapped_georgia_403_persists_safe_diagnostics_and_success_clears_health(
+def test_wrapped_http_403_persists_safe_diagnostics_and_success_clears_health(
     diagnostics_db,
     monkeypatch,
 ):
@@ -192,7 +192,7 @@ def test_wrapped_georgia_403_persists_safe_diagnostics_and_success_clears_health
     import gridlens.jobs.worker as worker
 
     factory = diagnostics_db
-    definition, job_id = _scheduled_job(factory, "georgia-air-draft-title-v")
+    definition, job_id = _scheduled_job(factory, "federal-register-eis")
 
     def fail_retrieval(*_args, **_kwargs):
         raise _wrapped_georgia_forbidden()
@@ -256,11 +256,11 @@ def test_structured_parse_failure_persists_partial_diagnostics_and_zero_attempt_
     import gridlens.jobs.worker as worker
 
     factory = diagnostics_db
-    definition, job_id = _scheduled_job(factory, "boston-building-permits")
+    definition, job_id = _scheduled_job(factory, "austin-building-permits")
 
     def fail_segment(*_args, **_kwargs):
         with acquisition_stage("public_acquisition"):
-            raise SourceParseError("Boston permit rows have duplicate identity or bad order")
+            raise SourceParseError("Permit segment rows are out of stable key order")
 
     # Leave process_job/process_records and the worker real: the parser boundary
     # alone is synthetic, so service-to-receipt diagnostic transport is exercised.
@@ -283,12 +283,12 @@ def test_structured_parse_failure_persists_partial_diagnostics_and_zero_attempt_
         assert job is not None and job.status == "succeeded"
         assert source is not None and source.health["status"] == "Partial"
         assert source.health["last_success"] == PRIOR_SUCCESS
-        assert source.health["error_code"] == "boston_row_order"
+        assert source.health["error_code"] == "permit_row_order"
         assert source.health["error_stage"] == "public_acquisition"
         assert source.health["http_status"] is None
         assert receipt is not None and receipt.disposition == "partial"
         counts = receipt.check_counts
-        assert counts["collection_error_code"] == "boston_row_order"
+        assert counts["collection_error_code"] == "permit_row_order"
         assert counts["collection_error_stage"] == "public_acquisition"
         assert counts["collection_http_status"] is None
         assert counts["collection_continuation"] is False
