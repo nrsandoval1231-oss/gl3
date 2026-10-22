@@ -719,6 +719,116 @@ class BuyingChainClaim(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class BuyingChainCorrection(Base):
+    """Append-only attributed correction/retraction for one project-scoped claim."""
+
+    __tablename__ = "buying_chain_corrections"
+    __table_args__ = (
+        UniqueConstraint("claim_id", "idempotency_key", name="uq_buying_correction_idempotency"),
+        Index(
+            "ix_buying_correction_project_claim",
+            "project_id",
+            "claim_id",
+            "created_at",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    claim_id: Mapped[UUID] = mapped_column(ForeignKey("buying_chain_claims.id"))
+    expected_version: Mapped[str] = mapped_column(String(80))
+    idempotency_key: Mapped[str] = mapped_column(String(120))
+    action: Mapped[str] = mapped_column(String(16))
+    values: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    source_evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey("buying_chain_evidence.id"))
+    source_version_hash: Mapped[str | None] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(Text)
+    actor: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CompanyIdentity(Base):
+    """Stable cross-project company identity; display names are descriptive only."""
+
+    __tablename__ = "company_identities"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PersonIdentity(Base):
+    """Stable cross-project person identity; project roles remain claim-scoped."""
+
+    __tablename__ = "person_identities"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class IdentityIdentifier(Base):
+    """Evidence-backed strong identifier or attributed review alias."""
+
+    __tablename__ = "identity_identifiers"
+    __table_args__ = (
+        CheckConstraint(
+            "entity_type IN ('company', 'person')", name="ck_identity_identifier_entity_type"
+        ),
+        CheckConstraint(
+            "(company_identity_id IS NOT NULL) <> (person_identity_id IS NOT NULL)",
+            name="ck_identity_identifier_one_owner",
+        ),
+        UniqueConstraint(
+            "entity_type",
+            "identifier_type",
+            "normalized_value",
+            name="uq_identity_identifier_value",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    entity_type: Mapped[str] = mapped_column(String(12))
+    company_identity_id: Mapped[UUID | None] = mapped_column(ForeignKey("company_identities.id"))
+    person_identity_id: Mapped[UUID | None] = mapped_column(ForeignKey("person_identities.id"))
+    identifier_type: Mapped[str] = mapped_column(String(40))
+    normalized_value: Mapped[str] = mapped_column(String(240))
+    source_evidence_id: Mapped[UUID] = mapped_column(ForeignKey("buying_chain_evidence.id"))
+    source_version_hash: Mapped[str] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BuyingChainIdentityLink(Base):
+    """Historical link from a project-scoped claim to a global identity."""
+
+    __tablename__ = "buying_chain_identity_links"
+    __table_args__ = (
+        CheckConstraint(
+            "entity_type IN ('company', 'person')", name="ck_buying_identity_link_entity_type"
+        ),
+        CheckConstraint(
+            "(company_identity_id IS NOT NULL) <> (person_identity_id IS NOT NULL)",
+            name="ck_buying_identity_link_one_owner",
+        ),
+        Index("ix_buying_identity_link_current", "claim_id", "state"),
+        Index(
+            "uq_buying_identity_link_one_current",
+            "claim_id",
+            "entity_type",
+            unique=True,
+            postgresql_where=text("state = 'current'"),
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    claim_id: Mapped[UUID] = mapped_column(ForeignKey("buying_chain_claims.id"))
+    entity_type: Mapped[str] = mapped_column(String(12))
+    company_identity_id: Mapped[UUID | None] = mapped_column(ForeignKey("company_identities.id"))
+    person_identity_id: Mapped[UUID | None] = mapped_column(ForeignKey("person_identities.id"))
+    reason: Mapped[str] = mapped_column(Text)
+    basis: Mapped[str] = mapped_column(String(24), default="strong_identifier")
+    reviewed_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    source_evidence_id: Mapped[UUID] = mapped_column(ForeignKey("buying_chain_evidence.id"))
+    source_version_hash: Mapped[str] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(16), default="current")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class BuyingChainRun(Base):
     __tablename__ = "buying_chain_runs"
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)

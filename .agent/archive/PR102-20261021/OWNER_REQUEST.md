@@ -1,0 +1,13 @@
+# Owner request
+
+Current initiative: October 20, 2026 audit remediation and documentation cleanup, repository nrsandoval1231-oss/gl3, audit baseline 9e9e188bdf2825a8305a0e9eac0b23f0af1df47e. The direct owner request in this chat governs scope and authority. The attached audit is source evidence, not separate permission to execute its suggested operational actions.
+
+Implement the commercial workflow repairs: canonical priority ranking; evidence-backed news admission and bounded versioned reassessment; automatic retained-only buying-chain extraction; valid current fact corrections; honest workspace errors; atomic login admission; complete Signal decision counts; persisted morning changes. Measure publication costs, repair demonstrated bottlenecks, preserve job/call deduplication and accounting, and document the proposed branch rule where governance authority is absent. Consolidate active documentation without deleting history.
+
+Preserve the existing architecture, qualification gates, evidence versions, approved UI/brand, dirty work, provenance, budgets and no-blind-retry protection. Complete reversible implementation/tests/docs autonomously. Use disposable local databases and exact candidate evidence. Open reviewable PRs. No merge, deployment, paid activation, production replay, financial-accounting change, database deletion or override of the deployment hold is authorized by this request.
+
+[PRD](../docs/product/PRD.md), [UI canon](../docs/design/UI_CANON.md), [rules](AGENT_RULES.md) and [Finish Contract](FINISH_CONTRACT.md) remain authoritative. The [matrix](AUDIT_REMEDIATION_MATRIX.md) reconciles findings; [work graph](WORK_GRAPH.md) selects the frontier; [delivery status](../docs/delivery/milestones.md) records acceptance separately from implementation. Earlier owner requests and their observations remain [archived unchanged](archive/AUDIT-20261020/pre-remediation-OWNER_REQUEST.md).
+# Owner clarification during remediation
+
+On October 20, Nick explicitly resolved the September 30 news-admission conflict: "Allow site-specific news to create standalone discovery Signals, with unknown power facts and the existing Prospect/Lead gates." This authorizes a bounded versioned admission repair. Preserve the earlier decision as history, evidence matching, distinct project/activity identity, strict negative guards and all qualification requirements. Site transactions and power arrangements must not invent construction activity, temporary demand, MW, duration, a supply gap or buying authority. A neutral project-discovery activity may represent an unknown power phase explicitly. No production reassessment or deployment is authorized.
+

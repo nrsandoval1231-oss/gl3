@@ -578,6 +578,54 @@
         "window_days": 90,
         "name_terms": ["data center", "datacenter"]
       }
+    },
+    {
+      "id": "f17-stack-city-claim",
+      "publisher": "City of Santa Clara agenda attachment; STACK party claim",
+      "endpoint": "https://santaclara.legistar.com/View.ashx?GUID=41D90CA3-8232-4978-9508-DB1418113E87&ID=1349150&M=E2",
+      "family": "retained-public-document",
+      "geography": "Santa Clara, California",
+      "industries": ["data centers"],
+      "retrieval_method": "retained-document",
+      "cadence_hours": 8760,
+      "publication_cadence": "One exact operator-retained PDF; manual offline import only",
+      "credential_reference": null,
+      "enabled": false,
+      "manual_only": true,
+      "retention": "Exact reviewed PDF body hash and cited pages retained locally; no scheduled retrieval",
+      "query": {"document_id": "f17-stack-city-claim"}
+    },
+    {
+      "id": "f17-stack-cec-filing",
+      "publisher": "California Energy Commission docket 25-IEPR-03; STACK party submission",
+      "endpoint": "https://efiling.energy.ca.gov/GetDocument.aspx?tn=261716",
+      "family": "retained-public-document",
+      "geography": "Santa Clara, California",
+      "industries": ["data centers"],
+      "retrieval_method": "retained-document",
+      "cadence_hours": 8760,
+      "publication_cadence": "One exact operator-retained PDF; manual offline import only",
+      "credential_reference": null,
+      "enabled": false,
+      "manual_only": true,
+      "retention": "Exact reviewed PDF body hash and cited pages retained locally; no scheduled retrieval",
+      "query": {"document_id": "f17-stack-cec-filing"}
+    },
+    {
+      "id": "f17-crusoe-impact",
+      "publisher": "Crusoe 2025 Impact Report",
+      "endpoint": "https://cdn.prod.website-files.com/6855c1aa175582ee23e0aa19/6aa975443d2a8405e214f067_Crusoe_2025_Impact%20Report2_web_optimized.pdf",
+      "family": "retained-operator-publication",
+      "geography": "Abilene, Texas",
+      "industries": ["data centers"],
+      "retrieval_method": "retained-document",
+      "cadence_hours": 8760,
+      "publication_cadence": "One exact operator-retained PDF; manual offline import only",
+      "credential_reference": null,
+      "enabled": false,
+      "manual_only": true,
+      "retention": "Exact reviewed PDF body hash and cited pages retained locally; no scheduled retrieval",
+      "query": {"document_id": "f17-crusoe-impact"}
     }
   ]
 }

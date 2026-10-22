@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy import text
 
+from gridlens.domain.lifecycle import INDUSTRIAL_ASSET_VALUES
 from gridlens.intelligence.saved_browse import canonical_json, current_generation
 
 
@@ -37,6 +38,10 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
             else:
                 clauses.append(f"{column}=:f_{key}")
                 params[f"f_{key}"] = filters[key]
+    if filters.get("industry_group") == "industrial":
+        names = [f"industrial_asset_{index}" for index in range(len(INDUSTRIAL_ASSET_VALUES))]
+        clauses.append(f"industry IN ({', '.join(':' + name for name in names)})")
+        params.update(dict(zip(names, INDUSTRIAL_ASSET_VALUES, strict=True)))
     if filters.get("timing"):
         clauses.append("has_timing=:has_timing")
         params["has_timing"] = filters["timing"] == "KNOWN"
