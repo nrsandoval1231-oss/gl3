@@ -32,16 +32,20 @@ from gridlens.intelligence.opportunity_browse import (
     project_title,
 )
 from gridlens.persistence.models import (
+    BrowseCustomerMembership,
     BrowseDirtyProject,
     BrowseGeneration,
     BrowseRow,
     BrowseState,
+    BrowseUnresolvedCustomer,
+    BuyingChainEvidence,
     CallFactDecision,
     CallFactVersion,
     Evidence,
     NeedObservation,
     Observation,
     PowerNeed,
+    Project,
 )
 
 
@@ -62,6 +66,167 @@ BUILD_LOCK = 643119021
 
 def canonical_json(value: Any) -> str:
     return json.dumps(value, default=str, sort_keys=True, separators=(",", ":"))
+
+
+def _is_uuid(value: str) -> bool:
+    try:
+        UUID(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _write_customer_projection(session, generation_id: UUID) -> None:
+    """Snapshot current source-supported customer roles with the browse generation."""
+    from gridlens.intelligence.customer_accounts import (
+        _current_conflicted_memberships,
+        _current_customer_claims,
+    )
+
+    selected: dict[tuple[UUID, UUID], tuple[str, str]] = {}
+    supporting_refs: dict[UUID, set[str]] = {}
+    evidence_updates: dict[UUID, datetime] = {}
+    raw_memberships = _current_customer_claims(session, include_conflicts=True)
+    identities_by_project: dict[UUID, set[UUID]] = {}
+    for identity_id, project_id, _claim in raw_memberships:
+        identities_by_project.setdefault(project_id, set()).add(identity_id)
+    conflicts = {project_id for project_id, ids in identities_by_project.items() if len(ids) > 1}
+    membership_conflicts: dict[UUID, set[tuple[UUID, str]]] = {}
+    for project_id, identity_id, organization_name in _current_conflicted_memberships(session):
+        membership_conflicts.setdefault(project_id, set()).add((identity_id, organization_name))
+        identities_by_project.setdefault(project_id, set()).add(identity_id)
+    conflicts.update(
+        project_id for project_id, ids in identities_by_project.items() if len(ids) > 1
+    )
+    for identity_id, project_id, claim in raw_memberships:
+        if project_id in conflicts:
+            continue
+        key = (identity_id, project_id)
+        current = selected.get(key)
+        value = (claim.organization, claim.category)
+        refs = {
+            str(citation["evidence_id"])
+            for citation in getattr(claim, "citations", [])
+            if isinstance(citation, dict) and citation.get("evidence_id")
+        }
+        supporting_refs.setdefault(identity_id, set()).update(refs)
+        observed_at = getattr(claim, "observed_at", None)
+        if observed_at is not None:
+            current_update = evidence_updates.get(identity_id)
+            if current_update is None or observed_at > current_update:
+                evidence_updates[identity_id] = observed_at
+        if current is None or value[0].casefold() < current[0].casefold():
+            selected[key] = value
+    reference_ids = {
+        UUID(reference)
+        for references in supporting_refs.values()
+        for reference in references
+        if _is_uuid(reference)
+    }
+    retained_reference = (
+        {
+            str(source.id): str(source.retained_evidence_id or source.id)
+            for source in session.scalars(
+                select(BuyingChainEvidence).where(BuyingChainEvidence.id.in_(reference_ids))
+            )
+        }
+        if reference_ids
+        else {}
+    )
+    supporting_refs = {
+        identity_id: {retained_reference.get(reference, reference) for reference in references}
+        for identity_id, references in supporting_refs.items()
+    }
+    if selected:
+        session.execute(
+            insert(BrowseCustomerMembership),
+            [
+                {
+                    "generation_id": generation_id,
+                    "company_identity_id": identity_id,
+                    "project_id": project_id,
+                    "organization_name": name,
+                    "role": role,
+                    "supporting_evidence_count": len(supporting_refs.get(identity_id, set())),
+                    "last_evidence_update": evidence_updates.get(identity_id),
+                }
+                for (identity_id, project_id), (name, role) in selected.items()
+            ],
+        )
+    from gridlens.intelligence.customer_accounts import _current_role_claims
+
+    roles_by_project: dict[UUID, set[tuple[str, str]]] = {}
+    for project, claim in _current_role_claims(session, include_noncustomer=True):
+        roles_by_project.setdefault(project.id, set()).add((claim.organization, claim.category))
+    project_ids = set(
+        session.scalars(
+            select(BrowseRow.project_id).where(BrowseRow.generation_id == generation_id).distinct()
+        )
+    )
+    projects = (
+        {
+            project.id: project
+            for project in session.scalars(select(Project).where(Project.id.in_(project_ids)))
+        }
+        if project_ids
+        else {}
+    )
+    unresolved: set[tuple[UUID, str, str, str]] = set()
+    selected_projects = {selected_project for _identity, selected_project in selected}
+    for project_id in project_ids - selected_projects:
+        if project_id in conflicts or project_id in membership_conflicts:
+            project = projects[project_id]
+            reason = (
+                "A source-backed operator changed after an attributed retraction; review required."
+                if project_id in membership_conflicts
+                else "Multiple current customer identities require review."
+            )
+            unresolved.add(
+                (
+                    project_id,
+                    next(
+                        iter(
+                            sorted(name for _, name in membership_conflicts.get(project_id, set()))
+                        ),
+                        project.name,
+                    ),
+                    "conflicting_customer",
+                    reason,
+                )
+            )
+        elif roles_by_project.get(project_id):
+            for organization, role in roles_by_project[project_id]:
+                unresolved.add(
+                    (
+                        project_id,
+                        organization or projects[project_id].name,
+                        role,
+                        "Customer identity is unresolved; review the retained participant role.",
+                    )
+                )
+        else:
+            unresolved.add(
+                (
+                    project_id,
+                    projects[project_id].name,
+                    "unknown_customer",
+                    "No current source-backed customer role is supported.",
+                )
+            )
+    if unresolved:
+        session.execute(
+            insert(BrowseUnresolvedCustomer),
+            [
+                {
+                    "generation_id": generation_id,
+                    "project_id": project_id,
+                    "organization_name": organization,
+                    "role": role,
+                    "reason": reason,
+                }
+                for project_id, organization, role, reason in unresolved
+            ],
+        )
 
 
 def clock_deadline(session, now: datetime) -> datetime:
@@ -398,6 +563,28 @@ def refresh_project_changes(
             ),
         )
     )
+    session.execute(
+        insert(BrowseCustomerMembership).from_select(
+            [column.name for column in BrowseCustomerMembership.__table__.columns],
+            select(
+                *[
+                    literal(generation.id) if column.name == "generation_id" else column
+                    for column in BrowseCustomerMembership.__table__.columns
+                ]
+            ).where(BrowseCustomerMembership.generation_id == previous.id),
+        )
+    )
+    session.execute(
+        insert(BrowseUnresolvedCustomer).from_select(
+            [column.name for column in BrowseUnresolvedCustomer.__table__.columns],
+            select(
+                *[
+                    literal(generation.id) if column.name == "generation_id" else column
+                    for column in BrowseUnresolvedCustomer.__table__.columns
+                ]
+            ).where(BrowseUnresolvedCustomer.generation_id == previous.id),
+        )
+    )
     changed_digest = hashlib.sha256()
     with evaluate_at(now):
         # The selected canonical summary path deliberately handles one bounded
@@ -558,6 +745,7 @@ def rebuild(factory, *, before_publish=None, _prepare_at: datetime | None = None
                 with evaluate_at(evaluated_at):
                     summaries = api.opportunity_projection(session, summary_only=True)
                     row_count, digest = _write_rows(session, generation_id, summaries)
+                _write_customer_projection(session, generation_id)
                 generation.row_count = row_count
                 generation.digest = digest
                 # Fresh backfills must not depend on a later autovacuum pass for

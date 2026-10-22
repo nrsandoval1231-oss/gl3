@@ -250,6 +250,7 @@ def records_from_snapshots(snapshots: list[list[dict[str, Any]]]) -> list[dict[s
                     "status": status,
                     "sequence": minimum,
                     "operator": current["operator"],
+                    "operator_number": current["operator_number"],
                     "lease": current["lease"],
                     "well": current["well"],
                     "application_type": current["application_type"],

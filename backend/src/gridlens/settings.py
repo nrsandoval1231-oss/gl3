@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     intelligence_project_monthly_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
     intelligence_max_active_calls: int = Field(default=0, ge=0, le=100_000)
     intelligence_max_call_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100)
+    intelligence_financial_budget_mode: str = "finite"
+    intelligence_financial_authorization_ref: str = ""
+    intelligence_unlimited_contracts: str = ""
+    intelligence_unlimited_providers: str = ""
     intelligence_openai_model: str = ""
     intelligence_openai_fast_model: str = ""
     intelligence_openai_reasoning_model: str = ""
@@ -165,6 +169,13 @@ class Settings(BaseSettings):
     def _valid_intelligence_mode(cls, value: str) -> str:
         if value not in {"disabled", "evaluation", "advisory", "bounded_routing"}:
             raise ValueError("intelligence_mode must be a supported operating mode")
+        return value
+
+    @field_validator("intelligence_financial_budget_mode")
+    @classmethod
+    def _valid_financial_budget_mode(cls, value: str) -> str:
+        if value not in {"finite", "owner_unlimited"}:
+            raise ValueError("intelligence_financial_budget_mode must be finite or owner_unlimited")
         return value
 
     @field_validator("schedule_anchor_time")

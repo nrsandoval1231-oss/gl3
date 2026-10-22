@@ -187,8 +187,24 @@ class LifecycleEventOut(BaseModel):
     event_date_label: str | None = None
 
 
+class AssociatedAccountEvidenceRefOut(BaseModel):
+    namespace: Literal["retained-evidence", "buying-chain-evidence"]
+    id: str
+    retained_evidence_id: str | None = None
+
+
+class AssociatedAccountOut(BaseModel):
+    company_identity_id: UUID
+    name: str
+    role: str
+    basis: str
+    support_status: Literal["current"]
+    evidence_refs: list[AssociatedAccountEvidenceRefOut]
+
+
 class OpportunityOut(BaseModel):
     intelligence_card: IntelligenceCard | None = None
+    associated_account: AssociatedAccountOut | None = None
     id: UUID
     project_id: UUID
     name: str
@@ -261,6 +277,15 @@ class PursuitWorkspaceItemOut(OpportunityOut):
     commercial_next_question: str
     commercial_next_action: str
     commercial_organization: str | None = None
+    company_identity_id: UUID | None = None
+    account_name: str | None = None
+    project_count: int | None = None
+    need_count: int | None = None
+    account_aliases: list[str] = Field(default_factory=list)
+    supporting_evidence_count: int | None = None
+    last_evidence_update: datetime | None = None
+    matching_project_count: int | None = None
+    matching_need_count: int | None = None
 
 
 class PursuitWorkspaceCountsOut(BaseModel):
@@ -278,8 +303,98 @@ class PursuitWorkspacePageOut(BaseModel):
     limit: int
     next_offset: int | None
     cohort_token: str
-    count_unit: Literal["power needs"]
+    count_unit: Literal["power needs", "company accounts"]
+    disposition_count_unit: Literal["power needs"] = "power needs"
     changes_available: bool
+
+
+class CustomerAccountNeedOut(BaseModel):
+    id: UUID
+    project_id: UUID
+    tier: str
+    activity_key: str
+    required_mw: str | None = None
+    start_window: str | None = None
+    duration: str | None = None
+    supply: str
+    commercial_disposition: str | None = None
+    commercial_reason: str | None = None
+    commercial_next_action: str | None = None
+    project_title: str | None = None
+    industry: str | None = None
+    location: str | None = None
+    rank_score: int | None = None
+
+
+class CustomerAccountOut(BaseModel):
+    company_identity_id: UUID
+    name: str
+    aliases: list[str] = Field(default_factory=list)
+    project_count: int
+    need_count: int
+    supporting_evidence_count: int = 0
+    last_evidence_update: datetime | None = None
+    qualification_tiers: list[str]
+    highest_priority_need: CustomerAccountNeedOut | None = None
+
+
+class CustomerAccountsPageOut(BaseModel):
+    items: list[CustomerAccountOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class CustomerProjectOut(BaseModel):
+    id: UUID
+    name: str
+    location: str | None
+    customer_role: str
+    need_count: int
+    needs: list[CustomerAccountNeedOut]
+    need_next_offset: int | None = None
+
+
+class CustomerProjectsPageOut(BaseModel):
+    items: list[CustomerProjectOut]
+    total: int
+    limit: int
+    offset: int
+    next_offset: int | None = None
+    account: CustomerAccountOut | None = None
+
+
+class CustomerMembershipCorrectionBody(BaseModel):
+    expected_version: int = Field(ge=0)
+    idempotency_key: str = Field(min_length=8, max_length=120)
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class CustomerMembershipCorrectionOut(BaseModel):
+    id: UUID
+    membership_id: UUID
+    expected_version: int
+    action: Literal["retracted"]
+    reason: str
+    created_at: datetime
+
+
+class UnresolvedCustomerProjectOut(BaseModel):
+    project_id: UUID
+    project_name: str
+    location: str | None
+    organization: str
+    role: str
+    need_id: UUID | None
+    no_eligible_need: bool
+    reason: str
+
+
+class UnresolvedCustomerProjectsPageOut(BaseModel):
+    items: list[UnresolvedCustomerProjectOut]
+    total: int
+    limit: int
+    offset: int
 
 
 class WorkspaceChangeCountsOut(BaseModel):
@@ -1980,6 +2095,7 @@ def pursuit_workspace(
     limit: Annotated[int, Query(ge=1, le=50)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     cohort_token: str | None = None,
+    group_by: Literal["need", "account"] = "need",
 ):
     accepted = {
         "search",
@@ -1997,6 +2113,7 @@ def pursuit_workspace(
         "limit",
         "offset",
         "cohort_token",
+        "group_by",
     }
     if set(request.query_params) - accepted:
         raise HTTPException(422, "Unsupported workspace query parameter")
@@ -2031,6 +2148,19 @@ def pursuit_workspace(
     }
     with SessionLocal() as session:
         _begin_consistent_read(session)
+        if group_by == "account":
+            from gridlens.intelligence.customer_accounts import account_browse_page
+
+            payload = account_browse_page(
+                session, filters, limit=limit, offset=offset, token=cohort_token
+            )
+            _bounded_opportunity_payload(payload["items"])
+            if (
+                len(json.dumps(payload, default=str, separators=(",", ":")).encode("utf-8"))
+                > _MAX_OPPORTUNITY_PAGE_BYTES
+            ):
+                raise HTTPException(413, "Commercial account page exceeds the response byte budget")
+            return payload
         from gridlens.intelligence.pursuit_workspace import page
 
         payload = page(session, filters, limit=limit, offset=offset, token=cohort_token)
@@ -2041,6 +2171,101 @@ def pursuit_workspace(
         ):
             raise HTTPException(413, "Commercial workspace page exceeds the response byte budget")
         return payload
+
+
+@app.get(
+    "/api/customer-accounts",
+    response_model=CustomerAccountsPageOut,
+    dependencies=[Depends(require_session)],
+)
+def customer_accounts(
+    search: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 25,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    """Browse current source-supported customer identities without provider work."""
+    from gridlens.intelligence.customer_accounts import account_queue
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        return account_queue(session, search=search, limit=limit, offset=offset)
+
+
+@app.get(
+    "/api/customer-accounts/unresolved",
+    response_model=UnresolvedCustomerProjectsPageOut,
+    dependencies=[Depends(require_session)],
+)
+def unresolved_customer_projects(
+    search: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 25,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    """Browse current owner/operator claims that lack a safe cross-project link."""
+    from gridlens.intelligence.customer_accounts import unresolved_projects
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        return unresolved_projects(session, search=search, limit=limit, offset=offset)
+
+
+@app.get(
+    "/api/customer-accounts/{company_identity_id}/projects",
+    response_model=CustomerProjectsPageOut,
+    dependencies=[Depends(require_session)],
+)
+def customer_account_projects(
+    company_identity_id: UUID,
+    limit: Annotated[int, Query(ge=1, le=25)] = 25,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    need_limit: Annotated[int, Query(ge=1, le=25)] = 25,
+    need_offset: Annotated[int, Query(ge=0)] = 0,
+):
+    """Return a bounded project page for one canonical company identity."""
+    from gridlens.intelligence.customer_accounts import account_projects
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        try:
+            return account_projects(
+                session,
+                company_identity_id,
+                limit=limit,
+                offset=offset,
+                need_limit=need_limit,
+                need_offset=need_offset,
+            )
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+
+@app.post(
+    "/api/customer-account-memberships/{membership_id}/retractions",
+    response_model=CustomerMembershipCorrectionOut,
+    dependencies=[Depends(require_session)],
+)
+def retract_customer_account_membership(
+    membership_id: UUID, request: Request, body: CustomerMembershipCorrectionBody
+):
+    require_same_origin(request)
+    from gridlens.intelligence.customer_accounts import retract_customer_membership
+
+    with SessionLocal.begin() as session:
+        try:
+            return retract_customer_membership(
+                session,
+                membership_id=membership_id,
+                expected_version=body.expected_version,
+                idempotency_key=body.idempotency_key,
+                reason=body.reason,
+                actor="authenticated_operator",
+            )
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
 
 _OPPORTUNITY_MAP_WINDOW_LIMIT = 200

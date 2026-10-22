@@ -333,7 +333,7 @@ test('workspace overview refresh removes superseded contact action and keeps the
     const path = new URL(request.url()).pathname
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
     if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: stamp, baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] } })
-    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one')], total: 1, counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-one' } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one')], total: 1, counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-one', count_unit: 'power needs', changes_available: false } })
     if (path === '/api/opportunities/needs/one') return route.fulfill({ json: { ...project('one'), intelligence_card: { ...intelligenceCard, contacts: corrected ? [] : intelligenceCard.contacts } } })
     if (path.includes('/buying-chain')) {
       if (request.method() === 'POST') {
@@ -386,7 +386,7 @@ test('late correction response cannot reopen a different selected need', async (
     const path = new URL(request.url()).pathname
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
     if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: stamp, baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] } })
-    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one'), project('two')], total: 2, counts: { action_now: 0, research: 2, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-two' } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one'), project('two')], total: 2, counts: { action_now: 0, research: 2, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-two', count_unit: 'power needs', changes_available: false } })
     const needMatch = path.match(/^\/api\/opportunities\/needs\/(one|two)$/)
     if (needMatch) {
       const id = needMatch[1] as 'one' | 'two'
@@ -453,7 +453,7 @@ test('late correction readback cannot reopen a need after navigating back', asyn
     const path = new URL(request.url()).pathname
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
     if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: stamp, baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] } })
-    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one')], total: 1, counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-one' } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one')], total: 1, counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-one', count_unit: 'power needs', changes_available: false } })
     if (path === '/api/opportunities/needs/one') { detailReads += 1; return route.fulfill({ json: project('one') }) }
     if (path.includes('/buying-chain')) {
       if (request.method() === 'POST') {

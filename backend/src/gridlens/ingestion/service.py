@@ -3946,6 +3946,17 @@ def process_records(
                     },
                 }
             if lifecycle_evidence is not None:
+                from gridlens.intelligence.customer_accounts import record_rrc_operator_membership
+
+                record_rrc_operator_membership(
+                    session,
+                    project=project,
+                    observation=observation,
+                    evidence=lifecycle_evidence,
+                    source_id=source.id,
+                    record=record,
+                )
+            if lifecycle_evidence is not None:
                 # Source authority and existing identity/activity admission precede
                 # qualification. Public/news supplements cannot take this path.
                 if admitted_from_source(

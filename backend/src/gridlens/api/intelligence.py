@@ -127,6 +127,9 @@ class IntelligenceHistoryOut(BaseModel):
     need_id: UUID
     status: str
     result: dict[str, Any] | None
+    validation_outcome: str = "UNKNOWN"
+    validation_reason: str | None = None
+    provider_response_id: str | None = None
     result_status: str | None = None
     error: str | None
     evidence_ids: list[str]
@@ -233,6 +236,9 @@ def _job_view(job: Job) -> dict[str, Any]:
         "need_id": str(job.target_id) if job.target_id else None,
         "status": _job_status(job, checkpoint),
         "result": checkpoint.get("result"),
+        "validation_outcome": checkpoint.get("validation_outcome", "UNKNOWN"),
+        "validation_reason": checkpoint.get("validation_reason"),
+        "provider_response_id": checkpoint.get("provider_response_id"),
         "error": checkpoint.get("error")
         or ("CANCELLED_BEFORE_DISPATCH" if checkpoint.get("status") == "cancelled" else None),
         "evidence_ids": (
@@ -267,6 +273,9 @@ def _history_view(session, need_id: UUID, limit: int) -> list[dict[str, Any]]:
             except (ValueError, TypeError):
                 job_checkpoint = {}
             item["status"] = _job_status(job_row, job_checkpoint)
+            item["validation_outcome"] = job_checkpoint.get("validation_outcome", "UNKNOWN")
+            item["validation_reason"] = job_checkpoint.get("validation_reason")
+            item["provider_response_id"] = job_checkpoint.get("provider_response_id")
             item["task_type"] = job_checkpoint.get("request_kind", item.get("task_type"))
             if job_checkpoint.get("status") == "cancelled":
                 item["error"] = "CANCELLED_BEFORE_DISPATCH"

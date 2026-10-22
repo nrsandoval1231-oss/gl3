@@ -110,11 +110,17 @@ def perform_legacy_call(
     if not enabled:
         raise LegacyCallBlocked(reason)
     max_cost = _cost_bound(provider, task_type, payload)
-    if (
+    from gridlens.intelligence.intelligence_jobs import _owner_unlimited_allowed
+
+    unlimited = _owner_unlimited_allowed(provider, task_type)
+    if settings.intelligence_financial_budget_mode == "owner_unlimited" and not unlimited:
+        raise LegacyCallBlocked("UNLIMITED_CONTRACT_NOT_AUTHORIZED")
+    if settings.intelligence_max_active_calls <= 0:
+        raise LegacyCallBlocked("ACTIVE_CALL_CAP_REQUIRED")
+    if not unlimited and (
         max_cost <= 0
         or settings.intelligence_max_call_usd <= 0
         or max_cost > settings.intelligence_max_call_usd
-        or settings.intelligence_max_active_calls <= 0
     ):
         raise LegacyCallBlocked("FINITE_BUDGET_REQUIRED")
     digest = _digest(payload)
@@ -141,8 +147,14 @@ def perform_legacy_call(
             job_id=job_id,
             worker_id=worker_id,
             enabled=True,
-            estimated_cost_usd=max_cost,
-            max_cost_usd=max_cost,
+            estimated_cost_usd=None if unlimited else max_cost,
+            max_cost_usd=None if unlimited else max_cost,
+            financial_budget_mode=settings.intelligence_financial_budget_mode,
+            financial_authorization_ref=settings.intelligence_financial_authorization_ref
+            if unlimited
+            else None,
+            unlimited_contracts=settings.intelligence_unlimited_contracts,
+            unlimited_providers=settings.intelligence_unlimited_providers,
             caps=call_caps,
             max_active=settings.intelligence_max_active_calls,
             fence_token=fence_token,
@@ -185,7 +197,7 @@ def perform_legacy_call(
             provider,
             model,
             payload,
-            max_cost,
+            None if unlimited else max_cost,
             billing_policy,
         )[1]
     )
@@ -287,6 +299,7 @@ def perform_legacy_call(
             and provider == "typesafe"
             and input_tokens is not None
             and (billing_policy or {}).get("cost_basis") != "ESTIMATE"
+            and (billing_policy or {}).get("policy_id") != "typesafe-reported-input-usage-v1"
             and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
         ):
             quarantine_reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
@@ -398,6 +411,28 @@ def perform_legacy_call(
                     exposure_status=exposure_status,
                 )
             raise LegacyCallUnknown(quarantined.blocked_reason or "RESPONSE_TOO_LARGE")
+    if provider in {"typesafe", "openai"}:
+        cost_estimate = None
+        if type(input_tokens) is int and 0 <= input_tokens <= 2**63 - 1:
+            if provider == "typesafe" or (
+                type(output_tokens) is int and 0 <= output_tokens <= 2**63 - 1
+            ):
+                cost_estimate = _bounded_cost_exposure(
+                    provider,
+                    task_type,
+                    input_tokens,
+                    output_tokens if type(output_tokens) is int else 0,
+                    billing_policy=billing_policy,
+                )[0]
+        result = dict(result)
+        result["usage_cost_estimate"] = {
+            "estimated_cost_usd": str(cost_estimate) if cost_estimate is not None else None,
+            "cost_basis": (
+                "derived_from_reported_usage_and_pinned_rates"
+                if cost_estimate is not None
+                else "UNKNOWN"
+            ),
+        }
     with SessionLocal() as session:
         completed = complete_call(
             session,

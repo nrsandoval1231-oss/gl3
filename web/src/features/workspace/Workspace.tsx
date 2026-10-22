@@ -7,6 +7,7 @@ import { WorkspaceChanges } from './WorkspaceChanges'
 import { CommercialPursuits, type CommercialNavigation, defaultCommercialNavigation } from '../pursuits/CommercialPursuits'
 import { OperationsInbox } from '../operations/OperationsInbox'
 import { SignalsBrowse } from '../opportunities/SignalsBrowse'
+import { CustomerAccountsQueue } from './CustomerAccountsQueue'
 import '../../styles/workspace.css'
 
 const tabs = workspaceTabs
@@ -38,7 +39,7 @@ function initialFilters(): WorkspaceFilters {
 function workspaceTabFromParams(params: URLSearchParams): Tab {
   const legacy: Record<string, string> = { evidence: 'evidence', buyers: 'buying-chain', power: 'power-gap', action: 'next-steps' }
   const section = params.get('section') ?? legacy[params.get('mode') ?? '']
-  return tabs.find(tab => tab.toLowerCase().replaceAll(' ', '-') === section) ?? 'Evidence'
+  return tabs.find(tab => tab.toLowerCase().replaceAll(' ', '-') === section) ?? (params.has('account') ? 'Overview' : 'Evidence')
 }
 function currentView(): 'opportunities' | 'pursuits' | 'ingestion' | 'signals' {
   const params = getParams(), view = params.get('view')
@@ -59,9 +60,15 @@ function workspaceParams(filters: WorkspaceFilters) {
   for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key === 'search' ? 'q' : key, String(value))
   return params
 }
-function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false) {
+type AccountContext = { accountId: string; projectId?: string }
+function currentAccountContext(): AccountContext | undefined {
+  const params = getParams(), accountId = params.get('account')
+  return accountId ? { accountId, projectId: params.get('project') ?? undefined } : undefined
+}
+function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false, accountContext?: AccountContext) {
   const signalView = currentView() === 'signals'
   const p = signalView ? getParams() : workspaceParams(filters)
+  if (!signalView && accountContext) { p.set('account', accountContext.accountId); if (accountContext.projectId) p.set('project', accountContext.projectId) }
   if (signalView) { p.set('view', 'signals'); p.delete('need'); p.delete('section') }
   if (id) p.set('need', id)
   if (tab && tab !== 'Overview') p.set('section', tab.toLowerCase().replaceAll(' ', '-'))
@@ -87,6 +94,7 @@ export function WorkspaceHome() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [detailIdentity, setDetailIdentity] = useState<{ id: string; revision: number } | null>(null)
+  const [accountAssociationNotice, setAccountAssociationNotice] = useState('')
   const [correctionOutcome, setCorrectionOutcome] = useState<{ needId: string; message: string } | null>(null)
   const [tab, setTab] = useState<Tab>(() => workspaceTabFromParams(getParams()))
   const [loading, setLoading] = useState(false)
@@ -112,6 +120,18 @@ export function WorkspaceHome() {
   const requestKey = workspaceRequestKey(filters)
   const pageCurrent = Boolean(page && pageIdentity?.request === requestKey && pageIdentity.revision === revision && !loading && !error)
   const detailCurrent = Boolean(selected && detailIdentity?.id === selected.id && detailIdentity.revision === revision && !detailLoading && !detailError)
+  useEffect(() => {
+    if (!detailCurrent || !selected) return
+    const params = getParams(), expectedAccount = params.get('account')
+    if (!expectedAccount) { setAccountAssociationNotice(''); return }
+    const association = selected.associated_account
+    if (association?.support_status === 'current' && association.company_identity_id === expectedAccount) { setAccountAssociationNotice(''); return }
+    params.delete('account'); params.delete('project')
+    history.replaceState(history.state, '', `/${params.size ? `?${params}` : ''}`)
+    setAccountAssociationNotice(association
+      ? `The saved account link was cleared. Current evidence associates this need with ${association.name}.`
+      : 'The saved account link was cleared because current evidence does not support an account association for this need.')
+  }, [detailCurrent, selected?.id, selected?.associated_account?.company_identity_id, selected?.associated_account?.support_status])
   let detailItem: WorkspaceDetail | null = null
   if (detailCurrent && selected) {
     detailItem = pageCurrent ? selected : { ...selected, ...commercialPreview(undefined) }
@@ -184,7 +204,7 @@ export function WorkspaceHome() {
         return previous
       })
       setLoading(false)
-    }).catch((e: Error) => { if (!c.signal.aborted && sequence === listSequence.current) { setLoading(false); if (/cohort/i.test(e.message) && (filters.offset || filters.cohort_token)) { const next = { ...filters, offset: 0, cohort_token: undefined }; setFilters(next); writeUrl(next, selected?.id ?? null); setError('The opportunity list changed. Reloaded from the first page.') } else { setError(e.message); if (/session ended/i.test(e.message)) setAuthenticated(false) } } })
+    }).catch((e: Error) => { if (!c.signal.aborted && sequence === listSequence.current) { setLoading(false); if (/cohort/i.test(e.message) && (filters.offset || filters.cohort_token)) { const next = { ...filters, offset: 0, cohort_token: undefined }; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, false, currentAccountContext()); setError('The opportunity list changed. Reloaded from the first page.') } else { setError(e.message); if (/session ended/i.test(e.message)) setAuthenticated(false) } } })
     return () => c.abort()
   }, [JSON.stringify(filters), revision, authenticated, view])
   useEffect(() => {
@@ -243,23 +263,23 @@ export function WorkspaceHome() {
   }, [activeNeedId, authenticated, revision, view, signalScope, detailNavigation])
   const visiblePage = pageCurrent ? page : null
   const items = visiblePage?.items ?? []
-  const change = (key: keyof WorkspaceFilters, value: string) => { snapshotList(); pendingRestore.current = null; const next = { ...filters, [key]: value || undefined, offset: 0, cohort_token: undefined }; if (key === 'industry_group') next.industry = undefined; if (key === 'industry' && value.trim()) next.industry_group = undefined; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true) }
-  const select = (item: WorkspaceNeed | null, targetTab: Tab = 'Evidence') => {
+  const change = (key: keyof WorkspaceFilters, value: string) => { snapshotList(); pendingRestore.current = null; const next = { ...filters, [key]: value || undefined, offset: 0, cohort_token: undefined }; if (key === 'industry_group') next.industry = undefined; if (key === 'industry' && value.trim()) next.industry_group = undefined; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true, currentAccountContext()) }
+  const select = (item: WorkspaceNeed | null, targetTab: Tab = 'Evidence', accountContext?: AccountContext) => {
     if (!item && history.state?.workspaceDetail) { history.back(); return }
     updateSelectedNeedContext(item?.id ?? null)
     if (!item) { ++selectionSequence.current; setDetailLoading(false); setDetailError('') }
     if (item) { lastSelected.current = item.id; snapshotList(item.id); pendingRestore.current = null }
     if (!item || (correctionOutcome && correctionOutcome.needId !== item.id)) setCorrectionOutcome(null)
     if (item && selected?.id === item.id && detailCurrent) {
-      setTab(targetTab); writeUrl(filters, item.id, targetTab, true); return
+      setTab(targetTab); writeUrl(filters, item.id, targetTab, true, accountContext); return
     }
     const sameNeedNeedsReadback = Boolean(item && selected?.id === item.id)
-    setDetailIdentity(null); setPendingNeedId(null); setSelected(item); setTab(targetTab); writeUrl(filters, item?.id ?? null, item ? targetTab : undefined, true)
+    setDetailIdentity(null); setPendingNeedId(null); setSelected(item); setTab(targetTab); writeUrl(filters, item?.id ?? null, item ? targetTab : undefined, true, accountContext)
     if (sameNeedNeedsReadback) setRevision(value => value + 1)
     if (item && window.matchMedia('(max-width: 1050px)').matches) { window.scrollTo(0, 0); requestAnimationFrame(() => document.querySelector<HTMLElement>('.wh-back')?.focus()) }
     if (!item) requestAnimationFrame(() => { const list = document.querySelector('.wh-list'); if (list && window.matchMedia('(min-width: 1051px)').matches) list.scrollTop = savedScroll.current.list; else window.scrollTo(0, savedScroll.current.window); const focus = document.querySelector<HTMLElement>(`[data-need-row="${selected?.id ?? ''}"]`); focus?.focus() })
   }
-  const update = (next: WorkspaceFilters) => { snapshotList(); pendingRestore.current = null; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true) }
+  const update = (next: WorkspaceFilters) => { snapshotList(); pendingRestore.current = null; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true, currentAccountContext()) }
   const navigate = (nextView: 'opportunities' | 'pursuits' | 'ingestion' | 'signals') => {
     if (nextView === 'ingestion' && view === 'ingestion') return
     if (nextView === 'opportunities' && view === 'opportunities') return
@@ -279,12 +299,15 @@ export function WorkspaceHome() {
     }
     history.pushState(null, '', `/?${params}`)
   }
-  const openActiveNeed = (need: { id: string }) => {
+  const openActiveNeed = (need: { id: string }, accountContext?: AccountContext) => {
     lastSelected.current = need.id
     const row = visiblePage?.items.find(item => item.id === need.id)
-    if (row) { select(row); return }
+    if (row) { select(row, accountContext ? 'Overview' : 'Evidence', accountContext); return }
     updateSelectedNeedContext(need.id)
-    setDetailIdentity(null); setSelected(null); setPendingNeedId(need.id); setTab('Overview'); writeUrl(filters, need.id, undefined, true)
+    setDetailIdentity(null); setSelected(null); setPendingNeedId(need.id); setTab('Overview'); writeUrl(filters, need.id, undefined, true, accountContext)
+  }
+  const openAccountNeed = (needId: string) => {
+    openActiveNeed({ id: needId }, currentAccountContext())
   }
   const readbackNeedId = selected?.id ?? null
   const readbackGeneration = selectedNeedContext.current.generation
@@ -313,7 +336,7 @@ export function WorkspaceHome() {
       if (changes) { changes.open = true; changes.querySelector('summary')?.focus() }
     }
     if (view !== 'opportunities') { navigate('opportunities'); window.setTimeout(open, 100); return }
-    if (selected || pendingNeedId) {
+    if (selected || pendingNeedId || getParams().has('account')) {
       // Add a queue entry after the selected detail instead of traversing one
       // history entry: users can select several needs before opening the bell.
       // A single history.back() could otherwise land on another hidden detail.
@@ -332,7 +355,7 @@ export function WorkspaceHome() {
   const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{researchMounted && <><label>Search this page <input aria-label="Search commercial pursuits on this page" value={commercialNavigation.query} onChange={event => updateCommercial({ ...commercialNavigation, query: event.target.value }, false)}/></label><CommercialPursuits navigation={commercialNavigation} onNavigate={updateCommercial} onInvestigate={id => { researchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; updateSelectedNeedContext(id); const params = workspaceParams(filters); params.set('need', id); history.pushState({ ...history.state, workspaceDetail: true }, '', `/?${params}`); setView('opportunities'); setDetailIdentity(null); setSelected(null); setPendingNeedId(id); setTab('Overview') }}/></>}</main>
   if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
-  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout wh-signal-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { updateSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={handleReadback} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
+  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout wh-signal-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { updateSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={handleReadback} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
   return <div className="workspace-home">
     {header}
     {researchHost}
@@ -342,18 +365,24 @@ export function WorkspaceHome() {
         <div className="wh-list-intro"><h1>Opportunity Intelligence</h1><p>Real signals. Real infrastructure. Real opportunity.</p></div>
         <label className="wh-list-search"><span className="wh-search-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.75"/><path d="m13 13 4 4"/></svg></span><input aria-label="Search opportunities" placeholder="Search opportunities…" value={filters.search ?? ''} onChange={e => change('search', e.target.value)}/></label>
         <nav className="wh-disposition-tabs" aria-label="Filter opportunities by category">{([{ label: 'All', value: '' }, { label: 'Data centers', value: 'data_center' }, { label: 'Industrial', value: 'industrial' }] as const).map(({ label, value }) => { const active = value === 'industrial' ? filters.industry_group === 'industrial' : value ? !filters.industry_group && filters.industry === value : !filters.industry_group && !filters.industry; return <button type="button" key={label} aria-pressed={active} className={active ? 'selected' : ''} onClick={() => value === 'industrial' ? change('industry_group', value) : value ? change('industry', value) : change('industry_group', '')}>{label}</button> })}</nav>
-        <div className="wh-queue-heading"><span>{pageCurrent ? `${visiblePage?.total ?? 0} opportunities` : loading ? 'Refreshing opportunities…' : 'Opportunity results unavailable'}</span><label className="wh-sort"><span>Sort</span><select aria-label="Sort" value={filters.sort ?? 'priority'} onChange={e => change('sort', e.target.value)}><option value="priority">Priority (High → Low)</option><option value="project">Project name</option><option value="mw">Power need</option><option value="start">Start window</option><option value="updated">Recently updated</option></select></label><details className="wh-tools"><summary>Tools</summary><div className="wh-tool-content"><p className="wh-briefing-scope">Disposition filters affect visible opportunities; aggregate briefing counts ignore the selected disposition.</p>
+        <div className="wh-queue-heading"><span>{pageCurrent ? `${visiblePage?.total ?? 0} ${visiblePage?.count_unit === 'company accounts' ? 'customer accounts' : 'opportunities'}` : loading ? 'Refreshing opportunities…' : 'Opportunity results unavailable'}</span><label className="wh-sort"><span>Sort</span><select aria-label="Sort" value={filters.sort ?? 'priority'} onChange={e => change('sort', e.target.value)}><option value="priority">Priority (High → Low)</option><option value="project">Project name</option><option value="mw">Power need</option><option value="start">Start window</option><option value="updated">Recently updated</option></select></label><details className="wh-tools"><summary>Tools</summary><div className="wh-tool-content"><p className="wh-briefing-scope">Disposition filters affect visible opportunities; aggregate briefing counts ignore the selected disposition.</p>
           <details className="wh-change-disclosure"><summary>Recent changes</summary><WorkspaceChanges onSelectActiveNeed={openActiveNeed} revision={changesRevision}/></details>
           <details className="wh-filter-disclosure"><summary>More filters</summary><div className="wh-filters"><select aria-label="Tier" value={filters.tier ?? ''} onChange={e => change('tier', e.target.value)}><option value="">All qualifications</option><option>Signal</option><option>Prospect</option><option>Lead</option></select><select aria-label="Commercial disposition" value={filters.disposition ?? ''} onChange={e => change('disposition', e.target.value)}><option value="">All dispositions</option><option>ACTION NOW</option><option>RESEARCH</option><option>WATCH</option><option>REJECT</option></select><input aria-label="Geography (exact match)" title="Exact stored geography, for example Austin, TX" placeholder="Exact geography" value={filters.geography ?? ''} onChange={e => change('geography', e.target.value)}/><input aria-label="Industry (exact match)" title="Exact stored industry value" placeholder="Exact industry" value={filters.industry ?? ''} onChange={e => change('industry', e.target.value)}/><input aria-label="Activity (exact match)" title="Exact stored activity value" placeholder="Exact activity" value={filters.activity ?? ''} onChange={e => change('activity', e.target.value)}/><select aria-label="Timing" value={filters.timing ?? ''} onChange={e => change('timing', e.target.value)}><option value="">Any timing</option><option>KNOWN</option><option>UNKNOWN</option></select><input aria-label="Minimum MW" placeholder="Min MW" value={filters.mw_min ?? ''} onChange={e => change('mw_min', e.target.value)}/><input aria-label="Maximum MW" placeholder="Max MW" value={filters.mw_max ?? ''} onChange={e => change('mw_max', e.target.value)}/><select aria-label="Sort" value={filters.sort ?? 'priority'} onChange={e => change('sort', e.target.value)}><option value="priority">Priority</option><option value="project">Project</option><option value="mw">MW</option><option value="start">Start (source text)</option><option value="updated">Updated</option></select></div></details>
           <details className="wh-export"><summary>Download CSV by qualification</summary><div>{(['Signal','Prospect','Lead'] as const).map(tier => <a key={tier} href={client.opportunityExportUrl(tier, filters.search ?? '', 'ALL', undefined, { geography: filters.geography ?? '', industry: filters.industry ?? '', industryGroup: filters.industry_group, activity: filters.activity ?? '', timing: filters.timing ?? '', mwMin: filters.mw_min ?? '', mwMax: filters.mw_max ?? '' })} download>{tier} CSV</a>)}</div></details>
         </div></details></div>
         {error && <div role="alert" className="wh-error">{error} <button onClick={() => setRevision(x => x + 1)}>Retry</button></div>}
         {loading && <p role="status">Loading current power needs…</p>}
-        {!loading && !error && items.length === 0 && <p className="wh-empty">No power needs match these filters.</p>}
-        <div className="wh-queue-list">{items.map(item => { const title = projectTitle(item); const identity = item.commercial_organization || title; const monogram = identity.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase(); return <article className={`wh-queue-item ${selected?.id === item.id ? 'selected' : ''}`} key={item.id}><button aria-current={selected?.id === item.id ? 'true' : undefined} className="wh-queue-main" data-need-row={item.id} onClick={() => select(item)}><span className="wh-queue-monogram" aria-hidden="true">{monogram}</span><span className="wh-queue-copy"><strong>{title}</strong><span className="wh-queue-meta"><span>{item.location ?? 'Location unknown'}</span><b>{item.tier}</b><span className="wh-queue-disposition">{item.commercial_disposition ?? 'Disposition unavailable'}</span></span></span></button></article> })}</div>
-        <footer className="wh-paging"><span>Showing {items.length ? (visiblePage?.offset ?? 0) + 1 : 0}–{pageCurrent ? position : '—'} of {pageCurrent ? visiblePage?.total ?? '—' : '—'}</span><button disabled={!pageCurrent || !visiblePage?.offset} onClick={() => { if (visiblePage) update({ ...filters, offset: Math.max(0, visiblePage.offset - 25), cohort_token: visiblePage.cohort_token }) }}>Previous</button><button disabled={!pageCurrent || visiblePage?.next_offset == null} onClick={() => { if (visiblePage) update({ ...filters, offset: visiblePage.next_offset ?? 0, cohort_token: visiblePage.cohort_token }) }}>Next</button></footer>
+        {!loading && !error && items.length === 0 && <p className="wh-empty">No customer accounts match these filters.</p>}
+        {(visiblePage?.count_unit === 'company accounts' || (!pageCurrent && (loading || Boolean(error)) && (!page || page.count_unit === 'company accounts'))) && <CustomerAccountsQueue page={visiblePage?.count_unit === 'company accounts' ? visiblePage : null} filters={filters} onNeed={openAccountNeed} pagingAvailable={pageCurrent && visiblePage?.count_unit === 'company accounts'} onPage={(offset, cohort_token) => update({ ...filters, offset, cohort_token })}/>}
+        {pageCurrent && visiblePage?.count_unit === 'power needs' && <>
+          <div className="wh-queue-list">{items.map(item => { const title = projectTitle(item); const identity = item.commercial_organization || title; const monogram = identity.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase(); return <article className={`wh-queue-item ${selected?.id === item.id ? 'selected' : ''}`} key={item.id}><button aria-current={selected?.id === item.id ? 'true' : undefined} className="wh-queue-main" data-need-row={item.id} onClick={() => select(item)}><span className="wh-queue-monogram" aria-hidden="true">{monogram}</span><span className="wh-queue-copy"><strong>{title}</strong><span className="wh-queue-meta"><span>{item.location ?? 'Location unknown'}</span><b>{item.tier}</b><span className="wh-queue-disposition">{item.commercial_disposition ?? 'Disposition unavailable'}</span></span></span></button></article> })}</div>
+        </>}
+        {(!pageCurrent || visiblePage?.count_unit === 'power needs') && <footer className="wh-paging"><span>Showing {items.length ? (visiblePage?.offset ?? 0) + 1 : 0}–{pageCurrent ? position : '—'} of {pageCurrent ? visiblePage?.total ?? '—' : '—'}</span><button disabled={!pageCurrent || !visiblePage?.offset} onClick={() => { if (visiblePage) update({ ...filters, offset: Math.max(0, visiblePage.offset - 25), cohort_token: visiblePage.cohort_token }) }}>Previous</button><button disabled={!pageCurrent || visiblePage?.next_offset == null} onClick={() => { if (visiblePage) update({ ...filters, offset: visiblePage.next_offset ?? 0, cohort_token: visiblePage.cohort_token }) }}>Next</button></footer>}
+        {pageCurrent && visiblePage?.count_unit === 'company accounts' && <details className="ci-legacy-needs"><summary>Power needs (secondary workflow)</summary>
+          <div className="wh-queue-list">{items.map(item => { const title = projectTitle(item); const identity = item.commercial_organization || title; const monogram = identity.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase(); return <article className={`wh-queue-item ${selected?.id === item.id ? 'selected' : ''}`} key={item.id}><button aria-current={selected?.id === item.id ? 'true' : undefined} className="wh-queue-main" data-need-row={item.id} onClick={() => select(item)}><span className="wh-queue-monogram" aria-hidden="true">{monogram}</span><span className="wh-queue-copy"><strong>{title}</strong><span className="wh-queue-meta"><span>{item.location ?? 'Location unknown'}</span><b>{item.tier}</b><span className="wh-queue-disposition">{item.commercial_disposition ?? 'Disposition unavailable'}</span></span></span></button></article> })}</div>
+        </details>}
       </section>
-      <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={handleReadback} onTitleReady={() => setRevision(value => value + 1)}/>
+      <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next, false, currentAccountContext()) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={handleReadback} onTitleReady={() => setRevision(value => value + 1)}/>
       </div>
     </main>
   </div>

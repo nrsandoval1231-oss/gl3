@@ -57,6 +57,7 @@ JOB_KIND = "intelligence_process"
 POLICY_VERSION = "bounded-intelligence-v1"
 TYPESAFE_BILLING_CONTRACT_ID = "systemone-v1"
 TYPESAFE_BILLING_POLICY_ID = "typesafe-total-input-ceiling-v1"
+TYPESAFE_UNLIMITED_BILLING_POLICY_ID = "typesafe-reported-input-usage-v1"
 TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID = "typesafe-signal-estimate-v1"
 TYPESAFE_SIGNAL_ESTIMATE_TASK = "SIGNAL_ADJUDICATION"
 TYPESAFE_SIGNAL_ESTIMATE_MODEL = "jev-1.13.0"
@@ -738,7 +739,7 @@ def _enabled(
             return False, "", "", "TYPESAFE_DISABLED"
         if not settings.typesafe_api_key:
             return False, "", "", "TYPESAFE_KEY_OR_PINNED_MODEL_MISSING"
-        billing_reason = _typesafe_billing_block_reason(expected_model)
+        billing_reason = _typesafe_billing_block_reason(expected_model, task_type)
         if billing_reason:
             return False, "", "", billing_reason
         if (
@@ -752,7 +753,7 @@ def _enabled(
         return False, "", "", "TYPESAFE_DISABLED"
     if not settings.typesafe_api_key or not settings.intelligence_typesafe_model:
         return False, "", "", "TYPESAFE_KEY_OR_PINNED_MODEL_MISSING"
-    billing_reason = _typesafe_billing_block_reason(settings.intelligence_typesafe_model)
+    billing_reason = _typesafe_billing_block_reason(settings.intelligence_typesafe_model, task_type)
     if billing_reason:
         return False, "", "", billing_reason
     if (
@@ -852,23 +853,34 @@ def _estimated_signal_policy_block_reason(payload: dict[str, Any] | None) -> str
     return ""
 
 
-def _typesafe_billing_block_reason(model: str) -> str:
+def _typesafe_billing_block_reason(model: str, task_type: str | None = None) -> str:
     """Require explicit model/contract/policy proof and a total input ceiling.
 
     The current SystemOne transport has no documented, enforced output bound, so
     billable output cannot be reserved safely. Input proof must include all
     provider-wrapper tokens; client JSON size and a numeric cap alone are not proof.
     """
-    if (
+    unlimited = bool(task_type and _owner_unlimited_allowed("typesafe", task_type))
+    if unlimited and re.fullmatch(r"jev-\d+\.\d+\.\d+", model) is None:
+        return "TYPESAFE_PINNED_VERSIONED_MODEL_REQUIRED"
+    expected_policy = (
+        TYPESAFE_UNLIMITED_BILLING_POLICY_ID if unlimited else TYPESAFE_BILLING_POLICY_ID
+    )
+    common_invalid = (
         not settings.intelligence_typesafe_billing_verified
         or settings.intelligence_typesafe_billing_mode != "input_only"
         or not model
         or settings.intelligence_typesafe_billing_model_id != model
         or settings.intelligence_typesafe_billing_contract_id != TYPESAFE_BILLING_CONTRACT_ID
-        or settings.intelligence_typesafe_billing_policy_id != TYPESAFE_BILLING_POLICY_ID
+        or settings.intelligence_typesafe_billing_policy_id != expected_policy
         or not settings.intelligence_typesafe_billing_reference.strip()
-        or not settings.intelligence_typesafe_total_input_bound_verified
-        or settings.intelligence_typesafe_max_total_billable_input_tokens <= 0
+    )
+    if common_invalid or (
+        not unlimited
+        and (
+            not settings.intelligence_typesafe_total_input_bound_verified
+            or settings.intelligence_typesafe_max_total_billable_input_tokens <= 0
+        )
     ):
         return "TYPESAFE_BILLING_OR_INPUT_BOUND_PROOF_MISSING_OR_MISMATCHED"
     if settings.intelligence_typesafe_output_usd_per_million != 0:
@@ -882,6 +894,12 @@ def _billing_policy_identity(
     """Return response/billing policy identity used for call freshness and dispatch."""
     if provider not in {"typesafe", "openai"}:
         return None
+    financial_identity = {
+        "financial_budget_mode": settings.intelligence_financial_budget_mode,
+        "financial_authorization_ref": settings.intelligence_financial_authorization_ref,
+        "unlimited_contracts": settings.intelligence_unlimited_contracts,
+        "unlimited_providers": settings.intelligence_unlimited_providers,
+    }
     response_policy = {"response_guard_policy": "exact-model-usage-v1", "provider_model": model}
     if provider == "openai":
         prefix = (
@@ -894,6 +912,7 @@ def _billing_policy_identity(
         name_prefix = "intelligence_ocr" if prefix == "ocr" else f"intelligence_openai_{prefix}"
         return {
             **response_policy,
+            **financial_identity,
             "pricing_verified": str(getattr(settings, f"{name_prefix}_pricing_verified")).lower(),
             "priced_model_id": getattr(settings, f"{name_prefix}_priced_model_id"),
             "input_rate": str(getattr(settings, f"{name_prefix}_input_usd_per_million")),
@@ -904,6 +923,7 @@ def _billing_policy_identity(
         scope = sorted(_estimated_signal_observation_ids())
         return {
             **response_policy,
+            **financial_identity,
             "task_type": TYPESAFE_SIGNAL_ESTIMATE_TASK,
             "cost_basis": "ESTIMATE",
             "policy_id": TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID,
@@ -927,14 +947,21 @@ def _billing_policy_identity(
         }
     return {
         **response_policy,
+        **financial_identity,
         "mode": settings.intelligence_typesafe_billing_mode,
         "verified": str(settings.intelligence_typesafe_billing_verified).lower(),
         "model_id": settings.intelligence_typesafe_billing_model_id,
         "contract_id": settings.intelligence_typesafe_billing_contract_id,
-        "policy_id": settings.intelligence_typesafe_billing_policy_id,
+        "policy_id": (
+            TYPESAFE_UNLIMITED_BILLING_POLICY_ID
+            if task_type is not None and _owner_unlimited_allowed(provider, task_type)
+            else settings.intelligence_typesafe_billing_policy_id
+        ),
         "reference": settings.intelligence_typesafe_billing_reference,
-        "max_total_billable_input_tokens": str(
-            settings.intelligence_typesafe_max_total_billable_input_tokens
+        "max_total_billable_input_tokens": (
+            "UNBOUNDED"
+            if task_type is not None and _owner_unlimited_allowed(provider, task_type)
+            else str(settings.intelligence_typesafe_max_total_billable_input_tokens)
         ),
         "total_input_bound_verified": str(
             settings.intelligence_typesafe_total_input_bound_verified
@@ -979,7 +1006,7 @@ def _dispatch_policy(
     provider: str,
     model: str,
     payload: dict[str, Any],
-    reserved_cost: Decimal,
+    reserved_cost: Decimal | None,
     expected_billing_policy: dict[str, str] | None = None,
 ) -> tuple[bool, str]:
     enabled, current_provider, current_model, reason = _enabled(task_type, question_id, payload)
@@ -990,10 +1017,16 @@ def _dispatch_policy(
         and _billing_policy_identity(provider, model, task_type) != expected_billing_policy
     ):
         return False, "TYPESAFE_BILLING_POLICY_CHANGED"
-    if settings.intelligence_max_call_usd <= 0 or settings.intelligence_max_active_calls <= 0:
+    unlimited = _owner_unlimited_allowed(provider, task_type)
+    if settings.intelligence_max_active_calls <= 0:
+        return False, "ACTIVE_CALL_CAP_REQUIRED"
+    if not unlimited and settings.intelligence_max_call_usd <= 0:
         return False, "FINITE_BUDGET_REQUIRED"
     current_cost = _cost_bound(provider, task_type, payload)
-    if (
+    if unlimited:
+        if reserved_cost is not None:
+            return False, "FINANCIAL_POLICY_CHANGED"
+    elif (
         current_cost <= 0
         or current_cost != reserved_cost
         or current_cost > settings.intelligence_max_call_usd
@@ -1006,9 +1039,20 @@ def _dispatch_policy(
             usd_cap = limits[f"{period}_usd"]
             if type(count_cap) is not int or count_cap <= 0:
                 return False, f"{scope.upper()}_{period.upper()}_CAP_ZERO"
-            if usd_cap <= 0 or current_cost > usd_cap:
+            if not unlimited and (usd_cap <= 0 or current_cost > usd_cap):
                 return False, f"{scope.upper()}_{period.upper()}_USD_CAP_INVALID"
     return True, ""
+
+
+def _owner_unlimited_allowed(provider: str, task_type: str) -> bool:
+    return bool(
+        settings.intelligence_financial_budget_mode == "owner_unlimited"
+        and settings.intelligence_financial_authorization_ref.strip()
+        and provider
+        in {v.strip() for v in settings.intelligence_unlimited_providers.split(",") if v.strip()}
+        and task_type
+        in {v.strip() for v in settings.intelligence_unlimited_contracts.split(",") if v.strip()}
+    )
 
 
 def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decimal:
@@ -1080,7 +1124,7 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
             if _serialized_request_bytes(request) > TYPESAFE_SIGNAL_REQUEST_MAX_BYTES:
                 return Decimal("0")
             return settings.intelligence_typesafe_estimated_reservation_usd
-        if _typesafe_billing_block_reason(settings.intelligence_typesafe_model):
+        if _typesafe_billing_block_reason(settings.intelligence_typesafe_model, task_type):
             return Decimal("0")
         input_price = settings.intelligence_typesafe_input_usd_per_million
         input_tokens = settings.intelligence_typesafe_max_total_billable_input_tokens
@@ -1227,6 +1271,11 @@ def _safe_provider_audit(value: Any) -> Any:
         return fallback("UNSAFE_PROVIDER_RESPONSE_TREE")
 
 
+def _provider_response_id(data: dict[str, Any]) -> str | None:
+    value = data.get("provider_response_id")
+    return value if isinstance(value, str) and value.strip() and len(value) <= 256 else None
+
+
 def _provider_audit_exceeds_bound(value: Any) -> bool:
     """Measure original provider JSON before any redaction or list truncation."""
     try:
@@ -1327,6 +1376,7 @@ def _provider_error_quarantine_details(
     elif (
         provider == "typesafe"
         and not (billing_policy is not None and billing_policy.get("cost_basis") == "ESTIMATE")
+        and (billing_policy or {}).get("policy_id") != TYPESAFE_UNLIMITED_BILLING_POLICY_ID
         and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
     ):
         reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
@@ -1356,7 +1406,7 @@ def _provider_error_quarantine_details(
             response_payload["raw_response_bytes"] = raw_size
     else:
         response_payload = {
-            "provider_response_id": getattr(error, "request_id", None),
+            "provider_request_id": getattr(error, "request_id", None),
             "model": actual_model,
             "usage": usage,
             "response_status": response_status,
@@ -1795,6 +1845,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
     provider_response_complete = False
     billing_quarantined = False
     error: str | None = None
+    validation_reason: str | None = None
     # Prepare bounded input and the ledger identity while holding only the job
     # fence. reserve_call commits its own transaction, so never pass it this
     # session or retain a job row lock across that call.
@@ -1824,6 +1875,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 current = _bound_grounded_payload(current)
             if _digest(current) != checkpoint.get("request_digest"):
                 checkpoint.update(status="stale", error="INPUT_CHANGED_BEFORE_DISPATCH")
+                checkpoint.update(
+                    validation_outcome="BLOCKED", validation_reason="INPUT_CHANGED_BEFORE_DISPATCH"
+                )
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
                 _record_research_receipt(session, checkpoint)
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1833,6 +1887,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             )
             if not enabled:
                 checkpoint.update(status="blocked", error=reason)
+                checkpoint.update(validation_outcome="BLOCKED", validation_reason=reason)
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
                 _record_research_receipt(session, checkpoint)
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1858,19 +1913,28 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 }
             )
             max_cost = _cost_bound(provider, task_type, payload)
-            if (
+            unlimited = _owner_unlimited_allowed(provider, task_type)
+            if settings.intelligence_financial_budget_mode == "owner_unlimited" and not unlimited:
+                budget_error = "UNLIMITED_CONTRACT_NOT_AUTHORIZED"
+            elif settings.intelligence_max_active_calls <= 0:
+                budget_error = "ACTIVE_CALL_CAP_REQUIRED"
+            elif not unlimited and (
                 max_cost <= 0
                 or settings.intelligence_max_call_usd <= 0
                 or max_cost > settings.intelligence_max_call_usd
-                or settings.intelligence_max_active_calls <= 0
             ):
-                checkpoint.update(status="blocked", error="FINITE_BUDGET_REQUIRED")
+                budget_error = "FINITE_BUDGET_REQUIRED"
+            else:
+                budget_error = ""
+            if budget_error:
+                checkpoint.update(status="blocked", error=budget_error)
+                checkpoint.update(validation_outcome="BLOCKED", validation_reason=budget_error)
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
                 _record_research_receipt(session, checkpoint)
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
                 return {
                     "status": "blocked",
-                    "error": "FINITE_BUDGET_REQUIRED",
+                    "error": budget_error,
                     "job_id": str(job_id),
                 }
             reserve_args = {
@@ -1888,8 +1952,14 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "job_id": job.id,
                 "worker_id": worker_id,
                 "enabled": True,
-                "estimated_cost_usd": max_cost,
-                "max_cost_usd": max_cost,
+                "estimated_cost_usd": None if unlimited else max_cost,
+                "max_cost_usd": None if unlimited else max_cost,
+                "financial_budget_mode": settings.intelligence_financial_budget_mode,
+                "financial_authorization_ref": settings.intelligence_financial_authorization_ref
+                if unlimited
+                else None,
+                "unlimited_contracts": settings.intelligence_unlimited_contracts,
+                "unlimited_providers": settings.intelligence_unlimited_providers,
                 "caps": _caps(),
                 "max_active": settings.intelligence_max_active_calls,
                 "fence_token": fence_token,
@@ -1897,6 +1967,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
         except (ValueError, KeyError, TypeError) as exc:
             checkpoint = locals().get("checkpoint", {})
             checkpoint.update(status="blocked", error=type(exc).__name__)
+            checkpoint.update(validation_outcome="BLOCKED", validation_reason=type(exc).__name__)
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
             return {"status": "blocked", "error": type(exc).__name__, "job_id": str(job_id)}
@@ -1908,6 +1979,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             job = assert_fence(session, job_id, worker_id, fence_token)
             checkpoint = json.loads(job.checkpoint or "{}")
             checkpoint.update(status="blocked", error=reservation.blocked_reason)
+            checkpoint.update(
+                validation_outcome="BLOCKED", validation_reason=reservation.blocked_reason
+            )
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             _record_research_receipt(session, checkpoint)
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1921,11 +1995,23 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             cached = session.get(LogicalCall, call_id)
             result = cached.result_payload if cached else None
             checkpoint = json.loads(job.checkpoint or "{}")
+            validation_outcome = (
+                result.get("validation_outcome", "UNKNOWN")
+                if isinstance(result, dict)
+                else "UNKNOWN"
+            )
             checkpoint.update(
                 status="completed",
                 result=result,
                 logical_call_id=str(call_id),
                 cached=True,
+                validation_outcome=validation_outcome,
+                validation_reason=result.get("validation_reason")
+                if isinstance(result, dict)
+                else None,
+                provider_response_id=result.get("provider_response_id")
+                if isinstance(result, dict)
+                else None,
             )
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
             _record_research_receipt(session, checkpoint)
@@ -1943,7 +2029,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
         provider,
         model,
         payload,
-        max_cost,
+        None if unlimited else max_cost,
         billing_policy,
     )
     with SessionLocal() as session:
@@ -1961,6 +2047,10 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             job = assert_fence(session, job_id, worker_id, fence_token)
             checkpoint = json.loads(job.checkpoint or "{}")
             checkpoint.update(status="blocked", error=dispatch_reason or dispatched.blocked_reason)
+            checkpoint.update(
+                validation_outcome="BLOCKED",
+                validation_reason=dispatch_reason or dispatched.blocked_reason,
+            )
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             _record_research_receipt(session, checkpoint)
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
@@ -1976,7 +2066,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 payload={key: value for key, value in typesafe_payload.items() if key != "model"},
             )
             provider_response_complete = True
-            provider_response_id = data.get("provider_response_id")
+            provider_response_id = _provider_response_id(data)
             usage_value = data.get("usage")
             response_usage = usage_value if isinstance(usage_value, dict) else {}
             actual_model = data.get("model")
@@ -1991,6 +2081,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 quarantine_reason = "INVALID_REPORTED_USAGE"
             elif (
                 input_tokens is not None
+                and (billing_policy or {}).get("policy_id") != TYPESAFE_UNLIMITED_BILLING_POLICY_ID
                 and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
             ):
                 quarantine_reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
@@ -2031,6 +2122,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 billing_quarantined = True
                 status = "unknown"
                 error = quarantined.blocked_reason or quarantine_reason
+                validation_reason = quarantine_reason
                 call_result = {
                     "provider": provider,
                     "actual_model": actual_model,
@@ -2057,7 +2149,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 max_output_tokens=output_limit,
             )
             provider_response_complete = True
-            provider_response_id = data.get("provider_response_id")
+            provider_response_id = _provider_response_id(data)
             response_model = data.get("model")
             input_tokens, output_tokens = data.get("input_tokens"), data.get("output_tokens")
             actual_model = response_model
@@ -2107,6 +2199,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 billing_quarantined = True
                 status = "unknown"
                 error = quarantined.blocked_reason or quarantine_reason
+                validation_reason = quarantine_reason
                 call_result = {
                     "provider": provider,
                     "actual_model": actual_model,
@@ -2124,7 +2217,10 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "provider": provider,
                 "actual_model": actual_model,
                 "latency_ms": data.get("latency_ms", data.get("provider_latency_ms")),
+                "validation_outcome": "VALIDATED",
             }
+            if provider_response_id:
+                call_result["provider_response_id"] = provider_response_id
             estimated_cost = _estimated_cost_from_usage(
                 provider, task_type, input_tokens, output_tokens
             )
@@ -2153,7 +2249,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             status = "completed"
             error = None
     except Exception as exc:
-        provider_response_id = provider_response_id or getattr(exc, "request_id", None)
+        provider_request_id = getattr(exc, "request_id", None)
         error_quarantine = _provider_error_quarantine_details(
             exc, provider=provider, task_type=task_type, expected_model=model
         )
@@ -2180,6 +2276,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             billing_quarantined = True
             status = "unknown"
             error = quarantined.blocked_reason or quarantine_reason
+            validation_reason = quarantine_reason
             call_result = {
                 "provider": provider,
                 "actual_model": actual_model,
@@ -2189,7 +2286,8 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 },
                 "billing_quarantine": quarantine_reason,
             }
-        response_ref = f"response:{provider_response_id}" if provider_response_id else None
+        response_identity = provider_response_id or provider_request_id
+        response_ref = f"response:{response_identity}" if response_identity else None
         terminal_failure = False
         if (
             not billing_quarantined
@@ -2208,6 +2306,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
         if not billing_quarantined:
             status = "failed" if terminal_failure else "unknown"
             error, call_result = type(exc).__name__, None
+            validation_reason = error
 
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence_token)
@@ -2226,6 +2325,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 result=call_result,
                 result_status="stale_context",
                 error="INPUT_CHANGED_DURING_PROVIDER_CALL",
+                validation_outcome="VALIDATED",
+                validation_reason=None,
+                provider_response_id=provider_response_id,
                 usage={
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
@@ -2268,11 +2370,29 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             if status == "completed" and fresh and job.target_id is not None and call_result
             else None
         )
+        validation_outcome = (
+            "QUARANTINED"
+            if billing_quarantined
+            else "VALIDATED"
+            if status == "completed"
+            else "REJECTED"
+            if status == "failed"
+            else "UNKNOWN"
+        )
+        if isinstance(call_result, dict):
+            call_result.setdefault("validation_outcome", validation_outcome)
+            if validation_reason:
+                call_result.setdefault("validation_reason", validation_reason)
+            if provider_response_id:
+                call_result.setdefault("provider_response_id", provider_response_id)
         checkpoint.update(
             status=status,
             completed_at=datetime.now(UTC).isoformat(),
             result=call_result,
             error=error,
+            validation_outcome=validation_outcome,
+            validation_reason=validation_reason or (error if status != "completed" else None),
+            provider_response_id=provider_response_id,
             usage={
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
@@ -2309,6 +2429,9 @@ def _record_research_receipt(session: Session, checkpoint: dict[str, Any]) -> No
             "job_id": checkpoint.get("job_id"),
             "logical_call_id": checkpoint.get("logical_call_id"),
             "status": checkpoint.get("status"),
+            "validation_outcome": checkpoint.get("validation_outcome", "UNKNOWN"),
+            "validation_reason": checkpoint.get("validation_reason"),
+            "provider_response_id": checkpoint.get("provider_response_id"),
             "result": checkpoint.get("result"),
             "error": checkpoint.get("error"),
             "evidence_ids": [
@@ -2344,6 +2467,9 @@ def intelligence_history(session: Session, need_id: UUID, limit: int = 50) -> li
                 "need_id": str(need_id),
                 "status": status,
                 "result": checkpoint.get("result"),
+                "validation_outcome": checkpoint.get("validation_outcome", "UNKNOWN"),
+                "validation_reason": checkpoint.get("validation_reason"),
+                "provider_response_id": checkpoint.get("provider_response_id"),
                 "result_status": checkpoint.get("result_status"),
                 "error": checkpoint.get("error"),
                 "reassessment_job_id": checkpoint.get("reassessment_job_id"),
