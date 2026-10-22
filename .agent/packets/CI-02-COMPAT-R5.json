@@ -1,0 +1,16 @@
+{
+  "node_id": "CI-02-COMPAT-R5",
+  "objective": "Reproduce and repair the three canonical Linux buying-chain browser failures without weakening correction, late-response or navigation guarantees.",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-customer-intelligence-20261022",
+  "branch": "feat/canonical-customer-intelligence-20261022",
+  "base_sha": "98a78223fd4ab5d2744bd8925d6ef6a35457c41f",
+  "dependencies": "Rejected exact CI run39808893684; full backend passed, buying_chain322/377/444 failed; log .artifacts/customer-intelligence/rejected-98a7822-ci-failed.log.",
+  "allowed_files": ["web/src/features/workspace/Workspace.tsx", "web/tests/buying_chain.spec.ts", ".agent/artifacts/CI-02/COMPLETION-COMPAT-R5.json"],
+  "exclusions": "No backend/schema/style/generated/provider/workflow/report/GitHub/git edits. Root owns actual retained runtime ports8017/5187 and curated/retained DBs. Worker may use existing test ports8016/5186 and app test DB only. You are not alone; preserve others' changes.",
+  "acceptance": "First reproduce exact three tests; classify actual product navigation regression versus legacy mock/API contract mismatch. Preserve primary company default, explicit secondary needs, current account association and stale/late correction guards. Do not edit tests merely to conceal a defect. If fixture change is justified, prove its source contract and preserve behavioral assertions. Full buying_chain + account/workspace/approved_workspace suites green, typecheck/build/diff checks.",
+  "validation": "npx playwright test tests/buying_chain.spec.ts tests/customer-accounts.spec.ts tests/workspace.spec.ts tests/approved_workspace.spec.ts --project=regression, npm run typecheck/build; red/green logs and exact exit codes.",
+  "risk_authority": "Local reversible compatibility repair only; no paid calls, production, merge/deploy/outreach.",
+  "retry_budget": 2,
+  "checkpoint": "No unchanged retries; stop with evidence if scope crosses allowed files or backend semantics require change.",
+  "output_contract": "Terminal completion with source diff, causal evidence, commands/results, UTC start/finish and measured durations or UNKNOWN; no self-acceptance. Root refreezes/revalidates/reviews."
+}
