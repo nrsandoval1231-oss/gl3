@@ -37,14 +37,9 @@ export function LoginPage({ onLogin }: { onLogin: (password: string) => Promise<
   }
 
   return <main className="login-page">
-    <section className="login-scene" aria-label="GridLens infrastructure intelligence">
-      <img className="login-scene-image" src="/images/login-infrastructure.png" alt="" />
-      <div className="login-scene-shade" />
-      <div className="login-brandplate"><img className="login-lockup" src="/brand/lockup-horizontal-white.svg" alt="GridLens" /></div>
-      <div className="login-scene-caption"><span>GRIDLENS / INFRASTRUCTURE INTELLIGENCE</span><p>See what’s taking shape.<br/>Know where power matters.</p></div>
-    </section>
     <section className="login-panel">
       <div className="login-panel-inner">
+        <img className="login-lockup" src="/brand/lockup-pursuits-v3.svg" alt="GridLens" />
         <p className="login-kicker">PRIVATE WORKSPACE</p>
         <h1>Sign in</h1>
         <p className="login-intro">Your GridLens workspace brings emerging power needs into focus.</p>

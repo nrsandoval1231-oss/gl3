@@ -1,9 +1,13 @@
-# Pursuit Workspace interaction contract
-Owner-approved October 18, 2026; issue79. Existing engine, API authentication, power-need identity and workflows remain authoritative.
-First viewport: original Aperture lockup; horizontal Opportunities/Research/Signals/Operations, search/account; slim briefing; sortable queue 58%, contextual detail 42%. Mobile opens full-width detail and returns to the same queue.
-Queue unit: an individual power need. Multiple campus activities retain independent tiers. ACTION NOW/RESEARCH/WATCH/REJECT is independent of Signal/Prospect/Lead. Existing grouped triage/history remains available; its group count must not be presented as need count.
-Search/geography/industry/application/MW/tier/disposition/timing filters and sorts run on server before counts/pagination. Need-ID tie breakers, bounded responses and cohort token prevent unstable pages. Stale/missing generation is unavailable. URL/session state retain selection, filters, sort, position, drafts; late responses never replace a newer selection.
-Briefing counts cover the filtered need cohort, ignoring only disposition for facets. Clicking a metric opens that set. Changes since prior review stay unavailable without a supported reviewed-at comparison.
-Detail starts project/location, disposition/tier, activity-specific MW, timing, reason, next action. Working tabs progressively disclose evidence, buying chain, power gap, timeline, next steps, unknowns. Publication, event, retrieval dates stay distinct. Reported/user-confirmed/derived/inferred/conflicting/stale/unknown remain honest. Supply unknown never creates a numeric gap; campus capacity is never temporary load.
-Next action enters existing investigation/fact/workflow surfaces. Persisted save requires API success/readback; notes/status do not promote qualification. Research and Operations retain existing budget/coverage/failure controls. No autonomous outreach.
-Verification distinguishes synthetic workflow/performance, retained corpus and live production evidence. UI acceptance does not close the parent Finish Contract or authorize deployment.
+# Opportunity Intelligence Workspace interaction contract
+
+The October21 owner directive and [UI canon](UI_CANON.md) supersede the October20 silver/orange queue composition. Existing API identities, sessions and commercial workflows remain authoritative.
+
+The real need-level Opportunities queue occupies the light desktop sidebar. Search, supported category/qualification/disposition filters, sorting and pagination operate on server cohorts. Selection opens the dashboard. URL reload, Back and Forward restore record/tab state. Stale responses cannot replace a newer selection. Grouped physical-project Signals remain distinct, retaining member/source counts, qualification filters, exports and SHOW/REVIEW/HOLD decisions.
+
+The dashboard presents identity, supported power facts, contacts, commercial relevance and next action. Evidence, Commercial Assessment, Research Gaps and Notes & Activity provide the bottom workspace. Existing buying-chain, power, timeline, brief/title, fact-correction and call workflows remain reachable. Contact links require verified provenance. Share copies the canonical URL; an unavailable action states the reason.
+
+Preserve dates, excerpts, conflicts, support and stale states. Facility totals are never temporary-power gaps; completeness is separate from qualification. Loading, empty and error states remain accessible. Preparing an action does not record contact; notes/status updates do not promote qualification.
+
+Narrow screens reflow without horizontal overflow. Identity/metrics come first, contacts and next action remain accessible, and project/evidence details can expand. Preserve visible focus, labels and keyboard control.
+
+Screenshot content is illustrative. Isolated fixtures and retained clones prove bounded local behavior only. No merge, deployment, provider activation or parent release authorization is implied.

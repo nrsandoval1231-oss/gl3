@@ -499,7 +499,8 @@ def brief_view_for_payload(row: PowerNeedBrief | None, payload: dict | None) -> 
             if exact_question_match and fingerprint == base_fingerprint:
                 view = brief_view(row, row.generated_fingerprint)
                 view["result"] = {
-                    **result, "context_fingerprint": base_fingerprint,
+                    **result,
+                    "context_fingerprint": base_fingerprint,
                     "commercial_question": legacy_question,
                 }
                 view["question_context"] = "different_question"
@@ -625,8 +626,11 @@ def _validate_result(
             "evidence_id": company["evidence_id"],
         }
         matching_company = next(
-            (index for index, statement in enumerate(statements)
-             if statement["evidence_id"] == company["evidence_id"]),
+            (
+                index
+                for index, statement in enumerate(statements)
+                if statement["evidence_id"] == company["evidence_id"]
+            ),
             None,
         )
         if matching_company is None:
@@ -796,11 +800,13 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
                 job.status, job.error = "failed", "daily_budget_exhausted"
                 return
             budget.reserved_requests += 1
-            job.checkpoint = json.dumps({
-                "commercial_question": question,
-                "input_fingerprint": fingerprint,
-                "reserved": True,
-            })
+            job.checkpoint = json.dumps(
+                {
+                    "commercial_question": question,
+                    "input_fingerprint": fingerprint,
+                    "reserved": True,
+                }
+            )
         need = session.get(PowerNeed, need_id)
         project = session.get(Project, need.project_id) if need else None
         source_id = project.source_id if project else None

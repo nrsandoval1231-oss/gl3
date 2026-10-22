@@ -1,0 +1,47 @@
+import { useState } from 'react'
+import { client, type Opportunity } from '../../api/client'
+import './intelligence-card.css'
+
+type Card = NonNullable<Opportunity['intelligence_card']>
+
+export function IntelligenceCard({ card, opportunityName, customer, location, activity, tier, why, nextAction, onReadback, onReview }: {
+  card: Card; opportunityName: string; customer: string | null | undefined; location: string | null | undefined; activity: string; tier: string; why: string; nextAction: string; onReadback: () => void; onReview: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  async function research() {
+    setBusy(true); setMessage('')
+    try {
+      const result = await client.refreshAutonomousResearch(card.need_id, false, undefined, true)
+      setMessage(result.items.length ? 'Targeted research queued. Results appear after the worker completes.' : 'No new work queued. Existing work, freshness and budget limits still apply.')
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Research request failed.') }
+    finally { setBusy(false) }
+  }
+  const known = card.fields.filter(field => field.value !== null)
+  const projectFields = known.filter(field => field.section === 'identity' || field.section === 'power')
+  const commercialFields = known.filter(field => field.section === 'commercial')
+  return <section className="intelligence-card" aria-label="Commercial intelligence card">
+    <div className="ic-dashboard">
+      <section className="ic-project" aria-label="Project and customer details">
+        <h3>Project &amp; customer details</h3>
+        <dl className="ic-detail-list"><div><dt>Project</dt><dd>{opportunityName}</dd></div>{customer && <div><dt>Customer / organization</dt><dd>{customer}</dd></div>}<div><dt>Location</dt><dd>{location ?? 'Location not established'}</dd></div><div><dt>Power activity</dt><dd>{activity}</dd></div><div><dt>Qualification tier</dt><dd>{tier}</dd></div></dl>
+        {projectFields.length > 0 && <details className="ic-supported-fields"><summary>Supported power details ({projectFields.length})</summary><dl className="ic-detail-list">{projectFields.map(field => <div key={field.key}><dt>{field.label}</dt><dd>{field.value}<small>{field.status}</small><details><summary>Basis &amp; sources</summary><p>{field.basis}</p>{(field.sources ?? []).map((source, index) => <div key={`${source.reference}-${index}`}><p>{source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a> : source.title}{source.source_date ? ` · ${source.source_date}` : ''}</p>{source.passage && <blockquote>{source.passage}</blockquote>}<small>{source.verification_status} · {source.reference}</small></div>)}</details></dd></div>)}</dl></details>}
+        {commercialFields.length > 0 && <details className="ic-commercial-facts"><summary>Commercial assessment details</summary><dl className="ic-detail-list">{commercialFields.map(field => <div key={field.key}><dt>{field.label}</dt><dd>{field.value}<small>{field.status}</small><details><summary>Basis &amp; sources</summary><p>{field.basis}</p>{(field.sources ?? []).map((source, index) => <p key={`${source.reference}-${index}`}><a href={source.url ?? undefined} target="_blank" rel="noreferrer">{source.title}</a> · {source.reference}</p>)}</details></dd></div>)}</dl></details>}
+      </section>
+      <section className="ic-contacts" aria-label="Key contacts and buying chain">
+        <h3>Key contacts &amp; buying chain</h3>
+        {card.contacts.length ? card.contacts.map(person => <article className="ic-contact" key={person.claim_id}><span className="ic-avatar" aria-hidden="true">{(person.name || person.company).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span><div className="ic-contact-identity"><span className="ic-role-badge">{person.role}</span><strong>{person.name || person.company}</strong><p>{person.name ? `${person.title || person.role} · ${person.company}` : person.role}</p></div><div className="ic-contact-actions">{(person.methods ?? []).map(method => <a key={`${method.kind}:${method.value}`} href={method.href}>{method.kind === 'email' ? 'Email' : 'Call'} {method.value}</a>)}</div><details><summary>Responsibility, authority &amp; evidence</summary><p>{person.responsibility}. {person.purchasing_authority}.</p>{person.verified_at && <p>Verified {new Date(person.verified_at).toLocaleDateString()}</p>}{(person.sources ?? []).map((source, index) => <p key={`${source.reference}-${index}`}><a href={source.url ?? undefined} target="_blank" rel="noreferrer">{source.passage || source.title}</a>{source.source_date ? ` · ${source.source_date}` : ''}</p>)}</details></article>) : <p>No verified contacts are available in the current retained evidence.</p>}
+        <p className="ic-contact-path">{card.next_contact_path || 'Contact path not established.'}</p>
+      </section>
+      <div className="ic-recommendations">
+      <section className="ic-why" aria-label="Why this opportunity matters">
+        <h3>Why this opportunity matters</h3>
+        <p>{why}</p>
+        {card.research_gaps.length > 0 && <p className="ic-gap-summary">{card.research_gaps.length} research {card.research_gaps.length === 1 ? 'gap' : 'gaps'} remain.</p>}
+        {commercialFields.length > 0 && <ul className="ic-commercial-list">{commercialFields.slice(0, 3).map(field => <li key={field.key}>{field.label}: {field.value}</li>)}</ul>}
+      </section>
+      <section className="ic-next" aria-label="Recommended next action"><h3>Recommended next action</h3><p>{nextAction}</p><button onClick={onReview}>Review workflow and notes</button><div className="ic-research-action"><button disabled={busy || !card.research_enabled} onClick={() => void research()}>{busy ? 'Queuing research…' : 'Research missing information'}</button>{!card.research_enabled && <small>Research execution is disabled for this opportunity.</small>}</div>{message && <div className="ic-research-message"><p role="status">{message}</p><button onClick={onReadback}>Refresh research status</button></div>}</section>
+      </div>
+    </div>
+  </section>
+}

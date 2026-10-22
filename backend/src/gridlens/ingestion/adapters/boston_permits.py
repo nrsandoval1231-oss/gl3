@@ -217,10 +217,7 @@ def retrieve_collection_segment(
     if type(scanned) is not int or scanned < 0:
         raise SourceParseError("Boston collection cursor has an invalid row count")
     start = day.isoformat()
-    where = (
-        f"issued_date >= '{start}T00:00:00' "
-        f"AND issued_date <= '{start}T23:59:59.999'"
-    )
+    where = f"issued_date >= '{start}T00:00:00' AND issued_date <= '{start}T23:59:59.999'"
     relation = f'"{RESOURCE_ID}"'
     http = client or httpx.Client(
         timeout=20, follow_redirects=False, headers={"Accept": "application/json"}
@@ -282,8 +279,7 @@ def retrieve_collection_segment(
             raise SourceParseError("Boston collection cursor exceeds declared row count")
         page_where = where + (f" AND _id > {after_id}" if after_id is not None else "")
         sql = (
-            f"SELECT {FIELDS} FROM {relation} WHERE {page_where} "
-            f"ORDER BY issued_date ASC, _id ASC LIMIT {PAGE_SIZE}"
+            f"SELECT {FIELDS} FROM {relation} WHERE {page_where} ORDER BY _id ASC LIMIT {PAGE_SIZE}"
         )
         rows = _response(http, source["endpoint"], sql, state)["records"]
         if not rows or len(rows) > PAGE_SIZE:

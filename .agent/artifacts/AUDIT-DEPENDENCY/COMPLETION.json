@@ -1,0 +1,16 @@
+{
+  "node": "AUDIT-DEPENDENCY-CERTIFI",
+  "base_sha": "f2b644c4d93c17c04e590c5bd19cfa197a5b41bb",
+  "branch": "repair/audit-certifi-20261020",
+  "status": "PASS",
+  "source_head": "d0371c0979bb00aad5015821d849a082ceb07c34",
+  "changed_source_files": ["backend/uv.lock"],
+  "change": "certifi 2026.7.22 -> 2026.10.19; lock remains uv revision 2 and other package entries are unchanged",
+  "evidence": [
+    {"command":"uv tool run --from uv==0.7.13 uv lock --upgrade-package certifi==2026.10.19","exit_code":0,"result":"locked only certifi update using repository-pinned uv version"},
+    {"command":"uv tool run --from uv==0.7.13 uv sync --locked --extra dev","exit_code":0,"result":"audited 45 packages"},
+    {"command":"uv tool run --from uv==0.7.13 uv export --locked --extra dev --no-emit-project --format requirements-txt --output-file .artifacts/backend-requirements.txt","exit_code":0,"result":"locked requirements exported; ignored runtime artifact"},
+    {"command":"uv tool run --python 3.11 --from pip-audit==2.10.1 pip-audit -r .artifacts/backend-requirements.txt --disable-pip --no-deps --format json","exit_code":0,"result":"No known vulnerabilities found; certifi 2026.10.19 has no listed vulns"}
+  ],
+  "note": "An initial pip-audit invocation from the project dev environment failed because pip-audit is not a declared dev dependency; the repository-prescribed pinned uv tool command passed."
+}

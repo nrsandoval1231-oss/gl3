@@ -341,9 +341,7 @@ def test_achieved_campus_milestone_survives_draft_title_v_procedure(lifecycle_db
         assert apply_lifecycle_observation(session, project, observation, evidence)
         event = session.scalar(select(LifecycleEvent))
         assert (
-            event
-            and event.event_type == "building_permit_issued"
-            and event.state == "permitting"
+            event and event.event_type == "building_permit_issued" and event.state == "permitting"
         )
         assert session.get(ProjectLifecycle, project_id).current_state == "permitting"
 

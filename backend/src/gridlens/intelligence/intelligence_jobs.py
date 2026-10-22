@@ -439,22 +439,25 @@ def enqueue_intelligence(
         text("SELECT pg_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
         {"lock_key": f"{need_id}:{task_type}:{question_id or ''}"},
     )
-    for job in session.scalars(
-        select(Job)
+    matching_job_id = session.scalar(
+        select(Job.id)
         .where(
             Job.kind == JOB_KIND,
             Job.target_id == need_id,
             Job.status.in_(["queued", "running"]),
+            text(
+                "CASE WHEN pg_input_is_valid(jobs.checkpoint, 'jsonb') "
+                "THEN jobs.checkpoint::jsonb->>'request_digest' END = :request_digest"
+            ),
         )
-        .order_by(Job.created_at.desc())
-        .limit(10)
-    ):
-        try:
-            checkpoint = json.loads(job.checkpoint or "{}")
-        except (ValueError, TypeError):
-            continue
-        if checkpoint.get("request_digest") == identity and job.status in {"queued", "running"}:
-            return job
+        .params(request_digest=identity)
+        .order_by(Job.created_at.desc(), Job.id)
+        .limit(1)
+    )
+    if matching_job_id is not None:
+        matching_job = session.get(Job, matching_job_id)
+        if matching_job is not None:
+            return matching_job
     no_subject_result: dict[str, Any] | None = None
     no_subject_status: str | None = None
     if task_type == "MATCH_ADVISORY_V1" and not payload["task_context"]["deterministic_candidates"]:

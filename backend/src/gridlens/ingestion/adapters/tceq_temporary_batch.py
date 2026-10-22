@@ -186,7 +186,8 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             attempted += 1
             try:
                 _, pdf = read_bounded_response(
-                    http, NOTICE_URL.format(registration=row["registration"].lower()),
+                    http,
+                    NOTICE_URL.format(registration=row["registration"].lower()),
                     MAX_PDF_BYTES,
                 )
                 records.append(record(row, parse_notice(pdf, row["registration"])))

@@ -1,0 +1,149 @@
+{
+  "format": "gl3-audit-retained-completion-v1",
+  "status": "PARTIAL_IMPLEMENTATION_VALIDATED",
+  "completion_time_utc": "2026-10-20T19:23:56Z",
+  "candidate": {
+    "implementation_commit": "962e807ca7549cc8035976609e11ad9f6fb1f78a",
+    "implementation_parent": "72ed2e0682f075091d723c881044cc74ca5c4297",
+    "implementation_subject": "Repair retained buying-chain extraction and reassessment",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-retained-20261020",
+    "implementation_files": [
+      "backend/src/gridlens/domain/news_interpretation.py",
+      "backend/src/gridlens/ingestion/service.py",
+      "backend/src/gridlens/intelligence/buying_chain.py",
+      "backend/tests/integration/test_collection_only_ingestion.py",
+      "backend/tests/unit/test_news_interpretation.py",
+      "backend/tests/unit/test_retained_backfill_cli.py",
+      "docs/operations/retained-buying-chain-backfill.md",
+      "scripts/backfill_retained_buying_chain.py",
+      "scripts/reinterpret_news.py"
+    ]
+  },
+  "implementation": {
+    "retained_buying_chain": [
+      "Accepted retained permits and RSS evidence automatically enqueue retained-only extraction after acceptance associations are available.",
+      "Permit evaluator versions and RSS admission policy versions are carried and checked as evidence policy identity.",
+      "Retained request identity and worker fences use project identity, accepted immutable evidence versions, and policies; derived claims and extraction runs do not invalidate unchanged requests or sibling evidence jobs.",
+      "A bounded backfill CLI defaults to dry-run, supports UUID project cursors and a maximum page size of 100, and requires --expected-database-name for --apply. Test target requires a _test database; application target is available only for a separately authorized run. No application/production apply was performed."
+    ],
+    "news_reassessment": [
+      "Retained RSS reassessment defaults to rejected interpretations; accepted reassessment requires explicit --include-accepted with --apply.",
+      "Reassessment is bounded and UUID-cursor paginated, handles null publication dates, and preserves earlier decisions and policy identity/history.",
+      "Evaluator grammar version is rss-project-v7. The final holdout exposed misses; grammar was not tuned after that evaluation."
+    ],
+    "schema_changes": false
+  },
+  "validation": {
+    "focused_pytest": {
+      "command": "uv run --project backend pytest backend/tests/unit/test_news_interpretation.py backend/tests/unit/test_retained_backfill_cli.py backend/tests/integration/test_collection_only_ingestion.py -q",
+      "exit_code": 0,
+      "result": "63 passed; one upstream Starlette/httpx deprecation warning",
+      "coverage_receipts": [
+        "Accepted permit fixture processed through process_job, automatic retained job executed, contractor DIRECT role and provenance checked, HTTP retrieval forbidden, unchanged replay after worker execution created no new job, and evidence correction replaced current claim while preserving prior claim history.",
+        "Retained news assessment applied and replayed while preserving previous_decisions; UUID cursor advanced to another item with null published_at.",
+        "Backfill dry-run, bounded cursor, and apply/replay idempotency exercised against the disposable test database; database-name mismatch rejected before connection."
+      ]
+    },
+    "ruff": {
+      "command": "uv run --project backend ruff check backend/src/gridlens/domain/news_interpretation.py backend/src/gridlens/ingestion/service.py backend/src/gridlens/intelligence/buying_chain.py backend/tests/unit/test_news_interpretation.py backend/tests/unit/test_retained_backfill_cli.py backend/tests/integration/test_collection_only_ingestion.py scripts/reinterpret_news.py scripts/backfill_retained_buying_chain.py",
+      "exit_code": 0
+    },
+    "mypy": {
+      "command": "uv run --project backend mypy backend/src/gridlens/domain/news_interpretation.py backend/src/gridlens/ingestion/service.py backend/src/gridlens/intelligence/buying_chain.py scripts/reinterpret_news.py scripts/backfill_retained_buying_chain.py",
+      "exit_code": 0
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    "worktree_after_implementation_commit": "clean"
+  },
+  "retained_corpus_duplicate_diagnosis": {
+    "source": "Read-only local clone of the immutable predeploy backup; no writes performed.",
+    "counts": {
+      "projects_scanned": 1620,
+      "evidence_rows": 18016,
+      "observation_rows": 16694,
+      "raw_history_exact_role_duplicate_groups": 2,
+      "raw_history_extra_rows": 2,
+      "canonical_current_view_high_low_claims": 43,
+      "canonical_current_view_exact_role_duplicate_groups": 0,
+      "canonical_current_view_extra_rows": 0
+    },
+    "identity_grouping": "project, entity key, category, organization relationship, normalized organization; distinct roles/categories remain distinct",
+    "deduplication_change": false
+  },
+  "news_evaluation": {
+    "source_capture": {
+      "path": "../gl3-audit-remediation-20261020/.artifacts/audit-remediation/retained-public-news-20261020.json",
+      "sha256": "4f21148f312a9dbab6a67b3f0319a1255ef4a24a90f5dcb2bf832b0f30e109da",
+      "captured_at_utc": "2026-10-20T18:30:29.916399Z",
+      "retained_articles": 219
+    },
+    "checkpoints": [
+      {
+        "candidate": "initial failed development attempt",
+        "labels": "original fresh sample, before canon reconciliation",
+        "positive_admitted": "0/9",
+        "false_admissions": "UNKNOWN",
+        "retained_as_failure_evidence": true
+      },
+      {
+        "candidate": "rss-project-v6 baseline",
+        "labels": "canon-reconciled fresh development v2",
+        "positive_admitted": "0/7",
+        "negative_admitted": "0/51",
+        "uncertain_admitted": "0/2"
+      },
+      {
+        "candidate": "rss-project-v7 implementation commit 962e807ca7549cc8035976609e11ad9f6fb1f78a",
+        "labels": "canon-reconciled fresh development v2",
+        "positive_admitted": "7/7",
+        "negative_admitted": "0/51",
+        "uncertain_admitted": "0/2",
+        "manual_story_grouping": "7 positive articles represented 5 manually grouped projects; Northrop and GlobalFoundries each had duplicate publisher articles."
+      },
+      {
+        "candidate": "rss-project-v7 implementation commit 962e807ca7549cc8035976609e11ad9f6fb1f78a",
+        "labels": "independent frozen 2026-10-18 news holdout",
+        "positive_admitted": "0/0",
+        "negative_admitted": "0/18",
+        "uncertain_admitted": "0/0"
+      },
+      {
+        "candidate": "rss-project-v7 implementation commit 962e807ca7549cc8035976609e11ad9f6fb1f78a",
+        "labels": "untouched remaining final holdout; evaluated once after implementation freeze",
+        "positive_admitted": "0/3",
+        "positive_misses": 3,
+        "negative_admitted": "0/54",
+        "uncertain_admitted": "0/3",
+        "post_evaluation_tuning": false
+      },
+      {
+        "candidate": "rss-project-v7",
+        "labels": "fresh 219-article retained capture; not fully independent of earlier PR96 review because those review identities are unknown",
+        "admitted_articles": 13,
+        "rejected_articles": 206,
+        "manual_story_grouping": "11 manually grouped story/project instances after duplicate Northrop and GlobalFoundries publisher pairs; this is not string-key deduplication."
+      }
+    ],
+    "limitations": [
+      "Final holdout recall is zero for its three positive examples; news admission remains an open issue.",
+      "Fresh capture evaluation is not fully independent of PR96's prior unspecified 60 reviewed examples.",
+      "The frozen 2026-10-18 news holdout contains only negative examples and measures false admissions, not recall."
+    ]
+  },
+  "effects": {
+    "production_database_writes": 0,
+    "corpus_clone_writes": 0,
+    "provider_calls_or_external_fetches": 0,
+    "paid_calls": 0,
+    "pushes_merges_deployments": 0
+  },
+  "independent_acceptance": "NOT_RECORDED; controller review required",
+  "metrics": {
+    "token_usage": "UNKNOWN",
+    "implementation_elapsed_seconds": "UNKNOWN",
+    "accepted_elapsed_seconds": "UNKNOWN"
+  }
+}

@@ -178,6 +178,25 @@ class AcquisitionFailure(ValueError):
 
 
 def _safe_acquisition_error(exc: BaseException) -> BaseException:
+    from gridlens.ingestion.adapters.diagnostics import (
+        acquisition_diagnostics,
+        acquisition_error_message,
+    )
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
+
+    diagnostics = acquisition_diagnostics(exc)
+    safe = _redacted_acquisition_error(exc)
+    if isinstance(safe, SourceParseError):
+        safe.args = (acquisition_error_message(exc),)
+    elif isinstance(safe, AcquisitionFailure):
+        safe.args = (str(diagnostics["error_code"]),)
+    safe.acquisition_code = diagnostics["error_code"]  # type: ignore[attr-defined]
+    if "error_stage" in diagnostics:
+        safe.acquisition_stage = diagnostics["error_stage"]  # type: ignore[attr-defined]
+    return safe
+
+
+def _redacted_acquisition_error(exc: BaseException) -> BaseException:
     """Keep useful error classes while dropping potentially sensitive messages."""
     if isinstance(exc, httpx.HTTPStatusError):
         return AcquisitionFailure(f"http_status_{exc.response.status_code}")

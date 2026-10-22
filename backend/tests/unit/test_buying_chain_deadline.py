@@ -71,11 +71,12 @@ def test_deadline_clamps_request_and_body_phase_without_mutating_extensions(cloc
         )
 
     assert body == b"body"
-    assert observed["initial_timeout"] == {
-        "connect": 1.0, "read": 5.0, "write": 5.0, "pool": 5.0
-    }
+    assert observed["initial_timeout"] == {"connect": 1.0, "read": 5.0, "write": 5.0, "pool": 5.0}
     assert observed["request"].extensions["timeout"] == {
-        "connect": 1.0, "read": 2.0, "write": 2.0, "pool": 2.0
+        "connect": 1.0,
+        "read": 2.0,
+        "write": 2.0,
+        "pool": 2.0,
     }
     assert extensions == {"sni_hostname": "public.example", "timeout": {"connect": 1.0}}
     assert stream.closed
@@ -98,9 +99,7 @@ def test_compressed_raw_chunks_are_checked_before_decoder_yields_bytes(clock):
     stream = DripStream(clock, [bytes([byte]) for byte in compressed], delay=0.4)
     with httpx.Client(
         transport=httpx.MockTransport(
-            lambda request: httpx.Response(
-                200, headers={"content-encoding": "gzip"}, stream=stream
-            )
+            lambda request: httpx.Response(200, headers={"content-encoding": "gzip"}, stream=stream)
         )
     ) as client:
         with pytest.raises(TimeoutError, match="deadline exhausted"):
@@ -147,7 +146,10 @@ def test_no_deadline_preserves_existing_timeout_and_decompression(clock):
 
     def respond(request):
         assert request.extensions["timeout"] == {
-            "connect": 7.0, "read": 7.0, "write": 7.0, "pool": 7.0
+            "connect": 7.0,
+            "read": 7.0,
+            "write": 7.0,
+            "pool": 7.0,
         }
         return httpx.Response(200, headers={"content-encoding": "gzip"}, stream=stream)
 
@@ -161,9 +163,7 @@ def test_deadline_does_not_weaken_decoded_byte_bound(clock):
     stream = DripStream(clock, [gzip.compress(b"x" * 1000)])
     with httpx.Client(
         transport=httpx.MockTransport(
-            lambda request: httpx.Response(
-                200, headers={"content-encoding": "gzip"}, stream=stream
-            )
+            lambda request: httpx.Response(200, headers={"content-encoding": "gzip"}, stream=stream)
         )
     ) as client:
         with pytest.raises(ResponseTooLarge, match="exceeds 100 bytes"):

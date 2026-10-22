@@ -35,6 +35,7 @@ from gridlens.persistence.models import (
     BrowseGeneration,
     BrowseRow,
     BrowseState,
+    CallFactDecision,
     CallFactVersion,
     Evidence,
     NeedObservation,
@@ -74,8 +75,27 @@ def clock_deadline(session, now: datetime) -> datetime:
     boundaries.append(
         datetime.combine(now.astimezone().date() + timedelta(days=1), time()).astimezone(UTC)
     )
+    latest_decisions = select(
+        CallFactDecision.fact_version_id.label("fact_version_id"),
+        CallFactDecision.decision.label("decision"),
+        func.row_number()
+        .over(
+            partition_by=CallFactDecision.fact_version_id,
+            order_by=CallFactDecision.version.desc(),
+        )
+        .label("decision_rank"),
+    ).subquery()
     for column in (CallFactVersion.effective_from, CallFactVersion.effective_until):
-        boundary = session.scalar(select(func.min(column)).where(column > now))
+        boundary = session.scalar(
+            select(func.min(column))
+            .select_from(CallFactVersion)
+            .join(latest_decisions, latest_decisions.c.fact_version_id == CallFactVersion.id)
+            .where(
+                latest_decisions.c.decision_rank == 1,
+                latest_decisions.c.decision.in_(("accepted", "corrected")),
+                column > now,
+            )
+        )
         if boundary is not None:
             boundaries.append(boundary)
     return min(boundaries)
@@ -198,9 +218,7 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         from gridlens.domain.commercial_triage import build_card
         from gridlens.intelligence.buying_chain import buying_chain_views
 
-        chains = buying_chain_views(
-            session, {UUID(str(item["project_id"])) for item in details}
-        )
+        chains = buying_chain_views(session, {UUID(str(item["project_id"])) for item in details})
         previews = {
             str(item["id"]): build_card(
                 item,

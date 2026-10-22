@@ -8,7 +8,14 @@
     "atmosphere": "#6F879D",
     "mist": "#D5DEE5",
     "ice": "#F3F6F7",
-    "white": "#FFFFFF"
+    "white": "#FFFFFF",
+    "signal_blue": "#3B82F6"
   },
-  "primary_ui_color": "#17324A"
+  "primary_ui_color": "#17324A",
+  "application_tokens": {
+    "workspace_header": "#17324A",
+    "workspace_canvas": "#F3F6F7",
+    "workspace_accent": "#3B82F6",
+    "sidebar_desktop_fraction": 0.25
+  }
 }

@@ -184,10 +184,14 @@ CITY_MAPS = {
         "cost": "Reported job value",
     },
 }
-ISSUE_DATE_PERMIT_SOURCES = frozenset(MAPS) | frozenset(CITY_MAPS) | {
-    "boston-building-permits",
-    "houston-weekly-permits",
-}
+ISSUE_DATE_PERMIT_SOURCES = (
+    frozenset(MAPS)
+    | frozenset(CITY_MAPS)
+    | {
+        "boston-building-permits",
+        "houston-weekly-permits",
+    }
+)
 CULTIVATION_FIELDS = {
     "applicant_org": "Applicant organization (CCC cultivation application)",
     "applicant_role": "Applicant role on CCC cultivation application",
@@ -216,13 +220,18 @@ CULTIVATION_FIELDS = {
 
 
 def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
-    if source_id not in MAPS and source_id not in CITY_MAPS and source_id not in {
-        GEORGIA,
-        "houston-weekly-permits",
-        "texas-rrc-drilling-permits",
-        "ma-ccc-cultivation-applications",
-        "boston-building-permits",
-    }:
+    if (
+        source_id not in MAPS
+        and source_id not in CITY_MAPS
+        and source_id
+        not in {
+            GEORGIA,
+            "houston-weekly-permits",
+            "texas-rrc-drilling-permits",
+            "ma-ccc-cultivation-applications",
+            "boston-building-permits",
+        }
+    ):
         return {}
     allowed = (
         set(MAPS[source_id])

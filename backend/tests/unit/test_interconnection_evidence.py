@@ -265,7 +265,6 @@ def test_reviewed_fact_changes_cannot_overwrite_accepted_history(retained):
     assert interpretation.assessment == saved
 
 
-
 def test_rejected_reinterpretation_preserves_fact_version(retained):
     from gridlens.intelligence.interconnection import (
         attach_interconnection_facts,
@@ -274,9 +273,17 @@ def test_rejected_reinterpretation_preserves_fact_version(retained):
 
     session, project, observation, evidence, interpretation = retained
     attach_interconnection_facts(
-        session, project.id, evidence.id, request_id="request-1",
-        facts=[{"field": "study_state", "value": "completed",
-                "quote": "Intermediate agreement executed."}],
+        session,
+        project.id,
+        evidence.id,
+        request_id="request-1",
+        facts=[
+            {
+                "field": "study_state",
+                "value": "completed",
+                "quote": "Intermediate agreement executed.",
+            }
+        ],
         today=date(2026, 10, 8),
     )
     version = session.scalar(select(InterconnectionFactVersion))
@@ -288,6 +295,7 @@ def test_rejected_reinterpretation_preserves_fact_version(retained):
     session.commit()
     session.expire_all()
     assert session.scalar(select(InterconnectionFactVersion)).payload == saved
-    assert current_interconnection_state(
-        session, project.id, today=date(2026, 10, 8)
-    )["requests"] == []
+    assert (
+        current_interconnection_state(session, project.id, today=date(2026, 10, 8))["requests"]
+        == []
+    )

@@ -153,16 +153,12 @@ class PriorityInputAccumulator:
             re.search(r"electrical_buildout|construction|commissioning", text)
         )
         self.lifecycle_producing = self.lifecycle_producing or bool(
-            re.search(
-                r"production|producing|completion|workover|spud|startup|operating", text
-            )
+            re.search(r"production|producing|completion|workover|spud|startup|operating", text)
         )
 
     def merge_supporting_evidence(self, other: PriorityInputAccumulator) -> None:
         self.evidence_scope = self.evidence_scope or other.evidence_scope
-        self.evidence_commissioning = (
-            self.evidence_commissioning or other.evidence_commissioning
-        )
+        self.evidence_commissioning = self.evidence_commissioning or other.evidence_commissioning
         self.evidence_construction = self.evidence_construction or other.evidence_construction
         self.evidence_oil_gas = self.evidence_oil_gas or other.evidence_oil_gas
         self.latest_date = max(self.latest_date, other.latest_date)
@@ -254,19 +250,16 @@ def _priority(item: dict[str, Any]) -> tuple[int, int, int, str, str]:
         segment = 5
     elif data_center:
         segment = 6
-    elif (
-        re.search(
-            r"oil|gas|drill|well|pipeline|compressor",
-            " ".join(
-                [
-                    str(item.get("activity", "")),
-                    str(item.get("name", "")),
-                    str(item.get("supported_action") or ""),
-                ]
-            ).casefold(),
-        )
-        or features.get("evidence_oil_gas")
-    ):
+    elif re.search(
+        r"oil|gas|drill|well|pipeline|compressor",
+        " ".join(
+            [
+                str(item.get("activity", "")),
+                str(item.get("name", "")),
+                str(item.get("supported_action") or ""),
+            ]
+        ).casefold(),
+    ) or features.get("evidence_oil_gas"):
         segment = 7
     else:
         segment = 8
@@ -879,6 +872,15 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         "organization": direct_owners[0].get("organization")
         if direct_owners
         else item.get("title_company"),
+        "owner_organizations": sorted(
+            {
+                c["organization"]
+                for c in direct_owners
+                if c.get("organization")
+                and c.get("category")
+                in {"owner_developer", "asset_operator", "owner_construction", "owner_energy"}
+            }
+        ),
         "organization_role": direct_owners[0].get("category")
         if direct_owners
         else item.get("title_company_role"),
@@ -903,7 +905,11 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
                     str(reference["need_id"]),
                     str(reference["fact_version_id"]),
                     str(reference["content_hash"]),
-                ): reference
+                ): {
+                    key: value
+                    for key, value in reference.items()
+                    if key in {"need_id", "fact_version_id", "content_hash", "authority"}
+                }
                 for reference in operator_fact_refs
             }.values(),
             key=lambda reference: (
@@ -913,9 +919,32 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             ),
         )
     card["input_hash"] = hashlib.sha256(
-        json.dumps([POLICY_VERSION, card], sort_keys=True, default=str).encode()
+        json.dumps([POLICY_VERSION, _semantic_card(card)], sort_keys=True, default=str).encode()
     ).hexdigest()
     return card
+
+
+def _semantic_card(card: dict) -> dict:
+    """Keep additive display provenance out of the established research fingerprint.
+
+    Owner and fact changes are already represented in canonical chain/source hashes.
+    Rolling out card presentation must not restart unchanged paid research.
+    """
+    result = {
+        k: v
+        for k, v in card.items()
+        if k not in {"input_hash", "owner_organizations", "intelligence_card"}
+    }
+    if result.get("operator_fact_refs"):
+        result["operator_fact_refs"] = [
+            {
+                k: v
+                for k, v in reference.items()
+                if k in {"need_id", "fact_version_id", "content_hash", "authority"}
+            }
+            for reference in result["operator_fact_refs"]
+        ]
+    return result
 
 
 def cards(
@@ -927,14 +956,14 @@ def cards(
     return group_cards(items, chains, today, limit=max(1, min(limit, MAX_CARDS)))
 
 
-def grouped_need_ids(
-    items: list[dict[str, Any]], limit: int | None = None
-) -> list[list[str]]:
+def grouped_need_ids(items: list[dict[str, Any]], limit: int | None = None) -> list[list[str]]:
     """Return canonical work groups in first priority encounter order."""
     groups = grouped_need_groups(items)
-    return [need_ids for _identity, need_ids in groups[:limit]] if limit is not None else [
-        need_ids for _identity, need_ids in groups
-    ]
+    return (
+        [need_ids for _identity, need_ids in groups[:limit]]
+        if limit is not None
+        else [need_ids for _identity, need_ids in groups]
+    )
 
 
 def work_group_identity(item: dict[str, Any]) -> str:
@@ -1023,9 +1052,7 @@ def group_cards(
                 key=lambda value: value["evidence_id"],
             )
             operator_fact_refs = [
-                reference
-                for card in group
-                for reference in card.get("operator_fact_refs", [])
+                reference for card in group for reference in card.get("operator_fact_refs", [])
             ]
             if operator_fact_refs:
                 merged["operator_fact_refs"] = sorted(
@@ -1091,7 +1118,7 @@ def group_cards(
             json.dumps(
                 [
                     POLICY_VERSION,
-                    {key: value for key, value in merged.items() if key != "input_hash"},
+                    _semantic_card(merged),
                 ],
                 sort_keys=True,
                 default=str,

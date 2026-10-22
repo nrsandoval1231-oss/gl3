@@ -132,3 +132,11 @@ The build sequence is in [delivery/build-plan.md](delivery/build-plan.md).
 ## October 14, 2026 — records that leave a complete source listing
 
 Sources whose adapter returns every listed row or fails may set `snapshot_complete` in the registry (allowed for `georgia-air-permits` and `tceq-nsr-pending`). After each successful run of such a source, a stored record missing from the listing gets a dated `absent_from_source` change event, and `returned_to_source` if it reappears. Evidence, interpretations and needs are not deleted or closed: leaving a pending listing can mean issued, denied or withdrawn. The need is shown with a status-review flag (`signal_evidence_state: source_listing_absent`) and a status-review next action. Rolling-window city permit feeds do not opt in, because aging out of a window is not a status change.
+
+## Owner decision October 20 2026: site-specific news may create discovery Signals
+
+Owner decision received October 20, 2026, in the current task conversation:
+
+> “Allow site-specific news to create standalone discovery Signals, with unknown power facts and the existing Prospect/Lead gates.”
+
+This supersedes the September 30 row above only for site-specific news Signal admission. Preserve that row and its historical context. A discovery Signal may exist without an established temporary-power need or a supported power gap. Unknown power facts remain unknown: do not infer temporary MW, duration, buyer identity, or buying authority from a site announcement. The existing evidence-based Prospect and Lead gates remain unchanged. No source-specific final rule, source activation, qualification change, or implementation acceptance is recorded here; the implementation handoff and validation are pending. The PRD and UI canon are unchanged.

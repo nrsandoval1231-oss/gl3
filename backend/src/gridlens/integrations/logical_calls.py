@@ -38,15 +38,18 @@ def _provider_lock(session: Session, provider: str) -> None:
 
 
 def _provider_quarantined(session: Session, provider: str) -> bool:
-    return session.scalar(
-        select(LogicalCall.id)
-        .where(
-            LogicalCall.provider == provider,
-            LogicalCall.status == "SENT_OUTCOME_UNKNOWN",
-            LogicalCall.blocked_reason.like(f"{PROVIDER_QUARANTINE_PREFIX}%"),
+    return (
+        session.scalar(
+            select(LogicalCall.id)
+            .where(
+                LogicalCall.provider == provider,
+                LogicalCall.status == "SENT_OUTCOME_UNKNOWN",
+                LogicalCall.blocked_reason.like(f"{PROVIDER_QUARANTINE_PREFIX}%"),
+            )
+            .limit(1)
         )
-        .limit(1)
-    ) is not None
+        is not None
+    )
 
 
 @dataclass(frozen=True)
@@ -578,6 +581,7 @@ def quarantine_call(
         "budgeted_exposure_usd": str(target_exposure),
     }
     result = {"billing_quarantine": quarantine}
+
     def encode_result() -> bytes | None:
         try:
             return json.dumps(
@@ -699,9 +703,8 @@ def _transition(
         return ReservationResult(
             call_id, False, call.status, "RECONCILE_ONLY_OVERRIDE", call.fence_token
         )
-    has_billing_quarantine = (
-        isinstance(call.result_payload, dict)
-        and isinstance(call.result_payload.get("billing_quarantine"), dict)
+    has_billing_quarantine = isinstance(call.result_payload, dict) and isinstance(
+        call.result_payload.get("billing_quarantine"), dict
     )
     if has_billing_quarantine and not allow_reconcile_override:
         session.rollback()
@@ -724,11 +727,11 @@ def _transition(
         session.commit()
         return ReservationResult(call_id, False, call.status, "NOT_DISPATCHED", call.fence_token)
     if actual_cost_usd is not None:
-        measured_cost = _money(
-            actual_cost_usd, name="actual_cost_usd", maximum=MAX_ACTUAL_USD
-        )
-        if allow_reconcile_override and call.actual_cost_usd is not None and (
-            call.actual_cost_usd != measured_cost
+        measured_cost = _money(actual_cost_usd, name="actual_cost_usd", maximum=MAX_ACTUAL_USD)
+        if (
+            allow_reconcile_override
+            and call.actual_cost_usd is not None
+            and (call.actual_cost_usd != measured_cost)
         ):
             session.rollback()
             raise ValueError("actual_cost_usd conflicts with previously settled billing evidence")

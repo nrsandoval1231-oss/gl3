@@ -63,12 +63,8 @@ def test_replay_gate_requires_successful_initial_and_replay_jobs_and_stable_evid
     assert _replays_unchanged(initial, replay)
     assert not _replays_unchanged([{**initial[0], "failed_jobs": 1}], replay)
     assert not _replays_unchanged(initial, [{**replay[0], "content_digest_unchanged": False}])
-    assert not _replays_unchanged(
-        initial, [{**replay[0], "pending_interpretations": 1}]
-    )
-    assert not _replays_unchanged(
-        [{**initial[0], "failed_interpretations": 1}], replay
-    )
+    assert not _replays_unchanged(initial, [{**replay[0], "pending_interpretations": 1}])
+    assert not _replays_unchanged([{**initial[0], "failed_interpretations": 1}], replay)
 
 
 def test_receipt_path_cannot_overwrite_prior_evidence(tmp_path):

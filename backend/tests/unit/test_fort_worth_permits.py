@@ -82,7 +82,10 @@ def test_retrieve_queries_the_window_and_fails_on_truncation():
 
     records = retrieve(SOURCE, httpx.Client(transport=httpx.MockTransport(handler)), today=TODAY)
     assert {r["permit"]["row_id"] for r in records} == {
-        "FTW-PB26-08604", "FTW-PB26-11057", "FTW-PB26-11109", "FTW-PB26-13010",
+        "FTW-PB26-08604",
+        "FTW-PB26-11057",
+        "FTW-PB26-11109",
+        "FTW-PB26-13010",
     }
     assert seen == [query_url(date(2026, 7, 16))]
     assert "File_Date+%3E%3D+DATE+%272026-07-16%27" in seen[0]

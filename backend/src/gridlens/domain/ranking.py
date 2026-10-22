@@ -116,8 +116,9 @@ def rank_opportunity(
         and candidate.get("organization_relationship") == "DIRECT"
     ]
     if direct:
-        access, access_reason = 1.0, (
-            f"Responsible party identified: {direct[0].get('organization')}"
+        access, access_reason = (
+            1.0,
+            (f"Responsible party identified: {direct[0].get('organization')}"),
         )
     elif item.get("title_company"):
         access, access_reason = 0.5, f"Project company known: {item['title_company']}"

@@ -92,9 +92,7 @@ def synthetic_structured_segment_for_ingestion_semantics(monkeypatch):
 
     def synthetic_segment(source, lane, start, end, cursor, client=None, *, deadline=None):
         if source.get("retrieval_method") not in {"socrata-permits", "boston-ckan-permits"}:
-            return original_segment(
-                source, lane, start, end, cursor, client, deadline=deadline
-            )
+            return original_segment(source, lane, start, end, cursor, client, deadline=deadline)
         records = service.retrieve_source(source, client)
         return {
             "records": records,
@@ -1051,22 +1049,16 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
         assert project.asset_type == "upstream_well"
 
         observation.content_hash = hash_b
-        assert not lifecycle_event_supported(
-            "spud", evidence, interpretation, project, "spud"
-        )
+        assert not lifecycle_event_supported("spud", evidence, interpretation, project, "spud")
         refresh_lifecycle_projection(session, project)
         session.flush()
         assert session.get(ProjectLifecycle, project.id) is None
         observation.content_hash = hash_a
         interpretation.content_hash = hash_b
-        assert not lifecycle_event_supported(
-            "spud", evidence, interpretation, project, "spud"
-        )
+        assert not lifecycle_event_supported("spud", evidence, interpretation, project, "spud")
         interpretation.content_hash = hash_a
         interpretation.assessment["evidence_hash"] = hash_b
-        assert not lifecycle_event_supported(
-            "spud", evidence, interpretation, project, "spud"
-        )
+        assert not lifecycle_event_supported("spud", evidence, interpretation, project, "spud")
         interpretation.assessment["evidence_hash"] = hash_a
         assert apply_lifecycle_observation(session, project, observation, evidence) is False
         assert session.get(ProjectLifecycle, project.id).current_state == "spud"
@@ -2127,7 +2119,9 @@ def test_interconnection_history_survives_real_rejected_correction(db):
         session.add(project)
         session.flush()
         migration_path = (
-            Path(__file__).resolve().parents[2] / "migrations" / "versions"
+            Path(__file__).resolve().parents[2]
+            / "migrations"
+            / "versions"
             / "0018_interconnection_fact_versions.py"
         )
         spec = importlib.util.spec_from_file_location("interconnection_migration", migration_path)
@@ -2135,12 +2129,14 @@ def test_interconnection_history_survives_real_rejected_correction(db):
         migration = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(migration)
         connection = session.connection()
-        connection.execute(text(
-            """CREATE OR REPLACE FUNCTION reject_immutable_history_mutation()
+        connection.execute(
+            text(
+                """CREATE OR REPLACE FUNCTION reject_immutable_history_mutation()
             RETURNS trigger AS $$ BEGIN
             RAISE EXCEPTION 'append-only history cannot be updated or deleted';
             END; $$ LANGUAGE plpgsql"""
-        ))
+            )
+        )
         with Operations.context(MigrationContext.configure(connection)):
             migration.downgrade()  # Remove only the new, still-empty metadata-created table.
             migration.upgrade()
@@ -2156,7 +2152,10 @@ def test_interconnection_history_survives_real_rejected_correction(db):
         }
         session.flush()
         attach_interconnection_facts(
-            session, project.id, evidence.id, request_id="request-1",
+            session,
+            project.id,
+            evidence.id,
+            request_id="request-1",
             facts=[{"field": "study_state", "value": "completed", "quote": "Study completed"}],
             today=date(2026, 10, 9),
         )
@@ -2178,9 +2177,10 @@ def test_interconnection_history_survives_real_rejected_correction(db):
         assert session.get(InterconnectionFactVersion, version_id).payload == payload
         assert session.scalar(select(func.count()).select_from(InterconnectionFactVersion)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
-        assert current_interconnection_state(
-            session, project_id, today=date(2026, 10, 9)
-        )["requests"] == []
+        assert (
+            current_interconnection_state(session, project_id, today=date(2026, 10, 9))["requests"]
+            == []
+        )
 
 
 @pytest.mark.parametrize(

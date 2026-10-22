@@ -1,0 +1,23 @@
+{
+  "approved": "2026-10-21",
+  "references": [
+    {
+      "file": "opportunity-intelligence-approved.jpg",
+      "sha256": "73025cb2594da5290341491803d51c01037e7b80803dc6ee5dc4dc2caaff0c3f",
+      "bytes": 206526,
+      "source": "Owner-supplied attachment in October 21 implementation directive",
+      "data_authority": false,
+      "visual_authority": true
+    },
+    {
+      "file": "brand-system-v1-owner.jpg",
+      "sha256": "ace09db34b56cb8c565767222cd45bb9bfe2701b3db3e73b564871e412c4714c",
+      "bytes": 188477,
+      "source": "Owner-supplied attachment in October 21 implementation directive",
+      "data_authority": false,
+      "visual_authority": true
+    }
+  ],
+  "font_binaries_supplied": false,
+  "exact_typography_status": "BLOCKED licensed ABC Diatype assets absent"
+}

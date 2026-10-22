@@ -114,12 +114,8 @@ def test_compact_claim_accumulator_matches_full_age_conflict_and_order_rules():
     for row in rows:
         compact.add(row)
     compact_state = compact.finish()
-    assert {
-        field: (state["status"], state["value"])
-        for field, state in full.items()
-    } == {
-        field: (state["status"], state["value"])
-        for field, state in compact_state.items()
+    assert {field: (state["status"], state["value"]) for field, state in full.items()} == {
+        field: (state["status"], state["value"]) for field, state in compact_state.items()
     }
     assert full["permanent_service"]["claims"] == [rows[0], rows[2]]
     assert full["phase"]["claims"] == [rows[1], rows[4]]

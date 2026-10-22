@@ -1,30 +1,25 @@
 # GridLens production UI canon
-**Owner-approved October 18, 2026: Direction B Pursuit Workspace with compact Daily Briefing.** Explicitly supersedes incompatible October 1 atmospheric-canvas, map-first, cinematic-motion, transforming-scene and previous browse/detail visual requirements, including conflicting visual clauses in AGENTS.md. Presentation changes only; [PRD](../product/PRD.md) evidence, qualification, data, authentication and commercial doctrine remain authoritative.
 
-## Locked identity
-Use existing authorized GridLens Aperture logo and wordmark assets in web/public/brand exactly. Preserve original proportions, spacing, geometry, metallic navy/silver identity. Never redraw, regenerate, approximate, tint or replace them. Preserve ABC Diatype direction with existing licensed fonts or appropriate readable sans fallbacks.
+Owner authority: October 21, 2026 pixel-accurate Opportunity Intelligence Workspace directive. The [owner dashboard](references/opportunity-intelligence-approved.jpg) is the composition target and [Brand System v1.0](references/brand-system-v1-owner.jpg) is the visual authority. This supersedes the October20 silver/orange v3 layout. Historical references remain prior-decision evidence. The [PRD](../product/PRD.md) governs evidence, qualification, authentication and actual values.
 
-| Color | Hex | Role |
-| --- | --- | --- |
-| Deep Current | #101F2D | Text/structure |
-| GridLens Navy | #17324A | Navigation/actions/selection |
-| Steel Blue | #395A75 | Secondary text/controls |
-| Atmosphere | #6F879D | Muted support with readable contrast |
-| Mist | #D5DEE5 | Borders |
-| Ice | #F3F6F7 | Subtle surfaces |
-| White | #FFFFFF | Workspace |
+## Composition and brand
 
-No royal/electric/Signal Blue, neon cyan, unrelated accents, photos, decorative illustrations, hero banners, gradients, ornamental charts, permanent sidebar/rail, excessive cards/badges/icons/shadows or futuristic effects. Refined spacing, restrained borders, precise alignment, readable hierarchy; labels never rely only on color.
+At the supplied 1280x720 reference dimensions, the navy header is approximately45px tall, the sidebar320px wide, and main content starts at335px. Scale the proportions to1648x928: sidebar25%, main gutters about18px, identity panel about134px, metrics115px and three-column region374px. These image landmarks do not authorize clipping longer real data. Match five horizontal metric cards, near-equal project/contact/commercial columns, compact evidence tabs/table, small radii, fine borders and restrained density. No maps, decorative charts or invented customer/contact content.
 
-## Interaction
-One compact horizontal header: original Aperture lockup, Opportunities, Research, Signals, Operations, global search, supported account controls. Opportunities is default. Preserve existing functional deep links.
-Immediately below: slim backend briefing for eligible active needs, Action Now, Research, Watch and supported material changes. Declare count unit/filter scope; clicking a metric opens that set. Unavailable metrics say unavailable. No giant KPI cards/repeated counts.
-Desktop: continuous sortable table 55–60%, contextual detail 40–45%. Columns project/location, activity-specific MW, application, start/duration, disposition, next action. Navy selection preserves list. Geography, industry, application, MW, tier, disposition, timing filters are independent. Full-cohort filtering, counts, sorting, pagination run on server; never claim a page-local result is complete.
-Detail: project/location, disposition/tier, load/timing, commercial fit/reason, key developments, buying organizations/authority, unknowns, next action. Concise hierarchy and progressive disclosure with working Overview, Evidence, Buying chain, Power gap, Timeline, Next steps, Unknowns where supported.
-Power gap: factual required temporary MW, confirmed suitable supply, evidence-supported unresolved gap, start, duration, fuel/operating constraints, source support/uncertainty. Show **Supply unknown** when unknown. Existing domain calculations only; no staircase chart, campus-capacity subtraction or rental inference from announced operating capacity.
-Signal/Prospect/Lead remains independent of commercial disposition, priority and workflow status. Signal can merit immediate investigation without becoming Lead. Preserve source links, publication/event/retrieval dates, claim provenance, historical records and supported verified/user-confirmed, reported, estimated/inferred/derived, conflicting, unknown, stale states. Never invent power, duration, buyer authority, contacts, fuel, confidence percentages or utility delays.
-Every button enters a working investigation, research, evidence, fact, note, status or history workflow. Confirm persisted saves. Preserve drafts and return context. No new CRM or autonomous outreach.
-Tablet adapts without microscopic text. Mobile: full-width list then focused detail/clear Back. Preserve keyboard focus, search/filters/selection/scroll, readable contrast, reduced motion. No horizontally overflowing dashboard cards.
+Use Deep Current #101F2D, GridLens Navy #17324A, Steel Blue #395A75, Atmosphere #6F879D, Mist #D5DEE5, Ice #F3F6F7, White #FFFFFF and selective Signal Blue #3B82F6 for selected states, links, icons and important actions. Older Signal Blue exclusions and silver/orange application additions are superseded for this workspace.
 
-## Verification
-[Interaction contract](PURSUIT_WORKSPACE.md). Benchmark baseline/candidate list, detail, filter, sort, action with declared corpus/environment. Validate bounded responses, full counts, identity, auth, evidence, qualification, saved workflows, desktop/mobile/back/refresh/errors. Screenshots prove presentation only. Focused PR includes screenshots, tests, measurements, limitations. No unverified merge/deploy.
+Use existing Aperture assets and preserve source masters; never redraw the logo with CSS. ABC Diatype Light, Regular, Medium and Bold are required by the brand sheet. Licensed files are absent; existing wordmark exports are documented approximations. Exact typography and master delivery remain acceptance dependencies. A fallback must never be called parity.
+
+## Data and behavior
+
+Consume the existing [intelligence projection](../architecture/OPPORTUNITY_INTELLIGENCE.md), dependency PR102. The five metrics are Facility Demand, Potential Bridge-Power Gap, Power Needed By, Expected Duration and Utility Energization. Missing facility demand and utility dates remain truthful integration gaps. A supported utility service status may render with its basis, without inventing a date. Facility load never becomes a temporary-power gap, unknown supply never becomes zero, and completeness is separate from qualification. Preserve status, basis, estimates/scenarios and source provenance.
+
+Keep real Opportunities, Research, Signals and Operations routes, sessions, search/filter/sort/paging, grouped Signal browsing/export and fact/call/status/research/notes workflows. Screenshot-only destinations do not authorize new pages. Selection and tabs support direct reload and browser history; stale responses cannot overwrite a newer record. Contact links require verified current evidence. Share uses the canonical URL; unavailable actions state why. Reads launch no providers and alter no budgets, qualification or ingestion.
+
+The light sidebar uses real API records. Central columns show Project & Customer Details, Key Contacts & Buying Chain, Why This Opportunity Matters and Recommended Next Action. The bottom workspace provides Evidence, Commercial Assessment, Research Gaps and Notes & Activity while preserving access to existing deeper workflows.
+
+Desktop retains five metrics and three columns when space permits. Tablet reflows. Phone uses readable stacked identity/metrics/contacts/action content, accessible selection and expandable project/evidence details. No horizontal page overflow, clipped content or unreadably scaled desktop layout.
+
+## Acceptance boundary
+
+Retain browser captures at1648x928,1440x900,1280x800,768x1024 and390x844, direct reference comparison/overlay, measured geometry, expected real-data differences, automated regressions, selection/render timings and independent review of the exact candidate. Missing fonts, fields and contacts remain explicit. Local proof and a PR do not imply merge, deployment, live-provider acceptance or parent Finish Contract completion.

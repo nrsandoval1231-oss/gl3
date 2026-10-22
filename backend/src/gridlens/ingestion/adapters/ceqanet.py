@@ -21,6 +21,7 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 
 from gridlens.ingestion.adapters.bounded_http import read_bounded_response
+from gridlens.ingestion.adapters.diagnostics import acquisition_stage
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
 SOURCE_ID = "california-ceqanet-data-centers"
@@ -39,6 +40,31 @@ def _text(node: Tag | None) -> str:
     return " ".join(node.get_text(" ", strip=True).split()) if node else ""
 
 
+def _document_url(href: str) -> str:
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in href):
+        raise SourceParseError("CEQAnet document link contains an invalid control character")
+    if any(segment in {".", ".."} for segment in urlparse(href).path.split("/")):
+        raise SourceParseError("CEQAnet document link contains a traversal segment")
+    url = urljoin(f"https://{HOST}/", href)
+    parsed = urlparse(url)
+    try:
+        allowed = (
+            parsed.scheme == "https"
+            and parsed.hostname == HOST
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.port in (None, 443)
+            and re.fullmatch(r"/\d{10}(?:/\d+)?", parsed.path)
+            and not parsed.query
+            and not parsed.fragment
+        )
+    except ValueError:
+        allowed = False
+    if not allowed:
+        raise SourceParseError("CEQAnet document link is outside the approved official path")
+    return url
+
+
 def parse_listing(body: bytes) -> list[dict[str, str]]:
     soup = BeautifulSoup(body, "html.parser")
     found = _FOUND.search(soup.get_text(" "))
@@ -53,26 +79,9 @@ def parse_listing(body: bytes) -> list[dict[str, str]]:
         link = cells[1].find("a", href=True)
         received = cells[3].find("time")
         href = str(link["href"]) if isinstance(link, Tag) else ""
-        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in href):
-            raise SourceParseError("CEQAnet document link contains an invalid control character")
-        raw_path = urlparse(href).path
-        if any(segment in {".", ".."} for segment in raw_path.split("/")):
-            raise SourceParseError("CEQAnet document link contains a traversal segment")
-        url = urljoin(f"https://{HOST}/", href)
-        parsed = urlparse(url)
+        url = _document_url(href)
         date_value = str(received.get("datetime") or "") if isinstance(received, Tag) else ""
-        if (
-            parsed.scheme != "https"
-            or parsed.hostname != HOST
-            or parsed.username is not None
-            or parsed.password is not None
-            or parsed.port not in (None, 443)
-            or not re.fullmatch(r"/\d{10}(?:/\d+)?", parsed.path)
-            or parsed.query
-            or parsed.fragment
-            or not isinstance(received, Tag)
-            or not _valid_received_date(date_value)
-        ):
+        if not isinstance(received, Tag) or not _valid_received_date(date_value):
             raise SourceParseError("CEQAnet result row lacks a document link or received date")
         rows.append(
             {
@@ -240,6 +249,81 @@ def _search_url(development_type: str, start: date, end: date) -> str:
     return f"{SEARCH_URL}?{urlencode(query)}"
 
 
+def _search_rows(
+    client: httpx.Client,
+    development_type: str,
+    start: date,
+    end: date,
+    prefetched: dict[str, tuple[dict[str, str], dict[str, Any]]],
+    max_documents: int,
+) -> list[dict[str, str]]:
+    """CEQAnet returns either a counted table or one exact document via HTTP 302.
+
+    Automatic redirects remain disabled. Only the search's first 302 may name an
+    already-approved document path; that document must not redirect again and
+    must corroborate the requested date/type and its URL's SCH identity.
+    """
+    try:
+        _, body = read_bounded_response(
+            client, _search_url(development_type, start, end), MAX_LISTING_BYTES
+        )
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code != 302:
+            raise
+        href = error.response.headers.get("location", "")
+        url = _document_url(href)
+        cached = prefetched.get(url)
+        if cached is None:
+            if len(prefetched) >= max_documents:
+                raise SourceParseError(
+                    "CEQAnet single-result documents exceed the run bound"
+                ) from None
+            with acquisition_stage("ceqanet_document"):
+                _, page = read_bounded_response(client, url, MAX_DOCUMENT_BYTES)
+                document = parse_document(page)
+                soup = BeautifulSoup(page, "html.parser")
+                received = ""
+                for row in soup.select("div.row"):
+                    label = row.find("strong")
+                    if isinstance(label, Tag) and _text(label) == "Received":
+                        time = row.find("time")
+                        if isinstance(time, Tag):
+                            received = str(time.get("datetime") or "")
+                        break
+                if (
+                    document["sch"] != urlparse(url).path.strip("/").split("/")[0]
+                    or not _valid_received_date(received)
+                    or not document["document_type"]
+                    or not document["lead_agency"]
+                ):
+                    raise SourceParseError(
+                        "CEQAnet single-result document identity or date is invalid"
+                    ) from None
+                listing_row = {
+                    "sch": document["sch"],
+                    "document_type": document["document_type"].split(" - ", 1)[0],
+                    "lead_agency": document["lead_agency"],
+                    "received": received,
+                    "title": document["title"],
+                    "url": url,
+                    "source_href": href,
+                }
+                cached = listing_row, document
+                prefetched[url] = cached
+        listing_row, document = cached
+        # The publisher also renders a category followed by a colon subtype,
+        # e.g. "Power:Other Power Type (Substation)(Megawatts 90)".
+        if not start <= date.fromisoformat(listing_row["received"]) <= end or not re.search(
+            rf"(?:^|,\s*){re.escape(development_type)}(?:\s*\(|:|,|$)",
+            document["development_types"],
+        ):
+            raise SourceParseError(
+                "CEQAnet single-result document escaped its search window or type"
+            ) from None
+        return [listing_row]
+    return parse_listing(body)
+
+
 def retrieve(
     source: dict[str, Any], client: httpx.Client | None = None, today: date | None = None
 ) -> list[dict[str, Any]]:
@@ -257,17 +341,21 @@ def retrieve(
     start = end - timedelta(days=window)
     http = client or httpx.Client(timeout=25, follow_redirects=False)
     try:
+        if http.follow_redirects:
+            raise SourceParseError("CEQAnet acquisition requires redirects disabled")
         rows: dict[str, dict[str, str]] = {}
+        prefetched: dict[str, tuple[dict[str, str], dict[str, Any]]] = {}
         # CEQAnet shows at most 100 rows per search, so the window is read in weekly slices;
         # a slice that still exceeds the cap fails the run rather than dropping documents.
         for development_type in types:
             slice_start = start
             while slice_start <= end:
                 slice_end = min(slice_start + timedelta(days=6), end)
-                _, body = read_bounded_response(
-                    http, _search_url(development_type, slice_start, slice_end), MAX_LISTING_BYTES
-                )
-                for row in parse_listing(body):
+                with acquisition_stage("ceqanet_listing"):
+                    listing = _search_rows(
+                        http, development_type, slice_start, slice_end, prefetched, max_documents
+                    )
+                for row in listing:
                     rows.setdefault(row["url"], row)
                 slice_start = slice_end + timedelta(days=1)
         # Titles that name a data center are read first; the rest are read while the bound
@@ -280,17 +368,28 @@ def retrieve(
             )
         records: list[dict[str, Any]] = []
         attempted = failed = 0
-        for row in ordered[:max_documents]:
+        fetched_documents = len(prefetched)
+        for row in ordered:
+            cached = prefetched.get(row["url"])
+            if cached is None and fetched_documents >= max_documents:
+                if names_data_center(row):
+                    raise SourceParseError("CEQAnet titled document exceeds remaining fetch budget")
+                continue
             attempted += 1
             try:
-                _, page = read_bounded_response(http, row["url"], MAX_DOCUMENT_BYTES)
-                document = parse_document(page)
-            except (httpx.HTTPError, SourceParseError, ValueError):
+                if cached is not None:
+                    document = cached[1]
+                else:
+                    fetched_documents += 1
+                    with acquisition_stage("ceqanet_document"):
+                        _, page = read_bounded_response(http, row["url"], MAX_DOCUMENT_BYTES)
+                        document = parse_document(page)
+            except (httpx.HTTPError, SourceParseError, ValueError) as exc:
                 failed += 1
                 if names_data_center(row):
                     raise SourceParseError(
                         f"CEQAnet document {row['sch']} names a data center but could not be read"
-                    ) from None
+                    ) from exc
                 continue
             if names_data_center(row, document):
                 records.append(record(row, document))

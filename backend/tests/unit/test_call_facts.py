@@ -430,9 +430,7 @@ def test_explicit_disjoint_timing_without_applicable_supply_clears_stale_source_
     assert "2027-01-01 to 2027-02-01" in result["reason"]
 
     correction.effective_until = datetime(2026, 11, 15, tzinfo=UTC)
-    partially_effective = qualification_from_facts(
-        source, [correction], need=need, project=project
-    )
+    partially_effective = qualification_from_facts(source, [correction], need=need, project=project)
     assert partially_effective and partially_effective["tier"] == "Prospect"
     assert "fact_derived_timing" not in partially_effective
 
@@ -460,9 +458,7 @@ def test_explicit_disjoint_timing_with_partial_supply_uses_corrected_lead_dates(
     )
     supply.effective_until = datetime(2026, 12, 3, tzinfo=UTC)
 
-    result = qualification_from_facts(
-        source, [correction, supply], need=need, project=project
-    )
+    result = qualification_from_facts(source, [correction, supply], need=need, project=project)
 
     assert result and result["tier"] == "Lead"
     assert result["start_window"] == "2026-11-01 to 2026-11-01"
@@ -532,9 +528,7 @@ def test_compatible_timing_narrowing_closes_with_timing_version_provenance():
         project_id=project_id,
     )
     partial_supply.effective_until = datetime(2027, 3, 1, tzinfo=UTC)
-    revised = qualification_from_facts(
-        source, [timing, partial_supply], need=need, project=project
-    )
+    revised = qualification_from_facts(source, [timing, partial_supply], need=need, project=project)
     assert revised and revised["tier"] == "Lead"
     gap = revised["qualified_remaining_gap"]
     assert gap["timing_fact_id"] == str(timing.id)
@@ -768,12 +762,13 @@ def test_source_lead_reconciles_partial_and_possible_zero_gap_without_stale_lead
     )
     recomputed = qualification_from_facts(source, [partial], need=need, project=project)
     assert recomputed and recomputed["tier"] == "Lead"
-    assert (recomputed["qualified_remaining_gap"]["remaining_mw_min"],
-            recomputed["qualified_remaining_gap"]["remaining_mw_max"]) == ("5", "15")
+    assert (
+        recomputed["qualified_remaining_gap"]["remaining_mw_min"],
+        recomputed["qualified_remaining_gap"]["remaining_mw_max"],
+    ) == ("5", "15")
     assert recomputed["qualified_remaining_gap"]["suitable_supply_fact_id"] == str(partial.id)
     assert (
-        recomputed["qualified_remaining_gap"]["suitable_supply_fact_hash"]
-        == partial.content_hash
+        recomputed["qualified_remaining_gap"]["suitable_supply_fact_hash"] == partial.content_hash
     )
 
     possible_zero = _row(
@@ -948,6 +943,63 @@ def test_lead_requires_current_gap_interval_and_buyer_facts():
     )
 
 
+def test_discovery_never_promotes_without_supported_activity():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="project-discovery")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    facts = [
+        _row("demand", {"mw": "20"}, need_id=need_id, project_id=project_id),
+        _row("unsuitable_supply", {"mw": "2"}, need_id=need_id, project_id=project_id),
+        _row(
+            "timing",
+            {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+        _row(
+            "suitable_supply",
+            {"mw": "5", "quality": "suitable"},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+        _row(
+            "buyer",
+            {"organization": "Northstar Electric", "role": "electrical contractor"},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+    ]
+    for fact in facts:
+        fact.activity_key = need.activity_key
+    base = {"tier": "Signal", "reason": "Current admitted project evidence."}
+    result = qualification_from_facts(base, facts, need=need, project=project)
+    assert result and result["tier"] == "Signal"
+    assert result["required_mw"] is None and result["demand_mw"] is None
+    assert "qualified_remaining_gap" not in result
+    conflicting = _row("demand", {"mw": "25"}, need_id=need_id, project_id=project_id)
+    conflicting.activity_key = need.activity_key
+    conflict = qualification_from_facts(base, facts + [conflicting], need=need, project=project)
+    assert conflict and conflict["tier"] == "Signal" and conflict["qualification_conflict"]
+    closure = _row("closure", {"state": "adequate_supply"}, need_id=need_id, project_id=project_id)
+    closure.activity_key = need.activity_key
+    closed = qualification_from_facts(base, facts + [closure], need=need, project=project)
+    assert closed and closed["closed_by_fact"]
+    adequate = _row(
+        "suitable_supply",
+        {"mw_min": "20", "mw_max": "24", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    adequate.activity_key = need.activity_key
+    supplied = qualification_from_facts(base, facts[:3] + [adequate], need=need, project=project)
+    assert supplied and supplied["closed_by_fact"]
+    assert supplied["closure_basis"]["kind"] == "confirmed_adequate_supply"
+    need.activity_key = "construction"
+    for fact in facts:
+        fact.activity_key = need.activity_key
+    assert qualification_from_facts(base, facts, need=need, project=project)["tier"] == "Lead"
+
+
 def test_official_prospect_can_reach_lead_without_redundant_demand_or_shortage_facts():
     need_id, project_id = uuid4(), uuid4()
     need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
@@ -989,9 +1041,10 @@ def test_official_prospect_can_reach_lead_without_redundant_demand_or_shortage_f
     assert result and result["tier"] == "Lead"
     assert result["demand_mw"] == "20 MW"
     assert result["qualified_remaining_gap"]["remaining_mw"] == "15"
-    assert qualification_from_facts(source_claim, facts[:-1], need=need, project=project)[
-        "tier"
-    ] == "Prospect"
+    assert (
+        qualification_from_facts(source_claim, facts[:-1], need=need, project=project)["tier"]
+        == "Prospect"
+    )
     unknown_supply = [
         facts[0],
         _row(
@@ -1002,9 +1055,10 @@ def test_official_prospect_can_reach_lead_without_redundant_demand_or_shortage_f
         ),
         facts[2],
     ]
-    assert qualification_from_facts(source_claim, unknown_supply, need=need, project=project)[
-        "tier"
-    ] == "Prospect"
+    assert (
+        qualification_from_facts(source_claim, unknown_supply, need=need, project=project)["tier"]
+        == "Prospect"
+    )
 
 
 @pytest.mark.parametrize(

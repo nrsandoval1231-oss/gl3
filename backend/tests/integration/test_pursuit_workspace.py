@@ -1,16 +1,17 @@
 """Saved need-level workspace tests over an isolated disposable PostgreSQL schema."""
 
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import event, select
+from sqlalchemy import event, select, text
 
 from gridlens.intelligence.pursuit_workspace import page
 from gridlens.intelligence.saved_browse import rebuild
-from gridlens.persistence.models import BrowseRow
+from gridlens.persistence.models import BrowseRow, BrowseState
 
 pytest_plugins = ["test_saved_browse"]
 
@@ -43,9 +44,17 @@ def test_workspace_filters_counts_paginates_and_binds_token(saved_db, monkeypatc
                 "organization": preview["organization"],
             }
     filters = {
-        "search": "", "tier": "Signal", "disposition": None, "geography": None,
-        "industry": None, "activity": None, "timing": None, "mw_status": None,
-        "mw_min": None, "mw_max": None, "sort": "priority",
+        "search": "",
+        "tier": "Signal",
+        "disposition": None,
+        "geography": None,
+        "industry": None,
+        "activity": None,
+        "timing": None,
+        "mw_status": None,
+        "mw_min": None,
+        "mw_max": None,
+        "sort": "priority",
     }
     with saved_db() as session:
         statements = []
@@ -57,7 +66,10 @@ def test_workspace_filters_counts_paginates_and_binds_token(saved_db, monkeypatc
         event.listen(saved_db.kw["bind"], "before_cursor_execute", capture)
         first = page(session, filters, limit=50, offset=0, token=None)
         second = page(
-            session, filters, limit=50, offset=first["next_offset"],
+            session,
+            filters,
+            limit=50,
+            offset=first["next_offset"],
             token=first["cohort_token"],
         )
         assert first["total"] == 55
@@ -67,25 +79,37 @@ def test_workspace_filters_counts_paginates_and_binds_token(saved_db, monkeypatc
         assert first["count_unit"] == "power needs"
         assert first["changes_available"] is False
         assert all(
-            item["required_mw"] is None and item["supply"] == "Unknown"
-            for item in first["items"]
+            item["required_mw"] is None and item["supply"] == "Unknown" for item in first["items"]
         )
         assert first["items"][0]["commercial_reason"]
         assert statements and all("generation_id" in statement for statement in statements)
         selected = page(
-            session, {**filters, "disposition": "WATCH"}, limit=50, offset=0, token=None,
+            session,
+            {**filters, "disposition": "WATCH"},
+            limit=50,
+            offset=0,
+            token=None,
         )
         assert selected["total"] == 55
         assert selected["counts"]["watch"] == 55
         by_mw = page(session, {**filters, "sort": "mw"}, limit=50, offset=0, token=None)
         assert all(item["required_mw"] is None for item in by_mw["items"])
         huge_bound = page(
-            session, {**filters, "mw_min": "1e1000"}, limit=50, offset=0, token=None,
+            session,
+            {**filters, "mw_min": "1e1000"},
+            limit=50,
+            offset=0,
+            token=None,
         )
         assert huge_bound["total"] == 0
         with pytest.raises(HTTPException) as error:
-            page(session, {**filters, "activity": "other"}, limit=50, offset=50,
-                 token=first["cohort_token"])
+            page(
+                session,
+                {**filters, "activity": "other"},
+                limit=50,
+                offset=50,
+                token=first["cohort_token"],
+            )
         assert error.value.status_code == 409
 
 
@@ -99,14 +123,20 @@ def test_workspace_rejects_missing_preview_and_missing_generation(saved_db, monk
     with saved_db.begin() as session:
         row = session.scalar(select(BrowseRow).limit(1))
         row.compact = {
-            key: value
-            for key, value in row.compact.items()
-            if key != "commercial_preview"
+            key: value for key, value in row.compact.items() if key != "commercial_preview"
         }
     filters = {
-        "search": "", "tier": None, "disposition": None, "geography": None,
-        "industry": None, "activity": None, "timing": None, "mw_status": None,
-        "mw_min": None, "mw_max": None, "sort": "priority",
+        "search": "",
+        "tier": None,
+        "disposition": None,
+        "geography": None,
+        "industry": None,
+        "activity": None,
+        "timing": None,
+        "mw_status": None,
+        "mw_min": None,
+        "mw_max": None,
+        "sort": "priority",
     }
     with saved_db() as session, pytest.raises(HTTPException) as error:
         page(session, filters, limit=50, offset=0, token=None)
@@ -114,9 +144,7 @@ def test_workspace_rejects_missing_preview_and_missing_generation(saved_db, monk
     monkeypatch.setattr(
         pursuit_workspace,
         "current_generation",
-        lambda _session: (_ for _ in ()).throw(
-            HTTPException(503, "saved generation unavailable")
-        ),
+        lambda _session: (_ for _ in ()).throw(HTTPException(503, "saved generation unavailable")),
     )
     with saved_db() as session, pytest.raises(HTTPException) as missing:
         page(session, filters, limit=50, offset=0, token=None)
@@ -167,29 +195,55 @@ def test_workspace_facets_unknowns_and_stable_sort_use_saved_row_fixture(saved_d
                 },
             }
             expected_rows.append(
-                (str(row.need_id), tier, disposition, location, industry, activity,
-                 known_mw, has_timing)
+                (
+                    str(row.need_id),
+                    tier,
+                    disposition,
+                    location,
+                    industry,
+                    activity,
+                    known_mw,
+                    has_timing,
+                )
             )
 
     base_filters = {
-        "search": "", "tier": None, "disposition": None, "geography": None,
-        "industry": None, "activity": None, "timing": None, "mw_status": None,
-        "mw_min": None, "mw_max": None, "sort": "priority",
+        "search": "",
+        "tier": None,
+        "disposition": None,
+        "geography": None,
+        "industry": None,
+        "activity": None,
+        "timing": None,
+        "mw_status": None,
+        "mw_min": None,
+        "mw_max": None,
+        "sort": "priority",
     }
     with saved_db() as session:
         whole = page(session, base_filters, limit=50, offset=0, token=None)
         assert whole["counts"] == {
-            "action_now": 14, "research": 14, "watch": 14, "reject": 13,
+            "action_now": 14,
+            "research": 14,
+            "watch": 14,
+            "reject": 13,
         }
         for tier in tiers:
             selection = page(
-                session, {**base_filters, "tier": tier}, limit=50, offset=0, token=None,
+                session,
+                {**base_filters, "tier": tier},
+                limit=50,
+                offset=0,
+                token=None,
             )
             assert selection["total"] == sum(row[1] == tier for row in expected_rows)
         for disposition in dispositions:
             selection = page(
-                session, {**base_filters, "disposition": disposition},
-                limit=50, offset=0, token=None,
+                session,
+                {**base_filters, "disposition": disposition},
+                limit=50,
+                offset=0,
+                token=None,
             )
             assert selection["total"] == sum(row[2] == disposition for row in expected_rows)
             assert selection["counts"] == whole["counts"]
@@ -212,40 +266,130 @@ def test_workspace_facets_unknowns_and_stable_sort_use_saved_row_fixture(saved_d
             for key in ("action_now", "research", "watch", "reject")
         }
         known = page(
-            session, {**base_filters, "mw_status": "KNOWN"}, limit=50, offset=0, token=None,
+            session,
+            {**base_filters, "mw_status": "KNOWN"},
+            limit=50,
+            offset=0,
+            token=None,
         )
         unknown = page(
-            session, {**base_filters, "mw_status": "UNKNOWN"}, limit=50, offset=0, token=None,
+            session,
+            {**base_filters, "mw_status": "UNKNOWN"},
+            limit=50,
+            offset=0,
+            token=None,
         )
         assert known["total"] == sum(row[6] for row in expected_rows)
         assert unknown["total"] == sum(not row[6] for row in expected_rows)
         timed = page(
-            session, {**base_filters, "timing": "KNOWN"}, limit=50, offset=0, token=None,
+            session,
+            {**base_filters, "timing": "KNOWN"},
+            limit=50,
+            offset=0,
+            token=None,
         )
         assert timed["total"] == sum(row[7] for row in expected_rows)
         unknown_geo = page(
-            session, {**base_filters, "geography": "UNKNOWN"},
-            limit=50, offset=0, token=None,
+            session,
+            {**base_filters, "geography": "UNKNOWN"},
+            limit=50,
+            offset=0,
+            token=None,
         )
         assert unknown_geo["total"] == sum(not row[3] for row in expected_rows)
         unknown_industry = page(
-            session, {**base_filters, "industry": "UNKNOWN"},
-            limit=50, offset=0, token=None,
+            session,
+            {**base_filters, "industry": "UNKNOWN"},
+            limit=50,
+            offset=0,
+            token=None,
         )
         assert unknown_industry["total"] == sum(row[4] == "unknown" for row in expected_rows)
         unknown_activity = page(
-            session, {**base_filters, "activity": "UNKNOWN"},
-            limit=50, offset=0, token=None,
+            session,
+            {**base_filters, "activity": "UNKNOWN"},
+            limit=50,
+            offset=0,
+            token=None,
         )
         assert unknown_activity["total"] == sum(not row[5] for row in expected_rows)
         ordered_first = page(session, base_filters, limit=50, offset=0, token=None)
         ordered_second = page(
-            session, base_filters, limit=50, offset=50,
+            session,
+            base_filters,
+            limit=50,
+            offset=50,
             token=ordered_first["cohort_token"],
         )
         ordered_ids = [item["id"] for item in ordered_first["items"] + ordered_second["items"]]
         assert ordered_ids == sorted(row[0] for row in expected_rows)
         assert len(set(ordered_ids)) == 55
+
+
+def test_workspace_endpoint_orders_rank_78_before_rank_25_across_pages(saved_db):
+    from datetime import UTC, datetime
+
+    from fastapi.testclient import TestClient
+    from test_saved_browse import seed
+
+    from gridlens.api import app as api
+
+    need_ids = seed(saved_db, count=5, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db.begin() as session:
+        generation_id = session.get(BrowseState, 1).generation_id
+        rows = [session.get(BrowseRow, (generation_id, need_id)) for need_id in need_ids[:4]]
+        assert all(rows)
+        session.execute(
+            text("UPDATE browse_rows SET rank_score=0 WHERE generation_id=:generation"),
+            {"generation": generation_id},
+        )
+        session.flush()
+        rows = [session.get(BrowseRow, (generation_id, need_id)) for need_id in need_ids[:4]]
+        for row, industry, score, commercial_segment in (
+            (rows[0], "industrial", 78, 8),
+            (rows[1], "industrial", 78, 8),
+            (rows[2], "data_center", 25, 0),
+            (rows[3], "industrial", 10, 8),
+        ):
+            row.industry = industry
+            row.rank_score = score
+            row.commercial_segment = commercial_segment
+            row.updated_at = datetime(2026, 10, 1, tzinfo=UTC)
+            row.compact = {
+                **row.compact,
+                "industry": industry,
+                "asset_type": industry,
+                "rank_score": score,
+                "rank_reasons": ["Fixture rank scenario"],
+            }
+    client = TestClient(api.app, base_url="https://testserver")
+    from gridlens.security import token_for
+
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    first_response = client.get("/api/opportunities/workspace?limit=1")
+    assert first_response.status_code == 200, first_response.text
+    first = first_response.json()
+    token = first["cohort_token"]
+    second_response = client.get(
+        f"/api/opportunities/workspace?limit=1&offset=1&cohort_token={token}"
+    )
+    assert second_response.status_code == 200, second_response.text
+    second = second_response.json()
+    assert first["total"] == 5
+    expected_tied_ids = sorted(str(need_id) for need_id in need_ids[:2])
+    assert [item["rank_score"] for item in first["items"] + second["items"]] == [78, 78]
+    assert [item["id"] for item in first["items"] + second["items"]] == expected_tied_ids
+    third_response = client.get(
+        f"/api/opportunities/workspace?limit=1&offset=2&cohort_token={token}"
+    )
+    assert third_response.status_code == 200, third_response.text
+    third_items = third_response.json()["items"]
+    assert third_items[0]["rank_score"] == 25
+    assert third_items[0]["id"] in {str(need_id) for need_id in need_ids[:4]}
+    assert [item["id"] for item in first["items"] + second["items"]][:2] == sorted(
+        str(need_id) for need_id in need_ids[:2]
+    )
 
 
 def test_workspace_route_rejects_bad_sort_unknown_parameter_and_huge_mw(saved_db):
@@ -273,3 +417,79 @@ def test_workspace_route_requires_authentication():
     client = TestClient(api.app, base_url="https://testserver")
     response = client.get("/api/opportunities/workspace")
     assert response.status_code == 401
+
+
+def test_signal_decision_counts_aggregate_full_active_cohort(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+    from test_saved_browse import seed
+
+    from gridlens.api import app as api
+    from gridlens.persistence.models import BrowseGeneration, BrowseRow, PowerNeed
+    from gridlens.security import token_for
+    from gridlens.settings import settings
+
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    need_ids = seed(saved_db, count=60, histories=1)
+    with saved_db.begin() as session:
+        for need_id in need_ids[-8:]:
+            session.get(PowerNeed, need_id).active = False
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db.begin() as session:
+        rows = list(session.scalars(select(BrowseRow).order_by(BrowseRow.need_id)))
+        signal_rows = [row for row in rows if row.tier == "Signal"]
+        assert len(signal_rows) == 52
+        signal_rows[0].tier = "Lead"
+        for index, row in enumerate(signal_rows[1:]):
+            if index < 48:
+                decision = "SHOW"
+            elif index == 48:
+                decision = "REVIEW"
+            elif index == 49:
+                decision = "HOLD"
+            else:
+                decision = None
+            row.compact = {**row.compact, "signal_display_decision": decision}
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get("/api/signals/decisions")
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "show": 48,
+        "review": 1,
+        "hold": 1,
+        "unadjudicated": 1,
+    }
+    with saved_db.begin() as session:
+        generation = session.scalar(select(BrowseGeneration).limit(1))
+        generation.valid_until = datetime.now(UTC) - timedelta(seconds=1)
+    stale_response = client.get("/api/signals/decisions")
+    assert stale_response.status_code == 503
+
+
+def test_signal_decision_counts_uses_canonical_cohort_when_saved_browse_is_disabled(
+    saved_db, monkeypatch
+):
+    from fastapi.testclient import TestClient
+    from test_saved_browse import seed
+
+    from gridlens.api import app as api
+    from gridlens.persistence.models import PowerNeed
+    from gridlens.security import token_for
+    from gridlens.settings import settings
+
+    need_ids = seed(saved_db, count=60, histories=1)
+    with saved_db.begin() as session:
+        for need_id in need_ids[-8:]:
+            session.get(PowerNeed, need_id).active = False
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    monkeypatch.setattr(
+        api,
+        "current_generation",
+        lambda _session: (_ for _ in ()).throw(AssertionError("disabled path used saved browse")),
+    )
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get("/api/signals/decisions")
+    assert response.status_code == 200, response.text
+    counts = response.json()
+    assert sum(counts.values()) == 52

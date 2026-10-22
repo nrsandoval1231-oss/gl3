@@ -48,14 +48,18 @@ def test_model_selects_curated_facts_and_server_renders_brief():
 
 
 def test_brief_surfaces_supported_company_role_without_promoting_authority():
-    facts = _fact_options({"chain:1": {
-        "title": "Retained project relationship: JLC Electrical",
-        "excerpt": "JLC Electrical is listed as electrical contractor for the project.",
-        "url": "https://example.test/relationship",
-        "publisher": "Retained public project evidence",
-        "organization": "JLC Electrical",
-        "relationship_role": "contractor",
-    }})
+    facts = _fact_options(
+        {
+            "chain:1": {
+                "title": "Retained project relationship: JLC Electrical",
+                "excerpt": "JLC Electrical is listed as electrical contractor for the project.",
+                "url": "https://example.test/relationship",
+                "publisher": "Retained public project evidence",
+                "organization": "JLC Electrical",
+                "relationship_role": "contractor",
+            }
+        }
+    )
     selected = next(iter(facts))
     result, citations = _validate_result(
         {"selected_fact_ids": [selected], "hypothesis_fact_id": selected}, facts, []
@@ -66,6 +70,8 @@ def test_brief_surfaces_supported_company_role_without_promoting_authority():
     )
     assert result["event_summary"][0]["evidence_id"] == "chain:1"
     assert citations[0]["url"] == "https://example.test/relationship"
+
+
 @pytest.mark.parametrize(
     "raw",
     [
@@ -118,13 +124,9 @@ def test_dallas_live_quality_failure_renders_only_supported_roles_and_facts():
         _validate_result(
             {
                 "event_summary": [
-                    {
-                        "text": "A project led by TRICORE with applicant Robert Akins at  ̶ ."
-                    }
+                    {"text": "A project led by TRICORE with applicant Robert Akins at  ̶ ."}
                 ],
-                "commercial_hypothesis": {
-                    "text": "Investigation hypothesis: demand is indicated."
-                },
+                "commercial_hypothesis": {"text": "Investigation hypothesis: demand is indicated."},
             },
             facts,
             [],
@@ -277,10 +279,12 @@ def test_legacy_question_result_is_recovered_only_when_full_fingerprint_matches(
         **payload,
         "evidence": [{**item, "id": "buying-chain:chain-1"} for item in payload["evidence"]],
     }
-    row.generated_fingerprint = _digest({
-        **legacy_payload,
-        "commercial_question": "Which contractor should we ask?",
-    })
+    row.generated_fingerprint = _digest(
+        {
+            **legacy_payload,
+            "commercial_question": "Which contractor should we ask?",
+        }
+    )
     recovered = brief_view_for_payload(row, payload)
     assert recovered["stale"] is False
     assert recovered["question_context"] == "different_question"

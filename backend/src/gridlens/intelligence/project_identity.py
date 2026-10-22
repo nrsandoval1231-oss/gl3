@@ -117,11 +117,25 @@ _STATE_CODES = {
     "WY": "wyoming",
 }
 _STREET_SUFFIXES = {
-    "st": "st", "street": "st", "rd": "rd", "road": "rd",
-    "ave": "ave", "avenue": "ave", "blvd": "blvd", "boulevard": "blvd",
-    "dr": "dr", "drive": "dr", "hwy": "hwy", "highway": "hwy",
-    "way": "way", "lane": "ln", "ln": "ln", "court": "ct",
-    "ct": "ct", "route": "rt", "rt": "rt",
+    "st": "st",
+    "street": "st",
+    "rd": "rd",
+    "road": "rd",
+    "ave": "ave",
+    "avenue": "ave",
+    "blvd": "blvd",
+    "boulevard": "blvd",
+    "dr": "dr",
+    "drive": "dr",
+    "hwy": "hwy",
+    "highway": "hwy",
+    "way": "way",
+    "lane": "ln",
+    "ln": "ln",
+    "court": "ct",
+    "ct": "ct",
+    "route": "rt",
+    "rt": "rt",
 }
 
 
@@ -149,7 +163,7 @@ def canonical_site_claim(value: str | None) -> str:
         # could actually be the city (for example, Court or Drive).
         if street_words and ("," in raw or suffix_count == 1):
             street_words[-1] = _STREET_SUFFIXES.get(street_words[-1], street_words[-1])
-            tokens = street_words + normalized_identity(raw[street.end():]).split()
+            tokens = street_words + normalized_identity(raw[street.end() :]).split()
     # Compact ZIP+4 and its hyphen/space forms carry the same nine digits.
     # Split only the terminal postal token; retain both components verbatim.
     if tokens and re.fullmatch(r"\d{9}", tokens[-1]):

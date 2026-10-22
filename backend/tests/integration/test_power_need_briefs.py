@@ -291,13 +291,16 @@ def test_browse_cache_fingerprint_matches_detail_relationship_evidence(runtime, 
         )
         assert preloaded_payload == legacy_payload
         assert preloaded_evidence == legacy_evidence
-        assert len(
-            [
-                item
-                for item in preloaded_evidence.values()
-                if item["id"].startswith("buying-chain:")
-            ]
-        ) == 2
+        assert (
+            len(
+                [
+                    item
+                    for item in preloaded_evidence.values()
+                    if item["id"].startswith("buying-chain:")
+                ]
+            )
+            == 2
+        )
         assert service.brief_fingerprint(preloaded_payload) == service.brief_fingerprint(
             legacy_payload
         )
@@ -603,9 +606,9 @@ def test_batched_commercial_preflight_rejects_nested_evidence_before_evaluation_
     monkeypatch.setattr(api, "opportunity_projection", projection)
     with factory() as session:
         before = session.scalar(
-            select(func.count()).select_from(Pursuit).where(
-                Pursuit.identity_key.like("commercial-need:%")
-            )
+            select(func.count())
+            .select_from(Pursuit)
+            .where(Pursuit.identity_key.like("commercial-need:%"))
         )
 
     client = TestClient(api.app)
@@ -619,9 +622,9 @@ def test_batched_commercial_preflight_rejects_nested_evidence_before_evaluation_
     assert response.json()["detail"]["resource"] == "evidence_rows"
     with factory() as session:
         after = session.scalar(
-            select(func.count()).select_from(Pursuit).where(
-                Pursuit.identity_key.like("commercial-need:%")
-            )
+            select(func.count())
+            .select_from(Pursuit)
+            .where(Pursuit.identity_key.like("commercial-need:%"))
         )
     assert after == before
 
@@ -694,9 +697,7 @@ def test_opportunity_projection_uses_stable_updated_at_tiebreak(runtime):
         session.flush()
         projected = api.opportunity_projection(session, tier="Signal", summary_only=True)
         matching_ids = [
-            str(item["id"])
-            for item in projected
-            if item["id"] in {first.id, second.id}
+            str(item["id"]) for item in projected if item["id"] in {first.id, second.id}
         ]
         assert matching_ids == sorted([str(first.id), str(second.id)])
 
@@ -887,8 +888,13 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
     api = import_module("gridlens.api.app")
     response = Response()
     page = api.opportunities(
-        tier="signal", geography="  TEST   CITY ", activity="Construction",
-        timing="UNKNOWN", mw_status="UNKNOWN", status="unknown", response=response,
+        tier="signal",
+        geography="  TEST   CITY ",
+        activity="Construction",
+        timing="UNKNOWN",
+        mw_status="UNKNOWN",
+        status="unknown",
+        response=response,
     )
     assert [str(item["id"]) for item in page] == [str(need_id)]
     assert page[0]["workflow_status"] == "UNKNOWN"
@@ -897,15 +903,27 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
     token = response.headers["X-Cohort-Token"]
 
     group = api.opportunity_group_page(
-        page[0]["group_id"], token, tier="Signal", geography="test city",
-        activity="construction", timing="unknown", mw_status="unknown", status="UNKNOWN",
+        page[0]["group_id"],
+        token,
+        tier="Signal",
+        geography="test city",
+        activity="construction",
+        timing="unknown",
+        mw_status="unknown",
+        status="UNKNOWN",
     )
     assert group["total"] == 1
     assert str(group["items"][0]["id"]) == str(need_id)
 
     detail = api.opportunity_need_detail(
-        need_id, tier="Signal", geography="test city", activity="construction",
-        timing="UNKNOWN", mw_status="UNKNOWN", status="UNKNOWN", cohort_token=token,
+        need_id,
+        tier="Signal",
+        geography="test city",
+        activity="construction",
+        timing="UNKNOWN",
+        mw_status="UNKNOWN",
+        status="UNKNOWN",
+        cohort_token=token,
     )
     assert str(detail["id"]) == str(need_id)
     with pytest.raises(HTTPException) as out_of_scope:
@@ -913,9 +931,7 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
     assert out_of_scope.value.status_code == 404
 
     with pytest.raises(HTTPException) as changed:
-        api.opportunities(
-            tier="Signal", geography="Elsewhere", cohort=token, response=Response()
-        )
+        api.opportunities(tier="Signal", geography="Elsewhere", cohort=token, response=Response())
     assert changed.value.status_code == 409
 
     client = TestClient(api.app)
@@ -927,8 +943,12 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
     csv = client.get(
         "/api/opportunities/export.csv",
         params={
-            "tier": "Signal", "geography": "test city", "activity": "construction",
-            "timing": "UNKNOWN", "mw_status": "UNKNOWN", "status": "UNKNOWN",
+            "tier": "Signal",
+            "geography": "test city",
+            "activity": "construction",
+            "timing": "UNKNOWN",
+            "mw_status": "UNKNOWN",
+            "status": "UNKNOWN",
             "cohort_token": token,
         },
     )
@@ -968,9 +988,7 @@ def test_history_routes_preflight_one_oversized_snapshot_before_hydration(runtim
     assert detail_error.value.detail["resource"] == "saved_snapshot_bytes"
 
 
-def test_oversized_commercial_group_rejects_before_detail_or_evaluation_write(
-    runtime, monkeypatch
-):
+def test_oversized_commercial_group_rejects_before_detail_or_evaluation_write(runtime, monkeypatch):
     factory, _service, _ids = runtime
     api = import_module("gridlens.api.app")
     from gridlens.persistence.models import Pursuit
@@ -1008,9 +1026,9 @@ def test_oversized_commercial_group_rejects_before_detail_or_evaluation_write(
     monkeypatch.setattr(api, "opportunity_projection", canonical_summary_only)
     with factory() as session:
         before = session.scalar(
-            select(func.count()).select_from(Pursuit).where(
-                Pursuit.identity_key.like("commercial-need:%")
-            )
+            select(func.count())
+            .select_from(Pursuit)
+            .where(Pursuit.identity_key.like("commercial-need:%"))
         )
     client = TestClient(api.app)
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
@@ -1026,9 +1044,9 @@ def test_oversized_commercial_group_rejects_before_detail_or_evaluation_write(
     assert response.json()["detail"]["group_id"] == expected_group_id
     with factory() as session:
         after = session.scalar(
-            select(func.count()).select_from(Pursuit).where(
-                Pursuit.identity_key.like("commercial-need:%")
-            )
+            select(func.count())
+            .select_from(Pursuit)
+            .where(Pursuit.identity_key.like("commercial-need:%"))
         )
     assert after == before
 
@@ -1221,9 +1239,7 @@ def test_search_uses_final_derived_title_and_joined_evidence_fields(runtime):
     )
 
     assert title_boundary.headers["X-Total-Count"] == "1"
-    assert any(
-        str(item["id"]) == str(need_id) and item["matched_search"] for item in title_matches
-    )
+    assert any(str(item["id"]) == str(need_id) and item["matched_search"] for item in title_matches)
     assert any(
         str(item["id"]) == str(need_id) and item["matched_search"] for item in evidence_boundary
     )
@@ -1332,9 +1348,7 @@ def test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_histo
             external_id=external_id,
             title=title,
             abstract=(
-                qualification_text(
-                    "1", contradictory_supply=conflicting_demand
-                )
+                qualification_text("1", contradictory_supply=conflicting_demand)
                 if index == 1
                 else f"Construction work for {project.name} at {site}."
             ),
@@ -1357,11 +1371,7 @@ def test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_histo
                 if conflicting_demand
                 else qualification_text(
                     "1",
-                    buyer_role=(
-                        "general contractor"
-                        if index % 2
-                        else "project owner"
-                    ),
+                    buyer_role=("general contractor" if index % 2 else "project owner"),
                 )
             ),
             url=f"https://example.test/austin/large/{index}",
@@ -1658,9 +1668,7 @@ def test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_histo
         assert stats["max_resident_link_orm_rows"] <= 3 * stats["link_fetch_chunk_size"]
         assert stats["lifecycle_rows_streamed"] == 261
         assert stats["supported_lifecycle_rows"] == 261
-        assert stats["max_resident_lifecycle_orm_rows"] <= (
-            4 * stats["lifecycle_fetch_chunk_size"]
-        )
+        assert stats["max_resident_lifecycle_orm_rows"] <= (4 * stats["lifecycle_fetch_chunk_size"])
         assert stats["historical_date_rows_aggregated"] == 130
         assert stats["historical_evidence_orm_rows"] == 0
         large_full = next(row for row in full if row["id"] == large_need.id)
@@ -2418,8 +2426,14 @@ def test_map_window_matches_ranked_pages_and_keeps_detail_reads_bounded(runtime,
     # that define identity, score, explanations, and the rank policy with legacy pages.
     page_response = Response()
     pages = api.opportunities(
-        tier="Signal", search="", decision="ALL", limit=50, offset=0,
-        cohort=None, response=page_response, sort="rank",
+        tier="Signal",
+        search="",
+        decision="ALL",
+        limit=50,
+        offset=0,
+        cohort=None,
+        response=page_response,
+        sort="rank",
     )
     assert result["cohort_token"] == page_response.headers["X-Cohort-Token"]
     by_id = {str(item["id"]): item for item in pages}
@@ -2427,7 +2441,9 @@ def test_map_window_matches_ranked_pages_and_keeps_detail_reads_bounded(runtime,
     for item in result["items"]:
         legacy = by_id[str(item["id"])]
         assert (item["rank_score"], item["rank_reasons"], item["rank_version"]) == (
-            legacy["rank_score"], legacy["rank_reasons"], legacy["rank_version"]
+            legacy["rank_score"],
+            legacy["rank_reasons"],
+            legacy["rank_version"],
         )
     assert str(need_id) in by_id
 
@@ -2450,9 +2466,7 @@ def test_ranked_map_window_keeps_global_winners_and_stable_ties_past_boundaries(
     window = ranked[:200]
     assert ranked[0]["id"] == "need-200"
     assert [row["id"] for row in ranked[2:4]] == ["need-049", "need-050"]
-    assert [row["id"] for row in ranked[48:52]] == [
-        "need-043", "need-044", "need-045", "need-046"
-    ]
+    assert [row["id"] for row in ranked[48:52]] == ["need-043", "need-044", "need-045", "need-046"]
     assert len(window) == 200
     assert window[-1]["id"] == "need-196"
     assert all(row["id"] != "need-197" for row in window)

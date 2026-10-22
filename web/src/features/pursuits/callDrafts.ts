@@ -3,7 +3,7 @@ import type { CallFact } from '../../api/client'
 import { readSession, writeSession } from '../../state/sessionState'
 
 type Contact = { name: string; organization: string; role: string; channel: string; at: string }
-export type CallDraft = {
+type CallDraft = {
   contact: Contact; values: Record<string, string>; drafts: CallFact[]
   accepted: boolean; busy: boolean; error: string; keys: Record<string, string>; refreshSafe: boolean
 }

@@ -71,6 +71,7 @@ def schedule_questions(
     cards: list[dict],
     *,
     force: bool = False,
+    enrich: bool = False,
     origin: str = "automatic",
     grouped: bool = False,
     parent_id: UUID | None = None,
@@ -79,6 +80,7 @@ def schedule_questions(
     """Serialize planning/caps. Changed inputs never overwrite a running attempt."""
     if origin not in {"automatic", "manual", "follow_up", "validation"}:
         raise ValueError("Unknown research scheduling origin")
+    enrich = enrich or settings.opportunity_enrichment_enabled
     now = now or datetime.now(UTC)
     # The daily cap is a UTC calendar-day policy, independent of PostgreSQL's
     # session timezone. Treat legacy naive test/caller values as UTC as well.
@@ -100,7 +102,9 @@ def schedule_questions(
     )
     eligible = {}
     for card in cards:
-        if card.get("disposition") not in {"RESEARCH", "WATCH"}:
+        if card.get("disposition") not in (
+            {"RESEARCH", "WATCH", "ACTION NOW"} if enrich else {"RESEARCH", "WATCH"}
+        ):
             continue
         need = session.get(PowerNeed, UUID(str(card["id"])))
         if need is not None and need.project_id not in active_projects:
@@ -188,6 +192,7 @@ def schedule_questions(
             ),
             "selected_sources": sources,
             "origin": "follow_up" if parent_id else origin,
+            "enrichment_requested": enrich,
             "known_facts": card.get("facts", []),
             "unknowns": card.get("unknowns", []),
             "evidence_ids": sorted(
@@ -212,7 +217,7 @@ def schedule_questions(
         if parent_id:
             assert parent is not None
             resolved.add(parent.category)
-        for planned in plan_questions(card, resolved_categories=resolved):
+        for planned in plan_questions(card, resolved_categories=resolved, enrich=enrich):
             if len(active) >= 2 or today_count >= settings.autonomous_research_daily_questions:
                 break
             category = planned["category"]

@@ -109,9 +109,7 @@ def test_user_fact_hash_is_optional_and_group_provenance_stays_need_scoped():
     second["evidence"][0]["document_number"] = first["evidence"][0]["document_number"]
 
     no_fact = build_card(first, None, date(2026, 10, 7))
-    explicit_no_fact = build_card(
-        {**first, "operator_fact_refs": []}, None, date(2026, 10, 7)
-    )
+    explicit_no_fact = build_card({**first, "operator_fact_refs": []}, None, date(2026, 10, 7))
     first_ref = {
         "need_id": str(first_id),
         "fact_version_id": str(UUID(int=8101)),
@@ -676,8 +674,7 @@ def test_negated_need_and_affirmative_scope_require_conflict_research():
                 "id": uuid4(),
                 "title": "Factory construction permit",
                 "abstract": (
-                    "Temporary power is not required. "
-                    "Construction power is required for phase two."
+                    "Temporary power is not required. Construction power is required for phase two."
                 ),
                 "url": "https://example.test/permit",
             }

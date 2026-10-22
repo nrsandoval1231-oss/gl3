@@ -14,7 +14,8 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, SecretStr
-from sqlalchemy import Date, Text, and_, cast, func, or_, select
+from sqlalchemy import Date, Text, and_, cast, func, or_, select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload
 
@@ -38,6 +39,7 @@ from gridlens.domain.commercial_triage import (
     grouped_need_groups,
 )
 from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
+from gridlens.domain.opportunity_intelligence import IntelligenceCard
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
     AutonomousResearchOut,
@@ -83,6 +85,7 @@ from gridlens.intelligence.opportunity_browse import (
     project_title as opportunity_project_title,
 )
 from gridlens.intelligence.project_state import project_state as read_project_state
+from gridlens.intelligence.saved_browse import current_generation
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.intelligence.snapshot_presence import absent_need_ids
 from gridlens.jobs.queue import enqueue
@@ -112,6 +115,8 @@ from gridlens.persistence.models import (
     SourceDueCheck,
     SourceScheduleEpoch,
     WorkerHeartbeat,
+    WorkspaceChangeAcknowledgment,
+    WorkspaceChangeBaseline,
 )
 from gridlens.security import (
     check_password,
@@ -173,6 +178,7 @@ class LifecycleEventOut(BaseModel):
 
 
 class OpportunityOut(BaseModel):
+    intelligence_card: IntelligenceCard | None = None
     id: UUID
     project_id: UUID
     name: str
@@ -264,6 +270,119 @@ class PursuitWorkspacePageOut(BaseModel):
     cohort_token: str
     count_unit: Literal["power needs"]
     changes_available: bool
+
+
+class WorkspaceChangeCountsOut(BaseModel):
+    discovered: int
+    changed: int
+    promoted: int
+    closed: int
+    review_exception: int
+
+
+class WorkspaceChangeNeedOut(BaseModel):
+    id: UUID
+    name: str
+    location: str | None
+    active: bool
+    tier: str
+
+
+class WorkspaceChangeSourceOut(BaseModel):
+    title: str
+    url: str
+    published_at: date | None
+    event_date: date | None
+    retrieved_at: datetime | None
+    content_hash: str
+
+
+class WorkspaceChangeSourceExceptionOut(BaseModel):
+    source_id: str
+    status: str
+    error: str | None
+    parse_failures: int
+
+
+class WorkspaceChangeItemOut(BaseModel):
+    event_key: str
+    category: Literal["discovered", "changed", "promoted", "closed", "review_exception"]
+    title: str
+    detail: str
+    created_at: datetime
+    source_date: date | None
+    project_id: UUID | None
+    before_state: dict[str, Any] | None
+    after_state: dict[str, Any] | None
+    needs: list[WorkspaceChangeNeedOut]
+    sources: list[WorkspaceChangeSourceOut]
+    transitions: dict[str, str] | None = None
+    fact_version_id: UUID | None = None
+    before_version: int | None = None
+    after_version: int | None = None
+    fact_type: str | None = None
+    decision: str | None = None
+    reason: str | None = None
+    actor: str | None = None
+    confirmed_at: datetime | None = None
+    source_reference: str | None = None
+
+
+class WorkspaceChangesOut(BaseModel):
+    items: list[WorkspaceChangeItemOut]
+    counts: WorkspaceChangeCountsOut
+    total_unreviewed: int
+    offset: int
+    limit: int
+    next_offset: int | None
+    evaluated_at: datetime
+    baseline_identity: UUID
+    baseline_reviewed_at: datetime | None
+    first_use: bool
+    token: str
+    source_health_exceptions: list[WorkspaceChangeSourceExceptionOut]
+
+
+class WorkspaceChangesReviewBody(BaseModel):
+    baseline_identity: UUID
+    token: str = Field(pattern=r"^[0-9a-f]{64}$")
+    limit: int = Field(default=50, ge=1, le=50)
+    offset: int = Field(default=0, ge=0, le=100000)
+
+
+class WorkspaceChangesReviewReceiptOut(BaseModel):
+    baseline_identity: UUID
+    reviewed_at: datetime
+    reviewed_count: int
+    event_keys: list[str]
+    token: str
+    remaining_counts: WorkspaceChangeCountsOut
+
+
+class WorkspaceHistoricalEvidenceOut(BaseModel):
+    title: str
+    url: str
+    published_at: date | None
+    event_date: date | None
+    retrieved_at: datetime
+    content_hash: str
+
+
+class WorkspaceHistoricalNeedOut(BaseModel):
+    id: UUID
+    project_id: UUID
+    name: str
+    location: str | None
+    activity: str
+    active: bool
+    tier: str
+    rationale: str
+    required_mw: str | None
+    start_window: str | None
+    duration: str | None
+    supply: str
+    updated_at: datetime
+    evidence: list[WorkspaceHistoricalEvidenceOut]
 
 
 class CallFactDraftBody(BaseModel):
@@ -2553,7 +2672,16 @@ def opportunity_need_detail(
                     "priority_label": _opportunity_priority_label(candidate),
                     "workflow_status": candidate.get("workflow_status", "UNKNOWN"),
                 }
-            details = opportunity_projection(session, selected_need_ids={need_id})
+            chains: dict = {}
+            details = opportunity_projection(
+                session,
+                selected_need_ids={need_id},
+                buying_chain_results=chains,
+                include_operator_fact_refs=True,
+            )
+            from gridlens.intelligence.opportunity_intelligence import attach_cards
+
+            attach_cards(session, details, chains)
             if not details:
                 raise HTTPException(404, "Opportunity not found")
             detail = _bounded_opportunity_payload(details)[0]
@@ -2600,7 +2728,16 @@ def opportunity_need_detail(
         if summary is None:
             raise HTTPException(404, "Opportunity is outside the requested filtered cohort")
         _preflight_opportunity_details(session, [summary])
-        items = opportunity_projection(session, selected_need_ids={need_id})
+        chains = {}
+        items = opportunity_projection(
+            session,
+            selected_need_ids={need_id},
+            buying_chain_results=chains,
+            include_operator_fact_refs=True,
+        )
+        from gridlens.intelligence.opportunity_intelligence import attach_cards
+
+        attach_cards(session, items, chains)
         if not items:
             raise HTTPException(404, "Opportunity not found")
         detail = _bounded_opportunity_payload(items)[0]
@@ -2721,6 +2858,9 @@ def export_opportunities_csv(
             "name",
             "location",
             "tier",
+            "rank_score",
+            "rank_reasons",
+            "rank_version",
             "signal_decision",
             "workflow_status",
             "priority_segment",
@@ -2761,6 +2901,11 @@ def export_opportunities_csv(
                     "name": record["name"],
                     "location": record["location"] or "UNKNOWN",
                     "tier": record["tier"],
+                    "rank_score": record.get("rank_score"),
+                    "rank_reasons": json.dumps(
+                        record.get("rank_reasons") or [], separators=(",", ":")
+                    ),
+                    "rank_version": record.get("rank_version") or "UNKNOWN",
                     "signal_decision": record.get("signal_display_decision") or "UNKNOWN",
                     "workflow_status": record.get("workflow_status", "UNKNOWN"),
                     "priority_segment": (
@@ -3742,6 +3887,29 @@ def opportunity_projection(
                     if effective["tier"] == "Prospect"
                     else "Confirm activity power needs, timing, duration, and service plan."
                 ),
+                "power_field_provenance": {
+                    "demand": effective.get("demand_quote")
+                    or (current_assessment or {}).get("demand_quote"),
+                    "start": next(
+                        (
+                            assessment.get("start_quote")
+                            for assessment in current_assessments
+                            if assessment.get("start_window") == effective.get("start_window")
+                            and assessment.get("start_quote")
+                        ),
+                        None,
+                    ),
+                    "duration": next(
+                        (
+                            assessment.get("duration_quote")
+                            for assessment in current_assessments
+                            if assessment.get("duration") == effective.get("duration")
+                            and assessment.get("duration_quote")
+                        ),
+                        None,
+                    ),
+                    "supply": (effective.get("qualified_remaining_gap") or {}).get("basis_quote"),
+                },
                 "research_state": research_state,
                 # Internal raw-card proof; absence of current authority is not clearance.
                 "qualification_conflict": effective.get("qualification_conflict", False)
@@ -3864,6 +4032,10 @@ def opportunity_projection(
                         "fact_version_id": str(fact.id),
                         "content_hash": fact.content_hash,
                         "authority": "User-confirmed",
+                        "fact_type": fact.fact_type,
+                        "source_reference": fact.source_reference,
+                        "confirmed_at": fact.confirmed_at,
+                        "value": fact.value,
                     }
                     for fact in sorted(
                         accepted_facts,
@@ -3888,9 +4060,33 @@ class SignalDecisionCountsOut(BaseModel):
 def signal_decision_counts():
     """Count active Signal opportunity records using the same lifecycle policy as browse."""
     counts = {"show": 0, "review": 0, "hold": 0, "unadjudicated": 0}
-    for item in opportunities(tier="Signal"):
-        decision = item["signal_display_decision"]
-        counts[decision.casefold() if decision else "unadjudicated"] += 1
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        if settings.saved_browse_enabled:
+            generation = current_generation(session)
+            rows = session.execute(
+                text(
+                    "SELECT compact->>'signal_display_decision' AS decision, count(*) "
+                    "FROM browse_rows WHERE generation_id=:generation AND tier='Signal' "
+                    "GROUP BY 1"
+                ),
+                {"generation": generation.id},
+            )
+            for decision, count in rows:
+                key = decision.casefold() if decision else "unadjudicated"
+                counts[key] += count
+        else:
+            summaries = opportunity_projection(session, tier="Signal", summary_only=True)
+            need_ids = [UUID(str(item["id"])) for item in summaries]
+            for start in range(0, len(need_ids), 50):
+                details = opportunity_projection(
+                    session,
+                    tier="Signal",
+                    selected_need_ids=set(need_ids[start : start + 50]),
+                )
+                for item in details:
+                    decision = item["signal_display_decision"]
+                    counts[decision.casefold() if decision else "unadjudicated"] += 1
     return counts
 
 
@@ -3956,6 +4152,191 @@ def changes():
             }
             for event, evidence, buying in rows
         ]
+
+
+@app.get(
+    "/api/opportunities/workspace/changes",
+    response_model=WorkspaceChangesOut,
+    dependencies=[Depends(require_session)],
+)
+def workspace_change_briefing(
+    limit: int = Query(default=50, ge=1, le=50),
+    offset: int = Query(default=0, ge=0, le=100000),
+):
+    from gridlens.intelligence.workspace_changes import (
+        UNINITIALIZED_BASELINE,
+        workspace_changes,
+    )
+
+    with SessionLocal() as session:
+        session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        session.execute(text("SET TRANSACTION READ ONLY"))
+        baseline = session.get(WorkspaceChangeBaseline, 1)
+        baseline_identity = baseline.baseline_identity if baseline else UNINITIALIZED_BASELINE
+        result = workspace_changes(
+            session,
+            baseline_identity,
+            limit=limit,
+            offset=offset,
+            evaluated_at=datetime.now(UTC),
+        )
+        result["baseline_reviewed_at"] = baseline.reviewed_at if baseline else None
+        result["first_use"] = baseline is None
+        return result
+
+
+@app.post(
+    "/api/opportunities/workspace/changes/review",
+    response_model=WorkspaceChangesReviewReceiptOut,
+    dependencies=[Depends(require_session)],
+)
+def review_workspace_changes(body: WorkspaceChangesReviewBody, request: Request):
+    from gridlens.intelligence.workspace_changes import (
+        workspace_changes,
+    )
+
+    require_same_origin(request)
+    for attempt in range(3):
+        try:
+            with SessionLocal.begin() as session:
+                session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+                session.execute(
+                    text(
+                        "INSERT INTO workspace_change_baselines "
+                        "(id, baseline_identity) VALUES (1, :baseline_identity) "
+                        "ON CONFLICT (id) DO NOTHING"
+                    ),
+                    {"baseline_identity": str(body.baseline_identity)},
+                )
+                baseline = session.scalar(
+                    select(WorkspaceChangeBaseline)
+                    .where(WorkspaceChangeBaseline.id == 1)
+                    .with_for_update()
+                )
+                if baseline is None:
+                    raise HTTPException(500, "Workspace review baseline could not be initialized")
+                if body.baseline_identity != baseline.baseline_identity:
+                    raise HTTPException(
+                        409, "Workspace review baseline changed; reload the briefing"
+                    )
+                if baseline.last_token == body.token and baseline.last_receipt is not None:
+                    return baseline.last_receipt
+
+                snapshot = workspace_changes(
+                    session,
+                    baseline.baseline_identity,
+                    limit=body.limit,
+                    offset=body.offset,
+                    evaluated_at=datetime.now(UTC),
+                )
+                if snapshot["token"] != body.token:
+                    raise HTTPException(
+                        409, "Workspace changes changed; reload the briefing before reviewing"
+                    )
+
+                reviewed_at = session.scalar(select(func.clock_timestamp())) or datetime.now(UTC)
+                event_keys = [item["event_key"] for item in snapshot["items"]]
+                if event_keys:
+                    session.execute(
+                        pg_insert(WorkspaceChangeAcknowledgment)
+                        .values(
+                            [
+                                {
+                                    "event_key": event_key,
+                                    "reviewed_at": reviewed_at,
+                                    "review_token": body.token,
+                                }
+                                for event_key in event_keys
+                            ]
+                        )
+                        .on_conflict_do_nothing(
+                            index_elements=[WorkspaceChangeAcknowledgment.event_key]
+                        )
+                    )
+                remaining = workspace_changes(
+                    session,
+                    baseline.baseline_identity,
+                    limit=body.limit,
+                    offset=body.offset,
+                    evaluated_at=reviewed_at,
+                )
+                receipt = {
+                    "baseline_identity": str(baseline.baseline_identity),
+                    "reviewed_at": reviewed_at.isoformat(),
+                    "reviewed_count": len(event_keys),
+                    "event_keys": event_keys,
+                    "token": body.token,
+                    "remaining_counts": remaining["counts"],
+                }
+                baseline.reviewed_at = reviewed_at
+                baseline.last_token = body.token
+                baseline.last_receipt = receipt
+                session.flush()
+                return receipt
+        except DBAPIError as exc:
+            original = exc.orig
+            sqlstate = getattr(original, "sqlstate", None) or getattr(original, "pgcode", None)
+            if sqlstate not in {"40001", "40P01"}:
+                raise
+            if attempt == 2:
+                raise HTTPException(
+                    409, "Workspace review changed concurrently; reload the briefing"
+                ) from exc
+    raise HTTPException(409, "Workspace review changed concurrently; reload the briefing")
+
+
+@app.get(
+    "/api/opportunities/needs/{need_id}/history",
+    response_model=WorkspaceHistoricalNeedOut,
+    dependencies=[Depends(require_session)],
+)
+def workspace_historical_need(need_id: UUID):
+    with SessionLocal() as session:
+        session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        need = session.get(PowerNeed, need_id)
+        if need is None:
+            raise HTTPException(404, "Historical power need not found")
+        if need.active:
+            raise HTTPException(
+                409,
+                "Active power needs must be opened through the current workspace readback",
+            )
+        project = session.get(Project, need.project_id)
+        if project is None:
+            raise HTTPException(404, "Historical project not found")
+        evidence_rows = session.scalars(
+            select(Evidence)
+            .join(NeedObservation, NeedObservation.observation_id == Evidence.observation_id)
+            .where(NeedObservation.need_id == need.id)
+            .order_by(Evidence.observed_at.desc(), Evidence.id.desc())
+            .limit(10)
+        ).all()
+        return {
+            "id": need.id,
+            "project_id": project.id,
+            "name": project.name,
+            "location": project.location,
+            "activity": need.activity_key,
+            "active": need.active,
+            "tier": need.tier,
+            "rationale": need.rationale,
+            "required_mw": need.required_mw,
+            "start_window": need.start_window,
+            "duration": need.duration,
+            "supply": need.supply,
+            "updated_at": need.updated_at,
+            "evidence": [
+                {
+                    "title": evidence.title,
+                    "url": evidence.url,
+                    "published_at": evidence.published_at,
+                    "event_date": evidence.event_date,
+                    "retrieved_at": evidence.observed_at,
+                    "content_hash": evidence.content_hash,
+                }
+                for evidence in evidence_rows
+            ],
+        }
 
 
 @app.get(
@@ -4194,6 +4575,35 @@ def _validate_need_scope(session, need_id: UUID, project_id: UUID, pursuit_id: U
         if pursuit is None or pursuit.project_id != project.id:
             raise HTTPException(404, "Need/project/pursuit scope does not match")
     return need, project, pursuit
+
+
+def _validate_current_fact_predecessor(
+    session, predecessor: CallFactVersion, need: PowerNeed, *, fact_type: str, facility: str
+) -> None:
+    if (
+        predecessor.project_id != need.project_id
+        or predecessor.fact_type != fact_type
+        or predecessor.activity_key != need.activity_key
+        or " ".join(predecessor.facility_scope.split()).casefold() != facility.casefold()
+    ):
+        raise HTTPException(
+            409, "Correction predecessor must match the exact fact type, activity and facility"
+        )
+    latest = session.scalar(
+        select(CallFactDecision)
+        .where(CallFactDecision.fact_version_id == predecessor.id)
+        .order_by(CallFactDecision.version.desc())
+        .limit(1)
+    )
+    now = evaluation_now(datetime.now(UTC))
+    if (
+        latest is None
+        or latest.decision not in {"accepted", "corrected"}
+        or predecessor.effective_from > now
+        or predecessor.effective_until is not None
+        and predecessor.effective_until <= now
+    ):
+        raise HTTPException(409, "Correction predecessor is not a current accepted fact")
 
 
 def _fact_version_view(row: CallFactVersion, decision: CallFactDecision | None):
@@ -4489,6 +4899,9 @@ def create_need_call_fact(need_id: UUID, body: CallFactDraftBody, request: Reque
             predecessor = session.get(CallFactVersion, body.predecessor_id)
             if predecessor is None or predecessor.need_id != need.id:
                 raise HTTPException(404, "Predecessor fact is outside this exact need")
+            _validate_current_fact_predecessor(
+                session, predecessor, need, fact_type=body.fact_type, facility=facility
+            )
         row = CallFactVersion(
             need_id=need.id,
             project_id=project.id,
@@ -4583,13 +4996,30 @@ def decide_need_call_fact(
         )
         if version != body.expected_version:
             raise HTTPException(409, "Fact history version is stale")
+        if row.predecessor_id is not None and body.decision == "accepted":
+            raise HTTPException(422, "A correction successor must be decided as corrected")
         next_version = version + 1
         if body.decision == "corrected":
             if row.predecessor_id is None:
                 raise HTTPException(422, "A corrected version must identify its predecessor")
+            row_decision = session.scalar(
+                select(CallFactDecision)
+                .where(CallFactDecision.fact_version_id == row.id)
+                .order_by(CallFactDecision.version.desc())
+                .limit(1)
+            )
+            if row_decision is None or row_decision.decision != "draft":
+                raise HTTPException(409, "Only a current draft correction can be accepted")
             predecessor = session.get(CallFactVersion, row.predecessor_id)
             if predecessor is None or predecessor.need_id != need.id:
                 raise HTTPException(409, "Correction predecessor is invalid")
+            _validate_current_fact_predecessor(
+                session,
+                predecessor,
+                need,
+                fact_type=row.fact_type,
+                facility=row.facility_scope,
+            )
             session.add(
                 CallFactDecision(
                     need_id=need.id,
@@ -5223,14 +5653,19 @@ def autonomous_research_status(need_id: UUID):
 )
 def request_autonomous_research(need_id: UUID, body: AutonomousResearchBody, request: Request):
     require_same_origin(request)
+    if body.complete_intelligence and not settings.autonomous_research_enabled:
+        raise HTTPException(409, "Research execution is disabled")
     from gridlens.intelligence.pursuit_questions import question_view, schedule_questions
 
     with SessionLocal.begin() as session:
-        cards = _commercial_triage_cards(session, 50)
-        card = next((card for card in cards if str(card["id"]) == str(need_id)), None)
+        from gridlens.intelligence.commercial_evaluation import evaluate_target
+
+        card = evaluate_target(session, need_id)
         if card is None:
             raise HTTPException(409, "Power need is not in the current commercial cohort")
-        rows = schedule_questions(session, [card], force=body.force, origin="manual")
+        rows = schedule_questions(
+            session, [card], force=body.force, origin="manual", enrich=body.complete_intelligence
+        )
         return {"items": [question_view(row) for row in rows]}
 
 
@@ -5779,3 +6214,33 @@ def commercial_research_status(need_id: UUID, question: str = Query(..., min_len
             "citations": [],
             "error": None,
         }
+
+
+@app.get(
+    "/api/opportunity-intelligence",
+    response_model=list[IntelligenceCard],
+    dependencies=[Depends(require_session)],
+)
+def opportunity_intelligence_batch(
+    need_ids: Annotated[list[UUID], Query(min_length=1, max_length=20)],
+):
+    """Current aggregate from persisted evidence, at most twenty exact needs."""
+    from gridlens.intelligence.opportunity_intelligence import attach_cards
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        summaries = opportunity_projection(
+            session, selected_need_ids=set(need_ids), summary_only=True
+        )
+        _preflight_opportunity_details(session, summaries)
+        chains: dict = {}
+        items = opportunity_projection(
+            session,
+            selected_need_ids=set(need_ids),
+            buying_chain_results=chains,
+            include_operator_fact_refs=True,
+        )
+        _bounded_opportunity_payload(items)
+        attach_cards(session, items, chains)
+        _bounded_opportunity_payload(items)
+        return [item["intelligence_card"] for item in items]

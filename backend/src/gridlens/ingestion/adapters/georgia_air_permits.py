@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import httpx
 from pypdf import PdfReader
 
+from gridlens.ingestion.adapters.diagnostics import acquisition_stage
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.parsers.generator_schedule import VERSION, extract_generator_facts
 
@@ -66,7 +67,15 @@ _RELEVANT = re.compile(
     re.IGNORECASE,
 )
 _LEGAL_SUFFIXES = {
-    "llc", "inc", "incorporated", "corp", "corporation", "ltd", "limited", "co", "company"
+    "llc",
+    "inc",
+    "incorporated",
+    "corp",
+    "corporation",
+    "ltd",
+    "limited",
+    "co",
+    "company",
 }
 
 
@@ -94,7 +103,13 @@ def _bounded_get(
 ) -> tuple[httpx.Headers, bytes]:
     parts: list[bytes] = []
     size = 0
-    with client.stream("GET", url, params=params, headers=headers) as response:
+    # The adapter's URL allowlist is only meaningful if callers cannot override
+    # the client's redirect policy. Pass False at the request boundary too.
+    with client.stream(
+        "GET", url, params=params, headers=headers, follow_redirects=False
+    ) as response:
+        if 300 <= response.status_code < 400:
+            raise SourceParseError("Georgia source redirects are not followed")
         response.raise_for_status()
         declared = response.headers.get("content-length")
         if declared:
@@ -192,11 +207,23 @@ def _current_scope_excerpt(narrative_excerpt: str) -> str:
 
 
 def _document_url(value: str) -> str:
-    parsed = urlparse(value)
+    try:
+        if any(ord(char) < 32 or ord(char) == 127 for char in value):
+            raise ValueError("control character")
+        parsed = urlparse(value)
+        port = parsed.port
+    except (TypeError, ValueError) as exc:
+        raise SourceParseError("Georgia document link is outside the approved EPD path") from exc
     if (
         parsed.scheme != "https"
         or parsed.hostname != EPD_HOST
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
         or parsed.query
+        or "?" in value
+        or parsed.fragment
+        or "#" in value
         or not _DOC_PATH.fullmatch(parsed.path)
     ):
         raise SourceParseError("Georgia document link is outside the approved EPD path")
@@ -204,6 +231,21 @@ def _document_url(value: str) -> str:
 
 
 def _extract_document(
+    client: httpx.Client,
+    url: str,
+    label: str,
+    run_state: dict[str, int],
+    facility: str,
+    application_number: str,
+    location: str,
+) -> dict[str, Any] | None:
+    with acquisition_stage("georgia_document"):
+        return _extract_document_content(
+            client, url, label, run_state, facility, application_number, location
+        )
+
+
+def _extract_document_content(
     client: httpx.Client,
     url: str,
     label: str,
@@ -352,9 +394,10 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     }
     state = {"bytes": 0, "pdf_count": 0, "pdf_pages": 0}
     try:
-        metadata_headers, metadata_body = _bounded_get(
-            http, APP_METADATA_URL, MAX_RESPONSE_BYTES, headers=api_headers
-        )
+        with acquisition_stage("georgia_metadata"):
+            metadata_headers, metadata_body = _bounded_get(
+                http, APP_METADATA_URL, MAX_RESPONSE_BYTES, headers=api_headers
+            )
         state["bytes"] += len(metadata_body)
         if "json" not in metadata_headers.get("content-type", "").lower():
             raise SourceParseError("Georgia Knack metadata is not JSON")
@@ -384,13 +427,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
         expected_count: int | None = None
         expected_pages: int | None = None
         for page in range(1, int(query["max_pages"]) + 1):
-            headers, body = _bounded_get(
-                http,
-                RECORDS_URL,
-                MAX_RESPONSE_BYTES,
-                params={"rows_per_page": ROWS_PER_PAGE, "page": page},
-                headers=api_headers,
-            )
+            with acquisition_stage("georgia_listing"):
+                headers, body = _bounded_get(
+                    http,
+                    RECORDS_URL,
+                    MAX_RESPONSE_BYTES,
+                    params={"rows_per_page": ROWS_PER_PAGE, "page": page},
+                    headers=api_headers,
+                )
             state["bytes"] += len(body)
             if (
                 state["bytes"] > MAX_RUN_BYTES

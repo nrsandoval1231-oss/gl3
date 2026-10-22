@@ -1,5 +1,7 @@
 # Source definitions
 
-Group validated feeds into national, construction, corporate, utility, and discovery families. Each entry needs a stable ID, publisher, geography, cadence, retrieval method, parser, access notes, and readiness evidence. Create family YAML files only after a working feed exists.
+# Source registry
 
-`registry.v1.json` does not store a separate `parser` key. `id` is the stable source id. `ingestion/adapters/__init__.py` chooses the adapter from `retrieval_method`.
+[`registry.v1.json`](registry.v1.json) is the source-definition file. Its `id`, publisher, geography, cadence, `retrieval_method`, and access/readiness metadata describe configured sources. The registry does not have a separate `parser` field: `ingestion/adapters/__init__.py` selects an adapter from `retrieval_method`.
+
+For current source health, use [coverage](../../docs/sources/coverage.md); registry presence or an old source note does not establish a recent successful check. The onboarding process is [here](../../docs/sources/onboarding.md). Do not create parallel family YAML files.

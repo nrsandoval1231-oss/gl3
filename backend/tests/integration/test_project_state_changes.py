@@ -278,12 +278,18 @@ def test_project_identity_site_do_not_borrow_another_need_after_rejection(db):
     with db.begin() as session:
         project, _, _ = seed(session)
         original_need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="original", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="original",
+            active=True,
         )
         other_need = PowerNeed(
-            project_id=project.id, activity_key="facility-expansion", tier="Prospect",
-            rationale="other", active=True,
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier="Prospect",
+            rationale="other",
+            active=True,
         )
         session.add_all([original_need, other_need])
         session.flush()
@@ -300,7 +306,8 @@ def test_project_identity_site_do_not_borrow_another_need_after_rejection(db):
         }
         original_interpretation.status = "rejected"
         original_interpretation.assessment = {
-            "decision": "rejected", "evidence_hash": original.content_hash
+            "decision": "rejected",
+            "evidence_hash": original.content_hash,
         }
         state = project_state(session, project.id)
         assert state["state"]["identity"]["status"] == "UNKNOWN"
@@ -313,8 +320,11 @@ def test_project_identity_site_expose_competing_current_claims(db):
     with db.begin() as session:
         project, _, _ = seed(session)
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -333,7 +343,8 @@ def test_project_identity_site_expose_competing_current_claims(db):
         for field in ("identity", "site"):
             assert state[field]["status"] == "CONFLICT"
             assert {claim["evidence"]["id"] for claim in state[field]["claims"]} == {
-                str(original.id), str(other.id)
+                str(original.id),
+                str(other.id),
             }
 
 
@@ -341,25 +352,29 @@ def test_project_identity_site_use_only_field_claims_and_current_binding(db):
     with db.begin() as session:
         project, _, _ = seed(session)
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
-        named, _, _ = linked_official_need_evidence(
-            session, project, need, key="named-site"
-        )
+        named, _, _ = linked_official_need_evidence(session, project, need, key="named-site")
         blank, _, blank_interpretation = linked_official_need_evidence(
             session, project, need, key="blank-identity"
         )
         blank_interpretation.assessment = {
-            **blank_interpretation.assessment, "subject": "", "location": ""
+            **blank_interpretation.assessment,
+            "subject": "",
+            "location": "",
         }
         wrong, _, wrong_interpretation = linked_official_need_evidence(
             session, project, need, key="wrong-binding"
         )
         wrong_interpretation.assessment = {
-            **wrong_interpretation.assessment, "project_identity_key": "another-project"
+            **wrong_interpretation.assessment,
+            "project_identity_key": "another-project",
         }
         nonadmitted, _, _ = linked_official_need_evidence(
             session, project, need, key="nonadmitted-identity", official=False
@@ -369,7 +384,8 @@ def test_project_identity_site_use_only_field_claims_and_current_binding(db):
             assert state[field]["status"] == "SUPPORTED"
             assert [row["id"] for row in state[field]["evidence"]] == [str(named.id)]
         assert {row["id"] for row in project_state(session, project.id)["evidence"]} == {
-            str(named.id), str(blank.id)
+            str(named.id),
+            str(blank.id),
         }
         assert {str(wrong.id), str(nonadmitted.id)}.isdisjoint(
             {row["id"] for row in project_state(session, project.id)["evidence"]}
@@ -381,8 +397,11 @@ def test_project_identity_site_accept_existing_normalization_only(db):
         project, _, _ = seed(session)
         project.location = "100 Main Street, Austin, TX"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -405,8 +424,11 @@ def test_project_site_same_street_different_city_cannot_attest_stored_site(db):
         project, _, _ = seed(session)
         project.location = "100 Main Street Austin TX"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -418,7 +440,8 @@ def test_project_site_same_street_different_city_cannot_attest_stored_site(db):
             "location": "100 Main Street Dallas TX",
         }
         assert project_state(session, project.id)["state"]["site"] == {
-            "value": None, "status": "UNKNOWN"
+            "value": None,
+            "status": "UNKNOWN",
         }
 
 
@@ -427,8 +450,11 @@ def test_project_site_same_street_different_cities_are_conflicting_claims(db):
         project, _, _ = seed(session)
         project.location = "100 Main Street Austin TX"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -445,7 +471,8 @@ def test_project_site_same_street_different_cities_are_conflicting_claims(db):
         site = project_state(session, project.id)["state"]["site"]
         assert site["status"] == "CONFLICT"
         assert {claim["evidence"]["id"] for claim in site["claims"]} == {
-            str(austin.id), str(dallas.id)
+            str(austin.id),
+            str(dallas.id),
         }
 
 
@@ -455,8 +482,11 @@ def test_project_site_equivalent_full_address_spellings_retain_support(db, two_c
         project, _, _ = seed(session)
         project.location = "100 Main Street, Austin, Texas"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -495,8 +525,11 @@ def test_project_site_address_key_keeps_city_state_unit_and_number(db, wrong_sit
         project, _, _ = seed(session)
         project.location = "100 Main Street, Austin, Texas"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -521,8 +554,11 @@ def test_project_site_different_full_address_claims_remain_conflict(db, wrong_si
         project, _, _ = seed(session)
         project.location = "100 Main Street, Austin, Texas"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -536,7 +572,8 @@ def test_project_site_different_full_address_claims_remain_conflict(db, wrong_si
         site = project_state(session, project.id)["state"]["site"]
         assert site["status"] == "CONFLICT"
         assert {claim["evidence"]["id"] for claim in site["claims"]} == {
-            str(valid.id), str(wrong.id)
+            str(valid.id),
+            str(wrong.id),
         }
 
 
@@ -545,17 +582,18 @@ def test_project_site_street_name_suffix_word_is_not_rewritten_as_city(db):
         project, _, _ = seed(session)
         project.location = "100 Main Street Court TX"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
         _, _, interpretation = linked_official_need_evidence(
             session, project, need, key="city-suffix-word"
         )
-        interpretation.assessment = {
-            **interpretation.assessment, "location": "100 Main St Ct TX"
-        }
+        interpretation.assessment = {**interpretation.assessment, "location": "100 Main St Ct TX"}
         assert project_state(session, project.id)["state"]["site"]["status"] == "UNKNOWN"
 
 
@@ -571,15 +609,16 @@ def test_project_site_street_name_suffix_word_is_not_rewritten_as_city(db):
     ],
 )
 @pytest.mark.parametrize("two_claims", [False, True])
-def test_project_site_zip_state_variants_preserve_current_support(
-    db, stored, claimed, two_claims
-):
+def test_project_site_zip_state_variants_preserve_current_support(db, stored, claimed, two_claims):
     with db.begin() as session:
         project, _, _ = seed(session)
         project.location = stored
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -613,15 +652,16 @@ def test_project_site_zip_state_variants_preserve_current_support(
     ],
 )
 @pytest.mark.parametrize("two_claims", [False, True])
-def test_project_site_zip_key_retains_zip_city_state_and_unit(
-    db, wrong_site, two_claims
-):
+def test_project_site_zip_key_retains_zip_city_state_and_unit(db, wrong_site, two_claims):
     with db.begin() as session:
         project, _, _ = seed(session)
         project.location = "100 Main Street, Austin, Texas 78701-1234"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -639,7 +679,8 @@ def test_project_site_zip_key_retains_zip_city_state_and_unit(
         if two_claims:
             assert site["status"] == "CONFLICT"
             assert {claim["evidence"]["id"] for claim in site["claims"]} == {
-                original_id, str(wrong.id)
+                original_id,
+                str(wrong.id),
             }
         else:
             assert site == {"value": None, "status": "UNKNOWN"}
@@ -657,15 +698,16 @@ def test_project_site_zip_key_retains_zip_city_state_and_unit(
     ],
 )
 @pytest.mark.parametrize("two_claims", [False, True])
-def test_project_site_compact_zip_retains_all_place_and_postal_digits(
-    db, wrong_site, two_claims
-):
+def test_project_site_compact_zip_retains_all_place_and_postal_digits(db, wrong_site, two_claims):
     with db.begin() as session:
         project, _, _ = seed(session)
         project.location = "100 Main Street, Austin, Texas 787011234"
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -683,7 +725,8 @@ def test_project_site_compact_zip_retains_all_place_and_postal_digits(
         if two_claims:
             assert site["status"] == "CONFLICT"
             assert {claim["evidence"]["id"] for claim in site["claims"]} == {
-                original_id, str(wrong.id)
+                original_id,
+                str(wrong.id),
             }
         else:
             assert site == {"value": None, "status": "UNKNOWN"}
@@ -877,9 +920,7 @@ def test_equivalent_mw_spellings_are_supported_without_material_churn(db):
         )
         mw = project_state(session, project.id)["state"]["power_need"]["value"][0]["mw"]
         assert mw["status"] == "CONFLICT"
-        assert {claim["value"] for claim in mw["claims"]} == {
-            "12MW", "12 megawatts", "13 MW"
-        }
+        assert {claim["value"] for claim in mw["claims"]} == {"12MW", "12 megawatts", "13 MW"}
         changed = record_material_diff(session, project, third, baseline)
         assert len(changed) == 1 and changed[0].evidence_id == third.id
         assert changed[0].new_state["value"][0]["conflicts"]["mw"] == ["12 MW", "13 MW"]
@@ -903,13 +944,12 @@ def test_mw_range_and_qualifier_do_not_collapse_to_exact_claim(db):
         linked_official_need_evidence(
             session, project, need, key="mw-upper-bound", demand_mw="up to 12 MW"
         )
-        linked_official_need_evidence(
-            session, project, need, key="mw-exact", demand_mw="12 MW"
-        )
+        linked_official_need_evidence(session, project, need, key="mw-exact", demand_mw="12 MW")
         fields = project_state(session, project.id)["state"]["power_need"]["value"][0]
         assert fields["mw"]["status"] == "CONFLICT"
         assert material_state(session, project.id)["power_need"][0]["conflicts"]["mw"] == [
-            "12 MW", "up to 12 MW"
+            "12 MW",
+            "up to 12 MW",
         ]
 
 
@@ -1011,9 +1051,10 @@ def test_preaction_snapshot_normalizes_old_conflict_without_unrelated_same_need_
         linked_official_need_evidence(
             session, project, need, key="backfill-second", demand_mw="58 MW"
         )
-        assert project_state(session, project.id)["state"]["power_need"]["value"][0]["mw"][
-            "status"
-        ] == "CONFLICT"
+        assert (
+            project_state(session, project.id)["state"]["power_need"]["value"][0]["mw"]["status"]
+            == "CONFLICT"
+        )
         # Simulate an old persisted snapshot created before conflict metadata
         # existed, then begin a later unrelated same-need citation action.
         assert "conflicts" not in baseline.state["power_need"][0]
@@ -1030,16 +1071,22 @@ def test_preaction_snapshot_normalizes_old_conflict_without_unrelated_same_need_
 
 def test_project_change_history_openapi_has_typed_array_response():
     api = import_module("gridlens.api.app")
-    response = api.app.openapi()["paths"]["/api/projects/{project_id}/changes"]["get"][
-        "responses"
-    ]["200"]["content"]["application/json"]["schema"]
+    response = api.app.openapi()["paths"]["/api/projects/{project_id}/changes"]["get"]["responses"][
+        "200"
+    ]["content"]["application/json"]["schema"]
     assert response["type"] == "array"
     item_ref = response["items"]["$ref"]
     item = api.app.openapi()["components"]["schemas"][item_ref.rsplit("/", 1)[-1]]
     assert set(item["required"]) == {
-        "kind", "field", "prior", "new", "evidence_id", "buying_chain_evidence_id",
+        "kind",
+        "field",
+        "prior",
+        "new",
+        "evidence_id",
+        "buying_chain_evidence_id",
         "sources",
-        "source_date", "detected_at",
+        "source_date",
+        "detected_at",
     }
 
 
@@ -1149,13 +1196,9 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
     with db.begin() as session:
         project, observation, evidence = seed(
             session,
-            lifecycle_abstract=(
-                "Orion Data Center utility service was energized in Austin, TX"
-            ),
+            lifecycle_abstract=("Orion Data Center utility service was energized in Austin, TX"),
         )
-        session.add(
-            ProjectLifecycle(project_id=project.id, current_state="utility_energization")
-        )
+        session.add(ProjectLifecycle(project_id=project.id, current_state="utility_energization"))
         session.add(
             LifecycleEvent(
                 project_id=project.id,
@@ -1225,13 +1268,9 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
     with db.begin() as session:
         project, observation, lifecycle_evidence = seed(
             session,
-            lifecycle_abstract=(
-                "Orion Data Center utility service was energized in Austin, TX"
-            ),
+            lifecycle_abstract=("Orion Data Center utility service was energized in Austin, TX"),
         )
-        session.add(
-            ProjectLifecycle(project_id=project.id, current_state="utility_energization")
-        )
+        session.add(ProjectLifecycle(project_id=project.id, current_state="utility_energization"))
         session.add(
             LifecycleEvent(
                 project_id=project.id,
@@ -1243,9 +1282,15 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
             )
         )
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            required_mw="42 MW", start_window="2026 Q4", duration="6 months",
-            supply="Reported constraint", rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            required_mw="42 MW",
+            start_window="2026 Q4",
+            duration="6 months",
+            supply="Reported constraint",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -1254,7 +1299,8 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
         )
         complete_assessment = dict(interpretation.assessment)
         interpretation.assessment = {
-            key: value for key, value in complete_assessment.items()
+            key: value
+            for key, value in complete_assessment.items()
             if key != removed_assessment_key
         }
         state = project_state(session, project.id)
@@ -1262,9 +1308,7 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
             field: state["state"][field]["status"]
             for field in ("power_need", "utility_service", "lifecycle", "activity")
         }
-        assert all(
-            status == "SUPPORTED" for status in statuses.values()
-        ), statuses
+        assert all(status == "SUPPORTED" for status in statuses.values()), statuses
         assert state["state"]["power_need"]["value"][0][nested_field]["status"] == "UNKNOWN"
         assert recommend_from_context(judgment, state) is True
 
@@ -1282,13 +1326,9 @@ def test_research_recommendation_sees_nested_current_need_conflict(db):
     with db.begin() as session:
         project, observation, lifecycle_evidence = seed(
             session,
-            lifecycle_abstract=(
-                "Orion Data Center utility service was energized in Austin, TX"
-            ),
+            lifecycle_abstract=("Orion Data Center utility service was energized in Austin, TX"),
         )
-        session.add(
-            ProjectLifecycle(project_id=project.id, current_state="utility_energization")
-        )
+        session.add(ProjectLifecycle(project_id=project.id, current_state="utility_energization"))
         session.add(
             LifecycleEvent(
                 project_id=project.id,
@@ -1300,9 +1340,15 @@ def test_research_recommendation_sees_nested_current_need_conflict(db):
             )
         )
         need = PowerNeed(
-            project_id=project.id, activity_key="construction", tier="Prospect",
-            required_mw="42 MW", start_window="2026 Q4", duration="6 months",
-            supply="Reported constraint", rationale="fixture", active=True,
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            required_mw="42 MW",
+            start_window="2026 Q4",
+            duration="6 months",
+            supply="Reported constraint",
+            rationale="fixture",
+            active=True,
         )
         session.add(need)
         session.flush()
@@ -1438,11 +1484,12 @@ def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeyp
         # In one pass Acme withdraws, WireCo is independently added, and
         # unchanged BuildCo must not be mislabeled as a cause.
         texts[urls[0]] = "Orion Data Center construction in Austin, TX."
-        texts[urls[2]] = (
-            "WireCo is the general contractor for Orion Data Center in Austin, TX."
-        )
+        texts[urls[2]] = "WireCo is the general contractor for Orion Data Center in Austin, TX."
         enrich_buying_chain(
-            session, project.id, source_urls=[urls[2]], fetcher=fetch,
+            session,
+            project.id,
+            source_urls=[urls[2]],
+            fetcher=fetch,
             now=NOW + timedelta(minutes=1),
         )
         mixed_events = session.scalars(
@@ -1466,24 +1513,17 @@ def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeyp
         # Two further checked withdrawals must cite both fresh versions.
         texts[urls[1]] = "Orion Data Center construction in Austin, TX."
         texts[urls[2]] = "Orion Data Center construction in Austin, TX."
-        enrich_buying_chain(
-            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2)
-        )
+        enrich_buying_chain(session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2))
         removals = session.scalars(
             select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
         ).all()
         assert len(removals) == 3
-        removal = next(
-            event for event in removals
-            if event.id not in {additions[0].id, mixed.id}
-        )
+        removal = next(event for event in removals if event.id not in {additions[0].id, mixed.id})
         replacement_sources = session.scalars(
             select(BuyingChainEvidence).where(
                 BuyingChainEvidence.project_id == project.id,
                 BuyingChainEvidence.url.in_((urls[1], urls[2])),
-                BuyingChainEvidence.id.not_in(
-                    [row.id for row in [*added_sources, *mixed_sources]]
-                ),
+                BuyingChainEvidence.id.not_in([row.id for row in [*added_sources, *mixed_sources]]),
             )
         ).all()
         assert {str(row.id) for row in replacement_sources} == set(
@@ -1492,31 +1532,28 @@ def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeyp
         assert len(replacement_sources) == 2
         assert removal.evidence_id is None
         count = len(removals)
-        enrich_buying_chain(
-            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2)
+        enrich_buying_chain(session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2))
+        assert (
+            len(
+                session.scalars(
+                    select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
+                ).all()
+            )
+            == count
         )
-        assert len(
-            session.scalars(
-                select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
-            ).all()
-        ) == count
 
         # A -> B -> A may reuse old immutable versions but must emit a new
         # revision only for the actual restored documents.
         texts[urls[0]] = "Acme is the general contractor for Orion Data Center in Austin, TX."
-        texts[urls[1]] = (
-            "BuildCo is the electrical contractor for Orion Data Center in Austin, TX."
-        )
-        enrich_buying_chain(
-            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=3)
-        )
+        texts[urls[1]] = "BuildCo is the electrical contractor for Orion Data Center in Austin, TX."
+        enrich_buying_chain(session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=3))
         restored = session.scalars(
             select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
         ).all()
         assert len(restored) == count + 1
-        restored_event = next(event for event in restored if event.id not in {
-            additions[0].id, mixed.id, removal.id
-        })
+        restored_event = next(
+            event for event in restored if event.id not in {additions[0].id, mixed.id, removal.id}
+        )
         assert set(restored_event.new_state["buying_chain_evidence_ids"]) == {
             str(row.id) for row in added_sources
         }
@@ -1525,12 +1562,8 @@ def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeyp
         ).all()
         assert len(buyer_events) == 4
         assert {
-            frozenset(event.new_state["buying_chain_evidence_ids"])
-            for event in buyer_events
-        } == {
-            frozenset(event.new_state["buying_chain_evidence_ids"])
-            for event in restored
-        }
+            frozenset(event.new_state["buying_chain_evidence_ids"]) for event in buyer_events
+        } == {frozenset(event.new_state["buying_chain_evidence_ids"]) for event in restored}
         assert all(event.evidence_id is None for event in buyer_events)
 
     client = TestClient(api.app)
@@ -1540,16 +1573,14 @@ def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeyp
     history = client.get(f"/api/projects/{project.id}/changes")
     assert history.status_code == 200
     latest = next(
-        row for row in history.json()
-        if row["field"] == "contractor" and row["new"]["value"] == []
+        row for row in history.json() if row["field"] == "contractor" and row["new"]["value"] == []
     )
     assert {row["url"] for row in latest["sources"]} == set(urls[1:])
-    assert {row["id"] for row in latest["sources"]} == {
-        str(row.id) for row in replacement_sources
-    }
+    assert {row["id"] for row in latest["sources"]} == {str(row.id) for row in replacement_sources}
     assert unrelated_url not in {row["url"] for row in latest["sources"]}
     mixed_history = next(
-        row for row in history.json()
+        row
+        for row in history.json()
         if row["field"] == "contractor"
         and set(row["new"].get("buying_chain_evidence_ids", []))
         == {str(source.id) for source in mixed_sources}
@@ -1559,7 +1590,8 @@ def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeyp
     assert morning.status_code == 200
     assert any(
         {source["url"] for source in row["sources"]} == {urls[0], urls[2]}
-        for row in morning.json() if row["kind"] == "contractor_changed"
+        for row in morning.json()
+        if row["kind"] == "contractor_changed"
     )
 
     # Events written before the additive list retain their singular citation.
@@ -1570,7 +1602,8 @@ def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeyp
     legacy_history = client.get(f"/api/projects/{project.id}/changes")
     assert legacy_history.status_code == 200
     legacy_row = next(
-        row for row in legacy_history.json()
+        row
+        for row in legacy_history.json()
         if row["field"] == "contractor"
         and row["buying_chain_evidence_id"] == str(additions[0].buying_chain_evidence_id)
         and "buying_chain_evidence_ids" not in row["new"]
@@ -1604,18 +1637,22 @@ def test_rechecked_aged_role_citation_is_not_causal_to_fresh_restoration(db):
     with db.begin() as session:
         project, _, _ = seed(session)
         enrich_buying_chain(
-            session, project.id, source_urls=[org_url, old_role_url], fetcher=fetch,
+            session,
+            project.id,
+            source_urls=[org_url, old_role_url],
+            fetcher=fetch,
             now=NOW,
         )
-        previous_ids = {
-            event.id for event in session.scalars(select(ChangeEvent)).all()
-        }
+        previous_ids = {event.id for event in session.scalars(select(ChangeEvent)).all()}
         old_role = session.scalar(
             select(BuyingChainEvidence).where(BuyingChainEvidence.url == old_role_url)
         )
         assert old_role is not None
         current = enrich_buying_chain(
-            session, project.id, source_urls=[fresh_role_url], fetcher=fetch,
+            session,
+            project.id,
+            source_urls=[fresh_role_url],
+            fetcher=fetch,
             now=later,
         )
         person = next(row for row in current["candidates"] if row["person_name"])
@@ -1626,14 +1663,14 @@ def test_rechecked_aged_role_citation_is_not_causal_to_fresh_restoration(db):
         )
         assert fresh_role is not None
         new_buyer_events = [
-            event for event in session.scalars(
+            event
+            for event in session.scalars(
                 select(ChangeEvent).where(ChangeEvent.field_name == "buyer")
-            ).all() if event.id not in previous_ids
+            ).all()
+            if event.id not in previous_ids
         ]
         assert len(new_buyer_events) == 1
-        assert new_buyer_events[0].new_state["buying_chain_evidence_ids"] == [
-            str(fresh_role.id)
-        ]
+        assert new_buyer_events[0].new_state["buying_chain_evidence_ids"] == [str(fresh_role.id)]
 
 
 def test_partial_run_keeps_historical_id_without_silencing_a_b_a_change(db):
@@ -1645,9 +1682,11 @@ def test_partial_run_keeps_historical_id_without_silencing_a_b_a_change(db):
         if request_url == failure_url:
             raise RuntimeError("fixture retrieval unavailable")
         return PublicDocument(
-            url, "Orion Data Center",
+            url,
+            "Orion Data Center",
             f"Acme is the {role} for Orion Data Center in Austin, TX.",
-            date(2026, 9, 20), NOW,
+            date(2026, 9, 20),
+            NOW,
         )
 
     with db.begin() as session:
@@ -1662,11 +1701,15 @@ def test_partial_run_keeps_historical_id_without_silencing_a_b_a_change(db):
         assert original is not None
         role = "electrical contractor"
         enrich_buying_chain(
-            session, project.id, source_urls=[failure_url], fetcher=fetch,
+            session,
+            project.id,
+            source_urls=[failure_url],
+            fetcher=fetch,
             now=NOW + timedelta(minutes=1),
         )
         latest_run = session.scalar(
-            select(BuyingChainRun).where(BuyingChainRun.project_id == project.id)
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project.id)
             .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
         )
         assert latest_run is not None
@@ -1678,9 +1721,7 @@ def test_partial_run_keeps_historical_id_without_silencing_a_b_a_change(db):
         assert len(before) == 2
 
         role = "general contractor"
-        enrich_buying_chain(
-            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2)
-        )
+        enrich_buying_chain(session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2))
         after = session.scalars(
             select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
         ).all()
@@ -1924,12 +1965,14 @@ def test_retained_chain_citation_requires_current_project_and_admission(
             person_project_relationship="UNKNOWN",
             evidence_strength="High",
             reason="Retained supplemental source.",
-            citations=[{
-                "evidence_id": str(source.id),
-                "url": source.url,
-                "quote": quote,
-                "supports": "organization_category",
-            }],
+            citations=[
+                {
+                    "evidence_id": str(source.id),
+                    "url": source.url,
+                    "quote": quote,
+                    "supports": "organization_category",
+                }
+            ],
             public_contacts=[],
             observed_at=evidence.observed_at,
         )

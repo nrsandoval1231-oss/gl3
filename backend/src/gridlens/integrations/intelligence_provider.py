@@ -5,12 +5,18 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Iterator
 from typing import Any
 
+import httpcore
 import httpx
+from httpcore._backends.base import NetworkBackend, NetworkStream
+from httpcore._backends.sync import SyncBackend
 
 TIMEOUT_SECONDS = 45
-READ_PHASE_TIMEOUT_SECONDS = 5
+# Connection setup and request upload are short; waiting for the model's
+# response uses whatever remains of the single finite total deadline.
+CONNECT_PHASE_TIMEOUT_SECONDS = 5
 MAX_RESPONSE_BYTES = 65_536
 GROUNDED_INSTRUCTIONS = (
     "Extract claims only when supported by retained evidence. "
@@ -48,8 +54,11 @@ class ProviderResponseError(RuntimeError):
         reported_usage: Any = None,
         raw_response_sha256: str | None = None,
         raw_response_size: int | None = None,
+        cause: str | None = None,
     ):
         super().__init__(message)
+        # Sanitized machine-readable transport cause; never a payload or credential.
+        self.cause = cause
         self.request_id = request_id
         self.conclusive = conclusive
         self.status_code = status_code
@@ -60,6 +69,147 @@ class ProviderResponseError(RuntimeError):
         self.reported_usage = reported_usage
         self.raw_response_sha256 = raw_response_sha256
         self.raw_response_size = raw_response_size
+
+
+class _TotalDeadlineExceeded(Exception):
+    pass
+
+
+class _DeadlineStreamBackend(NetworkBackend):
+    """Clamp each httpcore stream operation to the remaining request budget."""
+
+    def __init__(self, deadline: float):
+        self.deadline = deadline
+        self.backend = SyncBackend()
+
+    def _remaining(self, timeout: float | None, error_type: type[Exception]) -> float:
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise error_type("Provider total request deadline exceeded")
+        return remaining if timeout is None else min(timeout, remaining)
+
+    def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options=None,
+    ) -> NetworkStream:
+        stream = self.backend.connect_tcp(
+            host,
+            port,
+            timeout=self._remaining(timeout, httpcore.ConnectTimeout),
+            local_address=local_address,
+            socket_options=socket_options,
+        )
+        if time.monotonic() >= self.deadline:
+            stream.close()
+            raise httpcore.ConnectTimeout("Provider total request deadline exceeded")
+        return _DeadlineNetworkStream(stream, self)
+
+    def connect_unix_socket(
+        self, path: str, timeout: float | None = None, socket_options=None
+    ) -> NetworkStream:
+        stream = self.backend.connect_unix_socket(
+            path,
+            timeout=self._remaining(timeout, httpcore.ConnectTimeout),
+            socket_options=socket_options,
+        )
+        if time.monotonic() >= self.deadline:
+            stream.close()
+            raise httpcore.ConnectTimeout("Provider total request deadline exceeded")
+        return _DeadlineNetworkStream(stream, self)
+
+    def sleep(self, seconds: float) -> None:
+        self.backend.sleep(seconds)
+
+
+class _DeadlineNetworkStream(NetworkStream):
+    def __init__(self, stream: NetworkStream, backend: _DeadlineStreamBackend):
+        self.stream = stream
+        self.backend = backend
+
+    def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        value = self.stream.read(
+            max_bytes, timeout=self.backend._remaining(timeout, httpcore.ReadTimeout)
+        )
+        if time.monotonic() >= self.backend.deadline:
+            raise httpcore.ReadTimeout("Provider total request deadline exceeded")
+        return value
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        self.stream.write(buffer, timeout=self.backend._remaining(timeout, httpcore.WriteTimeout))
+        if time.monotonic() >= self.backend.deadline:
+            raise httpcore.WriteTimeout("Provider total request deadline exceeded")
+
+    def start_tls(self, ssl_context, server_hostname=None, timeout=None) -> NetworkStream:
+        stream = self.stream.start_tls(
+            ssl_context,
+            server_hostname=server_hostname,
+            timeout=self.backend._remaining(timeout, httpcore.ConnectTimeout),
+        )
+        if time.monotonic() >= self.backend.deadline:
+            stream.close()
+            raise httpcore.ConnectTimeout("Provider total request deadline exceeded")
+        return _DeadlineNetworkStream(stream, self.backend)
+
+    def close(self) -> None:
+        self.stream.close()
+
+    def get_extra_info(self, info: str):
+        return self.stream.get_extra_info(info)
+
+
+def _install_deadline_backend(client: httpx.Client, deadline: float) -> None:
+    """Install on the default and environment-proxy transports before connect."""
+    backend = _DeadlineStreamBackend(deadline)
+    transports = {client._transport, *client._mounts.values()}
+    for transport in transports:
+        pool = getattr(transport, "_pool", None)
+        if pool is not None:
+            pool._network_backend = backend
+
+
+def _phase_timeouts(deadline: float) -> dict[str, float]:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise _TotalDeadlineExceeded
+    setup = min(CONNECT_PHASE_TIMEOUT_SECONDS, remaining)
+    return {"connect": setup, "write": setup, "pool": setup, "read": remaining}
+
+
+class _DeadlineStream(httpx.SyncByteStream):
+    """Check every raw chunk so a slow drip cannot outlive the total deadline."""
+
+    def __init__(self, stream: httpx.SyncByteStream, deadline: float):
+        self.stream = stream
+        self.deadline = deadline
+
+    def __iter__(self) -> Iterator[bytes]:
+        for chunk in self.stream:
+            if time.monotonic() >= self.deadline:
+                raise _TotalDeadlineExceeded
+            yield chunk
+        if time.monotonic() >= self.deadline:
+            raise _TotalDeadlineExceeded
+
+    def close(self) -> None:
+        self.stream.close()
+
+
+def _transport_cause(exc: Exception) -> str:
+    if isinstance(exc, httpx.ConnectTimeout):
+        return "connect_timeout"
+    if isinstance(exc, httpx.ConnectError):
+        return "connect_error"
+    if isinstance(exc, httpx.WriteTimeout | httpx.PoolTimeout):
+        return "send_timeout"
+    if isinstance(exc, httpx.ReadTimeout):
+        return "read_timeout"
+    if isinstance(exc, httpx.RemoteProtocolError):
+        return "protocol_error"
+    return "transport_error"
 
 
 def _post_json(
@@ -80,25 +230,23 @@ def _post_json(
     body_digest = hashlib.sha256()
     body_size = 0
     try:
-        phase_timeout = min(READ_PHASE_TIMEOUT_SECONDS, timeout_seconds)
-        timeout = httpx.Timeout(
-            connect=phase_timeout,
-            read=phase_timeout,
-            write=phase_timeout,
-            pool=phase_timeout,
-        )
-        with httpx.Client(timeout=timeout) as client:
-            with client.stream("POST", url, headers=headers, json=payload) as response:
+        with httpx.Client(timeout=timeout_seconds) as client:
+            _install_deadline_backend(client, deadline)
+            with client.stream(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                extensions={"timeout": _phase_timeouts(deadline)},
+            ) as response:
                 response_received = True
                 response_status = response.status_code
                 request_id = response.headers.get("x-request-id")
-                if time.monotonic() >= deadline:
-                    raise ProviderResponseError(
-                        "Provider total request deadline exceeded",
-                        request_id=request_id,
-                        response_received=True,
-                        status_code=response_status,
-                    )
+                # httpcore reads the body timeout when iteration starts; keep
+                # every body read within the budget left after the headers.
+                response.request.extensions["timeout"] = _phase_timeouts(deadline)
+                assert isinstance(response.stream, httpx.SyncByteStream)
+                response.stream = _DeadlineStream(response.stream, deadline)
                 if response.status_code >= 400:
                     raise ProviderResponseError(
                         f"Provider returned HTTP {response.status_code}",
@@ -106,6 +254,7 @@ def _post_json(
                         conclusive=response.status_code < 500,
                         status_code=response.status_code,
                         response_received=True,
+                        cause="http_status",
                     )
                 length = response.headers.get("content-length")
                 if length and int(length) > MAX_RESPONSE_BYTES:
@@ -115,17 +264,9 @@ def _post_json(
                         response_received=True,
                         status_code=response_status,
                         raw_response_size=int(length),
+                        cause="response_too_large",
                     )
                 for chunk in response.iter_bytes():
-                    if time.monotonic() >= deadline:
-                        raise ProviderResponseError(
-                            "Provider total request deadline exceeded",
-                            request_id=request_id,
-                            response_received=True,
-                            status_code=response_status,
-                            raw_response_sha256=body_digest.hexdigest(),
-                            raw_response_size=body_size,
-                        )
                     body_digest.update(chunk)
                     body_size += len(chunk)
                     remaining = max(0, MAX_RESPONSE_BYTES + 1 - len(body))
@@ -138,16 +279,8 @@ def _post_json(
                             status_code=response_status,
                             raw_response_sha256=body_digest.hexdigest(),
                             raw_response_size=body_size,
+                            cause="response_too_large",
                         )
-                if time.monotonic() >= deadline:
-                    raise ProviderResponseError(
-                        "Provider total request deadline exceeded",
-                        request_id=request_id,
-                        response_received=True,
-                        status_code=response_status,
-                        raw_response_sha256=body_digest.hexdigest(),
-                        raw_response_size=body_size,
-                    )
         data = json.loads(body)
         if not isinstance(data, dict):
             raise ProviderResponseError(
@@ -159,19 +292,26 @@ def _post_json(
                 raw_response=data,
                 raw_response_sha256=body_digest.hexdigest(),
                 raw_response_size=body_size,
+                cause="invalid_response",
             )
         request_id = request_id or (data.get("id") if isinstance(data.get("id"), str) else None)
         return data, request_id, int((time.monotonic() - started) * 1000)
     except ProviderResponseError:
         raise
-    except (httpx.TimeoutException, httpx.TransportError) as exc:
+    except (_TotalDeadlineExceeded, httpx.TransportError) as exc:
+        # A timeout that fires at the total deadline is reported as such; the
+        # outcome stays inconclusive because the provider may have completed.
+        expired = isinstance(exc, _TotalDeadlineExceeded) or (
+            isinstance(exc, httpx.TimeoutException) and time.monotonic() >= deadline - 0.05
+        )
         raise ProviderResponseError(
-            type(exc).__name__,
+            "Provider total request deadline exceeded" if expired else type(exc).__name__,
             request_id=request_id,
             response_received=response_received,
             status_code=response_status,
             raw_response_sha256=body_digest.hexdigest() if body_size else None,
             raw_response_size=body_size or None,
+            cause="total_deadline_exceeded" if expired else _transport_cause(exc),
         ) from exc
     except (ValueError, json.JSONDecodeError, RecursionError) as exc:
         raise ProviderResponseError(
@@ -182,6 +322,7 @@ def _post_json(
             status_code=response_status,
             raw_response_sha256=body_digest.hexdigest() if body_size else None,
             raw_response_size=body_size or None,
+            cause="invalid_response",
         ) from exc
 
 
@@ -277,11 +418,9 @@ def call_openai_request(*, api_key: str, request: dict[str, Any]) -> dict[str, A
         parts = [
             item.get("text", "")
             for block in data["output"]
-            if isinstance(block, dict)
-            and isinstance(block.get("content"), list)
+            if isinstance(block, dict) and isinstance(block.get("content"), list)
             for item in block.get("content", [])
-            if isinstance(item, dict)
-            and item.get("type") == "output_text"
+            if isinstance(item, dict) and item.get("type") == "output_text"
         ]
         output = json.loads("".join(parts))
     except (json.JSONDecodeError, TypeError, AttributeError, RecursionError) as exc:

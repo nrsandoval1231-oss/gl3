@@ -209,9 +209,11 @@ def retrieve(
     try:
         _, body = read_bounded_response(http, query_url(start), MAX_BYTES)
         permits = group_permits(parse_rows(body))
-        return [record(permit) for permit in permits if DATA_CENTER.search(
-            f"{permit['project']} {permit['work']}"
-        )]
+        return [
+            record(permit)
+            for permit in permits
+            if DATA_CENTER.search(f"{permit['project']} {permit['work']}")
+        ]
     finally:
         if client is None:
             http.close()

@@ -21,11 +21,9 @@ The app icon is a square with its own navy or white background. The standalone m
 
 ## Application rules
 
-- In the product interface, place the horizontal lockup **once in the top-left header**. Use the navy version on light surfaces and white version on dark surfaces. Do not repeat the symbol in cards, empty states, maps, or buttons. Favicons and installed app icons are separate system surfaces.
-- GridLens Navy `#17324A` is the dominant interface color. Deep Current `#101F2D` anchors dark surfaces; Steel Blue `#395A75` and Atmosphere `#6F879D` provide hierarchy. Mist `#D5DEE5`, Ice `#F3F6F7`, and White `#FFFFFF` keep content clear.
-- The reference's Signal Blue `#3B82F6` is **not an application color**. Use the tokens in [`brand.tokens.json`](brand.tokens.json) and [`../../web/src/styles/brand-tokens.css`](../../web/src/styles/brand-tokens.css).
-- Maintain clear space of at least a quarter of the symbol's width around the mark or lockup. Prefer the horizontal lockup at 140 px width or larger. At tiny sizes, switch to the dedicated favicon rather than shrinking the full logo.
-- Never stretch, rotate, recolor individual pieces, fill the negative space, apply a glow, or put the dark logo on a dark field.
+The October21 [UI canon](UI_CANON.md) restores the dark navy header and selective Signal Blue accents from the owner screenshot. Use an existing light-on-dark Aperture lockup once at the top left. Preserve all original masters; do not regenerate or approximate a new logo. Silver/orange v3 presentation rules are superseded for this workspace.
+
+The palette is Deep Current #101F2D, GridLens Navy #17324A, Steel Blue #395A75, Atmosphere #6F879D, Mist #D5DEE5, Ice #F3F6F7, White #FFFFFF and selective Signal Blue #3B82F6. See [tokens](brand.tokens.json).
 
 ## Typography and reproducibility
 

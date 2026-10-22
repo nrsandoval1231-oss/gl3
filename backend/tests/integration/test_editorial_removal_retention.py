@@ -147,8 +147,17 @@ def _historical_snapshot(factory):
         assessments = session.scalars(select(EditorialAssessment)).all()
     return (
         tuple(
-            (row.id, row.sequence, row.observation_id, row.evidence_id, row.evidence_hash,
-             row.status, row.reviewer, row.payload, row.created_at)
+            (
+                row.id,
+                row.sequence,
+                row.observation_id,
+                row.evidence_id,
+                row.evidence_hash,
+                row.status,
+                row.reviewer,
+                row.payload,
+                row.created_at,
+            )
             for row in decisions
         ),
         tuple(

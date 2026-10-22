@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from threading import Event
 from time import monotonic
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -41,9 +42,7 @@ def synthetic_structured_segment_for_collection_semantics(monkeypatch):
 
     def synthetic_segment(source, lane, start, end, cursor, client=None, *, deadline=None):
         if source.get("retrieval_method") not in {"socrata-permits", "boston-ckan-permits"}:
-            return original_segment(
-                source, lane, start, end, cursor, client, deadline=deadline
-            )
+            return original_segment(source, lane, start, end, cursor, client, deadline=deadline)
         records = service.retrieve_source(source, client)
         return {
             "records": records,
@@ -179,6 +178,353 @@ def test_collection_replay_and_changed_version_never_create_signals(db, monkeypa
         assert interpretation.evaluator_version
 
 
+def test_accepted_news_queues_retained_only_buying_chain_and_preserves_corrections(db, monkeypatch):
+    from gridlens.intelligence.buying_chain import buying_chain_view
+    from gridlens.jobs import worker
+    from gridlens.persistence.models import BuyingChainClaim, BuyingChainRun
+
+    _, factory, ingestion_job_id = db
+    source_id = "dcd-news"
+    ingestion_job_id = _rss_source_job(factory, source_id, "Data Center Dynamics")
+    import gridlens.ingestion.service as service
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.intelligence import buying_chain
+
+    permit_definition = next(
+        row for row in load_registry() if row["id"] == "austin-building-permits"
+    )
+    with factory.begin() as session:
+        official = Source(
+            id=permit_definition["id"],
+            publisher=permit_definition["publisher"],
+            endpoint=permit_definition["endpoint"],
+            family=permit_definition["family"],
+            geography="Texas",
+            industries=["data centers"],
+            retrieval_method=permit_definition["retrieval_method"],
+            health={},
+        )
+        session.add(official)
+        session.flush()
+        project = Project(
+            identity_key="austin-building-permits:atlas-mesa",
+            name="Atlas Mesa data center",
+            location="100 Main Street, Austin, Texas",
+            source_id=official.id,
+            external_id="atlas-mesa-permit",
+            identity_facts={"site": "100 Main Street, Austin, Texas"},
+        )
+        session.add(project)
+        session.flush()
+        permit_observation = Observation(
+            source_id=official.id,
+            external_id="atlas-mesa-permit",
+            title="Atlas Mesa data center permit, 100 Main Street, Austin, Texas",
+            abstract="Atlas Mesa data center project at 100 Main Street, Austin, Texas.",
+            published_at=date(2026, 9, 25),
+            url="https://abc.austintexas.gov/permit/atlas-mesa",
+            content_hash="official-atlas-mesa-v1",
+        )
+        session.add(permit_observation)
+        session.flush()
+        permit_evidence = Evidence(
+            observation_id=permit_observation.id,
+            content_hash="official-atlas-mesa-v1",
+            title=permit_observation.title,
+            abstract=permit_observation.abstract,
+            url=permit_observation.url,
+            published_at=permit_observation.published_at,
+            extraction_location="permit record",
+        )
+        session.add(permit_evidence)
+        session.flush()
+        session.add(
+            Interpretation(
+                observation_id=permit_observation.id,
+                content_hash=permit_observation.content_hash,
+                status="accepted",
+                evaluator_version="permit-test-v1",
+                assessment={
+                    "decision": "accepted",
+                    "semantic_hash": permit_observation.content_hash,
+                    "evidence_hash": permit_evidence.content_hash,
+                    "subject": project.name,
+                    "location": project.location,
+                    "project_identity_key": project.identity_key,
+                    "power_activity": "facility-expansion",
+                },
+            )
+        )
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier="Signal",
+            rationale="Official permit identifies the data-center project.",
+            supply="Unknown",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        session.add(NeedObservation(need_id=need.id, observation_id=permit_observation.id))
+
+    title = "Atlas begins construction at Atlas Mesa data center in Austin, Texas"
+    first_row = _project_record(
+        "Acme Builders is the general contractor for Atlas Mesa data center. "
+        "Site address: 100 Main Street, Austin, Texas.",
+        title,
+    )
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [first_row])
+    with factory() as session:
+        service.process_job(
+            session,
+            ingestion_job_id,
+            "test",
+            1,
+            {"id": source_id, "retrieval_method": "publisher-rss"},
+        )
+
+    with factory() as session:
+        jobs = list(
+            session.scalars(
+                select(Job)
+                .where(Job.kind == "buying_chain_research")
+                .order_by(Job.created_at, Job.id)
+            )
+        )
+        assert len(jobs) == 1
+        queued = json.loads(jobs[0].checkpoint)
+        assert queued["task_type"] == "buying_chain_retained"
+        project_id = jobs[0].target_id
+        retained_job_id = jobs[0].id
+
+    # The retained task must not enter network admission even when public research is enabled.
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(buying_chain, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "WORKER_ID", "retained-buying-chain-test")
+    monkeypatch.setattr(settings, "buying_chain_public_research_enabled", True)
+    monkeypatch.setattr(
+        buying_chain,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("retained-only extraction attempted HTTP"),
+    )
+    assert worker.run_one({}, job_ids=[retained_job_id])
+    with factory() as session:
+        claims = list(
+            session.scalars(
+                select(BuyingChainClaim).where(BuyingChainClaim.project_id == project_id)
+            )
+        )
+        assert any(
+            claim.organization == "Acme Builders"
+            and claim.category == "general_contractor"
+            and claim.organization_relationship == "DIRECT"
+            for claim in claims
+        )
+        assert not any("rental" in claim.organization.casefold() for claim in claims)
+        assert len(list(session.scalars(select(BuyingChainRun)))) == 1
+
+    # Replaying after successful extraction remains idempotent even though the
+    # worker has added derived claims and a run record.
+    with factory() as session:
+        replay = service.process_job(
+            session,
+            ingestion_job_id,
+            "test",
+            1,
+            {"id": source_id, "retrieval_method": "publisher-rss"},
+        )
+    assert replay["unchanged"] == 1
+    with factory() as session:
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
+            )
+            == 1
+        )
+
+    # A correction creates a new job and current view while retaining the old claim in history.
+    corrected_row = _project_record(
+        "Acme Builders completed its Atlas Mesa data center work. "
+        "Site address: 100 Main Street, Austin, Texas.",
+        title,
+    )
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [corrected_row])
+    with factory() as session:
+        service.process_job(
+            session,
+            ingestion_job_id,
+            "test",
+            1,
+            {"id": source_id, "retrieval_method": "publisher-rss"},
+        )
+    with factory() as session:
+        jobs = list(
+            session.scalars(
+                select(Job)
+                .where(Job.kind == "buying_chain_research", Job.status == "queued")
+                .order_by(Job.created_at, Job.id)
+            )
+        )
+        assert len(jobs) == 1
+        corrected_job_id = jobs[0].id
+    assert worker.run_one({}, job_ids=[corrected_job_id])
+    with factory() as session:
+        current = buying_chain_view(session, project_id)
+        history = buying_chain_view(session, project_id, history=True)
+        assert not any(item["organization"] == "Acme Builders" for item in current["candidates"])
+        assert any(item["organization"] == "Acme Builders" for item in history["candidates"])
+
+
+def test_accepted_permit_automatically_extracts_retained_roles_and_corrections(db, monkeypatch):
+    import gridlens.ingestion.service as service
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.intelligence import buying_chain
+    from gridlens.intelligence.buying_chain import buying_chain_view
+    from gridlens.jobs import worker
+    from gridlens.persistence.models import BuyingChainClaim, BuyingChainRun
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography="Austin, TX",
+                industries=["data centers"],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        ingestion_job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(ingestion_job)
+        session.flush()
+        ingestion_job_id = ingestion_job.id
+
+    def permit(contractor: str) -> dict:
+        description = "Construction of a new data center."
+        return {
+            "document_number": "AUTO-RETAINED-001",
+            "title": "Synthetic construction permit AUTO-RETAINED-001",
+            "abstract": (
+                "Construction of a new data center at 100 Main Street, Austin, TX.\n"
+                f"description: {description}\nstatus: Active\n"
+                f"contractor_company_name: {contractor}\n"
+                "contractor_trade: General Contractor"
+            ),
+            "publication_date": "2026-09-25",
+            "event_date": "2026-09-25",
+            "html_url": "https://example.test/permit/AUTO-RETAINED-001",
+            "permit": {
+                "row_id": "AUTO-RETAINED-001",
+                "description": description,
+                "status": "Active",
+                "address": "100 Main Street",
+                "city": "Austin",
+                "state": "TX",
+                "project": "Atlas Mesa data center",
+                "source_fields": {},
+            },
+        }
+
+    records = [permit("Acme Builders")]
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: records)
+    with factory() as session:
+        counts = service.process_job(
+            session, ingestion_job_id, "test", 1, {**definition, "id": definition["id"]}
+        )
+    assert counts["permit_accepted"] == 1, counts
+    with factory() as session:
+        project = session.scalar(select(Project))
+        interpretation = session.scalar(select(Interpretation))
+        queued = list(session.scalars(select(Job).where(Job.kind == "buying_chain_research")))
+        assert project and interpretation and len(queued) == 1
+        payload = json.loads(queued[0].checkpoint)
+        assert payload["task_type"] == "buying_chain_retained"
+        assert payload["payload"]["evidence_policy_version"] == interpretation.evaluator_version
+        project_id, retained_job_id = project.id, queued[0].id
+        from gridlens.intelligence.buying_chain import retained_buying_chain_backfill
+
+        dry_run = retained_buying_chain_backfill(session, limit=1)
+        assert dry_run["candidate_count"] == 1 and dry_run["queued_count"] == 0
+        assert dry_run["next_after_project_id"] == str(project_id)
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
+            )
+            == 1
+        )
+        applied = retained_buying_chain_backfill(session, limit=1, enqueue=True)
+        assert applied["queued_count"] == 1
+        assert applied["candidates"][0]["job_id"] == str(retained_job_id)
+
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(buying_chain, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "WORKER_ID", "retained-permit-test")
+    monkeypatch.setattr(settings, "buying_chain_public_research_enabled", True)
+    monkeypatch.setattr(
+        buying_chain,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("retained-only extraction attempted HTTP"),
+    )
+    assert worker.run_one({}, job_ids=[retained_job_id])
+    with factory() as session:
+        claims = list(
+            session.scalars(
+                select(BuyingChainClaim).where(BuyingChainClaim.project_id == project_id)
+            )
+        )
+        assert any(
+            row.organization == "Acme Builders"
+            and row.category == "general_contractor"
+            and row.organization_relationship == "DIRECT"
+            for row in claims
+        )
+        assert len(list(session.scalars(select(BuyingChainRun)))) == 1
+        assert buying_chain_view(session, project_id)["candidates"]
+
+    # An unchanged source replay is idempotent and leaves the completed extraction intact.
+    with factory() as session:
+        replay = service.process_job(session, ingestion_job_id, "test", 1, definition)
+    assert replay["unchanged"] == 1
+    with factory() as session:
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
+            )
+            == 1
+        )
+
+    records[:] = [permit("Beta Builders")]
+    with factory() as session:
+        changed = service.process_job(session, ingestion_job_id, "test", 1, definition)
+    assert changed["changed"] == 1
+    with factory() as session:
+        correction_jobs = list(
+            session.scalars(
+                select(Job).where(Job.kind == "buying_chain_research", Job.status == "queued")
+            )
+        )
+        assert len(correction_jobs) == 1
+        correction_job_id = correction_jobs[0].id
+    assert worker.run_one({}, job_ids=[correction_job_id])
+    with factory() as session:
+        current = buying_chain_view(session, project_id)
+        history = buying_chain_view(session, project_id, history=True)
+        assert any(row["organization"] == "Beta Builders" for row in current["candidates"])
+        assert not any(row["organization"] == "Acme Builders" for row in current["candidates"])
+        assert any(row["organization"] == "Acme Builders" for row in history["candidates"])
+
+
 def _project_record(
     summary: str = "", title: str = "Atlas begins construction at Atlas Mesa data center in Texas"
 ):
@@ -194,7 +540,7 @@ def _project_record(
     }
 
 
-def test_applied_digital_news_is_retained_as_context_without_standalone_need(db, monkeypatch):
+def test_applied_digital_news_admits_unknown_power_signal(db, monkeypatch):
     _, factory, _ = db
     job_id = _rss_source_job(factory, "applied-digital-news", "Applied Digital News")
     import gridlens.ingestion.service as service
@@ -220,9 +566,9 @@ def test_applied_digital_news_is_retained_as_context_without_standalone_need(db,
         assert interpretation and interpretation.status == "accepted"
         assert interpretation.assessment["action"] == "will be built"
         assert interpretation.assessment["power_activity"] == "construction"
-        assert interpretation.assessment["admission_status"] == "supplement_unmatched"
-        assert need is None and project_count == 0
-        assert counts["signals"] == 0
+        assert need and project_count == 1
+        assert need.tier == "Signal" and need.required_mw is None and need.supply == "Unknown"
+        assert counts["signals"] == 1
 
 
 def test_news_identity_does_not_merge_distinct_sites_for_same_company_and_state():
@@ -767,7 +1113,8 @@ def test_second_official_need_claim_emits_conflict_without_selected_value_change
         fields = project_state(session, project.id)["state"]["power_need"]["value"][0]
         assert fields["mw"]["status"] == "CONFLICT"
         assert {claim["evidence"]["id"] for claim in fields["mw"]["claims"]} == {
-            str(first_evidence.id), str(second_evidence.id)
+            str(first_evidence.id),
+            str(second_evidence.id),
         }
         event = session.scalar(
             select(ChangeEvent).where(
@@ -778,7 +1125,8 @@ def test_second_official_need_claim_emits_conflict_without_selected_value_change
         )
         assert event is not None
         assert event.new_state["value"][0]["conflicts"]["mw"] == [
-            "about 42 MW", "approximately 58 MW"
+            "about 42 MW",
+            "approximately 58 MW",
         ]
         event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
         agreeing_observation, agreeing_evidence = retained(first_summary, "agreeing-42")
@@ -815,7 +1163,8 @@ def test_second_official_need_claim_emits_conflict_without_selected_value_change
         )
         assert resolution is not None
         assert resolution.prior_state["value"][0]["conflicts"]["mw"] == [
-            "about 42 MW", "approximately 58 MW"
+            "about 42 MW",
+            "approximately 58 MW",
         ]
         assert "conflicts" not in resolution.new_state["value"][0]
         resolved_count = session.scalar(select(func.count()).select_from(ChangeEvent))
@@ -1220,12 +1569,14 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
                 person_project_relationship="UNKNOWN",
                 evidence_strength="High",
                 reason="Official retained citation.",
-                citations=[{
-                    "evidence_id": str(chain_evidence.id),
-                    "url": evidence.url,
-                    "quote": quote,
-                    "supports": "organization_category",
-                }],
+                citations=[
+                    {
+                        "evidence_id": str(chain_evidence.id),
+                        "url": evidence.url,
+                        "quote": quote,
+                        "supports": "organization_category",
+                    }
+                ],
                 public_contacts=[],
                 observed_at=evidence.observed_at,
             )
@@ -1263,11 +1614,14 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
         ) == before_evidence
         assert session.get(ProjectLifecycle, former.id) is None
         assert project_state(session, former.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
-        assert session.scalar(
-            select(func.count())
-            .select_from(LifecycleEvent)
-            .where(LifecycleEvent.project_id == former.id)
-        ) >= 1  # The historical event remains retained.
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(LifecycleEvent)
+                .where(LifecycleEvent.project_id == former.id)
+            )
+            >= 1
+        )  # The historical event remains retained.
         assert buying_chain_view(session, former.id)["candidates"] == []
         assert any(
             row["id"] == chain_claim_ids[former.id]
@@ -1280,13 +1634,18 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
         # The source reports delayed construction, not begun work. Correcting the
         # project binding must not turn that pending claim into lifecycle support.
         assert project_state(session, selected.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
-        assert session.scalar(
-            select(func.count()).select_from(ChangeEvent).where(
-                ChangeEvent.project_id == former.id,
-                ChangeEvent.evidence_id == evidence.id,
-                ChangeEvent.field_name.in_(["phase", "contractor", "buyer"]),
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ChangeEvent)
+                .where(
+                    ChangeEvent.project_id == former.id,
+                    ChangeEvent.evidence_id == evidence.id,
+                    ChangeEvent.field_name.in_(["phase", "contractor", "buyer"]),
+                )
             )
-        ) >= 3
+            >= 3
+        )
         selected_fields = set(
             session.scalars(
                 select(ChangeEvent.field_name).where(
@@ -1328,7 +1687,7 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
 
 
 @pytest.mark.parametrize("prospect_first", [True, False])
-def test_news_only_signal_and_prospect_claims_never_create_a_need(db, monkeypatch, prospect_first):
+def test_news_only_signal_creates_need_without_prospect_promotion(db, monkeypatch, prospect_first):
     _, factory, _ = db
     prospect_job = _rss_source_job(factory, "atlas-prospect-news", "Atlas Prospect News")
     signal_job = _rss_source_job(factory, "atlas-signal-news", "Atlas Signal News")
@@ -1367,16 +1726,17 @@ def test_news_only_signal_and_prospect_claims_never_create_a_need(db, monkeypatc
     for source_id in order:
         ingest(source_id)
     with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        need = session.scalar(select(PowerNeed))
+        assert need.tier == "Signal" and need.required_mw is None and need.supply == "Unknown"
         signal_assessment = session.scalar(
             select(Interpretation.assessment)
             .join(Observation)
             .where(Observation.source_id == "atlas-signal-news")
         )
         assert signal_assessment and signal_assessment["tier"] == "Signal"
-        assert signal_assessment["admission_status"] == "supplement_unmatched"
+        assert signal_assessment["power_activity"] == "construction"
         prospect_row = session.scalar(
             select(Observation).where(Observation.source_id == "atlas-prospect-news")
         )
@@ -1393,11 +1753,11 @@ def test_news_only_signal_and_prospect_claims_never_create_a_need(db, monkeypatc
     assert ingest("atlas-prospect-news")["changed"] == 1
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
 
 
-def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_needs(db, monkeypatch):
+def test_news_only_duplicate_correction_and_replay_preserve_supported_need(db, monkeypatch):
     _, factory, _ = db
     dcd_job = _rss_source_job(factory, "dcd-news", "Data Center Dynamics")
     utility_job = _rss_source_job(factory, "utility-dive-news", "Utility Dive")
@@ -1409,12 +1769,12 @@ def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_nee
         initial = service.process_job(
             session, dcd_job, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
-    assert initial["signals"] == 0
+    assert initial["signals"] == 1
     with factory() as session:
         replay = service.process_job(
             session, dcd_job, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
-    assert replay["signals"] == 0
+    assert replay["signals"] == 1
 
     # Exact title/summary duplicate from another configured feed links to the same event.
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [first])
@@ -1427,10 +1787,9 @@ def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_nee
             {"id": "utility-dive-news", "retrieval_method": "publisher-rss"},
         )
     with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 0
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
 
     # One source correction preserves the need while the second cited source remains current.
     corrected = _project_record(
@@ -1443,8 +1802,8 @@ def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_nee
         )
     with factory() as session:
         need = session.scalar(select(PowerNeed))
-        assert need is None
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert need is not None and need.active
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
         interpretation = session.scalar(
             select(Interpretation).join(Observation).where(Observation.source_id == "dcd-news")
@@ -1466,8 +1825,8 @@ def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_nee
         )
     with factory() as session:
         need = session.scalar(select(PowerNeed))
-        assert need is None
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert need is not None and not need.active
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
         event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
 
@@ -1601,13 +1960,13 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
             )
 
     if news_first:
-        assert ingest(news_source_id)["signals"] == 0
+        assert ingest(news_source_id)["signals"] == 1
         assert ingest(permit_source_id)["permit_accepted"] == 1
         news_counts = ingest(news_source_id)  # Replays the unchanged item after the permit arrives.
     else:
         assert ingest(permit_source_id)["permit_accepted"] == 1
         news_counts = ingest(news_source_id)
-    assert news_counts["signals"] == 0
+    assert news_counts["signals"] == (1 if news_first else 0)
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
@@ -1619,7 +1978,11 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
         assert project and project.identity_facts["project_aliases"] == [
             "Northstar Mesa data center"
         ]
-        assert need and need.activity_key == "facility-expansion" and need.tier == "Signal"
+        assert need and need.activity_key == (
+            "construction" if news_first else "facility-expansion"
+        )
+        assert need.tier == "Signal"
+        old_need_id = need.id
         assert need.required_mw is None and need.supply == "Unknown"
         assert need.admission_basis["origin"] == "Official permit"
         news_observation = session.scalar(
@@ -1628,7 +1991,14 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
         assert news_observation is not None
         decision = session.scalar(
             select(ProjectMatchDecision).where(
-                ProjectMatchDecision.observation_id == news_observation.id,
+                ProjectMatchDecision.observation_id
+                == (
+                    session.scalar(
+                        select(Observation.id).where(Observation.source_id == permit_source_id)
+                    )
+                    if news_first
+                    else news_observation.id
+                ),
                 ProjectMatchDecision.candidate_project_id == project.id,
             )
         )
@@ -1654,15 +2024,20 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
                 ),
             )
         )
-        assert display_decision is None
+        if not news_phase and not news_first:
+            assert display_decision is None
         assessment = session.scalar(
             select(Interpretation.assessment)
             .join(Observation)
             .where(Observation.source_id == news_source_id)
         )
-        assert assessment and assessment["admission_status"] == (
-            "supplement_unknown" if news_phase else "supplemental"
-        )
+        assert assessment
+        if news_first:
+            assert assessment["decision"] == "accepted"
+        else:
+            assert assessment["admission_status"] == (
+                "supplement_unknown" if news_phase else "supplemental"
+            )
         if not news_phase:
             assert "physical address" in decision.reason
             assert "project name/alias" in decision.reason
@@ -1691,15 +2066,15 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
             {"id": news_source_id, "retrieval_method": "publisher-rss"},
         )
     with factory() as session:
-        need = session.scalar(select(PowerNeed))
+        need = session.get(PowerNeed, old_need_id)
         assert need and need.active
         assert session.scalar(select(func.count()).select_from(NeedObservation)) == (
-            1 if news_phase else 2
+            2 if news_phase else 3
         )
         current_news = session.scalar(
             select(Interpretation).join(Observation).where(Observation.source_id == news_source_id)
         )
-        assert current_news.assessment["admission_status"] != "supplemental"
+        assert current_news.assessment.get("admission_status") != "supplemental"
         assert current_news.assessment["subject"] != "Northstar Mesa data center"
     if not news_phase:
         import importlib
@@ -1707,13 +2082,14 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
         api_module = importlib.import_module("gridlens.api.app")
         monkeypatch.setattr(api_module, "SessionLocal", factory)
         cards = api_module.opportunities(tier="Signal")
-        assert len(cards) == 1
+        assert len(cards) == 2
+        old_card = next(card for card in cards if card["project_id"] == project.id)
         news_card_evidence = [
-            item for item in cards[0]["evidence"] if item["source_id"] == news_source_id
+            item for item in old_card["evidence"] if item["source_id"] == news_source_id
         ]
         assert news_card_evidence
         assert all(item["assessment_current"] is False for item in news_card_evidence)
-        assert "Another project" not in cards[0]["rationale"]
+        assert "Another project" not in old_card["rationale"]
 
     permit["abstract"] = (
         "address: 100 Main Street, Austin, TX\nproject: Northstar Mesa data center\n"
@@ -1734,13 +2110,13 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
         )
     assert permit_counts["permit_rejected"] == 1
     with factory() as session:
-        need = session.scalar(select(PowerNeed))
+        need = session.get(PowerNeed, old_need_id)
         assert need and not need.active
         assert session.scalar(select(func.count()).select_from(NeedObservation)) == (
-            1 if news_phase else 2
+            2 if news_phase else 3
         )
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 2
         stable_event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
     with factory() as session:
         service.process_job(
@@ -1876,7 +2252,7 @@ def test_phase_numbered_same_building_permits_consolidate_but_distinct_buildings
     with factory() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.project_id == building_b.id))
         assert need is not None
-        assert need.admission_basis["policy_version"] == "signal-admission-v1"
+        assert need.admission_basis["policy_version"] == "signal-admission-v2"
 
 
 def test_multiple_labeled_rss_sites_keep_record_separate_with_persisted_ambiguity(db, monkeypatch):
@@ -1998,6 +2374,7 @@ def test_multiple_labeled_rss_sites_keep_record_separate_with_persisted_ambiguit
     assert counts["signals"] == 0
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
         observation = session.scalar(
             select(Observation).where(Observation.source_id == news_source_id)
         )
@@ -2057,7 +2434,9 @@ def test_rss_fence_loss_after_durable_evidence_is_retryable(db, monkeypatch):
             session, job_id, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
     with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        need = session.scalar(select(PowerNeed))
+        assert need.tier == "Signal" and need.required_mw is None and need.supply == "Unknown"
         assert session.scalar(select(Interpretation)).status == "accepted"
 
 
@@ -2084,10 +2463,26 @@ def test_apply_reports_interpretation_failure_and_retries(db, monkeypatch, tmp_p
     monkeypatch.setattr(
         service, "assess_news", lambda *_args: (_ for _ in ()).throw(RuntimeError())
     )
-    monkeypatch.setattr("gridlens.persistence.database.SessionLocal", factory)
+    monkeypatch.setattr(
+        reinterpret_news,
+        "_database_session_factory",
+        lambda target, expected: (None, "collection_test", factory),
+    )
     output = tmp_path / "apply.json"
     monkeypatch.setattr(
-        sys, "argv", ["reinterpret_news.py", "--apply", "--limit", "1", "--output", str(output)]
+        sys,
+        "argv",
+        [
+            "reinterpret_news.py",
+            "--apply",
+            "--expected-database-name",
+            "collection_test",
+            "--include-accepted",
+            "--limit",
+            "1",
+            "--output",
+            str(output),
+        ],
     )
     with pytest.raises(SystemExit) as failed:
         reinterpret_news.main()
@@ -2106,6 +2501,94 @@ def test_apply_reports_interpretation_failure_and_retries(db, monkeypatch, tmp_p
     retry_report = json.loads(output.read_text(encoding="utf-8"))
     assert retry_report["failed_or_pending"] == 0
     assert retry_report["decisions"][0]["status"] == "accepted"
+
+
+def test_retained_reassessment_is_cursor_bounded_and_preserves_history(db):
+    _, factory, _ = db
+    script_path = Path(__file__).parents[3] / "scripts" / "reinterpret_news.py"
+    spec = importlib.util.spec_from_file_location("reinterpret_news_cursor", script_path)
+    assert spec and spec.loader
+    reinterpret_news = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reinterpret_news)
+    first_id, second_id = UUID(int=100), UUID(int=200)
+    with factory.begin() as session:
+        for observation_id, title, abstract, published_at in (
+            (
+                first_id,
+                "Atlas begins construction at Atlas Mesa data center in Austin, Texas",
+                "Site address: 100 Main Street, Austin, Texas.",
+                date(2026, 10, 1),
+            ),
+            (
+                second_id,
+                "Texas cannabis regulators adopt licensing rules",
+                "The policy applies to future applications.",
+                None,
+            ),
+        ):
+            digest = hashlib.sha256(f"{title}|{abstract}".encode()).hexdigest()
+            observation = Observation(
+                id=observation_id,
+                source_id="mjbizdaily-news",
+                external_id=f"reassessment-{observation_id.int}",
+                title=title,
+                abstract=abstract,
+                published_at=published_at,
+                url=f"https://mjbizdaily.com/reassessment/{observation_id.int}",
+                content_hash=digest,
+            )
+            session.add(observation)
+            session.flush()
+            session.add(
+                Evidence(
+                    observation_id=observation.id,
+                    content_hash=digest,
+                    title=title,
+                    abstract=abstract,
+                    url=observation.url,
+                    published_at=published_at,
+                )
+            )
+            session.add(
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=digest,
+                    status="rejected",
+                    evaluator_version="rss-project-v6",
+                    assessment={
+                        "decision": "rejected",
+                        "reason": "Prior retained decision",
+                        "semantic_hash": digest,
+                    },
+                    attempts=1,
+                )
+            )
+    first_page = reinterpret_news.apply_retained_news(factory, 1)
+    assert first_page["source_count"] == 1
+    assert first_page["next_cursor"] == str(first_id)
+    with factory() as session:
+        current = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == first_id)
+        )
+        assert current and current.status == "accepted"
+        assert current.evaluator_version == reinterpret_news.EVALUATOR_VERSION
+        assert current.assessment["previous_decisions"][0]["reason"] == "Prior retained decision"
+    second_page = reinterpret_news.apply_retained_news(
+        factory, 1, after_observation_id=first_page["next_cursor"]
+    )
+    assert second_page["source_count"] == 1
+    assert second_page["decisions"][0]["published_at"] is None
+    assert second_page["next_cursor"] == str(second_id)
+    explicit_replay = reinterpret_news.apply_retained_news(factory, 1, include_accepted=True)
+    assert explicit_replay["mode"] == "apply-including-accepted"
+    assert explicit_replay["source_count"] == 1
+    with factory() as session:
+        current = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == first_id)
+        )
+        assert current and current.assessment["previous_decisions"][0]["reason"] == (
+            "Prior retained decision"
+        )
 
 
 def test_authenticated_inbox_filters_and_paginates_retained_versions(db, monkeypatch):
@@ -2253,3 +2736,92 @@ def test_authenticated_inbox_filters_and_paginates_retained_versions(db, monkeyp
     assert all(
         "topic_label" not in item and "matched_terms" not in item for item in all_items["items"]
     )
+
+
+def test_news_discovery_unknown_activity_reassessment_and_correction(db):
+    from gridlens.ingestion.service import assess_retained_news
+
+    _, factory, _ = db
+    with factory.begin() as session:
+        source = session.get(Source, "mjbizdaily-news")
+        title = "Atlas sells New York smelter to data center developer"
+        observation = Observation(
+            source_id=source.id,
+            external_id="site-sale",
+            title=title,
+            abstract="",
+            published_at=date(2026, 10, 20),
+            url="https://example.com/news/site-sale",
+            content_hash="a" * 64,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            title=title,
+            abstract="",
+            url=observation.url,
+            published_at=observation.published_at,
+            content_hash="a" * 64,
+        )
+        session.add(evidence)
+        session.flush()
+        assert assess_retained_news(session, observation, evidence)
+        interpretation = session.scalar(select(Interpretation))
+        need = session.scalar(select(PowerNeed))
+        assert interpretation.status == "accepted"
+        assert interpretation.assessment["power_activity"] == "project-discovery"
+        assert (need.activity_key, need.tier, need.required_mw, need.supply) == (
+            "project-discovery",
+            "Signal",
+            None,
+            "Unknown",
+        )
+        sibling = PowerNeed(
+            project_id=need.project_id,
+            activity_key="commissioning",
+            tier="Signal",
+            rationale="Independent commissioning evidence",
+            supply="Unknown",
+        )
+        session.add(sibling)
+        session.flush()
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(NeedObservation)
+                .where(NeedObservation.need_id == sibling.id)
+            )
+            == 0
+        )
+        assert not assess_retained_news(session, observation, evidence)
+        # A policy-only replay is not a new source version; its old decision is retained.
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "admission_policy_version": "signal-admission-v1",
+        }
+        assert assess_retained_news(session, observation, evidence)
+        assert interpretation.assessment["previous_decisions"][-1]["admission_policy_version"] == (
+            "signal-admission-v1"
+        )
+        assert not assess_retained_news(session, observation, evidence)
+        observation.title = "Atlas cancels New York smelter sale"
+        observation.content_hash = "b" * 64
+        revised = Evidence(
+            observation_id=observation.id,
+            title=observation.title,
+            abstract="",
+            url=observation.url,
+            published_at=observation.published_at,
+            content_hash="b" * 64,
+        )
+        session.add(revised)
+        session.flush()
+        assert assess_retained_news(session, observation, revised)
+        session.refresh(need)
+        assert not need.active
+        session.refresh(sibling)
+        assert sibling.active
+        assert interpretation.status == "rejected"
+        assert interpretation.assessment["previous_decisions"]
+        assert not assess_retained_news(session, observation, revised)
