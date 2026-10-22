@@ -547,6 +547,34 @@ def chicago_contacts(text: str) -> list[tuple[str, str, str, str]]:
     ]
 
 
+def fort_worth_owner(source_id: str, text: str) -> tuple[str, str] | None:
+    """Accept the explicit Fort Worth owner field only when it names an organization."""
+    if source_id not in {"fort-worth-development-permits", "fort-worth-permits"}:
+        return None
+    owner = fields(source_id, text).get("Owner of record")
+    if not owner or owner[0].strip().casefold() in {"not stated", "unknown", "none"}:
+        return None
+    if not re.search(
+        r"\b(?:LLC|L\.L\.C\.?|Inc\.?|Corp\.?|Corporation|Company|LP|L\.P\.)\b",
+        owner[0],
+        re.I,
+    ):
+        return None
+    return owner[0].strip(), owner[1]
+
+
+def georgia_named_owner(source_id: str, text: str) -> tuple[str, str] | None:
+    """Extract only the explicit named-facility ownership clause."""
+    if source_id != GEORGIA:
+        return None
+    match = re.search(
+        r"(?P<relationship>TA Digital Realty \(TADG\)\s*[–-]\s*ATL02,\s*which is owned by\s+"
+        r"(?P<owner>[A-Z][A-Za-z0-9&'’., -]{1,100}?(?:LLC|L\.L\.C\.?|Inc\.?|Corporation)))\b",
+        text,
+    )
+    return (match.group("owner").strip(), match.group(0)) if match else None
+
+
 def georgia_identity(text: str) -> list[tuple[str, str, str]]:
     lines = [line for line in text.splitlines() if line.startswith("Draft identity (page 1): ")]
     if len(lines) != 1:
