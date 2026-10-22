@@ -265,18 +265,23 @@ def extract_retained_claims(
     }:
         comments = fields(source_id, text).get("Comments")
         if comments and re.search(r"\btemporary electrical work\b", comments[0], re.I):
-            voltage_match = re.search(
-                r"(?<!\d)(\d{2,4})\s*V\s*(\d{1,2})\s*Ph\b(?:[^\n]{0,80})?",
-                comments[0],
-                re.I,
+            voltages = list(
+                dict.fromkeys(
+                    f"{int(match[1])} V, {int(match[2])} phase"
+                    for match in re.finditer(
+                        r"(?<!\d)(\d{2,4})\s*V\s*(\d{1,2})\s*Ph\b",
+                        comments[0],
+                        re.I,
+                    )
+                )
             )
-            if voltage_match:
+            if voltages:
                 return RetainedPermitExtraction(
                     "verified",
                     (
                         RetainedPermitClaim(
                             "voltage",
-                            f"{int(voltage_match[1])} V, {int(voltage_match[2])} phase",
+                            "; ".join(voltages),
                             comments[1],
                             "Permit-listed electrical constraint",
                         ),

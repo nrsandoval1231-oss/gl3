@@ -13,7 +13,13 @@ from gridlens.domain.signal_admission import (
     admitted_from_source,
 )
 from gridlens.ingestion.adapters import retained_document
-from gridlens.ingestion.adapters.retained_document import SOURCES, extract
+from gridlens.ingestion.adapters.retained_document import (
+    SOURCES,
+    STACK_CONFLICT_ACTION,
+    STACK_CONFLICT_REASON,
+    extract,
+    stack_service_conflict,
+)
 
 IMPORT_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "import_retained_document.py"
 IMPORT_SPEC = importlib.util.spec_from_file_location("retained_document_unit_cli", IMPORT_SCRIPT)
@@ -99,6 +105,44 @@ def test_retained_pdf_size_is_checked_before_read(tmp_path, monkeypatch):
 def test_unreviewed_source_id_fails_closed(tmp_path):
     with pytest.raises(ValueError, match="Unreviewed"):
         extract("f17-unreviewed", tmp_path)
+
+
+def test_stack_conflict_proof_only_carries_attributed_context_for_current_exact_sources():
+    item = {
+        "name": "SVY02A / Memorex Junction data center",
+        "location": "1200 Memorex Drive, Santa Clara, CA",
+        "evidence": [
+            {
+                "id": source_id,
+                "source_id": source_id,
+                "url": SOURCES[source_id]["url"],
+                "content_hash": SOURCES[source_id]["sha256"],
+                "abstract": passage,
+                "assessment_current": True,
+            }
+            for source_id, passage in (
+                (
+                    "f17-stack-city-claim",
+                    "At 1200 Memorex Drive in Santa Clara, STACK reports an 18 MVA "
+                    "cap until 2028 rather than 28 MVA and 31 MVA.",
+                ),
+                (
+                    "f17-stack-cec-filing",
+                    "At 1200 Memorex Drive in Santa Clara, the draft Table E1 "
+                    "capacity schedule (MVA) lists 28 and 31.",
+                ),
+            )
+        ],
+    }
+    proof = stack_service_conflict(item)
+    assert proof.status == "verified"
+    assert proof.reason == STACK_CONFLICT_REASON
+    assert proof.next_action == STACK_CONFLICT_ACTION
+
+    item["evidence"][1]["content_hash"] = "0" * 64
+    stale = stack_service_conflict(item)
+    assert stale.status == "handled_without_proof"
+    assert stale.reason is None and stale.next_action is None
 
 
 @pytest.mark.parametrize(

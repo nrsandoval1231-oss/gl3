@@ -93,6 +93,20 @@ SOURCES: dict[str, dict[str, Any]] = {
 }
 MAX_BODY_BYTES = 80_000_000
 MAX_EXCERPT_CHARS = 80_000
+STACK_CONFLICT_REASON = (
+    "STACK's June 24, 2024 city claim reports an earlier 28 MVA (2026) / "
+    "31 MVA (2027) schedule, and says SVP told STACK on March 14, 2024 "
+    "that service would be capped at 18 MVA or less until at least 2028 "
+    "at this Memorex site. The September 2021 draft Substation Agreement "
+    "is attached to STACK's February 2025 CEC filing. These are attributed "
+    "claims, not an adjudicated current-service determination; actual "
+    "temporary-power need remains UNKNOWN."
+)
+STACK_CONFLICT_ACTION = (
+    "Verify the current utility delivery schedule and any temporary-power "
+    "scope with the utility; use the dated STACK city claim and attached "
+    "draft Substation Agreement as the source history."
+)
 
 
 @dataclass(frozen=True)
@@ -100,6 +114,8 @@ class StackProof:
     """Source-owned outcome for the exact retained STACK service conflict."""
 
     status: str
+    reason: str | None = None
+    next_action: str | None = None
 
 
 @dataclass(frozen=True)
@@ -147,7 +163,7 @@ def stack_service_conflict(item: Mapping[str, Any]) -> StackProof:
         )
         if not all(term in text for term in required_terms):
             return StackProof("handled_without_proof")
-    return StackProof("verified")
+    return StackProof("verified", STACK_CONFLICT_REASON, STACK_CONFLICT_ACTION)
 
 
 def stack_project_alias(item: Mapping[str, Any], sources: Sequence[Any]) -> StackAliasProof:
