@@ -313,6 +313,7 @@ def operations_view(session: Session) -> dict[str, Any]:
                     else_=0,
                 )
             ),
+            func.sum(case((LogicalCall.financial_budget_mode == "owner_unlimited", 1), else_=0)),
         ).group_by(LogicalCall.provider)
     ).all()
     overage_by_provider: dict[str, Any] = {}
@@ -381,8 +382,9 @@ def operations_view(session: Session) -> dict[str, Any]:
             "actual_cost_usd": float(actual) if actual_count else None,
             "known_cost_calls": int(actual_count or 0),
             "reserved_cost_usd": float(reserved or 0),
-            "reserved_unknown": bool(reservation_unknown),
+            "reserved_unknown": bool(reservation_unknown or unlimited_count),
             "unknown_cost_calls": int(unknown_count or 0),
+            "owner_unlimited_calls": int(unlimited_count or 0),
             "uncertain": int(uncertain or 0),
             "failed": int(failed or 0),
             "overage_cost_usd": round(float(overage_by_provider.get(provider) or 0), 6),
@@ -396,6 +398,7 @@ def operations_view(session: Session) -> dict[str, Any]:
             uncertain,
             failed,
             reservation_unknown,
+            unlimited_count,
         ) in cost_by_provider
     }
     calls = (
@@ -427,6 +430,8 @@ def operations_view(session: Session) -> dict[str, Any]:
                 "uncertain": 0,
                 "failed": 0,
                 "unknown_cost_calls": 0,
+                "owner_unlimited_calls": 0,
+                "financial_authorization_refs": [],
                 "input_tokens": 0,
                 "output_tokens": 0,
                 "input_token_known_calls": 0,
@@ -443,6 +448,13 @@ def operations_view(session: Session) -> dict[str, Any]:
         stat["completed"] += int(call.status == "COMPLETED")
         stat["failed"] += int(call.status == "FAILED")
         stat["uncertain"] += int(call.status == "SENT_OUTCOME_UNKNOWN")
+        if call.financial_budget_mode == "owner_unlimited":
+            stat["owner_unlimited_calls"] += 1
+            if (
+                call.financial_authorization_ref
+                and call.financial_authorization_ref not in stat["financial_authorization_refs"]
+            ):
+                stat["financial_authorization_refs"].append(call.financial_authorization_ref)
         model = stat["models"].setdefault(
             call.model,
             {"called": 0, "completed": 0, "pinned_model": call.model, "actual_models": {}},
@@ -482,10 +494,6 @@ def operations_view(session: Session) -> dict[str, Any]:
             stat["usage_known_calls"] += 1
         else:
             stat["usage_unknown_calls"] += 1
-        if call.status in {"NOT_SENT", "SENT_OUTCOME_UNKNOWN"} or (
-            call.status in {"COMPLETED", "FAILED", "RECONCILED"} and call.actual_cost_usd is None
-        ):
-            amount = float(call.max_cost_usd or call.estimated_cost_usd or 0)
         latency = None
         if isinstance(call.result_payload, dict):
             latency = call.result_payload.get("latency_ms")
@@ -547,6 +555,8 @@ def operations_view(session: Session) -> dict[str, Any]:
                 "output_token_unknown_calls": 0,
                 "usage_known_calls": 0,
                 "usage_unknown_calls": 0,
+                "owner_unlimited_calls": 0,
+                "financial_authorization_refs": [],
                 "measured_latency_ms": [],
             },
         )

@@ -57,6 +57,7 @@ JOB_KIND = "intelligence_process"
 POLICY_VERSION = "bounded-intelligence-v1"
 TYPESAFE_BILLING_CONTRACT_ID = "systemone-v1"
 TYPESAFE_BILLING_POLICY_ID = "typesafe-total-input-ceiling-v1"
+TYPESAFE_UNLIMITED_BILLING_POLICY_ID = "typesafe-reported-input-usage-v1"
 TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID = "typesafe-signal-estimate-v1"
 TYPESAFE_SIGNAL_ESTIMATE_TASK = "SIGNAL_ADJUDICATION"
 TYPESAFE_SIGNAL_ESTIMATE_MODEL = "jev-1.13.0"
@@ -738,7 +739,7 @@ def _enabled(
             return False, "", "", "TYPESAFE_DISABLED"
         if not settings.typesafe_api_key:
             return False, "", "", "TYPESAFE_KEY_OR_PINNED_MODEL_MISSING"
-        billing_reason = _typesafe_billing_block_reason(expected_model)
+        billing_reason = _typesafe_billing_block_reason(expected_model, task_type)
         if billing_reason:
             return False, "", "", billing_reason
         if (
@@ -752,7 +753,7 @@ def _enabled(
         return False, "", "", "TYPESAFE_DISABLED"
     if not settings.typesafe_api_key or not settings.intelligence_typesafe_model:
         return False, "", "", "TYPESAFE_KEY_OR_PINNED_MODEL_MISSING"
-    billing_reason = _typesafe_billing_block_reason(settings.intelligence_typesafe_model)
+    billing_reason = _typesafe_billing_block_reason(settings.intelligence_typesafe_model, task_type)
     if billing_reason:
         return False, "", "", billing_reason
     if (
@@ -852,23 +853,34 @@ def _estimated_signal_policy_block_reason(payload: dict[str, Any] | None) -> str
     return ""
 
 
-def _typesafe_billing_block_reason(model: str) -> str:
+def _typesafe_billing_block_reason(model: str, task_type: str | None = None) -> str:
     """Require explicit model/contract/policy proof and a total input ceiling.
 
     The current SystemOne transport has no documented, enforced output bound, so
     billable output cannot be reserved safely. Input proof must include all
     provider-wrapper tokens; client JSON size and a numeric cap alone are not proof.
     """
-    if (
+    unlimited = bool(task_type and _owner_unlimited_allowed("typesafe", task_type))
+    if unlimited and re.fullmatch(r"jev-\d+\.\d+\.\d+", model) is None:
+        return "TYPESAFE_PINNED_VERSIONED_MODEL_REQUIRED"
+    expected_policy = (
+        TYPESAFE_UNLIMITED_BILLING_POLICY_ID if unlimited else TYPESAFE_BILLING_POLICY_ID
+    )
+    common_invalid = (
         not settings.intelligence_typesafe_billing_verified
         or settings.intelligence_typesafe_billing_mode != "input_only"
         or not model
         or settings.intelligence_typesafe_billing_model_id != model
         or settings.intelligence_typesafe_billing_contract_id != TYPESAFE_BILLING_CONTRACT_ID
-        or settings.intelligence_typesafe_billing_policy_id != TYPESAFE_BILLING_POLICY_ID
+        or settings.intelligence_typesafe_billing_policy_id != expected_policy
         or not settings.intelligence_typesafe_billing_reference.strip()
-        or not settings.intelligence_typesafe_total_input_bound_verified
-        or settings.intelligence_typesafe_max_total_billable_input_tokens <= 0
+    )
+    if common_invalid or (
+        not unlimited
+        and (
+            not settings.intelligence_typesafe_total_input_bound_verified
+            or settings.intelligence_typesafe_max_total_billable_input_tokens <= 0
+        )
     ):
         return "TYPESAFE_BILLING_OR_INPUT_BOUND_PROOF_MISSING_OR_MISMATCHED"
     if settings.intelligence_typesafe_output_usd_per_million != 0:
@@ -882,6 +894,12 @@ def _billing_policy_identity(
     """Return response/billing policy identity used for call freshness and dispatch."""
     if provider not in {"typesafe", "openai"}:
         return None
+    financial_identity = {
+        "financial_budget_mode": settings.intelligence_financial_budget_mode,
+        "financial_authorization_ref": settings.intelligence_financial_authorization_ref,
+        "unlimited_contracts": settings.intelligence_unlimited_contracts,
+        "unlimited_providers": settings.intelligence_unlimited_providers,
+    }
     response_policy = {"response_guard_policy": "exact-model-usage-v1", "provider_model": model}
     if provider == "openai":
         prefix = (
@@ -894,6 +912,7 @@ def _billing_policy_identity(
         name_prefix = "intelligence_ocr" if prefix == "ocr" else f"intelligence_openai_{prefix}"
         return {
             **response_policy,
+            **financial_identity,
             "pricing_verified": str(getattr(settings, f"{name_prefix}_pricing_verified")).lower(),
             "priced_model_id": getattr(settings, f"{name_prefix}_priced_model_id"),
             "input_rate": str(getattr(settings, f"{name_prefix}_input_usd_per_million")),
@@ -904,6 +923,7 @@ def _billing_policy_identity(
         scope = sorted(_estimated_signal_observation_ids())
         return {
             **response_policy,
+            **financial_identity,
             "task_type": TYPESAFE_SIGNAL_ESTIMATE_TASK,
             "cost_basis": "ESTIMATE",
             "policy_id": TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID,
@@ -927,14 +947,21 @@ def _billing_policy_identity(
         }
     return {
         **response_policy,
+        **financial_identity,
         "mode": settings.intelligence_typesafe_billing_mode,
         "verified": str(settings.intelligence_typesafe_billing_verified).lower(),
         "model_id": settings.intelligence_typesafe_billing_model_id,
         "contract_id": settings.intelligence_typesafe_billing_contract_id,
-        "policy_id": settings.intelligence_typesafe_billing_policy_id,
+        "policy_id": (
+            TYPESAFE_UNLIMITED_BILLING_POLICY_ID
+            if task_type is not None and _owner_unlimited_allowed(provider, task_type)
+            else settings.intelligence_typesafe_billing_policy_id
+        ),
         "reference": settings.intelligence_typesafe_billing_reference,
-        "max_total_billable_input_tokens": str(
-            settings.intelligence_typesafe_max_total_billable_input_tokens
+        "max_total_billable_input_tokens": (
+            "UNBOUNDED"
+            if task_type is not None and _owner_unlimited_allowed(provider, task_type)
+            else str(settings.intelligence_typesafe_max_total_billable_input_tokens)
         ),
         "total_input_bound_verified": str(
             settings.intelligence_typesafe_total_input_bound_verified
@@ -979,7 +1006,7 @@ def _dispatch_policy(
     provider: str,
     model: str,
     payload: dict[str, Any],
-    reserved_cost: Decimal,
+    reserved_cost: Decimal | None,
     expected_billing_policy: dict[str, str] | None = None,
 ) -> tuple[bool, str]:
     enabled, current_provider, current_model, reason = _enabled(task_type, question_id, payload)
@@ -990,10 +1017,16 @@ def _dispatch_policy(
         and _billing_policy_identity(provider, model, task_type) != expected_billing_policy
     ):
         return False, "TYPESAFE_BILLING_POLICY_CHANGED"
-    if settings.intelligence_max_call_usd <= 0 or settings.intelligence_max_active_calls <= 0:
+    unlimited = _owner_unlimited_allowed(provider, task_type)
+    if settings.intelligence_max_active_calls <= 0:
+        return False, "ACTIVE_CALL_CAP_REQUIRED"
+    if not unlimited and settings.intelligence_max_call_usd <= 0:
         return False, "FINITE_BUDGET_REQUIRED"
     current_cost = _cost_bound(provider, task_type, payload)
-    if (
+    if unlimited:
+        if reserved_cost is not None:
+            return False, "FINANCIAL_POLICY_CHANGED"
+    elif (
         current_cost <= 0
         or current_cost != reserved_cost
         or current_cost > settings.intelligence_max_call_usd
@@ -1006,9 +1039,20 @@ def _dispatch_policy(
             usd_cap = limits[f"{period}_usd"]
             if type(count_cap) is not int or count_cap <= 0:
                 return False, f"{scope.upper()}_{period.upper()}_CAP_ZERO"
-            if usd_cap <= 0 or current_cost > usd_cap:
+            if not unlimited and (usd_cap <= 0 or current_cost > usd_cap):
                 return False, f"{scope.upper()}_{period.upper()}_USD_CAP_INVALID"
     return True, ""
+
+
+def _owner_unlimited_allowed(provider: str, task_type: str) -> bool:
+    return bool(
+        settings.intelligence_financial_budget_mode == "owner_unlimited"
+        and settings.intelligence_financial_authorization_ref.strip()
+        and provider
+        in {v.strip() for v in settings.intelligence_unlimited_providers.split(",") if v.strip()}
+        and task_type
+        in {v.strip() for v in settings.intelligence_unlimited_contracts.split(",") if v.strip()}
+    )
 
 
 def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decimal:
@@ -1080,7 +1124,7 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
             if _serialized_request_bytes(request) > TYPESAFE_SIGNAL_REQUEST_MAX_BYTES:
                 return Decimal("0")
             return settings.intelligence_typesafe_estimated_reservation_usd
-        if _typesafe_billing_block_reason(settings.intelligence_typesafe_model):
+        if _typesafe_billing_block_reason(settings.intelligence_typesafe_model, task_type):
             return Decimal("0")
         input_price = settings.intelligence_typesafe_input_usd_per_million
         input_tokens = settings.intelligence_typesafe_max_total_billable_input_tokens
@@ -1332,6 +1376,7 @@ def _provider_error_quarantine_details(
     elif (
         provider == "typesafe"
         and not (billing_policy is not None and billing_policy.get("cost_basis") == "ESTIMATE")
+        and (billing_policy or {}).get("policy_id") != TYPESAFE_UNLIMITED_BILLING_POLICY_ID
         and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
     ):
         reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
@@ -1868,22 +1913,28 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 }
             )
             max_cost = _cost_bound(provider, task_type, payload)
-            if (
+            unlimited = _owner_unlimited_allowed(provider, task_type)
+            if settings.intelligence_financial_budget_mode == "owner_unlimited" and not unlimited:
+                budget_error = "UNLIMITED_CONTRACT_NOT_AUTHORIZED"
+            elif settings.intelligence_max_active_calls <= 0:
+                budget_error = "ACTIVE_CALL_CAP_REQUIRED"
+            elif not unlimited and (
                 max_cost <= 0
                 or settings.intelligence_max_call_usd <= 0
                 or max_cost > settings.intelligence_max_call_usd
-                or settings.intelligence_max_active_calls <= 0
             ):
-                checkpoint.update(status="blocked", error="FINITE_BUDGET_REQUIRED")
-                checkpoint.update(
-                    validation_outcome="BLOCKED", validation_reason="FINITE_BUDGET_REQUIRED"
-                )
+                budget_error = "FINITE_BUDGET_REQUIRED"
+            else:
+                budget_error = ""
+            if budget_error:
+                checkpoint.update(status="blocked", error=budget_error)
+                checkpoint.update(validation_outcome="BLOCKED", validation_reason=budget_error)
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
                 _record_research_receipt(session, checkpoint)
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
                 return {
                     "status": "blocked",
-                    "error": "FINITE_BUDGET_REQUIRED",
+                    "error": budget_error,
                     "job_id": str(job_id),
                 }
             reserve_args = {
@@ -1901,8 +1952,14 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "job_id": job.id,
                 "worker_id": worker_id,
                 "enabled": True,
-                "estimated_cost_usd": max_cost,
-                "max_cost_usd": max_cost,
+                "estimated_cost_usd": None if unlimited else max_cost,
+                "max_cost_usd": None if unlimited else max_cost,
+                "financial_budget_mode": settings.intelligence_financial_budget_mode,
+                "financial_authorization_ref": settings.intelligence_financial_authorization_ref
+                if unlimited
+                else None,
+                "unlimited_contracts": settings.intelligence_unlimited_contracts,
+                "unlimited_providers": settings.intelligence_unlimited_providers,
                 "caps": _caps(),
                 "max_active": settings.intelligence_max_active_calls,
                 "fence_token": fence_token,
@@ -1972,7 +2029,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
         provider,
         model,
         payload,
-        max_cost,
+        None if unlimited else max_cost,
         billing_policy,
     )
     with SessionLocal() as session:
@@ -2024,6 +2081,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 quarantine_reason = "INVALID_REPORTED_USAGE"
             elif (
                 input_tokens is not None
+                and (billing_policy or {}).get("policy_id") != TYPESAFE_UNLIMITED_BILLING_POLICY_ID
                 and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
             ):
                 quarantine_reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"

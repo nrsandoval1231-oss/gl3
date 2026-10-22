@@ -1017,6 +1017,92 @@ def test_catalog_worker_rechecks_exact_billing_proof_before_dispatch(sessions, m
     assert history[0]["error"] == "TYPESAFE_BILLING_POLICY_CHANGED"
 
 
+def test_catalog_worker_owner_unlimited_reserves_zero_usd_and_rechecks_authorization(
+    sessions, monkeypatch
+):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_financial_budget_mode", "owner_unlimited")
+    monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", "fixture-auth-1")
+    monkeypatch.setattr(settings, "intelligence_unlimited_providers", "typesafe")
+    monkeypatch.setattr(settings, "intelligence_unlimited_contracts", "SOURCE_RELEVANCE_V1")
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_billing_policy_id", "typesafe-reported-input-usage-v1"
+    )
+    monkeypatch.setattr(settings, "intelligence_typesafe_total_input_bound_verified", False)
+    monkeypatch.setattr(settings, "intelligence_typesafe_max_total_billable_input_tokens", 0)
+    for scope in ("global", "provider", "model", "source", "project"):
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_usd", Decimal("0"))
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_usd", Decimal("0"))
+    need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    provider_calls = []
+    from gridlens.intelligence import intelligence_jobs
+
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "call_typesafe",
+        lambda **_kwargs: (provider_calls.append(True) or _fake_call()),
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        history = intelligence_history(session, need_id)
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global",
+                LogicalCallBudget.period == "daily",
+            )
+        )
+    assert provider_calls == [True]
+    assert call and call.status == "COMPLETED"
+    assert call.financial_budget_mode == "owner_unlimited"
+    assert call.financial_authorization_ref == "fixture-auth-1"
+    assert call.estimated_cost_usd is None and call.max_cost_usd is None
+    assert budget and budget.call_count == 1 and budget.cost_usd == 0
+    assert history[0]["status"] == "completed"
+
+
+def test_catalog_worker_changed_unlimited_authorization_blocks_before_dispatch(
+    sessions, monkeypatch
+):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_financial_budget_mode", "owner_unlimited")
+    monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", "fixture-auth-1")
+    monkeypatch.setattr(settings, "intelligence_unlimited_providers", "typesafe")
+    monkeypatch.setattr(settings, "intelligence_unlimited_contracts", "SOURCE_RELEVANCE_V1")
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_billing_policy_id", "typesafe-reported-input-usage-v1"
+    )
+    monkeypatch.setattr(settings, "intelligence_typesafe_total_input_bound_verified", False)
+    monkeypatch.setattr(settings, "intelligence_typesafe_max_total_billable_input_tokens", 0)
+    for scope in ("global", "provider", "model", "source", "project"):
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_usd", Decimal("0"))
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_usd", Decimal("0"))
+    need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    provider_calls = []
+    from gridlens.intelligence import intelligence_jobs
+
+    original_reserve = intelligence_jobs.reserve_call
+
+    def reserve_then_change_authorization(*args, **kwargs):
+        result = original_reserve(*args, **kwargs)
+        monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", "fixture-auth-2")
+        return result
+
+    monkeypatch.setattr(intelligence_jobs, "reserve_call", reserve_then_change_authorization)
+    monkeypatch.setattr(
+        intelligence_jobs, "call_typesafe", lambda **_kwargs: provider_calls.append(True)
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        history = intelligence_history(session, need_id)
+    assert provider_calls == []
+    assert call and call.status == "CANCELLED"
+    assert history[0]["status"] == "blocked"
+
+
 @pytest.mark.parametrize(
     "failure_case",
     [

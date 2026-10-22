@@ -114,8 +114,12 @@ def reserve_call(
     job_id: UUID | None = None,
     worker_id: str | None = None,
     enabled: bool = False,
-    estimated_cost_usd: Decimal | str | int | float = 0,
-    max_cost_usd: Decimal | str | int | float = 0,
+    estimated_cost_usd: Decimal | str | int | float | None = 0,
+    max_cost_usd: Decimal | str | int | float | None = 0,
+    financial_budget_mode: str = "finite",
+    financial_authorization_ref: str | None = None,
+    unlimited_contracts: str = "",
+    unlimited_providers: str = "",
     caps: dict[str, dict[str, int | Decimal | str | float]] | None = None,
     max_active: int = 1,
     fence_token: int = 0,
@@ -129,9 +133,27 @@ def reserve_call(
     `{daily, monthly}` finite integer caps. Missing/zero caps fail closed. This
     function owns its transaction boundary and commits before returning.
     """
-    cost = _money(estimated_cost_usd, name="estimated_cost_usd")
-    max_cost = _money(max_cost_usd, name="max_cost_usd")
-    if cost > max_cost:
+    if financial_budget_mode not in {"finite", "owner_unlimited"}:
+        raise ValueError("unsupported financial_budget_mode")
+    unlimited = financial_budget_mode == "owner_unlimited"
+    if unlimited and not (financial_authorization_ref and financial_authorization_ref.strip()):
+        session.rollback()
+        return ReservationResult(None, False, "BLOCKED", "FINANCIAL_AUTHORIZATION_REQUIRED")
+    if unlimited and (
+        task_type
+        not in {value.strip() for value in unlimited_contracts.split(",") if value.strip()}
+        or provider
+        not in {value.strip() for value in unlimited_providers.split(",") if value.strip()}
+    ):
+        session.rollback()
+        return ReservationResult(None, False, "BLOCKED", "UNLIMITED_CONTRACT_NOT_AUTHORIZED")
+    cost = (
+        None
+        if estimated_cost_usd is None
+        else _money(estimated_cost_usd, name="estimated_cost_usd")
+    )
+    max_cost = None if unlimited else _money(max_cost_usd or 0, name="max_cost_usd")
+    if not unlimited and cost is not None and cost > (max_cost or Decimal("0")):
         raise ValueError("estimated call cost exceeds max_cost_usd")
     if fence_token < 0:
         raise ValueError("fence_token must be nonnegative")
@@ -151,11 +173,27 @@ def reserve_call(
     else:
         session.rollback()
         raise ValueError("explicit job or standalone lease authority required")
+    policy_context = context_digest
+    if unlimited:
+        policy_context = hashlib.sha256(
+            json.dumps(
+                {
+                    "context_digest": context_digest,
+                    "financial_budget_mode": financial_budget_mode,
+                    "financial_authorization_ref": financial_authorization_ref,
+                    "unlimited_contracts": unlimited_contracts,
+                    "unlimited_providers": unlimited_providers,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+            ).encode("utf-8")
+        ).hexdigest()
     fingerprint = fingerprint_call(
         task_type=task_type,
         task_key=task_key,
         evidence_digest=evidence_digest,
-        context_digest=context_digest,
+        context_digest=policy_context,
         prompt_contract=prompt_contract,
         provider=provider,
         model=model,
@@ -211,7 +249,7 @@ def reserve_call(
     if not enabled:
         session.rollback()
         return ReservationResult(None, False, "BLOCKED", "INTELLIGENCE_DISABLED")
-    if cost <= 0 or max_cost <= 0:
+    if not unlimited and (cost is None or max_cost is None or cost <= 0 or max_cost <= 0):
         session.rollback()
         return ReservationResult(None, False, "BLOCKED", "FINITE_COST_BOUND_REQUIRED")
 
@@ -260,12 +298,12 @@ def reserve_call(
                 return ReservationResult(
                     None, False, "BLOCKED", f"{scope_type.upper()}_{period.upper()}_CAP_ZERO"
                 )
-            if usd_limit <= 0:
+            if usd_limit <= 0 and not unlimited:
                 session.rollback()
                 return ReservationResult(
                     None, False, "BLOCKED", f"{scope_type.upper()}_{period.upper()}_USD_CAP_ZERO"
                 )
-            if max_cost > usd_limit:
+            if not unlimited and max_cost is not None and max_cost > usd_limit:
                 session.rollback()
                 return ReservationResult(
                     None, False, "BLOCKED", f"{scope_type.upper()}_{period.upper()}_USD_CAP_REACHED"
@@ -278,7 +316,7 @@ def reserve_call(
         task_type=task_type,
         task_key=task_key,
         evidence_digest=evidence_digest,
-        context_digest=context_digest,
+        context_digest=policy_context,
         prompt_contract=prompt_contract,
         provider=provider,
         model=model,
@@ -292,6 +330,8 @@ def reserve_call(
         fence_token=fence_token,
         estimated_cost_usd=cost,
         max_cost_usd=max_cost,
+        financial_budget_mode=financial_budget_mode,
+        financial_authorization_ref=financial_authorization_ref,
         budget_scopes=[
             {
                 "scope": kind + ":" + value,
@@ -319,7 +359,7 @@ def reserve_call(
                     period=period,
                     period_key=period_key,
                     call_count=0 if is_active else 1,
-                    cost_usd=Decimal("0") if is_active else max_cost,
+                    cost_usd=Decimal("0") if is_active or unlimited else max_cost,
                     active_count=1,
                 )
                 .on_conflict_do_update(
@@ -327,13 +367,17 @@ def reserve_call(
                     set_={
                         "call_count": LogicalCallBudget.call_count + (0 if is_active else 1),
                         "cost_usd": LogicalCallBudget.cost_usd
-                        + (Decimal("0") if is_active else max_cost),
+                        + (Decimal("0") if is_active or unlimited else max_cost),
                         "active_count": LogicalCallBudget.active_count + 1,
                     },
                     where=(LogicalCallBudget.active_count < limit)
                     if is_active
                     else (LogicalCallBudget.call_count < limit)
-                    & (LogicalCallBudget.cost_usd + max_cost <= usd_limit),
+                    & (
+                        True
+                        if unlimited
+                        else LogicalCallBudget.cost_usd + (max_cost or 0) <= usd_limit
+                    ),
                 )
                 .returning(LogicalCallBudget.id)
             )
@@ -537,21 +581,25 @@ def quarantine_call(
             # larger estimate into a misleading bounded amount.
             exposure = None
             measured_exposure_status = "UNBOUNDED"
-    prior_budgeted = call.max_cost_usd
+    prior_budgeted = call.max_cost_usd or Decimal("0")
     if isinstance(old_quarantine, dict):
         try:
             prior_budgeted = max(
                 prior_budgeted,
                 _money(
-                    old_quarantine.get("budgeted_exposure_usd", call.max_cost_usd),
+                    old_quarantine.get("budgeted_exposure_usd", call.max_cost_usd or 0),
                     name="budgeted_exposure_usd",
                     maximum=MAX_ACTUAL_USD,
                 ),
             )
         except ValueError:
-            prior_budgeted = call.max_cost_usd
-    target_exposure = max(prior_budgeted, exposure or call.max_cost_usd)
-    overage = max(Decimal("0"), target_exposure - call.max_cost_usd)
+            prior_budgeted = call.max_cost_usd or Decimal("0")
+    target_exposure = max(prior_budgeted, exposure or Decimal("0"))
+    overage = (
+        Decimal("0")
+        if call.financial_budget_mode == "owner_unlimited"
+        else max(Decimal("0"), target_exposure - (call.max_cost_usd or Decimal("0")))
+    )
     if overage > 0:
         for scope_period in call.budget_scopes:
             if scope_period["period"] not in {"daily", "monthly"}:
@@ -578,7 +626,12 @@ def quarantine_call(
         "conservative_exposure_usd": str(exposure) if exposure is not None else None,
         "exposure_basis": exposure_basis,
         "exposure_status": measured_exposure_status,
-        "budgeted_exposure_usd": str(target_exposure),
+        "budgeted_exposure_usd": (
+            str(target_exposure) if call.financial_budget_mode == "finite" else None
+        ),
+        "financial_budget_mode": call.financial_budget_mode,
+        "financial_authorization_ref": call.financial_authorization_ref,
+        "max_cost_usd": str(call.max_cost_usd) if call.max_cost_usd is not None else None,
     }
     result = {"billing_quarantine": quarantine}
 
@@ -736,7 +789,7 @@ def _transition(
             session.rollback()
             raise ValueError("actual_cost_usd conflicts with previously settled billing evidence")
         call.actual_cost_usd = measured_cost
-        prior_budgeted = call.max_cost_usd
+        prior_budgeted = call.max_cost_usd or Decimal("0")
         old_quarantine = (
             call.result_payload.get("billing_quarantine")
             if isinstance(call.result_payload, dict)
@@ -747,18 +800,18 @@ def _transition(
                 prior_budgeted = max(
                     prior_budgeted,
                     _money(
-                        old_quarantine.get("budgeted_exposure_usd", call.max_cost_usd),
+                        old_quarantine.get("budgeted_exposure_usd", call.max_cost_usd or 0),
                         name="budgeted_exposure_usd",
                         maximum=MAX_ACTUAL_USD,
                     ),
                 )
             except ValueError:
-                prior_budgeted = call.max_cost_usd
+                prior_budgeted = call.max_cost_usd or Decimal("0")
         target_budgeted = max(prior_budgeted, measured_cost)
         delta = max(Decimal("0"), target_budgeted - prior_budgeted)
-        if measured_cost > call.max_cost_usd:
+        if call.financial_budget_mode == "finite" and measured_cost > (call.max_cost_usd or 0):
             blocked_reason = blocked_reason or "ACTUAL_COST_EXCEEDED_RESERVED_MAXIMUM"
-        if delta > 0:
+        if delta > 0 and call.financial_budget_mode == "finite":
             for scope_period in call.budget_scopes:
                 if scope_period["period"] in {"daily", "monthly"}:
                     session.execute(
@@ -1037,7 +1090,7 @@ def settle_call(
     session.add(receipt)
     if cost is not None and call.actual_cost_usd is None:
         call.actual_cost_usd = cost
-        prior_budgeted = call.max_cost_usd
+        prior_budgeted = call.max_cost_usd or Decimal("0")
         quarantine = (
             call.result_payload.get("billing_quarantine")
             if isinstance(call.result_payload, dict)
@@ -1048,16 +1101,16 @@ def settle_call(
                 prior_budgeted = max(
                     prior_budgeted,
                     _money(
-                        quarantine.get("budgeted_exposure_usd", call.max_cost_usd),
+                        quarantine.get("budgeted_exposure_usd", call.max_cost_usd or 0),
                         name="budgeted_exposure_usd",
                         maximum=MAX_ACTUAL_USD,
                     ),
                 )
             except ValueError:
-                prior_budgeted = call.max_cost_usd
+                prior_budgeted = call.max_cost_usd or Decimal("0")
         target_budgeted = max(prior_budgeted, cost)
         delta = max(Decimal("0"), target_budgeted - prior_budgeted)
-        if delta > 0:
+        if delta > 0 and call.financial_budget_mode == "finite":
             for scope_period in call.budget_scopes:
                 if scope_period["period"] not in {"daily", "monthly"}:
                     continue

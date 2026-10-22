@@ -862,3 +862,51 @@ def test_estimated_signal_quarantine_uses_reported_context_assumption():
     assert details["conservative_exposure_usd"] == (
         Decimal(64_001) * Decimal("0.042") / Decimal(1_000_000)
     )
+
+
+def test_owner_unlimited_requires_explicit_provider_contract_and_authorization(monkeypatch):
+    from gridlens.intelligence.intelligence_jobs import (
+        TYPESAFE_UNLIMITED_BILLING_POLICY_ID,
+        _billing_policy_identity,
+        _owner_unlimited_allowed,
+        _typesafe_billing_block_reason,
+    )
+
+    monkeypatch.setattr(settings, "intelligence_financial_budget_mode", "owner_unlimited")
+    monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", "owner-approval-1")
+    monkeypatch.setattr(settings, "intelligence_unlimited_providers", "typesafe,openai")
+    monkeypatch.setattr(
+        settings, "intelligence_unlimited_contracts", "MATERIALITY_V1,GROUNDED_DOSSIER"
+    )
+    assert _owner_unlimited_allowed("typesafe", "MATERIALITY_V1")
+    assert _owner_unlimited_allowed("openai", "GROUNDED_DOSSIER")
+    assert not _owner_unlimited_allowed("typesafe", "OTHER_CONTRACT")
+    assert not _owner_unlimited_allowed("firecrawl", "MATERIALITY_V1")
+
+    for name, value in {
+        "intelligence_typesafe_billing_verified": True,
+        "intelligence_typesafe_billing_mode": "input_only",
+        "intelligence_typesafe_billing_model_id": "jev-1.13.0",
+        "intelligence_typesafe_billing_contract_id": "systemone-v1",
+        "intelligence_typesafe_billing_policy_id": TYPESAFE_UNLIMITED_BILLING_POLICY_ID,
+        "intelligence_typesafe_billing_reference": "https://docs.example/typesafe-billing",
+        "intelligence_typesafe_total_input_bound_verified": False,
+        "intelligence_typesafe_max_total_billable_input_tokens": 0,
+        "intelligence_typesafe_pricing_verified": True,
+        "intelligence_typesafe_priced_model_id": "jev-1.13.0",
+        "intelligence_typesafe_input_usd_per_million": Decimal("0.042"),
+        "intelligence_typesafe_output_usd_per_million": Decimal("0"),
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    assert _typesafe_billing_block_reason("jev-1.13.0", "MATERIALITY_V1") == ""
+    policy = _billing_policy_identity("typesafe", "jev-1.13.0", "MATERIALITY_V1")
+    assert policy and policy["policy_id"] == TYPESAFE_UNLIMITED_BILLING_POLICY_ID
+    assert policy["max_total_billable_input_tokens"] == "UNBOUNDED"
+    assert (
+        _typesafe_billing_block_reason("jev-latest", "MATERIALITY_V1")
+        == "TYPESAFE_PINNED_VERSIONED_MODEL_REQUIRED"
+    )
+
+    monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", " ")
+    assert not _owner_unlimited_allowed("typesafe", "MATERIALITY_V1")
+    assert _typesafe_billing_block_reason("jev-1.13.0", "MATERIALITY_V1")

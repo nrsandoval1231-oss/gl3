@@ -2254,6 +2254,52 @@ def test_brief_api_requires_auth_and_same_origin_for_explicit_request(runtime):
         assert session.scalar(select(func.count()).select_from(Job)) == 0
 
 
+def test_legacy_brief_adapter_owner_unlimited_keeps_usage_and_count_caps(runtime, monkeypatch):
+    factory, _service, _need = runtime
+    from gridlens.integrations.legacy_calls import perform_legacy_call
+    from gridlens.persistence.models import LogicalCall, LogicalCallBudget
+
+    monkeypatch.setattr(settings, "intelligence_financial_budget_mode", "owner_unlimited")
+    monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", "fixture-auth-brief")
+    monkeypatch.setattr(settings, "intelligence_unlimited_providers", "openai")
+    monkeypatch.setattr(settings, "intelligence_unlimited_contracts", "POWER_NEED_BRIEF")
+    for scope in ("global", "provider", "model", "source", "project"):
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_usd", 0)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_usd", 0)
+
+    result = perform_legacy_call(
+        task_type="POWER_NEED_BRIEF",
+        task_key="owner-unlimited-brief",
+        payload={"brief": {"need": {}, "unknowns": []}, "facts": {}},
+        source_id=None,
+        project_id=None,
+        job_id=None,
+        worker_id=None,
+        fence_token=1,
+        invoke=lambda: (
+            {"actual_model": settings.openai_brief_model, "output": {"selected": []}},
+            17,
+            9,
+        ),
+    )
+    with factory() as session:
+        call = session.get(LogicalCall, result.logical_call_id)
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global",
+                LogicalCallBudget.period == "daily",
+            )
+        )
+    assert not result.cached
+    assert call and call.status == "COMPLETED"
+    assert call.financial_budget_mode == "owner_unlimited"
+    assert call.financial_authorization_ref == "fixture-auth-brief"
+    assert call.max_cost_usd is None and call.estimated_cost_usd is None
+    assert call.input_tokens == 17 and call.output_tokens == 9
+    assert call.result_payload["usage_cost_estimate"]["estimated_cost_usd"] is not None
+    assert budget and budget.call_count == 1 and budget.cost_usd == 0
+
+
 def test_missing_provider_key_and_wrong_project_evidence_fail_closed(runtime, monkeypatch):
     factory, service, (need_id, _evidence_id) = runtime
     monkeypatch.setattr(settings, "openai_api_key", None)
