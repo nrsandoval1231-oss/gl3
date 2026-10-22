@@ -2396,6 +2396,138 @@
         }
       }
     },
+    "/api/opportunities/workspace/changes": {
+      "get": {
+        "summary": "Workspace Change Briefing",
+        "operationId": "workspace_change_briefing_api_opportunities_workspace_changes_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceChangesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/opportunities/workspace/changes/review": {
+      "post": {
+        "summary": "Review Workspace Changes",
+        "operationId": "review_workspace_changes_api_opportunities_workspace_changes_review_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceChangesReviewBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceChangesReviewReceiptOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/opportunities/needs/{need_id}/history": {
+      "get": {
+        "summary": "Workspace Historical Need",
+        "operationId": "workspace_historical_need_api_opportunities_needs__need_id__history_get",
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceHistoricalNeedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/state": {
       "get": {
         "summary": "Project State Endpoint",
@@ -3649,6 +3781,56 @@
           }
         }
       }
+    },
+    "/api/opportunity-intelligence": {
+      "get": {
+        "summary": "Opportunity Intelligence Batch",
+        "description": "Current aggregate from persisted evidence, at most twenty exact needs.",
+        "operationId": "opportunity_intelligence_batch_api_opportunity_intelligence_get",
+        "parameters": [
+          {
+            "name": "need_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "maxItems": 20,
+              "title": "Need Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntelligenceCard"
+                  },
+                  "title": "Response Opportunity Intelligence Batch Api Opportunity Intelligence Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3658,6 +3840,11 @@
           "force": {
             "type": "boolean",
             "title": "Force",
+            "default": false
+          },
+          "complete_intelligence": {
+            "type": "boolean",
+            "title": "Complete Intelligence",
             "default": false
           }
         },
@@ -5327,6 +5514,23 @@
       },
       "CommercialTriageCard": {
         "properties": {
+          "owner_organizations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Owner Organizations"
+          },
+          "intelligence_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntelligenceCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "research_state": {
             "additionalProperties": true,
             "type": "object",
@@ -7127,6 +7331,304 @@
         ],
         "title": "IngestionPageOut"
       },
+      "IntelligenceCard": {
+        "properties": {
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version",
+            "default": "opportunity-intelligence-v1"
+          },
+          "need_id": {
+            "type": "string",
+            "title": "Need Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "input_fingerprint": {
+            "type": "string",
+            "title": "Input Fingerprint"
+          },
+          "qualification": {
+            "type": "string",
+            "title": "Qualification"
+          },
+          "disposition": {
+            "type": "string",
+            "title": "Disposition"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceField"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceContact"
+            },
+            "type": "array",
+            "title": "Contacts"
+          },
+          "next_contact_path": {
+            "type": "string",
+            "title": "Next Contact Path"
+          },
+          "next_action": {
+            "type": "string",
+            "title": "Next Action"
+          },
+          "research_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceField"
+            },
+            "type": "array",
+            "title": "Research Gaps"
+          },
+          "completeness": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Completeness"
+          },
+          "last_intelligence_update": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Intelligence Update"
+          },
+          "power_gap": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Power Gap"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceSource"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "research_enabled": {
+            "type": "boolean",
+            "title": "Research Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "need_id",
+          "project_id",
+          "input_fingerprint",
+          "qualification",
+          "disposition",
+          "fields",
+          "contacts",
+          "next_contact_path",
+          "next_action",
+          "research_gaps",
+          "completeness",
+          "evidence",
+          "research_enabled"
+        ],
+        "title": "IntelligenceCard"
+      },
+      "IntelligenceContact": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "company": {
+            "type": "string",
+            "title": "Company"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "responsibility": {
+            "type": "string",
+            "enum": [
+              "Verified project responsibility",
+              "Verified organizational responsibility",
+              "Inferred likely role",
+              "General company contact path"
+            ],
+            "title": "Responsibility"
+          },
+          "purchasing_authority": {
+            "type": "string",
+            "title": "Purchasing Authority",
+            "default": "Requires confirmation for this power package"
+          },
+          "methods": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Methods"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "company",
+          "role",
+          "responsibility"
+        ],
+        "title": "IntelligenceContact"
+      },
+      "IntelligenceField": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "section": {
+            "type": "string",
+            "enum": [
+              "identity",
+              "power",
+              "commercial"
+            ],
+            "title": "Section"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Verified",
+              "Evidence-supported estimate",
+              "Research in progress",
+              "Not publicly available",
+              "Not applicable",
+              "Conflicting evidence"
+            ],
+            "title": "Status"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "research_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Category"
+          },
+          "research_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "section",
+          "status",
+          "basis"
+        ],
+        "title": "IntelligenceField"
+      },
       "IntelligenceHistoryOut": {
         "properties": {
           "job_id": {
@@ -7557,6 +8059,100 @@
           "owner_review_notes_30d"
         ],
         "title": "IntelligenceOperationsOut"
+      },
+      "IntelligenceSource": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "source_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Date"
+          },
+          "retained_evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retained Evidence Id"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "passage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passage"
+          },
+          "extraction_method": {
+            "type": "string",
+            "title": "Extraction Method"
+          },
+          "verification_status": {
+            "type": "string",
+            "title": "Verification Status"
+          },
+          "assessed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference",
+          "title",
+          "extraction_method",
+          "verification_status"
+        ],
+        "title": "IntelligenceSource"
       },
       "IntelligenceTaskOut": {
         "properties": {
@@ -8090,6 +8686,16 @@
       },
       "OpportunityOut": {
         "properties": {
+          "intelligence_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntelligenceCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -9628,6 +10234,16 @@
       },
       "PursuitWorkspaceItemOut": {
         "properties": {
+          "intelligence_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntelligenceCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -11544,6 +12160,734 @@
           "allowed_urls"
         ],
         "title": "WatchSource"
+      },
+      "WorkspaceChangeCountsOut": {
+        "properties": {
+          "discovered": {
+            "type": "integer",
+            "title": "Discovered"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          },
+          "promoted": {
+            "type": "integer",
+            "title": "Promoted"
+          },
+          "closed": {
+            "type": "integer",
+            "title": "Closed"
+          },
+          "review_exception": {
+            "type": "integer",
+            "title": "Review Exception"
+          }
+        },
+        "type": "object",
+        "required": [
+          "discovered",
+          "changed",
+          "promoted",
+          "closed",
+          "review_exception"
+        ],
+        "title": "WorkspaceChangeCountsOut"
+      },
+      "WorkspaceChangeItemOut": {
+        "properties": {
+          "event_key": {
+            "type": "string",
+            "title": "Event Key"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "discovered",
+              "changed",
+              "promoted",
+              "closed",
+              "review_exception"
+            ],
+            "title": "Category"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "source_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Date"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "before_state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before State"
+          },
+          "after_state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After State"
+          },
+          "needs": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceChangeNeedOut"
+            },
+            "type": "array",
+            "title": "Needs"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceChangeSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "transitions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transitions"
+          },
+          "fact_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fact Version Id"
+          },
+          "before_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Version"
+          },
+          "after_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Version"
+          },
+          "fact_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fact Type"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "source_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_key",
+          "category",
+          "title",
+          "detail",
+          "created_at",
+          "source_date",
+          "project_id",
+          "before_state",
+          "after_state",
+          "needs",
+          "sources"
+        ],
+        "title": "WorkspaceChangeItemOut"
+      },
+      "WorkspaceChangeNeedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "location",
+          "active",
+          "tier"
+        ],
+        "title": "WorkspaceChangeNeedOut"
+      },
+      "WorkspaceChangeSourceExceptionOut": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "parse_failures": {
+            "type": "integer",
+            "title": "Parse Failures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "status",
+          "error",
+          "parse_failures"
+        ],
+        "title": "WorkspaceChangeSourceExceptionOut"
+      },
+      "WorkspaceChangeSourceOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "event_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Date"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "url",
+          "published_at",
+          "event_date",
+          "retrieved_at",
+          "content_hash"
+        ],
+        "title": "WorkspaceChangeSourceOut"
+      },
+      "WorkspaceChangesOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceChangeItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/WorkspaceChangeCountsOut"
+          },
+          "total_unreviewed": {
+            "type": "integer",
+            "title": "Total Unreviewed"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          },
+          "evaluated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Evaluated At"
+          },
+          "baseline_identity": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Baseline Identity"
+          },
+          "baseline_reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Reviewed At"
+          },
+          "first_use": {
+            "type": "boolean",
+            "title": "First Use"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "source_health_exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceChangeSourceExceptionOut"
+            },
+            "type": "array",
+            "title": "Source Health Exceptions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "counts",
+          "total_unreviewed",
+          "offset",
+          "limit",
+          "next_offset",
+          "evaluated_at",
+          "baseline_identity",
+          "baseline_reviewed_at",
+          "first_use",
+          "token",
+          "source_health_exceptions"
+        ],
+        "title": "WorkspaceChangesOut"
+      },
+      "WorkspaceChangesReviewBody": {
+        "properties": {
+          "baseline_identity": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Baseline Identity"
+          },
+          "token": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Token"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 50
+          },
+          "offset": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Offset",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "baseline_identity",
+          "token"
+        ],
+        "title": "WorkspaceChangesReviewBody"
+      },
+      "WorkspaceChangesReviewReceiptOut": {
+        "properties": {
+          "baseline_identity": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Baseline Identity"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Reviewed At"
+          },
+          "reviewed_count": {
+            "type": "integer",
+            "title": "Reviewed Count"
+          },
+          "event_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Event Keys"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "remaining_counts": {
+            "$ref": "#/components/schemas/WorkspaceChangeCountsOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "baseline_identity",
+          "reviewed_at",
+          "reviewed_count",
+          "event_keys",
+          "token",
+          "remaining_counts"
+        ],
+        "title": "WorkspaceChangesReviewReceiptOut"
+      },
+      "WorkspaceHistoricalEvidenceOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "event_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Date"
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retrieved At"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "url",
+          "published_at",
+          "event_date",
+          "retrieved_at",
+          "content_hash"
+        ],
+        "title": "WorkspaceHistoricalEvidenceOut"
+      },
+      "WorkspaceHistoricalNeedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "required_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Mw"
+          },
+          "start_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Window"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "supply": {
+            "type": "string",
+            "title": "Supply"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceHistoricalEvidenceOut"
+            },
+            "type": "array",
+            "title": "Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "name",
+          "location",
+          "activity",
+          "active",
+          "tier",
+          "rationale",
+          "required_mw",
+          "start_window",
+          "duration",
+          "supply",
+          "updated_at",
+          "evidence"
+        ],
+        "title": "WorkspaceHistoricalNeedOut"
       }
     }
   }

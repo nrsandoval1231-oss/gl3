@@ -356,6 +356,14 @@ def test_research_promotes_only_complete_official_qualification_gates(
         if target_tier == "Lead":
             assert need.start_window == "2026-11-01 to 2026-11-05"
             assert need.duration == "30 to 60 days"
+            intelligence = evaluate_target(session, need_id)["intelligence_card"]
+            fields = {field["key"]: field for field in intelligence["fields"]}
+            for key, quote in (
+                ("start", assessment["start_quote"]),
+                ("duration", assessment["duration_quote"]),
+            ):
+                assert fields[key]["status"] == "Verified"
+                assert any(source["passage"] == quote for source in fields[key]["sources"])
             assert assessment["qualified_remaining_gap"]["remaining_mw_min"] == (
                 "0.6" if nonzero_supply else "1"
             )

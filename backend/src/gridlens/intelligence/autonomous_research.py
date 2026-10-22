@@ -1057,11 +1057,23 @@ def _finish(
         job.status = "failed" if status == "FAILED" else "succeeded"
         job.error, job.lease_owner, job.lease_until = error, None, None
         parent_id = row.id if row.parent_id is None and status == "RESOLVED" else None
-    if parent_id and card and card["disposition"] == "RESEARCH":
+    if (
+        parent_id
+        and card
+        and (
+            card["disposition"] == "RESEARCH"
+            or (row.context.get("enrichment_requested") and card["disposition"] == "ACTION NOW")
+        )
+    ):
         from gridlens.intelligence.pursuit_questions import schedule_questions
 
         with SessionLocal.begin() as session:
-            schedule_questions(session, [card], parent_id=parent_id)
+            schedule_questions(
+                session,
+                [card],
+                parent_id=parent_id,
+                enrich=bool(row.context.get("enrichment_requested")),
+            )
 
 
 def _specific_question_outcome(status: str, card: dict | None, row) -> tuple[str, str]:

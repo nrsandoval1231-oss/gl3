@@ -27,7 +27,7 @@ The canonical vertical/asset lifecycle doctrine is [Vertical Lifecycle Intellige
 
 ## Frozen application UI
 
-The owner-approved October 18, 2026 visual and interaction direction is [the UI canon](../design/UI_CANON.md) and [Pursuit Workspace contract](../design/PURSUIT_WORKSPACE.md). Opportunities is the default commercial workspace with horizontal Research, Signals and Operations navigation, compact factual briefing, and a sortable server-backed queue beside contextual intelligence. This supersedes incompatible map-first, atmospheric-canvas and primary tier-navigation presentation requirements, including the presentation portion of requirement 31. Signal, Prospect and Lead remain independently discoverable and filterable; qualification, evidence, workflow, nationwide scope and data requirements are unchanged. Prior fictional visual references are historical, never production data or acceptance evidence.
+The owner-approved October 20, 2026 visual direction is specified by [the UI canon](../design/UI_CANON.md) and [Pursuit Workspace contract](../design/PURSUIT_WORKSPACE.md). Pursuits is the execution-first workspace with horizontal navigation, compact Daily Briefing, prioritized queue, persistent contextual brief, and explicit next actions. This supersedes prior map/cinematic and October 18 Opportunities/Research/Signals/Operations presentation requirements, including only the navigation/layout portion of requirement 31. The three qualification tiers remain independently searchable and filterable as required below; qualification, evidence, workflow, nationwide scope, and all other PRD requirements are unchanged. Fictional prototype records are never production data or acceptance evidence.
 
 ## Product outcomes
 
@@ -153,7 +153,7 @@ The short morning list is a convenience. All active records remain searchable an
 
 ### User experience
 
-31. **Three primary views.** Make Signals, Prospects, and Leads the main navigation. Offer search plus filters for geography, industry, power activity, timing, known MW, priority, and pursuit status. Retain unknown values as filterable values rather than treating them as zero.
+31. **Three qualification tiers.** Keep Signals, Prospects, and Leads independently searchable and filterable, with search plus filters for geography, industry, power activity, timing, known MW, priority, and pursuit status. Retain unknown values as filterable values rather than treating them as zero. The navigation and visual layout are governed by the October 20 UI canon; this amendment does not remove or weaken the three-tier requirement.
 
 32. **Morning changes.** Show a compact digest of newly discovered, promoted, materially changed, and closed opportunities, plus collection health. Repeated unchanged records must not masquerade as fresh discoveries. The digest links into the complete working lists.
 

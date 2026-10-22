@@ -1,0 +1,96 @@
+{
+  "status": "BUILDER_HANDOFF_REQUIRES_INDEPENDENT_REVIEW",
+  "candidate_sha": "ba96a3fc1be7af27b87e5af4db2d26a4b9810b7f",
+  "evaluator_version": "rss-project-v9",
+  "policy_version": "signal-admission-v2",
+  "completed_utc": "2026-10-20T19:54:02.178254+00:00",
+  "started_utc": "UNKNOWN",
+  "durations": "UNKNOWN",
+  "tokens": "UNKNOWN",
+  "model": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "authority": "Allow site-specific news to create standalone discovery Signals, with unknown power facts and the existing Prospect/Lead gates.",
+  "owner_decision_doc": "controller docs lane owns append-only owner decision",
+  "validation": {
+    "tests": "106 passed, 1 warning, exit 0: unit news interpretation, signal admission, integration collection-only, integration ingestion on isolated news_test DB",
+    "ruff_format_check": "PASS",
+    "ruff_check": "PASS",
+    "mypy": "3 source files PASS",
+    "diff_check": "PASS",
+    "retained219": "15 yes accepted; 190 no rejected; 9 uncertain rejected; 5 training accepted on v9; all development; parent independent replay required"
+  },
+  "history": {
+    "prior_failed_source": "2489730785afc3476c936049f733c728e09e00f3",
+    "prior_failed_log": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-news-specialist-20261020\\.artifacts\\news-admission-recovery.log",
+    "log_sha256": "ba6acd30fc40ac4d9d525d1490898736c59d15b2709a99e5710265be124aec20",
+    "failures": [
+      {
+        "test": "test_applied_digital_news_is_retained_as_context_without_standalone_need",
+        "classification": "prior context-only expectation potentially superseded; remaining behavioral assertions require review"
+      },
+      {
+        "test": "test_news_only_signal_and_prospect_claims_never_create_a_need[True]",
+        "classification": "prior context-only expectation potentially superseded; remaining behavioral assertions require review"
+      },
+      {
+        "test": "test_news_only_signal_and_prospect_claims_never_create_a_need[False]",
+        "classification": "prior context-only expectation potentially superseded; remaining behavioral assertions require review"
+      },
+      {
+        "test": "test_news_only_duplicate_correction_and_replay_preserve_evidence_without_needs",
+        "classification": "prior context-only expectation potentially superseded; remaining behavioral assertions require review"
+      },
+      {
+        "test": "test_current_rss_supplement_matches_permit_by_explicit_project_and_site[False-None]",
+        "classification": "official matching, identity and correction behavior require investigation; some counters reflect new policy"
+      },
+      {
+        "test": "test_current_rss_supplement_matches_permit_by_explicit_project_and_site[True-None]",
+        "classification": "official matching, identity and correction behavior require investigation; some counters reflect new policy"
+      },
+      {
+        "test": "test_current_rss_supplement_matches_permit_by_explicit_project_and_site[False-Phase II]",
+        "classification": "official matching, identity and correction behavior require investigation; some counters reflect new policy"
+      },
+      {
+        "test": "test_current_rss_supplement_matches_permit_by_explicit_project_and_site[False-Phases 1 and 2]",
+        "classification": "official matching, identity and correction behavior require investigation; some counters reflect new policy"
+      },
+      {
+        "test": "test_current_rss_supplement_matches_permit_by_explicit_project_and_site[False-Phase 1\\u20132]",
+        "classification": "official matching, identity and correction behavior require investigation; some counters reflect new policy"
+      },
+      {
+        "test": "test_current_rss_supplement_matches_permit_by_explicit_project_and_site[False-Phase 1 and 2]",
+        "classification": "official matching, identity and correction behavior require investigation; some counters reflect new policy"
+      },
+      {
+        "test": "test_phase_numbered_same_building_permits_consolidate_but_distinct_buildings_do_not",
+        "classification": "policy version changed; permit identity and authority still require validation"
+      },
+      {
+        "test": "test_multiple_labeled_rss_sites_keep_record_separate_with_persisted_ambiguity",
+        "classification": "ambiguous-site quarantine and project creation require investigation"
+      },
+      {
+        "test": "test_rss_fence_loss_after_durable_evidence_is_retryable",
+        "classification": "prior context-only expectation potentially superseded; remaining behavioral assertions require review"
+      }
+    ]
+  },
+  "test_expectation_changes": [
+    "Owner-authorized dated site-specific news now creates Signal with unknown facts; news Prospect alone does not promote.",
+    "News duplicates preserve single need until final independent source withdrawn.",
+    "News-first keeps original construction activity and need ID; official arrival supplies official basis and incoming match receipt.",
+    "Correction to distinct site retains old support and noncurrent news citation while creating distinct eligible discovery.",
+    "Ambiguous sites or phases remain quarantined and do not increase supported Signal count.",
+    "Fence retry admits only after durable evidence and retained assessment complete.",
+    "Policy version is v2."
+  ],
+  "limitations": [
+    "No independent positive holdout remains; corpus is development evidence.",
+    "UI activity is an unconstrained string and may display project-discovery literally.",
+    "Full repository gates and independent review remain controller responsibility.",
+    "No live collection, production deployment, or buying authority established."
+  ]
+}

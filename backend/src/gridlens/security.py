@@ -77,7 +77,11 @@ def consume_login_attempt(client_ip: str) -> bool:
                 select(AuthLoginBucket).where(AuthLoginBucket.id.in_(ids))
             ).all()
         }
-        allowed = True
+        limits = {
+            "global": settings.login_global_limit,
+            client_id: settings.login_client_limit,
+        }
+        # A rejected client must not consume otherwise available global budget.
         for bucket_id in ids:
             scope = "global" if bucket_id == "global" else "client"
             bucket = buckets.get(bucket_id)
@@ -86,14 +90,12 @@ def consume_login_attempt(client_ip: str) -> bool:
                     id=bucket_id, scope=scope, window_started_at=now, attempts=0
                 )
                 session.add(bucket)
-            limit = (
-                settings.login_global_limit if scope == "global" else settings.login_client_limit
-            )
-            if bucket.attempts >= limit:
-                allowed = False
-            else:
-                bucket.attempts += 1
-        return allowed
+                buckets[bucket_id] = bucket
+        if any(buckets[bucket_id].attempts >= limits[bucket_id] for bucket_id in ids):
+            return False
+        for bucket_id in ids:
+            buckets[bucket_id].attempts += 1
+        return True
 
 
 def create_session(expires_timestamp: int | None = None) -> tuple[str, int]:

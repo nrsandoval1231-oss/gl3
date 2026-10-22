@@ -1,7 +1,7 @@
-# Local equivalent of the former GitHub Actions checks.
+# Local checks corresponding to the current GitHub Actions workflow.
 # Run from any directory:  pwsh scripts/check.ps1
 #
-# Prerequisites, which CI used to create on the runner:
+# Prerequisites:
 #   - uv 0.7.13 and Python 3.11
 #   - Node.js 22
 #   - PostgreSQL 18.6, the image in compose.yaml
@@ -48,6 +48,7 @@ try {
         $audit | Out-File -Encoding utf8 .artifacts/backend-dependency-audit.json
     }
     Invoke-Native "ruff" { uv run ruff check src tests }
+    Invoke-Native "ruff format check" { uv run ruff format --check src tests }
     Invoke-Native "mypy" { uv run mypy src }
     Invoke-Native "alembic upgrade head" { uv run alembic upgrade head }
     Invoke-Native "alembic upgrade head (repeat)" { uv run alembic upgrade head }

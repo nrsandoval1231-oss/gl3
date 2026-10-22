@@ -943,6 +943,63 @@ def test_lead_requires_current_gap_interval_and_buyer_facts():
     )
 
 
+def test_discovery_never_promotes_without_supported_activity():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="project-discovery")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    facts = [
+        _row("demand", {"mw": "20"}, need_id=need_id, project_id=project_id),
+        _row("unsuitable_supply", {"mw": "2"}, need_id=need_id, project_id=project_id),
+        _row(
+            "timing",
+            {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+        _row(
+            "suitable_supply",
+            {"mw": "5", "quality": "suitable"},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+        _row(
+            "buyer",
+            {"organization": "Northstar Electric", "role": "electrical contractor"},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+    ]
+    for fact in facts:
+        fact.activity_key = need.activity_key
+    base = {"tier": "Signal", "reason": "Current admitted project evidence."}
+    result = qualification_from_facts(base, facts, need=need, project=project)
+    assert result and result["tier"] == "Signal"
+    assert result["required_mw"] is None and result["demand_mw"] is None
+    assert "qualified_remaining_gap" not in result
+    conflicting = _row("demand", {"mw": "25"}, need_id=need_id, project_id=project_id)
+    conflicting.activity_key = need.activity_key
+    conflict = qualification_from_facts(base, facts + [conflicting], need=need, project=project)
+    assert conflict and conflict["tier"] == "Signal" and conflict["qualification_conflict"]
+    closure = _row("closure", {"state": "adequate_supply"}, need_id=need_id, project_id=project_id)
+    closure.activity_key = need.activity_key
+    closed = qualification_from_facts(base, facts + [closure], need=need, project=project)
+    assert closed and closed["closed_by_fact"]
+    adequate = _row(
+        "suitable_supply",
+        {"mw_min": "20", "mw_max": "24", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    adequate.activity_key = need.activity_key
+    supplied = qualification_from_facts(base, facts[:3] + [adequate], need=need, project=project)
+    assert supplied and supplied["closed_by_fact"]
+    assert supplied["closure_basis"]["kind"] == "confirmed_adequate_supply"
+    need.activity_key = "construction"
+    for fact in facts:
+        fact.activity_key = need.activity_key
+    assert qualification_from_facts(base, facts, need=need, project=project)["tier"] == "Lead"
+
+
 def test_official_prospect_can_reach_lead_without_redundant_demand_or_shortage_facts():
     need_id, project_id = uuid4(), uuid4()
     need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")

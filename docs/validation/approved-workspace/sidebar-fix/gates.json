@@ -1,0 +1,43 @@
+{
+  "started_utc": "2026-10-21T18:51:17.473624+00:00",
+  "scope": "Compact sidebar count/sort/Tools wrapping; isolated API fixture database; no production writes or providers",
+  "gates": [
+    {
+      "name": "audit",
+      "exit_code": 0,
+      "seconds": 1.4,
+      "log": "audit.log"
+    },
+    {
+      "name": "typecheck",
+      "exit_code": 0,
+      "seconds": 4.39,
+      "log": "typecheck.log"
+    },
+    {
+      "name": "build",
+      "exit_code": 0,
+      "seconds": 6.41,
+      "log": "build.log"
+    },
+    {
+      "name": "browser",
+      "exit_code": 0,
+      "seconds": 108.39,
+      "log": "browser.log"
+    },
+    {
+      "name": "docs",
+      "exit_code": 0,
+      "seconds": 0.31,
+      "log": "docs.log"
+    },
+    {
+      "name": "diff",
+      "exit_code": 0,
+      "seconds": 0.16,
+      "log": "diff.log"
+    }
+  ],
+  "finished_utc": "2026-10-21T18:53:18.523294+00:00"
+}

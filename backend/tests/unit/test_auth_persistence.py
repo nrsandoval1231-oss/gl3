@@ -147,6 +147,26 @@ def test_global_login_limit_is_shared_across_distinct_clients(monkeypatch):
     engine.dispose()
 
 
+def test_exhausted_client_does_not_consume_global_login_budget(monkeypatch):
+    engine = create_engine(settings.test_database_url)
+    AuthLoginBucket.__table__.create(engine, checkfirst=True)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    monkeypatch.setattr("gridlens.api.app.SessionLocal", factory)
+    monkeypatch.setattr(settings, "login_client_limit", 2)
+    monkeypatch.setattr(settings, "login_global_limit", 5)
+    monkeypatch.setattr(settings, "login_client_bucket_cap", 100)
+    with factory.begin() as session:
+        session.execute(AuthLoginBucket.__table__.delete())
+    results_a = [consume_login_attempt("198.51.100.101") for _ in range(5)]
+    results_b = [consume_login_attempt("198.51.100.102") for _ in range(3)]
+    assert results_a == [True, True, False, False, False]
+    assert results_b == [True, True, False]
+    with factory() as session:
+        global_bucket = session.get(AuthLoginBucket, "global")
+        assert global_bucket is not None and global_bucket.attempts == 4
+    engine.dispose()
+
+
 def test_proxy_headers_are_trusted_only_from_configured_hops(monkeypatch):
     monkeypatch.setattr(settings, "trusted_proxy_cidrs", "10.0.0.0/8,192.0.2.10/32")
     spoofed = _request(

@@ -1,0 +1,777 @@
+{
+  "dataKind": "SYNTHETIC persisted DB API records",
+  "need": "17408391-d358-4152-a553-129808cc6cef",
+  "measurements": [
+    {
+      "viewport": {
+        "width": 1648,
+        "height": 928
+      },
+      "navigationToCardMs": 398,
+      "geometry": {
+        "width": 1648,
+        "scrollWidth": 1648,
+        "font": "Arial, Inter, sans-serif",
+        "headerColor": "rgb(23, 50, 74)",
+        "metricWidths": [
+          213.140625,
+          249.53125,
+          223.546875,
+          243.046875,
+          252.140625
+        ],
+        "regions": {
+          ".wh-header": {
+            "x": 0,
+            "y": 0,
+            "width": 1648,
+            "height": 58
+          },
+          ".wh-list": {
+            "x": 0,
+            "y": 58,
+            "width": 412,
+            "height": 870
+          },
+          ".wh-detail": {
+            "x": 412,
+            "y": 58,
+            "width": 1236,
+            "height": 870
+          },
+          ".wh-detail-head": {
+            "x": 429.296875,
+            "y": 75.296875,
+            "width": 1201.40625,
+            "height": 167
+          },
+          ".wh-record-hero": {
+            "x": 429.296875,
+            "y": 108.296875,
+            "width": 1201.40625,
+            "height": 134
+          },
+          ".wh-metrics": {
+            "x": 429.296875,
+            "y": 250.296875,
+            "width": 1201.40625,
+            "height": 117.859375
+          },
+          ".ic-dashboard": {
+            "x": 429.296875,
+            "y": 378.15625,
+            "width": 1201.40625,
+            "height": 374
+          },
+          ".ic-project": {
+            "x": 429.296875,
+            "y": 378.15625,
+            "width": 394.46875,
+            "height": 374
+          },
+          ".ic-contacts": {
+            "x": 832.765625,
+            "y": 378.15625,
+            "width": 394.46875,
+            "height": 374
+          },
+          ".ic-why": {
+            "x": 1236.234375,
+            "y": 378.15625,
+            "width": 394.46875,
+            "height": 218
+          },
+          ".ic-next": {
+            "x": 1236.234375,
+            "y": 605.15625,
+            "width": 394.46875,
+            "height": 146
+          },
+          ".wh-tabs": {
+            "x": 429.296875,
+            "y": 762.15625,
+            "width": 1201.40625,
+            "height": 30
+          },
+          ".wh-evidence-heading": {
+            "x": 429.296875,
+            "y": 804.15625,
+            "width": 1201.40625,
+            "height": 46.484375
+          },
+          ".wh-evidence-table": {
+            "x": 429.296875,
+            "y": 860.640625,
+            "width": 1201.40625,
+            "height": 186.5625
+          },
+          ".wh-queue-item": {
+            "x": 18,
+            "y": 263.1875,
+            "width": 375,
+            "height": 77
+          }
+        }
+      },
+      "resolvedHeadingFonts": [
+        {
+          "familyName": "Arial",
+          "postScriptName": "Arial-BoldMT",
+          "isCustomFont": false,
+          "glyphCount": 28
+        }
+      ],
+      "requests": [
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/needs/17408391-d358-4152-a553-129808cc6cef",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/brief",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/title",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "navigationToCardMs": 291,
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "font": "Arial, Inter, sans-serif",
+        "headerColor": "rgb(23, 50, 74)",
+        "metricWidths": [
+          185.78125,
+          217.515625,
+          194.859375,
+          211.84375,
+          219.78125
+        ],
+        "regions": {
+          ".wh-header": {
+            "x": 0,
+            "y": 0,
+            "width": 1440,
+            "height": 50.6875
+          },
+          ".wh-list": {
+            "x": 0,
+            "y": 50.6875,
+            "width": 360,
+            "height": 849.296875
+          },
+          ".wh-detail": {
+            "x": 360,
+            "y": 50.6875,
+            "width": 1080,
+            "height": 849.296875
+          },
+          ".wh-detail-head": {
+            "x": 375.109375,
+            "y": 65.796875,
+            "width": 1049.78125,
+            "height": 151.078125
+          },
+          ".wh-record-hero": {
+            "x": 375.109375,
+            "y": 98.796875,
+            "width": 1049.78125,
+            "height": 118.078125
+          },
+          ".wh-metrics": {
+            "x": 375.109375,
+            "y": 224.875,
+            "width": 1049.78125,
+            "height": 112.1875
+          },
+          ".ic-dashboard": {
+            "x": 375.109375,
+            "y": 347.0625,
+            "width": 1049.78125,
+            "height": 433.375
+          },
+          ".ic-project": {
+            "x": 375.109375,
+            "y": 347.0625,
+            "width": 343.921875,
+            "height": 433.375
+          },
+          ".ic-contacts": {
+            "x": 728.03125,
+            "y": 347.0625,
+            "width": 343.921875,
+            "height": 433.375
+          },
+          ".ic-why": {
+            "x": 1080.953125,
+            "y": 347.0625,
+            "width": 343.9375,
+            "height": 190.5
+          },
+          ".ic-next": {
+            "x": 1080.953125,
+            "y": 546.5625,
+            "width": 343.9375,
+            "height": 172.265625
+          },
+          ".wh-tabs": {
+            "x": 375.109375,
+            "y": 790.4375,
+            "width": 1049.78125,
+            "height": 30
+          },
+          ".wh-evidence-heading": {
+            "x": 375.109375,
+            "y": 832.4375,
+            "width": 1049.78125,
+            "height": 46.484375
+          },
+          ".wh-evidence-table": {
+            "x": 375.109375,
+            "y": 888.921875,
+            "width": 1049.78125,
+            "height": 186.5625
+          },
+          ".wh-queue-item": {
+            "x": 18,
+            "y": 255.875,
+            "width": 323,
+            "height": 77
+          }
+        }
+      },
+      "resolvedHeadingFonts": [
+        {
+          "familyName": "Arial",
+          "postScriptName": "Arial-BoldMT",
+          "isCustomFont": false,
+          "glyphCount": 28
+        }
+      ],
+      "requests": [
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/needs/17408391-d358-4152-a553-129808cc6cef",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/brief",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/title",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "navigationToCardMs": 299,
+      "geometry": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "font": "Arial, Inter, sans-serif",
+        "headerColor": "rgb(23, 50, 74)",
+        "metricWidths": [
+          164.734375,
+          192.875,
+          172.78125,
+          187.84375,
+          194.875
+        ],
+        "regions": {
+          ".wh-header": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 45.046875
+          },
+          ".wh-list": {
+            "x": 0,
+            "y": 45.046875,
+            "width": 320,
+            "height": 754.9375
+          },
+          ".wh-detail": {
+            "x": 320,
+            "y": 45.046875,
+            "width": 960,
+            "height": 754.9375
+          },
+          ".wh-detail-head": {
+            "x": 333.4375,
+            "y": 58.484375,
+            "width": 933.125,
+            "height": 137.953125
+          },
+          ".wh-record-hero": {
+            "x": 333.4375,
+            "y": 91.484375,
+            "width": 933.125,
+            "height": 104.953125
+          },
+          ".wh-metrics": {
+            "x": 333.4375,
+            "y": 204.4375,
+            "width": 933.125,
+            "height": 124.609375
+          },
+          ".ic-dashboard": {
+            "x": 333.4375,
+            "y": 339.046875,
+            "width": 933.125,
+            "height": 474.625
+          },
+          ".ic-project": {
+            "x": 333.4375,
+            "y": 339.046875,
+            "width": 305.03125,
+            "height": 474.625
+          },
+          ".ic-contacts": {
+            "x": 647.46875,
+            "y": 339.046875,
+            "width": 305.046875,
+            "height": 474.625
+          },
+          ".ic-why": {
+            "x": 961.515625,
+            "y": 339.046875,
+            "width": 305.03125,
+            "height": 186.21875
+          },
+          ".ic-next": {
+            "x": 961.515625,
+            "y": 534.265625,
+            "width": 305.03125,
+            "height": 172.265625
+          },
+          ".wh-tabs": {
+            "x": 333.4375,
+            "y": 823.671875,
+            "width": 933.125,
+            "height": 30
+          },
+          ".wh-evidence-heading": {
+            "x": 333.4375,
+            "y": 865.671875,
+            "width": 933.125,
+            "height": 46.484375
+          },
+          ".wh-evidence-table": {
+            "x": 333.4375,
+            "y": 922.15625,
+            "width": 933.125,
+            "height": 186.5625
+          },
+          ".wh-queue-item": {
+            "x": 18,
+            "y": 250.234375,
+            "width": 283,
+            "height": 77
+          }
+        }
+      },
+      "resolvedHeadingFonts": [
+        {
+          "familyName": "Arial",
+          "postScriptName": "Arial-BoldMT",
+          "isCustomFont": false,
+          "glyphCount": 28
+        }
+      ],
+      "requests": [
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/needs/17408391-d358-4152-a553-129808cc6cef",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/brief",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/title",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "navigationToCardMs": 296,
+      "geometry": {
+        "width": 768,
+        "scrollWidth": 768,
+        "font": "Arial, Inter, sans-serif",
+        "headerColor": "rgb(23, 50, 74)",
+        "metricWidths": [
+          144.390625,
+          144.40625,
+          144.390625,
+          144.40625,
+          144.390625
+        ],
+        "regions": {
+          ".wh-header": {
+            "x": 0,
+            "y": 0,
+            "width": 768,
+            "height": 93
+          },
+          ".wh-list": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          ".wh-detail": {
+            "x": 0,
+            "y": 93,
+            "width": 768,
+            "height": 1836.90625
+          },
+          ".wh-detail-head": {
+            "x": 13,
+            "y": 106,
+            "width": 742,
+            "height": 174.6875
+          },
+          ".wh-record-hero": {
+            "x": 13,
+            "y": 139,
+            "width": 742,
+            "height": 141.6875
+          },
+          ".wh-metrics": {
+            "x": 13,
+            "y": 288.6875,
+            "width": 742,
+            "height": 122.9375
+          },
+          ".ic-dashboard": {
+            "x": 13,
+            "y": 421.625,
+            "width": 742,
+            "height": 777.015625
+          },
+          ".ic-project": {
+            "x": 13,
+            "y": 421.625,
+            "width": 742,
+            "height": 227.140625
+          },
+          ".ic-contacts": {
+            "x": 13,
+            "y": 657.765625,
+            "width": 742,
+            "height": 351.875
+          },
+          ".ic-why": {
+            "x": 13,
+            "y": 1018.640625,
+            "width": 366.5,
+            "height": 172.265625
+          },
+          ".ic-next": {
+            "x": 388.5,
+            "y": 1018.640625,
+            "width": 366.5,
+            "height": 172.265625
+          },
+          ".wh-tabs": {
+            "x": 13,
+            "y": 1208.640625,
+            "width": 742,
+            "height": 30
+          },
+          ".wh-evidence-heading": {
+            "x": 13,
+            "y": 1250.640625,
+            "width": 742,
+            "height": 63.875
+          },
+          ".wh-evidence-table": {
+            "x": 13,
+            "y": 1324.515625,
+            "width": 742,
+            "height": 186.5625
+          },
+          ".wh-queue-item": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          }
+        }
+      },
+      "resolvedHeadingFonts": [
+        {
+          "familyName": "Arial",
+          "postScriptName": "Arial-BoldMT",
+          "isCustomFont": false,
+          "glyphCount": 28
+        }
+      ],
+      "requests": [
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/needs/17408391-d358-4152-a553-129808cc6cef",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/brief",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/title",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "navigationToCardMs": 287,
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "font": "Arial, Inter, sans-serif",
+        "headerColor": "rgb(23, 50, 74)",
+        "metricWidths": [
+          178.5,
+          178.5,
+          178.5,
+          178.5,
+          178.5
+        ],
+        "regions": {
+          ".wh-header": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 125
+          },
+          ".wh-list": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          ".wh-detail": {
+            "x": 0,
+            "y": 125,
+            "width": 390,
+            "height": 2518.859375
+          },
+          ".wh-detail-head": {
+            "x": 14,
+            "y": 139,
+            "width": 362,
+            "height": 240.6875
+          },
+          ".wh-record-hero": {
+            "x": 14,
+            "y": 201,
+            "width": 362,
+            "height": 178.6875
+          },
+          ".wh-metrics": {
+            "x": 14,
+            "y": 387.6875,
+            "width": 362,
+            "height": 300.9375
+          },
+          ".ic-dashboard": {
+            "x": 14,
+            "y": 698.625,
+            "width": 362,
+            "height": 1031.5
+          },
+          ".ic-project": {
+            "x": 14,
+            "y": 1141,
+            "width": 362,
+            "height": 227.140625
+          },
+          ".ic-contacts": {
+            "x": 14,
+            "y": 698.625,
+            "width": 362,
+            "height": 433.375
+          },
+          ".ic-why": {
+            "x": 14,
+            "y": 1377.140625,
+            "width": 362,
+            "height": 171.71875
+          },
+          ".ic-next": {
+            "x": 14,
+            "y": 1557.859375,
+            "width": 362,
+            "height": 172.265625
+          },
+          ".wh-tabs": {
+            "x": 14,
+            "y": 1740.125,
+            "width": 362,
+            "height": 72
+          },
+          ".wh-evidence-heading": {
+            "x": 14,
+            "y": 1824.125,
+            "width": 362,
+            "height": 106.875
+          },
+          ".wh-evidence-table": {
+            "x": 14,
+            "y": 1941,
+            "width": 362,
+            "height": 182.53125
+          },
+          ".wh-queue-item": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          }
+        }
+      },
+      "resolvedHeadingFonts": [
+        {
+          "familyName": "Arial",
+          "postScriptName": "Arial-BoldMT",
+          "isCustomFont": false,
+          "glyphCount": 28
+        }
+      ],
+      "requests": [
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/auth/session",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/needs/17408391-d358-4152-a553-129808cc6cef",
+          "method": "GET"
+        },
+        {
+          "url": "/api/opportunities/workspace/changes",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/brief",
+          "method": "GET"
+        },
+        {
+          "url": "/api/power-needs/17408391-d358-4152-a553-129808cc6cef/title",
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

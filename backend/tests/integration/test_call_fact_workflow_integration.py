@@ -185,6 +185,17 @@ def test_fact_draft_accept_correction_are_append_only_and_nonpromoting_without_s
     correction_body["value"] = {"mw": "21", "basis": "Synthetic correction"}
     successor = client.post(f"/api/needs/{need_id}/facts", json=correction_body, headers=headers)
     assert successor.status_code == 200, successor.text
+    accepted_successor = client.post(
+        f"/api/needs/{need_id}/facts/{successor.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 3,
+            "decision": "accepted",
+            "reason": "Must use atomic correction decision",
+        },
+        headers=headers,
+    )
+    assert accepted_successor.status_code == 422
     corrected = client.post(
         f"/api/needs/{need_id}/facts/{successor.json()['id']}/decision",
         json={
@@ -219,6 +230,194 @@ def test_fact_draft_accept_correction_are_append_only_and_nonpromoting_without_s
                 .values(reason="must not update")
             )
             session.flush()
+
+
+def test_fact_correction_requires_current_accepted_same_type_predecessor(runtime):
+    client, _factory, need_id, project_id, pursuit_id = runtime
+    headers = {"origin": "http://testserver"}
+    draft = client.post(
+        f"/api/needs/{need_id}/facts", json=_body(project_id, pursuit_id), headers=headers
+    )
+    assert draft.status_code == 200, draft.text
+    draft_successor = _body(
+        project_id, pursuit_id, expected_version=1, predecessor_id=draft.json()["id"]
+    )
+    assert (
+        client.post(
+            f"/api/needs/{need_id}/facts", json=draft_successor, headers=headers
+        ).status_code
+        == 409
+    )
+
+    accepted = client.post(
+        f"/api/needs/{need_id}/facts/{draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 1,
+            "decision": "accepted",
+            "reason": "Synthetic acceptance",
+        },
+        headers=headers,
+    )
+    assert accepted.status_code == 200
+
+    wrong_type = _body(
+        project_id, pursuit_id, expected_version=2, predecessor_id=draft.json()["id"]
+    )
+    wrong_type["fact_type"] = "buyer"
+    wrong_type["value"] = {"organization": "Synthetic Buyer", "role": "project owner"}
+    assert (
+        client.post(f"/api/needs/{need_id}/facts", json=wrong_type, headers=headers).status_code
+        == 409
+    )
+
+    correction = _body(
+        project_id, pursuit_id, expected_version=2, predecessor_id=draft.json()["id"]
+    )
+    correction["value"] = {"mw": "21", "basis": "Synthetic correction"}
+    successor = client.post(f"/api/needs/{need_id}/facts", json=correction, headers=headers)
+    assert successor.status_code == 200, successor.text
+    corrected = client.post(
+        f"/api/needs/{need_id}/facts/{successor.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 3,
+            "decision": "corrected",
+            "reason": "Synthetic correction",
+        },
+        headers=headers,
+    )
+    assert corrected.status_code == 200, corrected.text
+    stale = _body(project_id, pursuit_id, expected_version=5, predecessor_id=draft.json()["id"])
+    stale["value"] = {"mw": "22", "basis": "Stale correction"}
+    assert (
+        client.post(f"/api/needs/{need_id}/facts", json=stale, headers=headers).status_code == 409
+    )
+
+
+def test_corrected_decision_requires_a_predecessor(runtime):
+    client, _factory, need_id, project_id, pursuit_id = runtime
+    headers = {"origin": "http://testserver"}
+    draft = client.post(
+        f"/api/needs/{need_id}/facts",
+        json=_body(project_id, pursuit_id),
+        headers=headers,
+    )
+    assert draft.status_code == 200, draft.text
+    response = client.post(
+        f"/api/needs/{need_id}/facts/{draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 1,
+            "decision": "corrected",
+            "reason": "No predecessor exists for this fact",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("decision", ["rejected", "retracted"])
+def test_rejecting_or_retracting_correction_draft_keeps_accepted_predecessor(runtime, decision):
+    client, factory, need_id, project_id, pursuit_id = runtime
+    headers = {"origin": "http://testserver"}
+    original = client.post(
+        f"/api/needs/{need_id}/facts",
+        json=_body(project_id, pursuit_id),
+        headers=headers,
+    )
+    assert original.status_code == 200, original.text
+    accepted = client.post(
+        f"/api/needs/{need_id}/facts/{original.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 1,
+            "decision": "accepted",
+            "reason": "Synthetic accepted predecessor",
+        },
+        headers=headers,
+    )
+    assert accepted.status_code == 200, accepted.text
+    successor_body = _body(
+        project_id, pursuit_id, expected_version=2, predecessor_id=original.json()["id"]
+    )
+    successor = client.post(f"/api/needs/{need_id}/facts", json=successor_body, headers=headers)
+    assert successor.status_code == 200, successor.text
+    decision_response = client.post(
+        f"/api/needs/{need_id}/facts/{successor.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 3,
+            "decision": decision,
+            "reason": f"Synthetic correction {decision}",
+        },
+        headers=headers,
+    )
+    assert decision_response.status_code == 200, decision_response.text
+    assert decision_response.json()["decision"] == decision
+    with factory() as session:
+        from gridlens.ingestion.service import load_current_need_operator_inputs
+
+        facts_by_need, _ = load_current_need_operator_inputs(session, [need_id])
+        assert [fact.id for fact in facts_by_need[need_id]] == [UUID(original.json()["id"])]
+
+
+def test_concurrent_fact_corrections_cannot_supersede_one_predecessor_twice(runtime):
+    client, factory, need_id, project_id, pursuit_id = runtime
+    headers = {"origin": "http://testserver"}
+    original = client.post(
+        f"/api/needs/{need_id}/facts", json=_body(project_id, pursuit_id), headers=headers
+    )
+    assert original.status_code == 200
+    accepted = client.post(
+        f"/api/needs/{need_id}/facts/{original.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 1,
+            "decision": "accepted",
+            "reason": "Synthetic acceptance",
+        },
+        headers=headers,
+    )
+    assert accepted.status_code == 200
+    corrections = []
+    for expected_version, mw in ((2, "21"), (3, "22")):
+        body = _body(
+            project_id,
+            pursuit_id,
+            expected_version=expected_version,
+            predecessor_id=original.json()["id"],
+        )
+        body["value"] = {"mw": mw, "basis": "Synthetic concurrent correction"}
+        response = client.post(f"/api/needs/{need_id}/facts", json=body, headers=headers)
+        assert response.status_code == 200, response.text
+        corrections.append(response.json()["id"])
+
+    barrier = Barrier(2)
+
+    def decide(fact_id):
+        barrier.wait()
+        return client.post(
+            f"/api/needs/{need_id}/facts/{fact_id}/decision",
+            json={
+                "client_id": str(uuid4()),
+                "expected_version": 4,
+                "decision": "corrected",
+                "reason": "Synthetic concurrent correction decision",
+            },
+            headers=headers,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(decide, corrections))
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    with factory() as session:
+        prior_events = session.scalars(
+            select(CallFactDecision).where(
+                CallFactDecision.fact_version_id == UUID(original.json()["id"])
+            )
+        ).all()
+        assert sum(event.decision == "superseded" for event in prior_events) == 1
 
 
 @pytest.mark.parametrize("target_exists", [True, False])
@@ -389,6 +588,106 @@ def test_concurrent_workflow_updates_serialize_by_exact_need(runtime):
     assert sorted(response.status_code for response in responses) == [200, 409]
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(NeedWorkflowStatusEvent)) == 1
+
+
+def test_discovery_facts_remain_signal_and_preserve_history(runtime, monkeypatch):
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    client, factory, need_id, project_id, pursuit_id = runtime
+    content_hash = "b" * 64
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        need.activity_key = "project-discovery"
+        observation = Observation(
+            source_id="a6-test-source",
+            external_id="neutral-site",
+            title="Synthetic facility site milestone",
+            abstract="A facility site milestone in Test City.",
+            published_at=datetime.now(UTC).date(),
+            url="https://example.test/neutral-site",
+            content_hash=content_hash,
+        )
+        session.add(observation)
+        session.flush()
+        session.add_all(
+            [
+                Evidence(
+                    observation_id=observation.id,
+                    content_hash=content_hash,
+                    title=observation.title,
+                    abstract=observation.abstract,
+                    url=observation.url,
+                    published_at=observation.published_at,
+                    observed_at=datetime.now(UTC),
+                ),
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=content_hash,
+                    status="accepted",
+                    assessment={
+                        "decision": "accepted",
+                        "semantic_hash": content_hash,
+                        "evidence_hash": content_hash,
+                        "project_identity_key": project.identity_key,
+                        "power_activity": "project-discovery",
+                        "tier": "Signal",
+                        "reason": "Current site milestone.",
+                        "subject": project.name,
+                        "location": project.location,
+                    },
+                ),
+                NeedObservation(need_id=need.id, observation_id=observation.id),
+            ]
+        )
+    headers = {"origin": "http://testserver"}
+    version = 0
+
+    def accept(kind, value):
+        nonlocal version
+        body = _body(project_id, pursuit_id, expected_version=version)
+        body.update(
+            activity_key="project-discovery",
+            fact_type=kind,
+            value=value,
+            effective_from="2026-01-01T00:00:00+00:00",
+            effective_until="2027-03-04T00:00:00+00:00",
+        )
+        draft = client.post(f"/api/needs/{need_id}/facts", json=body, headers=headers)
+        assert draft.status_code == 200, draft.text
+        version += 1
+        decision = client.post(
+            f"/api/needs/{need_id}/facts/{draft.json()['id']}/decision",
+            json={
+                "client_id": str(uuid4()),
+                "expected_version": version,
+                "decision": "accepted",
+                "reason": "Synthetic confirmed fact",
+            },
+            headers=headers,
+        )
+        assert decision.status_code == 200, decision.text
+        version += 1
+        return decision.json()
+
+    for kind, value in [
+        ("demand", {"mw": "20"}),
+        ("unsuitable_supply", {"mw": "2"}),
+        ("timing", {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31}),
+        ("suitable_supply", {"mw": "5", "quality": "suitable"}),
+        ("buyer", {"organization": "Synthetic Owner LLC", "role": "project owner"}),
+    ]:
+        assert accept(kind, value)["tier"] == "Signal"
+    browse = client.get("/api/opportunities?tier=Signal")
+    assert browse.status_code == 200, browse.text
+    assert any(str(item["id"]) == str(need_id) for item in browse.json())
+    detail = client.get(f"/api/opportunities/needs/{need_id}?tier=Signal")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["tier"] == "Signal"
+    history = client.get(f"/api/needs/{need_id}/facts")
+    assert history.status_code == 200 and history.json()["current_fact_version"] == version
+    closed = accept("closure", {"state": "adequate_supply"})
+    assert closed["active"] is False
+    assert client.get(f"/api/needs/{need_id}/facts").json()["current_fact_version"] == version
 
 
 def test_current_public_support_bounds_fact_qualification_and_reassessment(runtime, monkeypatch):

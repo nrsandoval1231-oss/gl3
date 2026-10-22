@@ -1,0 +1,521 @@
+"""Typed commercial presentation over accepted GridLens projections; never a fact authority."""
+
+from __future__ import annotations
+
+import re
+from decimal import Decimal, InvalidOperation
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+from gridlens.domain.pursuit_research import ACTIVE, fingerprint
+
+POLICY = "opportunity-intelligence-v1"
+FieldStatus = Literal[
+    "Verified",
+    "Evidence-supported estimate",
+    "Research in progress",
+    "Not publicly available",
+    "Not applicable",
+    "Conflicting evidence",
+]
+
+
+class IntelligenceSource(BaseModel):
+    reference: str
+    title: str
+    url: str | None = None
+    source_date: str | None = None
+    retained_evidence_id: str | None = None
+    content_hash: str | None = None
+    passage: str | None = None
+    extraction_method: str
+    verification_status: str
+    assessed_at: str | None = None
+
+
+class IntelligenceField(BaseModel):
+    key: str
+    label: str
+    section: Literal["identity", "power", "commercial"]
+    status: FieldStatus
+    value: str | None = None
+    basis: str
+    sources: list[IntelligenceSource] = Field(default_factory=list)
+    research_category: str | None = None
+    research_status: str | None = None
+
+
+class IntelligenceContact(BaseModel):
+    claim_id: str
+    company: str
+    name: str | None = None
+    title: str | None = None
+    role: str
+    responsibility: Literal[
+        "Verified project responsibility",
+        "Verified organizational responsibility",
+        "Inferred likely role",
+        "General company contact path",
+    ]
+    purchasing_authority: str = "Requires confirmation for this power package"
+    methods: list[dict[str, str]] = Field(default_factory=list)
+    sources: list[IntelligenceSource] = Field(default_factory=list)
+    verified_at: str | None = None
+
+
+class IntelligenceCard(BaseModel):
+    policy_version: str = POLICY
+    need_id: str
+    project_id: str
+    input_fingerprint: str
+    qualification: str
+    disposition: str
+    fields: list[IntelligenceField]
+    contacts: list[IntelligenceContact]
+    next_contact_path: str
+    next_action: str
+    research_gaps: list[IntelligenceField]
+    completeness: dict[str, int | str]
+    last_intelligence_update: str | None = None
+    power_gap: dict[str, Any] | None = None
+    evidence: list[IntelligenceSource]
+    research_enabled: bool
+
+
+def _iso(value: Any) -> str | None:
+    return value.isoformat() if hasattr(value, "isoformat") else str(value) if value else None
+
+
+def normalize_gap(item: dict) -> dict | None:
+    """Normalize both accepted official and operator shapes, checking arithmetic.
+
+    This receives a current canonical projection, not a provider response. A
+    campus total, scenario or unknown supply can never enter through this path.
+    """
+    raw = item.get("qualified_remaining_gap")
+    if item.get("tier") != "Lead" or not item.get("qualification_version") or not raw:
+        return None
+    if item.get("qualification_conflict") or item.get("conflict_state") == "CONFLICT":
+        return None
+    numbers = {}
+    try:
+        for field in ("required", "available", "remaining"):
+            for end in ("min", "max"):
+                value = raw.get(f"{field}_mw_{end}", raw.get(f"{field}_mw"))
+                number = Decimal(str(value))
+                if not number.is_finite() or number < 0 or number.adjusted() > 12:
+                    return None
+                numbers[f"{field}_mw_{end}"] = number
+            if numbers[f"{field}_mw_min"] > numbers[f"{field}_mw_max"]:
+                return None
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    for end, other in (("min", "max"), ("max", "min")):
+        if numbers[f"remaining_mw_{end}"] != max(
+            Decimal(0), numbers[f"required_mw_{end}"] - numbers[f"available_mw_{other}"]
+        ):
+            return None
+    return {
+        **raw,
+        **{key: str(value) for key, value in numbers.items()},
+        "start_window": raw.get("start_window") or item.get("start_window"),
+        "duration": raw.get("duration") or item.get("duration"),
+        "calculation": (
+            "[max(0, required_min - available_max), max(0, required_max - available_min)]"
+        ),
+        "version": item["qualification_version"],
+        "basis": raw.get("basis_quote")
+        or "Accepted scoped operator facts; inspect fact IDs and hashes.",
+        "value_kind": "Derived",
+    }
+
+
+def _source(row: dict, *, chain: bool = False) -> IntelligenceSource:
+    reference = str(row.get("id") or row.get("evidence_id") or "")
+    return IntelligenceSource(
+        reference=("buying-chain:" if chain else "evidence:") + reference,
+        title=str(row.get("title") or ("Buying-chain source" if chain else "Retained source")),
+        url=row.get("url"),
+        source_date=_iso(row.get("published_at") or row.get("event_date")),
+        retained_evidence_id=(
+            str(row["retained_evidence_id"])
+            if row.get("retained_evidence_id")
+            else None
+            if chain
+            else reference
+        ),
+        content_hash=row.get("content_hash"),
+        passage=row.get("quote") or row.get("abstract"),
+        extraction_method=str(row.get("extraction_location") or "canonical projection"),
+        verification_status="Current retained support"
+        if chain or row.get("assessment_current")
+        else "Retained source; assess claim currency",
+        assessed_at=_iso(row.get("observed_at") or row.get("retrieved_at")),
+    )
+
+
+def contact_projection(chain: dict) -> list[IntelligenceContact]:
+    from gridlens.domain.commercial_triage import _is_rental_intermediary
+
+    result = []
+    for party in chain.get("candidates", []):
+        if (
+            party.get("stale")
+            or party.get("organization_relationship") != "DIRECT"
+            or _is_rental_intermediary(
+                party.get("category"), party.get("organization"), party.get("reason")
+            )
+        ):
+            continue
+        evidence = [e for e in party.get("evidence", []) if e.get("current_support") is True]
+        if not evidence:
+            continue
+        responsibility = "General company contact path"
+        if party.get("person_name"):
+            if party.get("person_project_relationship") == "DIRECT":
+                responsibility = "Verified project responsibility"
+            elif party.get("person_project_relationship") == "ROLE_SUPPORTED":
+                responsibility = "Inferred likely role"
+            elif party.get("person_organization_relationship") == "DIRECT":
+                responsibility = "Verified organizational responsibility"
+        methods = []
+        for contact in party.get("public_contacts", []):
+            value, kind = str(contact.get("value", "")), str(contact.get("kind", "")).lower()
+            support = next(
+                (
+                    e
+                    for e in evidence
+                    if e.get("supports") == "public_contact"
+                    and e.get("url") == contact.get("source_url")
+                    and e.get("quote") == contact.get("quote")
+                    and value
+                    and value in str(e.get("quote", ""))
+                ),
+                None,
+            )
+            if support is None:
+                continue
+            href = None
+            if kind == "email" and re.fullmatch(
+                r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", value
+            ):
+                href = "mailto:" + value
+            elif kind in {"phone", "telephone"} and re.fullmatch(r"\+?[\d () .-]{7,30}", value):
+                digits = re.sub(r"[^\d+]", "", value)
+                if 7 <= len(re.sub(r"\D", "", digits)) <= 15:
+                    href = "tel:" + digits
+            if href:
+                methods.append(
+                    {
+                        "kind": kind,
+                        "value": value,
+                        "href": href,
+                        "source_url": contact["source_url"],
+                        "verified_at": _iso(contact.get("observed_at")) or "",
+                    }
+                )
+        result.append(
+            IntelligenceContact(
+                claim_id=str(party["id"]),
+                company=party["organization"],
+                name=party.get("person_name"),
+                title=party.get("title"),
+                role=party.get("category", "unknown").replace("_", " "),
+                responsibility=responsibility,  # type: ignore[arg-type]
+                methods=methods,
+                sources=[_source(e, chain=True) for e in evidence],
+                verified_at=_iso(party.get("verified_at")),
+            )
+        )
+    return result
+
+
+def assemble_card(
+    item: dict, chain: dict, commercial: dict, questions: list[dict], *, research_enabled: bool
+) -> IntelligenceCard:
+    """Pure assembly. Completeness is descriptive and cannot change qualification."""
+    sources = [_source(e) for e in item.get("evidence", [])]
+    current = [_source(e) for e in item.get("evidence", []) if e.get("assessment_current")]
+    contacts = contact_projection(chain)
+    owners = [
+        p
+        for p in contacts
+        if p.role in {"owner developer", "asset operator", "owner construction", "owner energy"}
+    ]
+    unique_owners = {p.company for p in owners}
+    fields: list[IntelligenceField] = []
+    latest: dict[str, dict] = {}
+    for q in questions:  # newest first, supplied by bounded repository read
+        latest.setdefault(q["category"], q)
+
+    def add(
+        key,
+        label,
+        section,
+        value,
+        category,
+        refs=None,
+        *,
+        estimate=False,
+        conflict=False,
+        basis="Current canonical evidence; inspect the cited source and scope.",
+    ):
+        refs = refs or []
+        value = (
+            str(value)
+            if value is not None
+            and str(value).strip().lower() not in {"", "unknown", "not assessed"}
+            else None
+        )
+        q = latest.get(category)
+        research_field = {
+            "required_mw": "activity_load_mw",
+            "start": "activity_start",
+            "stage": "phase",
+            "supply_status": "supply_adequacy",
+            "energization": "permanent_service",
+        }.get(key)
+        research = item.get("research_state", {}).get(research_field, {})
+        claim_sources = []
+        for claim in research.get("claims", []):
+            for source in sources:
+                if (
+                    source.retained_evidence_id == claim.get("evidence_id")
+                    and source.content_hash == claim.get("evidence_hash")
+                    and claim.get("quote")
+                    and source.passage
+                    and claim["quote"] in source.passage
+                ):
+                    claim_sources.append(
+                        source.model_copy(
+                            update={
+                                "passage": claim["quote"],
+                                "verification_status": "Current source-reported claim",
+                            }
+                        )
+                    )
+        if research.get("status") == "SUPPORTED" and value is None and claim_sources:
+            value = str(research["value"]).replace("_", " ")
+            if research_field == "activity_load_mw":
+                value += " MW (source-reported)"
+            refs = claim_sources
+            basis = (
+                "Current source report; this does not establish "
+                "temporary-generation demand or qualification."
+            )
+        if research.get("status") == "CONFLICT":
+            refs = claim_sources
+        conflict = conflict or (
+            item.get("research_state", {}).get(research_field, {}).get("status") == "CONFLICT"
+        )
+        if section == "power" and item.get("conflict_state") == "CONFLICT":
+            conflict = True
+        if conflict:
+            status = "Conflicting evidence"
+            value = None
+            basis = "Current evidence conflicts; no single value is accepted."
+        elif value is not None and refs:
+            status = "Evidence-supported estimate" if estimate else "Verified"
+        else:
+            value = None
+            status = "Research in progress"
+            basis = (
+                "Research queued or running."
+                if q and q["status"] in ACTIVE
+                else "No supported value yet. "
+                + (
+                    "Targeted research is available."
+                    if research_enabled
+                    else "Research execution is disabled."
+                )
+            )
+            if q and q["status"] not in ACTIVE:
+                basis += " Last attempt: " + q["status"].lower().replace("_", " ") + "."
+        fields.append(
+            IntelligenceField(
+                key=key,
+                label=label,
+                section=section,
+                value=value,
+                status=status,
+                basis=basis,
+                sources=refs,
+                research_category=category,
+                research_status=q["status"] if q else "NOT_SCHEDULED",
+            )
+        )
+
+    owner_refs = [s for p in owners for s in p.sources]
+    add(
+        "customer",
+        "Customer / end user",
+        "identity",
+        "; ".join(sorted(unique_owners)) or None,
+        "identity",
+        owner_refs,
+    )
+    add(
+        "project",
+        "Project",
+        "identity",
+        item.get("supported_subject") or item.get("name"),
+        "identity",
+        current,
+    )
+    add("location", "Facility location", "identity", item.get("location"), "identity", current)
+    add("activity", "Power activity", "identity", item.get("activity"), "power_need", current)
+    add("stage", "Project stage", "identity", item.get("lifecycle_state"), "phase", current)
+    gap = normalize_gap(item)
+
+    def field_sources(kind):
+        quote = item.get("power_field_provenance", {}).get(kind)
+        if kind == "demand":
+            quote = quote or item.get("demand_quote")
+        refs = [
+            source.model_copy(update={"passage": quote})
+            for source in current
+            if quote and source.passage and quote in source.passage
+        ]
+        fact_types = {
+            "demand": {"demand"},
+            "start": {"timing"},
+            "duration": {"timing"},
+            "supply": {"suitable_supply"},
+        }[kind]
+        for fact in item.get("operator_fact_refs", []):
+            if fact.get("fact_type") not in fact_types:
+                continue
+            refs.append(
+                IntelligenceSource(
+                    reference="operator-fact:" + fact["fact_version_id"],
+                    title="Accepted " + fact["fact_type"] + " confirmation",
+                    content_hash=fact["content_hash"],
+                    passage=str(fact.get("value", {})),
+                    source_date=_iso(fact.get("confirmed_at")),
+                    extraction_method="Attributed operator confirmation",
+                    verification_status="User-confirmed",
+                )
+            )
+        return refs
+
+    power_refs = [
+        source
+        for kind in ("demand", "start", "duration", "supply")
+        for source in field_sources(kind)
+    ]
+    add(
+        "required_mw",
+        "Activity-specific requirement",
+        "power",
+        item.get("required_mw"),
+        "load",
+        field_sources("demand"),
+    )
+    add("facility_demand", "Total planned facility demand", "power", None, "load")
+    add(
+        "start", "Power needed", "power", item.get("start_window"), "timing", field_sources("start")
+    )
+    add(
+        "duration",
+        "Bridge / activity duration",
+        "power",
+        item.get("duration"),
+        "duration",
+        field_sources("duration"),
+    )
+    add(
+        "supply",
+        "Suitable available supply",
+        "power",
+        f"{gap['available_mw_min']}–{gap['available_mw_max']} MW" if gap else None,
+        "supply",
+        field_sources("supply"),
+    )
+    add(
+        "gap",
+        "Residual power gap",
+        "power",
+        f"{gap['remaining_mw_min']}–{gap['remaining_mw_max']} MW" if gap else None,
+        "supply",
+        power_refs,
+        estimate=False,
+        basis=gap["calculation"]
+        if gap
+        else "No defensible gap until scoped demand, dates and suitable supply are established.",
+    )
+    add("supply_status", "Supply adequacy", "power", None, "supply")
+    for key, label, category in (
+        ("energization", "Utility service status", "supply"),
+        ("fuel", "Fuel availability", "suitability"),
+        ("voltage", "Voltage / electrical requirements", "suitability"),
+        ("load_profile", "Load profile", "suitability"),
+    ):
+        add(key, label, "power", None, category)
+    add(
+        "assessment",
+        "Why this matters",
+        "commercial",
+        commercial.get("reason"),
+        "power_need",
+        current,
+        basis="Deterministic commercial assessment; qualification remains separate.",
+    )
+    contact_refs = [source for contact in contacts for source in contact.sources]
+    add(
+        "contact_path",
+        "Verified business contact path",
+        "commercial",
+        next((contact.company for contact in contacts if contact.methods), None),
+        "buyer",
+        contact_refs,
+    )
+    add(
+        "project_contact",
+        "Project-responsible person",
+        "commercial",
+        next(
+            (
+                contact.name
+                for contact in contacts
+                if contact.responsibility == "Verified project responsibility"
+            ),
+            None,
+        ),
+        "buyer",
+        contact_refs,
+    )
+    gaps = [f for f in fields if f.value is None]
+    complete = sum(f.value is not None for f in fields)
+    reachable = next((p for p in contacts if p.methods), None)
+    path = (
+        f"Contact {reachable.name or reachable.company} via the cited business contact; "
+        "confirm responsibility for this power package."
+        if reachable
+        else f"Verify the project contact through {contacts[0].company}'s official channel."
+        if contacts
+        else "Research the owner/operator and procurement contact using official project sources."
+    )
+    updated = sorted(s.assessed_at for s in sources if s.assessed_at)
+    return IntelligenceCard(
+        need_id=str(item["id"]),
+        project_id=str(item["project_id"]),
+        input_fingerprint=fingerprint([POLICY, item, chain, questions]),
+        qualification=item["tier"],
+        disposition=commercial.get("disposition", "RESEARCH"),
+        fields=fields,
+        contacts=contacts,
+        next_contact_path=path,
+        next_action=commercial.get("next_action") or item.get("next_action") or path,
+        research_gaps=gaps,
+        completeness={
+            "supported": complete,
+            "total": len(fields),
+            "percent": round(100 * complete / len(fields)),
+            "basis": "Supported required fields; independent of commercial qualification.",
+        },
+        last_intelligence_update=updated[-1] if updated else None,
+        power_gap=gap,
+        evidence=sources,
+        research_enabled=research_enabled,
+    )
