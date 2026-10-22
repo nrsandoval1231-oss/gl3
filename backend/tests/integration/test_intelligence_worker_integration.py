@@ -426,9 +426,9 @@ def test_retained_context_omits_opaque_binary_tail_with_original_offsets(session
     assert row["omitted_text_end"] == len(text)
 
 
-def _fake_call(**_kwargs):
+def _fake_call(*, model="pinned-fixture-model", **_kwargs):
     return {
-        "model": "pinned-fixture-model",
+        "model": model,
         "provider_response_id": "fixture-response",
         "answers": {
             "answer": {
@@ -1025,6 +1025,12 @@ def test_catalog_worker_owner_unlimited_reserves_zero_usd_and_rechecks_authoriza
     monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", "fixture-auth-1")
     monkeypatch.setattr(settings, "intelligence_unlimited_providers", "typesafe")
     monkeypatch.setattr(settings, "intelligence_unlimited_contracts", "SOURCE_RELEVANCE_V1")
+    for name in (
+        "intelligence_typesafe_model",
+        "intelligence_typesafe_priced_model_id",
+        "intelligence_typesafe_billing_model_id",
+    ):
+        monkeypatch.setattr(settings, name, "jev-1.13.0")
     monkeypatch.setattr(
         settings, "intelligence_typesafe_billing_policy_id", "typesafe-reported-input-usage-v1"
     )
@@ -1041,7 +1047,7 @@ def test_catalog_worker_owner_unlimited_reserves_zero_usd_and_rechecks_authoriza
     monkeypatch.setattr(
         intelligence_jobs,
         "call_typesafe",
-        lambda **_kwargs: (provider_calls.append(True) or _fake_call()),
+        lambda **_kwargs: (provider_calls.append(True) or _fake_call(model="jev-1.13.0")),
     )
     assert worker.run_one({}, job_ids=[job_id]) is True
     with sessions() as session:
@@ -1070,6 +1076,12 @@ def test_catalog_worker_changed_unlimited_authorization_blocks_before_dispatch(
     monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", "fixture-auth-1")
     monkeypatch.setattr(settings, "intelligence_unlimited_providers", "typesafe")
     monkeypatch.setattr(settings, "intelligence_unlimited_contracts", "SOURCE_RELEVANCE_V1")
+    for name in (
+        "intelligence_typesafe_model",
+        "intelligence_typesafe_priced_model_id",
+        "intelligence_typesafe_billing_model_id",
+    ):
+        monkeypatch.setattr(settings, name, "jev-1.13.0")
     monkeypatch.setattr(
         settings, "intelligence_typesafe_billing_policy_id", "typesafe-reported-input-usage-v1"
     )

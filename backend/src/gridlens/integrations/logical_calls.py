@@ -684,7 +684,14 @@ def quarantine_call(
                     "conservative_exposure_usd": str(exposure) if exposure is not None else None,
                     "exposure_basis": exposure_basis[:200] if exposure_basis else None,
                     "exposure_status": measured_exposure_status,
-                    "budgeted_exposure_usd": str(target_exposure),
+                    "budgeted_exposure_usd": (
+                        str(target_exposure) if call.financial_budget_mode == "finite" else None
+                    ),
+                    "financial_budget_mode": call.financial_budget_mode,
+                    "financial_authorization_ref": call.financial_authorization_ref,
+                    "max_cost_usd": (
+                        str(call.max_cost_usd) if call.max_cost_usd is not None else None
+                    ),
                 }
             }
             encoded = json.dumps(
@@ -826,7 +833,9 @@ def _transition(
         if isinstance(old_quarantine, dict):
             if isinstance(call.result_payload, dict):
                 updated_quarantine = dict(old_quarantine)
-                updated_quarantine["budgeted_exposure_usd"] = str(target_budgeted)
+                updated_quarantine["budgeted_exposure_usd"] = (
+                    str(target_budgeted) if call.financial_budget_mode == "finite" else None
+                )
                 updated_quarantine["reconciled_actual_cost_usd"] = str(measured_cost)
                 updated_payload = dict(call.result_payload)
                 updated_payload["billing_quarantine"] = updated_quarantine
@@ -1129,7 +1138,9 @@ def settle_call(
         if isinstance(quarantine, dict):
             if isinstance(call.result_payload, dict):
                 updated_quarantine = dict(quarantine)
-                updated_quarantine["budgeted_exposure_usd"] = str(target_budgeted)
+                updated_quarantine["budgeted_exposure_usd"] = (
+                    str(target_budgeted) if call.financial_budget_mode == "finite" else None
+                )
                 updated_quarantine["reconciled_actual_cost_usd"] = str(cost)
                 updated_payload = dict(call.result_payload)
                 updated_payload["billing_quarantine"] = updated_quarantine

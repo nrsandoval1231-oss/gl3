@@ -1121,7 +1121,7 @@ def test_0028_database_trigger_rejects_settlement_edits(monkeypatch):
         admin.dispose()
 
 
-def test_nullable_maximum_quarantine_and_usage_only_settlement(sessions):
+def test_nullable_maximum_quarantine_and_reported_actual_settlement(sessions):
     reserved = _reserve(sessions, "nullable-maximum")
     with sessions() as session:
         row = session.get(LogicalCall, reserved.call_id)
@@ -1158,12 +1158,70 @@ def test_nullable_maximum_quarantine_and_usage_only_settlement(sessions):
             session,
             reserved.call_id,
             actor="synthetic-fixture",
-            receipt_ref="usage-only-receipt",
+            receipt_ref="reported-actual-receipt",
+            actual_cost_usd="0.040000",
             input_tokens=12,
             output_tokens=4,
         )
     assert not replayed
     with sessions() as session:
         row = session.get(LogicalCall, reserved.call_id)
-        assert row is not None and row.actual_cost_usd is None
+        assert row is not None and row.actual_cost_usd == Decimal("0.040000")
         assert row.input_tokens == 12 and row.output_tokens == 4
+        receipt = row.result_payload["billing_quarantine"]
+        assert receipt["budgeted_exposure_usd"] is None
+        assert receipt["reconciled_actual_cost_usd"] == "0.040000"
+        assert receipt["financial_budget_mode"] == "owner_unlimited"
+        assert receipt["financial_authorization_ref"] == "owner-approved-test-policy"
+        assert receipt["max_cost_usd"] is None
+
+
+def test_unlimited_minimal_quarantine_fallback_preserves_unknown_exposure_and_active_hold(
+    sessions, monkeypatch
+):
+    reserved = _reserve(sessions, "unlimited-minimal-quarantine")
+    with sessions() as session:
+        row = session.get(LogicalCall, reserved.call_id)
+        assert row is not None
+        row.financial_budget_mode = "owner_unlimited"
+        row.financial_authorization_ref = "owner-approved-test-policy"
+        row.max_cost_usd = None
+        row.estimated_cost_usd = None
+        session.commit()
+    with sessions() as session:
+        assert mark_dispatched(session, reserved.call_id, fence_token=7, enabled=True).status == (
+            "SENT_OUTCOME_UNKNOWN"
+        )
+    from gridlens.integrations import logical_calls
+
+    monkeypatch.setattr(logical_calls, "MAX_RESULT_BYTES", 1)
+    with sessions() as session:
+        quarantined = quarantine_call(
+            session,
+            reserved.call_id,
+            fence_token=7,
+            expected_model="fixture-model",
+            actual_model="different-model",
+            reason="MODEL_IDENTITY_MISMATCH",
+            response_payload={"model": "different-model", "unknown": object()},
+            exposure_status="UNKNOWN",
+        )
+        assert quarantined.status == "SENT_OUTCOME_UNKNOWN"
+    with sessions() as session:
+        row = session.get(LogicalCall, reserved.call_id)
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global",
+                LogicalCallBudget.period == "daily",
+            )
+        )
+        assert row is not None
+        receipt = row.result_payload["billing_quarantine"]
+        assert receipt["exposure_status"] == "UNKNOWN"
+        assert receipt["conservative_exposure_usd"] is None
+        assert receipt["budgeted_exposure_usd"] is None
+        assert receipt["financial_budget_mode"] == "owner_unlimited"
+        assert receipt["financial_authorization_ref"] == "owner-approved-test-policy"
+        assert receipt["max_cost_usd"] is None
+        assert row.actual_cost_usd is None and row.input_tokens is None
+        assert budget and budget.active_count == 1
