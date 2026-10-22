@@ -1,0 +1,108 @@
+{
+  "packet": "F2-FIELDS",
+  "checkpoint": "F2b",
+  "status": "FROZEN_FOR_INTEGRATION",
+  "base_sha": "6fd427400023e3bebfa5f86320ec2eb0a60f3c9e",
+  "implementation_commit": "da286d1",
+  "branch": "repair/pr102-fields-20261021",
+  "worktree": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-pr102-fields",
+  "changed_files": [
+    "backend/src/gridlens/domain/opportunity_intelligence.py",
+    "backend/src/gridlens/domain/project_research.py",
+    "backend/src/gridlens/domain/pursuit_research.py",
+    "backend/tests/integration/test_retained_research_replay.py",
+    "backend/tests/unit/test_autonomous_resolution.py",
+    "backend/tests/unit/test_opportunity_intelligence_contract.py",
+    "backend/tests/unit/test_project_research.py"
+  ],
+  "implemented": [
+    "Extended exact-project source grammar for literal facility electrical demand, activity-scoped fuel availability, voltage/phase, load profile, temporary-power procurement status, and utility interconnection status.",
+    "Claims retain exact quote, activity where applicable, as-of date basis, and existing accepted evidence ID/hash/version binding. Parser and pursuit policy versions were incremented.",
+    "Facility demand is shown separately from activity load and facility scale; it never mutates qualification or computes a temporary-power gap.",
+    "Fuel, voltage, and load profile each have independent resolvers. Combined suitability resolves only when all three are supported by current cited claims; conflicts and missing values remain unresolved.",
+    "Facility demand, procurement, and utility obstacles have explicit research categories, query routes, and card fields. Existing source-backed phase claims remain the milestone path.",
+    "Current retained examples remain bounded: Edged's 196 MW stays reported facility scale, Boston voltage remains an electrical constraint, and unsupported retained facility demand, fuel, and load profile remain unknown."
+  ],
+  "field_matrix": {
+    "facility_scale_mw": "F2a; exact reviewed retained permit adapter only; not facility demand",
+    "facility_demand_mw": "F2b; supported only by exact literal facility electrical-demand report in current accepted project research",
+    "fuel_availability": "F2b; supported only by exact activity-scoped available/unavailable report",
+    "voltage": "F2a retained Boston parser plus F2b exact activity-scoped report; no inferred MW",
+    "load_profile": "F2b; supported only by exact activity-scoped literal profile",
+    "procurement_status": "F2b; supported only by exact activity-scoped literal milestone",
+    "utility_obstacle": "F2b; supported only by exact activity-scoped literal interconnection status",
+    "suitability_resolver": "Fuel, voltage, and load profile resolve independently; combined state resolves only when all three are current and supported"
+  },
+  "validation": [
+    {
+      "command": "uv run pytest tests/unit/test_project_research.py tests/unit/test_autonomous_resolution.py tests/unit/test_opportunity_intelligence_contract.py tests/unit/test_autonomous_questions.py tests/integration/test_retained_research_replay.py tests/integration/test_project_state_changes.py tests/integration/test_opportunity_intelligence.py tests/integration/test_buying_chain.py -q",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "276 passed, 1 existing Starlette/httpx deprecation warning",
+      "receipt": ".artifacts/pr102/f2b-final-suite.json"
+    },
+    {
+      "command": "uv run ruff check [seven changed Python files]",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "All checks passed",
+      "receipt": ".artifacts/pr102/f2b-final-static.json"
+    },
+    {
+      "command": "uv run mypy src/gridlens/domain/project_research.py src/gridlens/domain/pursuit_research.py src/gridlens/domain/opportunity_intelligence.py",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "Success: no issues found in 3 source files",
+      "receipt": ".artifacts/pr102/f2b-final-mypy.json"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS",
+      "exit_code": 0
+    }
+  ],
+  "recovery": {
+    "failed_attempts": [
+      {
+        "failure": "Initial focused tests showed the planning expectation predated the new independent fuel and facility-demand categories.",
+        "classification": "Test expectation mismatch after bounded behavior change",
+        "repair": "Updated the test to expect the newly prioritized facility-demand and supply categories; the final complete affected suite passed."
+      },
+      {
+        "failure": "Initial accepted-research integration fixture was quarantined for insufficient exact project identity evidence.",
+        "classification": "Fixture omitted the exact retained site address",
+        "repair": "Added the same named-project plus exact-address context used by the existing accepted path; integration then accepted and resolved all typed fields."
+      },
+      {
+        "failure": "Mutating retained abstract text without changing content hash left the old claims current; changing hash correctly removed the state row.",
+        "classification": "Test fixture violated or incompletely exercised the existing source-version invariant",
+        "repair": "Test now changes the evidence hash as well as text and asserts the old project research state is absent."
+      },
+      {
+        "failure": "First wrapper invocation referenced a nonexistent worktree-root .venv.",
+        "classification": "Validation command path error",
+        "repair": "Used the prescribed backend/.venv wrapper and recorded final suite, Ruff, and mypy receipts."
+      }
+    ],
+    "repairs": 3,
+    "raw_final_logs": [
+      ".artifacts/pr102/f2b-final-suite.log",
+      ".artifacts/pr102/f2b-final-static.log",
+      ".artifacts/pr102/f2b-final-mypy.log"
+    ]
+  },
+  "boundaries": {
+    "providers_called": false,
+    "schema_or_migration_changes": false,
+    "api_or_generated_type_changes": false,
+    "frontend_changes": false,
+    "architecture_note": "Excluded; F1 owns it",
+    "qualification_changed": false,
+    "production_data_mutated": false
+  },
+  "limitations": [
+    "No retained example in the reviewed corpus supports exact total facility electrical demand, fuel availability, or load profile; those example fields remain unresolved.",
+    "The deterministic source grammar intentionally accepts a narrow set of literal report forms. Other phrasings remain unknown pending source-format-specific review rather than being inferred."
+  ],
+  "next_direction": "JOIN F2a and F2b serially with F1; validate the integrated exact candidate before downstream F4 work."
+}

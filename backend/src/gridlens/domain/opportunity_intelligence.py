@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from gridlens.domain.power_schedule import PowerScheduleProjection, project_schedule
 from gridlens.domain.pursuit_research import ACTIVE, fingerprint
 
 POLICY = "opportunity-intelligence-v1"
@@ -23,6 +24,7 @@ FieldStatus = Literal[
 
 class IntelligenceSource(BaseModel):
     reference: str
+    source_id: str | None = None
     title: str
     url: str | None = None
     source_date: str | None = None
@@ -79,6 +81,7 @@ class IntelligenceCard(BaseModel):
     completeness: dict[str, int | str]
     last_intelligence_update: str | None = None
     power_gap: dict[str, Any] | None = None
+    power_schedule: PowerScheduleProjection | None = None
     evidence: list[IntelligenceSource]
     research_enabled: bool
 
@@ -135,6 +138,7 @@ def _source(row: dict, *, chain: bool = False) -> IntelligenceSource:
     reference = str(row.get("id") or row.get("evidence_id") or "")
     return IntelligenceSource(
         reference=("buying-chain:" if chain else "evidence:") + reference,
+        source_id=row.get("source_id"),
         title=str(row.get("title") or ("Buying-chain source" if chain else "Retained source")),
         url=row.get("url"),
         source_date=_iso(row.get("published_at") or row.get("event_date")),
@@ -190,7 +194,7 @@ def contact_projection(chain: dict) -> list[IntelligenceContact]:
                     and e.get("url") == contact.get("source_url")
                     and e.get("quote") == contact.get("quote")
                     and value
-                    and value in str(e.get("quote", ""))
+                    and value.casefold() in str(e.get("quote", "")).casefold()
                 ),
                 None,
             )
@@ -229,6 +233,164 @@ def contact_projection(chain: dict) -> list[IntelligenceContact]:
             )
         )
     return result
+
+
+def _source_project_name(
+    item: dict, sources: list[IntelligenceSource]
+) -> tuple[str | None, list[IntelligenceSource]]:
+    """Use a project name only when a current retained source names it directly."""
+
+    from gridlens.ingestion.adapters.retained_document import stack_project_alias
+
+    proof = stack_project_alias(item, sources)
+    if proof.status != "not_applicable":
+        if proof.status == "verified" and proof.evidence_id:
+            source = next(
+                (
+                    source
+                    for source in sources
+                    if source.reference == f"evidence:{proof.evidence_id}"
+                ),
+                None,
+            )
+            if source is not None:
+                return proof.value, [
+                    source.model_copy(
+                        update={
+                            "passage": quote,
+                            "verification_status": "Current source-native project alias and site",
+                        }
+                    )
+                    for quote in proof.quotes
+                ]
+        return None, []
+
+    def meaningful(value: str) -> bool:
+        clean = value.strip(" .,:;\t")
+        return bool(
+            clean
+            and not re.fullmatch(r"[A-Z]{0,6}[- ]?\d{4,}[A-Z]?", clean, re.I)
+            and not re.match(r"^(?:permit|case|application)(?:\s|#|number|$)", clean, re.I)
+        )
+
+    candidates: list[str] = []
+    from gridlens.ingestion.adapters.retained_permits import source_native_project_identity
+
+    for source in sources:
+        passage = source.passage or ""
+        identity = source_native_project_identity(source.source_id or "", passage)
+        if identity:
+            return identity.value, [
+                source.model_copy(
+                    update={
+                        "passage": identity.quote,
+                        "verification_status": identity.verification_status,
+                    }
+                )
+            ]
+    for source in sources:
+        passage = source.passage or ""
+        narrative_name = re.search(
+            r"(?i)\bFacility Name:\s*(?P<name>.*?)"
+            r"(?=\s+(?:AIRS No\.|Location:|Application #|Date of Application:)|[\r\n]|$)",
+            passage,
+        )
+        if narrative_name:
+            value = narrative_name.group("name").strip(" .,:;")
+            if meaningful(value):
+                return value, [
+                    source.model_copy(
+                        update={
+                            "passage": narrative_name.group(0).strip(),
+                            "verification_status": "Current narrative facility name",
+                        }
+                    )
+                ]
+        patterns = (
+            r"\bunder the name\s+(?P<name>[^.\r\n]+)",
+            r"(?m)^Project:\s*(?P<name>[^\r\n]+)",
+            r"(?m)^Facility:\s*(?P<name>[^\r\n]+)",
+        )
+        for pattern in patterns:
+            candidates.extend(
+                match.group("name").strip(" .,:;") for match in re.finditer(pattern, passage, re.I)
+            )
+    candidates.append(str(item.get("supported_subject") or "").strip())
+    for candidate in candidates:
+        if not meaningful(candidate):
+            continue
+        supported = [
+            source.model_copy(
+                update={
+                    "passage": next(
+                        line
+                        for line in (source.passage or "").splitlines()
+                        if candidate.casefold() in line.casefold()
+                    ),
+                    "verification_status": "Current source-native project name",
+                }
+            )
+            for source in sources
+            if candidate.casefold() in (source.passage or "").casefold()
+        ]
+        if supported:
+            return candidate, supported
+    return None, []
+
+
+def _source_location(
+    sources: list[IntelligenceSource],
+) -> tuple[str | None, list[IntelligenceSource]]:
+    """Prefer a precise address only when the current source states it explicitly."""
+    for source in sources:
+        passage = source.passage or ""
+        from gridlens.ingestion.adapters.retained_permits import source_native_georgia_location
+
+        location = source_native_georgia_location(source.source_id or "", passage)
+        if location:
+            return location.value, [
+                source.model_copy(
+                    update={
+                        "passage": location.quote,
+                        "verification_status": location.verification_status,
+                    }
+                )
+            ]
+    return None, []
+
+
+def _source_identifier(
+    sources: list[IntelligenceSource],
+) -> tuple[str | None, list[IntelligenceSource]]:
+    from gridlens.ingestion.adapters.retained_permits import source_record_identifier
+
+    for source in sources:
+        identity = source_record_identifier(source.source_id or "", source.passage or "")
+        if identity:
+            return identity.value, [
+                source.model_copy(
+                    update={
+                        "passage": identity.quote,
+                        "verification_status": identity.verification_status,
+                    }
+                )
+            ]
+        for pattern in (
+            r"(?m)^Permit:\s*(?P<value>[A-Z0-9-]+)",
+            r"(?m)^Permit number:\s*(?P<value>[A-Z0-9-]+)",
+            r"(?m)^Application number:\s*(?P<value>[A-Z0-9-]+)",
+        ):
+            match = re.search(pattern, source.passage or "", re.I)
+            if match:
+                return match.group("value"), [
+                    source.model_copy(
+                        update={
+                            "passage": match.group(0),
+                            "verification_status": "Current source identifier",
+                        }
+                    )
+                ]
+    return None, []
 
 
 def assemble_card(
@@ -271,6 +433,13 @@ def assemble_card(
         q = latest.get(category)
         research_field = {
             "required_mw": "activity_load_mw",
+            "facility_scale": "facility_scale_mw",
+            "facility_demand": "facility_demand_mw",
+            "voltage": "voltage",
+            "fuel": "fuel_availability",
+            "load_profile": "load_profile",
+            "procurement": "procurement_status",
+            "utility_obstacle": "utility_obstacle",
             "start": "activity_start",
             "stage": "phase",
             "supply_status": "supply_adequacy",
@@ -299,11 +468,25 @@ def assemble_card(
             value = str(research["value"]).replace("_", " ")
             if research_field == "activity_load_mw":
                 value += " MW (source-reported)"
+            elif research_field == "facility_scale_mw":
+                value += " MW (reported facility scale)"
+            elif research_field == "facility_demand_mw":
+                value += " MW (source-reported facility demand)"
             refs = claim_sources
-            basis = (
-                "Current source report; this does not establish "
-                "temporary-generation demand or qualification."
-            )
+            if research_field == "facility_scale_mw":
+                basis = (
+                    "Current source descriptor of facility scale; it does not establish total "
+                    "planned electrical demand, temporary-generation demand or qualification."
+                )
+            elif research_field == "facility_demand_mw":
+                basis = (
+                    "Current exact-project electrical-demand report; it is separate from "
+                    "temporary activity demand and does not change qualification."
+                )
+            else:
+                basis = (
+                    "Current exact-project, activity-scoped source report; inspect the cited quote."
+                )
         if research.get("status") == "CONFLICT":
             refs = claim_sources
         conflict = conflict or (
@@ -355,36 +538,91 @@ def assemble_card(
         "identity",
         owner_refs,
     )
+    project_name, project_refs = _source_project_name(item, current)
+    identifier, identifier_refs = _source_identifier(current)
     add(
         "project",
         "Project",
         "identity",
-        item.get("supported_subject") or item.get("name"),
+        project_name,
         "identity",
-        current,
+        project_refs,
     )
-    add("location", "Facility location", "identity", item.get("location"), "identity", current)
+    add(
+        "source_identifier",
+        "Permit / source identifier",
+        "identity",
+        identifier,
+        "identity",
+        identifier_refs,
+    )
+    exact_location, location_refs = _source_location(current)
+    add(
+        "location",
+        "Facility location",
+        "identity",
+        exact_location or item.get("location"),
+        "identity",
+        location_refs or current,
+        basis=(
+            "Current permit narrative states the street address and county."
+            if exact_location
+            else "Current canonical site location; inspect the cited source and scope."
+        ),
+    )
     add("activity", "Power activity", "identity", item.get("activity"), "power_need", current)
     add("stage", "Project stage", "identity", item.get("lifecycle_state"), "phase", current)
     gap = normalize_gap(item)
+    schedule_facts = [
+        fact
+        for fact in item.get("operator_fact_refs", [])
+        if fact.get("fact_type") == "power_schedule"
+        and bool(str(fact.get("need_id") or "").strip())
+        and str(fact.get("need_id")) == str(item.get("id") or "")
+        and bool(str(fact.get("project_id") or "").strip())
+        and str(fact.get("project_id") or "") == str(item.get("project_id") or "")
+        and bool(item.get("activity"))
+        and bool(fact.get("activity_key"))
+        and fact.get("activity_key") == item.get("activity")
+        and bool(str(item.get("location") or "").strip())
+        and bool(str(fact.get("facility_scope") or "").strip())
+        and str(fact.get("facility_scope") or "").strip().casefold()
+        == str(item.get("location") or "").strip().casefold()
+    ]
+    schedule = project_schedule(schedule_facts)
 
     def field_sources(kind):
         quote = item.get("power_field_provenance", {}).get(kind)
         if kind == "demand":
             quote = quote or item.get("demand_quote")
-        refs = [
-            source.model_copy(update={"passage": quote})
-            for source in current
-            if quote and source.passage and quote in source.passage
-        ]
+        elif kind == "supply":
+            quote = quote or item.get("supply_quote") or (gap.get("basis_quote") if gap else None)
+        refs = []
+        if quote:
+            for source in current:
+                matched = next(
+                    (text for text in (source.passage, source.title) if text and quote in text),
+                    None,
+                )
+                if matched is not None:
+                    refs.append(source.model_copy(update={"passage": quote}))
         fact_types = {
             "demand": {"demand"},
             "start": {"timing"},
             "duration": {"timing"},
             "supply": {"suitable_supply"},
         }[kind]
+        selected_supply_id = str(gap.get("suitable_supply_fact_id") or "") if gap else ""
+        selected_supply_hash = str(gap.get("suitable_supply_fact_hash") or "") if gap else ""
         for fact in item.get("operator_fact_refs", []):
             if fact.get("fact_type") not in fact_types:
+                continue
+            if kind == "supply" and (
+                not selected_supply_id
+                or not selected_supply_hash
+                or str(fact.get("fact_version_id") or "") != selected_supply_id
+                or str(fact.get("content_hash") or "") != selected_supply_hash
+            ):
                 continue
             refs.append(
                 IntelligenceSource(
@@ -412,7 +650,8 @@ def assemble_card(
         "load",
         field_sources("demand"),
     )
-    add("facility_demand", "Total planned facility demand", "power", None, "load")
+    add("facility_scale", "Reported facility scale", "power", None, "load")
+    add("facility_demand", "Total planned facility demand", "power", None, "facility_demand")
     add(
         "start", "Power needed", "power", item.get("start_window"), "timing", field_sources("start")
     )
@@ -447,11 +686,13 @@ def assemble_card(
     add("supply_status", "Supply adequacy", "power", None, "supply")
     for key, label, category in (
         ("energization", "Utility service status", "supply"),
-        ("fuel", "Fuel availability", "suitability"),
-        ("voltage", "Voltage / electrical requirements", "suitability"),
-        ("load_profile", "Load profile", "suitability"),
+        ("fuel", "Fuel availability", "fuel"),
+        ("load_profile", "Load profile", "load_profile"),
+        ("procurement", "Temporary-power procurement", "procurement"),
+        ("utility_obstacle", "Utility interconnection obstacle", "utility_obstacle"),
     ):
         add(key, label, "power", None, category)
+    add("voltage", "Voltage / electrical requirements", "power", None, "voltage")
     add(
         "assessment",
         "Why this matters",
@@ -516,6 +757,7 @@ def assemble_card(
         },
         last_intelligence_update=updated[-1] if updated else None,
         power_gap=gap,
+        power_schedule=schedule,
         evidence=sources,
         research_enabled=research_enabled,
     )

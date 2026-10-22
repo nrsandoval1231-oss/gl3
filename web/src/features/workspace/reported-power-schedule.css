@@ -1,0 +1,9 @@
+.reported-power-schedule { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--gl-line); min-width: 0; }
+.reported-power-schedule h3 { margin: 0 0 8px; font-size: 13px; }
+.reported-power-schedule h4 { margin: 12px 0 6px; font-size: 12px; }
+.reported-power-schedule p, .reported-power-schedule li { overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
+.reported-power-schedule li small, .reported-power-schedule td small { display: block; margin-top: 4px; color: var(--gl-muted-ink); }
+.rps-table-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--gl-line); border-radius: 8px; }
+.reported-power-schedule table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 11px; }
+.reported-power-schedule th, .reported-power-schedule td { padding: 8px; border-bottom: 1px solid var(--gl-line); text-align: left; vertical-align: top; }
+.reported-power-schedule details { margin-top: 10px; }

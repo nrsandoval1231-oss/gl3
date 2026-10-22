@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
 POLICY_VERSION = "signal-admission-v2"
+F17_RETAINED_ACCEPTED_REASON = (
+    "Accepted a cited exact-source site record; load, dates, and supply remain unknown."
+)
 
 _PERMIT_METHODS = {
     "socrata-permits",
@@ -94,6 +98,10 @@ def source_origin(family: str, retrieval_method: str) -> str:
         }.get(retrieval_method, "Unverified RFI context")
     if family == "news" or retrieval_method == "publisher-rss":
         return "News context"
+    if retrieval_method == "retained-document" and family == "retained-public-document":
+        return "Retained public document; claimant statements are attributed, not adjudicated"
+    if retrieval_method == "retained-document" and family == "retained-operator-publication":
+        return "Retained operator publication; context, not procurement evidence"
     if family == "municipal-planning-news" or retrieval_method == "taylor-newsflash":
         return "Official planning context"
     if retrieval_method == "tdlr-tabs" and family == "construction-permits":
@@ -135,6 +143,36 @@ def admit_standalone(
     origin = source_origin(family, retrieval_method)
     if not accepted:
         return Admission(False, origin, "The current source version has no accepted assessment.")
+    if retrieval_method == "retained-document":
+        from gridlens.ingestion.adapters.retained_document import SOURCES
+
+        policy = SOURCES.get(source_id)
+        # Preserve the exact reviewed words while matching ordinary PDF line
+        # wrapping consistently with the retained-document parser.
+        text = re.sub(r"\s+", " ", f"{title} {abstract or ''}").casefold()
+        exact_family = family == (
+            "retained-operator-publication"
+            if source_id == "f17-crusoe-impact"
+            else "retained-public-document"
+        )
+        valid = bool(
+            policy
+            and exact_family
+            and activity == policy["activity"]
+            and dated
+            and citation_url == policy["url"]
+            and identified_project
+            and policy["project_cue"].casefold() in text
+            and policy["site_cue"].casefold() in text
+            and all(cue.casefold() in text for cue in policy["location_cues"])
+        )
+        return Admission(
+            valid,
+            origin,
+            F17_RETAINED_ACCEPTED_REASON
+            if valid
+            else "The retained document is not an exact reviewed source/site/activity record.",
+        )
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return Admission(True, origin, "Accepted evidence from an official permit source.")
     if retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS and family == _ENVIRONMENTAL_REVIEW_FAMILY:
@@ -223,6 +261,53 @@ def admit_standalone(
 
 def admitted_from_source(source: Any, assessment: dict[str, Any], evidence: Any) -> Admission:
     """Evaluate a persisted accepted assessment and its exact retained evidence."""
+    if source.retrieval_method == "retained-document":
+        from gridlens.ingestion.adapters.retained_document import SOURCES
+
+        policy = SOURCES.get(str(source.id))
+        if policy is None:
+            return Admission(
+                False,
+                source_origin(source.family, source.retrieval_method),
+                "Retained source hash and reviewed-page provenance are required.",
+            )
+        retained = (evidence.provenance or {}).get("retained_document", {})
+        if not isinstance(retained, dict):
+            return Admission(
+                False,
+                source_origin(source.family, source.retrieval_method),
+                "Retained source hash and reviewed-page provenance are required.",
+            )
+        exact = bool(
+            retained.get("sha256") == policy["sha256"]
+            and retained.get("path") == policy["path"]
+            and retained.get("source_site") == policy["location"]
+            and bool(retained.get("project_name"))
+            and retained.get("reviewed_spans")
+            and assessment.get("evidence_hash") == evidence.content_hash
+        )
+        if not exact:
+            return Admission(
+                False,
+                source_origin(source.family, source.retrieval_method),
+                "Retained source hash and reviewed-page provenance are required.",
+            )
+        valid = bool(
+            assessment.get("decision") == "accepted"
+            and assessment.get("evidence_hash") == evidence.content_hash
+            and assessment.get("subject") == retained.get("project_name")
+            and assessment.get("location") == policy["location"]
+            and assessment.get("power_activity") == policy["activity"]
+            and evidence.url == policy["url"]
+            and (evidence.published_at or evidence.event_date)
+        )
+        return Admission(
+            valid,
+            source_origin(source.family, source.retrieval_method),
+            F17_RETAINED_ACCEPTED_REASON
+            if valid
+            else "Retained source assessment does not match its exact reviewed identity.",
+        )
     if source.family == "news" and source.retrieval_method == "publisher-rss":
         # Re-evaluate the exact retained evidence; derived city/state names need
         # not appear verbatim in the source, but every derived field must match.

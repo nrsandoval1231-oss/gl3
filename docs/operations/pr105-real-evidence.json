@@ -1,0 +1,70 @@
+{
+  "purpose": "Real source provenance for the three PR105 representative categories; intake and exact-candidate acceptance are recorded separately.",
+  "independent_labels": "Sol reviewed original documents before any new card projection, 2026-10-21. Source-level support does not itself establish an open sales opportunity.",
+  "sites": [
+    {
+      "site_key": "stack_memorex_junction_1200_memorex_drive",
+      "project": "SVY02A / Memorex Junction data center",
+      "location": "1200 Memorex Drive, Santa Clara, CA",
+      "categories": ["utility_constraint", "conflicting_dates"],
+      "basis": "STACK's dated claim describes incompatible service-availability schedules above 18 MVA for the same site. Its later CEC submission retains utility correspondence about network upgrades. The record establishes attributed reports and their disagreement; it does not establish a legal breach, current service level, or a temporary-power purchase.",
+      "sources": [
+        {
+          "url": "https://santaclara.legistar.com/View.ashx?GUID=41D90CA3-8232-4978-9508-DB1418113E87&ID=1349150&M=E2",
+          "publisher": "City of Santa Clara agenda attachment; underlying statement by 1220 Santa Clara Propco, LLC / STACK",
+          "body_sha256": "ccc92aea483b84f9afe0436e2fb9d515cf2fe99a05e19a1f270a0c4fd53a6deb",
+          "bytes": 78569264,
+          "pdf_pages": [14, 15, 16, 17, 18, 20, 21],
+          "original_claim_document_date": "2024-06-24",
+          "agenda_meeting_date": "2026-04-07",
+          "agenda_publication_date": null,
+          "retrieved_utc": "2026-10-21T19:59:20Z",
+          "limits": "Claimant describes agreed capacity in 2026/2027 and a later reported cap until at least 2028. The direct March 2024 utility notice and adjudicated finding are not retained. Mailing address 1100 Memorex is distinct from the physical 1200 Memorex site."
+        },
+        {
+          "url": "https://efiling.energy.ca.gov/GetDocument.aspx?tn=261716",
+          "publisher": "California Energy Commission docket; submitted by STACK",
+          "body_sha256": "33d0ed5f40f21fbcd74502a4c92d8c0373ac73c417e8b3046a7deba965806340",
+          "bytes": 8463009,
+          "pdf_pages": [1, 2, 3, 4, 5, 6, 16, 17, 18, 40, 50, 51, 52],
+          "docketed_date": "2025-02-12",
+          "letter_date": "2025-02-11",
+          "retrieved_utc": "2026-10-21T19:56:12Z",
+          "limits": "Attached agreement is marked draft September 30, 2021; it is not verified as the executed agreement. Utility email dates and projected upgrades are distinct milestones. MVA is not MW; scope and unit discrepancies remain unresolved."
+        }
+      ]
+    },
+    {
+      "site_key": "crusoe_abilene_stargate",
+      "project": "Abilene Stargate campus",
+      "location": "near Abilene, Texas",
+      "categories": ["bridge_power"],
+      "basis": "Crusoe's report identifies temporary natural-gas bridge generation at its named Abilene Stargate campus while grid upgrades catch up. This is a real historical/in-use configuration; it does not establish a new unserved purchase requirement.",
+      "sources": [
+        {
+          "url": "https://cdn.prod.website-files.com/6855c1aa175582ee23e0aa19/6aa975443d2a8405e214f067_Crusoe_2025_Impact%20Report2_web_optimized.pdf",
+          "publisher": "Crusoe",
+          "body_sha256": "38ca3db4c94206be9e8b2ee1e3b5fa1239b00948c50b3ac0e102e6d7f1773619",
+          "bytes": 9360107,
+          "pdf_pages": [2, 15, 16, 19],
+          "reporting_period": "Generally as of 2025-12-31 unless indicated",
+          "report_release_date_displayed_by_publisher": "2026-05-28",
+          "exact_pdf_version_first_publication_date": null,
+          "retrieved_utc": "2026-10-21T20:08:18Z",
+          "limits": "350 MW is reported on-site capacity/long-term backup, not temporary demand or a residual gap. No exact bridge start/end, utility energization date or current unmet procurement is established. Distinct from Crusoe's separate 900 MW Microsoft campus."
+        },
+        {
+          "url": "https://www.crusoe.ai/resources/blog/crusoes-2025-impact-report",
+          "publisher": "Crusoe",
+          "body_sha256": "0c2c09a5e80ec7a25227e938896d1308af055831dc29514df39bdadbcc82852c",
+          "displayed_publication_date": "2026-05-28",
+          "displayed_modification_date": "2026-09-15",
+          "retrieved_utc": "2026-10-21T20:01:01Z",
+          "purpose": "Publisher and actual report-link provenance; exact current PDF bytes are not claimed to have existed at the initial blog date."
+        }
+      ]
+    }
+  ],
+  "excluded_context": "Anonymous Aggreko and unspecified Prometheus Texas sites are useful context but do not supply these named-site cases. A search-index Crusoe PDF was retained historically; current acceptance uses the version actually linked by the publisher.",
+  "authority": "Original bodies and database receipts are preserved outside Git. This file is provenance, not authorization for activation, production writes, merge or deployment."
+}

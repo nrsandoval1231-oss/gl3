@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
+from gridlens.domain.call_facts import validate_fact
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     CallFactDecision,
@@ -152,6 +153,153 @@ def test_fact_read_exposes_typed_unavailable_timing_target_without_current_sourc
     assert target["source_semantic_hash"] is None
     assert target["source_evidence_hash"] is None
     assert target["retained_evidence_id"] is None
+
+
+def test_authenticated_power_schedule_draft_correct_conflict_retract_current_card(runtime):
+    client, factory, need_id, project_id, pursuit_id = runtime
+    headers = {"origin": "http://testserver"}
+    now = datetime.now(UTC)
+    source_hash = "d" * 64
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        observation = Observation(
+            source_id="a6-test-source",
+            external_id="power-schedule-fixture",
+            title="Construction milestone",
+            abstract="Synthetic construction milestone in Test City.",
+            published_at=now.date(),
+            url="https://example.test/construction-milestone",
+            content_hash=source_hash,
+        )
+        session.add(observation)
+        session.flush()
+        session.add_all(
+            [
+                Evidence(
+                    observation_id=observation.id,
+                    content_hash=source_hash,
+                    title=observation.title,
+                    abstract=observation.abstract,
+                    url=observation.url,
+                    published_at=observation.published_at,
+                    observed_at=now,
+                ),
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=source_hash,
+                    status="accepted",
+                    assessment={
+                        "decision": "accepted",
+                        "semantic_hash": source_hash,
+                        "evidence_hash": source_hash,
+                        "project_identity_key": project.identity_key,
+                        "power_activity": "construction",
+                        "tier": "Signal",
+                        "reason": "Current synthetic construction milestone.",
+                        "subject": project.name,
+                        "location": project.location,
+                    },
+                ),
+                NeedObservation(need_id=need.id, observation_id=observation.id),
+            ]
+        )
+
+    def schedule(mw="10"):
+        return {
+            "basis": "Operator-reported commissioning schedule",
+            "source_quote": "The owner described commissioning beginning in January.",
+            "phases": [
+                {
+                    "phase_id": "commissioning",
+                    "start_date": "2027-01-01",
+                    "end_date": "2027-02-01",
+                    "mw_min": mw,
+                    "mw_max": mw,
+                    "basis": "Attributed owner call",
+                    "supply_coverage": "confirmed_complete",
+                    "coverage_reason": "Owner confirmed full coverage",
+                }
+            ],
+            "supplies": [],
+            "zero_supply_basis": "Owner explicitly confirmed no available supply",
+        }
+
+    def draft(value, expected, predecessor=None):
+        body = {
+            "client_id": str(uuid4()),
+            "project_id": str(project_id),
+            "pursuit_id": str(pursuit_id),
+            "expected_version": expected,
+            "predecessor_id": predecessor,
+            "activity_key": "construction",
+            "facility_scope": "Test City",
+            "fact_type": "power_schedule",
+            "value": value,
+            "reporter_name": "Synthetic Account Manager",
+            "reporter_organization": "Synthetic Owner LLC",
+            "reporter_role": "Project owner",
+            "confirmation_channel": "customer_call",
+            "source_reference": "synthetic-test-call",
+            "source_date": now.date().isoformat(),
+            "confirmed_at": now.isoformat(),
+            "effective_from": now.isoformat(),
+            "effective_until": (now + timedelta(days=90)).isoformat(),
+        }
+        response = client.post(f"/api/needs/{need_id}/facts", json=body, headers=headers)
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    def decide(fact_id, expected, decision):
+        response = client.post(
+            f"/api/needs/{need_id}/facts/{fact_id}/decision",
+            json={
+                "client_id": str(uuid4()),
+                "expected_version": expected,
+                "decision": decision,
+                "reason": "Synthetic operator review",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    def card():
+        response = client.get(f"/api/opportunity-intelligence?need_ids={need_id}")
+        assert response.status_code == 200, response.text
+        return response.json()[0]
+
+    first = draft(validate_fact("power_schedule", schedule()), 0)
+    accepted = decide(first["id"], 1, "accepted")
+    assert accepted["tier"] == "Signal"
+    current = card()
+    assert current["qualification"] == "Signal" and current["power_gap"] is None
+    assert current["power_schedule"]["status"] == "SUPPORTED_SCENARIO"
+    assert current["power_schedule"]["segments"][0]["residual_min_mw"] == "10"
+    assert current["power_schedule"]["fact_refs"][0]["fact_version_id"] == first["id"]
+    assert current["power_schedule"]["fact_refs"][0]["source_reference"] == "synthetic-test-call"
+    assert current["power_schedule"]["fact_refs"][0]["authority"] == "User-confirmed"
+    assert "source_quote" in current["power_schedule"]["fact_refs"][0]
+    assert all(source.get("reference") != "synthetic-test-call" for source in current["evidence"])
+
+    correction = draft(validate_fact("power_schedule", schedule("8")), 2, first["id"])
+    corrected = decide(correction["id"], 3, "corrected")
+    assert corrected["tier"] == "Signal"
+    corrected_card = card()
+    assert corrected_card["power_schedule"]["segments"][0]["residual_min_mw"] == "8"
+    assert corrected_card["power_schedule"]["fact_refs"][0]["fact_version_id"] == correction["id"]
+
+    second = draft(validate_fact("power_schedule", schedule("7")), 5)
+    decide(second["id"], 6, "accepted")
+    conflict = card()
+    assert conflict["qualification"] == "Signal"
+    assert conflict["power_schedule"]["status"] == "CONFLICT"
+    assert conflict["power_schedule"]["segments"] == []
+
+    decide(second["id"], 7, "retracted")
+    retracted_card = card()
+    assert retracted_card["power_schedule"]["status"] == "SUPPORTED_SCENARIO"
+    assert retracted_card["power_schedule"]["fact_refs"][0]["fact_version_id"] == correction["id"]
 
 
 def test_fact_draft_accept_correction_are_append_only_and_nonpromoting_without_source(runtime):

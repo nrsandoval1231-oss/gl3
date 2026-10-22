@@ -142,9 +142,9 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    manifest = json.loads(args.manifest.read_text()) if args.manifest else {}
+    manifest = json.loads(args.manifest.read_text(encoding="utf-8")) if args.manifest else {}
     report = evaluate(manifest)
-    args.output.write_text(json.dumps(report, indent=2) + "\n")
+    args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(report["status"])
     return 0 if report["status"] == "OFFLINE_CHECKS_PASSED" else 2
 

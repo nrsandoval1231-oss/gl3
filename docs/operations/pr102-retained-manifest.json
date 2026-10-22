@@ -1,0 +1,431 @@
+{
+  "reviewer": "Independent source-label review by Sol, 2026-10-21; independent shared-company source review; F17 original-document source labels independently reviewed by Sol before new card projection",
+  "label_scope": "Literal retained Evidence abstracts in retained-candidates.json, checked without consulting intelligence-card output. Null means this source set does not establish the field; it is not proof the fact is unavailable publicly. F17 adds two distinct physical sites from original public documents; category scope, attribution and unknowns are recorded separately from projection output.",
+  "cases": [
+    {
+      "need_id": "2a133586-db46-46ef-8343-a658ca8004ab",
+      "categories": [
+        "data_center",
+        "construction_commissioning",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": "ACS DC HICKS FIELD ROAD LLC",
+        "project": "ACS Data Center Phase I Substation",
+        "location": "10200 HICKS FIELD RD, Fort Worth, TX 76131",
+        "facility_demand": null,
+        "required_mw": null,
+        "start": null,
+        "gap": null
+      },
+      "source_label": {
+        "owner_role": "permit-listed owner, not verified temporary-power purchaser",
+        "evidence_id": "01a04768-bc55-48aa-8d72-d8a8bb763f50",
+        "content_hash": "a006db0bc1305019db2d926ee6585965c95331838da20d76d08a5df22de76ac4",
+        "source_url": "https://data.fortworthtexas.gov/datasets/cfw-development-permits-table/about"
+      }
+    },
+    {
+      "need_id": "ed104dbb-ae9d-4cde-bdd6-015ec1caf7c6",
+      "categories": [
+        "data_center",
+        "construction_commissioning",
+        "incomplete_contacts",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": null,
+        "project": "Edged Energy Outpost Building 2",
+        "facility_demand": null,
+        "required_mw": null,
+        "start": null,
+        "gap": null
+      },
+      "source_label": {
+        "reported_facility_scale_mw": "196",
+        "scale_note": "196MW data center is reported facility scale; neither temporary demand nor unambiguous total demand is established",
+        "evidence_id": "246071dd-1104-40ce-858c-29c97a63bd2e",
+        "content_hash": "edfb5a762bd2494344a469b2018d6d98ea3d9ce145c8d1bd11c91d8c67e2cce8",
+        "source_url": "https://data.fortworthtexas.gov/datasets/cfw-development-permits-table/about"
+      }
+    },
+    {
+      "need_id": "c8983dee-186c-4de0-9bba-b0dd8c3eb919",
+      "categories": [
+        "data_center",
+        "construction_commissioning",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": null,
+        "project": "QTS ATL3 Campus",
+        "location": "2883 Gordon Highway, Augusta, Richmond County",
+        "facility_demand": null,
+        "required_mw": null,
+        "gap": null
+      },
+      "source_label": {
+        "role": "named proposer of greenfield data center; backup generators do not establish a temporary-power package",
+        "evidence_id": "4528c9f6-9fda-4cff-bc39-dc6aefdffc37",
+        "content_hash": "361c669aebc26f4736d04cacd688b1fd399667cd9597ca2a0da1509b2c861cc9",
+        "source_url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits"
+      }
+    },
+    {
+      "need_id": "120ab807-fdeb-4110-a523-6c831e55b43a",
+      "categories": [
+        "data_center",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": "TA Ellenwood LLC",
+        "project": "TADG – ATL02",
+        "location": "Ellenwood, Georgia",
+        "required_mw": null,
+        "gap": null
+      },
+      "source_label": {
+        "role": "explicit owner of proposed facility; no supported temporary-power load",
+        "evidence_id": "f8d285b9-93ca-471a-b7aa-1a44f3127510",
+        "content_hash": "61ab64ce4dd9b9ef5b792fd26d7732fea1ac3bdbc761d3827fd982e9de7f91ab",
+        "source_url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits"
+      }
+    },
+    {
+      "need_id": "5308d968-6d9f-48dc-85e1-d6e9c977fdf1",
+      "categories": [
+        "incomplete_contacts",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": null,
+        "project": null,
+        "required_mw": null,
+        "voltage": "208 V, 1 phase",
+        "start": null,
+        "gap": null
+      },
+      "source_label": {
+        "activity": "temporary electrical work for office trailer",
+        "limit": "100 A and 208 V single phase do not establish MW demand, fuel or purchase authority",
+        "evidence_id": "3cabb060-fee4-4c2b-9f06-3c34f9141fb2",
+        "content_hash": "0d958cedfb5a9f3cacc377526a4ab0998e6366f309a891841fcd4196c498cc43",
+        "source_url": "https://data.boston.gov/api/3/action/datastore_search?resource_id=6ddcd912-32a0-43df-9908-63574f8c7e77&filters=%7B%22permitnumber%22%3A%22ETS1870328%22%7D&limit=1"
+      }
+    },
+    {
+      "need_id": "b6649e86-0127-40f6-8c24-207bb712574e",
+      "categories": [
+        "false_positive",
+        "incomplete_contacts",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": null,
+        "project": null,
+        "required_mw": null,
+        "gap": null
+      },
+      "source_label": {
+        "activity": "replace existing ATS switch",
+        "limit": "switch replacement is not evidence of an open generator-rental or bridge-power requirement",
+        "evidence_id": "e9a62e9c-c701-4fb5-898c-bec228de4e0f",
+        "content_hash": "bd136ac96f9eef7cb3c3ddb5a77168bba1062d0682ad7794aae54b2503fac36d",
+        "source_url": "https://data.boston.gov/api/3/action/datastore_search?resource_id=6ddcd912-32a0-43df-9908-63574f8c7e77&filters=%7B%22permitnumber%22%3A%22E1889236%22%7D&limit=1"
+      }
+    },
+    {
+      "need_id": "8f40b592-2541-432f-98d1-a92686d071b5",
+      "categories": [
+        "data_center",
+        "construction_commissioning",
+        "incomplete_contacts",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": "LEGACY GI TC 400 LASALLE LLC",
+        "project": null,
+        "required_mw": null,
+        "start": null,
+        "gap": null
+      },
+      "source_label": {
+        "activity": "phase-3 office-to-data-center conversion; permit phase is not a power-demand schedule",
+        "owner_of_record": "LEGACY GI TC 400 LASALLE LLC; owner-occupied label does not prove temporary-power customer",
+        "evidence_id": "2952ce14-29d2-478a-afad-104d79aaea40",
+        "content_hash": "ca2bf82259325ff980bd8cb970299c9040797e1a075c8ba5e217a13212ff77e8",
+        "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+      }
+    },
+    {
+      "need_id": "2700a50a-1165-4e31-a73b-90aac1bc4ebe",
+      "categories": [
+        "oil_gas",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": "TRINITY OPERATING (USG), LLC",
+        "project": "HAUG-KIESCHNICK AC UNIT 33, well 1H",
+        "required_mw": null,
+        "start": null,
+        "gap": null
+      },
+      "source_label": {
+        "operator_of_record": "TRINITY OPERATING (USG), LLC",
+        "limit": "drilling permit and operator do not establish fuel, electrification, temporary-power demand or buyer",
+        "evidence_id": "950e762f-3628-42d0-b3e8-d4b7f4bffa35",
+        "content_hash": "ac52845e43d50c18df6bfb1a2ed7ff5ccc6c96bfbc65f8338e944b6235bf06b8",
+        "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+      }
+    },
+    {
+      "need_id": "86abb480-c5cf-4540-a9d3-d10b7fc3817f",
+      "categories": [
+        "oil_gas",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": null,
+        "project": "Grady Road Renewable Energy, LLC",
+        "location": "Rockmart, Georgia",
+        "required_mw": null,
+        "gap": null
+      },
+      "source_label": {
+        "activity": "proposed landfill-gas-to-RNG processing facility, not a proven recoverable-gas power package",
+        "evidence_id": "62f9234b-6916-4267-9761-63a809198aac",
+        "content_hash": "a63032fdd155818be7291ae02a7f816eaa986d181a7aa0e3a5bf56582873b456",
+        "source_url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits"
+      }
+    },
+    {
+      "need_id": "ea3671aa-7ea1-4859-99b1-a3fcb8ec0c80",
+      "categories": [
+        "unestablished_temporary_need",
+        "incomplete_contacts"
+      ],
+      "expected_fields": {
+        "customer": null,
+        "project": null,
+        "required_mw": null,
+        "energization": null,
+        "gap": null
+      },
+      "source_label": {
+        "activity": "emergency temporary wiring to reenergize occupied spaces until repairs",
+        "limit": "does not establish utility or interconnection constraint, duration, MW or permanent utility energization date",
+        "evidence_id": "dbfcbc25-59f3-47a0-8f0d-dfdb0acdec1e",
+        "content_hash": "b6065cf4e1244f5c1fd86c9e2136de74a55583bad669c91188885aca6006dd39",
+        "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13782067"
+      }
+    },
+    {
+      "need_id": "3db74349-2ff9-4e80-9aff-5da02b5f2f02",
+      "categories": [
+        "incomplete_contacts",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": null,
+        "project": "TXDOT project # 14-0914-04-362R",
+        "required_mw": null,
+        "start": null,
+        "gap": null
+      },
+      "source_label": {
+        "activity": "temporary service for fans and construction power",
+        "contractor": "T. Morales Company, LLC; not the end-user customer by default",
+        "evidence_id": "37ea0431-0a9c-41d1-a891-b348cbce22f8",
+        "content_hash": "caeec35d567e1fb40faa38e08828ecac3e9950ee65e15a2f06c2b3747bea35bf",
+        "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13712388"
+      }
+    },
+    {
+      "need_id": "ffe47807-e8cd-44ae-b7aa-b66a345ad7ca",
+      "categories": [
+        "false_positive",
+        "incomplete_contacts",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": null,
+        "project": null,
+        "required_mw": null,
+        "gap": null
+      },
+      "source_label": {
+        "activity": "interior conversion to woodworking shop",
+        "limit": "no site power deficit or temporary generation is evidenced",
+        "evidence_id": "0dd7eb19-adb2-4b18-8c89-1eed56fac774",
+        "content_hash": "d65cc70b1c1fe75f0fec9bc6e65bcd88f2bce243ee9c805bf583943fe4b166dc",
+        "source_url": "https://services.seattle.gov/portal/customize/LinkToRecord.aspx?altId=7132423-CN"
+      }
+    },
+    {
+      "need_id": "bfe197e1-192e-4130-b7bc-c2d20a210a5c",
+      "categories": [
+        "oil_gas",
+        "shared_company",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": "CONTINENTAL RESOURCES, INC.",
+        "project": "UTL EL DORADO 1039A, well 01H",
+        "location": "RRC county code 495, Texas",
+        "facility_demand": null,
+        "required_mw": null,
+        "energization": null,
+        "start": null,
+        "gap": null
+      },
+      "source_label": {
+        "role": "Texas W-1 operator of record; no temporary-power buyer or load established",
+        "operator_number": "173777",
+        "shared_company_pair_need_id": "f6ac6859-e3b1-4882-86df-10712b9ec8df",
+        "evidence_id": "429976fa-36d8-4903-a212-f0c3950b3d8f",
+        "content_hash": "43e2b1e8feb89dc7c07558b6782c852fd6e6105b4997deca0e77e23031880b32",
+        "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+      }
+    },
+    {
+      "need_id": "f6ac6859-e3b1-4882-86df-10712b9ec8df",
+      "categories": [
+        "oil_gas",
+        "shared_company",
+        "unestablished_temporary_need"
+      ],
+      "expected_fields": {
+        "customer": "CONTINENTAL RESOURCES, INC.",
+        "project": "UTL EL DORADO 1039C, well 03H",
+        "location": "RRC county code 495, Texas",
+        "facility_demand": null,
+        "required_mw": null,
+        "energization": null,
+        "start": null,
+        "gap": null
+      },
+      "source_label": {
+        "role": "Texas W-1 operator of record; no temporary-power buyer or load established",
+        "operator_number": "173777",
+        "shared_company_pair_need_id": "bfe197e1-192e-4130-b7bc-c2d20a210a5c",
+        "evidence_id": "d3683435-6270-4835-9e9a-c1d018d23876",
+        "content_hash": "51e2e85fbe3c0ee0b8a5a633b0f274b96282b89f3372b2fa3c63abaf76ebddc0",
+        "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+      }
+    },
+    {
+      "need_id": "346eef98-3230-4ee2-a914-a0ea9919d9a8",
+      "f17_site_key": "stack_memorex_junction_1200_memorex_drive",
+      "categories": [
+        "data_center",
+        "unestablished_temporary_need",
+        "utility_constraint",
+        "conflicting_dates"
+      ],
+      "expected_fields": {
+        "customer": "1220 Santa Clara Propco, LLC",
+        "project": "SVY02A / Memorex Junction data center",
+        "location": "1200 Memorex Drive, Santa Clara, CA",
+        "facility_demand": null,
+        "required_mw": null,
+        "start": null,
+        "gap": null,
+        "energization": null
+      },
+      "source_label": {
+        "independent_label_review": "Sol original-document review before card projection, 2026-10-21",
+        "customer_role": "1220 Santa Clara Propco, LLC is named Customer in the attached draft agreement and claimant in the city-filed claim; STACK is owner/developer operator in the 2025 CEC letter. Neither is established as a buyer of temporary generation.",
+        "noncanonical_claims": "STACK's October 9, 2024 email (CEC PDF pp. 51-52) reports 48 MW IT plus 24 MW mechanical = 72 MW needed and a 90 MVA ultimate request; the February 2025 letter describes 90 MW design. These are different units/scope/vintages and cannot be silently reconciled into a current facility_demand or gap. The 2021 draft says 60 MW IT design and 90 MVA substation capacity, also different concepts.",
+        "category_basis": [
+          {
+            "category": "utility_constraint",
+            "source_supported": true,
+            "basis": "Claim pp. 15-16 reports only 4.5 MVA service in 2024 and a March 14, 2024 SVP notice limiting available capacity to 18 MVA until at least 2028. Attached draft agreement pp. 16-18 defines the site, utility, and system-improvement dependency. CEC filing pp. 4-5 reiterates current underservice in STACK's February 2025 letter. SVP's October 16, 2024 email on PDF p. 50 says additional load beyond executed agreements is under evaluation as projects progress, with completion scheduled around 2028. Label the precise statements by author/vintage, not as independently adjudicated service facts.",
+            "critical_excerpt": "SVP was now saying it would be capped at 18 MVA starting in 2025 until, at least, 2028 (claim PDF p. 16)",
+            "limits": "MVA is not MW; no power factor, actual present draw, available MW, temporary required MW, or qualified gap can be derived."
+          },
+          {
+            "category": "conflicting_dates",
+            "source_supported": true,
+            "same_milestone": "Availability of more than 18 MVA for this Memorex Junction service, particularly the reported 28 MVA 2026 and 31 MVA 2027 phases",
+            "earlier_vintage": "The claim pp. 15-16 describes the Substation Agreement schedule as 28 MVA in 2026 and 31 MVA in 2027. The separately retained CEC attachment Exhibit E, PDF p. 40, prints 28/31 MVA for 2026/2027 but is visibly marked Draft rev 0 dated September 30, 2021; do not certify it as the signed final agreement.",
+            "later_vintage": "The June 24, 2024 claimant says SVP informed it March 14, 2024 that capacity would stay at or below 18 MVA through at least 2028 (claim p. 16 and timeline p. 21). These vintages conflict for the same >18 MVA availability milestone; the later date is claimant-reported utility notice, not a retained direct March 14 notice or legal judgment.",
+            "critical_excerpt": "28 MVA in 2026 and 31 MVA by 2027 ... not provide more than 18 MVA until 2028 (claim pp. 15-16)",
+            "limits": "Preserve both dated reports and supersession/disagreement; do not merge unrelated receiving-station upgrade dates into one energization milestone or assert a breach."
+          }
+        ],
+        "provenance_record": "pr105-real-evidence.json"
+      },
+      "retained_sources": [
+        {
+          "source_id": "f17-stack-city-claim",
+          "observation_id": "a54c7ae1-b6f0-4a15-955e-b0e60fd1f205",
+          "evidence_id": "d53b9224-2c63-48cd-9e00-b46b22eacf65",
+          "content_hash": "ccc92aea483b84f9afe0436e2fb9d515cf2fe99a05e19a1f270a0c4fd53a6deb",
+          "url": "https://santaclara.legistar.com/View.ashx?GUID=41D90CA3-8232-4978-9508-DB1418113E87&ID=1349150&M=E2",
+          "extraction_location": "PDF pp. 14-18; PDF pp. 20-21"
+        },
+        {
+          "source_id": "f17-stack-cec-filing",
+          "observation_id": "d6e319d0-1dc0-4863-9ddc-2e10b1d00c66",
+          "evidence_id": "cc7dd0bf-38de-4e10-a85a-a587a5b8b736",
+          "content_hash": "33d0ed5f40f21fbcd74502a4c92d8c0373ac73c417e8b3046a7deba965806340",
+          "url": "https://efiling.energy.ca.gov/GetDocument.aspx?tn=261716",
+          "extraction_location": "PDF pp. 1-6; PDF pp. 16-18; PDF pp. 40-40; PDF pp. 50-52"
+        }
+      ]
+    },
+    {
+      "need_id": "819be466-5c99-4b68-9dbc-bc72616eebd7",
+      "f17_site_key": "crusoe_abilene_stargate",
+      "categories": [
+        "data_center",
+        "unestablished_temporary_need",
+        "bridge_power"
+      ],
+      "expected_fields": {
+        "customer": "Crusoe",
+        "project": "Abilene Stargate campus",
+        "location": "near Abilene, Texas",
+        "facility_demand": null,
+        "required_mw": null,
+        "start": null,
+        "gap": null,
+        "energization": null
+      },
+      "source_label": {
+        "independent_label_review": "Sol original-document review before card projection, 2026-10-21",
+        "customer_role": "Crusoe is report publisher, campus developer/operator; no identified buyer of incremental temporary generation or procurement event.",
+        "noncanonical_claims": "Report printed p. 15's 1.2 GW total campus capacity and 206 MW commissioned/in operation are project-scale/status figures, not facility demand or temporary required MW. Historical first-phase May 2025 operations is not a bridge-power start date.",
+        "category_basis": [
+          {
+            "category": "bridge_power",
+            "source_supported": true,
+            "basis": "Crusoe report printed p. 19 says generation supports campuses while grid upgrades catch up and specifically says its Abilene Stargate campus uses natural-gas turbines to provide temporary bridge power. Printed p. 15 identifies the named campus, first phase operational by May 2025, and full campus expected by end 2026. Publisher blog dates report release May 28, 2026. This establishes a real named-site historical/in-use bridge configuration, not an unmet future sale.",
+            "critical_excerpt": "we use natural gas turbines to provide temporary bridge power (report printed p. 19)",
+            "limits": "Report printed p. 16's 350 MW is on-site power capacity described as long-term backup; it is not stated temporary required MW, open gap, available utility shortfall, or current purchase need. The grid-upgrade catch-up window is qualitative; no dated bridge start/end or utility energization date is established. If evaluator requires a dated time window or open unmet need, bridge category is still BLOCKED."
+          }
+        ],
+        "provenance_record": "pr105-real-evidence.json"
+      },
+      "retained_sources": [
+        {
+          "source_id": "f17-crusoe-impact",
+          "observation_id": "5f7b358b-071d-42fe-8d49-4c9bc6a037fe",
+          "evidence_id": "a511309f-80e4-497f-bfcb-40bc68f18459",
+          "content_hash": "38ca3db4c94206be9e8b2ee1e3b5fa1239b00948c50b3ac0e102e6d7f1773619",
+          "url": "https://cdn.prod.website-files.com/6855c1aa175582ee23e0aa19/6aa975443d2a8405e214f067_Crusoe_2025_Impact%20Report2_web_optimized.pdf",
+          "extraction_location": "PDF pp. 2-2; PDF pp. 15-16; PDF pp. 19-19"
+        }
+      ]
+    }
+  ],
+  "runtime_scope": "Local isolated restored retained corpus; original dump preserved; no provider calls or production mutation.",
+  "source_dump_sha256": "1e778b371eef6551d8c003586c58431465abdd0e0cb327d9244bae28b503ab80",
+  "missing_categories": [
+    "bridge_power",
+    "conflicting_dates",
+    "utility_constraint"
+  ],
+  "metric_limit": "Exact agreement on79 reviewed fields, including2 unresolved utility service status fields (not utility dates). Not an exhaustive factual audit. Missing category coverage remains BLOCKED."
+}

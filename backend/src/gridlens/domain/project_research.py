@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-VERSION = "project-research-claims-v3"
+VERSION = "project-research-claims-v4"
 FIELDS = (
     "phase",
     "permanent_service",
@@ -15,7 +15,15 @@ FIELDS = (
     "temporary_supply",
     "activity_load_mw",
     "activity_start",
+    "facility_scale_mw",
+    "facility_demand_mw",
+    "voltage",
+    "fuel_availability",
+    "load_profile",
+    "procurement_status",
+    "utility_obstacle",
 )
+_DURABLE_REPORTED_FIELDS = {"voltage", "facility_scale_mw", "facility_demand_mw"}
 _PHASES = (
     ("cancelled", r"(?:project|development|facility) (?:is |was |has been )?cancel(?:led|ed)"),
     ("completed", r"(?:project|development|facility) (?:is |was |has been )?completed"),
@@ -156,6 +164,24 @@ def extract_project_claims(
                 service + r"\s+(?:is |remains )(?:pending|delayed|unavailable)", predicate, re.I
             ):
                 add("permanent_service", "pending")
+            # Facility-level demand is exact-project but deliberately not
+            # activity-scoped; it remains distinct from temporary activity load.
+            facility_demand = re.fullmatch(
+                r"(?:planned )?facility (?:electrical )?demand is\s+(\d+(?:\.\d+)?)\s*(kW|MW)",
+                predicate,
+                re.I,
+            )
+            if (
+                facility_demand
+                and Decimal(facility_demand[1]) > 0
+                and not re.search(
+                    r"\b(?:campus|nameplate|capacity|generator|backup|temporary)\b", quote, re.I
+                )
+            ):
+                mw = Decimal(facility_demand[1]) / (
+                    1000 if facility_demand[2].casefold() == "kw" else 1
+                )
+                add("facility_demand_mw", format(mw.normalize(), "f"))
         scopes = _SCOPES.get(activity_key, (activity_key.replace("-", " "),))
         scope = next(
             (scope for scope in scopes if re.search(r"\b" + re.escape(scope) + r"\b", quote, re.I)),
@@ -214,6 +240,53 @@ def extract_project_claims(
                 if load and Decimal(load[1]) > 0:
                     mw = Decimal(load[1]) / (1000 if load[2].casefold() == "kw" else 1)
                     add("activity_load_mw", format(mw.normalize(), "f"), reported_activity=scope)
+            voltage = re.fullmatch(
+                re.escape(scope)
+                + r" (?:temporary power|electrical) voltage (?:requirement )?is\s+"
+                + r"(\d{2,4})\s*V,?\s*(\d)\s*(?:phase|ph)",
+                predicate,
+                re.I,
+            )
+            if voltage:
+                add(
+                    "voltage",
+                    f"{int(voltage[1])} V, {int(voltage[2])} phase",
+                    reported_activity=scope,
+                )
+            fuel = re.fullmatch(
+                re.escape(scope)
+                + r" (?:temporary power )?fuel (?:is |availability is )(available|unavailable)",
+                predicate,
+                re.I,
+            )
+            if fuel:
+                add("fuel_availability", fuel[1].casefold(), reported_activity=scope)
+            profile = re.fullmatch(
+                re.escape(scope)
+                + r" load profile is "
+                + r"(continuous|intermittent|peaking|cyclic|variable|constant|24/7)",
+                predicate,
+                re.I,
+            )
+            if profile:
+                add("load_profile", profile[1].casefold(), reported_activity=scope)
+            procurement = re.fullmatch(
+                re.escape(scope)
+                + r" temporary power procurement is "
+                + r"(underway|delayed|on hold|complete|not started)",
+                predicate,
+                re.I,
+            )
+            if procurement:
+                add("procurement_status", procurement[1].casefold(), reported_activity=scope)
+            obstacle = re.fullmatch(
+                re.escape(scope)
+                + r" utility interconnection is (pending|delayed|blocked|complete)",
+                predicate,
+                re.I,
+            )
+            if obstacle:
+                add("utility_obstacle", obstacle[1].casefold(), reported_activity=scope)
             start = re.fullmatch(
                 re.escape(scope)
                 + r" (?:starts|begins|is scheduled to (?:start|begin)) on (\d{4}-\d{2}-\d{2})",
@@ -240,6 +313,28 @@ def extract_project_claims(
     if any(int(year) < today.year for year in re.findall(r"\b(?:19|20)\d{2}\b", framing)):
         return []
     return result if len(result) <= 16 else []
+
+
+def extract_retained_permit_claims(
+    source_id: str, text: str, *, activity_key: str, as_of: date | None, today: date
+) -> list[dict[str, Any]]:
+    """Parse two reviewed retained permit formats without generalizing attribution."""
+    if as_of is None or as_of > today:
+        return []
+    from gridlens.ingestion.adapters.retained_permits import extract_retained_claims
+
+    extraction = extract_retained_claims(source_id, text, activity_key=activity_key)
+    return [
+        {
+            "field": claim.field,
+            "value": claim.value,
+            "activity_key": activity_key,
+            "as_of": as_of.isoformat(),
+            "quote": claim.quote,
+            "value_kind": claim.value_kind,
+        }
+        for claim in extraction.claims
+    ]
 
 
 def unparsed_adverse_text(text: str, claims: list[dict]) -> str:
@@ -290,7 +385,10 @@ class _ProjectClaimAccumulator:
         except (KeyError, ValueError, TypeError):
             return
         persistent = claim.get("value") in {"completed", "cancelled", "adequate"}
-        if dated > self.today or (dated < self.today - timedelta(days=90) and not persistent):
+        durable_report = field in _DURABLE_REPORTED_FIELDS
+        if dated > self.today or (
+            dated < self.today - timedelta(days=90) and not persistent and not durable_report
+        ):
             return
         value = claim["value"]
         if not self._has_value[field]:
@@ -334,7 +432,15 @@ def project_claim_state(claims: list[dict], *, today: date) -> dict[str, dict]:
 
 
 def qualification_veto(fields: dict[str, dict]) -> str | None:
-    if any(value.get("status") == "CONFLICT" for value in fields.values()):
+    qualification_fields = {
+        "phase",
+        "permanent_service",
+        "supply_adequacy",
+        "temporary_supply",
+        "activity_load_mw",
+        "activity_start",
+    }
+    if any(fields.get(field, {}).get("status") == "CONFLICT" for field in qualification_fields):
         return "Current exact-activity public evidence has unresolved conflicting claims"
     phase = fields.get("phase", {})
     if phase.get("status") == "SUPPORTED" and phase.get("value") in {
