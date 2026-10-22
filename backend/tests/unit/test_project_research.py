@@ -522,6 +522,37 @@ def test_boston_temporary_electrical_constraints_keep_voltage_without_computing_
     )
 
 
+@pytest.mark.parametrize(
+    ("ratings", "expected"),
+    [
+        ("208V 1Ph and 480V 3Ph", "208 V, 1 phase; 480 V, 3 phase"),
+        ("480V 3Ph and 208V 1Ph", "480 V, 3 phase; 208 V, 1 phase"),
+        (
+            "208V 1Ph, 208 V 1 Ph and 480V 3Ph",
+            "208 V, 1 phase; 480 V, 3 phase",
+        ),
+    ],
+)
+def test_boston_comments_keep_distinct_voltage_pairs_in_source_order(ratings, expected):
+    from gridlens.domain.project_research import (
+        extract_retained_permit_claims,
+        project_claim_state,
+    )
+
+    quote = f"Comments: Provide temporary electrical work: {ratings}"
+    rows = extract_retained_permit_claims(
+        "boston-building-permits",
+        f"Description: Electrical\n{quote}",
+        activity_key="temporary-power",
+        as_of=TODAY,
+        today=TODAY,
+    )
+    assert [(row["field"], row["value"], row["quote"]) for row in rows] == [
+        ("voltage", expected, quote)
+    ]
+    assert project_claim_state(rows, today=TODAY)["voltage"]["value"] == expected
+
+
 def test_retained_permit_claims_require_a_valid_source_date_and_current_value():
     from gridlens.domain.project_research import extract_retained_permit_claims
 

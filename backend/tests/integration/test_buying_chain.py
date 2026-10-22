@@ -2981,6 +2981,87 @@ def test_optional_person_clear_is_a_downgrade(cleared_name):
 
 
 @pytest.mark.parametrize(
+    ("requested_title", "cite_person_title", "expected"),
+    [
+        ("Construction Director", True, False),
+        ("Project Manager", True, True),
+        ("Project Manager", False, False),
+        (None, False, True),
+        ("", False, True),
+        ("   ", False, True),
+    ],
+)
+def test_title_correction_binds_current_title_to_the_cited_person(
+    requested_title, cite_person_title, expected
+):
+    project_id = UUID("00000000-0000-0000-0000-000000000030")
+    source_id = UUID("00000000-0000-0000-0000-000000000031")
+    organization_quote = "Acme is the general contractor for Orion Data Center in Austin, TX."
+    alice_quote = "Alice Smith is Project Manager at Acme for Orion Data Center in Austin, TX."
+    text = organization_quote + " " + alice_quote + " Bob Jones is Construction Director at Acme."
+    project = SimpleNamespace(
+        id=project_id,
+        name="Orion Data Center",
+        location="Austin, TX",
+        identity_facts={},
+        source_id="news",
+    )
+    source = SimpleNamespace(
+        id=source_id,
+        retained_evidence_id=None,
+        url="https://news.example/team",
+        title="Acme team",
+        excerpt=text,
+        published_at=date(2026, 10, 20),
+        observed_at=NOW,
+        extraction_location="team page",
+        content_hash="c" * 64,
+    )
+    candidate_evidence = [
+        {
+            "id": source_id,
+            "current_source_version_id": source_id,
+            "content_hash": source.content_hash,
+            "current_support": True,
+            "quote": organization_quote,
+            "supports": "project_organization",
+        }
+    ]
+    if cite_person_title:
+        candidate_evidence.append(
+            {
+                "id": source_id,
+                "current_source_version_id": source_id,
+                "content_hash": source.content_hash,
+                "current_support": True,
+                "quote": alice_quote,
+                "supports": "organization_person_role",
+            }
+        )
+    candidate = {
+        "organization": "Acme",
+        "person_name": "Alice Smith",
+        "title": "Assistant Project Manager",
+        "evidence": candidate_evidence,
+    }
+
+    class Session:
+        def get(self, _model, key):
+            return project if key == project_id else None
+
+    assert (
+        _has_current_semantic_support(
+            session=Session(),
+            project_id=project_id,
+            candidate=candidate,
+            source=source,
+            values={"title": requested_title},
+        )
+        is expected
+    )
+
+
+@pytest.mark.parametrize(
     ("entity_type", "subject_field", "support"),
     [
         ("company", "organization", "project_organization"),

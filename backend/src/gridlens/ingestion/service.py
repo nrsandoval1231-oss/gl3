@@ -162,45 +162,17 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
 
 
 def _interpret_retained_document(source_id: str, record: dict[str, Any]) -> dict[str, str] | None:
-    """Interpret only exact F17 source IDs and reviewed physical-site cues."""
-    from gridlens.ingestion.adapters.retained_document import SOURCES
+    """Project source-native retained interpretation into the ingestion shape."""
+    from gridlens.ingestion.adapters.retained_document import interpret_retained_document
 
-    policy = SOURCES.get(source_id)
-    retained = record.get("retained_document")
-    if not policy or not isinstance(retained, dict):
-        return None
-    if (
-        retained.get("sha256") != policy["sha256"]
-        or retained.get("source_site") != policy["location"]
-        or not retained.get("project_name")
-    ):
-        return None
-    name = str(retained["project_name"])
-    if name.casefold() not in f"{record.get('title', '')} {record.get('abstract', '')}".casefold():
-        return None
-    rationale = {
-        "stack_claim": (
-            "STACK's June 24, 2024 claim reports a later 18 MVA cap through at least 2028, "
-            "contrasting it with the earlier 28 MVA in 2026 and 31 MVA by 2027 schedule. "
-            "These are attributed claims, not an adjudicated finding; MVA is not converted to MW."
-        ),
-        "stack_cec": (
-            "STACK's February 2025 CEC filing reports underservice at Memorex Junction and "
-            "includes a September 2021 draft agreement. The party submission is not a CEC finding."
-        ),
-        "crusoe_bridge": (
-            "Crusoe reports natural-gas turbines providing temporary bridge power at its "
-            "Abilene Stargate campus while grid upgrades catch up. This is reported in-use "
-            "configuration, not an open purchase; exact bridge and grid-ready dates are unknown."
-        ),
-    }.get(policy["rationale_kind"])
-    if not rationale:
+    claim = interpret_retained_document(source_id, record)
+    if claim is None:
         return None
     return {
-        "name": name,
-        "activity_key": policy["activity"],
-        "rationale": rationale,
-        "location": policy["location"],
+        "name": claim.name,
+        "activity_key": claim.activity_key,
+        "rationale": claim.rationale,
+        "location": claim.location,
     }
 
 
