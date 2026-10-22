@@ -79,6 +79,8 @@ This archive saves independent reviews, this handoff, and a hash manifest of ret
 
 The unchanged [local artifact manifest](local-artifact-manifest.json) describes the original `de9d212` snapshot: its `git_copy` paths resolve against that historical commit, not this reduced archive checkout. Its original hashes remain unchanged.
 
+The rollout review binds the original local `title02-rollout.py`: 18,853 bytes, SHA-256 `3244b8e1d9124bf7a8bb9b77db9e59f6c138e34abefa0bbeda988e75445a2bd0`. The archived Git blob in `de9d212` is 18,564 bytes, SHA-256 `e74cbac8bdc26c58739d86b9e696a9107cb51daef14df20e6f9b7b8014dc45d1`. On October22, comparison against the retained original verified exact byte equality after converting CRLF to LF only. The raw local hash and newline-normalized Git hash are distinct; neither establishes current execution approval.
+
 The [repository inventory](repository-inventory.json) records checkout branches, commits and dirty paths before this handoff branch was created. Existing changes in other checkouts are preserved and have not been folded into this PR:
 
 - **Paused source recovery:** `gl3-source-repair`, branch `fix/source-collection-recovery`, clean commit `a5e4cf9ed7851e58de8599520c7f617a7ae5b831`; not pushed, no PR, not merged/deployed. Its bounded corpus replay failed at a source deadline; final full-suite acceptance is unverified. Historical pause evidence is preserved locally in `SOURCE_RECOVERY_PAUSED_2026-10-19.md`. Publication/deployment remain paused.
