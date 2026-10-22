@@ -10,7 +10,9 @@ import {
   type WorkflowStatus,
 } from '../../api/client'
 
-type FactType = 'demand' | 'unsuitable_supply' | 'suitable_supply' | 'timing' | 'buyer' | 'closure'
+type FactType = 'demand' | 'unsuitable_supply' | 'suitable_supply' | 'timing' | 'buyer' | 'closure' | 'power_schedule'
+type SchedulePhaseDraft = { phase_id: string; start_date: string; end_date: string; mw_min: string; mw_max: string; basis: string; supply_coverage: string; coverage_reason: string }
+type ScheduleSupplyDraft = { supply_id: string; start_date: string; end_date: string; mw_min: string; mw_max: string; state: string; suitability: string; source_kind: string; date_basis: string; basis: string; service_ready_date: string; source_reference: string }
 type FrozenWorkflowRequest = {
   needId: string
   projectId: string
@@ -46,6 +48,8 @@ type EditorDraft = {
   workflowClientId: string
   workflowRequest: FrozenWorkflowRequest | null
   timingBinding: CorrectionBinding | null
+  schedulePhases: SchedulePhaseDraft[]
+  scheduleSupplies: ScheduleSupplyDraft[]
 }
 
 const draftByNeed = new Map<string, EditorDraft>()
@@ -53,6 +57,12 @@ const draftByNeed = new Map<string, EditorDraft>()
 function localDateTime(value = new Date()) {
   const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
   return local.toISOString().slice(0, 16)
+}
+
+function nextScheduleRowId(prefix: 'phase' | 'supply', existingIds: string[]) {
+  let suffix = 1
+  while (existingIds.includes(`${prefix}-${suffix}`)) suffix += 1
+  return `${prefix}-${suffix}`
 }
 
 function newDraft(facilityScope: string): EditorDraft {
@@ -65,6 +75,8 @@ function newDraft(facilityScope: string): EditorDraft {
     correctsReportedTiming: false, timingBasis: '', predecessorId: '', decisionReason: '',
     factClientId: crypto.randomUUID(), decisionClientId: crypto.randomUUID(), pendingFactId: '',
     workflowSelection: '', workflowReason: '', workflowClientId: crypto.randomUUID(), workflowRequest: null, timingBinding: null,
+    schedulePhases: [{ phase_id: 'phase-1', start_date: '', end_date: '', mw_min: '', mw_max: '', basis: '', supply_coverage: 'unknown', coverage_reason: '' }],
+    scheduleSupplies: [],
   }
 }
 
@@ -148,6 +160,7 @@ function factSummary(fact: CallFact) {
   if (fact.fact_type === 'timing') return `Possible start: ${String(value.start_date ?? 'unknown')} to ${String(value.end_date ?? 'unknown')}; activity duration ${String(value.duration_days ?? 'unknown')} days.${value.basis ? ` Reason: ${String(value.basis)}` : ''}`
   if (fact.fact_type === 'buyer') return `Buyer: ${String(value.organization ?? 'not recorded')}; role ${String(value.role ?? 'not recorded')}.`
   if (fact.fact_type === 'closure') return `Reported closure state: ${String(value.state ?? 'unknown')}.${value.basis ? ` Reason: ${String(value.basis)}` : ''}`
+  if (fact.fact_type === 'power_schedule') return `Dated power schedule with ${Array.isArray(value.phases) ? value.phases.length : 0} demand phase(s) and ${Array.isArray(value.supplies) ? value.supplies.length : 0} supply entry(ies).`
   return 'Fact details are unavailable.'
 }
 
@@ -222,6 +235,14 @@ export function FactWorkflowPanel({ item, onReadback }: { item: Opportunity; onR
     updateDraft({ fields: { ...draft.fields, [name]: value } }, true)
   }
 
+  function updateSchedulePhase(index: number, key: keyof SchedulePhaseDraft, value: string) {
+    updateDraft({ schedulePhases: draft.schedulePhases.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: value } : row) }, true)
+  }
+
+  function updateScheduleSupply(index: number, key: keyof ScheduleSupplyDraft, value: string) {
+    updateDraft({ scheduleSupplies: draft.scheduleSupplies.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: value } : row) }, true)
+  }
+
   function currentPageForSubmit(): CallFactPage | null {
     if (!page || page.current_fact_version < 0) return null
     return page
@@ -244,7 +265,17 @@ export function FactWorkflowPanel({ item, onReadback }: { item: Opportunity; onR
       const clean = draft.fields[key]?.trim()
       if (clean) value[key] = clean
     }
-    if (draft.factType === 'demand' || draft.factType === 'unsuitable_supply') {
+    if (draft.factType === 'power_schedule') {
+      if (!draft.schedulePhases.length) throw new Error('Add at least one demand phase.')
+      if (!draft.fields.basis?.trim()) throw new Error('Enter the schedule basis.')
+      value.basis = draft.fields.basis.trim()
+      value.phases = draft.schedulePhases.map((phase) => ({ ...phase }))
+      value.supplies = draft.scheduleSupplies.map((supply) => {
+        const { service_ready_date, source_reference, ...required } = supply
+        return { ...required, ...(service_ready_date ? { service_ready_date } : {}), ...(source_reference.trim() ? { source_reference: source_reference.trim() } : {}) }
+      })
+      if (draft.fields.zero_supply_basis?.trim()) value.zero_supply_basis = draft.fields.zero_supply_basis.trim()
+    } else if (draft.factType === 'demand' || draft.factType === 'unsuitable_supply') {
       add('mw')
     } else if (draft.factType === 'suitable_supply') {
       add('mw'); add('mw_min'); add('mw_max'); add('quality')
@@ -524,7 +555,7 @@ export function FactWorkflowPanel({ item, onReadback }: { item: Opportunity; onR
       <form onSubmit={(event) => void createDraft(event)}>
         <h4>Record an attributed fact draft</h4>
         <label>Fact type<select aria-label="Fact type" value={draft.factType} disabled={!editable} onChange={(event) => updateDraft({ factType: event.target.value as FactType }, true)}>
-          <option value="demand">Activity demand</option><option value="suitable_supply">Suitable supply</option><option value="unsuitable_supply">Unsuitable supply</option><option value="timing">Activity timing</option><option value="buyer">Buyer organization and role</option><option value="closure">Reported closure state</option>
+          <option value="demand">Activity demand</option><option value="suitable_supply">Suitable supply</option><option value="unsuitable_supply">Unsuitable supply</option><option value="timing">Activity timing</option><option value="power_schedule">Dated phase schedule</option><option value="buyer">Buyer organization and role</option><option value="closure">Reported closure state</option>
         </select></label>
         <label>Facility<input aria-label="Facility" value={draft.facilityScope} disabled={!editable} onChange={(event) => updateDraft({ facilityScope: event.target.value }, true)}/></label>
         <label>Reporter name<input aria-label="Reporter name" value={draft.reporterName} disabled={!editable} onChange={(event) => updateDraft({ reporterName: event.target.value }, true)}/></label>
@@ -543,6 +574,42 @@ export function FactWorkflowPanel({ item, onReadback }: { item: Opportunity; onR
           }}/> Deliberately correct the selected reported timing</label>
           {draft.correctsReportedTiming && <label>Reason for correction<textarea value={draft.timingBasis} disabled={!editable} onChange={(event) => updateDraft({ timingBasis: event.target.value }, true)}/></label>}
         </>}
+        {draft.factType === 'power_schedule' && <section aria-label="Dated demand and supply schedule">
+          <p>Record a bounded schedule. Proposed or hypothetical supply stays a scenario and never becomes qualified supply or a Lead assertion.</p>
+          <h4>Demand phases</h4>
+          {draft.schedulePhases.map((phase, index) => <fieldset key={`${needId}-phase-${index}`}>
+            <legend>Demand phase {index + 1}</legend>
+            <label>Phase name<input value={phase.phase_id} disabled={!editable} onChange={(event) => updateSchedulePhase(index, 'phase_id', event.target.value)}/></label>
+            <label>Start date<input type="date" value={phase.start_date} disabled={!editable} onChange={(event) => updateSchedulePhase(index, 'start_date', event.target.value)}/></label>
+            <label>End date<input type="date" value={phase.end_date} disabled={!editable} onChange={(event) => updateSchedulePhase(index, 'end_date', event.target.value)}/></label>
+            <label>Demand minimum (MW)<input inputMode="decimal" value={phase.mw_min} disabled={!editable} onChange={(event) => updateSchedulePhase(index, 'mw_min', event.target.value)}/></label>
+            <label>Demand maximum (MW)<input inputMode="decimal" value={phase.mw_max} disabled={!editable} onChange={(event) => updateSchedulePhase(index, 'mw_max', event.target.value)}/></label>
+            <label>Demand basis<textarea value={phase.basis} disabled={!editable} onChange={(event) => updateSchedulePhase(index, 'basis', event.target.value)}/></label>
+            <label>Supply coverage<select value={phase.supply_coverage} disabled={!editable} onChange={(event) => updateSchedulePhase(index, 'supply_coverage', event.target.value)}><option value="unknown">Unknown or incomplete</option><option value="partial">Partial</option><option value="confirmed_complete">Confirmed complete</option></select></label>
+            <label>Coverage basis<textarea value={phase.coverage_reason} disabled={!editable} onChange={(event) => updateSchedulePhase(index, 'coverage_reason', event.target.value)}/></label>
+            {draft.schedulePhases.length > 1 && <button type="button" disabled={!editable} onClick={() => updateDraft({ schedulePhases: draft.schedulePhases.filter((_, rowIndex) => rowIndex !== index) }, true)}>Remove phase</button>}
+          </fieldset>)}
+          <button type="button" disabled={!editable || draft.schedulePhases.length >= 12} onClick={() => updateDraft({ schedulePhases: [...draft.schedulePhases, { phase_id: nextScheduleRowId('phase', draft.schedulePhases.map((phase) => phase.phase_id)), start_date: '', end_date: '', mw_min: '', mw_max: '', basis: '', supply_coverage: 'unknown', coverage_reason: '' }] }, true)}>Add demand phase</button>
+          <h4>Supply entries</h4>
+          {draft.scheduleSupplies.map((supply, index) => <fieldset key={`${needId}-supply-${index}`}>
+            <legend>Supply entry {index + 1}</legend>
+            <label>Entry name<input value={supply.supply_id} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'supply_id', event.target.value)}/></label>
+            <label>Start date<input type="date" value={supply.start_date} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'start_date', event.target.value)}/></label>
+            <label>End date<input type="date" value={supply.end_date} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'end_date', event.target.value)}/></label>
+            <label>Supply minimum (MW)<input inputMode="decimal" value={supply.mw_min} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'mw_min', event.target.value)}/></label>
+            <label>Supply maximum (MW)<input inputMode="decimal" value={supply.mw_max} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'mw_max', event.target.value)}/></label>
+            <label>Supply state<select value={supply.state} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'state', event.target.value)}><option value="operating">Operating</option><option value="committed">Credibly committed</option><option value="proposed">Proposed scenario</option><option value="hypothetical">Hypothetical scenario</option></select></label>
+            <label>Suitability<select value={supply.suitability} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'suitability', event.target.value)}><option value="unknown">Unknown</option><option value="suitable">Suitable</option><option value="unsuitable">Unsuitable</option></select></label>
+            <label>Supply source kind<select value={supply.source_kind} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'source_kind', event.target.value)}><option value="utility_grid">Utility grid</option><option value="onsite">On-site generation</option><option value="other">Other or unspecified</option></select></label>
+            {supply.state !== 'operating' && <label>Service-ready / energization date<input type="date" value={supply.service_ready_date} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'service_ready_date', event.target.value)}/></label>}
+            <label>Date basis<textarea value={supply.date_basis} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'date_basis', event.target.value)}/></label>
+            <label>Supply basis<textarea value={supply.basis} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'basis', event.target.value)}/></label>
+            <label>Source reference<input value={supply.source_reference} disabled={!editable} onChange={(event) => updateScheduleSupply(index, 'source_reference', event.target.value)}/></label>
+            <button type="button" disabled={!editable} onClick={() => updateDraft({ scheduleSupplies: draft.scheduleSupplies.filter((_, rowIndex) => rowIndex !== index) }, true)}>Remove supply entry</button>
+          </fieldset>)}
+          <button type="button" disabled={!editable || draft.scheduleSupplies.length >= 24} onClick={() => updateDraft({ scheduleSupplies: [...draft.scheduleSupplies, { supply_id: nextScheduleRowId('supply', draft.scheduleSupplies.map((supply) => supply.supply_id)), start_date: '', end_date: '', mw_min: '', mw_max: '', state: 'operating', suitability: 'unknown', source_kind: 'other', date_basis: '', basis: '', service_ready_date: '', source_reference: '' }] }, true)}>Add supply entry</button>
+          {field('zero_supply_basis', 'Attributed basis for confirmed zero supply')}
+        </section>}
         {draft.factType === 'buyer' && <>{field('organization', 'Buyer organization')}<label>Buyer role<select value={draft.fields.role} disabled={!editable} onChange={(event) => updateField('role', event.target.value)}><option value="">Choose a reported role</option><option value="project owner">Project owner</option><option value="electrical contractor">Electrical contractor</option><option value="general contractor">General contractor</option><option value="energy manager">Energy manager</option></select></label></>}
         {draft.factType === 'closure' && <label>Reported closure state<select value={draft.fields.state} disabled={!editable} onChange={(event) => updateField('state', event.target.value)}><option value="">Choose a reported state</option><option value="adequate_supply">Adequate supply</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option></select></label>}
         {draft.factType !== 'timing' && <label>Basis<textarea value={draft.fields.basis ?? ''} disabled={!editable} onChange={(event) => updateField('basis', event.target.value)}/></label>}

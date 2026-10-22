@@ -6,6 +6,7 @@ import { projectTitle } from '../opportunities/projectCards'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { FactWorkflowPanel } from '../pursuits/FactWorkflowPanel'
 import { QuickCallLog } from '../pursuits/QuickCallLog'
+import { ReportedPowerSchedule } from './ReportedPowerSchedule'
 
 export const workspaceTabs = ['Overview', 'Evidence', 'Buying chain', 'Power gap', 'Timeline', 'Next steps', 'Unknowns'] as const
 export type WorkspaceTab = typeof workspaceTabs[number]
@@ -27,11 +28,12 @@ type Props = {
   onTab: (tab: WorkspaceTab) => void
   onBack: () => void
   onRetry: () => void
-  onReadback: () => void
+  onReadback: (notice?: string) => void
+  correctionNotice?: string
   onTitleReady: () => void
 }
 
-export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback, onTitleReady }: Props) {
+export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback, onTitleReady, correctionNotice }: Props) {
   const [shareState, setShareState] = useState('')
   const [sourceFilter, setSourceFilter] = useState('All sources')
   const [brief, setBrief] = useState<Brief | null>(null)
@@ -142,6 +144,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     return <aside className={`wh-detail ${pending || loading ? 'wh-detail-loading' : 'wh-empty-detail'}`} aria-label="Opportunity detail">
       {(pending || loading || error) && <button type="button" className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button>}
       <p>{pending || loading ? 'Loading verified opportunity detail…' : 'Select an opportunity to review its evidence and next action.'}</p>
+      {correctionNotice && <p role="status">{correctionNotice}</p>}
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
     </aside>
   }
@@ -153,6 +156,8 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   const visibleCardEvidence = sourceFilter === 'All sources' ? cardEvidence : cardEvidence.filter(source => source.reference === sourceFilter)
   const callEvidence = evidence.find(source => source.assessment_current) ?? evidence[0]
   const customer = item.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? null
+  const intelligenceProject = item.intelligence_card?.fields.find(field => field.key === 'project' && field.value)?.value ?? null
+  const intelligenceLocation = item.intelligence_card?.fields.find(field => field.key === 'location' && field.value)?.value ?? null
   const company = item.commercial_organization || item.title_company
   const currentTitleReady = titleState?.status === 'ready' && Boolean(titleState.result?.title)
   const titleStatus = titleState?.status ?? item.title_status
@@ -161,9 +166,10 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     ...item,
     browse_title: item.title_status === 'ready' ? undefined : item.browse_title,
   })
-  const displayTitle = currentTitleReady
+  const displayTitle = intelligenceProject || (currentTitleReady
     ? titleState.result!.title
-    : useDeterministicTitleFallback ? canonicalTitleFallback : item.browse_title || canonicalTitleFallback
+    : useDeterministicTitleFallback ? canonicalTitleFallback : item.browse_title || canonicalTitleFallback)
+  const displayLocation = intelligenceLocation || item.location || 'Location unknown'
   const companyRole = item.title_company_role
   const unverified = [
     ...(!item.start_window ? ['power start timing'] : []),
@@ -207,7 +213,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     { key: 'gap', label: 'Potential Bridge-Power Gap', value: supportedGap ? `${supportedGap.remaining_mw_min}–${supportedGap.remaining_mw_max} MW` : cardGapRemaining ?? 'Not established', basis: supportedGap ? `${supportedGap.value_kind} · ${item.qualification_version ?? supportedGap.version}` : cardGapRemaining ? cardGapBasis : 'No supported remaining gap is available.', icon: 'gap' },
     { key: 'start', label: 'Power Needed By', value: item.start_window ?? 'Not established', basis: item.start_window ? factEvidenceState(item, 'start') : 'No supported power timing is available.', icon: 'calendar' },
     { key: 'duration', label: 'Expected Duration', value: item.duration ?? 'Not established', basis: item.duration ? factEvidenceState(item, 'duration') : 'No supported duration is available.', icon: 'clock' },
-    { key: 'supply', label: 'Utility Energization', value: energization?.value ?? 'Not established', basis: energization?.value ? `Utility service status; date not established. ${energization.basis}` : 'Utility energization timing is not supported by retained evidence.', icon: 'supply' },
+    { key: 'supply', label: 'Utility Energization', value: energization?.value ?? 'Not established', basis: energization?.value ? energization.basis : 'Utility energization timing is not supported by retained evidence.', icon: 'supply' },
   ] as const
   function openNextSteps() {
     onTab('Next steps')
@@ -226,7 +232,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
         <div className="wh-record-identity">
           <h2>{customer || displayTitle}</h2>
           {customer && <p className="wh-record-project">{displayTitle}</p>}
-          <p className="wh-record-subtitle">{item.location ?? 'Location unknown'} · {item.activity.replaceAll('-', ' ')}</p>
+          <p className="wh-record-subtitle">{displayLocation} · {item.activity.replaceAll('-', ' ')}</p>
         </div>
         <div className="wh-record-qualification"><span className="wh-tier-badge">{item.tier} · {item.commercial_disposition ?? 'Disposition unavailable'}</span><span>{item.intelligence_card?.last_intelligence_update ? `Evidence updated ${new Date(item.intelligence_card.last_intelligence_update).toLocaleDateString()}` : 'Evidence update date unavailable'}</span></div>
         {item.intelligence_card && <div className="wh-completeness"><span>Intelligence completeness</span><strong>{item.intelligence_card.completeness.supported}/{item.intelligence_card.completeness.total}</strong><progress aria-label="Intelligence completeness" max={item.intelligence_card.completeness.total} value={item.intelligence_card.completeness.supported}/></div>}
@@ -249,6 +255,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     </nav>
     <div className="wh-detail-content">
       {loading && <p role="status">Loading verified detail…</p>}
+      {correctionNotice && <p role="status">{correctionNotice}</p>}
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
       {tab === 'Overview' && !item.intelligence_card && <>
         <details className="wh-provenance-disclosure"><summary>Decision and evidence diagnostics</summary>
@@ -268,6 +275,16 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
         <section aria-label="Priority explanation"><strong>Priority</strong>{item.rank_score != null ? <p>Canonical rank score: {item.rank_score}{item.rank_version ? ` · ${item.rank_version}` : ''}</p> : <p>Canonical rank score unavailable.</p>}{item.rank_reasons?.length ? <ul>{item.rank_reasons.map((reason, index) => <li key={`${index}:${reason}`}>{reason}</li>)}</ul> : <p>No rank reasons were recorded.</p>}<small>Priority is separate from qualification and commercial disposition.</small></section>
         <p><strong>Next question:</strong> {item.commercial_next_question || 'Unknown'}</p>
         {evidence[0] && <p>Supporting source: <a href={evidence[0].url} target="_blank" rel="noreferrer">{evidence[0].title}</a> · {evidence[0].published_at ?? 'Publication date unknown'}</p>}
+      </>}
+      {tab === 'Overview' && item.intelligence_card && <>
+        {(item.lifecycle_state || item.lifecycle_timeline?.length || item.lifecycle_open_questions?.length) && <details className="wh-provenance-disclosure"><summary>Asset lifecycle and monitoring</summary>
+          {item.lifecycle_state && <p>Asset lifecycle: {item.asset_type?.replaceAll('_', ' ') ?? 'Unknown'} · {item.lifecycle_state.replaceAll('_', ' ')}. Expected next milestone: {item.expected_next_milestone ?? 'Unknown'}; expected power event: {item.expected_power_event ?? 'Unknown'}; estimated window: {item.time_to_power_window ?? 'Unknown'}.</p>}
+          {item.estimate_version && <p>Derived lifecycle estimate · {item.estimate_version} · {String(item.estimate_basis?.confidence ?? 'confidence unknown')}. This is not a reported date, power requirement, or power gap.</p>}
+          {item.lifecycle_timeline?.length ? <ol>{item.lifecycle_timeline.map((event, i) => <li key={`${event.event_type}-${i}`}><a href={event.evidence_url} target="_blank" rel="noreferrer">{event.date ?? 'Date unknown'} · {event.state.replaceAll('_', ' ')}</a> ({event.value_kind}{event.current ? '' : ', superseded'}{event.published_at ? ` · published ${event.published_at}` : ''})</li>)}</ol> : null}
+          {item.monitoring_requirements?.length ? <p>Monitoring: {item.monitoring_requirements.join(' · ')}</p> : null}
+          {item.lifecycle_open_questions?.length ? <p>Lifecycle evidence still missing: {item.lifecycle_open_questions.join(' · ')}</p> : null}
+        </details>}
+        <section aria-label="Priority explanation"><strong>Priority</strong>{item.rank_score != null ? <p>Canonical rank score: {item.rank_score}{item.rank_version ? ` · ${item.rank_version}` : ''}</p> : <p>Canonical rank score unavailable.</p>}{item.rank_reasons?.length ? <ul>{item.rank_reasons.map((reason, index) => <li key={`${index}:${reason}`}>{reason}</li>)}</ul> : <p>No rank reasons were recorded.</p>}<small>Priority is separate from qualification and commercial disposition.</small></section>
       </>}
       {tab === 'Evidence' && <div className="wh-evidence-section">
         <header className="wh-evidence-heading"><div><h2>Evidence &amp; Sources</h2><p>Retained records: {evidence.length} · Intelligence citations: {cardEvidence.length}. Citations may refer to records listed here.</p></div><label>Filter sources <select aria-label="Filter evidence sources" value={sourceFilter} onChange={event => setSourceFilter(event.target.value)}><option value="All sources">All sources</option>{sourceFilters.map(filter => <option key={filter} value={filter}>{filter}</option>)}</select></label></header>
@@ -314,7 +331,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       <span role="status">{titleBusy ? 'Requesting title.' : titleStatusBusy ? 'Checking current title status.' : titleStatus === 'disabled' ? 'Title enrichment is disabled; showing source-backed fallback.' : titleStatus === 'pending' ? 'Title request pending.' : currentTitleReady ? `Evidence-grounded title · ${titleState.model ?? 'model unknown'}` : titleStatus === 'stale' ? 'Saved title is stale; showing source-backed fallback.' : titleStatusCheckFailed ? 'Title status could not be checked. Check again before requesting a new title.' : titleState?.status === 'failed' ? 'Title request failed; showing source-backed fallback.' : 'Showing source-backed title fallback.'}</span>
       {currentTitleReady && titleState.citations.map(citation => <p key={`${citation.evidence_id}:${citation.role ?? ''}:${citation.quote}`}><a href={citation.url} target="_blank" rel="noreferrer">{citation.title}</a> · {citation.role ?? 'source activity'}: "{citation.quote}"</p>)}
     </section></details></section>}
-      {tab === 'Buying chain' && item.project_id && <BuyingChain projectId={item.project_id}/>}
+      {tab === 'Buying chain' && item.project_id && <BuyingChain projectId={item.project_id} onReadback={onReadback}/>}
       {tab === 'Buying chain' && !item.project_id && <p>Project identity is unavailable, so a buying chain cannot be resolved.</p>}
       {tab === 'Power gap' && <div>
         {gap ? <>
@@ -326,6 +343,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
         </> : <p>Supply unknown or no supported remaining gap is available for this need.</p>}
         <p>Fuel and site constraints: not evaluated in this summary; review dated evidence.</p>
         <button onClick={() => onTab('Evidence')}>Review dated evidence</button>
+        {item.intelligence_card && <ReportedPowerSchedule schedule={item.intelligence_card.power_schedule} />}
       </div>}
       {tab === 'Timeline' && <div>
         {evidence.map(source => <p className="wh-evidence" key={source.id}>{source.event_date_label}: {source.event_date ?? 'Unknown'} · {source.published_at ? `Published ${source.published_at}` : 'Publication date unknown'} · Retrieved {new Date(source.retrieved_at).toLocaleString()}</p>)}

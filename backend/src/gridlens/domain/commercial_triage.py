@@ -91,6 +91,13 @@ def _is_rental_intermediary(category: Any, organization: Any, reason: Any = "") 
     )
 
 
+def _f17_stack_service_conflict(item: dict[str, Any]) -> bool:
+    """Apply the existing WATCH policy to adapter-verified source proof."""
+    from gridlens.ingestion.adapters.retained_document import stack_service_conflict
+
+    return stack_service_conflict(item).status == "verified"
+
+
 class PriorityInputAccumulator:
     """Compact the exact text predicates used by canonical browse priority."""
 
@@ -709,6 +716,17 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "Wait for the cited next project milestone; current evidence does not "
             "support a stronger commercial action.",
         )
+    retained_stack_conflict = disposition == "WATCH" and _f17_stack_service_conflict(item)
+    if retained_stack_conflict:
+        reason = (
+            "STACK's June 24, 2024 city claim reports an earlier 28 MVA (2026) / "
+            "31 MVA (2027) schedule, and says SVP told STACK on March 14, 2024 "
+            "that service would be capped at 18 MVA or less until at least 2028 "
+            "at this Memorex site. The September 2021 draft Substation Agreement "
+            "is attached to STACK's February 2025 CEC filing. These are attributed "
+            "claims, not an adjudicated current-service determination; actual "
+            "temporary-power need remains UNKNOWN."
+        )
     if item.get("asset_type") == "data_center" and phase_specific_scope:
         question = (
             "Who is supplying temporary construction or commissioning power, and "
@@ -749,6 +767,12 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         next_action = (
             "Call the cited public project contact to confirm stage, need-specific MW, "
             "timing, duration, and purchasing role."
+        )
+    elif retained_stack_conflict:
+        next_action = (
+            "Verify the current utility delivery schedule and any temporary-power "
+            "scope with the utility; use the dated STACK city claim and attached "
+            "draft Substation Agreement as the source history."
         )
     else:
         next_action = reason
@@ -918,8 +942,31 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
                 str(reference["content_hash"]),
             ),
         )
+    # Schedules enrich the intelligence card, but they do not change the saved
+    # commercial research question. Filter from the typed projection before its
+    # compatibility shape has discarded fact_type.
+    semantic_input = dict(card)
+    typed_refs = [
+        reference
+        for reference in (operator_fact_refs or [])
+        if reference.get("fact_type") != "power_schedule"
+    ]
+    if operator_fact_refs:
+        if typed_refs:
+            semantic_input["operator_fact_refs"] = [
+                {
+                    key: reference[key]
+                    for key in ("need_id", "fact_version_id", "content_hash", "authority")
+                    if key in reference
+                }
+                for reference in typed_refs
+            ]
+        else:
+            semantic_input.pop("operator_fact_refs", None)
     card["input_hash"] = hashlib.sha256(
-        json.dumps([POLICY_VERSION, _semantic_card(card)], sort_keys=True, default=str).encode()
+        json.dumps(
+            [POLICY_VERSION, _semantic_card(semantic_input)], sort_keys=True, default=str
+        ).encode()
     ).hexdigest()
     return card
 

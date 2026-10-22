@@ -58,7 +58,9 @@ from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     BuyingChainClaim,
+    BuyingChainCorrection,
     BuyingChainEvidence,
+    BuyingChainIdentityLink,
     BuyingChainRun,
     Evidence,
     Interpretation,
@@ -815,6 +817,7 @@ class BuyingChainViewPreload:
     permit_details: dict[UUID, list[BuyingChainEvidence]] = field(
         default_factory=lambda: defaultdict(list)
     )
+    corrections: dict[UUID, list[Any]] = field(default_factory=lambda: defaultdict(list))
 
 
 def _accepted_version(interpretation: Interpretation | None, evidence: Evidence) -> bool:
@@ -1233,7 +1236,24 @@ def enrich_buying_chain(
     deadline = started + MAX_SECONDS
     unresolved: list[str] = []
     documents: list[tuple[PublicDocument, bool, str, UUID | None]] = []
+    from gridlens.ingestion.adapters.retained_document import SOURCES as F17_SOURCES
+
     for evidence in _retained(session, project, target_evidence_id=retained_target_evidence_id):
+        observation = session.get(Observation, evidence.observation_id)
+        structured: tuple[dict, ...] = ()
+        if observation and observation.source_id in F17_SOURCES:
+            retained = (evidence.provenance or {}).get("retained_document")
+            structured = (
+                {
+                    "f17_retained": {
+                        "source_id": observation.source_id,
+                        "evidence_content_hash": evidence.content_hash,
+                        "project_name": project.name,
+                        "project_location": project.location,
+                        "retained_document": retained,
+                    }
+                },
+            )
         documents.append(
             (
                 PublicDocument(
@@ -1243,6 +1263,7 @@ def enrich_buying_chain(
                     evidence.published_at,
                     evidence.observed_at,
                     evidence.extraction_location,
+                    structured=structured,
                     retained_version=evidence.content_hash,
                 ),
                 True,
@@ -1365,7 +1386,10 @@ def enrich_buying_chain(
     }
     organizations: list[Extracted] = []
     saved: dict[str, BuyingChainEvidence] = {}
+    from gridlens.ingestion.adapters.retained_document import SOURCES as F17_SOURCES
+
     for doc, matched, reason, retained_id in documents:
+        f17_source_id = None
         if matched:
             row = _store_document(
                 session,
@@ -1382,6 +1406,8 @@ def enrich_buying_chain(
                     session.get(Observation, original.observation_id) if original else None
                 )
                 if observation:
+                    if observation.source_id in F17_SOURCES:
+                        f17_source_id = observation.source_id
                     organizations.extend(
                         extract_retained_permit_organizations(doc, observation.source_id)
                     )
@@ -1390,12 +1416,20 @@ def enrich_buying_chain(
                 and "/ibi_apps/WFServlet.ibfs" in doc.url
             ):
                 organizations.extend(extract_retained_permit_organizations(doc, project.source_id))
-            organizations.extend(extract_organizations(doc, project))
+            if f17_source_id is None:
+                organizations.extend(extract_organizations(doc, project))
     people = [item for item in organizations if item.person_name is not None]
     organizations = _deduplicate([item for item in organizations if item.person_name is None])
     for doc, matched, reason, retained_id in documents:
-        results = extract_people(
-            doc, organizations, project, project_scoped=matched, today=now.date()
+        f17_retained = any(
+            isinstance(row, dict) and "f17_retained" in row for row in doc.structured
+        )
+        results = (
+            []
+            if f17_retained
+            else extract_people(
+                doc, organizations, project, project_scoped=matched, today=now.date()
+            )
         )
         if results:
             row = _store_document(
@@ -1570,6 +1604,10 @@ def enrich_buying_chain(
             )
         )
     session.flush()
+    from gridlens.intelligence.identity_reconciliation import ensure_project_scoped_identity_links
+
+    ensure_project_scoped_identity_links(session, current_claim_ids)
+    session.flush()
     retained_after = _retained(session, project)
     if retained_after:
         from gridlens.intelligence.change_detection import record_material_diff
@@ -1700,6 +1738,14 @@ def buying_chain_views(
         .order_by(BuyingChainClaim.created_at.desc(), BuyingChainClaim.id.desc())
     ):
         preload.claims[claim_row.project_id].append(claim_row)
+    from gridlens.persistence.models import BuyingChainCorrection
+
+    for correction_row in session.scalars(
+        select(BuyingChainCorrection)
+        .where(BuyingChainCorrection.project_id.in_(project_ids))
+        .order_by(BuyingChainCorrection.created_at, BuyingChainCorrection.id)
+    ):
+        preload.corrections[correction_row.project_id].append(correction_row)
     for source_row in session.scalars(
         select(BuyingChainEvidence)
         .where(BuyingChainEvidence.project_id.in_(project_ids))
@@ -1805,11 +1851,15 @@ def buying_chain_views(
                 )
             )
 
-    return {
-        str(project_id): buying_chain_view(session, project_id, now=now, preload=preload)
+    views = {
+        str(project_id): buying_chain_view(
+            session, project_id, now=now, preload=preload, include_identity_ids=False
+        )
         for project_id in project_ids
         if project_id in projects
     }
+    _attach_identity_ids(session, list(views.values()))
+    return views
 
 
 def buying_chain_view(
@@ -1819,6 +1869,7 @@ def buying_chain_view(
     now: datetime | None = None,
     history: bool = False,
     preload: BuyingChainViewPreload | None = None,
+    include_identity_ids: bool = True,
 ) -> dict:
     now = now or evaluation_now(datetime.now(UTC))
     project = session.get(Project, project_id)
@@ -1956,6 +2007,7 @@ def buying_chain_view(
                     "published_at": row.published_at,
                     "observed_at": row.observed_at,
                     "content_hash": row.content_hash,
+                    "current_source_version_id": newest_by_url[row.url],
                     "current_support": not source_superseded and not role_aged,
                 }
             )
@@ -2054,6 +2106,7 @@ def buying_chain_view(
         candidates.append(
             {
                 "id": claim.id,
+                "fingerprint": claim.fingerprint,
                 "organization": claim.organization,
                 "person_name": claim.person_name,
                 "title": claim.title,
@@ -2101,6 +2154,16 @@ def buying_chain_view(
             item["person_name"] or "",
         )
     )
+    from gridlens.intelligence.buying_chain_corrections import overlay_corrections
+
+    overlay_corrections(
+        session,
+        project_id,
+        candidates,
+        history,
+        decisions=preload.corrections.get(project_id, []) if preload else None,
+    )
+    candidates = [item for item in candidates if history or not item.get("retracted")]
     # Reuse the latest-run selection loaded above for bounded multi-project reads.
     unresolved = (
         list(active_run.unresolved)
@@ -2109,7 +2172,7 @@ def buying_chain_view(
     )
     if any(item["stale"] for item in candidates):
         unresolved.append("Some evidence is stale or superseded; verify current responsibility.")
-    return {
+    result = {
         "project_id": project_id,
         "status": active_run.status if active_run else "not_researched",
         "candidates": candidates if history else candidates[:MAX_CANDIDATES],
@@ -2128,6 +2191,112 @@ def buying_chain_view(
         "permit_summaries": _permit_summaries(session, project_id, preload=preload),
         "policy_version": POLICY_VERSION,
     }
+    if not history and include_identity_ids:
+        _attach_identity_ids(session, [result])
+    return result
+
+
+def _attach_identity_ids(session: Session, views: list[dict]) -> None:
+    """Attach current claim IDs with one batched link read and no contact aggregation."""
+    from gridlens.intelligence.buying_chain_corrections import _ordered_correction_chain
+
+    candidates = [
+        candidate
+        for view in views
+        for candidate in view["candidates"]
+        if not candidate["stale"] and not candidate.get("correction_stale")
+    ]
+    claim_ids = {candidate["id"] for candidate in candidates}
+    if not claim_ids:
+        return
+    by_claim = {candidate["id"]: candidate for candidate in candidates}
+    links = session.scalars(
+        select(BuyingChainIdentityLink)
+        .where(
+            BuyingChainIdentityLink.claim_id.in_(claim_ids),
+            BuyingChainIdentityLink.state == "current",
+        )
+        .order_by(BuyingChainIdentityLink.created_at.desc(), BuyingChainIdentityLink.id.desc())
+    ).all()
+    corrections = session.scalars(
+        select(BuyingChainCorrection)
+        .where(BuyingChainCorrection.claim_id.in_(claim_ids))
+        .order_by(
+            BuyingChainCorrection.created_at,
+            BuyingChainCorrection.id,
+        )
+    ).all()
+    by_correction_claim: dict[UUID, list[BuyingChainCorrection]] = defaultdict(list)
+    for correction in corrections:
+        by_correction_claim[correction.claim_id].append(correction)
+    ordered_by_claim = {
+        claim_id: _ordered_correction_chain(str(by_claim[claim_id]["fingerprint"]), rows)
+        for claim_id, rows in by_correction_claim.items()
+    }
+    seen: set[tuple[UUID, str]] = set()
+    identity_supports = {
+        "company": {"project_organization"},
+        "person": {"organization_person_role", "person_project_assignment"},
+    }
+    for link in links:
+        key = (link.claim_id, link.entity_type)
+        if key in seen:
+            continue
+        seen.add(key)
+        supported_by = identity_supports.get(link.entity_type)
+        identity_value = (
+            link.company_identity_id if link.entity_type == "company" else link.person_identity_id
+        )
+        if not supported_by or identity_value is None:
+            continue
+        candidate = by_claim[link.claim_id]
+        correction_chain = ordered_by_claim.get(link.claim_id, [])
+        if correction_chain is None:
+            continue
+        invalidated = False
+        explicit_rebind: tuple[str, str] | None = None
+        for correction in correction_chain:
+            if correction.source_evidence_id is not None and not any(
+                str(item.get("id")) == str(correction.source_evidence_id)
+                and str(item.get("current_source_version_id")) == str(correction.source_evidence_id)
+                and item.get("content_hash") == correction.source_version_hash
+                and item.get("current_support")
+                for item in candidate["evidence"]
+            ):
+                continue
+            values = correction.values
+            subject_field = "organization" if link.entity_type == "company" else "person_name"
+            if subject_field in values:
+                invalidated = True
+                explicit_rebind = None
+            reference = values.get("identity_reference")
+            if (
+                isinstance(reference, dict)
+                and reference.get("type") == link.entity_type
+                and reference.get("id")
+                and correction.source_evidence_id is not None
+            ):
+                invalidated = False
+                explicit_rebind = (str(reference["id"]), str(correction.source_evidence_id))
+        identity_id = str(identity_value)
+        if invalidated or (
+            explicit_rebind is not None
+            and (
+                explicit_rebind[0] != identity_id
+                or explicit_rebind[1] != str(link.source_evidence_id)
+            )
+        ):
+            continue
+        if not any(
+            str(item["id"]) == str(link.source_evidence_id)
+            and str(item.get("current_source_version_id")) == str(link.source_evidence_id)
+            and item.get("content_hash") == link.source_version_hash
+            and item.get("current_support")
+            and item.get("supports") in supported_by
+            for item in candidate["evidence"]
+        ):
+            continue
+        candidate[f"{link.entity_type}_identity_id"] = identity_id
 
 
 def _permit_summaries(

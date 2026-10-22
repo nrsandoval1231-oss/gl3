@@ -1,0 +1,106 @@
+{
+  "packet": "F2-FIELDS",
+  "checkpoint": "F2a",
+  "status": "PARTIAL_CHECKPOINT",
+  "base_sha": "5ef5f3f29e94fffb071351b61e186d236d40068c",
+  "implementation_commit": "01ca9a037a0d0f81d6d24757fd5ad088a56c11f5",
+  "branch": "repair/pr102-fields-20261021",
+  "worktree": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-pr102-fields",
+  "changed_files": [
+    "backend/src/gridlens/domain/opportunity_intelligence.py",
+    "backend/src/gridlens/domain/project_research.py",
+    "backend/src/gridlens/ingestion/adapters/retained_permits.py",
+    "backend/src/gridlens/intelligence/buying_chain_extraction.py",
+    "backend/src/gridlens/intelligence/project_state.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    "backend/tests/unit/test_opportunity_intelligence_contract.py",
+    "backend/tests/unit/test_project_research.py",
+    "backend/tests/unit/test_retained_permits.py"
+  ],
+  "implemented": [
+    "Current, hash-matched retained Fort Worth permit evidence can project reported facility scale from its exact Work description quote; this is separate from facility demand, temporary demand, and gap.",
+    "Current, hash-matched Boston temporary electrical permit evidence can project exact voltage and phase from the permit comment; 100 A is not converted to MW.",
+    "Fort Worth Owner of record and Georgia TADG owned-by relations extract project-scoped owner claims with exact citations; QTS ATL3 proponent remains distinct from owner.",
+    "The card presents source-native named projects only when current evidence states the name and puts permit/application identifiers in a separate field.",
+    "Facility-scale and voltage conflicts do not affect qualification."
+  ],
+  "field_matrix": {
+    "facility_scale_mw": "SUPPORTED only for exact Fort Worth Work description format; card says reported facility scale",
+    "voltage": "SUPPORTED for bounded Boston temporary electrical comment format and exact current supplemental reports",
+    "project_owner": "SUPPORTED for explicit Fort Worth Owner of record and exact Georgia TADG owned-by narrative",
+    "facility_demand_mw": "UNRESOLVED; F2b required",
+    "fuel_availability": "UNRESOLVED; F2b required",
+    "load_profile": "UNRESOLVED; F2b required",
+    "procurement_status": "UNRESOLVED; F2b required",
+    "utility_obstacle": "UNRESOLVED; F2b required",
+    "suitability_resolver": "UNRESOLVED; F2b required"
+  },
+  "validation": [
+    {
+      "command": "uv run pytest tests/unit/test_project_research.py tests/unit/test_retained_permits.py tests/unit/test_opportunity_intelligence_contract.py -q",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "86 passed"
+    },
+    {
+      "command": "uv run pytest tests/integration/test_project_state_changes.py::test_original_retained_permit_claims_are_version_bound_and_activity_scoped -q",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "1 passed; original retained Fort Worth and Boston evidence projected with exact quotes and hash/version gates"
+    },
+    {
+      "command": "uv run pytest tests/integration/test_opportunity_intelligence.py tests/integration/test_project_state_changes.py tests/integration/test_buying_chain.py -q",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "131 passed, one pre-existing Starlette/httpx deprecation warning; this ran before the final qualification-field guard and focused original-evidence test"
+    },
+    {
+      "command": "uv run ruff check [nine changed Python files]",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "uv run mypy src/gridlens/domain/project_research.py src/gridlens/domain/opportunity_intelligence.py src/gridlens/ingestion/adapters/retained_permits.py src/gridlens/intelligence/project_state.py src/gridlens/intelligence/buying_chain_extraction.py",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS",
+      "exit_code": 0
+    }
+  ],
+  "recovery": {
+    "failed_attempts_preserved": [
+      ".artifacts/pr102/f2-focused-tests.log: source field-key mismatch and incomplete Georgia identity fixture",
+      ".artifacts/pr102/f2-focused-tests-2.log: same adapter/fixture mismatch after first repair",
+      ".artifacts/pr102/f2-focused-tests-3.log: stale-date test expectation and Georgia fixture role expectation",
+      ".artifacts/pr102/f2-integration-replay.log: fixture used unequal observation/evidence hashes; current-version gate correctly rejected it",
+      ".artifacts/pr102/f2-ruff.log: initial style violations corrected",
+      ".artifacts/pr102/f2-mypy.log: local variable shadowing corrected"
+    ],
+    "classifications": [
+      "Source-format/parser mismatch",
+      "Test-fixture mismatch with canonical current-evidence hash invariant",
+      "Static style/type failures; corrected"
+    ],
+    "repairs": 3
+  },
+  "boundaries": {
+    "providers_called": false,
+    "schema_or_migration_changes": false,
+    "api_or_generated_type_changes": false,
+    "frontend_changes": false,
+    "architecture_note": "Excluded; F1 owns it",
+    "production_data_mutated": false
+  },
+  "timing": {
+    "start_utc": "2026-10-21T12:25:46Z",
+    "checkpoint_utc": "2026-10-21T12:48:28Z",
+    "lane": "single primary builder",
+    "model": "GPT-6 family; exact runtime model/config identity not exposed",
+    "measured_tokens": "UNKNOWN",
+    "elapsed_to_independent_acceptance": "NOT_REACHED; checkpoint is partial and not independently reviewed"
+  },
+  "next_direction": "CONTINUE F2b on this branch; implement exact typed facility demand, fuel/load-profile/voltage components, milestones or obstacles only where source-backed, and a component-aware suitability resolver. Keep absent retained values unresolved."
+}
