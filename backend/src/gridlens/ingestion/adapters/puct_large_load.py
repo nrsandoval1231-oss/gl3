@@ -13,6 +13,7 @@ import json
 import re
 import zipfile
 from datetime import datetime, timedelta
+from html import unescape
 from io import BytesIO
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -25,6 +26,7 @@ from gridlens.ingestion.adapters.public_source_http import read_public_response
 
 SOURCE_ID = "texas-puct-large-load-filings"
 FILINGS_URL = "https://interchange.puc.texas.gov/Search/Filings?ControlNumber=59142"
+FILINGS_PAGE = "https://interchange.puc.texas.gov/Search/Filings?ControlNumber={control}"
 EXPORT_URL = (
     "https://interchange.puc.texas.gov/search/exportfilings/"
     "?ControlNumber={control}&ItemMatch=0&SortBy=ItemNumber&SortOrder=Ascending"
@@ -91,6 +93,57 @@ def _location(text: str) -> str | None:
     if not found:
         return None
     return "; ".join(found)
+
+
+def _plain(value: str) -> str:
+    return " ".join(unescape(value).split())
+
+
+def parse_filings_page(body: bytes, *, control_number: int) -> dict[str, dict[str, str]]:
+    """Item, party, description, and file date from the server-rendered filings list."""
+    text = body.decode("utf-8", errors="replace")
+    pager = re.search(r'<li class="([^"]*PagedList-skipToNext[^"]*)"', text)
+    if pager and "disabled" not in pager.group(1):
+        raise SourceParseError("PUCT filings list continues on another page")
+    rows: dict[str, dict[str, str]] = {}
+    pattern = re.compile(
+        rf'controlNumber={control_number}&amp;itemNumber=(\d+)"[^>]*>\s*\1\s*</a>([\s\S]*?)</tr>',
+        re.IGNORECASE,
+    )
+    for item, rest in pattern.findall(text):
+        cells = [
+            _plain(re.sub(r"<[^>]+>", " ", cell))
+            for cell in re.findall(r"<td[^>]*>([\s\S]*?)</td>", rest, re.IGNORECASE)
+        ]
+        if len(cells) < 4:
+            raise SourceParseError("PUCT filings list row is missing columns")
+        filed, party, _item_type, description = cells[:4]
+        if item in rows:
+            raise SourceParseError("PUCT filings list has a duplicate item")
+        try:
+            filed_iso = datetime.strptime(filed, "%m/%d/%Y").date().isoformat()
+        except ValueError as exc:
+            raise SourceParseError("PUCT filings list date is malformed") from exc
+        if not party or not description:
+            raise SourceParseError("PUCT filings list row is missing party or description")
+        rows[item] = {"party": party, "description": description, "event_date": filed_iso}
+    if not rows:
+        raise SourceParseError("PUCT filings list has no items")
+    return rows
+
+
+def filings_match_export(page: dict[str, dict[str, str]], rows: list[dict[str, Any]]) -> None:
+    exported = {row["item"]: row for row in rows}
+    if set(page) != set(exported):
+        raise SourceParseError("PUCT filings list and Excel export item numbers differ")
+    for item, filing in page.items():
+        row = exported[item]
+        if (
+            filing["party"] != _plain(row["party"])
+            or filing["description"] != _plain(row["description"])
+            or filing["event_date"] != row["event_date"]
+        ):
+            raise SourceParseError("PUCT filings list and Excel export disagree on a filing")
 
 
 def parse_export(body: bytes, *, control_number: int) -> list[dict[str, Any]]:
@@ -206,13 +259,21 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     try:
         records: list[dict[str, Any]] = []
         for control in CONTROL_NUMBERS:
+            _, listing = read_public_response(
+                http,
+                FILINGS_PAGE.format(control=control),
+                max_bytes=MAX_RESPONSE_BYTES,
+                allowed_media_types={"text/html"},
+            )
             _, body = read_public_response(
                 http,
                 EXPORT_URL.format(control=control),
                 max_bytes=MAX_RESPONSE_BYTES,
                 allowed_media_types={MEDIA_TYPE},
             )
-            records.extend(_record(row) for row in parse_export(body, control_number=control))
+            rows = parse_export(body, control_number=control)
+            filings_match_export(parse_filings_page(listing, control_number=control), rows)
+            records.extend(_record(row) for row in rows)
         if len(records) > MAX_RECORDS:
             raise SourceParseError("PUCT filing count exceeds its bound")
         return records

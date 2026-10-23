@@ -27,6 +27,7 @@ _PERMIT_METHODS = {
     "ok-deq-public-review",
     "cabq-building-permits",
     "tceq-egu-search",
+    "tceq-construction-noi",
 }
 _ENVIRONMENTAL_REVIEW_FAMILY = "environmental-review-filings"
 _ENVIRONMENTAL_REVIEW_METHODS = {"ceqanet-data-centers"}
@@ -212,7 +213,10 @@ def admit_standalone(
             "An SPP generation-interconnection row without a stated data-center or "
             "temporary, bridge, or behind-the-meter load stays queue evidence.",
         )
-    if retrieval_method == "puct-interchange" and family == "official-utility-filings":
+    if (
+        retrieval_method in {"puct-interchange", "puct-docket-index"}
+        and family == "official-utility-filings"
+    ):
         text = f"{title} {abstract or ''}".casefold()
         explicit_load = any(
             term in text

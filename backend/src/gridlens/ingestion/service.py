@@ -123,8 +123,12 @@ PERMIT_RETRIEVAL_METHODS = {
     "spp-interconnection-queue",
     "cabq-building-permits",
     "tceq-egu-search",
+    "tceq-construction-noi",
     "puct-interchange",
+    "puct-docket-index",
+    "ercot-large-load-status",
     "jeti-open-data",
+    "jeti-agreements",
 }
 
 

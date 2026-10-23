@@ -216,16 +216,40 @@ def test_fetches_use_per_request_headers_and_do_not_mutate_the_client():
         ),
     }
 
+    def _filings_page(control: int, workbook: bytes) -> bytes:
+        from gridlens.ingestion.adapters.puct_large_load import parse_export
+
+        rows = []
+        for row in parse_export(workbook, control_number=control):
+            year, month, day = row["event_date"].split("-")
+            filed = f"{int(month)}/{int(day)}/{year}"
+            rows.append(
+                '<tr><td><a href="/search/documents/?controlNumber='
+                f'{control}&amp;itemNumber={row["item"]}">{row["item"]}</a></td>'
+                f"<td>{filed}</td><td>{row['party']}</td><td>COM</td>"
+                f"<td>{row['description']}</td></tr>"
+            )
+        return (
+            '<li class="disabled&#32;PagedList-skipToNext"><a rel="next">»</a></li>' + "".join(rows)
+        ).encode()
+
     def puct(request: httpx.Request) -> httpx.Response:
-        control = 59142 if "ControlNumber=59142" in str(request.url) else 58481
+        url = str(request.url)
+        control = 59142 if "59142" in url else 58481
+        if "exportfilings" in url:
+            return httpx.Response(
+                200,
+                headers={
+                    "content-type": (
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                },
+                content=puct_rows[control],
+            )
         return httpx.Response(
             200,
-            headers={
-                "content-type": (
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            },
-            content=puct_rows[control],
+            headers={"content-type": "text/html"},
+            content=_filings_page(control, puct_rows[control]),
         )
 
     puct_client = _client(puct)

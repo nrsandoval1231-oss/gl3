@@ -936,8 +936,12 @@ def _distinct_open_temporary_clause(description: str) -> str | None:
 TEXAS_POWER_EVALUATOR_VERSION = "texas-power-record-v1"
 _TEXAS_POWER_SOURCE_TYPES = {
     "texas-tceq-egu-registrations",
+    "texas-tceq-construction-noi",
     "texas-puct-large-load-filings",
+    "texas-puct-large-load-dockets",
+    "texas-ercot-large-load-status",
     "texas-jeti-applications",
+    "texas-jeti-agreements",
 }
 _TEXAS_DATA_CENTER = re.compile(r"data\s*cent(?:er|re)|hyperscale", re.IGNORECASE)
 
@@ -958,6 +962,18 @@ def _assess_texas_power(
     )
     text = f"{applicant} {facility} {description}"
     data_center = bool(_TEXAS_DATA_CENTER.search(text)) or bool(permit.get("data_center"))
+    raw_hours = permit.get("operating_hours")
+    hours: dict[str, Any] = raw_hours if isinstance(raw_hours, dict) else {}
+    hours_class = (
+        hours.get("classification")
+        if hours.get("classification")
+        in {
+            "backup",
+            "bridge_temporary",
+            "btm",
+        }
+        else None
+    )
     region = classify_project_region(location)
     event_date = record.get("event_date")
     try:
@@ -972,9 +988,11 @@ def _assess_texas_power(
         and region.status == "ELIGIBLE"
         and dated
         and citation
-        and (data_center or tags)
+        and (data_center or tags or hours_class in {"bridge_temporary", "btm"})
     )
-    if "temporary" in tags and not data_center:
+    if hours_class == "bridge_temporary" and not data_center:
+        activity = "temporary-power"
+    elif "temporary" in tags and not data_center:
         activity = "temporary-power"
     elif "bridge" in tags and not data_center:
         activity = "bridge-power"
@@ -1013,6 +1031,18 @@ def _assess_texas_power(
             "or an explicit behind-the-meter, bridge, or temporary power statement "
             "stays evidence. Nameplate or queue MW is not site load."
         )
+    if hours.get("rule_id"):
+        quotes = [
+            item.get("quote", "")
+            for item in hours.get("evidence") or []
+            if isinstance(item, dict) and item.get("quote")
+        ]
+        reason += (
+            f" Operating-hour rule {hours['rule_id']} classification: "
+            f"{hours_class or 'unclassified'}"
+            + (f" from {', '.join(quotes)}." if quotes else ".")
+            + (" The hour clauses conflict." if hours.get("conflict") else "")
+        )
     return {
         "schema_version": 1,
         "decision": "accepted" if accepted else "rejected",
@@ -1032,6 +1062,7 @@ def _assess_texas_power(
         "project_hint": facility or None,
         "power_activity": activity if accepted else None,
         "power_signals": tags,
+        "operating_hours": hours or None,
         "rental_category": "texas-power-discovery" if accepted else None,
         "reported_claim": description if accepted else None,
         "reported_power_facts": [],

@@ -1,0 +1,10 @@
+{
+  "rule_id": "air-permit-operating-hours-v1",
+  "backup_max_hours_per_year": 500,
+  "bridge_min_hours_per_year": 2000,
+  "bridge_max_hours_per_year": 6000,
+  "btm_hours_per_year": 8760,
+  "btm_phrase": "onsite use only",
+  "bridge_unit_pattern": "\\bportable\\b|\\btrailer[-\\s]?mounted\\b",
+  "bridge_permit_pattern": "\\b(?:expiring|temporary)\\s+permits?\\b"
+}

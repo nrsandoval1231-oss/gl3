@@ -20,6 +20,7 @@ from urllib.parse import urlencode
 
 import httpx
 
+from gridlens.domain.air_permit_hours import classify_operating_hours
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.power_signals import power_signal_tags
 from gridlens.ingestion.adapters.public_source_http import read_public_response
@@ -144,9 +145,22 @@ def parse_results(body: bytes, *, unit_id: str, unit_name: str) -> tuple[str, li
 
 def _record(row: dict[str, Any], updated: str) -> dict[str, Any]:
     row_id = f"TCEQ-EGU-{row['permit_number']}"
+    hours = classify_operating_hours(
+        " ".join(
+            str(row.get(key) or "")
+            for key in (
+                "project_name",
+                "physical_location",
+                "legal_name",
+                "customer_name",
+                "rules",
+            )
+        )
+    )
     semantic = {key: row[key] for key in row if key != "tags"}
     semantic["report_updated"] = updated
     semantic["power_signals"] = row["tags"]
+    semantic["operating_hours"] = hours
     return {
         "document_number": row_id,
         "title": f"{row['legal_name'] or row['customer_name']} — TCEQ {row['permit_number']}",
@@ -166,6 +180,8 @@ def _record(row: dict[str, Any], updated: str) -> dict[str, Any]:
                 f"Rules: {row['rules'] or 'not stated'}",
                 f"Report updated: {updated}",
                 f"Power signal tags: {', '.join(row['tags']) or 'none'}",
+                f"Operating-hour rule {hours['rule_id']}: "
+                f"{hours['classification'] or 'unclassified'}",
             ]
         ),
         "publication_date": None,
@@ -198,6 +214,7 @@ def _record(row: dict[str, Any], updated: str) -> dict[str, Any]:
             "state": "TX" if row["location"] else None,
             "data_center": row["data_center"],
             "power_signals": row["tags"],
+            "operating_hours": hours,
             "document_links": {"TCEQ NSR search": SEARCH_URL},
             "source_fields": {
                 "applicant": "Legal Name",

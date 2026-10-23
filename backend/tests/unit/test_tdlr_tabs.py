@@ -113,7 +113,7 @@ def test_search_failures_are_visible():
         retrieve(SOURCE, httpx.Client(transport=httpx.MockTransport(future)), today=TODAY)
 
 
-def test_origin_is_a_registration_and_source_ships_disabled():
+def test_origin_is_a_registration_and_source_is_enabled():
     from gridlens.domain.signal_admission import source_origin
 
     assert source_origin("construction-permits", "tdlr-tabs") == (
@@ -123,4 +123,4 @@ def test_origin_is_a_registration_and_source_ships_disabled():
         (Path(__file__).parents[3] / "config" / "sources" / "registry.v1.json").read_text()
     )
     entry = next(s for s in registry["sources"] if s["id"] == SOURCE_ID)
-    assert entry["enabled"] is False
+    assert entry["enabled"] is True

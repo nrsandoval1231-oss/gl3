@@ -1,0 +1,43 @@
+TEXAS JOBS, ENERGY, TECHNOLOGY, AND INNOVATION (JETI)
+AS OF SEPTEMBER 30, 2026
+OFFICE OF THE GOVERNOR
+Contract ID Company School District Location Industry Limitation Percentage Required Jobs Total Jobs Capital Investment JETI Incentives Date Announced Contract Expiration
+J0001 Summit Next Gen, LLC Galena Park ISD Houston Organic Chemical Manufacturing 50% 75 75 $1,669,332,000 $61,190,353 1/29/2025 12/31/2040
+J0002 Bell Textron Inc. Northwest ISD Fort Worth Aircraft Parts Manufacturing 50% 75 411 $429,000,000 $8,705,355 12/17/2024 12/31/2041
+J0004 Vinton Steel, LLC Canutillo ISD Vinton Steel Manufacturing 50% 75 489 $229,994,535 $5,924,303 2/21/2025 12/31/2040
+J0005 Formosa Plastics Corporation, Texas Palacios ISD Jackson County Petrochemical Manufacturing 50% 10 16 $150,000,000 $3,211,229 11/6/2025 12/31/2039
+J0007 NRG THW GT LLC Cypress-Fairbanks ISD Houston Electric Generation 50% 0 5 $317,385,638 $9,638,321 10/21/2025 12/31/2039
+J0009 USG Paper, LLC
+Little Cypress-
+Mauriceville 
+Consolidated ISD
+Orange Paper Mills 50% 10 189 $1,175,000,000 $30,856,933 5/14/2026 12/31/2041
+J0011 SIKA Corporation Sealy ISD Sealy Unlaminated Plastics Film and Sheet Manufacturing 50% 10 60 $100,000,000 $4,634,955 2/25/2026 12/31/2040
+J0012 NRG Cedar Bayou 5 LLC Goose Creek Consolidated ISD Baytown Electric Generation 50% 0 18 $825,000,000 $21,958,181 11/12/2025 12/31/2041
+J0013 Brazos Midland Processing, LLC Stanton ISD Stanton Natural Gas Extraction 50% 10 10 $184,730,000 $5,444,216 8/26/2025 12/31/2038
+J0016 Eli Lilly and Company Sheldon ISD Houston Pharmaceutical Manufacturing 50% 75 604 $5,747,664,048 $146,594,097 9/23/2025 12/31/2043
+J0017 NRG Greens Bayou 6 LLC Galena Park ISD Houston Electric Generation 50% 0 14 $547,974,793 $21,144,185 2/17/2026 12/31/2041
+J0020 Tele-Fonika Cable Americas Corp. Waller ISD Waller Electronic Component Manufacturing 50% 75 315 $365,862,000 $14,242,736 12/31/2042
+J0022 Energy Forge One LLC Pecos-Barstow-Toyah ISD Reeves County Electric Generation 50% 0 25 $6,503,000,000 $227,827,401 12/31/2042
+J0035 TeraFab AI, LLC (Phase 1) Anderson-Shiro CISD Anderson Semiconductor Manufacturing 50% 10 617 $10,366,217,000 $129,797,081 8/6/2026 12/31/2041
+J0036 TeraFab AI, LLC (Phase 2) Anderson-Shiro CISD Anderson Semiconductor Manufacturing 50% 10 617 $23,838,288,600 $335,835,405 8/6/2026 12/31/2044
+J0037 TeraFab AI, LLC (Phase 3) Anderson-Shiro CISD Anderson Semiconductor Manufacturing 50% 10 617 $23,838,288,600 $335,835,405 8/6/2026 12/31/2047
+J0038 TeraFab AI, LLC (Phase 4) Anderson-Shiro CISD Anderson Semiconductor Manufacturing 50% 10 617 $15,619,355,000 $214,882,871 8/6/2026 12/31/2049
+J0039 TeraFab AI, LLC (Phase 1) Iola ISD Anderson Semiconductor Manufacturing 50% 10 383 $6,434,783,000 $82,255,197 8/6/2026 12/31/2041
+J0040 TeraFab AI, LLC (Phase 2) Iola ISD Anderson Semiconductor Manufacturing 50% 10 383 $14,797,511,400 $212,826,107 8/6/2026 12/31/2044
+J0041 TeraFab AI, LLC (Phase 3) Iola ISD Anderson Semiconductor Manufacturing 50% 10 383 $14,797,511,400 $212,826,107 8/6/2026 12/31/2047
+J0042 TeraFab AI, LLC (Phase 4) Iola ISD Anderson Semiconductor Manufacturing 50% 10 383 $9,695,645,000 $136,175,889 8/6/2026 12/31/2049
+21 495 6,231 $137,632,543,014 $2,221,806,327Total JETI Projects Contracted to Date >>
+TEXAS JOBS, ENERGY, TECHNOLOGY, AND INNOVATION (JETI)
+AS OF SEPTEMBER 30, 2026
+OFFICE OF THE GOVERNOR
+Application ID Company School District Location Industry Limitation Percentage Required Jobs Total Jobs Capital Investment JETI Incentives Date Announced Comptroller's Recommendation Expiration
+J0024 Saronic Technologies, Inc. (Phase 1) Point Isabel ISD Brownsville Ship Building and Repairing 75% 50 1,771 $788,770,000 $48,920,517 7/16/2026 2/19/2027
+J0025 Saronic Technologies, Inc. (Phase 2) Point Isabel ISD Brownsville Ship Building and Repairing 75% 50 3,591 $1,315,260,000 $86,979,957 7/16/2026 2/19/2027
+J0026 Saronic Technologies, Inc. (Phase 3) Point Isabel ISD Brownsville Ship Building and Repairing 75% 50 3,215 $862,190,000 $57,608,913 7/16/2026 2/19/2027
+J0027 Saronic Technologies, Inc. (Phase 4) Point Isabel ISD Brownsville Ship Building and Repairing 75% 50 1,424 $281,700,000 $35,387,477 7/16/2026 2/19/2027
+J0028 EmberGreen Energy Center LLC Wharton ISD Wharton Electric Generation 75% 0 10 $955,636,000 $35,911,150 4/15/2027
+J0032 Toyota Motor Manufacturing, Texas, Inc. Southwest ISD San Antonio Automotive Manufacturing 75% 75 2,000 $2,000,000,000 $38,972,702 7/6/2026 5/27/2027
+J0034 E.R. Squibb & Sons, L.L.C. Sheldon ISD Houston Pharmaceutical Manufacturing 50% 75 489 $1,000,000,000 $29,193,616 8/10/2026 5/27/2027
+J0050 Tesla, Inc. Lamar Consolidated ISD Fort Bend County Semiconductor Manufacturing 50% 75 9,712 $10,116,100,000 $115,242,835 8/28/2027
+8 425 22,212 $17,319,656,000 $448,217,167Total JETI Projects Approved and Negotiating >>

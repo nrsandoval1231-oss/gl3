@@ -183,6 +183,39 @@ def test_tceq_href_format_alias_preserves_project_identity_and_hash():
     assert second["permit"]["source_link_hrefs"]["application"].endswith(".\r\npdf")
 
 
+def test_official_hosts_are_an_exact_set_and_records_documents_are_official():
+    from gridlens.ingestion.adapters.tceq_http import OFFICIAL_HOSTS
+    from gridlens.ingestion.adapters.tceq_nsr_pending import _official
+
+    assert OFFICIAL_HOSTS == {
+        "www.tceq.texas.gov",
+        "www2.tceq.texas.gov",
+        "www6.tceq.texas.gov",
+        "www15.tceq.texas.gov",
+        "records.tceq.texas.gov",
+        "permit-search.tceq.texas.gov",
+    }
+    record = (
+        "https://records.tceq.texas.gov/cs/idcplg?"
+        "IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&Rendition=Web&dID=8600163"
+    )
+    assert _official(record) == record
+    application = (
+        "https://www6.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf"
+    )
+    assert _official(application) == application
+    for href in (
+        record.replace("records.tceq.texas.gov", "records.tceq.texas.gov.evil.example"),
+        record.replace("records.tceq.texas.gov", "evil.tceq.texas.gov"),
+        "https://nottceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf",
+        "https://www14.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf",
+        "https://user@www2.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf",
+        record + "&redirect=https://127.0.0.1/",
+    ):
+        with pytest.raises(SourceParseError, match="outside the official host"):
+            _official(href)
+
+
 @pytest.mark.parametrize(
     "href",
     [

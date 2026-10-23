@@ -74,8 +74,12 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "spp-interconnection-queue": {"opsportal.spp.org"},
             "cabq-building-permits": {"data.cabq.gov"},
             "tceq-egu-search": {"www2.tceq.texas.gov"},
+            "tceq-construction-noi": {"www2.tceq.texas.gov"},
             "puct-interchange": {"interchange.puc.texas.gov"},
+            "puct-docket-index": {"interchange.puc.texas.gov"},
+            "ercot-large-load-status": {"www.ercot.com"},
             "jeti-open-data": {"api.comptroller.texas.gov"},
+            "jeti-agreements": {"comptroller.texas.gov"},
             "retained-document": {
                 "santaclara.legistar.com",
                 "efiling.energy.ca.gov",
@@ -109,8 +113,12 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "tceq-nsr-pending",
             "tceq-temporary-batch-plants",
             "tceq-egu-search",
+            "tceq-construction-noi",
             "puct-interchange",
+            "puct-docket-index",
+            "ercot-large-load-status",
             "jeti-open-data",
+            "jeti-agreements",
             "retained-document",
             "ok-deq-public-review",
             "spp-interconnection-queue",
@@ -310,6 +318,55 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and query.get("max_response_bytes") == 2_000_000
                 and query.get("max_records") == 500
                 and query.get("control_numbers") == [59142, 58481]
+            )
+        elif source["retrieval_method"] == "tceq-construction-noi":
+            bounded = (
+                source.get("id") == "texas-tceq-construction-noi"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "construction-permits"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and set(query) == {"max_response_bytes", "max_records", "site_terms"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_records") == 200
+                and query.get("site_terms") == ["data center", "datacenter"]
+            )
+        elif source["retrieval_method"] == "puct-docket-index":
+            bounded = (
+                source.get("id") == "texas-puct-large-load-dockets"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "official-utility-filings"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and set(query) == {"max_response_bytes", "max_records", "descriptions"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_records") == 40
+                and query.get("descriptions") == ["large load", "data center"]
+            )
+        elif source["retrieval_method"] == "ercot-large-load-status":
+            bounded = (
+                source.get("id") == "texas-ercot-large-load-status"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "interconnection-status"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and set(query) == {"max_response_bytes", "status_pdf"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("status_pdf")
+                == "https://www.ercot.com/files/docs/2026/03/12/March-TAC-Report.pdf"
+            )
+        elif source["retrieval_method"] == "jeti-agreements":
+            bounded = (
+                source.get("id") == "texas-jeti-agreements"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "economic-development-publication"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and set(query) == {"max_response_bytes", "max_records", "listing_pdf"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_records") == 80
+                and query.get("listing_pdf")
+                == "https://gov.texas.gov/uploads/files/business/JETI_Public_Listing.pdf"
             )
         elif source["retrieval_method"] == "jeti-open-data":
             bounded = (
