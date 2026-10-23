@@ -22,9 +22,14 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 from pypdf import PdfReader
 
+from gridlens.domain.air_permit_hours import classify_operating_hours
 from gridlens.ingestion.adapters.diagnostics import acquisition_diagnostics
 from gridlens.ingestion.adapters.federal_register import SourceParseError
-from gridlens.ingestion.adapters.tceq_http import read_tceq_response
+from gridlens.ingestion.adapters.tceq_http import (
+    OFFICIAL_HOSTS,
+    read_tceq_response,
+    record_document_url,
+)
 
 SOURCE_ID = "texas-tceq-nsr-pending"
 LISTING_URL = (
@@ -35,7 +40,6 @@ SUMMARY_URL = (
     "https://www.tceq.texas.gov/downloads/permitting/air/bilingual/pending-permit-notices/"
     "{permit}-pls-english.pdf"
 )
-HOST = "www.tceq.texas.gov"
 MAX_LISTING_BYTES = 3_000_000
 MAX_PDF_BYTES = 2_000_000
 MAX_PDF_PAGES = 4
@@ -106,15 +110,19 @@ def _official(url: str) -> str:
     parts = urlsplit(normalized)
     if (
         parts.scheme != "https"
-        or parts.hostname != HOST
+        or parts.hostname not in OFFICIAL_HOSTS
         or parts.username is not None
         or parts.password is not None
         or parts.port not in (None, 443)
-        or parts.query
-        or not (
-            (_APPLICATION_PATH.fullmatch(parts.path) and not parts.fragment)
-            or (parts.path == _NOTICE_PATH and parts.fragment.isdigit())
-        )
+        or any(segment in {".", ".."} for segment in parts.path.split("/"))
+    ):
+        raise SourceParseError("TCEQ link is outside the official host")
+    record = record_document_url(normalized)
+    if record:
+        return record
+    if parts.query or not (
+        (_APPLICATION_PATH.fullmatch(parts.path) and not parts.fragment)
+        or (parts.path == _NOTICE_PATH and parts.fragment.isdigit())
     ):
         raise SourceParseError("TCEQ link is outside the official host")
     return normalized
@@ -311,6 +319,13 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
         )
         if part
     )
+    # Only this NSR plain-language summary carries summary text. NOI and EGU rows
+    # do not. The extracted purpose sentence is already inside the body, so it is
+    # used only when no body was kept.
+    summary_text = (summary or {}).get("text") or (summary or {}).get("purpose") or ""
+    hours = classify_operating_hours(
+        " ".join(part for part in (row["applicant"], row["facility"], summary_text) if part)
+    )
     semantic = {
         "project": row["project"],
         "applicant": row["applicant"],
@@ -319,6 +334,7 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
         "received": row["received"].isoformat(),
         "stage": row["application_stage"],
         "summary": {k: v for k, v in (summary or {}).items() if k != "text"},
+        "operating_hours": hours,
     }
     return {
         "document_number": f"TCEQ-{row['project']}",
@@ -348,6 +364,7 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
                 part for part in (row["facility"], (summary or {}).get("purpose") or "") if part
             ),
             "purpose": (summary or {}).get("purpose"),
+            "operating_hours": hours,
             "renewal_without_change": bool((summary or {}).get("renewal")),
             "summary_text": (summary or {}).get("text"),
             "location": location,

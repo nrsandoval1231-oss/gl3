@@ -387,9 +387,8 @@ def read_bounded_response(
         extensions["timeout"] = _clamp_timeouts(timeouts, remaining)
     # Headers are per request. Mutating client.headers is not safe when the
     # same client is used concurrently (the TCEQ Host pin used to do that).
-    request_headers = headers if headers is not None else None
     with client.stream(
-        "GET", url, params=params, headers=request_headers, extensions=extensions
+        "GET", url, params=params, headers=headers, extensions=extensions
     ) as response:
         remaining = remaining_seconds(deadline)
         if remaining is not None:

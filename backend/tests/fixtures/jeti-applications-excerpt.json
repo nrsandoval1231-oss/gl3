@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "count": 2,
+  "lastUpdated": "2023-09-15 09:30:16",
+  "data": [
+    {
+      "id": "J0001",
+      "school_district": "Galena Park ISD",
+      "applicant": "Summit Next Gen, LLC",
+      "negative": false,
+      "createdAt": "2024-02-09T10:36:00.000Z",
+      "files": [
+        {
+          "Application Phase": [
+            {
+              "name": "Application",
+              "file_nm": "J0001/J0001-summit-galena-app.pdf",
+              "posted_date": "02/16/2024"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "J9001",
+      "school_district": "Midland ISD",
+      "applicant": "Fixture Data Center LLC",
+      "negative": false,
+      "createdAt": "2026-03-01T00:00:00.000Z",
+      "files": [
+        {
+          "Application Phase": [
+            {
+              "name": "Application",
+              "file_nm": "J9001/J9001-fixture-data-center-app.pdf",
+              "posted_date": "03/02/2026"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

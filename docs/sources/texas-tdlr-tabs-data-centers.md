@@ -1,6 +1,6 @@
 # TDLR TABS data-center registrations (statewide Texas)
 
-**Status: registered but disabled.** Enable after a live end-to-end run (search, page fetch, parse, persist) and a repeat run succeed from the deployed environment.
+**Status: enabled.** On October 23, 2026 `SearchProjects` returned JSON for a 90-day "data center" search (12 rows). Project page TABS2027003697 parsed with the existing page parser. A full scheduled run from the deployed environment has not been repeated.
 
 
 - **Publisher:** the Texas Department of Licensing and Regulation, Architectural Barriers program (TABS). Commercial projects of $50,000 or more must register, inside or outside city limits, so TABS covers unincorporated county land that city permit tables miss.
@@ -31,5 +31,5 @@
 - **Limitations:**
   - Registration is accessibility review, not a building permit or construction start.
   - Projects named without a data-center term are missed.
-  - The live search response shape is taken from the site's own search script (`projectSearchJs`); this development network blocks the host, so the POST has not been called live. The search fixture is constructed from that script's column contract with values from a real registration, and is labelled as such.
+  - On October 23, 2026 the SearchProjects POST for "data center" returned 12 JSON rows, and project page TABS2027003697 parsed as a Compass Datacenters renovation in Ellis County. The unit-test search fixture is still the recorded column contract, not that live response. A full scheduled run that opens every project page has not been repeated.
 - Signals from this source are labelled "Official TDLR project registration", not "Official permit".

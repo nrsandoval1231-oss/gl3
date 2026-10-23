@@ -3,9 +3,13 @@ from pathlib import Path
 
 import httpx
 import pytest
+from bs4 import BeautifulSoup
 
+from gridlens.domain.air_permit_hours import classify_operating_hours
 from gridlens.domain.permit_interpretation import assess_permit, evaluator_version
 from gridlens.ingestion.adapters.federal_register import SourceParseError
+from gridlens.ingestion.adapters.tceq_egu_search import _record as egu_record
+from gridlens.ingestion.adapters.tceq_egu_search import parse_results
 from gridlens.ingestion.adapters.tceq_http import _route, read_tceq_response
 from gridlens.ingestion.adapters.tceq_nsr_pending import (
     LISTING_URL,
@@ -183,6 +187,44 @@ def test_tceq_href_format_alias_preserves_project_identity_and_hash():
     assert second["permit"]["source_link_hrefs"]["application"].endswith(".\r\npdf")
 
 
+def test_official_hosts_are_an_exact_set_and_records_documents_are_official():
+    from gridlens.ingestion.adapters.tceq_http import OFFICIAL_HOSTS
+    from gridlens.ingestion.adapters.tceq_nsr_pending import _official
+
+    assert OFFICIAL_HOSTS == {
+        "www.tceq.texas.gov",
+        "www2.tceq.texas.gov",
+        "www15.tceq.texas.gov",
+        "records.tceq.texas.gov",
+        "permit-search.tceq.texas.gov",
+    }
+    assert "www6.tceq.texas.gov" not in OFFICIAL_HOSTS
+    record = (
+        "https://records.tceq.texas.gov/cs/idcplg?"
+        "IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&Rendition=Web&dID=8600163"
+    )
+    assert _official(record) == record
+    www6_application = (
+        "https://www6.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf"
+    )
+    www6_summary = (
+        "https://www6.tceq.texas.gov/downloads/permitting/air/bilingual/"
+        "pending-permit-notices/182126-pls-english.pdf"
+    )
+    for href in (
+        record.replace("records.tceq.texas.gov", "records.tceq.texas.gov.evil.example"),
+        record.replace("records.tceq.texas.gov", "evil.tceq.texas.gov"),
+        "https://nottceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf",
+        "https://www14.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf",
+        "https://user@www2.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf",
+        record + "&redirect=https://127.0.0.1/",
+        www6_application,
+        www6_summary,
+    ):
+        with pytest.raises(SourceParseError, match="outside the official host"):
+            _official(href)
+
+
 @pytest.mark.parametrize(
     "href",
     [
@@ -341,3 +383,108 @@ def test_county_wording_and_on_site_data_center_power_plant():
     )
     assert result["decision"] == "accepted"
     assert result["location"] == "Amarillo, Carson County, TX"
+
+
+# Official Plain Language Summary text extracted on 2026-10-23 from the PDFs linked
+# in tests/fixtures/tceq-pending-summaries-excerpt.html.
+RECORDED_PLS = (
+    ("80273L004", "tceq-pls-80273l004.txt", "PORTABLE CRUSHER 2", "ALLEN KELLER CO. I., LLC"),
+    (
+        "173154L003",
+        "tceq-pls-173154l003.txt",
+        "DPR DATA CENTER TEMPORARY BATCH PLANT",
+        "AMRIZE SOUTH CENTRAL INC.",
+    ),
+    ("131651", "tceq-pls-131651.txt", "ADC PLANO", "ALIGNED DATA CENTERS REIT LLC"),
+)
+
+
+def test_recorded_summaries_reach_the_hours_classifier():
+    """The summary body is classified. These three official rows have no backup or BTM clause.
+
+    A portable rock crusher is not bridge power: the portable rule needs a
+    generator, turbine, or engine in the same sentence.
+    """
+    fixtures = Path(__file__).parents[1] / "fixtures"
+    recorded = {}
+    for permit, filename, facility, applicant in RECORDED_PLS:
+        summary = summary_from_text((fixtures / filename).read_text(), permit)
+        row = _row(facility, applicant, permit)
+        hours = _record(row, summary)["permit"]["operating_hours"]
+        body_only = _record(row, {**summary, "purpose": None})["permit"]["operating_hours"]
+        assert body_only == hours
+        recorded[permit] = hours
+
+    portable = recorded["80273L004"]
+    assert portable["classification"] is None
+    assert portable["conflict"] is False
+    assert portable["hours_per_year"] == []
+    assert portable["evidence"] == []
+    portable_summary = summary_from_text(
+        (fixtures / "tceq-pls-80273l004.txt").read_text(), "80273L004"
+    )
+    # The facility name also says PORTABLE. The rock-crusher body still does not.
+    from_body = _record(
+        _row("CRUSHER 2", "ALLEN KELLER CO. I., LLC", "80273L004"), portable_summary
+    )["permit"]["operating_hours"]
+    assert from_body["classification"] is None
+    assert from_body["evidence"] == []
+    assert (
+        _record(_row("CRUSHER 2", "ALLEN KELLER CO. I., LLC", "80273L004"), None)["permit"][
+            "operating_hours"
+        ]["classification"]
+        is None
+    )
+
+    batch = recorded["173154L003"]
+    assert batch["classification"] is None
+    assert batch["conflict"] is False
+    assert batch["hours_per_year"] == [8760]
+    assert batch["evidence"] == [{"clause": "unclassified_hours", "quote": "8,760 hours per year"}]
+    assert (
+        _record(
+            _row(
+                "DPR DATA CENTER TEMPORARY BATCH PLANT",
+                "AMRIZE SOUTH CENTRAL INC.",
+                "173154L003",
+            ),
+            None,
+        )["permit"]["operating_hours"]["evidence"]
+        == []
+    )
+
+    plano = recorded["131651"]
+    assert plano["classification"] is None
+    assert plano["hours_per_year"] == []
+    assert plano["evidence"] == []
+
+    listing = parse_listing((fixtures / "tceq-nsr-pending-excerpt.html").read_bytes(), TODAY)
+    assert len(listing) == 23
+    assert [
+        _record(row, None)["permit"]["operating_hours"]["classification"] for row in listing
+    ] == [None] * 23
+
+    facilities = [
+        cell.get_text(" ", strip=True)
+        for cell in BeautifulSoup(
+            (fixtures / "tceq-pending-summaries-excerpt.html").read_text(), "html.parser"
+        ).find_all("td")
+        if "23.7955%" in (cell.get("style") or "")
+    ]
+    assert len(facilities) == 18
+    facility_classes = [classify_operating_hours(name)["classification"] for name in facilities]
+    assert facility_classes.count("bridge_temporary") == 0
+    assert facility_classes.count(None) == 18
+    assert "PORTABLE CRUSHER 2" in facilities
+
+    updated, egu_rows = parse_results(
+        (fixtures / "tceq-egu-search-excerpt.html").read_bytes(),
+        unit_id="8340",
+        unit_name="ELECTRIC GENERATING FACILITIES",
+    )
+    assert updated == "2026-10-22"
+    assert len(egu_rows) == 3
+    assert [
+        egu_record(row, updated)["permit"]["operating_hours"]["classification"] for row in egu_rows
+    ] == [None] * 3
+    assert {hours["classification"] for hours in recorded.values()} == {None}
