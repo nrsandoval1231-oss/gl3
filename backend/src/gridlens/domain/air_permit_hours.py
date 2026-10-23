@@ -20,9 +20,35 @@ hours per year" is bridge/temporary. "up to 500 hours per year" is a single cap
 of 500, not a range.
 
 Portable or trailer-mounted wording, and an expiring or temporary permit, are
-bridge/temporary only when that same clause names power generation: a generator,
-genset, turbine, or electric or power generation. The word engine, including an
-engine-driven crusher or pump, is not that context.
+bridge/temporary only when that same clause names electric power generation.
+The bare word generator is not enough. A generator counts when an electric,
+power, diesel, natural gas, emergency, or standby modifier sits immediately
+before it. "Fired" may follow a fuel modifier, those modifiers may stack, and
+the word engine may sit between the modifier and generator, as in "diesel
+engine generator" or "natural gas-fired generator". A genset, gen-set,
+generator set, turbine, or the phrase electric generation or power generation
+also counts. Natural gas counts. Bare "gas", including a process-gas generator
+or a gas-fired generator, does not.
+
+That allowlist is the gate. A denylist of non-electric compounds would miss the
+next unlisted use, so the bare word stays out. The exclusion pattern is a
+second gate for the reviewed compounds — hazardous waste generator, steam
+generator, waste generator, small quantity generator, gas generator, and the
+ozone, nitrogen, oxygen, hydrogen, vapor, signal, smoke, and aerosol forms —
+so those phrases cannot count even if a fuel or duty word is stacked in front
+of them. The word engine, including an engine-driven crusher or pump, is not
+power context by itself.
+
+A negated power statement suppresses bridge, backup, and behind-the-meter for
+that whole sentence. "No power generation", "not used for power generation",
+"does not generate electricity", and "without generators" are that kind of
+statement. The cue has to govern the power phrase: it sits before the phrase,
+after the last and/or/but in that sentence, and no more than six words away.
+"No." followed by a number is a label, not a negation. The next sentence is a
+new clause and can still tag. An hours figure in a sentence that does not
+negate power generation keeps its band. "Does not generate electricity" is
+recognized as a negation. Affirmative "generate electricity", without the
+allowlist above, is not power context.
 
 Only a TCEQ New Source Review plain-language summary carries summary text into
 this rule. Construction NOI and electric-generating-unit rows classify the
@@ -65,15 +91,81 @@ _BLANK_LINE = re.compile(r"\n\s*\n")
 _ABBREVIATIONS = frozenset(
     {"approx", "co", "corp", "dr", "etc", "fig", "inc", "ltd", "mr", "mrs", "ms", "no", "st", "vs"}
 )
+_TOKEN = re.compile(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*")
+_CUE = frozenset({"no", "not", "without", "never"})
+_BREAK = frozenset({"but", "however", "except", "although", "and", "or"})
+_DO = frozenset({"do", "does", "did"})
+# The cue may sit up to this many words before the power phrase.
+_CUE_DISTANCE = 6
 _POWER_SAMPLES = (
-    "generator",
+    "diesel generator",
+    "emergency generator",
+    "standby generator",
+    "electric generator",
+    "power generator",
+    "natural gas generator",
+    "natural-gas generator",
+    "natural gas-fired generator",
+    "natural-gas-fired generator",
+    "diesel engine generator",
+    "diesel engine-driven generator",
+    "emergency diesel generator",
+    "standby natural gas generator",
     "genset",
     "gen-set",
+    "generator set",
     "turbine",
     "electric generation",
     "power generation",
 )
-_NOT_POWER = ("engine", "engines", "engine-driven crusher", "engine-driven pump")
+_NOT_POWER = (
+    "generator",
+    "generators",
+    "portable generator",
+    "engine",
+    "engines",
+    "engine-driven crusher",
+    "engine-driven pump",
+    "engine-driven generator",
+    "hazardous waste generator",
+    "steam generator",
+    "waste generator",
+    "small quantity generator",
+    "gas generator",
+    "process gas generator",
+    "gas-fired generator",
+    "ozone generator",
+    "nitrogen generator",
+    "oxygen generator",
+    "hydrogen generator",
+    "vapor generator",
+    "signal generator",
+)
+_EXCLUDED_SAMPLES = (
+    "hazardous waste generator",
+    "steam generator",
+    "waste generator",
+    "small quantity generator",
+    "gas generator",
+    "process gas generator",
+    "ozone generator",
+    "nitrogen generator",
+    "oxygen generator",
+    "hydrogen generator",
+)
+_NEGATED_CLAUSES = (
+    "no power generation",
+    "not used for power generation",
+    "does not generate electricity",
+    "without generators",
+    "without a diesel generator",
+)
+_OPEN_CLAUSES = (
+    "diesel generator",
+    "temporary permit for the emergency generator",
+    "limited to 500 hours per year",
+    "will generate electricity at the site",
+)
 
 
 @lru_cache(maxsize=1)
@@ -89,6 +181,8 @@ def load_hours_rule() -> dict[str, Any]:
         "bridge_unit_pattern",
         "bridge_permit_pattern",
         "power_generation_pattern",
+        "power_generation_exclusion_pattern",
+        "power_negation_target_pattern",
     }
     if set(rule) != required or rule["btm_phrase"].casefold() != "onsite use only":
         raise ValueError("Air-permit hours rule config is not the reviewed rule")
@@ -102,12 +196,93 @@ def load_hours_rule() -> dict[str, Any]:
         raise ValueError("Air-permit hours thresholds are out of order")
     re.compile(rule["bridge_unit_pattern"])
     re.compile(rule["bridge_permit_pattern"])
-    power = re.compile(rule["power_generation_pattern"], re.IGNORECASE)
+    power = _compiled(rule["power_generation_pattern"])
+    excluded = _compiled(rule["power_generation_exclusion_pattern"])
     if any(power.search(sample) is None for sample in _POWER_SAMPLES) or any(
         power.search(sample) for sample in _NOT_POWER
     ):
         raise ValueError("Air-permit power-generation pattern does not match the reviewed context")
+    if any(excluded.search(sample) is None for sample in _EXCLUDED_SAMPLES) or any(
+        excluded.search(sample) for sample in _POWER_SAMPLES
+    ):
+        raise ValueError("Air-permit power exclusion does not match the reviewed phrases")
+    if any(not _clause_negates_power(rule, sample) for sample in _NEGATED_CLAUSES) or any(
+        _clause_negates_power(rule, sample) for sample in _OPEN_CLAUSES
+    ):
+        raise ValueError("Air-permit power negation does not match the reviewed clauses")
+    if any(not _affirmative_power(rule, sample) for sample in _POWER_SAMPLES):
+        raise ValueError("Air-permit power-generation pattern does not match the reviewed context")
     return rule
+
+
+@lru_cache(maxsize=8)
+def _compiled(pattern: str) -> re.Pattern[str]:
+    return re.compile(pattern, re.IGNORECASE)
+
+
+def _tokens(text: str) -> list[tuple[str, int, int]]:
+    return [(match.group(0), match.start(), match.end()) for match in _TOKEN.finditer(text)]
+
+
+def _cue_word(clause: str, word: str, end: int) -> bool:
+    if word.casefold() not in _CUE:
+        return False
+    # "No. 5" is a label. It does not negate the words that follow.
+    return not (word.casefold() == "no" and end < len(clause) and clause[end] == ".")
+
+
+def _negated_span(clause: str, match_start: int, match_end: int) -> tuple[int, int] | None:
+    """Cue-to-phrase span when a negation governs the match. None otherwise."""
+    before = [token for token in _tokens(clause) if token[2] <= match_start]
+    cut = 0
+    for index, (word, _start, _end) in enumerate(before):
+        if word.casefold() in _BREAK:
+            cut = index + 1
+    window = before[cut:]
+    for offset, (word, start, end) in enumerate(reversed(window)):
+        if offset > _CUE_DISTANCE:
+            break
+        if not _cue_word(clause, word, end):
+            continue
+        index = len(window) - 1 - offset
+        if word.casefold() == "not" and index > 0 and window[index - 1][0].casefold() in _DO:
+            start = window[index - 1][1]
+        return start, match_end
+    return None
+
+
+def _overlaps(left: re.Match[str], right: re.Match[str]) -> bool:
+    return left.start() < right.end() and right.start() < left.end()
+
+
+def _excluded(rule: dict[str, Any], clause: str, match: re.Match[str]) -> bool:
+    exclusion = _compiled(rule["power_generation_exclusion_pattern"])
+    return any(_overlaps(match, other) for other in exclusion.finditer(clause))
+
+
+def _affirmative_power(rule: dict[str, Any], clause: str) -> bool:
+    """True when the clause has an allowlisted power phrase that is not negated."""
+    for match in _compiled(rule["power_generation_pattern"]).finditer(clause):
+        if _excluded(rule, clause, match):
+            continue
+        if _negated_span(clause, match.start(), match.end()):
+            continue
+        return True
+    return False
+
+
+def _negated_power_quote(rule: dict[str, Any], clause: str) -> str:
+    target = _compiled(rule["power_negation_target_pattern"])
+    for match in target.finditer(clause):
+        span = _negated_span(clause, match.start(), match.end())
+        if span:
+            return " ".join(clause[span[0] : span[1]].split())
+    return ""
+
+
+def _clause_negates_power(rule: dict[str, Any], clause: str) -> bool:
+    """True when this sentence denies power generation. Other sentences are separate."""
+    return _negated_power_quote(rule, clause) != ""
 
 
 def _sentence_period(text: str, index: int) -> bool:
@@ -182,10 +357,6 @@ def _band(
     return ""
 
 
-def _power_generation(rule: dict[str, Any], clause: str) -> bool:
-    return re.search(rule["power_generation_pattern"], clause, re.IGNORECASE) is not None
-
-
 def classify_operating_hours(text: str) -> dict[str, Any]:
     """Apply the configured hours rule and keep every matched quote."""
     rule = load_hours_rule()
@@ -196,12 +367,30 @@ def classify_operating_hours(text: str) -> dict[str, Any]:
     bridge_min = Decimal(rule["bridge_min_hours_per_year"])
     bridge_max = Decimal(rule["bridge_max_hours_per_year"])
     btm_hours = Decimal(rule["btm_hours_per_year"])
+    noted: set[str] = set()
+
+    def note_negation(clause: str) -> None:
+        if clause in noted:
+            return
+        noted.add(clause)
+        quote = _negated_power_quote(rule, clause)
+        if quote:
+            evidence.append({"clause": "negated_power", "quote": quote})
+
     for match in _HOURS.finditer(text):
         value = _decimal(match.group("hours"), match.group("fraction"))
         high_whole = match.group("high")
-        onsite = _ONSITE.search(_clause(text, match.start(), match.end()))
+        clause = _clause(text, match.start(), match.end())
+        onsite = _ONSITE.search(clause)
+        negated = _clause_negates_power(rule, clause)
         hours.append(_public_hours(value))
-        if high_whole is None:
+        high = None
+        if high_whole is not None:
+            high = _decimal(high_whole, match.group("high_fraction"))
+            hours.append(_public_hours(high))
+        if negated:
+            kind = ""
+        elif high is None:
             kind = _band(
                 value,
                 onsite=bool(onsite),
@@ -211,8 +400,6 @@ def classify_operating_hours(text: str) -> dict[str, Any]:
                 btm_hours=btm_hours,
             )
         else:
-            high = _decimal(high_whole, match.group("high_fraction"))
-            hours.append(_public_hours(high))
             low_band = _band(
                 value,
                 onsite=bool(onsite),
@@ -235,16 +422,21 @@ def classify_operating_hours(text: str) -> dict[str, Any]:
         evidence.append({"clause": kind or "unclassified_hours", "quote": match.group(0)})
         if kind == "btm" and onsite:
             evidence.append({"clause": "onsite_use_only", "quote": onsite.group(0)})
-    for match in re.finditer(rule["bridge_unit_pattern"], text, re.IGNORECASE):
-        if _power_generation(rule, _clause(text, match.start(), match.end())):
-            classes.append("bridge_temporary")
-            evidence.append({"clause": "portable_or_trailer_mounted", "quote": match.group(0)})
-            break
-    for match in re.finditer(rule["bridge_permit_pattern"], text, re.IGNORECASE):
-        if _power_generation(rule, _clause(text, match.start(), match.end())):
-            classes.append("bridge_temporary")
-            evidence.append({"clause": "expiring_or_temporary_permit", "quote": match.group(0)})
-            break
+        if negated:
+            note_negation(clause)
+    for pattern, label in (
+        ("bridge_unit_pattern", "portable_or_trailer_mounted"),
+        ("bridge_permit_pattern", "expiring_or_temporary_permit"),
+    ):
+        for match in re.finditer(rule[pattern], text, re.IGNORECASE):
+            clause = _clause(text, match.start(), match.end())
+            if _clause_negates_power(rule, clause):
+                note_negation(clause)
+                continue
+            if _affirmative_power(rule, clause):
+                classes.append("bridge_temporary")
+                evidence.append({"clause": label, "quote": match.group(0)})
+                break
     unique = list(dict.fromkeys(classes))
     conflict = len(unique) > 1
     return {
