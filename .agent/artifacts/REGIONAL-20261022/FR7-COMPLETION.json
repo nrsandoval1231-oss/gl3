@@ -1,0 +1,58 @@
+{
+  "packet": "FR7",
+  "status": "TEST_ONLY_REPAIR_FOCUSED_VALIDATION_PASS",
+  "files_changed_by_worker": [
+    "backend/tests/integration/test_collection_chain_budget.py"
+  ],
+  "root_cause": "The synthetic crash after service commit is caught by worker.run_one as BOUNDED_UNKNOWN. The worker naturally schedules both Job.available_at and Source.health.retry_at. The original test moved only Job.available_at into the past, so lease_one correctly refused to claim the retry while the durable source-wide cooldown was still active. This was a test clock setup defect; no production/source change was made.",
+  "preserved_invariants": [
+    "The natural source retry hold is asserted as scheduled and in the future before any test clock movement.",
+    "A worker attempt while the source hold is active returns false; job remains queued with attempts and service checkpoint unchanged, and acquisition is not called again.",
+    "The test advances the persisted source retry_at and job available_at together to the same past boundary before retrying.",
+    "Both continuation variants preserve chain budget 2 through the service checkpoint and receipt, then enqueue the next chain job with budget 1."
+  ],
+  "failed_before": {
+    "command": "uv run --directory backend --env-file ../.artifacts/regional/recovery-test.env python -m pytest 'tests/integration/test_collection_chain_budget.py::test_retry_preserves_budget_through_service_record_checkpoint[False]' 'tests/integration/test_collection_chain_budget.py::test_retry_preserves_budget_through_service_record_checkpoint[True]' -q",
+    "exit_code": 1,
+    "result": "2 failed; both returned false on second run because the test advanced only Job.available_at while source.health.retry_at remained in the future. Reproduced independently before the test-only repair."
+  },
+  "passing_after": [
+    {
+      "command": "uv run --directory backend --env-file ../.artifacts/regional/recovery-test.env python -m pytest 'tests/integration/test_collection_chain_budget.py::test_retry_preserves_budget_through_service_record_checkpoint[False]' 'tests/integration/test_collection_chain_budget.py::test_retry_preserves_budget_through_service_record_checkpoint[True]' -q",
+      "exit_code": 0,
+      "result": "2 passed in 2.06s."
+    },
+    {
+      "command": "uv run --directory backend --env-file ../.artifacts/regional/recovery-test.env python -m pytest tests/integration/test_collection_chain_budget.py tests/integration/test_source_scheduling.py tests/integration/test_structured_collection_adversarial.py -q",
+      "exit_code": 0,
+      "result": "69 passed in 38.29s."
+    }
+  ],
+  "static_checks": [
+    {
+      "command": "uv run --directory backend ruff check tests/integration/test_collection_chain_budget.py",
+      "exit_code": 0,
+      "result": "All checks passed."
+    },
+    {
+      "command": "uv run --directory backend ruff format --check tests/integration/test_collection_chain_budget.py",
+      "exit_code": 0,
+      "result": "1 file already formatted."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Pass; warning reports line-ending conversion for a separate concurrently modified test file."
+    }
+  ],
+  "uncertainties": [
+    "The recovery database gates were exercised locally only; root owns final full-suite and exact-candidate acceptance.",
+    "The broader full-suite result cited in the packet is root-reported context and was not rerun for this bounded repair."
+  ],
+  "metrics": {
+    "utc_start": "UNKNOWN",
+    "utc_finish": "2026-10-23 00:03:02 UTC",
+    "elapsed": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

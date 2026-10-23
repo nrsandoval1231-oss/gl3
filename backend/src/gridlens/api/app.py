@@ -4843,6 +4843,9 @@ def workspace_historical_need(need_id: UUID):
 )
 def project_state_endpoint(project_id: UUID):
     with SessionLocal() as session:
+        project = session.get(Project, project_id)
+        if project is None or project.region_status != "ELIGIBLE":
+            raise HTTPException(404, "Project not found")
         state = read_project_state(session, project_id)
         if state is None:
             raise HTTPException(404, "Project not found")

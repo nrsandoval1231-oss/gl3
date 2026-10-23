@@ -400,14 +400,33 @@ def test_retry_preserves_budget_through_service_record_checkpoint(
     assert _run(factory, definition, job_id)
     with factory.begin() as session:
         job = session.get(Job, job_id)
+        source = session.get(Source, definition["id"])
         assert job.status == "queued" and job.attempts == 1
         saved = json.loads(job.checkpoint)
         assert saved["collection_jobs_remaining"] == 2
         assert saved["last_record_external_id"] == "synthetic-permit-id"
         assert saved.get("collection_continuation", False) is continuation
         assert len(session.scalars(select(Job)).all()) == 1
-        job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+        assert source.health["retry_state"] == "scheduled"
+        retry_at = datetime.fromisoformat(source.health["retry_at"])
+        assert retry_at > datetime.now(UTC)
+        assert job.available_at == retry_at
     monkeypatch.setattr(worker, "process_job", real_process)
+    assert not _run(factory, definition, job_id)
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        source = session.get(Source, definition["id"])
+        assert job.status == "queued" and job.attempts == 1
+        assert json.loads(job.checkpoint) == saved
+        assert source.health["retry_state"] == "scheduled"
+        assert datetime.fromisoformat(source.health["retry_at"]) > datetime.now(UTC)
+        cooldown_boundary = datetime.now(UTC) - timedelta(seconds=1)
+        source.health = {
+            **source.health,
+            "retry_at": cooldown_boundary.isoformat(),
+        }
+        job.available_at = cooldown_boundary
+    assert len(calls) == 1  # The held run did not make another acquisition call.
     assert _run(factory, definition, job_id)
     assert len(calls) == 2  # Retries are dispatches within the same chain job.
     with factory() as session:

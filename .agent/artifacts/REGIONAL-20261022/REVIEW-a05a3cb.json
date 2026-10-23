@@ -1,0 +1,19 @@
+{
+  "candidate_sha": "a05a3cb9f3f46383d3799bfd1c11140aaeade8ab",
+  "verdict": "FIX",
+  "reviewer": "fresh independent Sol",
+  "finding": {
+    "file": "backend/src/gridlens/api/app.py",
+    "line": 4844,
+    "trigger": "GET /api/projects/{excluded_uuid}/state on retained project with active need",
+    "failure": "Endpoint lacks regional guard and current state reader exposes active activity/power_need claims",
+    "required_repair": "404 for EXCLUDED/HOLD before current-state hydration; retain intended historical evidence routes"
+  },
+  "controller_reproduction": {
+    "scope": "actual isolated retained application clone; local authentication override only",
+    "http_status": 200,
+    "note": "power_need is nested in response.state, not a top-level key; no invented nonempty field count"
+  },
+  "next_direction": "CORRECT bounded RV1 then refreeze and repeat exact-head gates/review",
+  "captured_at": "2026-10-22T23:51:09.952792+00:00"
+}

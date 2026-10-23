@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -148,6 +148,132 @@ def test_region_reclassification_on_site_update_does_not_delete_supporting_facts
         stored = session.get(Project, project_id)
         assert stored.region_status == "HOLD"
         assert stored.identity_facts["crossborder_supporting_evidence"] == "Santa Clara, CA"
+
+
+def test_direct_project_state_fences_noneligible_projects_and_preserves_history(
+    saved_db, monkeypatch
+):
+    from fastapi import HTTPException
+    from test_saved_browse import seed
+
+    from gridlens.api import app as api
+    from gridlens.persistence.models import Evidence, NeedObservation, Observation, PowerNeed
+
+    seed(saved_db, count=0)
+    locations = {
+        "ca": "Santa Clara, CA",
+        "ga": "Atlanta, GA",
+        "hold_unknown": None,
+        "hold_conflict": "Austin, TX / Tulsa, OK",
+        "tx": "Dallas, TX",
+        "ok": "Tulsa, OK",
+        "nm": "Albuquerque, NM",
+    }
+    project_ids = {}
+    need_ids = {}
+    historical_need_id = None
+    historical_hash = "a" * 64
+    with saved_db.begin() as session:
+        for key, location in locations.items():
+            project = Project(
+                identity_key=f"state-fence-{key}-{uuid4()}",
+                name=f"Retained {key} project",
+                location=location,
+                source_id="synthetic-permits",
+                external_id=f"state-fence-{key}",
+            )
+            session.add(project)
+            session.flush()
+            need = PowerNeed(
+                project_id=project.id,
+                activity_key=f"current-{key}",
+                tier="Signal",
+                rationale="Retained active need for endpoint boundary verification.",
+                supply="Unknown",
+                active=True,
+            )
+            session.add(need)
+            session.flush()
+            project_ids[key] = project.id
+            need_ids[key] = need.id
+        historical_need = PowerNeed(
+            project_id=project_ids["ca"],
+            activity_key="historical-ca",
+            tier="Signal",
+            rationale="Prior retained need remains historical.",
+            supply="Unknown",
+            active=False,
+        )
+        session.add(historical_need)
+        session.flush()
+        historical_need_id = historical_need.id
+        observation = Observation(
+            source_id="synthetic-permits",
+            external_id="historical-ca-evidence",
+            title="Historical California project evidence",
+            abstract="Retained source record for historical access.",
+            url="https://example.test/historical-ca",
+            content_hash=historical_hash,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=historical_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+        )
+        session.add(evidence)
+        session.flush()
+        session.add(NeedObservation(need_id=historical_need.id, observation_id=observation.id))
+        expected_status = {
+            "ca": "EXCLUDED",
+            "ga": "EXCLUDED",
+            "hold_unknown": "HOLD",
+            "hold_conflict": "HOLD",
+            "tx": "ELIGIBLE",
+            "ok": "ELIGIBLE",
+            "nm": "ELIGIBLE",
+        }
+        assert {key: session.get(Project, project_ids[key]).region_status for key in locations} == (
+            expected_status
+        )
+
+    original_reader = api.read_project_state
+    hydrated: list[object] = []
+
+    def guarded_reader(session, project_id):
+        hydrated.append(project_id)
+        return original_reader(session, project_id)
+
+    monkeypatch.setattr(api, "read_project_state", guarded_reader)
+    for key in ("ca", "ga", "hold_unknown", "hold_conflict"):
+        with pytest.raises(HTTPException) as error:
+            api.project_state_endpoint(project_ids[key])
+        assert error.value.status_code == 404
+    assert hydrated == []
+
+    for key in ("tx", "ok", "nm"):
+        result = api.project_state_endpoint(project_ids[key])
+        assert result["project_id"] == str(project_ids[key])
+        assert result["state"]["power_need"]["status"] == "UNKNOWN"
+
+    history = api.workspace_historical_need(historical_need_id)
+    assert history["active"] is False
+    assert history["project_id"] == project_ids["ca"]
+    assert history["evidence"][0]["content_hash"] == historical_hash
+    with saved_db() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Evidence)
+                .where(Evidence.content_hash == historical_hash)
+            )
+            == 1
+        )
+        assert session.get(PowerNeed, need_ids["ca"]).active is True
+        assert session.get(PowerNeed, historical_need_id).active is False
 
 
 def test_active_api_projection_includes_only_persisted_eligible_region(saved_db):

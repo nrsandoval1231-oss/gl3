@@ -1,0 +1,19 @@
+{
+  "rejected_parent_sha": "a05a3cb9f3f46383d3799bfd1c11140aaeade8ab",
+  "scope": "final old-candidate broad Windows PostgreSQL suite, before RV1/FR7 final freeze",
+  "command": "uv run --directory backend --env-file ../.artifacts/regional/recovery-test.env python -m pytest tests",
+  "passed": 2710,
+  "failed": 2,
+  "skipped": 3,
+  "warnings": 11,
+  "duration_seconds": 844.02,
+  "failures": [
+    "test_collection_chain_budget.py::test_retry_preserves_budget_through_service_record_checkpoint[False]",
+    "test_collection_chain_budget.py::test_retry_preserves_budget_through_service_record_checkpoint[True]"
+  ],
+  "ci_old_candidate": "39874034002 cancelled after independent FIX and known full-suite failures; push duplicate39874003669 cancelled",
+  "source_delta_after_review": [
+    "backend/src/gridlens/api/app.py"
+  ],
+  "no_acceptance_claim": true
+}

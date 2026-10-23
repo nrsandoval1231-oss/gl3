@@ -13,3 +13,5 @@ FR2/3/4/5/6 regression fixtures RECONCILED without weakening national/cross-bord
 R5 controller focused132PASS; Ruff304/mypy139, web type/build/audit, docs, migration checkpoints PASS. Final all18 official source replay adds zero duplicate records; original evidence/change events unchanged. U2 actual live tests4PASS15.8seconds controller repeat. Exact-head full CI and fresh independent Sol review PENDING before acceptance.
 
 Next direction VALIDATE: freeze source/docs/evidence, create reviewable PR, require full CI and independent Sol on exact head. No merge/deploy. Parent cloud/launch Finish Contract OPEN. External Houston publisher staleness and one TCEQ missing summary remain explicit blockers rather than disabled sources.
+
+RV1 independent FIX corrected missing direct project-state gate; FR7 corrected test clock semantics after full broad2710PASS2FAIL3SKIP. Root actual API404 and refreshed-generation live4PASS17.1s; combined controller102PASS56.40seconds. All ingestion implementation bytes unchanged from real source/benchmark proof; new source delta limited to direct state route. Next VALIDATE new exact-head CI and independent re-review.

@@ -68,7 +68,17 @@
     }
   ],
   "authority": "No merge, deploy, new adapters, paid calls or destructive production changes",
-  "next_direction": "VALIDATE frozen implementation, docs and proof through exact-head CI and fresh independent Sol review; live browser controller4PASS",
+  "next_direction": "VALIDATE repaired frozen candidate: controllercombined102PASS, actualAPI404/live4PASS; exact-head CI and independent Sol re-review required",
   "tokens": "UNKNOWN",
-  "aggregate_phase_durations": "UNKNOWN; measured command durations retained separately"
+  "aggregate_phase_durations": "UNKNOWN; measured command durations retained separately",
+  "independent_review_repair": {
+    "candidate": "a05a3cb9f3f46383d3799bfd1c11140aaeade8ab",
+    "verdict": "FIX",
+    "failure": "direct current project-state route bypassed regional guard for historical active need",
+    "attribution": "one active projection omitted from route admission matrix",
+    "candidate_rule": "enumerate direct active routes independently of list projection tests; assert excluded and held need state cannot be fetched by UUID",
+    "metric": "active regional API bypass count; decrease to zero",
+    "reversibility": "bounded endpoint fence and regression",
+    "promotion": "PENDING RV1 gates and independent re-review"
+  }
 }

@@ -15,5 +15,6 @@
   "elapsed_to_accepted_seconds": "UNKNOWN; independent acceptance pending",
   "utc_finish": "UNKNOWN; in progress",
   "utc_candidate_freeze": "2026-10-22T23:46:42.447339+00:00",
-  "next_direction": "VALIDATE exact-head CI and fresh independent Sol review; full local backend suite running"
+  "next_direction": "VALIDATE repaired exact-head fullCI and independent Sol re-review",
+  "utc_candidate_refreeze": "2026-10-23T00:04:56.806910+00:00"
 }

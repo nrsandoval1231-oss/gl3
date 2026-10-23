@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-22T23:37:25.934443+00:00",
+  "captured_at": "2026-10-23T00:04:12.301630+00:00",
   "base_sha": "0f876440a1375c502534cc1dd3c08ceff38c7349",
   "files": {
     "backend/migrations/env.py": "132feea8bafcb9107465647247035adfc1872673b3ed124f7f9a4568cad7e85d",
@@ -45,7 +45,7 @@
     "backend/migrations/versions/0040_project_region_policy.py": "da70a939ec0543ffa71b906bbb831b89d2aa09a8d23347094e5560154552ef55",
     "backend/src/gridlens/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
     "backend/src/gridlens/api/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
-    "backend/src/gridlens/api/app.py": "ee3996751f2967596c2e43a9ef052630d7ffa3f0fb839adf0ed83a1424e14215",
+    "backend/src/gridlens/api/app.py": "5b8b3947e3f75026b8aea32a2beb7b751668f714e32a0be7a8d79c2d77461e5b",
     "backend/src/gridlens/api/intelligence.py": "986824a8a632185a60834a83b1337ac41dafcf34890c2ee8692ef8f5492529d6",
     "backend/src/gridlens/api/verticals.py": "638fa1ca07284002805ccd7cf04a75d06d714aa457e047747d1e633237d80d3c",
     "backend/src/gridlens/domain/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
@@ -184,5 +184,7 @@
     "backend/src/gridlens/settings.py": "ab5822987a8a082ffa94884f295fc6c45721e9383986e572f4426277c3326dcc",
     "config/sources/registry.v1.json": "48b6fce377c6f582f429428953bcee6d267a32530a6841fe288daccc54431097"
   },
-  "implementation_digest": "7c4ebb5519495e92c464f89a95962f6ce240f63568f70b70aa6b634f14535d24"
+  "implementation_digest": "7c4ebb5519495e92c464f89a95962f6ce240f63568f70b70aa6b634f14535d24",
+  "review_repair_parent_sha": "a05a3cb9f3f46383d3799bfd1c11140aaeade8ab",
+  "proof_reuse": "All ingestion source/adapters/worker/query-path bytes unchanged from official source replay and matched benchmark; only source delta is three-line project-state endpoint fence. Actual API and four live browser tests rerun after this delta; source-framed prior receipts retained."
 }
