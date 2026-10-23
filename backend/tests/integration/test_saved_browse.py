@@ -930,14 +930,31 @@ def test_continuous_worker_ingestion_keeps_saved_reads_current_and_exact(saved_d
     from concurrent.futures import ThreadPoolExecutor
     from threading import Event
 
+    from gridlens.intelligence import saved_browse, worker_browse
     from gridlens.intelligence.worker_browse import install_worker_publication
 
     ids = seed(saved_db, histories=1)
-    rebuild(saved_db)
+    # Keep both publication and reader clocks on one ordinary instant, well
+    # away from the next browse-policy boundary, so this concurrency scenario
+    # cannot depend on sub-millisecond wall-clock sampling luck.
+    fixed_now = datetime(2026, 10, 23, 16, 0, tzinfo=UTC)
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is None:
+                return fixed_now.replace(tzinfo=None)
+            return fixed_now.astimezone(tz)
+
+    monkeypatch.setattr(saved_browse, "datetime", FixedDatetime)
+    monkeypatch.setattr(worker_browse, "datetime", FixedDatetime)
+    initial = rebuild(saved_db)
+    assert initial["status"] == "published", initial
     monkeypatch.setattr(settings, "saved_browse_enabled", True)
     writer_factory = sessionmaker(saved_db.kw["bind"], expire_on_commit=False)
     install_worker_publication(writer_factory)
     started, finished = Event(), Event()
+    writer_outcomes = []
 
     def ingest():
         try:
@@ -951,28 +968,143 @@ def test_continuous_worker_ingestion_keeps_saved_reads_current_and_exact(saved_d
                     observation.content_hash = ("f" * 64) if index % 2 == 0 else ("0" * 64)
                     writer.flush()
                     started.set()
+                writer_outcomes.append(writer.info.get("worker_browse_outcome"))
         finally:
             finished.set()
 
     reads = 0
+    read_failure = None
+    writer_failure = None
     with ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(ingest)
-        assert started.wait(10)
-        while not finished.is_set() or reads < 12:
-            with saved_db() as reader:
-                reader.connection(execution_options={"isolation_level": "REPEATABLE READ"})
-                actual = page(
-                    reader, filters(tier="Signal", search="", decision="ALL"), ranked=True
-                )
-                canonical = api.opportunity_projection(reader, tier="Signal")
-                assert {item["id"] for item in actual["items"]} == {
-                    str(item["id"]) for item in canonical
-                }
-                assert actual["qualification_state"] == "current"
-            reads += 1
-        future.result(timeout=30)
+        try:
+            assert started.wait(10)
+            while not finished.is_set() or reads < 12:
+                with saved_db() as reader:
+                    reader.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+                    try:
+                        actual = page(
+                            reader, filters(tier="Signal", search="", decision="ALL"), ranked=True
+                        )
+                    except HTTPException as exc:
+                        from gridlens.intelligence.saved_browse import POLICY_VERSION
+                        from gridlens.persistence.models import BrowseGeneration
+
+                        state = reader.get(BrowseState, 1)
+                        generations = list(
+                            reader.execute(
+                                select(
+                                    BrowseGeneration.id,
+                                    BrowseGeneration.input_revision,
+                                    BrowseGeneration.policy_version,
+                                    BrowseGeneration.valid_from,
+                                    BrowseGeneration.valid_until,
+                                ).where(
+                                    BrowseGeneration.id.in_(
+                                        [state.generation_id, state.prepared_generation_id]
+                                    )
+                                )
+                            )
+                        )
+                        pytest.fail(
+                            "Saved-browse read was pending during ingestion: "
+                            f"fixed_clock={fixed_now.isoformat()}, "
+                            f"expected_policy={POLICY_VERSION!r}, "
+                            f"status={exc.status_code}, input_revision={state.input_revision}, "
+                            f"full_revision={state.full_revision}, "
+                            f"generation_id={state.generation_id}, "
+                            f"prepared_generation_id={state.prepared_generation_id}, "
+                            f"candidates={generations!r}, writer_outcomes={writer_outcomes!r}"
+                        )
+                    canonical = api.opportunity_projection(reader, tier="Signal")
+                    assert {item["id"] for item in actual["items"]} == {
+                        str(item["id"]) for item in canonical
+                    }
+                    assert actual["qualification_state"] == "current"
+                reads += 1
+        except BaseException as exc:
+            read_failure = exc
+        finally:
+            try:
+                future.result(timeout=30)
+            except BaseException as exc:
+                writer_failure = exc
+    if writer_failure is not None:
+        pytest.fail(
+            "Worker ingestion failed before all publication outcomes were collected: "
+            f"{writer_failure!r}"
+        )
+    if read_failure is not None:
+        raise read_failure
+    assert len(writer_outcomes) == 12
+    assert all(outcome and outcome["status"] == "published" for outcome in writer_outcomes), (
+        writer_outcomes
+    )
     with saved_db() as reader:
         assert len(page(reader, filters())["items"]) == 4
+
+
+def test_worker_publication_pending_commit_recovers_after_engine_restart(saved_db, monkeypatch):
+    from time import monotonic
+
+    from gridlens.intelligence.saved_browse import maintain_once
+    from gridlens.intelligence.worker_browse import install_worker_publication
+    from gridlens.persistence.models import BrowseGeneration
+
+    ids = seed(saved_db, count=1, histories=1)
+    initial = rebuild(saved_db)
+    assert initial["status"] == "published", initial
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    worker_factory = sessionmaker(saved_db.kw["bind"], expire_on_commit=False)
+    install_worker_publication(worker_factory)
+
+    with saved_db() as reader:
+        before_state = reader.get(BrowseState, 1)
+        before_revision = before_state.input_revision
+        need = reader.get(PowerNeed, ids[0])
+        project_id = need.project_id
+        before_name = reader.get(Project, project_id).name
+
+    with worker_factory.begin() as writer:
+        # Deterministically exhaust the worker's bounded refresh budget. The
+        # canonical project mutation and its invalidation still commit.
+        writer.info["browse_publication_deadline"] = monotonic() - 1
+        writer.get(Project, project_id).name = f"{before_name} retained"
+    outcome = writer.info.get("worker_browse_outcome")
+    assert outcome == {"status": "pending", "reason": "TimeoutError", "sqlstate": None}
+
+    with saved_db() as reader:
+        state = reader.get(BrowseState, 1)
+        assert state.input_revision > before_revision
+        assert reader.get(Project, project_id).name == f"{before_name} retained"
+        with pytest.raises(HTTPException) as pending:
+            page(reader, filters())
+        assert pending.value.status_code == 503
+        assert pending.value.headers["X-Qualification-State"] == "pending"
+
+    with saved_db.kw["bind"].connect() as connection:
+        schema = connection.scalar(text("SELECT current_schema()"))
+    saved_db.kw["bind"].dispose()
+    restarted_engine = create_engine(
+        settings.test_database_url,
+        connect_args={"options": f"-csearch_path={schema}"},
+    )
+    restarted = sessionmaker(restarted_engine, expire_on_commit=False)
+    try:
+        assert maintain_once(restarted)["status"] == "published"
+        with restarted() as reader:
+            actual = page(reader, filters())
+            canonical = api.opportunity_projection(reader)
+            assert {item["id"] for item in actual["items"]} == {
+                str(item["id"]) for item in canonical
+            }
+            assert actual["qualification_state"] == "current"
+            current_state = reader.get(BrowseState, 1)
+            generation = reader.get(BrowseGeneration, current_state.generation_id)
+            assert generation.input_revision == current_state.input_revision
+            assert reader.get(Project, project_id).name == f"{before_name} retained"
+    finally:
+        restarted_engine.dispose()
 
 
 def test_worker_publishes_bulk_segment_but_operator_request_stays_small(saved_db, monkeypatch):

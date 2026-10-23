@@ -184,7 +184,11 @@ def regional_db():
             )
         )
         session.flush()
-        job = Job(source_id=definition["id"], status="queued")
+        job = Job(
+            source_id=definition["id"],
+            status="queued",
+            available_at=datetime.now(UTC) - timedelta(seconds=1),
+        )
         session.add(job)
         session.flush()
         job_id = job.id
