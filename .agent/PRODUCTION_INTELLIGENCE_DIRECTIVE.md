@@ -1,9 +1,9 @@
 # GRID LENS — MASTER BUILD DIRECTIVE
 ## Production Intelligence Pipeline: Firecrawl + Jev + GPT Sol
 
-**Repository:** `nrsandoval1231-oss/gl3`  
-**Baseline:** `main`, commit `a70e533` (October 23, 2026)  
-**Geographic scope:** Texas, Oklahoma, New Mexico  
+**Repository:** `nrsandoval1231-oss/gl3`
+**Baseline:** `main`, commit `a70e533` (October 23, 2026)
+**Geographic scope:** Texas, Oklahoma, New Mexico
 **Priority:** High — functional commercial intelligence over cosmetic features
 
 ---
