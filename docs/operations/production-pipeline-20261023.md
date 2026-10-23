@@ -84,3 +84,41 @@ Read-only provider metadata confirmed Firecrawl account access and Jev model
 aliases; it does not prove either integration operational. OpenAI key setup is
 pending. Credentials must stay in the secure local destination, never in Git
 or validation output. No merge or production deployment has occurred.
+
+## Milestone 2 accepted state
+
+M2 was accepted at `86a443427b97ff68d1b43bc861f2f8a2ac0cce52`. Its recorded CI run was 40009230663, with 2,779 backend tests and 191 browser tests passing. This acceptance advances the work graph to M3 and does not close the overall live-pipeline Finish Contract.
+
+## Milestone 3 evidence packages
+
+`materialize_evidence_package.py` creates a versioned JSON package from one retained `Evidence` version. Every emitted source fact or project identity candidate points back to the exact evidence ID, hash, URL, and field location. Unparsed buyer, load, schedule, duration, and supply remain `UNKNOWN`; the package does not promote a Signal or establish a commercial role.
+
+The package reports document coverage separately from source collection and advisory processing. An excerpt may support a `PREPARED` package while `document_coverage` remains `RECORD_EXCERPT` and source collection remains `PARTIAL`. Deterministic labeled-field extraction includes applicant, facility, permit numbers, application received/stage, location, and stated purpose. Jev sees at most 300 title characters, 1,500 abstract characters, and 500 URL characters. Omitted tails and source excerpt scope stay explicit; full-document coverage requires producer proof and is not asserted by this excerpt parser.
+
+Use the default mode to materialize and inspect metadata without a provider request:
+
+```powershell
+uv run --project backend python scripts/materialize_evidence_package.py --evidence-id <evidence-uuid>
+```
+
+Replay an already stored package to check its digest and confirm that job and logical-call counts and dispatch timestamps did not change:
+
+```powershell
+uv run --project backend python scripts/materialize_evidence_package.py --evidence-id <evidence-uuid> --replay
+```
+
+`--execute-jev` is restricted to the isolated loopback `pipeline_m3_app` database. The runner checks the exact retained hash, enabled registered source, existing `SIGNAL_ADJUDICATION` contract/model policy, exact prior decision and call ledger, and then dispatches at most one exact queued job. It will not retry completed or uncertain calls. Configure finite budgets and the selected observation allowlist before attempting dispatch. The current estimate policy is a reservation, not a hard invoice ceiling. The runner never prints credentials or retained source text.
+
+```powershell
+uv run --project backend python scripts/materialize_evidence_package.py --evidence-id <evidence-uuid> --execute-jev
+```
+
+### M3 observed pilot and replay
+
+Controller evidence recorded 2026-10-23 shows one completed Jev `1.13.0` advisory for evidence `9b8db416-e93c-4b1a-93d4-4328cc497649`. Package `082295b4-26eb-4414-a57b-af66fdb6e9f1` is `COMPLETE_ADVISORY`; its exact logical call is `ac6f6237-165b-441a-8102-68bb421ee589`. Schema and source-span validation passed. The package contains seven cited `REPORTED` facts: applicant, facility, permit numbers, application received date, application stage, location, and stated purpose. It records `document_coverage=RECORD_EXCERPT` and `source_collection_status=PARTIAL`; the retained excerpt does not establish full-document review.
+
+The advisory decision is `SHOW`, which is a display decision only. It does not establish qualification, buyer identity, or confirmed rental-power demand. Buyer, required load, start timing, duration, and supply remain explicitly `UNKNOWN`. The call reserved $0.01; actual invoice cost is `UNKNOWN`, and this estimate is not a hard invoice ceiling. Reported usage was 976 input and 120 output tokens. Operator execution took 1.675 seconds and replay took 1.114 seconds; these are command durations, not provider latency.
+
+Replay created no new calls and left the package payload, dispatch timestamps, retained evidence IDs/hashes, canonical projects and needs, and existing jobs—including the four queued buying-chain jobs—unchanged. The real zero-cap worker/ledger check also passed with `BLOCKED:GLOBAL_DAILY_CAP_ZERO`, zero logical-call rows, and zero provider attempts. Fresh and retained database migrations each passed twice with schema-drift checks. The focused evidence and signal/logical-call suite passed 64 tests.
+
+These results establish the observed M3 pilot and replay only. Frozen-candidate gates and independent review remain pending, as do M4–M6 and the overall Finish Contract. This record does not assert final milestone acceptance or authorize a deployment.

@@ -261,6 +261,41 @@ class Evidence(Base):
     observation: Mapped[Observation] = relationship(back_populates="evidence")
 
 
+class EvidencePackage(Base):
+    """Immutable source-bound evidence package version and advisory processing state."""
+
+    __tablename__ = "evidence_packages"
+    __table_args__ = (
+        UniqueConstraint("package_key", name="uq_evidence_package_key"),
+        CheckConstraint(
+            "processing_status IN ('PREPARED', 'COMPLETE_ADVISORY', 'INCOMPLETE', 'BLOCKED')",
+            name="ck_evidence_package_processing_status",
+        ),
+        Index("ix_evidence_package_evidence", "evidence_id", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    package_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id"), nullable=False)
+    observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"), nullable=False)
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
+    need_id: Mapped[UUID | None] = mapped_column(ForeignKey("power_needs.id"), nullable=True)
+    evidence_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    extractor_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    question_contract: Mapped[str] = mapped_column(String(120), nullable=False)
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
+    processing_status: Mapped[str] = mapped_column(String(24), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    logical_call_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("logical_calls.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Project(Base):
     __tablename__ = "projects"
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
