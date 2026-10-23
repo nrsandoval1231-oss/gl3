@@ -59,6 +59,16 @@ was deleted to obtain a passing result.
 
 ## Verification and remaining work
 
+The first full backend run reported 2,750 passing tests, three skips, seven
+passing subtests, and one cached-receipt test failure: an immediately enqueued
+job was not yet claimable. The single test passed in isolation. Inspection
+showed its due time came from PostgreSQL while the claim checked the process
+clock. The receipt test now explicitly makes its fixture job due; all cache,
+provider-call, and receipt assertions remain. Production scheduling is unchanged.
+The seven-test receipt file passed after this test-only correction. The original
+failure and independent `FIX` review remain retained; a new frozen candidate
+must pass the full gate and review before acceptance.
+
 Controller gates bind to the frozen Git candidate: Ruff/format/mypy, fresh and
 repeat migrations with drift check, complete backend tests, dependency audits,
 TypeScript/build, browser regressions including real authentication, and
