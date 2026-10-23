@@ -12,6 +12,8 @@
   --gl-line: var(--gl-driftwood-gray);
   --gl-type: "Inter", Arial, sans-serif;
   --gl-display-type: "Sora", "Inter", Arial, sans-serif;
+  --gl-ui-accent: var(--gl-sea-cliff);
+  --gl-ui-selected: var(--gl-fog);
   --gl-gridlens-navy: var(--gl-harbor-navy);
   --gl-steel-blue: var(--gl-slate-steel);
   --gl-atmosphere: var(--gl-sea-cliff);
