@@ -39,7 +39,7 @@ export function LoginPage({ onLogin }: { onLogin: (password: string) => Promise<
   return <main className="login-page">
     <section className="login-panel">
       <div className="login-panel-inner">
-        <img className="login-lockup" src="/brand/lockup-pursuits-v3.svg" alt="GridLens" />
+        <img className="login-lockup" src="/brand/logos/horizontal-light.svg" alt="GridLens" />
         <p className="login-kicker">PRIVATE WORKSPACE</p>
         <h1>Sign in</h1>
         <p className="login-intro">Your GridLens workspace brings emerging power needs into focus.</p>

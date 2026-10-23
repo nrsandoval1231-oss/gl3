@@ -4,7 +4,7 @@
 
 ## Mandatory composition
 
-- **No left sidebar or toolbar.** One compact horizontal top navigation with the canonical logo, Opportunities, Customers, Power Markets, Permits, Interconnection, Reports, search and account controls.
+- **No left sidebar or toolbar.** One compact horizontal top navigation with the canonical logo, existing Opportunities, Research, Signals and Operations routes, search and account controls. Customer account/project navigation remains within Opportunities. Labels pictured in the brand board do not authorize invented routes.
 - White/light workspace with restrained navy/slate typography and seven-color brand accents. No decorative photography, maps, hero illustrations or gradients in product UI.
 - Top KPI cards and quick filters; dense, sortable, filterable, paginated opportunity/customer table on the left; selected customer intelligence detail panel on the right.
 - Detail panel includes Overview, Buying Chain, Evidence, Power Analysis and Notes, using real records and verifiable values. Do not invent MW, dates, contacts, statuses or confidence.
