@@ -24,6 +24,7 @@ from gridlens.ingestion.adapters.public_source_http import read_public_response
 
 SOURCE_ID = "albuquerque-building-permits"
 CSV_URL = "https://data.cabq.gov/business/buildingpermits/BuildingPermitsCABQ-en-us.csv"
+HOST = "data.cabq.gov"
 MAX_RESPONSE_BYTES = 28_000_000
 MAX_RECORDS = 200
 WINDOW_DAYS = 730
@@ -196,6 +197,7 @@ def retrieve(
             CSV_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"text/csv"},
+            allowed_hosts=frozenset({HOST}),
         )
         return [_record(permit) for permit in parse_permits(body, today=today or date.today())]
     finally:

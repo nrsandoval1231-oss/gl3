@@ -1,6 +1,6 @@
 # Regional pivot and ingestion stabilization â€” October 22, 2026
 
-Owner mission: exclusive TX/OK/NM physical-project territory (TX, OK, NM priority); preserve verticals, evidence/customer/Jev and approved UI. [PRD](../docs/product/PRD.md), [inventory](../docs/sources/regional-inventory-20261022.md), [engineering report](../docs/operations/regional-stabilization-20261022.md), [graph](artifacts/REGIONAL-20261022/GRAPH.md). No new geographic adapters/UI/orchestrator/merge/deploy. Parent launch Finish Contract OPEN.
+Owner mission: exclusive TX/OK/NM physical-project territory (TX, OK, NM priority); preserve verticals, evidence/customer/Jev and approved UI. [PRD](../docs/product/PRD.md), [inventory](../docs/sources/regional-inventory-20261022.md), [engineering report](../docs/operations/regional-stabilization-20261022.md), [graph](WORK_GRAPH.md). No new geographic adapters/UI/orchestrator/merge/deploy. Parent launch Finish Contract OPEN.
 
 Isolated checkout gl3-regional-20261022 branch feat/regional-stabilization-20261022 base 0f876440a1375c502534cc1dd3c08ceff38c7349. Dirty prior work retained. Registry29,25previousenabled,18nowenabled(11TX/7national),7outregionnewlydisabled,4predisabled. No dedicated OK/NM adapters.
 

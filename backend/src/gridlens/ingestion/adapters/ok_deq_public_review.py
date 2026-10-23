@@ -240,6 +240,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             LISTING_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"text/html"},
+            allowed_hosts=frozenset({HOST}),
         )
         return [_record(row) for row in parse_listing(body)]
     finally:

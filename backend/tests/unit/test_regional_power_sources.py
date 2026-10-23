@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import httpx
@@ -22,7 +22,10 @@ from gridlens.ingestion.adapters.ok_deq_public_review import (
     retrieve as retrieve_deq,
 )
 from gridlens.ingestion.adapters.power_signals import power_signal_tags
-from gridlens.ingestion.adapters.public_source_http import read_public_response
+from gridlens.ingestion.adapters.public_source_http import (
+    MAX_RETRY_AFTER_SECONDS,
+    read_public_response,
+)
 from gridlens.ingestion.adapters.spp_interconnection import (
     QUEUE_URL,
     parse_queue,
@@ -143,6 +146,7 @@ def test_public_fetch_retries_retryable_status_then_fails_closed_on_redirect_and
         "https://example.test/listing",
         max_bytes=100,
         allowed_media_types={"text/html"},
+        allowed_hosts={"example.test"},
         attempts=2,
         backoff_seconds=0.2,
         sleep=slept.append,
@@ -164,6 +168,7 @@ def test_public_fetch_retries_retryable_status_then_fails_closed_on_redirect_and
             "https://example.test/listing",
             max_bytes=100,
             allowed_media_types={"text/html"},
+            allowed_hosts={"example.test", "evil.example"},
             attempts=1,
         )
 
@@ -181,6 +186,7 @@ def test_public_fetch_retries_retryable_status_then_fails_closed_on_redirect_and
             "https://example.test/listing",
             max_bytes=10,
             allowed_media_types={"text/html"},
+            allowed_hosts={"example.test"},
             attempts=1,
         )
 
@@ -200,8 +206,240 @@ def test_public_fetch_retries_retryable_status_then_fails_closed_on_redirect_and
             "https://example.test/listing",
             max_bytes=4,
             allowed_media_types={"text/html"},
+            allowed_hosts={"example.test"},
             attempts=1,
         )
+
+
+def _public_client(handler) -> httpx.Client:
+    return httpx.Client(follow_redirects=False, transport=httpx.MockTransport(handler))
+
+
+def test_429_honors_retry_after_delta_seconds_http_date_and_cap():
+    frozen = datetime(2026, 10, 23, 3, 0, tzinfo=UTC)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(
+                429,
+                headers={"retry-after": "2", "content-type": "text/html"},
+                content=b"wait",
+            )
+        if calls["n"] == 2:
+            return httpx.Response(
+                429,
+                headers={
+                    "retry-after": "Fri, 23 Oct 2026 03:00:05 GMT",
+                    "content-type": "text/html",
+                },
+                content=b"wait",
+            )
+        return httpx.Response(200, headers={"content-type": "text/html"}, content=b"ok")
+
+    slept: list[float] = []
+    _, body = read_public_response(
+        _public_client(handler),
+        "https://example.test/listing",
+        max_bytes=100,
+        allowed_media_types={"text/html"},
+        allowed_hosts={"example.test"},
+        attempts=3,
+        backoff_seconds=0.4,
+        sleep=slept.append,
+        now=lambda: frozen,
+    )
+    assert body == b"ok"
+    assert slept == [2.0, 5.0]
+    assert MAX_RETRY_AFTER_SECONDS == 60
+
+    capped: list[float] = []
+
+    def long_wait(request: httpx.Request) -> httpx.Response:
+        if capped:
+            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"later")
+        return httpx.Response(
+            429,
+            headers={"retry-after": "86400", "content-type": "text/html"},
+            content=b"wait",
+        )
+
+    _, later = read_public_response(
+        _public_client(long_wait),
+        "https://example.test/listing",
+        max_bytes=100,
+        allowed_media_types={"text/html"},
+        allowed_hosts={"example.test"},
+        attempts=2,
+        backoff_seconds=0.4,
+        sleep=capped.append,
+        now=lambda: frozen,
+    )
+    assert later == b"later"
+    assert capped == [float(MAX_RETRY_AFTER_SECONDS)]
+
+    past: list[float] = []
+
+    def already_due(request: httpx.Request) -> httpx.Response:
+        if past:
+            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"due")
+        return httpx.Response(
+            429,
+            headers={
+                "retry-after": "Fri, 23 Oct 2026 02:59:00 GMT",
+                "content-type": "text/html",
+            },
+            content=b"wait",
+        )
+
+    read_public_response(
+        _public_client(already_due),
+        "https://example.test/listing",
+        max_bytes=100,
+        allowed_media_types={"text/html"},
+        allowed_hosts={"example.test"},
+        attempts=2,
+        backoff_seconds=0.4,
+        sleep=past.append,
+        now=lambda: frozen,
+    )
+    assert past == [0.0]
+
+
+def test_429_falls_back_to_backoff_when_retry_after_is_missing_or_invalid():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(429, headers={"content-type": "text/html"}, content=b"wait")
+        if calls["n"] == 2:
+            return httpx.Response(
+                429,
+                headers={"retry-after": "soon", "content-type": "text/html"},
+                content=b"wait",
+            )
+        return httpx.Response(200, headers={"content-type": "text/html"}, content=b"ok")
+
+    slept: list[float] = []
+    read_public_response(
+        _public_client(handler),
+        "https://example.test/listing",
+        max_bytes=100,
+        allowed_media_types={"text/html"},
+        allowed_hosts={"example.test"},
+        attempts=3,
+        backoff_seconds=0.4,
+        sleep=slept.append,
+    )
+    assert slept == [0.4, 0.8]
+
+    other: list[float] = []
+
+    def server_error(request: httpx.Request) -> httpx.Response:
+        if other:
+            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"ok")
+        return httpx.Response(
+            503,
+            headers={"retry-after": "9", "content-type": "text/html"},
+            content=b"busy",
+        )
+
+    read_public_response(
+        _public_client(server_error),
+        "https://example.test/listing",
+        max_bytes=100,
+        allowed_media_types={"text/html"},
+        allowed_hosts={"example.test"},
+        attempts=2,
+        backoff_seconds=0.4,
+        sleep=other.append,
+    )
+    assert other == [0.4]
+
+
+def test_exact_host_allowlist_fails_closed_including_after_redirects():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200, headers={"content-type": "text/html"}, content=b"ok")
+
+    client = _public_client(handler)
+    for url in (
+        "https://example.test.evil.example/listing",
+        "https://evil.example.test/listing",
+        "https://notexample.test/listing",
+        "http://example.test/listing",
+        "https://user@example.test/listing",
+        "https://example.test:8443/listing",
+    ):
+        with pytest.raises(SourceParseError, match="host is not allowed"):
+            read_public_response(
+                client,
+                url,
+                max_bytes=100,
+                allowed_media_types={"text/html"},
+                allowed_hosts={"example.test"},
+                attempts=1,
+            )
+    assert calls["n"] == 0
+    _, body = read_public_response(
+        client,
+        "https://Example.TEST/listing",
+        max_bytes=100,
+        allowed_media_types={"text/html"},
+        allowed_hosts={"example.test"},
+        attempts=1,
+    )
+    assert body == b"ok"
+    assert calls["n"] == 1
+
+    def redirect(location: str):
+        seen = {"n": 0}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["n"] += 1
+            return httpx.Response(302, headers={"location": location})
+
+        return seen, handler
+
+    disallowed, disallowed_handler = redirect("https://evil.example/next")
+    with pytest.raises(SourceParseError, match="redirect host is not allowed"):
+        read_public_response(
+            _public_client(disallowed_handler),
+            "https://example.test/listing",
+            max_bytes=100,
+            allowed_media_types={"text/html"},
+            allowed_hosts={"example.test"},
+            attempts=1,
+        )
+    assert disallowed["n"] == 1
+
+    lookalike, lookalike_handler = redirect("https://example.test.evil.example/next")
+    with pytest.raises(SourceParseError, match="redirect host is not allowed"):
+        read_public_response(
+            _public_client(lookalike_handler),
+            "https://example.test/listing",
+            max_bytes=100,
+            allowed_media_types={"text/html"},
+            allowed_hosts={"example.test"},
+            attempts=1,
+        )
+    assert lookalike["n"] == 1
+
+    same_host, same_host_handler = redirect("/next")
+    with pytest.raises(SourceParseError, match="redirects are not followed"):
+        read_public_response(
+            _public_client(same_host_handler),
+            "https://example.test/listing",
+            max_bytes=100,
+            allowed_media_types={"text/html"},
+            allowed_hosts={"example.test"},
+            attempts=1,
+        )
+    assert same_host["n"] == 1
 
 
 def test_data_center_rows_can_be_signals_and_bare_generation_stays_evidence():

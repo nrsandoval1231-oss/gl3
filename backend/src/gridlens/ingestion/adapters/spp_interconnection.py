@@ -23,6 +23,7 @@ from gridlens.ingestion.adapters.public_source_http import read_public_response
 
 SOURCE_ID = "spp-thermal-interconnection"
 QUEUE_URL = "https://opsportal.spp.org/Studies/GenerateActiveCSV"
+HOST = "opsportal.spp.org"
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_QUEUE_ROWS = 5000
 MAX_RECORDS = 200
@@ -212,6 +213,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             QUEUE_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"text/csv"},
+            allowed_hosts=frozenset({HOST}),
         )
         updated, rows = parse_queue(body)
         return [_record(row, updated) for row in rows]
