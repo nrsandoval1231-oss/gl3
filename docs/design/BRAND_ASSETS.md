@@ -1,32 +1,36 @@
-# GridLens brand assets · v1.0
+# GridLens brand — canonical 2026-10-23
 
-This is the production asset set for the approved Aperture identity. The owner-provided brand sheet is preserved at [`references/brand-system.webp`](references/brand-system.webp); generated assets live in [`../../web/public/brand/`](../../web/public/brand/). Source geometry and export settings live in [`../../tools/brand/generate.py`](../../tools/brand/generate.py).
+**Status:** owner approved. This supersedes the former Aperture, gold, orange, Signal Blue, and ABC Diatype brand directions.
 
-## Core identity
+## Source of truth
+The final seven-color brand board approved in the October 23 design conversation is the visual master. The generated mockup is a *visual reference*, not a production-grade vector master. Do not approximate or substitute a new symbol and claim exact equivalence. Before replacing binary assets, trace and visually verify the precise G/hidden-L segmentation against the approved reference.
 
-The Aperture consists of four engineered pieces around an unpainted central diamond and narrow vertical openings. Keep its proportions, negative space, and upright orientation intact. The SVG is the master for new sizes; use PNG or WebP where vectors are unsupported. The outlined wordmark is self-contained in the lockup SVGs.
+## Seven colors
+- harbor navy: `#0B1F33`
+- deep slate: `#23384C`
+- slate steel: `#607F88`
+- sea cliff: `#6E909A`
+- driftwood gray: `#A9B4BC`
+- fog: `#E8ECEF`
+- graphite: `#1E2A33`
 
-| Need | Asset |
-| --- | --- |
-| Main logo on a light surface | `lockup-horizontal-navy.svg` |
-| Main logo on a dark surface | `lockup-horizontal-white.svg` |
-| Narrow compositions | `lockup-stacked-navy.svg`, `lockup-stacked-white.svg` |
-| Standalone symbol outside the product UI | `aperture-gradient.svg`, `aperture-navy.svg`, `aperture-white.svg` |
-| Dark and light application icon | `app-icon-dark.svg`, `app-icon-light.svg` |
-| Browser favicon | `favicon.svg`, `favicon.ico`, `favicon-{16,32,48}.png` |
-| Installed app and touch icon | `icon-192.png`, `icon-512.png`, `apple-touch-icon-180.png` |
-| Raster sharing and presentation | `*-1024.png`, `*-1024.webp`, `lockup-horizontal-*-1100.png`, `lockup-horizontal-*-1100.webp` |
+## Typography
+- Sora: headings and display.
+- Inter: body, tables, and UI.
+- Approved wordmark: thin, generously spaced uppercase GRID LENS as shown in the visual reference. Do not reuse the old bold title treatment.
 
-The app icon is a square with its own navy or white background. The standalone mark and lockups have transparent backgrounds. `site.webmanifest` points to the installable icons.
+## Product interface rules
+- White/light product workspace, horizontal top navigation only; **no left toolbar/sidebar**.
+- KPI cards and quick filters across top; dense ranked opportunity table left; selected customer intelligence details right.
+- No maps, photography, or decorative images in the product UI.
+- Use the approved navy/slate/steel palette consistently, with restrained status colors and accessible contrast.
+- Keep existing data, routes, functionality, and evidence intact during the rebrand.
 
-## Application rules
+## Required migration before merging
+1. Replace legacy `web/public/brand/aperture-*`, `lockup-*`, favicon and app icons with traced, reviewed final mark variants, including dark/light SVG and raster exports.
+2. Update `tools/brand/generate.py`, manifest and all component logo references; remove obsolete artifacts only after references are migrated.
+3. Audit `web/src/styles`, components, docs and tests for conflicting colors, font declarations, old logo references, sidebar layout and photographic UI.
+4. Verify pixel-level logo fidelity, both light and dark treatments, typography licenses, responsive screenshots, contrast, builds and tests.
+5. Remove contradictory brand instructions from active docs; archive historical decisions rather than deleting unrelated evidence.
 
-The October21 [UI canon](UI_CANON.md) restores the dark navy header and selective Signal Blue accents from the owner screenshot. Use an existing light-on-dark Aperture lockup once at the top left. Preserve all original masters; do not regenerate or approximate a new logo. Silver/orange v3 presentation rules are superseded for this workspace.
-
-The palette is Deep Current #101F2D, GridLens Navy #17324A, Steel Blue #395A75, Atmosphere #6F879D, Mist #D5DEE5, Ice #F3F6F7, White #FFFFFF and selective Signal Blue #3B82F6. See [tokens](brand.tokens.json).
-
-## Typography and reproducibility
-
-The brand sheet specifies ABC Diatype. That commercial font is not included in this repository. The supplied lockup exports use outlined DejaVu Sans Bold as a self-contained approximation, so the wordmark will not depend on installed fonts. Replace the wordmark outline from an authorized ABC Diatype source when the licensed master is available; the Aperture geometry and palette remain the same. The DejaVu font license is included in `../../web/public/brand/FONT-LICENSE.txt`.
-
-Run `python3 tools/brand/generate.py` from the repository root with Pillow, NumPy, fontTools and DejaVu Sans Bold installed to regenerate the exports. The generator does not need any old GridLens code.
+**Migration warning:** Existing legacy SVG/PNG assets remain in the repository until exact replacement assets are ready. This branch establishes the canonical spec and token foundation, not a completed visual rebrand.
