@@ -24,6 +24,7 @@ from gridlens.domain.commercial_triage import _priority, work_group_identity
 from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
 from gridlens.domain.lifecycle import INDUSTRIAL_ASSET_VALUES
 from gridlens.domain.ranking import RANKING_VERSION
+from gridlens.domain.regional_scope import REGIONAL_POLICY_VERSION
 from gridlens.intelligence.opportunity_browse import (
     normalized,
     normalized_dimension,
@@ -54,13 +55,20 @@ def _policy_fingerprint() -> str:
     # mixed application revisions cannot label each other's generations current.
     root = Path(__file__).resolve().parents[1]
     digest = hashlib.sha256()
+    digest.update(
+        (
+            Path(__file__).resolve().parents[4] / "config" / "sources" / "registry.v1.json"
+        ).read_bytes()
+    )
     for path in sorted(root.rglob("*.py")):
         digest.update(str(path.relative_to(root)).encode())
         digest.update(path.read_bytes())
     return digest.hexdigest()
 
 
-POLICY_VERSION = f"browse-b1-v1/{RANKING_VERSION}/{_policy_fingerprint()}"
+POLICY_VERSION = (
+    f"browse-b1-v1/{RANKING_VERSION}/{REGIONAL_POLICY_VERSION}/{_policy_fingerprint()[:24]}"
+)
 BUILD_LOCK = 643119021
 
 

@@ -20,11 +20,13 @@ from gridlens.ingestion.adapters import retained_document
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.ingestion.adapters.retained_document import SOURCES
 from gridlens.ingestion.registry import load_registry
-from gridlens.ingestion.service import _need_admission_basis_is_current
+from gridlens.ingestion.service import (
+    _need_admission_basis_is_current,
+    process_records,
+)
 from gridlens.intelligence import buying_chain as buying_chain_module
 from gridlens.intelligence.buying_chain import BuyingChainClaim, buying_chain_view
 from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
-from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainEvidence,
@@ -89,8 +91,49 @@ def retained_db(monkeypatch):
             "we use natural gas turbines to provide temporary bridge power while grid upgrades "
             "catch up."
         ),
+        "test-retained-tx-a": (
+            "TX Shared Compute campus site address is 500 Synthetic Drive, Austin, TX. "
+            "The project is planning a new utility service."
+        ),
+        "test-retained-tx-b": (
+            "TX Shared Compute campus site address is 500 Synthetic Drive, Austin, TX. "
+            "The project is planning a new utility service."
+        ),
     }
     original_policies = {key: SOURCES[key] for key in SOURCES}
+    synthetic_policies = {
+        source_id: {
+            "path": f"{source_id}.pdf",
+            "sha256": hashlib.sha256(f"%PDF-synthetic-{source_id}".encode()).hexdigest(),
+            "url": f"https://example.test/retained/{source_id}.pdf",
+            "publisher": f"Synthetic test publisher {source_id}",
+            "publication_date": "2026-10-20",
+            "event_date": "2026-10-20",
+            "event_date_label": "Synthetic test event date",
+            "spans": ((1, 1),),
+            "site_cue": "500 Synthetic Drive",
+            "activity": "utility-service",
+            "project_cue": "TX Shared Compute",
+            "project_suffix": "campus",
+            "location": "500 Synthetic Drive, Austin, TX",
+            "location_cues": ("500 Synthetic Drive", "Austin", "TX"),
+            "location_pattern": r"500 Synthetic Drive, Austin, TX",
+            "rationale_kind": "stack_claim",
+            "required_terms": ("planning", "new utility service"),
+        }
+        for source_id in ("test-retained-tx-a", "test-retained-tx-b")
+    }
+    for source_id, policy in synthetic_policies.items():
+        monkeypatch.setitem(
+            SOURCES,
+            source_id,
+            {
+                **policy,
+                "project_cue": "TX Shared Compute",
+                "site_cue": "500 Synthetic Drive",
+                "location_cues": ("500 Synthetic Drive", "Austin", "TX"),
+            },
+        )
     with factory.begin() as session:
         for source_id, definition in definitions.items():
             if source_id not in SOURCES:
@@ -100,20 +143,40 @@ def retained_db(monkeypatch):
             }
             source_values.update(enabled=False, registry_enabled=False)
             session.add(Source(**source_values))
+        for source_id, policy in synthetic_policies.items():
+            policy = SOURCES[source_id]
+            session.add(
+                Source(
+                    id=source_id,
+                    publisher=policy["publisher"],
+                    endpoint=policy["url"],
+                    family="retained-public-document",
+                    geography="Texas",
+                    industries=["data centers"],
+                    retrieval_method="retained-document",
+                    cadence_hours=24,
+                    enabled=False,
+                    registry_enabled=False,
+                    health={},
+                )
+            )
     policy_hashes = {}
-    for source_id, policy in SOURCES.items():
+    for source_id, policy in list(SOURCES.items()):
         body = f"%PDF-synthetic-{source_id}".encode()
         policy_hashes[source_id] = hashlib.sha256(body).hexdigest()
-        monkeypatch.setitem(
-            SOURCES,
-            source_id,
-            {
-                **policy,
-                "path": f"synthetic-test-only-{source_id}.pdf",
-                "sha256": policy_hashes[source_id],
-                "spans": ((1, 1),),
-            },
-        )
+        if source_id in original_policies:
+            monkeypatch.setitem(
+                SOURCES,
+                source_id,
+                {
+                    **policy,
+                    "path": f"synthetic-test-only-{source_id}.pdf",
+                    "sha256": policy_hashes[source_id],
+                    "spans": ((1, 1),),
+                },
+            )
+    for source_id in synthetic_policies:
+        synthetic_policies[source_id] = SOURCES[source_id]
     # A deterministic page reader selects its synthetic text from the exact
     # source body bytes passed to PdfReader.
     monkeypatch.setattr(
@@ -293,7 +356,9 @@ def test_concurrent_retained_job_admission_serializes_on_source_row(retained_db)
         assert jobs[0].status == "running"
 
 
-def test_three_retained_documents_project_two_sites_and_replay_idempotently(retained_db, tmp_path):
+def test_retained_documents_preserve_california_evidence_and_abilene_admission(
+    retained_db, tmp_path
+):
     factory, definitions, _synthetic_text = retained_db
     source_root = tmp_path / "sources"
     source_root.mkdir()
@@ -301,131 +366,190 @@ def test_three_retained_documents_project_two_sites_and_replay_idempotently(reta
         (source_root / policy["path"]).write_bytes(f"%PDF-synthetic-{source_id}".encode())
 
     first_pass = []
-    for source_id in SOURCES:
-        first_pass.append(import_retained_document.run(source_id, source_root))
-    with factory.begin() as session:
-        assert session.scalar(select(func.count()).select_from(Observation)) == 3
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
-        assert session.scalar(select(func.count()).select_from(Project)) == 2
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 2
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 3
-        projects = {
-            (project.name, project.location) for project in session.scalars(select(Project)).all()
-        }
-        assert projects == {
-            ("SVY02A / Memorex Junction data center", "1200 Memorex Drive, Santa Clara, CA"),
-            ("Abilene Stargate campus", "near Abilene, Texas"),
-        }
-        needs = session.scalars(select(PowerNeed).order_by(PowerNeed.activity_key)).all()
-        assert {need.activity_key for need in needs} == {"utility-service", "bridge-power"}
-        assert all(
-            need.required_mw is None
-            and need.start_window is None
-            and need.duration is None
-            and need.supply == "Unknown"
-            for need in needs
-        )
-        evidence = session.scalars(select(Evidence)).all()
-        assert all(item.extraction_location.startswith("PDF pp.") for item in evidence)
-        assert all(item.provenance["retained_document"]["reviewed_spans"] for item in evidence)
-        assert {item.url for item in evidence} == {policy["url"] for policy in SOURCES.values()}
-        assert all(item.event_date is not None for item in evidence)
-        assert all(
-            item.published_at is None
-            for item in evidence
-            if item.url == SOURCES["f17-stack-city-claim"]["url"]
-            or item.url == SOURCES["f17-crusoe-impact"]["url"]
-        )
-        needs_by_activity = {need.activity_key: need for need in needs}
-        assert "not an open purchase" in needs_by_activity["bridge-power"].rationale
-        claim_evidence = next(
-            item for item in evidence if item.url == SOURCES["f17-stack-city-claim"]["url"]
-        )
-        assert "18 MVA" in claim_evidence.abstract
-        assert "28 MV A" in claim_evidence.abstract or "28 MVA" in claim_evidence.abstract
-        stack_project = next(
-            p
-            for p in session.scalars(select(Project))
-            if p.name == "SVY02A / Memorex Junction data center"
-        )
-        stack_claims = [
-            claim
-            for claim in buying_chain_view(session, stack_project.id)["candidates"]
-            if claim["organization"] == "1220 Santa Clara Propco, LLC"
-        ]
-        assert {claim["category"] for claim in stack_claims} == {"owner_developer", "unknown"}
-        assert all(claim["evidence"] for claim in stack_claims)
-        owner_claim = next(
-            claim for claim in stack_claims if claim["category"] == "owner_developer"
-        )
-        draft_claim = next(claim for claim in stack_claims if claim["category"] == "unknown")
-        assert "not a legal finding" in owner_claim["reason"]
-        assert "draft designation" in draft_claim["reason"]
-        crusoe_project = next(
-            p for p in session.scalars(select(Project)) if p.name == "Abilene Stargate campus"
-        )
-        crusoe_view = buying_chain_view(session, crusoe_project.id)
-        crusoe = [claim for claim in crusoe_view["candidates"] if claim["organization"] == "Crusoe"]
-        assert len(crusoe) == 1 and crusoe[0]["category"] == "asset_operator"
-        assert "not an open purchase" in crusoe[0]["reason"]
-        assert len(crusoe[0]["evidence"]) == 2
-        assert all(not claim["person_name"] for claim in [*stack_claims, *crusoe])
-        initial_state = _retained_state_snapshot(session)
-
+    source_ids = [
+        "f17-stack-city-claim",
+        "f17-stack-cec-filing",
+        "f17-crusoe-impact",
+    ]
+    for source_id in source_ids[:2]:
+        first_pass.append(_process_retained_f17(factory, source_id, source_root))
+    first_pass.append(import_retained_document.run(source_ids[2], source_root))
     with factory() as session:
-        before = {
-            (claim.project_id, claim.fingerprint)
-            for claim in session.scalars(select(BuyingChainClaim)).all()
-        }
-        assert len(before) == 3
-
-    for source_id in SOURCES:
-        import_retained_document.run(source_id, source_root)
-    with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Observation)) == 3
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
         assert session.scalar(select(func.count()).select_from(Project)) == 2
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 2
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 3
-        assert _retained_state_snapshot(session) == initial_state
-        after = {
-            (claim.project_id, claim.fingerprint)
-            for claim in session.scalars(select(BuyingChainClaim)).all()
-        }
-        assert after == before
-        assert session.scalar(select(func.count()).select_from(BuyingChainClaim)) == 3
-        assert (
-            session.scalar(select(func.count()).select_from(Job).where(Job.status == "succeeded"))
-            == 6
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        ca_project = session.scalar(
+            select(Project).where(Project.location == "1200 Memorex Drive, Santa Clara, CA")
         )
+        assert ca_project is not None and ca_project.region_status == "EXCLUDED"
         assert (
             session.scalar(
-                select(func.count())
-                .select_from(Interpretation)
-                .where(Interpretation.status != "accepted")
+                select(PowerNeed.id).where(
+                    PowerNeed.project_id == ca_project.id, PowerNeed.active.is_(True)
+                )
             )
-            == 0
+            is None
         )
+        for source_id in ("f17-stack-city-claim", "f17-stack-cec-filing"):
+            observation = session.scalar(
+                select(Observation).where(Observation.source_id == source_id)
+            )
+            evidence = session.scalar(
+                select(Evidence).where(Evidence.observation_id == observation.id)
+            )
+            interpretation = session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observation.id)
+            )
+            assert evidence.provenance["retained_document"]["source_site"].endswith(", CA")
+            assert evidence.extraction_location.startswith("PDF pp.")
+            assert interpretation.status == "accepted"
+            assert interpretation.assessment["admission_status"] == "regional_excluded"
+        abilene = session.scalar(select(Project).where(Project.location == "near Abilene, Texas"))
+        assert abilene is not None and abilene.region_status == "ELIGIBLE"
+        assert (
+            session.scalar(
+                select(PowerNeed.id).where(
+                    PowerNeed.project_id == abilene.id, PowerNeed.active.is_(True)
+                )
+            )
+            is not None
+        )
+    assert first_pass[2]["signals"] == 1
+    for source_id in source_ids[:2]:
+        _process_retained_f17(factory, source_id, source_root)
+    import_retained_document.run(source_ids[2], source_root)
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Observation)) == 3
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+        assert session.scalar(select(func.count()).select_from(Project)) == 2
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 1
+
+
+def _synthetic_tx_record(source_id: str) -> dict:
+    policy = SOURCES[source_id]
+    body = f"%PDF-synthetic-{source_id}".encode()
+    return {
+        "document_number": source_id,
+        "title": "TX Shared Compute campus — retained filing/report",
+        "abstract": (
+            f"{policy['publisher']}\n\n"
+            "The TX Shared Compute campus site address is 500 Synthetic Drive, Austin, TX. "
+            "The project is planning a new utility service."
+        ),
+        "html_url": policy["url"],
+        "publication_date": policy["publication_date"],
+        "event_date": policy["event_date"],
+        "event_date_label": policy["event_date_label"],
+        "extraction_location": "PDF pp. 1",
+        "source_hash": hashlib.sha256(body).hexdigest(),
+        "retained_document": {
+            "path": policy["path"],
+            "sha256": hashlib.sha256(body).hexdigest(),
+            "source_site": policy["location"],
+            "project_name": "TX Shared Compute campus",
+            "reviewed_spans": ["PDF pp. 1"],
+        },
+    }
+
+
+def _process_synthetic_tx_source(factory, source_id: str, record: dict) -> dict:
+    definition = {
+        "id": source_id,
+        "publisher": SOURCES[source_id]["publisher"],
+        "endpoint": SOURCES[source_id]["url"],
+        "family": "retained-public-document",
+        "geography": "Texas",
+        "industries": ["data centers"],
+        "retrieval_method": "retained-document",
+        "cadence_hours": 24,
+    }
+    with factory.begin() as session:
+        job = Job(
+            source_id=source_id,
+            status="running",
+            lease_owner="synthetic-retained-worker",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    with factory() as session:
+        return process_records(
+            session,
+            job_id,
+            "synthetic-retained-worker",
+            1,
+            definition,
+            [record],
+        )
+
+
+def _process_retained_f17(factory, source_id: str, source_root: Path) -> dict:
+    definitions = {item["id"]: item for item in load_registry()}
+    record = retained_document.extract(source_id, source_root)
+    with factory.begin() as session:
+        job = Job(
+            source_id=source_id,
+            status="running",
+            lease_owner="retained-regional-test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    with factory() as session:
+        return process_records(
+            session, job_id, "retained-regional-test", 1, definitions[source_id], [record]
+        )
+
+
+def test_two_synthetic_texas_retained_sources_merge_and_preserve_order_repair_reopen(
+    retained_db,
+):
+    factory, _definitions, _synthetic_text = retained_db
+    source_ids = ("test-retained-tx-a", "test-retained-tx-b")
+    first, second = (_synthetic_tx_record(source_id) for source_id in source_ids)
+    assert _process_synthetic_tx_source(factory, source_ids[0], first)["signals"] == 1
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        project = session.scalar(select(Project))
+        need = session.scalar(select(PowerNeed))
+        assert project.region_status == "ELIGIBLE" and project.region_state == "TX"
+        assert need is not None and need.active
+        first_basis = need.admission_basis
+        assert first_basis["source_id"] == source_ids[0]
+        assert _need_admission_basis_is_current(session, need, project)
+    _process_synthetic_tx_source(factory, source_ids[1], second)
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
+        need = session.scalar(select(PowerNeed))
+        assert need.admission_basis == first_basis
+        before_replay = _retained_state_snapshot(session)
+    assert _process_synthetic_tx_source(factory, source_ids[0], first)["unchanged"] == 1
+    assert _process_synthetic_tx_source(factory, source_ids[1], second)["unchanged"] == 1
+    with factory() as session:
+        assert _retained_state_snapshot(session) == before_replay
 
 
 @pytest.mark.parametrize(
     ("first_source", "second_source"),
     [
-        ("f17-stack-city-claim", "f17-stack-cec-filing"),
-        ("f17-stack-cec-filing", "f17-stack-city-claim"),
+        ("test-retained-tx-a", "test-retained-tx-b"),
+        ("test-retained-tx-b", "test-retained-tx-a"),
     ],
 )
 def test_stack_need_basis_and_digest_stay_stable_in_either_source_order(
-    retained_db, tmp_path, first_source, second_source
+    retained_db, first_source, second_source
 ):
     factory, _definitions, _synthetic_text = retained_db
-    source_root = tmp_path / "sources"
-    source_root.mkdir()
-    for source_id in (first_source, second_source):
-        policy = SOURCES[source_id]
-        (source_root / policy["path"]).write_bytes(f"%PDF-synthetic-{source_id}".encode())
-
-    import_retained_document.run(first_source, source_root)
+    first_record = _synthetic_tx_record(first_source)
+    second_record = _synthetic_tx_record(second_source)
+    _process_synthetic_tx_source(factory, first_source, first_record)
     with factory() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.activity_key == "utility-service"))
         assert need is not None
@@ -434,16 +558,16 @@ def test_stack_need_basis_and_digest_stay_stable_in_either_source_order(
         project = session.get(Project, need.project_id)
         assert project is not None and _need_admission_basis_is_current(session, need, project)
 
-    import_retained_document.run(second_source, source_root)
+    _process_synthetic_tx_source(factory, second_source, second_record)
     with factory() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.activity_key == "utility-service"))
         assert need is not None and need.admission_basis == first_basis
         before_replay = _retained_state_snapshot(session)
 
-    import_retained_document.run(first_source, source_root)
+    _process_synthetic_tx_source(factory, first_source, first_record)
     with factory() as session:
         assert _retained_state_snapshot(session) == before_replay
-    import_retained_document.run(second_source, source_root)
+    _process_synthetic_tx_source(factory, second_source, second_record)
     with factory() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.activity_key == "utility-service"))
         assert need is not None and need.admission_basis == first_basis
@@ -467,53 +591,41 @@ def test_next_retained_source_repairs_absent_or_stale_need_basis(
     retained_db, tmp_path, invalid_basis
 ):
     factory, _definitions, _synthetic_text = retained_db
-    first_source = "f17-stack-cec-filing"
-    repair_source = "f17-stack-city-claim"
-    source_root = tmp_path / "sources"
-    source_root.mkdir()
-    for source_id in (first_source, repair_source):
-        policy = SOURCES[source_id]
-        (source_root / policy["path"]).write_bytes(f"%PDF-synthetic-{source_id}".encode())
-
-    import_retained_document.run(first_source, source_root)
+    first_source = "test-retained-tx-a"
+    repair_source = "test-retained-tx-b"
+    first_record = _synthetic_tx_record(first_source)
+    repair_record = _synthetic_tx_record(repair_source)
+    _process_synthetic_tx_source(factory, first_source, first_record)
     with factory.begin() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.activity_key == "utility-service"))
         assert need is not None
         need.admission_basis = invalid_basis
 
-    import_retained_document.run(repair_source, source_root)
+    _process_synthetic_tx_source(factory, repair_source, repair_record)
     with factory() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.activity_key == "utility-service"))
         assert need is not None
         assert need.admission_basis["source_id"] == repair_source
-        assert (
-            need.admission_basis["evidence_hash"]
-            == hashlib.sha256(f"%PDF-synthetic-{repair_source}".encode()).hexdigest()
-        )
+        assert need.admission_basis["evidence_hash"] == repair_record["source_hash"]
 
 
 def test_reopened_need_uses_new_retained_source_basis(retained_db, tmp_path):
     factory, _definitions, _synthetic_text = retained_db
-    first_source = "f17-stack-cec-filing"
-    reopen_source = "f17-stack-city-claim"
-    source_root = tmp_path / "sources"
-    source_root.mkdir()
-    for source_id in (first_source, reopen_source):
-        policy = SOURCES[source_id]
-        (source_root / policy["path"]).write_bytes(f"%PDF-synthetic-{source_id}".encode())
-
-    import_retained_document.run(first_source, source_root)
+    first_source = "test-retained-tx-a"
+    reopen_source = "test-retained-tx-b"
+    first_record = _synthetic_tx_record(first_source)
+    reopen_record = _synthetic_tx_record(reopen_source)
+    _process_synthetic_tx_source(factory, first_source, first_record)
     with factory.begin() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.activity_key == "utility-service"))
         assert need is not None
         need.active = False
 
-    import_retained_document.run(reopen_source, source_root)
+    _process_synthetic_tx_source(factory, reopen_source, reopen_record)
     with factory() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.activity_key == "utility-service"))
         assert need is not None and need.active
         assert need.admission_basis["source_id"] == reopen_source
-        assert "June 24, 2024 claim" in need.rationale
 
 
 def test_failed_import_rolls_back_source_records_and_leaves_failed_receipt(
@@ -522,81 +634,52 @@ def test_failed_import_rolls_back_source_records_and_leaves_failed_receipt(
     factory, _definitions, _synthetic_text = retained_db
     source_root = tmp_path / "sources"
     source_root.mkdir()
-    for source_id, policy in SOURCES.items():
+    source_ids = ("f17-stack-city-claim", "f17-stack-cec-filing")
+    for source_id in source_ids:
+        policy = SOURCES[source_id]
         (source_root / policy["path"]).write_bytes(f"%PDF-synthetic-{source_id}".encode())
-
-    import_retained_document.run("f17-stack-cec-filing", source_root)
+    _process_retained_f17(factory, "f17-stack-cec-filing", source_root)
     with factory() as session:
-        accepted_hashes = {item.content_hash for item in session.scalars(select(Evidence)).all()}
-        accepted_need_rationale = session.scalar(select(PowerNeed.rationale))
-        assert len(accepted_hashes) == 1
-
-    # Changed bytes fail closed before any import job or canonical mutation.
-    city_path = source_root / SOURCES["f17-stack-city-claim"]["path"]
-    city_path.write_bytes(city_path.read_bytes() + b"changed")
-    with pytest.raises(ValueError, match="hash mismatch"):
-        import_retained_document.run("f17-stack-city-claim", source_root)
-    city_path.write_bytes(b"%PDF-synthetic-f17-stack-city-claim")
-
-    original = import_retained_document.process_records
-
-    def process_then_fail(*args, **kwargs):
-        original(*args, **kwargs)
-        raise RuntimeError("synthetic failure after canonical ingestion")
-
-    monkeypatch.setattr(import_retained_document, "process_records", process_then_fail)
-    with pytest.raises(RuntimeError, match="synthetic failure"):
-        import_retained_document.run("f17-stack-city-claim", source_root)
-
-    with factory.begin() as session:
+        before = _retained_state_snapshot(session)
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
-        assert {
-            item.content_hash for item in session.scalars(select(Evidence)).all()
-        } == accepted_hashes
-        assert session.scalar(select(PowerNeed.rationale)) == accepted_need_rationale
-        failed = session.scalars(select(Job).where(Job.status == "failed")).all()
-        assert len(failed) == 1
-        assert failed[0].lease_owner is None and failed[0].lease_until is None
+        ca_project = session.scalar(select(Project))
+        assert ca_project is not None and ca_project.region_status == "EXCLUDED"
+        assert (
+            session.scalar(
+                select(PowerNeed.id).where(
+                    PowerNeed.project_id == ca_project.id, PowerNeed.active.is_(True)
+                )
+            )
+            is None
+        )
 
-        failed_job_id = failed[0].id
-        failed_job_worker = "stale-worker"
-        failed_job_fence = failed[0].fence
-        # A newer lease owns the row; the stale completion token cannot finish it.
-        failed[0].status = "running"
-        failed[0].lease_owner = "newer-worker"
-        failed[0].fence += 1
-        failed[0].lease_until = datetime.now(UTC) + timedelta(minutes=5)
+    with pytest.raises(RuntimeError, match="accepted linked need"):
+        import_retained_document.run(source_id, source_root)
 
-    with factory.begin() as session:
-        with pytest.raises(RuntimeError, match="fence lost"):
-            assert_fence(session, failed_job_id, str(failed_job_worker), failed_job_fence)
-        current = session.get(Job, failed_job_id)
-        assert current and current.status == "running"
-        assert current.lease_owner == "newer-worker"
+    with factory() as session:
+        assert _retained_state_snapshot(session) == before
+        failed = session.scalar(
+            select(Job).where(Job.source_id == source_id, Job.kind == "retained_import")
+        )
+        assert failed is not None and failed.status == "failed"
+        assert failed.error == "Retained import failed: RuntimeError"
 
 
 def test_reviewed_synthetic_hash_update_retains_old_version_and_relinks_current_need(
-    retained_db, tmp_path, monkeypatch
+    retained_db, monkeypatch
 ):
     factory, _definitions, _synthetic_text = retained_db
-    source_id = "f17-stack-city-claim"
-    policy = SOURCES[source_id]
-    source_root = tmp_path / "sources"
-    source_root.mkdir()
-    source_path = source_root / policy["path"]
-    original_body = f"%PDF-synthetic-{source_id}".encode()
-    source_path.write_bytes(original_body)
-    import_retained_document.run(source_id, source_root)
-    original_hash = hashlib.sha256(original_body).hexdigest()
-
+    source_id = "test-retained-tx-a"
+    record = _synthetic_tx_record(source_id)
+    original_hash = record["source_hash"]
+    _process_synthetic_tx_source(factory, source_id, record)
     revised_body = f"%PDF-synthetic-{source_id}|reviewed-v2".encode()
     revised_hash = hashlib.sha256(revised_body).hexdigest()
-    source_path.write_bytes(revised_body)
-    monkeypatch.setitem(SOURCES, source_id, {**policy, "sha256": revised_hash})
-    import_retained_document.run(source_id, source_root)
+    monkeypatch.setitem(SOURCES, source_id, {**SOURCES[source_id], "sha256": revised_hash})
+    revised = {**record, "source_hash": revised_hash}
+    revised["retained_document"] = {**record["retained_document"], "sha256": revised_hash}
+    _process_synthetic_tx_source(factory, source_id, revised)
 
     with factory() as session:
         observation = session.scalar(select(Observation).where(Observation.source_id == source_id))

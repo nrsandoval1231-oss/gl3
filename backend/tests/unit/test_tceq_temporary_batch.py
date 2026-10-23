@@ -83,16 +83,25 @@ def test_unnamed_temporary_plant_stays_evidence():
     assert result["decision"] == "rejected"
 
 
-def test_retrieve_withholds_failed_notices_and_fails_when_most_fail():
+def test_retrieve_withholds_failed_notices_and_reports_partial_snapshot(monkeypatch):
+    monkeypatch.setattr("gridlens.ingestion.adapters.tceq_http._public_ip", lambda _host: "8.8.8.8")
+
     def handler(request: httpx.Request) -> httpx.Response:
-        if str(request.url) == LISTING_URL:
-            return httpx.Response(200, content=FIXTURE.read_bytes())
+        if request.url.path == httpx.URL(LISTING_URL).path:
+            return httpx.Response(
+                200, headers={"content-type": "text/html"}, content=FIXTURE.read_bytes()
+            )
         return httpx.Response(404)
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    with pytest.raises(SourceParseError, match="failed for 2 of 2"):
-        retrieve({"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_notices": 5}}, client)
+    failed = retrieve(
+        {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_notices": 5}}, client
+    )
+    assert len(failed) == 2 and all(
+        r["partial_snapshot"] and r["rejected_record"]["error_code"] == "http_status_404"
+        for r in failed
+    )
     records = retrieve(
         {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_notices": 0}}, client
     )
-    assert len(records) == 2 and all(r["presence_only"] for r in records)
+    assert len(records) == 2 and all(r["presence_only"] and r["partial_snapshot"] for r in records)

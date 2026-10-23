@@ -275,12 +275,33 @@ def test_absence_is_recorded_once_and_return_is_recorded(db):
 def test_process_job_reconciles_only_declared_complete_snapshots(db, monkeypatch):
     factory, needs, job_id = db
     seen = []
+
+    def listed_record(identity):
+        return {
+            "document_number": identity,
+            "title": f"Permit {identity}",
+            "html_url": f"https://example.gov/{identity}",
+            "extraction_location": "permit record",
+            "publication_date": None,
+        }
+
     monkeypatch.setattr(
         service,
         "retrieve_source",
         lambda *_args: [
-            {"document_number": "a"},
-            {"document_number": "b", "presence_only": True},
+            listed_record("a"),
+            {
+                **listed_record("b"),
+                "presence_only": True,
+                "rejected_record": {
+                    "identity": "b",
+                    "stage": "public_acquisition",
+                    "error_code": "source_parse_error",
+                    "selected_fields": [],
+                    "omitted_fields": ["record_body"],
+                    "raw": {},
+                },
+            },
         ],
     )
     monkeypatch.setattr(
@@ -298,9 +319,10 @@ def test_process_job_reconciles_only_declared_complete_snapshots(db, monkeypatch
             session, job_id, "test", 1, {**definition, "snapshot_complete": True}
         )
         # Presence-only rows are withheld from processing but still count as listed.
-        assert seen[-1] == [{"document_number": "a"}]
-        assert counts["absent_from_snapshot"] == 0
-    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [{"document_number": "a"}])
+        assert seen[-1] == [listed_record("a")]
+        assert counts["partial"] is True
+        assert "absent_from_snapshot" not in counts
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [listed_record("a")])
     with factory() as session:
         counts = service.process_job(
             session, job_id, "test", 1, {**definition, "snapshot_complete": True}

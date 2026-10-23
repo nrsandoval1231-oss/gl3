@@ -1,4 +1,5 @@
-from datetime import UTC, date, datetime
+import time
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import pytest
@@ -6,6 +7,7 @@ import pytest
 from gridlens.ingestion.adapters import boston_permits, socrata_permits
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.registry import load_registry
+from gridlens.ingestion.structured_collection import _new_window
 
 
 def _definition(source_id: str) -> dict:
@@ -28,6 +30,89 @@ def _seattle_row(row_id: int, day: date) -> dict:
         "originaladdress1": "1 Main Street",
         "link": "https://services.seattle.gov/permits/1",
     }
+
+
+def _austin_row(row_id: int, day: date) -> dict:
+    return {
+        "permit_number": f"BP{row_id:05d}",
+        "issue_date": f"{day.isoformat()}T12:00:00.000",
+        "statusdate": f"{day.isoformat()}T12:30:00.000",
+        "description": "Commercial electrical construction",
+        "permit_class_mapped": "Commercial",
+        "work_class": "Electrical",
+        "permit_type_desc": "Electrical Permit",
+        "status_current": "Issued",
+        "original_address1": "1 Main Street",
+        "original_city": "Austin",
+        "original_state": "TX",
+        "link": "https://data.austintexas.gov/permits/1",
+        "project_id": "p-1",
+        "total_job_valuation": "10000",
+        "total_new_add_sqft": "1000",
+    }
+
+
+def test_modified_recent_window_honors_configured_window_days():
+    source = _definition("chicago-building-permits")
+    today = datetime.now(UTC).date()
+    source["query"]["modified_window_days"] = 2
+    assert _new_window("modified_recent", today, 90, source) == (today - timedelta(days=1), today)
+
+
+@pytest.mark.parametrize("lane", ["issue_recent", "modified_recent"])
+def test_austin_sparse_recent_range_completes_seven_days_in_one_segment(lane):
+    source = _definition("austin-building-permits")
+    today = datetime.now(UTC).date()
+    start = today - timedelta(days=6)
+    rows = [_austin_row(index, start + timedelta(days=index)) for index in range(7)]
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        params = request.url.params
+        if params.get("$select") == "count(*) AS row_count":
+            return _response([{"row_count": len(rows)}])
+        return _response(rows)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = socrata_permits.retrieve_collection_segment(source, lane, start, today, {}, client)
+
+    assert result["window_complete"] is True
+    assert len(result["records"]) == 7
+    assert result["cursor"] == {}
+    page = next(
+        request
+        for request in requests
+        if request.url.params.get("$select") != "count(*) AS row_count"
+    )
+    assert f"{start.isoformat()}T00:00:00.000" in page.url.params["$where"]
+    assert f"{today.isoformat()}T23:59:59.999" in page.url.params["$where"]
+
+
+def test_austin_dense_recent_range_shrinks_before_bounded_fetch():
+    source = _definition("austin-building-permits")
+    today = datetime.now(UTC).date()
+    start = today - timedelta(days=6)
+    rows = [_austin_row(1, start)]
+    count_wheres: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        params = request.url.params
+        if params.get("$select") == "count(*) AS row_count":
+            count_wheres.append(params["$where"])
+            return _response([{"row_count": 1001 if len(count_wheres) == 1 else 1}])
+        return _response(rows)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = socrata_permits.retrieve_collection_segment(
+            source, "issue_recent", start, today, {}, client
+        )
+
+    assert result["window_complete"] is False
+    assert result["cursor"] == {"day": today.isoformat()}
+    assert len(count_wheres) == 3  # Full range, shortened range, exact before/after check.
+    assert f"{today.isoformat()}T23:59:59.999" in count_wheres[0]
+    assert f"{(today - timedelta(days=1)).isoformat()}T23:59:59.999" in count_wheres[1]
 
 
 def test_socrata_overfull_day_resumes_with_stable_keyset_pages():
@@ -170,13 +255,130 @@ def test_socrata_rejects_unsupported_lane_and_malformed_page():
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.params.get("$select") == "count(*) AS row_count":
-            return _response([{"row_count": 1}])
-        return _response([{"permitnum": "00001"}])
+            return _response([{"row_count": 2}])
+        return _response(
+            [
+                {"permitnum": "00001"},
+                _seattle_row(2, today),
+            ]
+        )
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(SourceParseError, match="schema changed"):
+        result = socrata_permits.retrieve_collection_segment(
+            source, "issue_history", today, today, {}, client
+        )
+    assert result["partial"] is True
+    assert result["partial_reason"] == "malformed_row"
+    assert result["rejected_count"] == 1
+    assert result["rejected_records"][0]["identity"] == "00001"
+    assert [record["document_number"] for record in result["records"]] == ["00002"]
+    assert result["cursor"] == {"day": today.isoformat(), "expected": 2, "scanned": 0}
+    assert result["window_complete"] is False
+
+
+def test_socrata_range_keyset_resumes_with_fixed_bounds_and_ordered_date():
+    source = _definition("seattle-building-permits")
+    start = datetime.now(UTC).date() - timedelta(days=1)
+    end = start + timedelta(days=1)
+    after_value = f"{start.isoformat()}T12:00:00.000"
+    cursor = {
+        "day": start.isoformat(),
+        "range_start": start.isoformat(),
+        "range_end": end.isoformat(),
+        "expected": 1001,
+        "scanned": 1000,
+        "after_value": after_value,
+        "after_id": "01000",
+    }
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.params.get("$select") == "count(*) AS row_count":
+            return _response([{"row_count": 1001}])
+        return _response([_seattle_row(1001, end)])
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = socrata_permits.retrieve_collection_segment(
+            source, "issue_recent", start, end, cursor, client
+        )
+
+    assert result["window_complete"] is True
+    assert result["cursor"] == {}
+    assert "permitnum > '01000'" in requests[-2].url.params["$where"]
+    assert f"{start.isoformat()}T00:00:00.000" in requests[-2].url.params["$where"]
+    assert f"{end.isoformat()}T23:59:59.999" in requests[-2].url.params["$where"]
+
+
+def test_socrata_range_count_mutation_resets_same_fixed_range():
+    source = _definition("seattle-building-permits")
+    start = datetime.now(UTC).date() - timedelta(days=1)
+    end = start + timedelta(days=1)
+    counts = iter((1, 2))
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.params.get("$select") == "count(*) AS row_count":
+            return _response([{"row_count": next(counts)}])
+        return _response([_seattle_row(1, start)])
+
+    cursor = {
+        "day": start.isoformat(),
+        "range_start": start.isoformat(),
+        "range_end": end.isoformat(),
+        "expected": 1,
+        "scanned": 0,
+    }
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = socrata_permits.retrieve_collection_segment(
+            source, "issue_recent", start, end, cursor, client
+        )
+
+    assert result["partial"] is True
+    assert result["error_class"] == "ResultCountChanged"
+    assert result["cursor"] == {**cursor, "expected": 2, "scanned": 0}
+    assert len(requests) == 3  # Count before, one bounded page, count after.
+
+
+def test_socrata_range_honors_deadline_before_public_request():
+    source = _definition("austin-building-permits")
+    today = datetime.now(UTC).date()
+    requests: list[httpx.Request] = []
+
+    with httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: (requests.append(request), _response([{"row_count": 0}]))[1]
+        )
+    ) as client:
+        with pytest.raises(TimeoutError, match="deadline exhausted"):
             socrata_permits.retrieve_collection_segment(
-                source, "issue_history", today, today, {}, client
+                source,
+                "issue_recent",
+                today,
+                today,
+                {},
+                client,
+                deadline=time.monotonic() - 1,
+            )
+    assert requests == []
+
+
+def test_socrata_range_rejects_oversized_count_response():
+    source = _definition("austin-building-permits")
+    today = datetime.now(UTC).date()
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "application/json", "content-length": str(2_000_001)},
+            content=b"[]",
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(SourceParseError, match="count failed: ResponseTooLarge"):
+            socrata_permits.retrieve_collection_segment(
+                source, "issue_recent", today, today, {}, client
             )
 
 

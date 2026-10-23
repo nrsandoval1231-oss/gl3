@@ -72,11 +72,11 @@ def _new_window(
         backfill = source["query"]["data_center_backfill"]
         start, end = date.fromisoformat(backfill["start"]), date.fromisoformat(backfill["end"])
         return start, min(end, start + timedelta(days=WINDOW_DAYS - 1))
-    if lane.endswith("recent"):
-        start = today - timedelta(days=WINDOW_DAYS - 1)
-    elif lane == "modified_history":
+    if lane.startswith("modified_"):
         modified_window = max(1, int(source["query"].get("modified_window_days", 7)))
         start = today - timedelta(days=modified_window - 1)
+    elif lane.endswith("recent"):
+        start = today - timedelta(days=WINDOW_DAYS - 1)
     else:
         start = today - timedelta(days=max(1, lookback_days) - 1)
     return start, min(today, start + timedelta(days=WINDOW_DAYS - 1))
@@ -97,7 +97,11 @@ def _reset_window(
 
 
 def prepare_collection_progress(
-    session: Session, source: dict[str, Any], *, today: date | None = None
+    session: Session,
+    source: dict[str, Any],
+    *,
+    today: date | None = None,
+    collection_jobs_remaining: int | None = None,
 ) -> tuple[SourceCollectionProgress, str, tuple[str, ...]]:
     """Create/fairly select one current lane and lock it for checkpointing."""
     lanes = collection_lanes(source)
@@ -172,8 +176,18 @@ def prepare_collection_progress(
         row.last_attempt_at = None
         pending = [row]
     lane_priority = {name: index for index, name in enumerate(lanes)}
+    recent_pending = [row for row in pending if row.lane.endswith("recent")]
+    history_pending = [row for row in pending if row.lane.endswith("history")]
+    prioritized = pending
+    if recent_pending:
+        if collection_jobs_remaining is None:
+            prioritized = recent_pending
+        elif history_pending and collection_jobs_remaining % 3 == 0:
+            prioritized = history_pending
+        else:
+            prioritized = recent_pending
     selected = min(
-        pending,
+        prioritized,
         key=lambda row: (
             row.last_attempt_at or datetime.min.replace(tzinfo=UTC),
             lane_priority[row.lane],

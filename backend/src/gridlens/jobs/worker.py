@@ -468,6 +468,13 @@ def _assign_due_jobs(session) -> int:
     eligible_ids = []
     for source in candidates:
         item = registry[source.id]
+        from gridlens.jobs.queue import _source_retry_hold_until
+
+        retry_hold_until = _source_retry_hold_until(
+            source.health if isinstance(source.health, dict) else {}
+        )
+        if retry_hold_until is not None and retry_hold_until > now:
+            continue
         epoch = session.scalar(
             select(SourceScheduleEpoch)
             .where(
@@ -614,6 +621,22 @@ def _append_attempt_receipt(session, job: Job, fence: int, disposition: str, cou
     )
 
 
+def _acquisition_retry_class(error: BaseException, diagnostics: dict) -> str:
+    """Retry only known transient transport, rate-limit, and server failures."""
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
+
+    if diagnostics.get("retry_after_exceeds_bound") == 1:
+        return "PERMANENT"
+    status = diagnostics.get("http_status")
+    if type(status) is int:
+        return "TRANSIENT" if status in {408, 425, 429} or status >= 500 else "PERMANENT"
+    if diagnostics.get("error_code") in {"acquisition_timeout", "network_error"}:
+        return "TRANSIENT"
+    if isinstance(error, SourceParseError) or diagnostics.get("error_code") == "source_parse_error":
+        return "PERMANENT"
+    return "BOUNDED_UNKNOWN"
+
+
 def _defer_public_acquisition(job_id: UUID, worker_id: str, fence: int) -> None:
     """Requeue admission contention without charging an attempt or marking I/O."""
     from gridlens.jobs.retry import jittered_delay_seconds
@@ -706,6 +729,10 @@ def set_source_enabled(source_id: str, enabled: bool) -> None:
         item = definitions.get(source_id)
         if item is None:
             raise ValueError("Source is not present in the registry")
+        from gridlens.domain.regional_scope import REGIONAL_DISABLED_SOURCE_IDS
+
+        if enabled and source_id in REGIONAL_DISABLED_SOURCE_IDS:
+            raise ValueError("Source is disabled by the regional registry policy")
         now = datetime.now(UTC)
         source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
         if source is None:
@@ -1034,6 +1061,23 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 finished_job.error,
             ) = "succeeded", None, None, None
             if counts.get("collection_status") == "PARTIAL":
+                rate_limited = counts.get("source_rate_limited") is True
+                retry_after_seconds = counts.get("source_retry_after_seconds")
+                retry_after_exceeds_bound = counts.get("source_retry_after_exceeds_bound") is True
+                throttle_status = counts.get("source_http_status", 429)
+                retry_at = None
+                if rate_limited and not retry_after_exceeds_bound:
+                    from gridlens.jobs.retry import jittered_delay_seconds
+
+                    delay_seconds = jittered_delay_seconds(
+                        str(finished_job.id),
+                        finished_job.attempts,
+                        min(3600, 30 * (2**finished_job.attempts)),
+                        ceiling_seconds=3600,
+                    )
+                    if type(retry_after_seconds) is int:
+                        delay_seconds = max(delay_seconds, retry_after_seconds)
+                    retry_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
                 source.health = {
                     **source.health,
                     "status": "Partial",
@@ -1056,10 +1100,33 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         int(source.health.get("parse_failures", 0)),
                         int(counts.get("parse_failures", 0)),
                     ),
-                    "error": counts.get("collection_error_class") or "Collection incomplete",
-                    "error_code": counts.get("collection_error_code"),
+                    "error": (
+                        "Publisher rate limit; remaining documents deferred"
+                        if rate_limited
+                        else counts.get("collection_error_class") or "Collection incomplete"
+                    ),
+                    "error_code": f"http_status_{throttle_status}"
+                    if rate_limited
+                    else counts.get("collection_error_code"),
                     "error_stage": counts.get("collection_error_stage"),
-                    "http_status": counts.get("collection_http_status"),
+                    "http_status": throttle_status
+                    if rate_limited
+                    else counts.get("collection_http_status"),
+                    "retry_class": "TRANSIENT"
+                    if rate_limited
+                    else source.health.get("retry_class"),
+                    "retry_at": retry_at.isoformat()
+                    if rate_limited and retry_at
+                    else None
+                    if rate_limited
+                    else source.health.get("retry_at"),
+                    "retry_state": (
+                        "operator_review"
+                        if rate_limited and retry_after_exceeds_bound
+                        else "scheduled"
+                        if rate_limited
+                        else source.health.get("retry_state", "not_scheduled")
+                    ),
                     "collection_status": "PARTIAL",
                     "collection_lane": counts.get("collection_lane"),
                     "collection_current_complete": counts.get("collection_current_complete", False),
@@ -1076,10 +1143,17 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     else "Checked—No Change",
                     "last_attempt": attempted,
                     "last_success": attempted,
+                    "last_meaningful_update": (
+                        attempted
+                        if counts["new"] or counts["changed"]
+                        else source.health.get("last_meaningful_update")
+                    ),
                     "new_records": counts["new"],
                     "changed_records": counts["changed"],
                     "unchanged_records": counts["unchanged"],
                     "parse_failures": 0,
+                    "retry_class": None,
+                    "retry_at": None,
                     "error": None,
                     "error_code": None,
                     "error_stage": None,
@@ -1117,6 +1191,23 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "pdf_skipped_not_signal": counts.get("pdf_skipped_not_signal", 0),
                     "pdf_skipped_limit": counts.get("pdf_skipped_limit", 0),
                 }
+                if not counts.get("partial"):
+                    source.health = {
+                        **source.health,
+                        "last_success_counts": {
+                            key: int(counts.get(source_key, 0) or 0)
+                            for key, source_key in (
+                                ("retrieved_records", "retrieved_records"),
+                                ("parsed_records", "parsed_records"),
+                                ("records_scanned", "records_scanned"),
+                                ("new_records", "new"),
+                                ("changed_records", "changed"),
+                                ("unchanged_records", "unchanged"),
+                                ("permit_accepted", "permit_accepted"),
+                                ("permit_rejected", "permit_rejected"),
+                            )
+                        },
+                    }
             if collection_jobs_remaining is not None:
                 source.health = {
                     **source.health,
@@ -1128,6 +1219,42 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         **source.health,
                         "error": "Collection paused at chain job budget",
                     }
+            if counts.get("attempt_processed", counts.get("retrieved_records", 0)) > 0:
+                source.health = {
+                    **source.health,
+                    "last_valid_record_at": acquisition_completed_at.isoformat(),
+                }
+            if counts.get("new", 0) or counts.get("changed", 0):
+                source.health = {
+                    **source.health,
+                    "last_meaningful_update": acquisition_completed_at.isoformat(),
+                }
+            source.health = {
+                **source.health,
+                "records_rejected": counts.get("attempt_rejected", 0),
+                "attempt_fetched": counts.get(
+                    "attempt_fetched", counts.get("retrieved_records", 0)
+                ),
+                "attempt_processed": counts.get(
+                    "attempt_processed", counts.get("parsed_records", 0)
+                ),
+                "attempt_rejected": counts.get("attempt_rejected", 0),
+                "attempt_duplicate": counts.get("attempt_duplicate", 0),
+                "attempt_new": counts.get("new", 0),
+                "attempt_changed": counts.get("changed", 0),
+                "regional_held": counts.get("regional_held", 0),
+                "regional_excluded": counts.get("regional_excluded", 0),
+                "last_rejected_records": counts.get("rejected_records", [])[:50],
+                "retry_state": source.health.get("retry_state", "not_scheduled")
+                if counts.get("source_rate_limited") is True
+                else "not_scheduled",
+                "retry_at": source.health.get("retry_at")
+                if counts.get("source_rate_limited") is True
+                else None,
+                "attempts": finished_job.attempts,
+                "attempt_metrics_status": "KNOWN",
+                "processing_error": None,
+            }
             disposition = (
                 "partial" if counts.get("parse_failures") or counts.get("partial") else "succeeded"
             )
@@ -1139,6 +1266,33 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 "acquisition_completed_at": counts.get("acquisition_completed_at")
                 or acquisition_completed_at.isoformat(),
             }
+            if counts.get("rejected_records"):
+                try:
+                    checkpoint_value = json.loads(finished_job.checkpoint or "null")
+                except (TypeError, ValueError):
+                    checkpoint_value = None
+                if isinstance(checkpoint_value, dict):
+                    checkpoint_payload = checkpoint_value
+                elif (
+                    finished_job.checkpoint
+                    and len(finished_job.checkpoint) <= 128
+                    and re.fullmatch(
+                        r"[A-Za-z0-9][A-Za-z0-9_-]*(?: [A-Za-z0-9_-]+)*",
+                        finished_job.checkpoint,
+                    )
+                ):
+                    checkpoint_payload = {"last_record_external_id": finished_job.checkpoint}
+                else:
+                    checkpoint_payload = None
+                if checkpoint_payload is not None:
+                    checkpoint_payload["last_acquisition_rejections"] = counts["rejected_records"][
+                        :50
+                    ]
+                    serialized_checkpoint = json.dumps(
+                        checkpoint_payload, sort_keys=True, separators=(",", ":")
+                    )
+                    if len(serialized_checkpoint.encode("utf-8")) <= 8_000_000:
+                        finished_job.checkpoint = serialized_checkpoint
             _append_attempt_receipt(session, finished_job, fence, disposition, counts)
             if kind == "ingestion" and counts.get("collection_continuation"):
                 from gridlens.jobs.queue import enqueue
@@ -1195,16 +1349,34 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 and failed_job.lease_until > datetime.now(UTC)
             )
             if failed_job and valid_owner:
-                failed_job.status = "queued" if failed_job.attempts < 5 else "failed"
+                retry_class = (
+                    _acquisition_retry_class(exc, diagnostics)
+                    if kind == "ingestion"
+                    else "BOUNDED_UNKNOWN"
+                )
+                should_retry = retry_class != "PERMANENT" and failed_job.attempts < 5
+                failed_job.status = "queued" if should_retry else "failed"
                 from gridlens.jobs.retry import jittered_delay_seconds
 
-                delay_seconds = jittered_delay_seconds(
-                    str(failed_job.id),
-                    failed_job.attempts,
-                    min(3600, 30 * (2**failed_job.attempts)),
-                    ceiling_seconds=3600,
+                retry_at = None
+                retry_after_seconds = diagnostics.get("retry_after_seconds")
+                source_retry_at = (
+                    datetime.now(UTC) + timedelta(seconds=retry_after_seconds)
+                    if type(retry_after_seconds) is int
+                    else None
                 )
-                failed_job.available_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
+                if should_retry:
+                    delay_seconds = jittered_delay_seconds(
+                        str(failed_job.id),
+                        failed_job.attempts,
+                        min(3600, 30 * (2**failed_job.attempts)),
+                        ceiling_seconds=3600,
+                    )
+                    if type(retry_after_seconds) is int:
+                        delay_seconds = max(delay_seconds, retry_after_seconds)
+                    retry_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
+                    failed_job.available_at = retry_at
+                    source_retry_at = retry_at
                 failed_job.lease_until, failed_job.lease_owner = None, None
                 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
@@ -1222,15 +1394,36 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         session,
                         failed_job,
                         fence,
-                        "failed" if isinstance(exc, SourceParseError) else "unknown",
-                        {"error_class": type(exc).__name__, **diagnostics},
+                        "failed" if not should_retry else "unknown",
+                        {
+                            "error_class": type(exc).__name__,
+                            "retry_class": retry_class,
+                            **diagnostics,
+                        },
                     )
             if source and valid_owner and kind == "ingestion":
                 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
                 is_parse_error = isinstance(exc, SourceParseError)
+                prior_health = source.health if isinstance(source.health, dict) else {}
+                prior_success_counts = prior_health.get("last_success_counts")
+                if not isinstance(prior_success_counts, dict):
+                    prior_success_counts = {
+                        key: prior_health[key]
+                        for key in (
+                            "retrieved_records",
+                            "parsed_records",
+                            "records_scanned",
+                            "new_records",
+                            "changed_records",
+                            "unchanged_records",
+                            "permit_accepted",
+                            "permit_rejected",
+                        )
+                        if type(prior_health.get(key)) is int
+                    }
                 source.health = {
-                    **source.health,
+                    **prior_health,
                     "status": "Failed",
                     "last_attempt": attempted,
                     "parse_failures": int(source.health.get("parse_failures", 0))
@@ -1239,6 +1432,36 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "error_code": None,
                     "error_stage": None,
                     "http_status": None,
+                    "retry_class": retry_class,
+                    "retry_at": source_retry_at.isoformat() if source_retry_at else None,
+                    "retry_state": (
+                        "operator_review"
+                        if diagnostics.get("retry_after_exceeds_bound") == 1
+                        else "scheduled"
+                        if source_retry_at is not None
+                        else "terminal"
+                    ),
+                    "attempt_fetched": None,
+                    "attempt_processed": None,
+                    "attempt_rejected": None,
+                    "attempt_new": None,
+                    "attempt_changed": None,
+                    "records_rejected": None,
+                    "last_rejected_records": [],
+                    "retrieved_records": 0,
+                    "parsed_records": 0,
+                    "records_scanned": 0,
+                    "new_records": 0,
+                    "changed_records": 0,
+                    "unchanged_records": 0,
+                    "permit_accepted": 0,
+                    "permit_rejected": 0,
+                    "regional_held": 0,
+                    "regional_excluded": 0,
+                    "last_success_counts": prior_success_counts,
+                    "attempt_metrics_status": "UNKNOWN",
+                    "processing_error": type(exc).__name__,
+                    "attempts": failed_job.attempts if failed_job else None,
                     **diagnostics,
                 }
     finally:

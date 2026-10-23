@@ -75,7 +75,8 @@ def runtime(monkeypatch):
             source_id="austin-building-permits",
             external_id="2026-100001 EP",
             name="Synthetic Orion",
-            location="100 ORION LN",
+            location="100 ORION LN, Austin, TX",
+            identity_facts={"site": "100 ORION LN, Austin, TX"},
             identity_key="orion",
         )
         session.add(project)
@@ -1595,11 +1596,11 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
                 sequence=index,
                 need_number=10_000 + index,
                 document_number=document_number,
-                location=f"{1000 + index} DISTRACTOR LN",
+                location=f"{1000 + index} DISTRACTOR LN, Austin, TX",
             )
             distractor_ids.append(str(need.id))
 
-        site = "811 CLAYTON LN"
+        site = "811 CLAYTON LN, Austin, TX"
         shared_case = "2026-900001"
         _, bp_need = add_supported_need(
             session,
@@ -1621,14 +1622,14 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
             sequence=1003,
             need_number=1_000_003,
             document_number="2026-900002 EP",
-            location="813 CLAYTON LN",
+            location="813 CLAYTON LN, Austin, TX",
         )
         saved_project, saved_need = add_supported_need(
             session,
             sequence=1004,
             need_number=1_000_004,
             document_number="2026-900003 BP",
-            location="815 CLAYTON LN",
+            location="815 CLAYTON LN, Austin, TX",
             active=False,
         )
         session.add(

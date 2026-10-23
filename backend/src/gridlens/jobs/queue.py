@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import Integer, and_, case, cast, func, literal, select
+from sqlalchemy import DateTime, Integer, and_, case, cast, func, literal, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
@@ -21,10 +21,34 @@ def enqueue(session: Session, source_id: str, *, kind: str = "ingestion") -> UUI
     )
     if active:
         return active
-    job = Job(source_id=source_id, kind=kind)
+    available_at = datetime.now(UTC)
+    if kind == "ingestion":
+        health = source.health if isinstance(source.health, dict) else {}
+        hold_until = _source_retry_hold_until(health)
+        if hold_until is not None:
+            available_at = max(available_at, hold_until)
+    job = Job(source_id=source_id, kind=kind, available_at=available_at)
     session.add(job)
     session.flush()
     return job.id
+
+
+def _source_retry_hold_until(health: dict) -> datetime | None:
+    retry_state = health.get("retry_state")
+    if retry_state == "operator_review":
+        return datetime.max.replace(tzinfo=UTC)
+    raw_retry_at = health.get("retry_at")
+    if retry_state == "scheduled" and not isinstance(raw_retry_at, str):
+        return datetime.max.replace(tzinfo=UTC)
+    if not isinstance(raw_retry_at, str):
+        return None
+    try:
+        retry_at = datetime.fromisoformat(raw_retry_at.replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.max.replace(tzinfo=UTC)
+    if retry_at.tzinfo is None:
+        return datetime.max.replace(tzinfo=UTC)
+    return retry_at.astimezone(UTC)
 
 
 def lease_one(
@@ -36,6 +60,21 @@ def lease_one(
 ) -> tuple[Job, int] | None:
     now = datetime.now(UTC)
     scope = [] if job_ids is None else [Job.id.in_(job_ids)]
+    retry_state = Source.health["retry_state"].as_string()
+    retry_at = Source.health["retry_at"].as_string()
+    valid_retry_timestamp = func.pg_input_is_valid(retry_at, literal("timestamptz"))
+    retry_deadline = case(
+        (valid_retry_timestamp, cast(retry_at, DateTime(timezone=True))),
+        else_=None,
+    )
+    retry_window_clear = retry_state.is_distinct_from("operator_review") & (
+        retry_state.is_distinct_from("scheduled")
+        | and_(
+            retry_at.is_not(None),
+            valid_retry_timestamp,
+            retry_deadline <= now,
+        )
+    )
     abandoned = session.scalars(
         select(Job)
         .join(Source, Source.id == Job.source_id)
@@ -48,6 +87,7 @@ def lease_one(
                 (Job.kind != "ingestion")
                 | (Source.enabled.is_(True) & Source.registry_enabled.is_(True))
             ),
+            (Job.kind != "ingestion") | retry_window_clear,
         )
         .with_for_update(skip_locked=True)
     ).all()
@@ -164,6 +204,7 @@ def lease_one(
                 (Job.kind != "ingestion")
                 | (Source.enabled.is_(True) & Source.registry_enabled.is_(True))
             ),
+            (Job.kind != "ingestion") | retry_window_clear,
         )
         # Permit jobs lead recent work, while a one-day age bucket guarantees
         # old news jobs advance even during sustained permit refresh activity.

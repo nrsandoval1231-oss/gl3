@@ -4,12 +4,12 @@
 **Date:** September 24, 2026  
 **Product owner:** Nick Sandoval  
 **Status:** Initial specification for the new build  
-**Scope:** Nationwide power-need discovery, daily ingestion, and evidence-based qualification  
+**Scope:** Texas, Oklahoma and New Mexico power-need discovery, daily ingestion, and evidence-based qualification
 **Numbered requirements:** 42
 
 ## Executive summary
 
-GridLens finds projects across the United States that may need temporary or supplemental power, investigates the requirement, and helps a commercial user pursue the opportunity.
+GridLens finds projects physically located in Texas, Oklahoma and New Mexico that may need temporary or supplemental power, investigates the requirement, and helps a commercial user pursue the opportunity.
 
 The system collects broadly every day, maintains one evolving record per project, and organizes individual power needs into **Signals, Prospects, and Leads**. Data center construction and commissioning receive default priority. All industries remain eligible, including manufacturing, mining, oil and gas, EV charging, utilities, commercial construction, and remote infrastructure.
 
@@ -27,11 +27,23 @@ The canonical vertical/asset lifecycle doctrine is [Vertical Lifecycle Intellige
 
 ## Frozen application UI
 
-The owner-approved October 20, 2026 visual direction is specified by [the UI canon](../design/UI_CANON.md) and [Pursuit Workspace contract](../design/PURSUIT_WORKSPACE.md). Pursuits is the execution-first workspace with horizontal navigation, compact Daily Briefing, prioritized queue, persistent contextual brief, and explicit next actions. This supersedes prior map/cinematic and October 18 Opportunities/Research/Signals/Operations presentation requirements, including only the navigation/layout portion of requirement 31. The three qualification tiers remain independently searchable and filterable as required below; qualification, evidence, workflow, nationwide scope, and all other PRD requirements are unchanged. Fictional prototype records are never production data or acceptance evidence.
+The owner-approved October 20, 2026 visual direction is specified by [the UI canon](../design/UI_CANON.md) and [Pursuit Workspace contract](../design/PURSUIT_WORKSPACE.md). Pursuits is the execution-first workspace with horizontal navigation, compact Daily Briefing, prioritized queue, persistent contextual brief, and explicit next actions. This supersedes prior map/cinematic and October 18 Opportunities/Research/Signals/Operations presentation requirements, including only the navigation/layout portion of requirement 31. The three qualification tiers remain independently searchable and filterable as required below; qualification, evidence, workflow, and all other PRD requirements remain unchanged except the superseding October 22 regional amendment below. Fictional prototype records are never production data or acceptance evidence.
+
+## October 22, 2026 regional operating mandate
+
+This owner directive supersedes every prior nationwide geographic eligibility or California acquisition priority in this PRD and subordinate documents. Historical decisions remain as dated history. This document remains the sole canonical PRD.
+
+Only physical projects in **TX → OK → NM**, in that priority order, may enter active commercial pursuits, customer opportunity metrics, qualification results or direct opportunity APIs. A Texas company building in Georgia is excluded; a California company building in New Mexico is eligible. Unknown physical location and conflicting project-location evidence require review; source geography, national mentions and headquarters addresses cannot resolve the physical site. National/multistate regulatory evidence and cross-border infrastructure directly connected to an eligible project may support it without creating an out-of-region pursuit. Preserve existing historical projects, immutable evidence versions, conflicts, audit records and source epochs.
+
+The intelligence questions remain: who needs power, how much, when, why conventional supply cannot meet the activity, who controls purchasing, and what commercial action follows. Signal / Prospect / Lead definitions and deterministic gates below remain authoritative. Each opportunity needs a defensible project/site identity; customer accounts group evidenced organizations without merging distinct physical projects or treating headquarters as sites. Unknown buyer, MW, dates and supply stay unknown. Preserve the Power Gap Engine, entity resolution, buying chains, raw source evidence, provenance, document versions, accepted and conflicting claims, Jev validation/model routing and LLM interpretation boundaries.
+
+Enforce geography in backend ingestion/admission, qualification and indexed opportunity queries, including saved projections, accounts, metrics, detail and exports. Disable out-of-region scheduling and direct refresh. National retrieval remains permitted upstream; out-of-region records remain evidence rather than active opportunities. Source health distinguishes intentional disablement, valid no-new-data, stale publication, degraded partial batches and failed processing. Future expansion uses a versioned territory configuration with unchanged qualification and source validation gates, and requires explicit owner direction.
+
+This assignment adds no geographic integrations, UI redesign or orchestration framework and authorizes no merge/deployment. Report dedicated OK/NM coverage gaps honestly. Real local official-source execution is distinct from production operation and launch acceptance.
 
 ## Product outcomes
 
-### Owner-authorized acquisition priorities — October 1, 2026
+### Historical acquisition priorities — October 1, 2026 (geography superseded October 22)
 
 Priority geographies are **Dallas, Austin, Houston, El Paso, and California**. These guide source onboarding, coverage repair and investigation effort; they do not exclude other United States geographies or disable existing feeds. California is a statewide priority, with actual coverage stated separately for each city, district or state source.
 
@@ -48,7 +60,7 @@ Include official **flare-gas permits and flaring/venting exceptions** in oil-and
 | Outcome | Meaning |
 |---|---|
 | Reliable daily discovery | New information arrives without Nick manually starting collection. |
-| Broad visibility | Relevant national sources and expanding regional sources cover multiple industries; coverage limits remain visible. |
+| Regional commercial visibility | TX/OK/NM projects across industries, national upstream evidence and explicit coverage gaps. |
 | Useful at every tier | Signals and Prospects can support calls before a complete gap estimate exists. |
 | Defensible Leads | MW, timing, and remaining supply are traceable to evidence and explicit assumptions. |
 | Commercial relevance | Each opportunity identifies the power activity, likely buying party, and useful next action. |
@@ -85,7 +97,7 @@ The short morning list is a convenience. All active records remain searchable an
 
 1. **Fresh implementation.** Create a new repository and new database. Author the implementation and tests from this specification. Do not import old GridLens application code, schemas, migrations, pipeline configuration, or architecture. Leave existing repositories untouched.
 
-2. **National, cross-industry scope.** Accept relevant projects anywhere in the United States and across industries. Default acquisition and rankings prioritize data-center pre-permit formation, construction and commissioning, plus asset-aware O&G production and fixed-infrastructure intelligence. Geography, industry, and activity preferences change what users see and how it is ranked; they must not silently stop national collection.
+2. **Regional, cross-industry scope.** Only physical projects in Texas (TX, highest priority), Oklahoma (OK, second) and New Mexico (NM, third) are eligible for active commercial opportunities. This applies to all current and future verticals and activities. National sources remain permitted upstream evidence with physical-project filtering; fixed out-of-region sources are intentionally disabled for acquisition and scheduling. Unknown/conflicting locations require review. Headquarters never determines project eligibility. Preserve all historical evidence. Future expansion requires an explicit versioned territory configuration change and source/qualification validation.
 
 3. **Private, usable first release.** Provide an authenticated web application and automated cloud execution that continue when Nick's computer is off. Keep read access, edits, source administration, and private notes protected by server-side authorization.
 
@@ -169,7 +181,7 @@ The short morning list is a convenience. All active records remain searchable an
 
 37. **Useful tests.** Test duplicate replay, wrong-project matches, phase/load confusion, citation validation, unit/date conversion, uncertain supply, tier gates, demotion, canceled projects, scheduler failures, interrupted jobs, and authorization. Use representative stored fixtures and a small set of actual-source smoke checks. Test counts alone are not completion evidence.
 
-38. **Live source readiness.** Before launch, demonstrate at least 12 independent active source feeds across at least five source families, including at least two national structured sources. Produce real relevant Signals across at least three industries. Search query variants against one publication do not count as independent feeds. This is a proposed launch minimum, not a claim of exhaustive national coverage.
+38. **Live source readiness.** Before launch, demonstrate at least 12 independent active source feeds across at least five source families, including at least two national structured sources. Produce real relevant Signals across at least three industries. Search query variants against one publication do not count as independent feeds. The numeric launch minimum remains; national feeds must support regional projects. It is not permission to enable out-of-region feeds or a claim of complete regional coverage.
 
 39. **Qualification review.** Review a retained sample of 30 independently discovered Signals/Prospects. Target at least 24 with the correct project identity, source-supported event, and defensible reason to investigate power. Review every initial Lead against all Lead-gate fields. Fix errors and re-review; never promote incomplete records to meet a volume target.
 
@@ -191,7 +203,7 @@ The following are candidate source families for validation during implementation
 | Utility and regulatory material | Utility project announcements, service filings, state commission dockets, ISO/RTO data where relevant | Service timing, constraints, utility work, explicit load evidence | Generation queues and regional congestion do not establish a specific customer's service date. |
 | National and local discovery | Public news feeds, targeted searches, economic-development announcements | Early events and source discovery across industries | Syndicated stories share an underlying source and must not inflate confidence. |
 
-**Expansion order:** Establish national discovery and priority construction/commissioning feeds together. Add local and regional sources where actual opportunities or coverage gaps justify the effort. Evaluate each source by unique useful observations, freshness, qualification contribution, failure rate, and cost. Recheck active sources daily while respecting their publication cadence.
+**Coverage order:** Prioritize TX, then OK, then NM. Retain national upstream evidence with physical-project filtering. Repair existing integrations; no new geographic source adapters are authorized in this assignment. Future expansion requires an explicit territory configuration change. Evaluate each source by unique useful observations, freshness, qualification contribution, failure rate, and cost. Recheck active sources daily while respecting their publication cadence.
 
 ## Lean technical design
 
@@ -378,7 +390,7 @@ Raw source documents, runtime exports, logs, secrets, and production database fi
 | Milestone | Deliverable | Required proof |
 |---|---|---|
 | **A — Foundation** | New repository, PostgreSQL migrations, auth, API/worker, cloud scheduler, source registry | A real scheduled source check persists an observation while the owner's PC is off; secrets absent from Git. |
-| **B — Daily Signals** | Multiple source families, preserved evidence, basic matching, live Signal list, health screen | Real national/cross-industry observations; replay creates no duplicate cards; parser and source failures are visible. Nick can start discovery calls here. |
+| **B — Daily Signals** | Multiple source families, preserved evidence, basic matching, live Signal list, health screen | Real regional/cross-industry observations with national supporting evidence; replay creates no duplicate cards; parser and source failures are visible. Nick can start discovery calls here. |
 | **C — Prospects** | Power-need separation, missing-fact research, evidence labels, Prospect gate, contractor roles | Correct identity and activity on reviewed records; unsupported utility uncertainty cannot promote a record. |
 | **D — Leads** | MW/time scenarios, suitable supply assessment, Lead gate, history, demotion | An auditable real Lead when evidence permits; hypothetical tests establish calculations without masquerading as live findings. |
 | **E — Daily working release** | Morning changes, search/filter/export, notes, follow-up, recovery and alerts | Requirements 38–41 reviewed: source breadth, sample quality, seven daily cycles, commercial proof, and backup restore. |

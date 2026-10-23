@@ -1,5 +1,18 @@
 {
   "version": 1,
+  "regional_policy": {
+    "version": "regional-project-scope-v1",
+    "eligible_states": ["TX", "OK", "NM"],
+    "locked_disabled_sources": [
+      "boston-building-permits",
+      "seattle-building-permits",
+      "chicago-building-permits",
+      "georgia-air-draft-title-v",
+      "nc-commerce",
+      "ma-ccc-cultivation-applications",
+      "california-ceqanet-data-centers"
+    ]
+  },
   "sources": [
 {
   "id": "texas-rrc-flare-vent-exceptions",
@@ -39,7 +52,7 @@
   "cadence_hours": 24,
   "publication_cadence": "Continuously updated CKAN permit table; retrieved daily for the prior 90 calendar days by issued date",
   "credential_reference": null,
-  "enabled": true,
+  "enabled": false,
   "retention": "Official permit row fields, source row identifier, applicant label, amendment reference where explicit, issue date, current status, and official CKAN citation",
   "collection_scope": "Bounded 90-day issued-permit window, all permit types/statuses; count-checked deterministic pagination ordered by issue timestamp and row ID.",
   "coverage_limitation": "Not the full 664,565-row history. Closed/completed records remain evidence and are not admitted as current Signals. Applicant is not a buyer role. No construction start, project owner, temporary rental need, MW, supply gap, or authority is inferred; declared valuation and area are not power need. Status changes on records outside the recent issue window are not monitored.",
@@ -176,7 +189,7 @@
       "industries": ["construction", "manufacturing", "data centers", "healthcare", "commercial facilities"],
       "retrieval_method": "socrata-permits", "cadence_hours": 24,
       "publication_cadence": "daily; issue date is the dated permit event", "credential_reference": null,
-      "enabled": true, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
+      "enabled": false, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
       "query": {"window_days": 30, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "nonresidential-building"},
       "coverage_limitation": "Seattle exposes no per-row status-change date; Socrata :updated_at was refreshed across 193257 rows in the same recent interval, so it is not a reliable row-change signal. Older permit status edits are not monitored by this discovery query. Remedy: add a bounded worker query for previously retained active permit IDs or a source lifecycle feed."
     },
@@ -187,7 +200,7 @@
       "industries": ["construction", "manufacturing", "data centers", "healthcare", "commercial facilities"],
       "retrieval_method": "socrata-permits", "cadence_hours": 24,
       "publication_cadence": "daily; issue date is the dated permit event", "credential_reference": null,
-      "enabled": true, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
+      "enabled": false, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
       "query": {"window_days": 30, "modified_window_days": 2, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "new-construction-renovation-or-express-electrical"},
       "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
       "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, full address, parcel, application start, permit milestone and named party roles retained."
@@ -206,7 +219,7 @@
       "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts and draft front-page facility identity; application links retained when present.",
       "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
       "credential_reference": null,
-      "enabled": true,
+      "enabled": false,
       "retention": "Public EPD listing fields, PDF content hashes, short page-cited excerpts, and official document links",
       "query": {
         "rows_per_page": 100,
@@ -262,7 +275,7 @@
       "cadence_hours": 24,
       "publication_cadence": "irregular",
       "credential_reference": null,
-      "enabled": true,
+      "enabled": false,
       "retention": "Short attributed factual excerpts and source hashes; no article body or images retained",
       "query": {
         "window_days": 30,
@@ -432,7 +445,7 @@
       "cadence_hours": 24,
       "publication_cadence": "CCC open-data snapshot; the dataset update date is retained and checked for freshness",
       "credential_reference": null,
-      "enabled": true,
+      "enabled": false,
       "retention": "Whitelisted cultivation application identity, applicant organization role, establishment site, dated application event, and relevant lifecycle status only; personal contacts and EINs are excluded",
       "query": {
         "max_snapshot_bytes": 10000000,
@@ -507,7 +520,7 @@
       "collection_scope": "CEQA documents received in the last 60 days with an Industrial, Power or Other development type; document pages are read (bounded per run) and kept only when the title or description names a data center.",
       "coverage_limitation": "Only CEQA filings; projects exempt from CEQA or filed under another development type are missed. When more documents arrive than the per-run bound, ones naming a data center only in their description can be missed. A CEQA filing is environmental review, not construction.",
       "credential_reference": null,
-      "enabled": true,
+      "enabled": false,
       "retention": "Public document-page fields (title, agency, type, received date, description, place, coordinates) and official links",
       "query": {
         "development_types": ["Industrial", "Power", "Other"],

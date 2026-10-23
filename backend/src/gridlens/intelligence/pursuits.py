@@ -21,6 +21,7 @@ from gridlens.domain.commercial_presentation import commercial_size_status
 from gridlens.domain.pursuit_research import fingerprint as digest
 from gridlens.domain.pursuit_screening import normalized, screen, work_identity
 from gridlens.domain.pursuits import MAX_BATCH, MAX_FETCHES, MAX_MODELS, POLICY_VERSION, SOURCES
+from gridlens.domain.regional_scope import classify_project_region
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.ingestion.adapters.retained_permits import fields
 from gridlens.ingestion.service import _need_has_current_support
@@ -654,6 +655,32 @@ def pursuit_view(session: Session, row: Pursuit, *, current: dict[str, dict] | N
         item["action_status"] = "Drop"
         item["ranking_reasons"] = [reason] + item["ranking_reasons"]
         item["next_action"] = "Review retained history; no active power pursuit is supported."
+    # Saved research and call history remain readable, but its action surface must
+    # obey current physical-site scope even when the canonical candidate vanished.
+    project_ids = {str(value) for value in (row.project_ids or []) if value}
+    if row.project_id:
+        project_ids.add(str(row.project_id))
+    if project_ids:
+        eligible_ids = set(
+            session.scalars(
+                select(Project.id).where(
+                    Project.id.in_([UUID(value) for value in project_ids]),
+                    Project.region_status == "ELIGIBLE",
+                )
+            )
+        )
+        in_scope = bool(eligible_ids)
+    else:
+        site = item.get("location") or item.get("site") or item.get("site_address")
+        in_scope = classify_project_region(site, item.get("identity_facts")).status == "ELIGIBLE"
+    if not in_scope:
+        item["action_status"] = "Drop"
+        item["ranking_reasons"] = [
+            "Physical project site is outside the eligible region or cannot be verified."
+        ] + item.get("ranking_reasons", [])
+        item["next_action"] = (
+            "Retain historical research and notes; do not pursue without eligible site evidence."
+        )
     elif group is not None and row.snapshot.get("_input_hash") != group["input_hash"]:
         item["action_status"] = "Verify first"
         item["ranking_reasons"] = [
@@ -875,6 +902,8 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                                 "retrieval_method": source.retrieval_method,
                             }
                         )
+                        if not isinstance(rows, list):
+                            raise RuntimeError("City permit adapter returned an invalid result")
                         city_records[source_id] = {item["document_number"]: item for item in rows}
                     if source_id in city_errors:
                         raise RuntimeError(city_errors[source_id])

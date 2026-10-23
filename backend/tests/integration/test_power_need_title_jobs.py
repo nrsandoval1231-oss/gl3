@@ -94,7 +94,7 @@ def title_runtime(monkeypatch):
             publisher="Synthetic city",
             endpoint="https://example.test/permits",
             family="construction-permits",
-            geography="Test City",
+            geography="Austin, Texas",
             industries=["construction"],
             retrieval_method="socrata-permits",
             health={},
@@ -104,7 +104,7 @@ def title_runtime(monkeypatch):
         project = Project(
             identity_key="title-test-project",
             name="Synthetic North Campus",
-            location="Test City",
+            location="Austin, TX",
             source_id=source.id,
             external_id="record-1",
         )

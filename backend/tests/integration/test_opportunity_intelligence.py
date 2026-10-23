@@ -107,13 +107,12 @@ def test_unfiltered_legacy_detail_projects_only_selected_need(saved_db, monkeypa
     assert summary_scopes == [{unknown_need_id}]
 
 
-def test_old_retained_boston_voltage_remains_dated_and_hash_bound_on_authenticated_card_read(
+def test_old_retained_boston_voltage_is_excluded_but_keeps_historical_hash_binding(
     saved_db,
 ):
     from test_saved_browse import seed
 
     from gridlens.api import app as api
-    from gridlens.domain.opportunity_intelligence import IntelligenceCard
     from gridlens.persistence.models import (
         Evidence,
         Interpretation,
@@ -220,15 +219,16 @@ def test_old_retained_boston_voltage_remains_dated_and_hash_bound_on_authenticat
         questions_before = session.scalar(select(func.count()).select_from(PursuitResearchQuestion))
     first_response = client.get("/api/opportunity-intelligence", params={"need_ids": str(need_id)})
     assert first_response.status_code == 200, first_response.text
-    first = IntelligenceCard.model_validate(first_response.json()[0])
-    first_fields = {item.key: item for item in first.fields}
-    voltage = first_fields["voltage"]
-    assert voltage.value == "208 V, 1 phase"
-    assert voltage.status == "Verified"
-    assert voltage.sources[0].source_date == old_event_date.isoformat()
-    assert first_fields["required_mw"].value is None
-    assert first.power_gap is None
-    old_fingerprint = first.input_fingerprint
+    assert first_response.json() == []
+    with saved_db() as session:
+        observation = session.get(Observation, observation_id)
+        evidence = session.get(Evidence, evidence_id)
+        interpretation = session.get(Interpretation, interpretation_id)
+        assert observation and evidence and interpretation
+        assert observation.content_hash == evidence.content_hash == "boston-voltage-v1"
+        assert evidence.event_date == old_event_date
+        assert evidence.published_at == old_event_date
+        assert interpretation.content_hash == "boston-voltage-v1"
 
     with saved_db.begin() as session:
         observation = session.get(Observation, observation_id)
@@ -247,12 +247,15 @@ def test_old_retained_boston_voltage_remains_dated_and_hash_bound_on_authenticat
 
     second_response = client.get("/api/opportunity-intelligence", params={"need_ids": str(need_id)})
     assert second_response.status_code == 200, second_response.text
-    second = IntelligenceCard.model_validate(second_response.json()[0])
-    second_fields = {item.key: item for item in second.fields}
-    assert second_fields["voltage"].value is None
-    assert second_fields["required_mw"].value is None
-    assert second.power_gap is None
-    assert second.input_fingerprint != old_fingerprint
+    assert second_response.json() == []
+    with saved_db() as session:
+        observation = session.get(Observation, observation_id)
+        evidence = session.get(Evidence, evidence_id)
+        interpretation = session.get(Interpretation, interpretation_id)
+        assert observation and evidence and interpretation
+        assert observation.content_hash == evidence.content_hash == "boston-voltage-v2"
+        assert evidence.event_date == old_event_date
+        assert interpretation.content_hash == "boston-voltage-v1"
     with saved_db() as session:
         final_need = session.get(PowerNeed, need_id)
         assert (final_need.tier, final_need.required_mw) == qualification_before

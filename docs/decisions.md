@@ -140,3 +140,7 @@ Owner decision received October 20, 2026, in the current task conversation:
 > “Allow site-specific news to create standalone discovery Signals, with unknown power facts and the existing Prospect/Lead gates.”
 
 This supersedes the September 30 row above only for site-specific news Signal admission. Preserve that row and its historical context. A discovery Signal may exist without an established temporary-power need or a supported power gap. Unknown power facts remain unknown: do not infer temporary MW, duration, buyer identity, or buying authority from a site announcement. The existing evidence-based Prospect and Lead gates remain unchanged. No source-specific final rule, source activation, qualification change, or implementation acceptance is recorded here; the implementation handoff and validation are pending. The PRD and UI canon are unchanged.
+
+## 2026-10-22 — exclusive TX/OK/NM territory
+
+Owner direction supersedes nationwide active-project eligibility and California expansion. Preserve all verticals, intelligence, customer/evidence models and UI. Physical project location controls eligibility; unknown/conflicts require review. National/cross-border supporting evidence remains; disable fixed out-of-region acquisition/scheduling and preserve history. Repair existing integrations without new geographic adapters. No merge/deployment authorized.

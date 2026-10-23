@@ -11,6 +11,7 @@ from urllib.parse import urlencode, urlparse
 import httpx
 
 from gridlens.ingestion.adapters.bounded_http import ResponseTooLarge, read_bounded_response
+from gridlens.ingestion.adapters.diagnostics import partial_acquisition, rejected_record
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
 HOSTS = {
@@ -117,7 +118,7 @@ def _field(row: dict[str, Any], key: str | None) -> str:
 def _date(value: str) -> date:
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         raise SourceParseError("Permit row has malformed issue date") from exc
 
 
@@ -337,8 +338,12 @@ def retrieve_collection_segment(
     window_end: date,
     cursor: dict[str, Any],
     client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
 ) -> dict[str, Any]:
-    """Fetch at most one date/page segment for durable ingestion recovery."""
+    """Fetch one bounded day/page or verified multi-day current segment."""
+    from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
+
     source_id = source.get("id")
     if not isinstance(source_id, str) or source_id not in HOSTS:
         raise SourceParseError("Permit source ID is not configured")
@@ -372,10 +377,32 @@ def retrieve_collection_segment(
     day_value = cursor.get("day", window_start.isoformat())
     try:
         day = date.fromisoformat(str(day_value))
-    except ValueError as exc:
+        range_start = (
+            date.fromisoformat(str(cursor["range_start"])) if "range_start" in cursor else None
+        )
+        range_end = date.fromisoformat(str(cursor["range_end"])) if "range_end" in cursor else None
+    except (ValueError, TypeError) as exc:
         raise SourceParseError("Permit collection cursor has an invalid date") from exc
     if not window_start <= day <= window_end:
         raise SourceParseError("Permit collection cursor escaped its date window")
+    range_mode = range_start is not None or range_end is not None
+    if range_mode:
+        if (
+            range_start is None
+            or range_end is None
+            or not (
+                window_start <= range_start <= range_end <= window_end
+                and (range_end - range_start).days < 7
+                and day == range_start
+            )
+        ):
+            raise SourceParseError("Permit range cursor escaped its fixed date window")
+        day, segment_end = range_start, range_end
+    elif "expected" in cursor or "after_id" in cursor:
+        # Existing checkpoints remain single-day keysets with their old semantics.
+        segment_end = day
+    else:
+        segment_end = min(window_end, day + timedelta(days=6))
 
     row_field = fields["row"]
     date_field = modified_field if is_modified else fields["date"]
@@ -395,7 +422,7 @@ def retrieve_collection_segment(
     }
     suffix = "Z" if source_id == "chicago-building-permits" and is_modified else ""
     lower = f"{day.isoformat()}T00:00:00.000{suffix}"
-    upper = f"{day.isoformat()}T23:59:59.999{suffix}"
+    upper = f"{segment_end.isoformat()}T23:59:59.999{suffix}"
     if lane == "issue_backfill":
         backfill = query.get("data_center_backfill")
         if source_id != "austin-building-permits" or not isinstance(backfill, dict):
@@ -406,7 +433,7 @@ def retrieve_collection_segment(
         except (ValueError, KeyError, TypeError) as exc:
             raise SourceParseError("Permit backfill dates are malformed") from exc
         if (
-            not backfill_start <= day <= backfill_end <= datetime.now(UTC).date()
+            not backfill_start <= day <= segment_end <= backfill_end <= datetime.now(UTC).date()
             or (backfill_end - backfill_start).days > 365
         ):
             raise SourceParseError("Permit backfill window exceeds its configured bound")
@@ -431,7 +458,7 @@ def retrieve_collection_segment(
             f"AND ({class_filters[source_id]})"
         )
     where = base_where
-    after_value = cursor.get("after_value") if is_modified else day.isoformat()
+    after_value = cursor.get("after_value") if (is_modified or range_mode) else day.isoformat()
     after_id = cursor.get("after_id")
     if after_id is not None:
         if not isinstance(after_id, str) or not after_id:
@@ -443,6 +470,14 @@ def retrieve_collection_segment(
         if is_modified:
             if not isinstance(after_value, str):
                 raise SourceParseError("Permit modification cursor has no timestamp key")
+            escaped = after_value.replace("'", "''")
+            where += (
+                f" AND ({date_field} > '{escaped}' OR ({date_field} = '{escaped}' "
+                f"AND {row_field} > {row_literal}))"
+            )
+        elif range_mode:
+            if not isinstance(after_value, str):
+                raise SourceParseError("Permit range cursor has no ordered date key")
             escaped = after_value.replace("'", "''")
             where += (
                 f" AND ({date_field} > '{escaped}' OR ({date_field} = '{escaped}' "
@@ -466,12 +501,14 @@ def retrieve_collection_segment(
 
     def count_rows(count_where: str) -> int:
         nonlocal run_bytes
+        remaining_seconds(deadline)
         try:
             headers, body = read_bounded_response(
                 http,
                 source["endpoint"],
                 MAX_RESPONSE,
                 {"$select": "count(*) AS row_count", "$where": count_where},
+                deadline=deadline,
             )
         except (httpx.HTTPError, ResponseTooLarge) as exc:
             raise SourceParseError(f"Permit segment count failed: {type(exc).__name__}") from exc
@@ -488,15 +525,47 @@ def retrieve_collection_segment(
         return count
 
     def reset_cursor(expected: int) -> dict[str, Any]:
-        return {"day": day.isoformat(), "expected": expected, "scanned": 0}
+        reset = {"day": day.isoformat(), "expected": expected, "scanned": 0}
+        if range_mode:
+            reset.update({"range_start": day.isoformat(), "range_end": segment_end.isoformat()})
+        return reset
 
     try:
-        expected = count_rows(base_where)
+        if not range_mode and "expected" not in cursor and "after_id" not in cursor:
+            # Fit the widest contiguous current range into one existing 1000-row page.
+            while True:
+                expected = count_rows(base_where)
+                if expected <= PAGE_SIZE or segment_end == day:
+                    range_mode = segment_end > day
+                    break
+                segment_end -= timedelta(days=1)
+                upper = f"{segment_end.isoformat()}T23:59:59.999{suffix}"
+                if lane == "issue_backfill":
+                    base_where = (
+                        f"{fields['date']} >= '{lower}' AND {fields['date']} <= '{upper}' "
+                        f"AND ({class_filters[source_id]}) AND ({predicate})"
+                    )
+                elif is_modified:
+                    base_where = (
+                        f"{fields['date']} IS NOT NULL AND {fields['date']} <= "
+                        f"'{datetime.now(UTC).date().isoformat()}T23:59:59.999' "
+                        f"AND {date_field} >= '{lower}' AND {date_field} <= '{upper}' "
+                        f"AND ({class_filters[source_id]})"
+                    )
+                else:
+                    base_where = (
+                        f"{date_field} >= '{lower}' AND {date_field} <= '{upper}' "
+                        f"AND ({class_filters[source_id]})"
+                    )
+        else:
+            expected = count_rows(base_where)
         prior_expected = cursor.get("expected")
         scanned = cursor.get("scanned", 0)
         if type(scanned) is not int or scanned < 0:
             raise SourceParseError("Permit collection cursor has an invalid count")
         count_where = base_where
+        if after_id is None:
+            params_rows["$where"] = base_where
         if prior_expected is not None and (
             type(prior_expected) is not int or prior_expected != expected
         ):
@@ -511,7 +580,7 @@ def retrieve_collection_segment(
             }
         expected = expected if prior_expected is None else prior_expected
         if expected == 0:
-            next_day = day + timedelta(days=1)
+            next_day = segment_end + timedelta(days=1)
             return {
                 "records": [],
                 "cursor": {"day": next_day.isoformat()} if next_day <= window_end else {},
@@ -524,7 +593,7 @@ def retrieve_collection_segment(
             raise SourceParseError("Permit collection cursor exceeds the declared row count")
         try:
             headers, body = read_bounded_response(
-                http, source["endpoint"], MAX_RESPONSE, params_rows
+                http, source["endpoint"], MAX_RESPONSE, params_rows, deadline=deadline
             )
         except (httpx.HTTPError, ResponseTooLarge) as exc:
             raise SourceParseError(f"Permit segment page failed: {type(exc).__name__}") from exc
@@ -538,19 +607,63 @@ def retrieve_collection_segment(
         if not isinstance(rows, list) or not rows or len(rows) > PAGE_SIZE:
             raise SourceParseError("Permit segment page is empty or exceeds its row bound")
         records: list[dict[str, Any]] = []
+        rejected: list[dict[str, Any]] = []
         seen: set[str] = set()
         previous: tuple[str, str] | None = None
         for row in rows:
             if not isinstance(row, dict):
                 raise SourceParseError("Permit segment row has invalid shape")
-            missing = [fields[key] for key in ("row", "date", "description") if fields[key]]
-            if any(name not in row for name in missing):
-                raise SourceParseError("Permit segment response schema changed")
             row_id = _field(row, row_field)
-            issue_day = _date(_field(row, fields["date"]))
+            if not row_id:
+                raise SourceParseError("Permit segment row lacks stable source identity")
+            if row_id in seen:
+                raise SourceParseError("Permit segment has invalid or duplicate row identity")
+            seen.add(row_id)
+            raw_fields = {
+                name: _field(row, name)[:256]
+                for name in (row_field, fields["date"], fields["description"])
+                if name and name in row
+            }
+
+            def reject_row(
+                error: SourceParseError,
+                *,
+                identity: str,
+                raw: dict[str, str],
+                omitted: list[str],
+            ) -> None:
+                rejected.append(
+                    rejected_record(
+                        identity=identity,
+                        error=error,
+                        stage="public_acquisition",
+                        raw=raw,
+                        omitted_fields=omitted,
+                    )
+                )
+
+            missing = [fields[key] for key in ("row", "date", "description") if fields[key]]
+            omitted_fields = [name for name in missing if name not in row]
+            if omitted_fields:
+                reject_row(
+                    SourceParseError("Permit segment response schema changed"),
+                    identity=row_id,
+                    raw=raw_fields,
+                    omitted=omitted_fields,
+                )
+                continue
+            try:
+                issue_day = _date(_field(row, fields["date"]))
+            except SourceParseError as exc:
+                reject_row(exc, identity=row_id, raw=raw_fields, omitted=[])
+                continue
             modified_value = _field(row, modified_field)
-            sort_date = _date(modified_value) if is_modified else issue_day
-            if not row_id or row_id in seen or issue_day > datetime.now(UTC).date():
+            try:
+                sort_date = _date(modified_value) if is_modified else issue_day
+            except SourceParseError as exc:
+                reject_row(exc, identity=row_id, raw=raw_fields, omitted=[])
+                continue
+            if issue_day > datetime.now(UTC).date():
                 raise SourceParseError("Permit segment has invalid or duplicate row identity")
             if source_id == "austin-building-permits":
                 class_valid = _field(row, fields["class"]) == "Commercial" and _field(
@@ -580,21 +693,23 @@ def retrieve_collection_segment(
                 description = _field(row, fields["description"]).lower()
                 if not any(term in description for term in terms):
                     raise SourceParseError("Permit segment row escaped the backfill keyword filter")
-            if sort_date != day:
+            if not day <= sort_date <= segment_end:
                 raise SourceParseError("Permit segment row escaped its date window")
-            sort_key = (
-                modified_value if is_modified else issue_day.isoformat(),
-                row_id,
-            )
+            sort_key = (_field(row, date_field), row_id)
             if previous is not None and sort_key < previous:
                 raise SourceParseError("Permit segment rows are out of stable key order")
             if after_id is not None:
-                prior_key = (str(after_value) if is_modified else day.isoformat(), after_id)
+                prior_key = (
+                    str(after_value) if (is_modified or range_mode) else day.isoformat(),
+                    after_id,
+                )
                 if sort_key <= prior_key:
                     raise SourceParseError("Permit segment row did not advance its keyset")
-            seen.add(row_id)
             previous = sort_key
-            records.append(render_record(source, row))
+            try:
+                records.append(render_record(source, row))
+            except SourceParseError as exc:
+                reject_row(exc, identity=row_id, raw=raw_fields, omitted=[])
         after_count = count_rows(count_where)
         page_total = scanned + len(rows)
         if after_count != expected or page_total > expected:
@@ -607,12 +722,23 @@ def retrieve_collection_segment(
                 "expected_count": after_count,
                 "observed_count": page_total,
             }
+        if rejected:
+            partial = partial_acquisition(
+                records, rejected[:50], rejected_count=len(rejected), partial_reason="malformed_row"
+            )
+            return {
+                **partial,
+                "cursor": reset_cursor(expected),
+                "window_complete": False,
+                "expected_count": expected,
+                "observed_count": page_total,
+            }
         day_complete = page_total == expected
         if not day_complete and len(rows) != PAGE_SIZE:
             raise SourceParseError("Permit segment ended before the declared count")
         next_cursor: dict[str, Any]
         if day_complete:
-            next_day = day + timedelta(days=1)
+            next_day = segment_end + timedelta(days=1)
             next_cursor = {"day": next_day.isoformat()} if next_day <= window_end else {}
             window_complete = next_day > window_end
         else:
@@ -623,7 +749,14 @@ def retrieve_collection_segment(
                 "scanned": page_total,
                 "after_id": _field(last_row, row_field),
                 **({"after_value": _field(last_row, modified_field)} if is_modified else {}),
+                **(
+                    {"range_start": day.isoformat(), "range_end": segment_end.isoformat()}
+                    if range_mode
+                    else {}
+                ),
             }
+            if range_mode and not is_modified:
+                next_cursor["after_value"] = _field(last_row, fields["date"])
             window_complete = False
         return {
             "records": records,

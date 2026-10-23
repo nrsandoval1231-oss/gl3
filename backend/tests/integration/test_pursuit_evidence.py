@@ -1383,11 +1383,7 @@ def test_future_publication_does_not_admit_project_claims(research_db):
 
 @pytest.mark.parametrize(
     "native_source",
-    [
-        "seattle-building-permits",
-        "boston-building-permits",
-        "el-paso-new-commercial-permits",
-    ],
+    ["el-paso-new-commercial-permits"],
 )
 def test_native_research_refresh_uses_original_canonical_observation(research_db, native_source):
     from gridlens.ingestion.adapters import boston_permits, el_paso_permits
@@ -1470,9 +1466,39 @@ def test_native_research_refresh_uses_original_canonical_observation(research_db
         assert session.scalar(select(Observation)).id == initial_observation.id
         assert set(session.scalars(select(Evidence.id))) == initial_ids
         assert need.tier == "Signal" and need.required_mw is None
-        if native_source in {"boston-building-permits", "el-paso-new-commercial-permits"}:
-            assert receipt["published_at"] is None
-            assert receipt["event_date"] == "2026-01-01"
+        assert receipt["published_at"] is None
+        assert receipt["event_date"] == "2026-01-01"
+
+
+@pytest.mark.parametrize("source_id", ["seattle-building-permits", "boston-building-permits"])
+def test_disabled_out_of_region_native_sources_cannot_enqueue_refresh(research_db, source_id):
+    from gridlens.jobs.queue import enqueue
+
+    factory, _source, _job_id = research_db
+    definition = next(source for source in load_registry() if source["id"] == source_id)
+    assert definition["enabled"] is False
+    with factory.begin() as session:
+        session.add(
+            Source(
+                **{
+                    **{
+                        key: value
+                        for key, value in definition.items()
+                        if key in Source.__table__.columns
+                    },
+                    "enabled": False,
+                    "registry_enabled": False,
+                    "health": {},
+                }
+            )
+        )
+        session.flush()
+        with pytest.raises(ValueError, match="disabled"):
+            enqueue(session, source_id)
+        assert (
+            session.scalar(select(func.count()).select_from(Job).where(Job.source_id == source_id))
+            == 0
+        )
 
 
 def test_fr_record_without_custom_extraction_location_is_quarantined_when_unbound(research_db):

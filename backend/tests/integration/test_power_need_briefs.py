@@ -104,6 +104,7 @@ def runtime(monkeypatch):
             identity_key="brief-test-project",
             name="Synthetic North Campus",
             location="Test City",
+            identity_facts={"site": "100 Test Road, Test City, TX"},
             source_id=source.id,
             external_id="record-1",
         )
@@ -119,8 +120,11 @@ def runtime(monkeypatch):
         observation = Observation(
             source_id=source.id,
             external_id="record-1",
-            title="Public permit describes construction at Synthetic North Campus",
-            abstract="Construction work at Synthetic North Campus in Test City.",
+            title=(
+                "Public permit describes construction at Synthetic North Campus, "
+                "100 Test Road, Test City, TX"
+            ),
+            abstract=("Construction work at Synthetic North Campus, 100 Test Road, Test City, TX."),
             url="https://example.test/permits/record-1",
             content_hash="a" * 64,
         )
@@ -647,6 +651,7 @@ def test_opportunity_projection_uses_stable_updated_at_tiebreak(runtime):
             identity_key="brief-test-project-stable-order",
             name="Synthetic South Campus",
             location="Test City",
+            identity_facts={"site": "Test City, TX"},
             source_id=first_project.source_id,
             external_id="record-2",
         )
@@ -655,7 +660,7 @@ def test_opportunity_projection_uses_stable_updated_at_tiebreak(runtime):
             source_id=source.id,
             external_id="record-2",
             title="Public permit describes construction at Synthetic South Campus",
-            abstract="Construction work at Synthetic South Campus in Test City.",
+            abstract="Construction work at Synthetic South Campus in Test City, TX.",
             url="https://example.test/permits/record-2",
             content_hash="b" * 64,
         )
@@ -1160,7 +1165,7 @@ def test_search_uses_final_derived_title_and_joined_evidence_fields(runtime):
         observation = Observation(
             source_id="brief-test-permits",
             external_id="record-company-old",
-            title="Older retained supporting permit",
+            title="Older retained supporting permit owner Test City, TX",
             abstract="owner_company_name: Example Holdings",
             url="https://example.test/permits/company-old",
             content_hash="b" * 64,
@@ -1325,7 +1330,7 @@ def test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_histo
             id=project_id,
             identity_key=f"bounded-summary-project-{index}",
             name=f"Permit project {index}",
-            location=qualification_site if index == 1 else site,
+            location=site,
             source_id=source.id,
             external_id=external_id,
         )

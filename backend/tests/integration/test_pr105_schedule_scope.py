@@ -10,7 +10,7 @@ from gridlens.domain.call_facts import validate_fact
 pytest_plugins = ["test_call_fact_workflow_integration"]
 
 
-@pytest.mark.parametrize("location", ["Test City", "  Test  \n City  "])
+@pytest.mark.parametrize("location", ["Austin, TX", "  Austin, TX  "])
 def test_schedule_refs_require_current_project_activity_and_facility_binding(
     runtime, monkeypatch, location
 ):
@@ -22,8 +22,8 @@ def test_schedule_refs_require_current_project_activity_and_facility_binding(
     now = datetime.now(UTC)
     source_hash = "a" * 64
     source_abstract = (
-        "description: Test City construction requires 20 to 25 MW. "
-        "Power supply for Test City construction is insufficient.\naddress: Test City"
+        f"description: {location} construction requires 20 to 25 MW. "
+        f"Power supply for {location} construction is insufficient.\naddress: {location}"
     )
     from gridlens.persistence.models import (
         Evidence,
@@ -38,6 +38,7 @@ def test_schedule_refs_require_current_project_activity_and_facility_binding(
         need = session.get(PowerNeed, need_id)
         project = session.get(Project, project_id)
         assert need is not None and project is not None
+        project.location = location
         observation = Observation(
             source_id="a6-test-source",
             external_id="synthetic-permit-pr105",
@@ -70,8 +71,8 @@ def test_schedule_refs_require_current_project_activity_and_facility_binding(
                 "power_activity": "construction",
                 "tier": "Prospect",
                 "demand_mw": "20 to 25 MW",
-                "demand_quote": "Test City construction requires 20 to 25 MW.",
-                "supply_quote": "Power supply for Test City construction is insufficient.",
+                "demand_quote": f"{location} construction requires 20 to 25 MW.",
+                "supply_quote": f"Power supply for {location} construction is insufficient.",
                 "reason": "Current retained exact-site permit support.",
                 "subject": project.name,
                 "location": project.location,
@@ -93,7 +94,7 @@ def test_schedule_refs_require_current_project_activity_and_facility_binding(
             "expected_version": version,
             "predecessor_id": None,
             "activity_key": "construction",
-            "facility_scope": "Test City",
+            "facility_scope": location,
             "fact_type": fact_type,
             "value": value,
             "reporter_name": "Synthetic Account Manager",
@@ -165,7 +166,7 @@ def test_schedule_refs_require_current_project_activity_and_facility_binding(
         "expected_version": 6,
         "predecessor_id": None,
         "activity_key": "construction",
-        "facility_scope": "Test City",
+        "facility_scope": "Austin, TX",
         "fact_type": "power_schedule",
         "value": value,
         "reporter_name": "Synthetic Account Manager",
@@ -213,12 +214,12 @@ def test_schedule_refs_require_current_project_activity_and_facility_binding(
     assert reference["need_id"] == str(need_id)
     assert reference["project_id"] == str(project_id)
     assert reference["activity_key"] == "construction"
-    assert reference["facility_scope"] == "Test City"
+    assert reference["facility_scope"] == "Austin, TX"
 
     with factory.begin() as session:
         from gridlens.persistence.models import Project
 
-        session.get(Project, project_id).location = "Changed Test City"
+        session.get(Project, project_id).location = "Changed Austin, TX"
     stale = client.get(f"/api/opportunity-intelligence?need_ids={need_id}")
     assert stale.status_code == 200, stale.text
     assert stale.json()[0]["power_schedule"] is None
@@ -236,4 +237,4 @@ def test_schedule_refs_require_current_project_activity_and_facility_binding(
         assert retained is not None
         assert retained.project_id == project_id
         assert retained.activity_key == "construction"
-        assert retained.facility_scope == "Test City"
+        assert retained.facility_scope == "Austin, TX"

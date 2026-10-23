@@ -1,3 +1,5 @@
+> October 22: TX → OK → NM active-project territory supersedes prior national geography. National upstream evidence remains permitted. See [inventory](regional-inventory-20261022.md).
+
 # GridLens ingestion strategy
 
 > GL3-018 supersedes standalone news/planning Signal admission and expands the existing Chicago/Georgia routes. See [current admission and acquisition behavior](gl3-018-admission-and-acquisition.md). Historical validation below is not a new live check.
@@ -16,7 +18,7 @@ Prove that GridLens consistently discovers new projects and detects material cha
 
 A scheduled job running successfully is only one part of ingestion success. Failures must be visible and recoverable. Public information cannot guarantee discovery of every project or power requirement; coverage limitations must remain explicit.
 
-This strategy elaborates the PRD's ingestion and verification requirements. It preserves national, cross-industry collection with default priority for data center construction and commissioning. It does not import any old GridLens implementation.
+This strategy elaborates the PRD's ingestion and verification requirements. The October 22 mandate restricts active physical projects to TX/OK/NM across all industries, while national upstream evidence remains permitted with project-location filtering. Fixed out-of-region sources are disabled. It does not import any old GridLens implementation.
 
 ## Six guarantees to demonstrate
 
@@ -33,7 +35,7 @@ This strategy elaborates the PRD's ingestion and verification requirements. It p
 
 ### Broad discovery
 
-Prioritize sources by commercial timing advantage. Data-center pre-permit formation, data-center construction/commissioning, upstream drilling/production lifecycle, and fixed O&G infrastructure are the first deep acquisition programs. Find new projects and events across the national scope through a mix of:
+Prioritize sources by commercial timing advantage. Data-center pre-permit formation, data-center construction/commissioning, upstream drilling/production lifecycle, and fixed O&G infrastructure are the first deep acquisition programs. Find new projects and events across the TX/OK/NM operating territory through a mix of:
 
 - Structured regulatory and industrial records.
 - Construction and permit publications.

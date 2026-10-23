@@ -6,6 +6,7 @@ import pytest
 
 from gridlens.domain.permit_interpretation import assess_permit, evaluator_version
 from gridlens.ingestion.adapters.federal_register import SourceParseError
+from gridlens.ingestion.adapters.tceq_http import _route, read_tceq_response
 from gridlens.ingestion.adapters.tceq_nsr_pending import (
     LISTING_URL,
     RELEVANT_NAME,
@@ -51,6 +52,105 @@ def test_listing_changes_fail_visibly():
     body = FIXTURE.read_bytes().replace(b"11/07/2025", b"11/07/2031")
     with pytest.raises(SourceParseError, match="future"):
         parse_listing(body, TODAY)
+
+
+def test_malformed_date_isolated_when_application_project_identity_is_stable():
+    body = FIXTURE.read_bytes().replace(b"11/07/2025", b"not-a-date", 1)
+    rejected = []
+    rows = parse_listing(body, TODAY, rejected=rejected)
+    assert len(rows) + len(rejected) >= 20
+    assert any(item["identity"] == "TCEQ-400428" for item in rejected)
+    assert rejected[0]["error_code"] == "tceq_received_date"
+    assert len(rows) >= 19
+
+
+def test_missing_permit_is_isolated_when_application_project_identity_is_stable():
+    body = FIXTURE.read_bytes().replace(b"<td>182126, GHGPSDTX263, PSDTX1688</td>", b"<td></td>", 1)
+    rejected = []
+    rows = parse_listing(body, TODAY, rejected=rejected)
+    assert any(item["identity"] == "TCEQ-400428" for item in rejected)
+    assert any(row["project"] != "400428" for row in rows)
+
+
+def test_retrieve_keeps_valid_siblings_when_one_listing_row_has_bad_date(monkeypatch):
+    monkeypatch.setattr("gridlens.ingestion.adapters.tceq_http._public_ip", lambda _host: "8.8.8.8")
+    malformed = FIXTURE.read_bytes().replace(b"11/07/2025", b"not-a-date", 1)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "text/html"}, content=malformed)
+
+    records = retrieve(
+        {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_summaries": 0}},
+        httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    assert any(
+        row.get("document_number") == "TCEQ-400428"
+        and row.get("partial_snapshot")
+        and row["rejected_record"]["error_code"] == "tceq_received_date"
+        for row in records
+    )
+    assert any(not row.get("presence_only") for row in records)
+
+
+def test_records_pdf_route_is_exact_and_rejects_untrusted_query_shapes():
+    valid = (
+        "https://records.tceq.texas.gov/cs/idcplg?"
+        "IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&Rendition=Web&dID=7474076"
+    )
+    assert "dID=7474076" in _route(valid, "record_pdf")
+    for url in (
+        valid + "&redirect=https://127.0.0.1/",
+        valid.replace("dID=7474076", "dID=0"),
+        valid.replace("dID=7474076", "dID=7474076&dID=7474077"),
+        valid.replace("records.tceq.texas.gov", "records.tceq.texas.gov.evil.example"),
+        valid.replace("https://records", "https://user@records"),
+        valid.replace("/cs/idcplg", "/cs/../idcplg"),
+    ):
+        with pytest.raises(SourceParseError):
+            _route(url, "record_pdf")
+
+
+def test_records_pdf_route_checks_redirect_host_type_signature_and_size(monkeypatch):
+    import gridlens.ingestion.adapters.tceq_http as policy
+
+    monkeypatch.setattr(policy, "_public_ip", lambda _host: "8.8.8.8")
+    url = (
+        "https://records.tceq.texas.gov/cs/idcplg?"
+        "IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&Rendition=Web&dID=7474076"
+    )
+    client = httpx.Client(
+        follow_redirects=False,
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                200, headers={"content-type": "application/pdf"}, content=b"%PDF-1.7 test"
+            )
+        ),
+    )
+    headers, body = read_tceq_response(client, url, 100, route="record_pdf")
+    assert headers["content-type"] == "application/pdf" and body.startswith(b"%PDF-")
+    for content_type, payload, limit in (
+        ("text/html", b"%PDF-1.7", 100),
+        ("application/pdf", b"not pdf", 100),
+        ("application/pdf", b"%PDF-" + b"x" * 20, 10),
+    ):
+        bad_client = httpx.Client(
+            follow_redirects=False,
+            transport=httpx.MockTransport(
+                lambda _request, content_type=content_type, payload=payload: httpx.Response(
+                    200, headers={"content-type": content_type}, content=payload
+                )
+            ),
+        )
+        with pytest.raises((SourceParseError, ValueError)):
+            read_tceq_response(bad_client, url, limit, route="record_pdf")
+    redirect_client = httpx.Client(
+        follow_redirects=False,
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(302, headers={"location": "https://evil.example/a.pdf"})
+        ),
+    )
+    with pytest.raises(SourceParseError):
+        read_tceq_response(redirect_client, url, 100, route="record_pdf")
 
 
 def test_relative_and_wrapped_application_link_resolves_to_official_pdf():
@@ -143,21 +243,26 @@ def test_unsited_or_non_load_filings_stay_evidence():
     assert rejected["decision"] == "rejected" and "not a load-side" in rejected["reason"]
 
 
-def test_retrieve_withholds_unsummarized_filings_and_fails_visibly_when_most_fail():
+def test_retrieve_withholds_unsummarized_filings_and_records_partial_failures(monkeypatch):
+    monkeypatch.setattr("gridlens.ingestion.adapters.tceq_http._public_ip", lambda _host: "8.8.8.8")
     requested: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requested.append(str(request.url))
-        if str(request.url) == LISTING_URL:
-            return httpx.Response(200, content=FIXTURE.read_bytes())
+        if request.url.path == httpx.URL(LISTING_URL).path:
+            return httpx.Response(
+                200, headers={"content-type": "text/html"}, content=FIXTURE.read_bytes()
+            )
         return httpx.Response(404)
 
-    with pytest.raises(SourceParseError, match="summaries failed for 2 of 2"):
-        retrieve(
-            {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_summaries": 2}},
-            httpx.Client(transport=httpx.MockTransport(handler)),
-        )
+    failed = retrieve(
+        {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_summaries": 2}},
+        httpx.Client(transport=httpx.MockTransport(handler)),
+    )
     assert len(requested) == 3  # listing plus two bounded summary attempts
+    failures = [r for r in failed if r.get("presence_only")]
+    assert len(failures) >= 2 and all(r["partial_snapshot"] for r in failures)
+    assert sum(r["rejected_record"]["error_code"] == "http_status_404" for r in failures) == 2
     records = retrieve(
         {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_summaries": 0}},
         httpx.Client(transport=httpx.MockTransport(handler)),

@@ -1,5 +1,7 @@
 import json
 import pickle
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 
 import httpx
 import pytest
@@ -47,6 +49,47 @@ def test_http_codes_are_retained_without_url_or_headers(status):
     assert str(safe) == f"http_status_{status}"
     assert acquisition_diagnostics(safe)["http_status"] == status
     assert "DO_NOT_RETAIN" not in acquisition_error_message(safe)
+
+
+def test_retry_after_seconds_survive_isolation_without_retaining_headers():
+    request = httpx.Request("GET", "https://example.test/?token=DO_NOT_RETAIN")
+    error = httpx.HTTPStatusError(
+        "rate limited",
+        request=request,
+        response=httpx.Response(
+            429,
+            request=request,
+            headers={"Retry-After": "321", "Secret": "DO_NOT_RETAIN"},
+        ),
+    )
+    safe = _safe_acquisition_error(error)
+    transferred = pickle.loads(pickle.dumps(safe))
+    diagnostics = acquisition_diagnostics(_safe_acquisition_error(transferred))
+    assert diagnostics["retry_after_seconds"] == 321
+    assert diagnostics["http_status"] == 429
+    assert "DO_NOT_RETAIN" not in str(safe)
+    assert "DO_NOT_RETAIN" not in json.dumps(safe.__dict__)
+
+
+def test_retry_after_http_date_is_parsed_and_over_bound_is_not_clamped_early():
+    request = httpx.Request("GET", "https://example.test")
+    retry_at = datetime.now(UTC) + timedelta(minutes=2)
+    error = httpx.HTTPStatusError(
+        "unavailable",
+        request=request,
+        response=httpx.Response(
+            503, request=request, headers={"Retry-After": format_datetime(retry_at, usegmt=True)}
+        ),
+    )
+    delay = acquisition_diagnostics(error)["retry_after_seconds"]
+    assert 110 <= delay <= 120
+
+    over_bound = httpx.HTTPStatusError(
+        "unavailable",
+        request=request,
+        response=httpx.Response(503, request=request, headers={"Retry-After": "604801"}),
+    )
+    assert acquisition_diagnostics(over_bound)["retry_after_exceeds_bound"] == 1
 
 
 @pytest.mark.parametrize(

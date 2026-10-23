@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -13,7 +13,6 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.domain.permit_interpretation import assess_permit
 from gridlens.ingestion.adapters import georgia_air_permits
 from gridlens.ingestion.registry import load_registry
-from gridlens.ingestion.service import process_job
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
@@ -521,211 +520,126 @@ def test_pdf_identity_normalizes_dotted_company_initials():
     )
 
 
-def test_georgia_job_retains_null_publication_and_replays_with_pdf_evidence(
-    integration_db, monkeypatch
+def test_disabled_georgia_source_preserves_historical_versions_without_retrieval(
+    integration_db,
 ):
     engine = integration_db
     factory = sessionmaker(engine, expire_on_commit=False)
     definition = next(row for row in load_registry() if row["id"] == "georgia-air-draft-title-v")
+    source_id = definition["id"]
+    historic_hashes = [f"{digit:x}" * 64 for digit in range(1, 8)]
+    latest_hash = "f" * 64
+    event_date = datetime(2026, 6, 17, tzinfo=UTC).date()
+
     with factory.begin() as session:
-        session.add(
-            Source(
-                id=definition["id"],
-                publisher=definition["publisher"],
-                endpoint=definition["endpoint"],
-                family=definition["family"],
-                geography=definition["geography"],
-                industries=definition["industries"],
-                retrieval_method=definition["retrieval_method"],
-                cadence_hours=24,
-                health={},
-            )
+        source = Source(
+            id=source_id,
+            publisher=definition["publisher"],
+            endpoint=definition["endpoint"],
+            family=definition["family"],
+            geography=definition["geography"],
+            industries=definition["industries"],
+            retrieval_method=definition["retrieval_method"],
+            cadence_hours=24,
+            enabled=False,
+            registry_enabled=False,
+            health={},
         )
+        session.add(source)
         session.flush()
-        job = Job(
-            source_id=definition["id"],
-            status="running",
-            lease_owner="test",
-            fence=1,
-            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        project = Project(
+            source_id=source_id,
+            external_id="SIP-30169",
+            identity_key="historical-georgia-qts-30169",
+            name="QTS ATL3 Campus",
+            location="Augusta, Georgia",
         )
-        session.add(job)
+        observation = Observation(
+            source_id=source_id,
+            external_id="knack-qts-1",
+            title="QTS ATL3 Campus",
+            abstract=(
+                "Historical permit evidence. Public notice URL (retained reference, not fetched): "
+                "https://epd.georgia.gov/document/document/30170-pn/download"
+            ),
+            published_at=None,
+            url=georgia_air_permits.LISTING_URL,
+            content_hash=latest_hash,
+        )
+        session.add_all([project, observation])
         session.flush()
-        job_id = job.id
-
-    application = {
-        "application": {
-            "id": georgia_air_permits.APP_ID,
-            "home_scene": {"key": "scene_1"},
-            "objects": [
-                {
-                    "fields": [
-                        {"key": "field_1", "name": "Facility Name"},
-                        {"key": "field_2", "name": "Location"},
-                        {"key": "field_3", "name": "Public Comment Deadline"},
-                        {"key": "field_4", "name": "Application Link"},
-                        {"key": "field_5", "name": "Narrative"},
-                        {"key": "field_6", "name": "Draft Permit"},
-                        {"key": "field_7", "name": "Public Notice"},
-                        {"key": "field_8", "name": "Application Number"},
-                    ]
-                }
-            ],
-        }
-    }
-    raw_pdf = b"%PDF-1.7 QTS narrative"
-    scenario = {"pdf_version": b"v1", "notice_id": "30169", "fail_document": None}
-
-    class Page:
-        def extract_text(self):
-            return (
-                "Application No. 30169. QTS ATL3 Campus, Augusta, Georgia. "
-                "Purpose of Application: Construct a greenfield data center with 224 emergency "
-                "generators. "
-                "Date Title V Application Received: June 17, 2026."
+        titles = [
+            "Narrative PDF v1",
+            "Draft permit PDF v1",
+            "Application listing v1",
+            "Narrative PDF v2",
+            "Draft permit PDF v2",
+            "Application listing v2",
+            "Application listing v3",
+        ]
+        evidence = [
+            Evidence(
+                observation_id=observation.id,
+                content_hash=content_hash,
+                title=title,
+                abstract="Historical source version retained for audit.",
+                url=(
+                    f"https://epd.georgia.gov/document/document/30169-{index}-download"
+                    if index < 3
+                    else georgia_air_permits.LISTING_URL
+                ),
+                published_at=None,
+                event_date=event_date if index == 0 else None,
+                event_date_label=(
+                    "Application received date (source-stated)" if index == 0 else None
+                ),
+                extraction_location="historical source evidence",
             )
-
-    class Reader:
-        pages = [Page()]
-        is_encrypted = False
-
-        def __init__(self, stream, strict):
-            assert strict
-            assert stream.read().startswith(b"%PDF-")
-
-    monkeypatch.setattr(georgia_air_permits, "PdfReader", Reader)
-
-    fetched_paths: list[str] = []
-
-    def handler(request):
-        if request.url.host == "api.knack.com" and request.url.path.endswith("/records"):
-            return httpx.Response(
-                200,
-                json={
-                    "total_records": 1,
-                    "total_pages": 1,
-                    "records": [
-                        {
-                            "id": "knack-qts-1",
-                            "field_1": "QTS ATL3 Campus",
-                            "field_2": "Augusta",
-                            "field_3": "10/16/2026",
-                            "field_3_raw": {"date": "10/16/2026"},
-                            "field_8": "SIP-30169",
-                            "field_5_raw": {
-                                "url": "https://epd.georgia.gov/document/document/30169-nar/download"
-                            },
-                            "field_6_raw": {
-                                "url": "https://epd.georgia.gov/document/document/30169-draft/download"
-                            },
-                            "field_7_raw": {
-                                "url": (
-                                    "https://epd.georgia.gov/document/document/"
-                                    f"{scenario['notice_id']}-pn/download"
-                                )
-                            },
-                        }
-                    ],
-                },
-            )
-        if request.url.host == "api.knack.com":
-            return httpx.Response(200, json=application)
-        fetched_paths.append(request.url.path)
-        if scenario["fail_document"] and scenario["fail_document"] in request.url.path:
-            return httpx.Response(503, text="temporary required-document failure")
-        return httpx.Response(
-            200,
-            content=raw_pdf + scenario["pdf_version"] + request.url.path.encode(),
-            headers={"content-type": "application/pdf"},
+            for index, (title, content_hash) in enumerate(zip(titles, historic_hashes, strict=True))
+        ]
+        session.add_all(evidence)
+        interpretation = Interpretation(
+            observation_id=observation.id,
+            content_hash=latest_hash,
+            evaluator_version="georgia-air-discovery-v2",
+            assessment={"status": "accepted", "previous_decisions": ["accepted"]},
+            status="accepted",
         )
+        session.add(interpretation)
+        session.flush()
+        observation_id = observation.id
+        project_id = project.id
 
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with factory() as session:
-            first = process_job(session, job_id, "test", 1, definition, client)
-        with factory() as session:
-            replay = process_job(session, job_id, "test", 1, definition, client)
-    assert first["signals"] == 1
-    assert first["permit_accepted"] == 1
-    assert replay["unchanged"] == 1
-    assert fetched_paths == [
-        "/document/document/30169-nar/download",
-        "/document/document/30169-draft/download",
-        "/document/document/30169-nar/download",
-        "/document/document/30169-draft/download",
-    ]
+    from gridlens.jobs.queue import enqueue, lease_one
+
+    with factory.begin() as session:
+        with pytest.raises(ValueError, match="disabled"):
+            enqueue(session, source_id)
+    with factory.begin() as session:
+        assert session.scalar(select(func.count()).select_from(Job)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assert lease_one(session, "disabled-georgia-test") is None
+
     with factory() as session:
-        observation = session.scalar(select(Observation))
+        observation = session.get(Observation, observation_id)
+        project = session.get(Project, project_id)
         assert observation is not None and observation.published_at is None
+        assert project is not None and project.location == "Augusta, Georgia"
         assert session.scalar(select(Project.name)) == "QTS ATL3 Campus"
-        need = session.scalar(select(PowerNeed))
-        assert need is not None and need.tier == "Signal" and need.required_mw is None
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
-        evidence = session.scalars(select(Evidence).order_by(Evidence.observed_at)).all()
-        assert evidence[0].event_date_label == "Application received date (source-stated)"
-        assert evidence[1].published_at is None
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 7
+        evidence = session.scalars(select(Evidence).order_by(Evidence.title)).all()
+        assert {row.content_hash for row in evidence} == set(historic_hashes)
+        assert all(row.published_at is None for row in evidence)
+        application_evidence = next(row for row in evidence if row.event_date_label)
+        assert application_evidence.event_date == event_date
+        assert application_evidence.event_date_label == "Application received date (source-stated)"
         assert all("30169-pn" not in row.url for row in evidence)
-        assert (
-            "Public notice URL (retained reference, not fetched)".casefold()
-            in observation.abstract.casefold()
-        )
+        assert "30170-pn/download" in (observation.abstract or "")
         interpretation = session.scalar(select(Interpretation))
         assert interpretation is not None
         assert interpretation.status == "accepted"
         assert interpretation.evaluator_version == "georgia-air-discovery-v2"
-        original_hash = observation.content_hash
-
-    scenario["pdf_version"] = b"v2-changed-required-pdf"
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with factory() as session:
-            changed_pdf = process_job(session, job_id, "test", 1, definition, client)
-    assert changed_pdf["changed"] == 1
-    assert changed_pdf["signals"] == 0  # Existing activity was updated, not rediscovered.
-    with factory() as session:
-        observation = session.scalar(select(Observation))
-        assert observation is not None and observation.content_hash != original_hash
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 6
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
-        interpretation = session.scalar(select(Interpretation))
-        assert interpretation is not None
-        assert interpretation.status == "accepted"
-        assert interpretation.assessment is not None
-        assert interpretation.assessment["previous_decisions"]
-        changed_pdf_hash = observation.content_hash
-
-    fetched_before_notice_revision = len(fetched_paths)
-    scenario["notice_id"] = "30170"
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with factory() as session:
-            changed_notice = process_job(session, job_id, "test", 1, definition, client)
-    assert changed_notice["changed"] == 1
-    assert fetched_paths[fetched_before_notice_revision:] == [
-        "/document/document/30169-nar/download",
-        "/document/document/30169-draft/download",
-    ]
-    with factory() as session:
-        observation = session.scalar(select(Observation))
-        assert observation is not None and observation.content_hash != changed_pdf_hash
-        assert "30170-pn/download" in (observation.abstract or "")
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 7
-        evidence = session.scalars(select(Evidence)).all()
-        assert all("30170-pn" not in row.url for row in evidence)
-        latest_hash = observation.content_hash
-        latest_abstract = observation.abstract
-
-    scenario["fail_document"] = "-draft"
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with factory() as session:
-            with pytest.raises(
-                georgia_air_permits.SourceParseError,
-                match="Georgia source request failed",
-            ):
-                process_job(session, job_id, "test", 1, definition, client)
-    with factory() as session:
-        observation = session.scalar(select(Observation))
-        assert observation is not None and observation.content_hash == latest_hash
-        assert observation.abstract == latest_abstract
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 7
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert interpretation.content_hash == observation.content_hash == latest_hash
 
 
 @pytest.mark.parametrize(

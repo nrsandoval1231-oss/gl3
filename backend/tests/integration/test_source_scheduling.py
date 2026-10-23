@@ -248,7 +248,7 @@ def test_operator_enable_reconciles_persisted_registry_disable(source_db, monkey
 
     before = api.health()["sources"][0]
     assert before["enabled"] is False
-    assert before["freshness"] == "UNKNOWN"
+    assert before["freshness"] == "DISABLED"
     with factory.begin() as session:
         with pytest.raises(ValueError, match="disabled"):
             enqueue(session, "synthetic-scheduled-source")
@@ -360,7 +360,7 @@ def test_operator_transition_reconciles_unsynced_registry_drift(source_db, monke
         assert len(epochs) == 2
     health = api.health()["sources"][0]
     assert health["enabled"] is expected_enabled
-    assert health["freshness"] == "UNKNOWN"
+    assert health["freshness"] == ("UNKNOWN" if expected_enabled else "DISABLED")
 
     with factory.begin() as session:
         if expected_enabled:

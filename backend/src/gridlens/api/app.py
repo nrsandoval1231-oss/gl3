@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, SecretStr
-from sqlalchemy import Date, Text, and_, cast, func, or_, select, text
+from sqlalchemy import Date, Text, and_, cast, func, literal, or_, select, text, union_all
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload
@@ -1057,49 +1057,53 @@ def _preflight_opportunity_details(session, rows: list[dict]) -> None:
             raise HTTPException(413, "Opportunity has too many lifecycle rows for one response")
 
 
-def _preflight_streamed_evidence_text(
-    session, need_ids: list[UUID], project_ids: list[UUID]
-) -> None:
+def _preflight_streamed_evidence_text(session, need_ids: Any, project_ids: Any) -> None:
     scopes = []
-    if need_ids:
+    if need_ids is not None and (not isinstance(need_ids, list) or need_ids):
         scopes.append(
-            select(Evidence.id)
+            select(literal("need").label("scope"), Evidence.id.label("evidence_id"))
             .join(Observation, Observation.id == Evidence.observation_id)
             .join(NeedObservation, NeedObservation.observation_id == Observation.id)
             .where(NeedObservation.need_id.in_(need_ids))
+            .distinct()
         )
-    if project_ids:
+    if project_ids is not None and (not isinstance(project_ids, list) or project_ids):
         scopes.append(
-            select(Evidence.id)
+            select(literal("lifecycle").label("scope"), Evidence.id.label("evidence_id"))
             .join(LifecycleEvent, LifecycleEvent.evidence_id == Evidence.id)
             .where(LifecycleEvent.project_id.in_(project_ids))
+            .distinct()
         )
-    for evidence_scope in scopes:
-        text_fields = (
-            func.octet_length(func.coalesce(Evidence.title, "")),
-            func.octet_length(func.coalesce(Evidence.abstract, "")),
-            func.octet_length(func.coalesce(Evidence.url, "")),
-            func.octet_length(func.coalesce(Observation.external_id, "")),
-            func.octet_length(func.coalesce(Observation.source_id, "")),
-            func.coalesce(func.octet_length(cast(Interpretation.assessment, Text)), 0),
+    if not scopes:
+        return
+    evidence_scopes = union_all(*scopes).subquery()
+    text_fields = (
+        func.octet_length(func.coalesce(Evidence.title, "")),
+        func.octet_length(func.coalesce(Evidence.abstract, "")),
+        func.octet_length(func.coalesce(Evidence.url, "")),
+        func.octet_length(func.coalesce(Observation.external_id, "")),
+        func.octet_length(func.coalesce(Observation.source_id, "")),
+        func.coalesce(func.octet_length(cast(Interpretation.assessment, Text)), 0),
+    )
+    query = (
+        select(
+            evidence_scopes.c.scope,
+            func.max(func.greatest(*text_fields)),
+            func.coalesce(func.sum(sum(text_fields)), 0),
         )
-        query = (
-            select(
-                func.max(func.greatest(*text_fields)),
-                func.coalesce(func.sum(sum(text_fields)), 0),
-            )
-            .select_from(Evidence)
-            .join(Observation, Observation.id == Evidence.observation_id)
-            .outerjoin(
-                Interpretation,
-                and_(
-                    Interpretation.observation_id == Observation.id,
-                    Interpretation.content_hash == Observation.content_hash,
-                ),
-            )
-            .where(Evidence.id.in_(evidence_scope))
+        .select_from(evidence_scopes)
+        .join(Evidence, Evidence.id == evidence_scopes.c.evidence_id)
+        .join(Observation, Observation.id == Evidence.observation_id)
+        .outerjoin(
+            Interpretation,
+            and_(
+                Interpretation.observation_id == Observation.id,
+                Interpretation.content_hash == Observation.content_hash,
+            ),
         )
-        max_field, total_bytes = session.execute(query).one()
+        .group_by(evidence_scopes.c.scope)
+    )
+    for _scope, max_field, total_bytes in session.execute(query):
         if max_field and max_field > _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES:
             raise HTTPException(
                 413, "Retained evidence text exceeds the bounded processing field limit"
@@ -1211,6 +1215,35 @@ class HealthSourceOut(BaseModel):
     family: str
     geography: str
     enabled: bool = True
+    cadence_hours: int | None = None
+    operational_status: str = "Unknown"
+    backlog_jobs: int = 0
+    terminal_failed_jobs: int = 0
+    backlog: int = 0
+    pending_interpretations: int = 0
+    last_meaningful_update: str | None = None
+    last_valid_record_at: str | None = None
+    records_rejected: int | None = None
+    attempt_metrics_status: str | None = None
+    processing_error: str | None = None
+    last_success_counts: dict[str, int] | None = None
+    collection_status: str | None = None
+    collection_lane: str | None = None
+    collection_current_complete: bool | None = None
+    collection_window_start: str | None = None
+    collection_window_end: str | None = None
+    collection_jobs_remaining: int | None = None
+    collection_paused_for_budget: bool | None = None
+    regional_held: int = 0
+    regional_excluded: int = 0
+    attempt_fetched: int | None = None
+    attempt_processed: int | None = None
+    attempt_rejected: int | None = None
+    attempt_new: int | None = None
+    attempt_changed: int | None = None
+    retry_state: str | None = None
+    retry_at: str | None = None
+    attempts: int | None = None
     freshness: str = "UNKNOWN"
     due_checks_7d: int = 0
     verified_successes_7d: int = 0
@@ -1228,6 +1261,9 @@ class HealthSourceOut(BaseModel):
     generator_excerpts_omitted: int = 0
     missing_application_documents: int = 0
     error: str | None = None
+    error_code: str | None = None
+    error_stage: str | None = None
+    http_status: int | None = None
     latest_publication_date: str | None = None
     latest_permit_issue_date: str | None = None
     latest_public_comment_deadline: str | None = None
@@ -1242,6 +1278,7 @@ class HealthSourceOut(BaseModel):
     snapshot_newest_publication_date: str | None = None
     collection_scope: str | None = None
     coverage_limitation: str | None = None
+    pending_collection_lanes: list[str] | None = None
 
 
 class HealthOut(BaseModel):
@@ -1442,12 +1479,22 @@ def health():
     with SessionLocal() as session:
         rows = session.scalars(select(Source).order_by(Source.id)).all()
         definitions = {source["id"]: source for source in load_registry()}
+        enabled_source_ids = [
+            row.id
+            for row in rows
+            if row.enabled
+            and row.registry_enabled
+            and bool(definitions.get(row.id, {}).get("enabled", False))
+        ]
         checked_at = datetime.now(UTC)
         jobs = (
             session.scalar(
                 select(func.count())
                 .select_from(Job)
-                .where(Job.status.in_(["queued", "running", "failed"]))
+                .where(
+                    Job.status.in_(["queued", "running"]),
+                    Job.source_id.in_(enabled_source_ids),
+                )
             )
             or 0
         )
@@ -1455,7 +1502,11 @@ def health():
             session.scalar(
                 select(func.count())
                 .select_from(Interpretation)
-                .where(Interpretation.status.in_(["pending", "failed"]))
+                .join(Observation, Interpretation.observation_id == Observation.id)
+                .where(
+                    Interpretation.status.in_(["pending", "failed"]),
+                    Observation.source_id.in_(enabled_source_ids),
+                )
             )
             or 0
         )
@@ -1522,21 +1573,56 @@ def health():
             _source_registry_drift,
         )
 
+        epoch_rows = session.scalars(
+            select(SourceScheduleEpoch)
+            .where(
+                SourceScheduleEpoch.effective_from < checked_at,
+                or_(
+                    SourceScheduleEpoch.effective_until.is_(None),
+                    SourceScheduleEpoch.effective_until > window_start_utc,
+                ),
+            )
+            .order_by(SourceScheduleEpoch.source_id, SourceScheduleEpoch.effective_from)
+        ).all()
+        epochs_by_source: dict[str, list[SourceScheduleEpoch]] = {}
+        for epoch in epoch_rows:
+            epochs_by_source.setdefault(epoch.source_id, []).append(epoch)
+        source_backlog_rows = session.execute(
+            select(Job.source_id, func.count())
+            .where(Job.status.in_(["queued", "running"]))
+            .group_by(Job.source_id)
+        ).all()
+        backlog_by_source = {source_id: count for source_id, count in source_backlog_rows}
+        failed_job_rows = session.execute(
+            select(Job.source_id, func.count())
+            .where(Job.status == "failed")
+            .group_by(Job.source_id)
+        ).all()
+        failed_jobs_by_source = {source_id: count for source_id, count in failed_job_rows}
+        backlog_by_source = {
+            source_id: count
+            for source_id, count in backlog_by_source.items()
+            if source_id in enabled_source_ids
+        }
+        failed_jobs_by_source = {
+            source_id: count
+            for source_id, count in failed_jobs_by_source.items()
+            if source_id in enabled_source_ids
+        }
+        interpretation_backlog_rows = session.execute(
+            select(Observation.source_id, func.count())
+            .join(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(Interpretation.status.in_(["pending", "failed"]))
+            .group_by(Observation.source_id)
+        ).all()
+        interpretation_backlog_by_source = {
+            source_id: count for source_id, count in interpretation_backlog_rows
+        }
+
         for row in rows:
             health_data = row.health if isinstance(row.health, dict) else {}
             definition = definitions.get(row.id, {})
-            epochs = session.scalars(
-                select(SourceScheduleEpoch)
-                .where(
-                    SourceScheduleEpoch.source_id == row.id,
-                    SourceScheduleEpoch.effective_from < checked_at,
-                    or_(
-                        SourceScheduleEpoch.effective_until.is_(None),
-                        SourceScheduleEpoch.effective_until > window_start_utc,
-                    ),
-                )
-                .order_by(SourceScheduleEpoch.effective_from)
-            ).all()
+            epochs = epochs_by_source.get(row.id, [])
             covered_until = window_start_utc
             history_known = bool(epochs)
             schedule_inputs_known = True
@@ -1697,10 +1783,13 @@ def health():
                 freshness = "OVERDUE"
             else:
                 freshness = "FRESH"
-            freshness_states.append(freshness)
             effective_enabled = (
                 row.enabled and row.registry_enabled and bool(definition.get("enabled", False))
             )
+            if effective_enabled:
+                freshness_states.append(freshness)
+            else:
+                freshness = "DISABLED"
             info = {
                 "id": row.id,
                 **health_data,
@@ -1708,6 +1797,11 @@ def health():
                 "family": row.family,
                 "geography": row.geography,
                 "enabled": effective_enabled,
+                "cadence_hours": row.cadence_hours,
+                "backlog_jobs": backlog_by_source.get(row.id, 0),
+                "backlog": backlog_by_source.get(row.id, 0),
+                "terminal_failed_jobs": failed_jobs_by_source.get(row.id, 0),
+                "pending_interpretations": interpretation_backlog_by_source.get(row.id, 0),
                 "freshness": freshness,
                 "due_checks_7d": len(expected_due),
                 "verified_successes_7d": successes,
@@ -1716,7 +1810,24 @@ def health():
                     or health_data.get("collection_scope")
                     or row.geography
                 ),
+                "last_meaningful_update": health_data.get("last_meaningful_update"),
+                "last_valid_record_at": health_data.get("last_valid_record_at"),
+                "records_rejected": health_data.get("records_rejected"),
+                "attempt_metrics_status": health_data.get("attempt_metrics_status"),
+                "processing_error": health_data.get("processing_error"),
+                "attempt_fetched": health_data.get("attempt_fetched"),
+                "attempt_processed": health_data.get("attempt_processed"),
+                "attempt_rejected": health_data.get("attempt_rejected"),
+                "attempt_new": health_data.get("attempt_new"),
+                "attempt_changed": health_data.get("attempt_changed"),
+                "retry_state": health_data.get("retry_state"),
+                "retry_at": health_data.get("retry_at"),
+                "attempts": health_data.get("attempts"),
             }
+            if not effective_enabled:
+                info["status"] = "Disabled"
+                info["error"] = None
+                info["processing_error"] = None
             if row.family == "news":
                 info["collection_scope"] = row.geography
                 info["coverage_limitation"] = (
@@ -1737,7 +1848,87 @@ def health():
                 )
             ):
                 info["status"] = "Overdue"
+            raw_status = str(info["status"] or "Unknown").casefold()
+            if not effective_enabled:
+                info["operational_status"] = "Disabled"
+            elif raw_status in {"failed", "registryunavailable"} or freshness == "FAILED":
+                info["operational_status"] = "Failed"
+            elif raw_status == "partial" or freshness == "PARTIAL":
+                info["operational_status"] = "Degraded"
+            elif raw_status in {"overdue", "stale"}:
+                info["operational_status"] = "Stale"
+            elif raw_status in {"checked—no change", "checked - no change", "no new data"}:
+                info["operational_status"] = "No New Data"
+            elif freshness == "FRESH" or health_data.get("last_success"):
+                info["operational_status"] = "Healthy"
+            else:
+                info["operational_status"] = "Unknown"
             source_health.append(info)
+        from gridlens.ingestion.structured_collection import (
+            collection_lanes,
+            collection_policy_digest,
+        )
+        from gridlens.persistence.models import SourceCollectionProgress
+
+        today_utc = datetime.now(UTC).date()
+
+        collection_digests = {
+            row.id: collection_policy_digest(definitions[row.id])
+            for row in rows
+            if row.id in definitions and collection_lanes(definitions[row.id])
+        }
+        collection_progress_rows = session.scalars(
+            select(SourceCollectionProgress).where(
+                SourceCollectionProgress.source_id.in_(collection_digests or [""]),
+                SourceCollectionProgress.policy_digest.in_(
+                    set(collection_digests.values()) or {""}
+                ),
+            )
+        ).all()
+        progress_by_source: dict[str, list[SourceCollectionProgress]] = {}
+        for progress in collection_progress_rows:
+            if collection_digests.get(progress.source_id) == progress.policy_digest:
+                progress_by_source.setdefault(progress.source_id, []).append(progress)
+        for source_info in source_health:
+            progress_rows = progress_by_source.get(source_info["id"], [])
+            if progress_rows:
+                if not source_info["enabled"]:
+                    source_info["pending_collection_lanes"] = []
+                    continue
+                definition = definitions.get(source_info["id"], {})
+                by_lane = {item.lane: item for item in progress_rows}
+                pending_lanes: list[str] = []
+                for lane in collection_lanes(definition):
+                    item = by_lane.get(lane)
+                    if item is None or item.status in {"incomplete", "partial", "error"}:
+                        pending_lanes.append(lane)
+                        continue
+                    completed_through = item.completed_through
+                    completed_day = (
+                        completed_through.replace(tzinfo=UTC)
+                        if completed_through is not None and completed_through.tzinfo is None
+                        else completed_through
+                    )
+                    completed_day = (
+                        completed_day.astimezone(UTC).date() if completed_day is not None else None
+                    )
+                    if lane.endswith("recent") and completed_day != today_utc:
+                        pending_lanes.append(lane)
+                    elif lane.endswith("history") and (
+                        completed_day is None or completed_day < today_utc
+                    ):
+                        pending_lanes.append(lane)
+                    elif lane == "issue_backfill":
+                        try:
+                            backfill_end = date.fromisoformat(
+                                definition["query"]["data_center_backfill"]["end"]
+                            )
+                        except (KeyError, TypeError, ValueError):
+                            pending_lanes.append(lane)
+                        else:
+                            if completed_day is None or completed_day < backfill_end:
+                                pending_lanes.append(lane)
+                source_info["pending_collection_lanes"] = sorted(pending_lanes)
         return {
             "sources": source_health,
             "backlog": jobs,
@@ -3273,13 +3464,28 @@ def _opportunity_summary_projection(
             "max_title_company_batch_size": 0,
         }
     )
+    candidate_query = (
+        select(PowerNeed.id, PowerNeed.project_id)
+        .join(Project, PowerNeed.project_id == Project.id)
+        .where(PowerNeed.active.is_(True), Project.region_status == "ELIGIBLE")
+    )
+    if search:
+        candidate_query = candidate_query.where(Project.name.ilike(f"%{search[:100]}%"))
+    if selected_need_ids is not None:
+        candidate_query = candidate_query.where(PowerNeed.id.in_(selected_need_ids))
+    candidate_scope = candidate_query.subquery()
+    _preflight_streamed_evidence_text(
+        session,
+        select(candidate_scope.c.id),
+        select(candidate_scope.c.project_id),
+    )
     cursor: UUID | None = None
     houston_project_ids: set[UUID] = set()
     while True:
         query = (
             select(PowerNeed, Project)
             .join(Project, PowerNeed.project_id == Project.id)
-            .where(PowerNeed.active.is_(True))
+            .where(PowerNeed.active.is_(True), Project.region_status == "ELIGIBLE")
             .order_by(PowerNeed.id)
             .limit(_BROWSE_SUMMARY_BATCH_SIZE)
         )
@@ -3306,7 +3512,6 @@ def _opportunity_summary_projection(
         need_ids = [need.id for need in needs]
         project_ids = list(projects_by_id)
         fact_rows_by_need, workflow_by_need = load_current_need_operator_inputs(session, need_ids)
-        _preflight_streamed_evidence_text(session, need_ids, project_ids)
 
         latest_retained_date: dict[UUID, str] = {}
         date_rows = session.execute(
@@ -3736,7 +3941,7 @@ def opportunity_projection(
     query = (
         select(PowerNeed, Project)
         .join(Project, PowerNeed.project_id == Project.id)
-        .where(PowerNeed.active.is_(True))
+        .where(PowerNeed.active.is_(True), Project.region_status == "ELIGIBLE")
         .order_by(PowerNeed.updated_at.desc(), PowerNeed.id)
     )
     if search:
@@ -4418,12 +4623,14 @@ def changes():
         today = chicago_today()
         rows = session.execute(
             select(ChangeEvent, Evidence, BuyingChainEvidence)
+            .join(Project, Project.id == ChangeEvent.project_id)
             .outerjoin(Evidence, Evidence.id == ChangeEvent.evidence_id)
             .outerjoin(
                 BuyingChainEvidence, BuyingChainEvidence.id == ChangeEvent.buying_chain_evidence_id
             )
             .where(
                 ChangeEvent.material.is_(True),
+                Project.region_status == "ELIGIBLE",
                 func.timezone("America/Chicago", ChangeEvent.created_at).cast(Date) == today,
             )
             .order_by(ChangeEvent.created_at.desc())
@@ -4636,6 +4843,9 @@ def workspace_historical_need(need_id: UUID):
 )
 def project_state_endpoint(project_id: UUID):
     with SessionLocal() as session:
+        project = session.get(Project, project_id)
+        if project is None or project.region_status != "ELIGIBLE":
+            raise HTTPException(404, "Project not found")
         state = read_project_state(session, project_id)
         if state is None:
             raise HTTPException(404, "Project not found")
@@ -4651,6 +4861,8 @@ def project_changes_endpoint(project_id: UUID, limit: int = Query(default=100, g
     with SessionLocal() as session:
         project = session.get(Project, project_id)
         if project is None:
+            raise HTTPException(404, "Project not found")
+        if project.region_status != "ELIGIBLE":
             raise HTTPException(404, "Project not found")
         events = session.scalars(
             select(ChangeEvent)
@@ -5795,8 +6007,14 @@ def _commercial_triage_payload(
             ("reject", "REJECT"),
         )
     }
+    regional_projects = select(Project.id).where(Project.region_status == "ELIGIBLE")
     receipts = list(
-        session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
+        session.scalars(
+            select(Pursuit).where(
+                Pursuit.identity_key.like("commercial-need:%"),
+                Pursuit.project_id.in_(regional_projects),
+            )
+        )
     )
     evaluated = sum(
         (row.snapshot or {}).get("commercial_triage", {}).get("evaluated_on") == today
@@ -5820,6 +6038,7 @@ def _commercial_triage_payload(
                 .join(Pursuit)
                 .where(
                     Pursuit.identity_key.like("commercial-need:%"),
+                    Pursuit.project_id.in_(regional_projects),
                     PursuitCallNote.created_at >= midnight,
                     PursuitCallNote.outcome.in_(outcomes),
                 )
@@ -5830,7 +6049,13 @@ def _commercial_triage_payload(
     from gridlens.intelligence.research_metrics import research_overview
     from gridlens.persistence.models import PursuitResearchQuestion
 
-    questions = list(session.scalars(select(PursuitResearchQuestion)))
+    questions = list(
+        session.scalars(
+            select(PursuitResearchQuestion).where(
+                PursuitResearchQuestion.project_id.in_(regional_projects)
+            )
+        )
+    )
     payload = {
         "research_overview": research_overview(cards, questions, receipts, midnight),
         "evaluated_at": datetime.now(UTC),
@@ -5961,8 +6186,17 @@ def autonomous_research_status(need_id: UUID):
     from gridlens.persistence.models import PursuitResearchQuestion
 
     with SessionLocal() as session:
-        if session.get(PowerNeed, need_id) is None:
-            raise HTTPException(404, "Power need not found")
+        active_regional_need = session.scalar(
+            select(PowerNeed.id)
+            .join(Project, Project.id == PowerNeed.project_id)
+            .where(
+                PowerNeed.id == need_id,
+                PowerNeed.active.is_(True),
+                Project.region_status == "ELIGIBLE",
+            )
+        )
+        if active_regional_need is None:
+            raise HTTPException(404, "Active regional power need not found")
         rows = session.scalars(
             select(PursuitResearchQuestion)
             .where(PursuitResearchQuestion.need_id == need_id)
@@ -6390,7 +6624,12 @@ def evaluate_commercial_triage(
                 session.flush()
                 receipts = list(
                     session.scalars(
-                        select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%"))
+                        select(Pursuit).where(
+                            Pursuit.identity_key.like("commercial-need:%"),
+                            Pursuit.project_id.in_(
+                                select(Project.id).where(Project.region_status == "ELIGIBLE")
+                            ),
+                        )
                     )
                 )
                 payload["daily"]["evaluated"] = sum(

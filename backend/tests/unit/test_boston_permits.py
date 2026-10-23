@@ -93,7 +93,7 @@ def row(row_id: int, issued: str, **updates):
 
 def test_registry_is_bounded_and_enabled_only_for_verified_official_host():
     definition = source()
-    assert definition["enabled"] is True
+    assert definition["enabled"] is False
     assert definition["query"]["window_days"] == 90
     assert definition["endpoint"] == "https://data.boston.gov/api/3/action/datastore_search_sql"
     assert source_origin(definition["family"], definition["retrieval_method"]) == "Official permit"
