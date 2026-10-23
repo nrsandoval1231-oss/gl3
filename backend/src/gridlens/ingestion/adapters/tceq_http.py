@@ -19,7 +19,6 @@ OFFICIAL_HOSTS = frozenset(
     {
         "www.tceq.texas.gov",
         "www2.tceq.texas.gov",
-        "www6.tceq.texas.gov",
         "www15.tceq.texas.gov",
         "records.tceq.texas.gov",
         "permit-search.tceq.texas.gov",

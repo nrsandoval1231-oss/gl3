@@ -37,6 +37,91 @@ def _record(description: str) -> dict:
     }
 
 
+def test_hour_phrasings_and_onsite_clause():
+    phrasings = (
+        "500 hours of operation per year",
+        "500 hours of operation annually",
+        "500 hours annually",
+        "500 hrs annually",
+        "500 hr/yr",
+        "500 h/yr",
+        "1,000 hours of operation / year",
+    )
+    for phrasing in phrasings:
+        result = classify_operating_hours(f"The engines are limited to {phrasing}.")
+        assert result["hours_per_year"], phrasing
+        assert result["evidence"][0]["quote"] == phrasing
+    assert (
+        classify_operating_hours("limited to 500 hours of operation per year.")["classification"]
+        == "backup"
+    )
+    assert (
+        classify_operating_hours("limited to 500 hours of operation annually.")["classification"]
+        == "backup"
+    )
+    assert classify_operating_hours("limited to 500 hours annually.")["classification"] == "backup"
+    assert classify_operating_hours("limited to 500 hrs annually.")["classification"] == "backup"
+    assert classify_operating_hours("limited to 500 hr/yr.")["classification"] == "backup"
+    assert classify_operating_hours("limited to 500 h/yr.")["classification"] == "backup"
+    assert classify_operating_hours("limited to 501 hours annually.")["classification"] is None
+    assert classify_operating_hours("limited to 1,999 h/yr.")["classification"] is None
+    assert (
+        classify_operating_hours("authorized for 2,000 hr/yr.")["classification"]
+        == "bridge_temporary"
+    )
+    assert (
+        classify_operating_hours("authorized for 6,000 hours of operation per year.")[
+            "classification"
+        ]
+        == "bridge_temporary"
+    )
+    assert (
+        classify_operating_hours("authorized for 6,001 hours of operation annually.")[
+            "classification"
+        ]
+        is None
+    )
+    assert (
+        classify_operating_hours("The turbines may operate 8,760 hours annually.")["classification"]
+        is None
+    )
+    same_sentence = classify_operating_hours(
+        "The turbines may operate 8,760 hours per year for onsite use only."
+    )
+    assert same_sentence["classification"] == "btm"
+    assert same_sentence["evidence"][1] == {"clause": "onsite_use_only", "quote": "onsite use only"}
+    hyphen = classify_operating_hours(
+        "Unit 2 is limited to 8,760 h/yr and is for on-site use only."
+    )
+    assert hyphen["classification"] == "btm"
+    assert hyphen["hours_per_year"] == [8760]
+    wrapped = classify_operating_hours(
+        "The turbines may operate 8,760 hours of operation per year\nfor onsite use only."
+    )
+    assert wrapped["classification"] == "btm"
+    other_paragraph = classify_operating_hours(
+        "The generators may operate 8,760 hours per year.\n\n"
+        "The warehouse lighting is for onsite use only."
+    )
+    assert other_paragraph["classification"] is None
+    assert other_paragraph["hours_per_year"] == [8760]
+    assert other_paragraph["evidence"] == [
+        {"clause": "unclassified_hours", "quote": "8,760 hours per year"}
+    ]
+    other_sentence = classify_operating_hours(
+        "The generators may operate 8,760 hours annually. "
+        "A separate note says the yard is for onsite use only."
+    )
+    assert other_sentence["classification"] is None
+    assert other_sentence["hours_per_year"] == [8760]
+    other_clause = classify_operating_hours(
+        "The generators may operate 8,760 hours per year; the yard is for onsite use only."
+    )
+    assert other_clause["classification"] is None
+    assert classify_operating_hours("200 cubic yards per hour of concrete.")["evidence"] == []
+    assert classify_operating_hours("hours of operation per year")["evidence"] == []
+
+
 def test_operating_hour_boundaries_and_conflicts():
     backup = classify_operating_hours("The engines are limited to 500 hours per year.")
     assert backup["classification"] == "backup"

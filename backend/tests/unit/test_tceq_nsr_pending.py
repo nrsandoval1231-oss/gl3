@@ -194,20 +194,23 @@ def test_official_hosts_are_an_exact_set_and_records_documents_are_official():
     assert OFFICIAL_HOSTS == {
         "www.tceq.texas.gov",
         "www2.tceq.texas.gov",
-        "www6.tceq.texas.gov",
         "www15.tceq.texas.gov",
         "records.tceq.texas.gov",
         "permit-search.tceq.texas.gov",
     }
+    assert "www6.tceq.texas.gov" not in OFFICIAL_HOSTS
     record = (
         "https://records.tceq.texas.gov/cs/idcplg?"
         "IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&Rendition=Web&dID=8600163"
     )
     assert _official(record) == record
-    application = (
+    www6_application = (
         "https://www6.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf"
     )
-    assert _official(application) == application
+    www6_summary = (
+        "https://www6.tceq.texas.gov/downloads/permitting/air/bilingual/"
+        "pending-permit-notices/182126-pls-english.pdf"
+    )
     for href in (
         record.replace("records.tceq.texas.gov", "records.tceq.texas.gov.evil.example"),
         record.replace("records.tceq.texas.gov", "evil.tceq.texas.gov"),
@@ -215,6 +218,8 @@ def test_official_hosts_are_an_exact_set_and_records_documents_are_official():
         "https://www14.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf",
         "https://user@www2.tceq.texas.gov/assets/public/permitting/air/reports/applications/1-tc.pdf",
         record + "&redirect=https://127.0.0.1/",
+        www6_application,
+        www6_summary,
     ):
         with pytest.raises(SourceParseError, match="outside the official host"):
             _official(href)

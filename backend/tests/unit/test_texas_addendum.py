@@ -100,6 +100,7 @@ def _docket_html(rows: list[tuple[str, str, str, str]]) -> bytes:
 
 def test_exact_tceq_hosts_do_not_match_a_lookalike_suffix():
     assert "evil.tceq.texas.gov" not in OFFICIAL_HOSTS
+    assert "www6.tceq.texas.gov" not in OFFICIAL_HOSTS
     assert not any(host.endswith(".tceq.texas.gov.evil.example") for host in OFFICIAL_HOSTS)
     pdf = (
         "https://permit-search.tceq.texas.gov/downloads/permitting/air/bilingual/"
@@ -111,6 +112,9 @@ def test_exact_tceq_hosts_do_not_match_a_lookalike_suffix():
             pdf.replace("permit-search.tceq.texas.gov", "permit-search.tceq.texas.gov.evil"),
             "pdf",
         )
+    www6_pdf = pdf.replace("permit-search.tceq.texas.gov", "www6.tceq.texas.gov")
+    with pytest.raises(SourceParseError):
+        _route(www6_pdf, "pdf")
 
 
 def test_filings_list_must_match_the_excel_export():

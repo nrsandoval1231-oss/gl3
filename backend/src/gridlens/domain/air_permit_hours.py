@@ -15,11 +15,17 @@ from typing import Any
 _CONFIG_PATH = (
     Path(__file__).resolve().parents[4] / "config" / "sources" / "air-permit-hours.v1.json"
 )
+# Number first, then the unit, then the year. "of operation" may sit between them.
+# h/yr, hr/yr, hrs/year, hours annually, and hours of operation per year all match.
 _HOURS = re.compile(
-    r"(?P<hours>\d{1,3}(?:,\d{3})*|\d+)\s*(?:hours?|hrs?)\s*(?:/|per)\s*(?:year|yr)\b",
+    r"(?P<hours>\d{1,3}(?:,\d{3})*|\d+)\s*"
+    r"(?:hours?|hrs?|h)(?:\s+of\s+operation)?"
+    r"\s*(?:(?:/|per)\s*(?:year|yr)|annually)\b",
     re.IGNORECASE,
 )
 _ONSITE = re.compile(r"on-?site use only", re.IGNORECASE)
+# A sentence or clause. A single newline is a PDF line wrap, not a new clause.
+_CLAUSE_BOUNDARY = re.compile(r"[.!?;]|\n\s*\n")
 
 
 @lru_cache(maxsize=1)
@@ -50,16 +56,26 @@ def load_hours_rule() -> dict[str, Any]:
     return rule
 
 
+def _clause(text: str, start: int, end: int) -> str:
+    """Return the sentence or clause that contains the hours match."""
+    previous = 0
+    for boundary in _CLAUSE_BOUNDARY.finditer(text, 0, start):
+        previous = boundary.end()
+    following = _CLAUSE_BOUNDARY.search(text, end)
+    stop = following.start() if following else len(text)
+    return text[previous:stop]
+
+
 def classify_operating_hours(text: str) -> dict[str, Any]:
     """Apply the configured hours rule and keep every matched quote."""
     rule = load_hours_rule()
     classes: list[str] = []
     evidence: list[dict[str, str]] = []
     hours: list[int] = []
-    onsite = bool(_ONSITE.search(text))
     for match in _HOURS.finditer(text):
         value = int(match.group("hours").replace(",", ""))
         hours.append(value)
+        onsite = _ONSITE.search(_clause(text, match.start(), match.end()))
         if value <= rule["backup_max_hours_per_year"]:
             kind = "backup"
         elif rule["bridge_min_hours_per_year"] <= value <= rule["bridge_max_hours_per_year"]:
@@ -71,6 +87,8 @@ def classify_operating_hours(text: str) -> dict[str, Any]:
         if kind:
             classes.append(kind)
         evidence.append({"clause": kind or "unclassified_hours", "quote": match.group(0)})
+        if kind == "btm" and onsite:
+            evidence.append({"clause": "onsite_use_only", "quote": onsite.group(0)})
     for clause, pattern in (
         ("portable_or_trailer_mounted", rule["bridge_unit_pattern"]),
         ("expiring_or_temporary_permit", rule["bridge_permit_pattern"]),
