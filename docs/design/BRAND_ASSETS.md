@@ -1,36 +1,23 @@
-# GridLens brand — canonical 2026-10-23
+# GridLens brand assets · seven-color system
 
-**Status:** owner approved. This supersedes the former Aperture, gold, orange, Signal Blue, and ABC Diatype brand directions.
+The October 23 owner-supplied G/hidden-L board supersedes earlier identity directions.
+Printed palette labels are recorded in `brand.tokens.json`; fonts are locally distributed Sora and Inter with SIL Open Font License notices.
 
-## Source of truth
-The final seven-color brand board approved in the October 23 design conversation is the visual master. The generated mockup is a *visual reference*, not a production-grade vector master. Do not approximate or substitute a new symbol and claim exact equivalence. Before replacing binary assets, trace and visually verify the precise G/hidden-L segmentation against the approved reference.
+**Current delivery is a review candidate.** Exact logo contours, flat segmentation of the shaded board and outlined wordmark require visual approval. The generator intentionally refuses production generation while geometry/wordmark approval flags are false. Do not merge or release artwork to vendors yet.
 
-## Seven colors
-- harbor navy: `#0B1F33`
-- deep slate: `#23384C`
-- slate steel: `#607F88`
-- sea cliff: `#6E909A`
-- driftwood gray: `#A9B4BC`
-- fog: `#E8ECEF`
-- graphite: `#1E2A33`
+See [brand guidelines](../brand/GRIDLENS_BRAND_GUIDELINES.md), [visual PDF](../brand/GRIDLENS_BRAND_GUIDE.pdf) and [candidate comparison](../../web/public/brand/review/comparison.svg).
 
-## Typography
-- Sora: headings and display.
-- Inter: body, tables, and UI.
-- Approved wordmark: thin, generously spaced uppercase GRID LENS as shown in the visual reference. Do not reuse the old bold title treatment.
+| Surface | Asset |
+| --- | --- |
+| Light app / login | `/brand/logos/horizontal-light.svg` |
+| Dark surface | `/brand/logos/horizontal-dark.svg` |
+| Standalone | `/brand/logos/symbol-light.svg` |
+| One ink | `/brand/logos/symbol-navy.svg`, `/brand/logos/symbol-white.svg` |
+| Browser | `/brand/icons/favicon.svg`, `favicon.ico`, `favicon-{16,32,48}.png` |
+| Installation | `/brand/icons/pwa-{192,512}.png`, `pwa-maskable-512.png`, `apple-touch-icon.png` |
+| Social | `/brand/social/sharing.png` |
+| Physical/business | `web/public/brand/production/` |
 
-## Product interface rules
-- White/light product workspace, horizontal top navigation only; **no left toolbar/sidebar**.
-- KPI cards and quick filters across top; dense ranked opportunity table left; selected customer intelligence details right.
-- No maps, photography, or decorative images in the product UI.
-- Use the approved navy/slate/steel palette consistently, with restrained status colors and accessible contrast.
-- Keep existing data, routes, functionality, and evidence intact during the rebrand.
+Complete outputs and integrity hashes are in `web/public/brand/asset-manifest.json`. Editable geometry is `tools/brand/masters/symbol.svg`; wordmark outlining is reproducible from the pinned Inter source in the generator. No embedded raster substitutes for vector geometry.
 
-## Required migration before merging
-1. Replace legacy `web/public/brand/aperture-*`, `lockup-*`, favicon and app icons with traced, reviewed final mark variants, including dark/light SVG and raster exports.
-2. Update `tools/brand/generate.py`, manifest and all component logo references; remove obsolete artifacts only after references are migrated.
-3. Audit `web/src/styles`, components, docs and tests for conflicting colors, font declarations, old logo references, sidebar layout and photographic UI.
-4. Verify pixel-level logo fidelity, both light and dark treatments, typography licenses, responsive screenshots, contrast, builds and tests.
-5. Remove contradictory brand instructions from active docs; archive historical decisions rather than deleting unrelated evidence.
-
-**Migration warning:** Existing legacy SVG/PNG assets remain in the repository until exact replacement assets are ready. This branch establishes the canonical spec and token foundation, not a completed visual rebrand.
+Regenerate with `python tools/brand/generate.py --review-candidate`, then `python tools/brand/validate.py` and `python tools/brand/guide.py` using dependencies from `tools/brand/requirements.txt`. Historical masters and generator are preserved outside the active public pipeline in `docs/design/archive/pre-seven-color/`.

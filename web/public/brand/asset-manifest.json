@@ -1,0 +1,1402 @@
+{
+  "version": "2.0.0",
+  "approval": "review-candidate",
+  "source_sha256": "97c03ff3cbba17a9cd27a02e505651b9f3c39f2be8204b77416740818c9afdd8",
+  "tokens_sha256": "2f2b0ae8ed18e3da332890295e3db58a0a212a80390924c698b8c6eb03470b70",
+  "font_sha256": {
+    "inter": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
+    "sora": "84ff7096ae3ec6c8be47d906d1a0ba4de7f2ce78c615275c77301964a316e16c"
+  },
+  "assets": [
+    {
+      "path": "logos/symbol-light.svg",
+      "sha256": "20cb7b22cbef58bec7bdbe4d98a6a443585588d3c4a387fcc5938eab4e5ff05a"
+    },
+    {
+      "path": "rasters/symbol-light-256.png",
+      "sha256": "479d46b836a875726c65e1e2a909300fa188730175ffcf304d90345e81a4dff6",
+      "width": 256,
+      "height": 256,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-light-256.webp",
+      "sha256": "41819d979e9a3a047602e1d10a5b3777dcf9c67bdd4cbda18d6b7a96073251de",
+      "width": 256,
+      "height": 256,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-light-512.png",
+      "sha256": "3a797793c0fb6062c283a1109f679dde428cf7d91d6d54f262e65f90c67dde43",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-light-512.webp",
+      "sha256": "1759d50791cac85e9a046fb80daf2bb7cd830a2913b0ba2ca653e97495ef7fb9",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-light-1024.png",
+      "sha256": "951eff946cbd198e1c8363394a0103d7e377249acd4abdff9ba8702002e45696",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-light-1024.webp",
+      "sha256": "3e719afb225e350c1720e09cfc99a2149779908f3f0856c85a66137a3cba9b9a",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-light-2048.png",
+      "sha256": "0df0149c7dd0146c29ac1562e1ac06c09e404fa6170ef4b132569af357873c48",
+      "width": 2048,
+      "height": 2048,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-light-2048.webp",
+      "sha256": "8e80470b113a52b92f3587688bc52bc11c84dbc75a135cb77b4f9b4450317e50",
+      "width": 2048,
+      "height": 2048,
+      "transparent": true
+    },
+    {
+      "path": "logos/horizontal-light.svg",
+      "sha256": "8e4182e6634cb10b14fe637efc81dd7228da64c7eb68df3aeb8ee149d074d826"
+    },
+    {
+      "path": "rasters/horizontal-light-256.png",
+      "sha256": "77b1c18fed9c9d9b7d306999e4e64dab8f2f771e9ebef95c7d8d8209f8d7a08a",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-light-256.webp",
+      "sha256": "5e7a15e82941858070cc3fdb666477f9516b228f75bbc8f7628db86d9ec6c096",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-light-512.png",
+      "sha256": "8fba33e2feae4575ee60a36ed82ac32e8468641805a60d14e4bf24acb7aa8b47",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-light-512.webp",
+      "sha256": "b6ee273a9c76cc40a4e40210ad42b7aeb8a76a3b6916f37a9295d0e7353512e4",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-light-1024.png",
+      "sha256": "93a713ae7346e3ce2066cd17be59100ed8d82b7e8225c8f0018b75e938e7f554",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-light-1024.webp",
+      "sha256": "6962344b4abe5ce4cfbcca399bce088041e05c6fc0fdf0d9783558f1c0cf2a7a",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-light-2048.png",
+      "sha256": "c7ec525449f6bfea3b8d2e16dbddfdc51afc84ad1092f8c84fc8a8881a72fee0",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-light-2048.webp",
+      "sha256": "19573410da73c3f6b4e2d83c76572cc6c2b8c94734292a8ecc8581d86d36dd43",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "logos/primary-horizontal-light.svg",
+      "sha256": "20f65ddf8dad2d480ab8751b0591750876a19304141ea8a7f0dfe432554d1615"
+    },
+    {
+      "path": "rasters/primary-horizontal-light-256.png",
+      "sha256": "2b7732395c71ca815295144f1e3de0f8cfcd531585b0d591d2e3cf937c8c9c5e",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-light-256.webp",
+      "sha256": "44b80ae7f7bd01c538be4d98a4edf4c4735b7232e7d07882f5396d08c61e58cf",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-light-512.png",
+      "sha256": "fdbb2c9eb34221f008ee920dbe85e96f0ca61255767a9ce52a1dfcec22044805",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-light-512.webp",
+      "sha256": "407e19214f94d4723b9823739adb2d2f551d57e0584094953c138c1fe035fde7",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-light-1024.png",
+      "sha256": "cdcf4ca79085e486146e44fe6bd8d32f2a5b3e8e7798381bacc501ca60f4007d",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-light-1024.webp",
+      "sha256": "bb2f36f8a5bb11e048cad38de4d812864482cdb54eb46f46d86c9225e977d183",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-light-2048.png",
+      "sha256": "60f0983d0c6cf136ff1618e177f85908d4ffbcbab5a7e45078524a2cd9cb31a2",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-light-2048.webp",
+      "sha256": "d58c8f2eb7536c5ea0caf88de5af760f3fbc1696b715a801336ce1ee6cccd90d",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "logos/stacked-light.svg",
+      "sha256": "ea49273c9e17e952fdf559ec740a2149a460a7566abbd190d1e1890f674bfaa0"
+    },
+    {
+      "path": "rasters/stacked-light-256.png",
+      "sha256": "1be5c01ad435ef62b738c5a0beeda8d244b8d604608f465720ac0d4d7164ce72",
+      "width": 256,
+      "height": 155,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-light-256.webp",
+      "sha256": "9c0e8dc01b61c24fadfb9a6ee3c3e4394645bfd7eebcc15b028468e51b216b37",
+      "width": 256,
+      "height": 155,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-light-512.png",
+      "sha256": "9b42b3621e041ca17ceb6b1d62372e9af42d37db55a2f581e21a49c5ac8de934",
+      "width": 512,
+      "height": 310,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-light-512.webp",
+      "sha256": "422d11c83f71caca4f6183c2f3d9e0528ee7f8c580ebf636cdfbb6e5fd2dff0b",
+      "width": 512,
+      "height": 310,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-light-1024.png",
+      "sha256": "c236d8f8dbecc5cf45f5212538f24a9335966a30ca02b5c59932678f97a4a6d9",
+      "width": 1024,
+      "height": 621,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-light-1024.webp",
+      "sha256": "77c793af48f5fc0d91be68e2e27ed36e7a01fd9ee87c56bc53b6eadc75e84229",
+      "width": 1024,
+      "height": 621,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-light-2048.png",
+      "sha256": "8bc8a4d9c67cb856debd24fdc7fe11b953a162392ea007c485a258dfa5d57bc4",
+      "width": 2048,
+      "height": 1241,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-light-2048.webp",
+      "sha256": "a6e52a3e63b69863229654978a5ff36f4d468b193ea12bf6b99960fca798f46d",
+      "width": 2048,
+      "height": 1241,
+      "transparent": true
+    },
+    {
+      "path": "logos/wordmark-light.svg",
+      "sha256": "472ba7c391686d334d24ee41b6b6ebd61d940c2eb0ec1517b268172f92932b0b"
+    },
+    {
+      "path": "rasters/wordmark-light-256.png",
+      "sha256": "c83a1bbd7a82653352bcb13bce0784b84016b503925c6edc891eaebd295bb4ac",
+      "width": 256,
+      "height": 58,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-light-256.webp",
+      "sha256": "b22a3dd61aa0ebd19a080c472d1f381c4fbedb72970487f9d2f93db44a263cef",
+      "width": 256,
+      "height": 58,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-light-512.png",
+      "sha256": "f08c05ee25ea325ca31618a6199a9c3e58d97fbd8d31ff91b7a9a9fcf4bfe543",
+      "width": 512,
+      "height": 115,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-light-512.webp",
+      "sha256": "7f0ddfa2e7b1353de23a48bacc250786ad253cac3c22283b339db95aff4e70b8",
+      "width": 512,
+      "height": 115,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-light-1024.png",
+      "sha256": "2c0569c47b092ddaeddd671b41aac3028e9d88ab694c48507e3e86f8bfc27194",
+      "width": 1024,
+      "height": 230,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-light-1024.webp",
+      "sha256": "97e403db987380aa12aee1bad1c0f8185654c52166a6225e637ca638683b1691",
+      "width": 1024,
+      "height": 230,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-light-2048.png",
+      "sha256": "cb60c106c2f5078bcd5e6d241f21ed28aaa4ad9ddf06fcd0e9c86d4b8bc31b15",
+      "width": 2048,
+      "height": 461,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-light-2048.webp",
+      "sha256": "9e18c2f7c152e5f3b7001b5480a55186a2806085fc952caada9c4492b9370b98",
+      "width": 2048,
+      "height": 461,
+      "transparent": true
+    },
+    {
+      "path": "logos/symbol-dark.svg",
+      "sha256": "3ef5c7998fdf33d582eb81ca15e130d9be430c787c090ecbfa37420279b00a29"
+    },
+    {
+      "path": "rasters/symbol-dark-256.png",
+      "sha256": "4c8cf9243433d8b5002d7cbd3236865a9af1d80da5212ccfa47a84530f7054af",
+      "width": 256,
+      "height": 256,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-dark-256.webp",
+      "sha256": "ddca641e5858dd58aca017e30b331f0af1efb0a9485f52fd8ed9684c89992528",
+      "width": 256,
+      "height": 256,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-dark-512.png",
+      "sha256": "cf66f696800589a6eda08a6aba595eb904c951dc1165ab648044c8a88c108884",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-dark-512.webp",
+      "sha256": "da2552f697289cee1b6d9746491539db036b2644c7ca8c7f971fdf629d18e2d9",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-dark-1024.png",
+      "sha256": "98a187377a84f1dbe6e5ca6982e3f979d8caf14b2e965311e207f3ec2e4ca2e5",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-dark-1024.webp",
+      "sha256": "dc30556ec4a233cbf4f877450d69452a17faf6dcbb180349591e9a11835f1c96",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-dark-2048.png",
+      "sha256": "01d47cf4da7d3e55ce4679f1be32f9722d18fe8886f4ac2ac2025c7ae793167a",
+      "width": 2048,
+      "height": 2048,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-dark-2048.webp",
+      "sha256": "77da03b785ee0baf1c82d32dbf2a3a1d1ae3f095c1c88bde350d47391ce60e74",
+      "width": 2048,
+      "height": 2048,
+      "transparent": true
+    },
+    {
+      "path": "logos/horizontal-dark.svg",
+      "sha256": "e50bad64cd46193901d57b8973d3b41f32a49840c8c8e90060868b24485b1841"
+    },
+    {
+      "path": "rasters/horizontal-dark-256.png",
+      "sha256": "4cac49a7b339d3fca536a3b83fcef3e50540b901f28cfb26a56565a7b88d871f",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-dark-256.webp",
+      "sha256": "fdc1dddf9e04934f38036ab7d7803e830fde97826c20af69b091ec6b17cee0f1",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-dark-512.png",
+      "sha256": "418aca255a473ae99aa1c5b787919e30187c10077a3a80a947a38df4f6f64c2c",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-dark-512.webp",
+      "sha256": "a656cb34d3bfd3c5b126ec1a9be9ce80d4c2507a30dc0f331321fafeefd0471b",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-dark-1024.png",
+      "sha256": "c06f522f1a27dfca3d7c62d9002f89862c984811510410790b800eb1e0876488",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-dark-1024.webp",
+      "sha256": "11325d7219befdfba4c068d340e4d375a9ca6431efd0b34d7423edd9a8775af3",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-dark-2048.png",
+      "sha256": "a6758ce4067921036014de2cbc6437c9a087c32ad8f408ffb99c86c58aca44cb",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-dark-2048.webp",
+      "sha256": "dff3b9139baedd8733a7a1474e40160675d8fbac5af84b56dfc19459923549ef",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "logos/primary-horizontal-dark.svg",
+      "sha256": "efa7ee97105d80ace2181aa0dd3fddf12a4dede9318a4b8b43ea34b94e69baa9"
+    },
+    {
+      "path": "rasters/primary-horizontal-dark-256.png",
+      "sha256": "e6b0424a72fd301d784de7fd6ae5e72f58f14f4d28a1e17f13716fa96a4f550c",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-dark-256.webp",
+      "sha256": "8cadeed53a1fe44a0438ba767e483169cceabf683d64c1b4ca3c0c13cf03aa7e",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-dark-512.png",
+      "sha256": "9b1686c7c95e45f84a9b77c7c0632b4332d1cf8c43189aab2612df571fa82273",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-dark-512.webp",
+      "sha256": "0229b47f9834ac56e6ed73a83b33f90bb859f595192f44b6d956c1fb5b5e4d95",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-dark-1024.png",
+      "sha256": "6b1ad420af7f1b17f44bdae946311797793896f61592e402f606bc399ba4a611",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-dark-1024.webp",
+      "sha256": "42b9f5ec6b9bb048e83d4fbc98ffca9201fca15eb63be9f2ce638602d08a7fff",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-dark-2048.png",
+      "sha256": "f696d77f714a71e2ef552ad4184969ffe39788b5940ce3e522f83327e6f48c60",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-dark-2048.webp",
+      "sha256": "a46f0a0852137dfb00d648d8779a216549f0ce1c1db539ed561a4636bd04cc9a",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "logos/stacked-dark.svg",
+      "sha256": "39a26fc8cf5a96e14ee3e703b6b5c229321a12a0fae632834cee855ba941823d"
+    },
+    {
+      "path": "rasters/stacked-dark-256.png",
+      "sha256": "f07f10479009f4f05540274829e2e15de4ad0fc9f81f2bf18d7c5d33138476d3",
+      "width": 256,
+      "height": 155,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-dark-256.webp",
+      "sha256": "4d121f32853e55d561c577b3cf0ffc398e361c2102e3c644ab9d3caeb1cbe4be",
+      "width": 256,
+      "height": 155,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-dark-512.png",
+      "sha256": "fb38382f08bc779e5ddbc270a251c225ecc7f6d92279a00b8262c03d01fe03d4",
+      "width": 512,
+      "height": 310,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-dark-512.webp",
+      "sha256": "9fecef788a7c68be18a13cb5b2df3a62309e4ab6074385f1c0d1ba04c13760a8",
+      "width": 512,
+      "height": 310,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-dark-1024.png",
+      "sha256": "a0d03b054f71b1f152b2f5f068a8036231f1e533caf934391b9f234c2d782b0e",
+      "width": 1024,
+      "height": 621,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-dark-1024.webp",
+      "sha256": "49de50a48411655a54f0e202055dc5778e4c95d4c80875a3341ad7641f1e694f",
+      "width": 1024,
+      "height": 621,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-dark-2048.png",
+      "sha256": "c01dce94f8cdaf7ee3e068e902f1db236d03aa8ce24b7776c9240feaf7fe40ed",
+      "width": 2048,
+      "height": 1241,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-dark-2048.webp",
+      "sha256": "86bf07308f104eae57461ef85fc7b90260f9058cef3b8d3fdf91547faf36c711",
+      "width": 2048,
+      "height": 1241,
+      "transparent": true
+    },
+    {
+      "path": "logos/wordmark-dark.svg",
+      "sha256": "f452710f6920146c5a5529bf06e3c125604788f8579640fcbdb726d9b58880e2"
+    },
+    {
+      "path": "rasters/wordmark-dark-256.png",
+      "sha256": "027d84678e4408f9ca45c5c7b3ee5356292c2d5b143044cce40485ef7e1316c3",
+      "width": 256,
+      "height": 58,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-dark-256.webp",
+      "sha256": "d00920f832bcac8c3feda3fece77acab07979a47e1b1fa16f3071f9adb6634ff",
+      "width": 256,
+      "height": 58,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-dark-512.png",
+      "sha256": "ad47e5939595e630c344a115ffd4940e84139fc54313b57cb4aed6e39806dbe6",
+      "width": 512,
+      "height": 115,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-dark-512.webp",
+      "sha256": "bb7e174d31aead46376950299fb67c58c566bd8b04596cb660c63580426eaf18",
+      "width": 512,
+      "height": 115,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-dark-1024.png",
+      "sha256": "d93ff944558c72694c9a73a6fbe33c62c4133f0d379c6da3df420b1337154f75",
+      "width": 1024,
+      "height": 230,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-dark-1024.webp",
+      "sha256": "ee3f969ec3bdefe86ec4d8ebfa6657b4a19f6619de51e9ffb8afed913a851abe",
+      "width": 1024,
+      "height": 230,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-dark-2048.png",
+      "sha256": "ae9d257a3f8c93b7044e999e817419381f3d485c0922f71f76459fbf4d1279f6",
+      "width": 2048,
+      "height": 461,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-dark-2048.webp",
+      "sha256": "197777f0b1c269faab0a79c63fbd5d9030685c1cc2c49f50043cfb047d52af8e",
+      "width": 2048,
+      "height": 461,
+      "transparent": true
+    },
+    {
+      "path": "logos/symbol-navy.svg",
+      "sha256": "faa83131319bd68b29feda0ab311512d862d66cd3021f3d81e640ba7a8919e2c"
+    },
+    {
+      "path": "rasters/symbol-navy-256.png",
+      "sha256": "a223d960c691c8b7272ba4b4cb9f13d13bb5179e99f99f38ca09704319e564be",
+      "width": 256,
+      "height": 256,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-navy-256.webp",
+      "sha256": "34e782cd16332c9b62ed09db16cd4c214c956352f004c3568fafa01daf8ba1cb",
+      "width": 256,
+      "height": 256,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-navy-512.png",
+      "sha256": "0ac48b3d1592559ea3e26a50f691f9991dd4bf698a6f50f5ccb3d44f43d289e4",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-navy-512.webp",
+      "sha256": "39f2c0704aca9abbeaf32ae47f139716c426e134d3bf9410c4cd6dff8e651dec",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-navy-1024.png",
+      "sha256": "e4d14a144c2a2bb1afcdc6261acba2e29825a26f06d2aba39a859ad18feb564c",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-navy-1024.webp",
+      "sha256": "37b4859849549ffd1d4f7aa053112ccb6471692abcd5b96edf89430197ccb4b9",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-navy-2048.png",
+      "sha256": "501397c7c9bb32f47e823fa548c4fbb2c289a6cbacc464b8a3b851722aefdcdd",
+      "width": 2048,
+      "height": 2048,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-navy-2048.webp",
+      "sha256": "d791a04e2c0cda77e03755d240f7f38b555a547bdb98d8e13e41d193f5c25bd9",
+      "width": 2048,
+      "height": 2048,
+      "transparent": true
+    },
+    {
+      "path": "logos/horizontal-navy.svg",
+      "sha256": "755a4c4d2bda6c12e098f2ae6e944ec480e9b3b5771f72209f821d6545012079"
+    },
+    {
+      "path": "rasters/horizontal-navy-256.png",
+      "sha256": "7119fe7375dcccf17a3c93985b5112772ebee3d45d6bdfa9264ff131d89f980e",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-navy-256.webp",
+      "sha256": "6034b5fc683fb208d77772af2d17fba42813b57c8dcfcd94505d76e28586649e",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-navy-512.png",
+      "sha256": "c15c9e93ac3f26825529ed894f3d99016b52e9d8117c8c9d50f754337f31f896",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-navy-512.webp",
+      "sha256": "ebf10dc3e7966fbcfbdef037a41bf57467d4a1c430366263b24621dcea60401c",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-navy-1024.png",
+      "sha256": "a3fb00bcf7fd394922f70af1a0a55fd56f320f3f7ed61b4bd415b6096580d05c",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-navy-1024.webp",
+      "sha256": "7e9cb8a34fd19df0e7c3fb8a6e9ef58bf8f776acd6434f571f5ec98cc8b75d09",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-navy-2048.png",
+      "sha256": "46493ce4672cc0dc12bdb2c7410918048cc6f868fcf21355dffc2ef9dc08d0c0",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-navy-2048.webp",
+      "sha256": "c44710986944c760d556a513de86e70b5278d239e55475cbd56bf6d6e697565d",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "logos/primary-horizontal-navy.svg",
+      "sha256": "a3f197b007a68dcb878e2e1bcbd2537da6f04726c4ded59b2f4bb4a72129dd41"
+    },
+    {
+      "path": "rasters/primary-horizontal-navy-256.png",
+      "sha256": "09c9bf30858d5a440d852b8ae815cafb46e670c7068d8ccfb39155e0fc809b68",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-navy-256.webp",
+      "sha256": "4fc1169312ecb841e794e0057466fa2bd2bc3fa4a9df298f1fa8e4c13edf6788",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-navy-512.png",
+      "sha256": "19b9cf6f8e0394356deba855adc7cb2bd48d3b9a305ca57da5d68c1e41131cee",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-navy-512.webp",
+      "sha256": "fb8480b2ea426d521b24560b665f98f0912cd7607bd57e8adf67a787f563cecd",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-navy-1024.png",
+      "sha256": "f04ffa4fdc989984092cd71fb0e1f818da0444542c4cb8b0cf8426a8da108d50",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-navy-1024.webp",
+      "sha256": "d99adffd7306fc6a91251b49c63065640d1950bcca1fd463ba5d4a11ae7eb23d",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-navy-2048.png",
+      "sha256": "002965eadf63f93d32a86c06eed1283043780d101d06bf0bedb36ca3641b96b2",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-navy-2048.webp",
+      "sha256": "f8e03eaaab791d763110bbf80438b2bc43aaf2c57490573a4c691c4d9c20e0bb",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "logos/stacked-navy.svg",
+      "sha256": "10c9a7a017b8cf8b9713c7212ace04b6844f3523ae477c9461e04979f92da1ad"
+    },
+    {
+      "path": "rasters/stacked-navy-256.png",
+      "sha256": "bab99f38792bbc8491658d8d96f49cc4d26a05e4481652267808b82c11c53259",
+      "width": 256,
+      "height": 155,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-navy-256.webp",
+      "sha256": "c0517b2cc698790a28f432aeb3ae3c01c2c798bc260c0e2ac8af6dc54f62f19e",
+      "width": 256,
+      "height": 155,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-navy-512.png",
+      "sha256": "08af6de44e306bbf3d9e400b9e5825a290ce98aa6cb2eeddc6845dc5d6e402f5",
+      "width": 512,
+      "height": 310,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-navy-512.webp",
+      "sha256": "75c4451ebda7b004354b0ea64b1e80f30deb0edc12918a1ea8d28eb7874e2e63",
+      "width": 512,
+      "height": 310,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-navy-1024.png",
+      "sha256": "6ab13fc1460cfbaab7fa3dad820870b034b876276003524c584093ca6514b26d",
+      "width": 1024,
+      "height": 621,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-navy-1024.webp",
+      "sha256": "67a5348af7a99c23c95745559a026eabeec445e0e6e91efbec82a974925487c8",
+      "width": 1024,
+      "height": 621,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-navy-2048.png",
+      "sha256": "513a033ea3796a7241b50d26ceb8a57f593ebf025e239d4fcd6964903b1a5805",
+      "width": 2048,
+      "height": 1241,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-navy-2048.webp",
+      "sha256": "8777aaa74eb5c538fa84096f0f82f23da2dbd8e140eac11fe8ec0e878a87142c",
+      "width": 2048,
+      "height": 1241,
+      "transparent": true
+    },
+    {
+      "path": "logos/wordmark-navy.svg",
+      "sha256": "a1e02df379abee68ba5c7b80dcee71615f01208c9250305858c61313caec0b17"
+    },
+    {
+      "path": "rasters/wordmark-navy-256.png",
+      "sha256": "7b71e598a7be5273030b989353f5db82c249029d2e98e22a8726a75e6ea24d1f",
+      "width": 256,
+      "height": 58,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-navy-256.webp",
+      "sha256": "eefbc32638c867e915556b0b475326ae1a3f5831217eb430a9905eb821782daa",
+      "width": 256,
+      "height": 58,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-navy-512.png",
+      "sha256": "ca9deb31218839d10be69fe81a94a909cf315dae29867c1f29e83f7847e5dacd",
+      "width": 512,
+      "height": 115,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-navy-512.webp",
+      "sha256": "8c51166f664202ca881823161bc54745b9aa38ed8c6c28c99d5e625ef96076e1",
+      "width": 512,
+      "height": 115,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-navy-1024.png",
+      "sha256": "d23968d6e24e9ef7240794b68ec2f7b04ec46b2af82608c4d5fe2152dfccf13c",
+      "width": 1024,
+      "height": 230,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-navy-1024.webp",
+      "sha256": "be9865ec3f909688439ea42c55812bb636b7f54dfa447b982ca32322a55c7b4e",
+      "width": 1024,
+      "height": 230,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-navy-2048.png",
+      "sha256": "8831a13dceae7ab5e4a62cf96ef1fd5c41f944b8f17be3293037075902aa6a8b",
+      "width": 2048,
+      "height": 461,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-navy-2048.webp",
+      "sha256": "a17ae8d56939c9b9b21f50540c609287d7648b5e3811c70c1e7f0ae8f9513f79",
+      "width": 2048,
+      "height": 461,
+      "transparent": true
+    },
+    {
+      "path": "logos/symbol-white.svg",
+      "sha256": "a89d162b4a50da1598f856493df9881acaccbf721737a77b2b94c54330302cb7"
+    },
+    {
+      "path": "rasters/symbol-white-256.png",
+      "sha256": "e1828ff5666eb78e65458a214b147eb1888dff6ee6a41721fc23d214885ac708",
+      "width": 256,
+      "height": 256,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-white-256.webp",
+      "sha256": "a0f76aa85904692c625f919bf616f15361cc722478ed272c4313fc9b24c1ba25",
+      "width": 256,
+      "height": 256,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-white-512.png",
+      "sha256": "5d6010c65ee3e96bb402fbc7959f4144820f7c3d43ea953dc6cded8ced7e4da9",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-white-512.webp",
+      "sha256": "c210faee2819064c77f593a65a0edcd8fe1986851511a6c70e5a299a84563704",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-white-1024.png",
+      "sha256": "825f25a68eb849d435227331d5ec55c771389a4b9e20e950acf89fceb961af2a",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-white-1024.webp",
+      "sha256": "454ba6acbfc7ebaeba468259c17e7d6b978b7993ff0fc9e8f710242a1f63cbba",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-white-2048.png",
+      "sha256": "ea3a801755e5b35dd3f6380859dfa69040a80ecaa8ea34d0000613ee6c932554",
+      "width": 2048,
+      "height": 2048,
+      "transparent": true
+    },
+    {
+      "path": "rasters/symbol-white-2048.webp",
+      "sha256": "03c2f606fc6e3c1883eed344aea2cbf817419ecd4169b220aacf0b78a6d06fe2",
+      "width": 2048,
+      "height": 2048,
+      "transparent": true
+    },
+    {
+      "path": "logos/horizontal-white.svg",
+      "sha256": "c6ef4cd42ed636fd29d8c8ae9d345b5808c8a6f7369a35b5189993b655bc986d"
+    },
+    {
+      "path": "rasters/horizontal-white-256.png",
+      "sha256": "316fcd4024b43037a43feb56842c75e7adbf3cbd3ed80dbd9b39d78a42c9719e",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-white-256.webp",
+      "sha256": "9e9bd0fe591345ff3d3f01b7c0396bd9dbadf10f1e0d99b7084482e12efa5a37",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-white-512.png",
+      "sha256": "21b1393009d36a3645df0e56554ab736222246a511b5462ffdbfed86696458e9",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-white-512.webp",
+      "sha256": "98ab2ac501055ad83910cf46c1db57eed89bfaff8d3fb2b2e1899b0da516cb94",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-white-1024.png",
+      "sha256": "84357cc1f0a0934c34c15bf4e2e4fdf259ab2d295a99fb67dc16730e0def1e97",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-white-1024.webp",
+      "sha256": "f9991c9676120510a47aa1a3c747a0e9d8cbaad289d87368b3d887565652e1aa",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-white-2048.png",
+      "sha256": "5164fd0c7b7aa3d60bcda5b3fb56420b48d6d6c5cec9fd81737a1d3871d272a0",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "rasters/horizontal-white-2048.webp",
+      "sha256": "2c3ac5511d59bfd37b84c031a4aa54df9a281609063e00a56d4c48213403c039",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "logos/primary-horizontal-white.svg",
+      "sha256": "3fb5460355b01fde7e8441cb85985a2de61c63119200a34cdcd13afd0d3aaf8d"
+    },
+    {
+      "path": "rasters/primary-horizontal-white-256.png",
+      "sha256": "c784e419df4b1c621b65bfe3eee553c42ba2b59983a54ae445abb11d70f6b8d6",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-white-256.webp",
+      "sha256": "822fd5486f2b10418f6555bce4de397faf2a369b2f1dc193c268505fc3811c60",
+      "width": 256,
+      "height": 61,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-white-512.png",
+      "sha256": "7e21bd2f8e896727d43cc51e5513d3581baa303d6ae4e89fd8877815bfdccf49",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-white-512.webp",
+      "sha256": "5854e09fb8f83cb94f7bfdd3b9fdee43bb8e3ff1c1716af713f90e6e986563ce",
+      "width": 512,
+      "height": 123,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-white-1024.png",
+      "sha256": "51eb22479d61cecf279b017c3b04445ea6126b673d6ab75aacf0f4081e90c78c",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-white-1024.webp",
+      "sha256": "42eefd1a235a27585f2ac4624c1ef2a66c603427405d645868791ed18dc5fa09",
+      "width": 1024,
+      "height": 246,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-white-2048.png",
+      "sha256": "020a244ba516efa24b5dd9ccd329af04e7304be8b7f28f40666711cb90fd2e86",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "rasters/primary-horizontal-white-2048.webp",
+      "sha256": "15973186b2d338a7b286426d2c6d955a82140d992fd934efd689adc6e93b186b",
+      "width": 2048,
+      "height": 492,
+      "transparent": true
+    },
+    {
+      "path": "logos/stacked-white.svg",
+      "sha256": "a5e25bb7d1e08b8c9fd81157449cc53cf0b223b5c50ca57e4b2bebb1e521b772"
+    },
+    {
+      "path": "rasters/stacked-white-256.png",
+      "sha256": "4b0ac5b2fa27abee89717fedcee21eb0fde737906e4e39d2791dc329450242f2",
+      "width": 256,
+      "height": 155,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-white-256.webp",
+      "sha256": "3cd62d0e8ccc7268b33afac10063b636c7a4bc2d8dc7d713818b68b3d71a2a76",
+      "width": 256,
+      "height": 155,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-white-512.png",
+      "sha256": "98ac4b49bbbf96d86472facb2f9f277c1fdb29fbc2afa6179196ff44d0a360ca",
+      "width": 512,
+      "height": 310,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-white-512.webp",
+      "sha256": "49dbea0c2a894d78ce811d3503f5b8959c04dcf11b6d018856242940fe1eafe4",
+      "width": 512,
+      "height": 310,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-white-1024.png",
+      "sha256": "26bb495233a52e17781141193ddceaeecbeee36e2014c1ba06d923e2eb1f99bd",
+      "width": 1024,
+      "height": 621,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-white-1024.webp",
+      "sha256": "2ee13c4585416057a2ac833de8ad9350bc77562ba3372416471ffd88e69070a0",
+      "width": 1024,
+      "height": 621,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-white-2048.png",
+      "sha256": "352e4cce8ebc0edf5b0ec3645fb868216a3e3fbf0ab1af72fb919abf370c2d89",
+      "width": 2048,
+      "height": 1241,
+      "transparent": true
+    },
+    {
+      "path": "rasters/stacked-white-2048.webp",
+      "sha256": "fd1e67184ff00337a94eaafe825861f983a820c377f851d47d4a0fcda7b7810a",
+      "width": 2048,
+      "height": 1241,
+      "transparent": true
+    },
+    {
+      "path": "logos/wordmark-white.svg",
+      "sha256": "2fd1231146f4fbb299dc51713098cfdd2baaaec64ba14d1d692217748536eded"
+    },
+    {
+      "path": "rasters/wordmark-white-256.png",
+      "sha256": "cfc79b34d829e7378a563de4148cce26f7c11efef6d0ff8fd26d88cbf850fb42",
+      "width": 256,
+      "height": 58,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-white-256.webp",
+      "sha256": "394a8b6bd4e26b152505a2eedeaa005824452104b02d97c7c3c8cf0bafe61b54",
+      "width": 256,
+      "height": 58,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-white-512.png",
+      "sha256": "b3e6a3a2c28b71732a96a61d07acc8c6c443b04e190682e0616ff50274d08efc",
+      "width": 512,
+      "height": 115,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-white-512.webp",
+      "sha256": "91d600a04cc2133425f87e3bae8bfd7ff4ee432ad3b4d1acd7524c65a9515734",
+      "width": 512,
+      "height": 115,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-white-1024.png",
+      "sha256": "7ffc84bcb68e6b62ceb5fef817ef6ac47222e1a8c251a4ca381022cdc33a8c85",
+      "width": 1024,
+      "height": 230,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-white-1024.webp",
+      "sha256": "ec848c3467570e0942e0efdfbbe9fcfc20c16a4c49070901d294276c52e7e33f",
+      "width": 1024,
+      "height": 230,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-white-2048.png",
+      "sha256": "3a6b1039b165cb8321cf60eda58a868e0964ece644ea55861e7737e7587f419f",
+      "width": 2048,
+      "height": 461,
+      "transparent": true
+    },
+    {
+      "path": "rasters/wordmark-white-2048.webp",
+      "sha256": "d17c9730c4b7a5c4db7f6c5d1c142ba1180d1814b5aa8398cb9cfe53fefa0f9b",
+      "width": 2048,
+      "height": 461,
+      "transparent": true
+    },
+    {
+      "path": "masters/symbol.svg",
+      "sha256": "97c03ff3cbba17a9cd27a02e505651b9f3c39f2be8204b77416740818c9afdd8"
+    },
+    {
+      "path": "icons/favicon.svg",
+      "sha256": "20cb7b22cbef58bec7bdbe4d98a6a443585588d3c4a387fcc5938eab4e5ff05a"
+    },
+    {
+      "path": "icons/favicon-16.png",
+      "sha256": "4843b3cc62abc01efeb6a813ef67fd208fccf15752fc62f533348c42c80fdc60",
+      "width": 16,
+      "height": 16,
+      "transparent": true
+    },
+    {
+      "path": "icons/favicon-16.webp",
+      "sha256": "e67f28bbdb8d4fe8f60878e5cf2aa27f5f7ccb6c9b36946815afd9e3a01ae14d",
+      "width": 16,
+      "height": 16,
+      "transparent": true
+    },
+    {
+      "path": "icons/favicon-32.png",
+      "sha256": "e64ad06a35b8e77eed8243fb41ec01d65debc21ca555c66d4e19973af94e4a79",
+      "width": 32,
+      "height": 32,
+      "transparent": true
+    },
+    {
+      "path": "icons/favicon-32.webp",
+      "sha256": "73405deaa2923ef411143c239fb48291f6ae915398d10bf09ff36d3bc9f87726",
+      "width": 32,
+      "height": 32,
+      "transparent": true
+    },
+    {
+      "path": "icons/favicon-48.png",
+      "sha256": "84501aae182be5b3715f8fa8f3e9fbcf46495507f7d40719f122dfed8d20c059",
+      "width": 48,
+      "height": 48,
+      "transparent": true
+    },
+    {
+      "path": "icons/favicon-48.webp",
+      "sha256": "91ccc5ee56823276b7a6b7fb77d2a84b01f9c0f8636f3f8c8d054fb5370ef9f4",
+      "width": 48,
+      "height": 48,
+      "transparent": true
+    },
+    {
+      "path": "icons/apple-touch-icon.png",
+      "sha256": "1e432397bf73ff2de54690b3ec697e5fa4ac170d5e3b62197f8d5a78774ff2fc",
+      "width": 180,
+      "height": 180,
+      "transparent": true
+    },
+    {
+      "path": "icons/apple-touch-icon.webp",
+      "sha256": "3ff9a7c55c6d14d8f5312c2d17a7246ea5fe93a57aa763d4150fae64a4925407",
+      "width": 180,
+      "height": 180,
+      "transparent": true
+    },
+    {
+      "path": "icons/pwa-192.png",
+      "sha256": "ba94aae154a7af76f697cc3c51af532c9a1da9d40637490510306d864998aa77",
+      "width": 192,
+      "height": 192,
+      "transparent": true
+    },
+    {
+      "path": "icons/pwa-192.webp",
+      "sha256": "db0b40a7b1ff6f9a4576025eaf5fa1df7f769b19d6bc0fd1ccb3c9868d1948b8",
+      "width": 192,
+      "height": 192,
+      "transparent": true
+    },
+    {
+      "path": "icons/pwa-512.png",
+      "sha256": "1683c21b2a8a9fe8cb62e85339b27023c3bc4aa52310257f7ebfa736396cf8ac",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "icons/pwa-512.webp",
+      "sha256": "dc6ece5d9df8111e06027692f28c559490d100332033cad2fd7cf06759788d93",
+      "width": 512,
+      "height": 512,
+      "transparent": true
+    },
+    {
+      "path": "icons/pwa-maskable-512.png",
+      "sha256": "722c36f30523720fc46d05939885764806a0f75bed7751988b9838ae81a37e12",
+      "width": 512,
+      "height": 512,
+      "transparent": false
+    },
+    {
+      "path": "icons/pwa-maskable-512.webp",
+      "sha256": "2335aef09653ea4167377c4db692f6b38a11706277ebd5053d45a52d06f935cd",
+      "width": 512,
+      "height": 512,
+      "transparent": false
+    },
+    {
+      "path": "icons/favicon.ico",
+      "sha256": "badb0947c546b3cbdfd14a3d8a348cafcbf55c53e7512cbab3409f4b1db2daa4"
+    },
+    {
+      "path": "social/sharing.svg",
+      "sha256": "e6d9f77e539ea8df87e2316ffe25471e75d3a21d61bed788eca1ecdbd7775b4c"
+    },
+    {
+      "path": "social/sharing.png",
+      "sha256": "c503fb87865504f471affeb91b0d866ae035633358fe293c8cea528fe11adec0",
+      "width": 1200,
+      "height": 630,
+      "transparent": false
+    },
+    {
+      "path": "social/sharing.webp",
+      "sha256": "f3ea69244d85faa96b78badf4e3f407b028511407cfa509a49349ae60338b71c",
+      "width": 1200,
+      "height": 630,
+      "transparent": false
+    },
+    {
+      "path": "production/business-card.svg",
+      "sha256": "1b51b2ed3a0cc607d12cd14ac0dfddb24af4d7517e9ed8bb5331d51fb02c604b"
+    },
+    {
+      "path": "production/letterhead.svg",
+      "sha256": "5fe25da58dc447ceb25e0c7f728226a96f460d6ef5abc59f657c3cc5b8ca6619"
+    },
+    {
+      "path": "production/presentation-cover.svg",
+      "sha256": "e2fe6c84dfede396886380dd50ff1df5ead8af908e22d7c65d3634ca271a1cfb"
+    },
+    {
+      "path": "production/proposal-cover.svg",
+      "sha256": "7652f10c489cf589e0b377fd75ff3e18dd202a4772ea0bb8bcbfb4bb36158adc"
+    },
+    {
+      "path": "production/notebook-cover.svg",
+      "sha256": "b3abfd286aa6dcca0a31dae1f1d567c51e4a99bca3d15236e0d10e82079d95d9"
+    },
+    {
+      "path": "production/tshirt-placement.svg",
+      "sha256": "7967660ee847853bf7b96c02573a9cdd129ff17050dc27b4bcf4c48b6190254d"
+    },
+    {
+      "path": "production/polo-embroidery.svg",
+      "sha256": "6157b32e410c543adfe346fe536747a57a9ae213f4993eb65f30590dc6f1da9e"
+    },
+    {
+      "path": "production/hat-embroidery.svg",
+      "sha256": "8e608cded077377b9badb8277f3818e172dc31f91fa1c7abe4838dbbfe681f13"
+    },
+    {
+      "path": "production/tumbler-mark.svg",
+      "sha256": "bbb1aca607fa19d1b7e08debd89fd687105240b3dcc90c9c00b54f87deca88e1"
+    },
+    {
+      "path": "production/signage.svg",
+      "sha256": "0dabaa54410ae03c876d47f8c740c147c585d76e9e1670a6f494a7e9732d5cf4"
+    },
+    {
+      "path": "production/email-signature.html",
+      "sha256": "fc6c265b66632a7357c977dcaa27041181bd7c584babee04da3a03863f67a509"
+    },
+    {
+      "path": "review/comparison.svg",
+      "sha256": "4cb13d15f4e0c0d09da9bcbbfe4a2261faa49ee676bc0be6319a4fa780ed0f1e"
+    },
+    {
+      "path": "review/comparison.png",
+      "sha256": "4b18ef59b60caf42948886c0b3f022d238f0531c08239738c297a99bd02c301e",
+      "width": 1200,
+      "height": 700,
+      "transparent": false
+    },
+    {
+      "path": "review/comparison.webp",
+      "sha256": "97f7d8fe32fd66d5293b158711a085ae90e415e7dab7a7127b84dca630bd3cd8",
+      "width": 1200,
+      "height": 700,
+      "transparent": false
+    }
+  ]
+}

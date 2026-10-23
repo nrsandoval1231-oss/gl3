@@ -1,7 +1,7 @@
 {
   "name": "GridLens",
   "version": "2.0.0",
-  "status": "owner-approved canonical visual direction 2026-10-23",
+  "status": "Palette hex labels transcribed from owner board; vector geometry pending visual approval",
   "colors": {
     "harbor_navy": "#0B1F33",
     "deep_slate": "#23384C",
@@ -30,5 +30,46 @@
     "No maps or photography in product UI",
     "Dense opportunities table left and customer intelligence panel right",
     "Do not claim generated raster brand board is production SVG"
-  ]
+  ],
+  "source": {
+    "kind": "owner-supplied inline brand board",
+    "dimensions": [
+      1280,
+      960
+    ],
+    "date": "2026-10-23",
+    "palette_basis": "Printed labels, not image sampling",
+    "geometry_verified": false,
+    "wordmark_verified": false
+  },
+  "semantic": {
+    "surface": "white",
+    "surface_secondary": "fog",
+    "text": "graphite",
+    "text_secondary": "deep_slate",
+    "border": "driftwood_gray",
+    "divider": "fog",
+    "interactive": "harbor_navy",
+    "interactive_hover": "deep_slate",
+    "selected": "fog",
+    "selected_text": "harbor_navy",
+    "button": "harbor_navy",
+    "button_text": "white",
+    "table_heading": "fog",
+    "navigation": "white",
+    "focus": "deep_slate",
+    "logo_primary": "harbor_navy",
+    "logo_secondary": "slate_steel",
+    "logo_dark_primary": "fog",
+    "logo_dark_secondary": "sea_cliff"
+  },
+  "status_colors": {
+    "danger": "#A22F32",
+    "danger_surface": "#FFF1ED",
+    "success": "#237343",
+    "success_surface": "#ECF8F0",
+    "warning": "#684A37",
+    "warning_surface": "#FFF9F4"
+  },
+  "status_color_basis": "Existing operational status colors retained outside the seven-color identity; always pair with text."
 }
