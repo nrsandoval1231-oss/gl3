@@ -124,6 +124,8 @@ def _matching_decision(session, observation_id: UUID, evidence_hash: str, model:
 
 
 def _call_matches_exact_evidence(session, call, observation, evidence, job_id=None) -> bool:
+    from gridlens.intelligence.signal_adjudication import POLICY_VERSION
+
     task_key = _task_key(observation.id, evidence.content_hash)
     evidence_digest = hashlib.sha256(
         json.dumps(
@@ -147,6 +149,7 @@ def _call_matches_exact_evidence(session, call, observation, evidence, job_id=No
     if (
         job is None
         or job.kind != "signal_adjudication"
+        or job.source_id != observation.source_id
         or job.target_id != observation.id
         or job.status != "succeeded"
         or job.error is not None
@@ -159,13 +162,64 @@ def _call_matches_exact_evidence(session, call, observation, evidence, job_id=No
     return (
         checkpoint.get("evidence_id") == str(evidence.id)
         and checkpoint.get("content_hash") == evidence.content_hash
+        and checkpoint.get("policy_version") == POLICY_VERSION
         and checkpoint.get("logical_call_id") == str(call.id)
     )
 
 
-def _verify_completed_package(session, package: EvidencePackage) -> None:
-    from gridlens.intelligence.signal_adjudication import validated_dimensions
+def _exact_completion_proof(
+    session: Session,
+    call: LogicalCall,
+    observation: Observation,
+    evidence: Evidence,
+    *,
+    decision: SignalDecision | None = None,
+    job_id: UUID | None = None,
+) -> tuple[dict[str, float], str] | None:
+    """Return one response and decision pair bound by exact call/job/source evidence."""
+    from gridlens.intelligence.signal_adjudication import (
+        POLICY_VERSION,
+        _evidence_state,
+        map_dimensions,
+        validated_dimensions,
+    )
 
+    if (
+        call.status != "COMPLETED"
+        or not isinstance(call.result_payload, dict)
+        or not _call_matches_exact_evidence(session, call, observation, evidence, job_id)
+    ):
+        return None
+    decisions = session.scalars(
+        select(SignalDecision).where(
+            SignalDecision.observation_id == observation.id,
+            SignalDecision.content_hash == evidence.content_hash,
+            SignalDecision.source == "jev",
+            SignalDecision.model_version == MODEL,
+            SignalDecision.policy_version == POLICY_VERSION,
+        )
+    ).all()
+    if len(decisions) != 1:
+        return None
+    exact_decision = decisions[0]
+    if decision is not None and decision.id != exact_decision.id:
+        return None
+    try:
+        dimensions = validated_dimensions(call.result_payload, expected_model=MODEL)
+        state = _evidence_state(session, observation, evidence)
+        mapped = map_dimensions(dimensions, title=state["title"], abstract=state["abstract"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if exact_decision.dimensions != dimensions or exact_decision.decision != mapped:
+        return None
+    return dimensions, mapped
+
+
+class CompletedPackageVerificationError(ValueError):
+    """A completed advisory no longer has valid evidence-bound proof."""
+
+
+def _verify_completed_package(session, package: EvidencePackage) -> None:
     if package.processing_status != "COMPLETE_ADVISORY":
         return
     evidence = session.get(Evidence, package.evidence_id)
@@ -179,20 +233,43 @@ def _verify_completed_package(session, package: EvidencePackage) -> None:
         or not call
         or call.status != "COMPLETED"
         or decision is None
-        or not _call_matches_exact_evidence(session, call, observation, evidence)
     ):
-        raise ValueError("Complete advisory lacks its exact matching call and decision")
-    dimensions = validated_dimensions(call.result_payload or {}, expected_model=MODEL)
+        raise CompletedPackageVerificationError(
+            "Complete advisory lacks its exact matching call and decision"
+        )
+    proof = _exact_completion_proof(session, call, observation, evidence, decision=decision)
+    if proof is None:
+        raise CompletedPackageVerificationError(
+            "Complete advisory does not match its exact call response and mapped decision"
+        )
+    dimensions, mapped = proof
     advisory = package.payload.get("advisory")
     if (
         not isinstance(advisory, dict)
         or advisory.get("logical_call_id") != str(call.id)
         or advisory.get("model") != MODEL
         or advisory.get("source") != "jev"
-        or advisory.get("decision") != decision.decision
+        or advisory.get("decision") != mapped
         or advisory.get("dimensions") != dimensions
     ):
-        raise ValueError("Complete advisory payload does not match its exact ledger decision")
+        raise CompletedPackageVerificationError(
+            "Complete advisory payload does not match its exact ledger decision"
+        )
+
+
+def _persist_invalid_completed_package(session, package: EvidencePackage, reason: str) -> None:
+    call_id = package.logical_call_id
+    _persist_status(
+        session,
+        package,
+        "INCOMPLETE",
+        "INVALID_COMPLETED_ADVISORY: " + reason,
+        logical_call_id=call_id,
+    )
+    payload = dict(package.payload)
+    payload["advisory"] = None
+    validate_package(payload)
+    package.payload = payload
 
 
 def _validate_current_package(
@@ -254,7 +331,6 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
         POLICY_VERSION,
         _evidence_state,
         queue_adjudication,
-        validated_dimensions,
     )
 
     with SessionLocal.begin() as session:
@@ -294,22 +370,15 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             call = prior_calls[0]
             if call.status == "COMPLETED" and isinstance(call.result_payload, dict):
                 decision = _matching_decision(session, observation.id, evidence.content_hash, MODEL)
-                if decision is not None and _call_matches_exact_evidence(
-                    session, call, observation, evidence
-                ):
-                    try:
-                        dimensions = validated_dimensions(call.result_payload, expected_model=MODEL)
-                    except (KeyError, TypeError, ValueError):
-                        _persist_status(
-                            session,
-                            package,
-                            "INCOMPLETE",
-                            "COMPLETED_CALL_RESPONSE_FAILED_VALIDATION_NO_RETRY",
-                            call=call,
-                        )
-                        return "INCOMPLETE", str(call.id)
+                proof = (
+                    _exact_completion_proof(session, call, observation, evidence, decision=decision)
+                    if decision is not None
+                    else None
+                )
+                if proof is not None:
+                    dimensions, mapped = proof
                     advisory = {
-                        "decision": decision.decision,
+                        "decision": mapped,
                         "dimensions": dimensions,
                         "source": "jev",
                         "model": MODEL,
@@ -333,7 +402,13 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
                     call=call,
                 )
                 return "INCOMPLETE", str(call.id)
-            status = "INCOMPLETE" if call.status == "SENT_OUTCOME_UNKNOWN" else "BLOCKED"
+            uncertain = call.dispatched_at is not None or call.status in {
+                "SENT_OUTCOME_UNKNOWN",
+                "FAILED",
+                "RECONCILED",
+                "QUARANTINED",
+            }
+            status = "INCOMPLETE" if uncertain else "BLOCKED"
             _persist_status(
                 session,
                 package,
@@ -374,8 +449,7 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
                 "JEV_DECISION_WITHOUT_MATCHING_LEDGER_CALL",
             )
             return "INCOMPLETE", None
-        queue_adjudication(session, observation, evidence, policy_version=POLICY_VERSION)
-        job = session.scalar(
+        active_jobs = session.scalars(
             select(Job)
             .where(
                 Job.kind == "signal_adjudication",
@@ -383,7 +457,28 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
                 Job.status.in_(["queued", "running"]),
             )
             .order_by(Job.created_at.desc())
-        )
+        ).all()
+        if len(active_jobs) > 1:
+            _persist_status(session, package, "BLOCKED", "AMBIGUOUS_ACTIVE_ADJUDICATION_JOBS")
+            return "BLOCKED", None
+        job: Job | None
+        if active_jobs:
+            job = active_jobs[0]
+        else:
+            queue_adjudication(session, observation, evidence, policy_version=POLICY_VERSION)
+            active_jobs = session.scalars(
+                select(Job)
+                .where(
+                    Job.kind == "signal_adjudication",
+                    Job.target_id == observation.id,
+                    Job.status.in_(["queued", "running"]),
+                )
+                .order_by(Job.created_at.desc())
+            ).all()
+            if len(active_jobs) > 1:
+                _persist_status(session, package, "BLOCKED", "AMBIGUOUS_ACTIVE_ADJUDICATION_JOBS")
+                return "BLOCKED", None
+            job = active_jobs[0] if active_jobs else None
         if job is None:
             _persist_status(session, package, "BLOCKED", "EXACT_ADJUDICATION_JOB_NOT_QUEUED")
             return "BLOCKED", None
@@ -392,8 +487,11 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
         except (TypeError, ValueError):
             checkpoint = {}
         if (
-            checkpoint.get("evidence_id") != str(evidence.id)
+            job.source_id != observation.source_id
+            or job.target_id != observation.id
+            or checkpoint.get("evidence_id") != str(evidence.id)
             or checkpoint.get("content_hash") != evidence.content_hash
+            or checkpoint.get("policy_version") != POLICY_VERSION
         ):
             _persist_status(
                 session, package, "BLOCKED", "ACTIVE_JOB_HAS_DIFFERENT_EVIDENCE_VERSION"
@@ -454,36 +552,22 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             )
             return "INCOMPLETE", str(post_call_id) if post_call_id else None
         decision = _matching_decision(session, observation.id, package.evidence_hash, MODEL)
-        if (
-            post_call
-            and post_call.status == "COMPLETED"
-            and decision
-            and job
-            and job.status == "succeeded"
-            and not job.error
-            and _call_matches_exact_evidence(
+        proof = (
+            _exact_completion_proof(
                 session,
                 post_call,
                 observation,
                 current_evidence,
-                job.id,
+                decision=decision,
+                job_id=job.id,
             )
-        ):
-            try:
-                dimensions = validated_dimensions(
-                    post_call.result_payload or {}, expected_model=MODEL
-                )
-            except (KeyError, TypeError, ValueError):
-                _persist_status(
-                    session,
-                    package,
-                    "INCOMPLETE",
-                    "COMPLETED_CALL_RESPONSE_FAILED_VALIDATION_NO_RETRY",
-                    call=post_call,
-                )
-                return "INCOMPLETE", str(post_call.id)
+            if post_call and decision and job and job.status == "succeeded" and not job.error
+            else None
+        )
+        if post_call and proof is not None:
+            dimensions, mapped = proof
             advisory = {
-                "decision": decision.decision,
+                "decision": mapped,
                 "dimensions": dimensions,
                 "source": "jev",
                 "model": MODEL,
@@ -554,6 +638,7 @@ def main() -> int:
         parser.error("--execute-jev and --replay are mutually exclusive")
     _safe_database(dispatch=args.execute_jev)
     started = time.monotonic()
+    verification_error: str | None = None
     with SessionLocal.begin() as session:
         if args.replay:
             expected, *_ = build_package(session, args.evidence_id)
@@ -575,7 +660,13 @@ def main() -> int:
             _validate_current_package(session, package)
             if package.processing_status != package.payload.get("processing_status"):
                 raise ValueError("Stored package processing status differs from its payload")
-        _verify_completed_package(session, package)
+        try:
+            _verify_completed_package(session, package)
+        except CompletedPackageVerificationError as exc:
+            _persist_invalid_completed_package(session, package, str(exc))
+            verification_error = str(exc)
+    if verification_error:
+        raise ValueError(verification_error)
     status = package.processing_status
     call_id = str(package.logical_call_id) if package.logical_call_id else None
     if args.execute_jev and status != "COMPLETE_ADVISORY":
@@ -587,43 +678,54 @@ def main() -> int:
         _validate_current_package(session, final_package)
         if final_package.processing_status != final_package.payload.get("processing_status"):
             raise ValueError("Stored package status differs from its validated payload")
-        _verify_completed_package(session, final_package)
-        after = _counts(session, observation_id, task_key)
-        digest = _json_digest(package.payload)
-        if args.replay and (before != after or digest != previous_digest):
-            raise ValueError(
-                "Replay changed job/call counts, dispatch timestamps, or package digest"
-            )
-        logical_call = (
-            session.get(LogicalCall, final_package.logical_call_id)
-            if final_package.logical_call_id
-            else None
-        )
-        output = {
-            "evidence_id": str(final_package.evidence_id),
-            "evidence_hash": final_package.evidence_hash,
-            "observation_id": str(final_package.observation_id),
-            "package_id": str(final_package.id),
-            "package_key": package_key,
-            "package_digest": digest,
-            "processing_status": final_package.processing_status,
-            "model": final_package.model,
-            "logical_call_id": str(final_package.logical_call_id)
-            if final_package.logical_call_id
-            else None,
-            "usage_available": bool(
-                logical_call
-                and (
-                    logical_call.input_tokens is not None or logical_call.output_tokens is not None
+        try:
+            _verify_completed_package(session, final_package)
+        except CompletedPackageVerificationError as exc:
+            _persist_invalid_completed_package(session, final_package, str(exc))
+            verification_error = str(exc)
+        if verification_error:
+            # Exit the transaction first so the fail-closed state is durable.
+            pass
+        else:
+            after = _counts(session, observation_id, task_key)
+            digest = _json_digest(package.payload)
+            if args.replay and (before != after or digest != previous_digest):
+                raise ValueError(
+                    "Replay changed job/call counts, dispatch timestamps, or package digest"
                 )
-            ),
-            "cost_available": bool(logical_call and logical_call.actual_cost_usd is not None),
-            "replay_counts": after if args.replay else None,
-            "elapsed_ms": round((time.monotonic() - started) * 1000),
-            "execute_elapsed_ms": round((time.monotonic() - started) * 1000)
-            if args.execute_jev
-            else None,
-        }
+            logical_call = (
+                session.get(LogicalCall, final_package.logical_call_id)
+                if final_package.logical_call_id
+                else None
+            )
+            output = {
+                "evidence_id": str(final_package.evidence_id),
+                "evidence_hash": final_package.evidence_hash,
+                "observation_id": str(final_package.observation_id),
+                "package_id": str(final_package.id),
+                "package_key": package_key,
+                "package_digest": digest,
+                "processing_status": final_package.processing_status,
+                "model": final_package.model,
+                "logical_call_id": str(final_package.logical_call_id)
+                if final_package.logical_call_id
+                else None,
+                "usage_available": bool(
+                    logical_call
+                    and (
+                        logical_call.input_tokens is not None
+                        or logical_call.output_tokens is not None
+                    )
+                ),
+                "cost_available": bool(logical_call and logical_call.actual_cost_usd is not None),
+                "replay_counts": after if args.replay else None,
+                "elapsed_ms": round((time.monotonic() - started) * 1000),
+                "execute_elapsed_ms": round((time.monotonic() - started) * 1000)
+                if args.execute_jev
+                else None,
+            }
+    if verification_error:
+        raise ValueError(verification_error)
     print(json.dumps(output, sort_keys=True))
     return 0 if status in {"PREPARED", "COMPLETE_ADVISORY"} else 2
 

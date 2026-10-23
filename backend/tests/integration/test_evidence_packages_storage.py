@@ -206,7 +206,14 @@ def test_product_database_guard_never_allows_test_database_for_dispatch(monkeypa
 
 
 def _insert_call_history(
-    session, observation, evidence, *, call_status="COMPLETED", existing_job=None
+    session,
+    observation,
+    evidence,
+    *,
+    call_status="COMPLETED",
+    existing_job=None,
+    decision_dimensions=None,
+    decision_value="REVIEW",
 ):
     task_key = cli._task_key(observation.id, evidence.content_hash)
     call_id = uuid4()
@@ -260,7 +267,9 @@ def _insert_call_history(
         lease_authority="job",
         job_id=job_id,
         status=call_status,
-        dispatched_at=datetime.now(UTC) if call_status == "SENT_OUTCOME_UNKNOWN" else None,
+        dispatched_at=datetime.now(UTC)
+        if call_status in {"SENT_OUTCOME_UNKNOWN", "FAILED", "RECONCILED", "QUARANTINED"}
+        else None,
         result_payload=result if call_status == "COMPLETED" else None,
     )
     session.add_all([job, call])
@@ -270,10 +279,10 @@ def _insert_call_history(
                 observation_id=observation.id,
                 content_hash=evidence.content_hash,
                 policy_version="signal-display-v2",
-                decision="REVIEW",
+                decision=decision_value,
                 source="jev",
                 model_version="jev-1.13.0",
-                dimensions={name: 0.5 for name in result["answers"]},
+                dimensions=decision_dimensions or {name: 0.5 for name in result["answers"]},
                 reason="synthetic test receipt",
             )
         )
@@ -300,6 +309,264 @@ def test_completed_receipt_requires_exact_call_job_and_policy(evidence_db, monke
         )
         assert package.logical_call_id == call.id
         assert package.payload["advisory"]["model"] == "jev-1.13.0"
+
+
+@pytest.mark.parametrize("path", ["prior", "post_worker", "replay"])
+@pytest.mark.parametrize("tamper", ["dimensions", "mapped_decision"])
+def test_completion_requires_shared_exact_response_and_decision_proof(
+    evidence_db, monkeypatch, capsys, path, tamper
+):
+    _registry(monkeypatch)
+    monkeypatch.setattr(cli, "SessionLocal", evidence_db)
+    monkeypatch.setattr(settings, "database_url", settings.test_database_url)
+    from gridlens.intelligence import intelligence_jobs
+    from gridlens.jobs import worker
+
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "_enabled",
+        lambda *_args, **_kwargs: (True, "typesafe", "jev-1.13.0", ""),
+    )
+    with evidence_db.begin() as session:
+        observation, evidence = seed_evidence(session)
+        package = materialize_package(session, evidence.id)
+        package_id, evidence_id = package.id, evidence.id
+        if path in {"prior", "replay"}:
+            call, _job = _insert_call_history(session, observation, evidence)
+            if path == "prior" and tamper == "dimensions":
+                decision = session.scalar(select(SignalDecision))
+                decision.dimensions = {**decision.dimensions, "commercial_relevance": 0.1}
+            elif path == "prior":
+                session.scalar(select(SignalDecision)).decision = "HOLD"
+
+    if path == "post_worker":
+
+        def inject_completed_receipt(_definitions, *, job_ids=None):
+            with evidence_db.begin() as session:
+                job = session.get(Job, job_ids[0])
+                observation = session.get(Observation, job.target_id)
+                evidence = session.scalar(
+                    select(Evidence).where(Evidence.observation_id == observation.id)
+                )
+                _insert_call_history(
+                    session,
+                    observation,
+                    evidence,
+                    existing_job=job,
+                    decision_dimensions=(
+                        {
+                            name: 0.5
+                            for name in (
+                                "physical_project_event",
+                                "meaningful_new_activity",
+                                "commercial_relevance",
+                                "temporary_power_relevance",
+                                "routine_maintenance",
+                                "transient_event",
+                            )
+                        }
+                        | {"commercial_relevance": 0.1}
+                        if tamper == "dimensions"
+                        else None
+                    ),
+                    decision_value="HOLD" if tamper == "mapped_decision" else "REVIEW",
+                )
+                job.status = "succeeded"
+
+        monkeypatch.setattr(worker, "run_one", inject_completed_receipt)
+        status, returned_id = cli._execute(package_id)
+        assert status == "INCOMPLETE"
+        assert returned_id is not None
+        with evidence_db() as session:
+            package = session.get(EvidencePackage, package_id)
+            assert package.logical_call_id == UUID(returned_id)
+            assert package.payload["logical_call_id"] == returned_id
+    elif path == "prior":
+        status, returned_id = cli._execute(package_id)
+        assert (status, returned_id) == ("INCOMPLETE", str(call.id))
+    else:
+        assert cli._execute(package_id)[0] == "COMPLETE_ADVISORY"
+        with evidence_db.begin() as session:
+            observation = session.get(Observation, package.observation_id)
+            decision = session.scalar(select(SignalDecision))
+            if tamper == "dimensions":
+                decision.dimensions = {**decision.dimensions, "commercial_relevance": 0.1}
+            else:
+                decision.decision = "HOLD"
+            unrelated = Job(
+                source_id=observation.source_id,
+                kind="signal_adjudication",
+                target_id=uuid4(),
+                status="queued",
+            )
+            session.add(unrelated)
+            session.flush()
+            unrelated_id = unrelated.id
+        monkeypatch.setattr(
+            "sys.argv",
+            ["materialize_evidence_package.py", "--evidence-id", str(evidence_id), "--replay"],
+        )
+        monkeypatch.setattr(cli, "_execute", lambda *_args: pytest.fail("invalid replay executed"))
+        with pytest.raises(ValueError, match="exact call response and mapped decision"):
+            cli.main()
+        with evidence_db() as session:
+            package = session.get(EvidencePackage, package_id)
+            assert package.processing_status == package.payload["processing_status"] == "INCOMPLETE"
+            assert package.logical_call_id == call.id
+            assert package.payload["logical_call_id"] == str(call.id)
+            assert package.payload["advisory"] is None
+            assert session.scalar(select(func.count()).select_from(LogicalCall)) == 1
+            assert session.scalar(select(func.count()).select_from(Job)) == 2
+            assert session.get(Evidence, evidence.id).content_hash == "a" * 64
+            assert session.get(Job, unrelated_id).status == "queued"
+    with evidence_db() as session:
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 1
+
+
+def test_final_invalid_completion_is_persisted_before_error(evidence_db, monkeypatch):
+    _registry(monkeypatch)
+    monkeypatch.setattr(cli, "SessionLocal", evidence_db)
+    monkeypatch.setattr(cli, "_safe_database", lambda **_kwargs: None)
+    from gridlens.intelligence import intelligence_jobs, signal_adjudication
+    from gridlens.jobs import worker
+
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "_enabled",
+        lambda *_args, **_kwargs: (True, "typesafe", "jev-1.13.0", ""),
+    )
+    monkeypatch.setattr(
+        worker, "run_one", lambda *_a, **_k: pytest.fail("existing receipt must not dispatch")
+    )
+    monkeypatch.setattr(
+        signal_adjudication,
+        "_jev_call",
+        lambda *_a, **_k: pytest.fail("existing receipt must not call provider"),
+    )
+    with evidence_db.begin() as session:
+        observation, evidence = seed_evidence(session)
+        package = materialize_package(session, evidence.id)
+        package_id, evidence_id = package.id, evidence.id
+        call, job = _insert_call_history(session, observation, evidence)
+        job.status = "succeeded"
+        unrelated = Job(
+            source_id=observation.source_id,
+            kind="signal_adjudication",
+            target_id=uuid4(),
+            status="queued",
+        )
+        session.add(unrelated)
+        session.flush()
+        unrelated_id = unrelated.id
+
+    execute = cli._execute
+
+    def complete_then_tamper(package_uuid):
+        status, call_id = execute(package_uuid)
+        assert (status, call_id) == ("COMPLETE_ADVISORY", str(call.id))
+        with evidence_db.begin() as session:
+            session.scalar(select(SignalDecision)).decision = "HOLD"
+        return status, call_id
+
+    monkeypatch.setattr(cli, "_execute", complete_then_tamper)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["materialize_evidence_package.py", "--evidence-id", str(evidence_id), "--execute-jev"],
+    )
+    with pytest.raises(ValueError, match="exact call response and mapped decision"):
+        cli.main()
+    with evidence_db() as session:
+        package = session.get(EvidencePackage, package_id)
+        assert package.processing_status == package.payload["processing_status"] == "INCOMPLETE"
+        assert package.logical_call_id == call.id
+        assert package.payload["logical_call_id"] == str(call.id)
+        assert package.payload["advisory"] is None
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 1
+        assert session.scalar(select(func.count()).select_from(Job)) == 2
+        assert session.get(Evidence, evidence.id).content_hash == "a" * 64
+        assert session.get(Job, unrelated_id).status == "queued"
+
+
+@pytest.mark.parametrize("mismatch", ["policy", "source", "multiple"])
+def test_active_jobs_must_be_unique_and_exact_before_worker_dispatch(
+    evidence_db, monkeypatch, mismatch
+):
+    _registry(monkeypatch)
+    monkeypatch.setattr(cli, "SessionLocal", evidence_db)
+    from gridlens.intelligence import intelligence_jobs
+    from gridlens.jobs import worker
+
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "_enabled",
+        lambda *_args, **_kwargs: (True, "typesafe", "jev-1.13.0", ""),
+    )
+    monkeypatch.setattr(
+        worker,
+        "run_one",
+        lambda *_a, **_k: pytest.fail("invalid active job dispatched"),
+    )
+    with evidence_db.begin() as session:
+        observation, evidence = seed_evidence(session)
+        package = materialize_package(session, evidence.id)
+        package_id = package.id
+        other_source = Source(
+            id="other-source",
+            publisher="other",
+            endpoint="https://example.gov/other",
+            family="official-records",
+            geography="TX",
+            industries=["energy"],
+            retrieval_method="test",
+            enabled=True,
+            registry_enabled=True,
+            health={},
+        )
+        session.add(other_source)
+        session.flush()
+        checkpoint = {
+            "evidence_id": str(evidence.id),
+            "content_hash": evidence.content_hash,
+            "policy_version": "signal-display-v2",
+        }
+        job = Job(
+            source_id="other-source" if mismatch == "source" else observation.source_id,
+            kind="signal_adjudication",
+            target_id=observation.id,
+            status="queued",
+            checkpoint=json.dumps(checkpoint),
+        )
+        if mismatch == "policy":
+            checkpoint["policy_version"] = "stale-policy"
+            job.checkpoint = json.dumps(checkpoint)
+        session.add(job)
+        if mismatch == "multiple":
+            session.add(
+                Job(
+                    source_id=observation.source_id,
+                    kind="signal_adjudication",
+                    target_id=observation.id,
+                    status="running",
+                    checkpoint=json.dumps(checkpoint),
+                )
+            )
+        unrelated = Job(
+            source_id=observation.source_id,
+            kind="signal_adjudication",
+            target_id=uuid4(),
+            status="queued",
+        )
+        session.add(unrelated)
+        session.flush()
+        unrelated_id = unrelated.id
+
+    status, call_id = cli._execute(package_id)
+    assert (status, call_id) == ("BLOCKED", None)
+    with evidence_db() as session:
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert session.get(Job, unrelated_id).status == "queued"
+        package = session.get(EvidencePackage, package_id)
+        assert package.processing_status == package.payload["processing_status"] == "BLOCKED"
 
 
 @pytest.mark.parametrize(
@@ -386,6 +653,41 @@ def test_uncertain_call_is_incomplete_and_never_retried(evidence_db, monkeypatch
         assert session.scalar(select(func.count()).select_from(LogicalCall)) == 1
         package = session.get(EvidencePackage, package_id)
         assert package.processing_status == package.payload["processing_status"] == "INCOMPLETE"
+
+
+@pytest.mark.parametrize("call_status", ["FAILED", "RECONCILED"])
+def test_sent_failed_or_reconciled_call_is_incomplete_without_retry(
+    evidence_db, monkeypatch, call_status
+):
+    _registry(monkeypatch)
+    monkeypatch.setattr(cli, "SessionLocal", evidence_db)
+    with evidence_db.begin() as session:
+        observation, evidence = seed_evidence(session)
+        package = materialize_package(session, evidence.id)
+        package_id = package.id
+        call, _job = _insert_call_history(session, observation, evidence, call_status=call_status)
+    status, returned_id = cli._execute(package_id)
+    assert (status, returned_id) == ("INCOMPLETE", str(call.id))
+    with evidence_db() as session:
+        package = session.get(EvidencePackage, package_id)
+        assert package.processing_status == package.payload["processing_status"] == "INCOMPLETE"
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 1
+
+
+def test_pre_dispatch_not_sent_call_is_blocked_without_retry(evidence_db, monkeypatch):
+    _registry(monkeypatch)
+    monkeypatch.setattr(cli, "SessionLocal", evidence_db)
+    with evidence_db.begin() as session:
+        observation, evidence = seed_evidence(session)
+        package = materialize_package(session, evidence.id)
+        package_id = package.id
+        call, _job = _insert_call_history(session, observation, evidence, call_status="NOT_SENT")
+    status, returned_id = cli._execute(package_id)
+    assert (status, returned_id) == ("BLOCKED", str(call.id))
+    with evidence_db() as session:
+        package = session.get(EvidencePackage, package_id)
+        assert package.processing_status == package.payload["processing_status"] == "BLOCKED"
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 1
 
 
 def test_multiple_prior_intents_are_ambiguous_and_never_select_a_receipt(evidence_db, monkeypatch):
