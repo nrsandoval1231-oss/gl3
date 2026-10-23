@@ -402,8 +402,9 @@ RECORDED_PLS = (
 def test_recorded_summaries_reach_the_hours_classifier():
     """The summary body is classified. These three official rows have no backup or BTM clause.
 
-    A portable rock crusher is not bridge power: the portable rule needs a
-    generator, turbine, or engine in the same sentence.
+    A portable rock crusher is not bridge power: the portable rule needs power
+    generation in the same clause. An engine, including an engine-driven crusher
+    or pump, is not that context.
     """
     fixtures = Path(__file__).parents[1] / "fixtures"
     recorded = {}

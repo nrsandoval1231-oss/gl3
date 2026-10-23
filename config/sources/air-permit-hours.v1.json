@@ -6,5 +6,6 @@
   "btm_hours_per_year": 8760,
   "btm_phrase": "onsite use only",
   "bridge_unit_pattern": "\\bportable\\b|\\btrailer[-\\s]?mounted\\b",
-  "bridge_permit_pattern": "\\b(?:expiring|temporary)\\s+permits?\\b"
+  "bridge_permit_pattern": "\\b(?:expiring|temporary)\\s+permits?\\b",
+  "power_generation_pattern": "\\b(?:generators?|gensets?|gen-sets?|turbines?)\\b|\\b(?:electric|power)[-\\s]+generation\\b"
 }
