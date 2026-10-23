@@ -8,7 +8,7 @@ One opening Tribunal completed; do not reconvene during build.
 | M1-BACKEND | opening | ACCEPTED | ten records persisted; zero new/ten unchanged on live replay; normal startup authenticated200 without manual rebuild |
 | M1-UI | opening | ACCEPTED | long-value fixture at1280×800,1648px and390×844; no clipping; screenshots retained |
 | M1-GATE | both handoffs | ACCEPTED | exact 5c7ad6f; backend, serial browser, docs, independent Sol PASS; remote CI 39999964231 success |
-| M2-ACQUISITION | M1-GATE | VALIDATE | five native captures verified; one live PUCT scrape plus cached replay; 23 focused tests passed; frozen gates and independent review pending |
+| M2-ACQUISITION | M1-GATE | VALIDATE | five native captures verified; one live PUCT scrape plus cached replay; 28 focused tests passed after R2 raw-proof guard; frozen gates and independent re-review pending |
 | M3-EVIDENCE | M2 | WAIT | live Jev capability, persisted versioned packages, explicit incomplete failures |
 | M4-INTELLIGENCE | M3 | WAIT | supported OpenAI model, cited structured assessments, deterministic gates |
 | M5-RESOLUTION | M4 | WAIT | account/project/buying chain identity,446-record investigation, five regional sources, bounded continuation |

@@ -63,7 +63,8 @@ def _load_captures(directory: Path, cases: list[dict]) -> dict[str, dict]:
         if isinstance(raw_path, str):
             raw_resolved = Path(raw_path)
             if not raw_resolved.is_absolute():
-                raw_resolved = (path.parent / raw_resolved).resolve()
+                raw_resolved = path.parent / raw_resolved
+            raw_resolved = raw_resolved.resolve()
             if path.parent.resolve() not in raw_resolved.parents:
                 raise ValueError("Capture raw path escapes its receipt directory")
             raw_bytes = raw_resolved.read_bytes()
@@ -114,6 +115,32 @@ def _validate_dispatch_caps(args: argparse.Namespace, eligible_count: int) -> No
         )
 
 
+def _require_verified_raw_captures(
+    cases: list[dict], captures: dict[str, dict]
+) -> None:
+    """Require immutable raw-byte provenance for each supplied complete capture."""
+    for case in cases:
+        capture = captures.get(case["case_id"])
+        if (
+            capture is None
+            or capture.get("capture_kind") == "INCOMPLETE"
+            or capture.get("status") == "INCOMPLETE"
+        ):
+            continue
+        raw_path = capture.get("raw_path")
+        raw_sha256 = capture.get("raw_sha256")
+        if (
+            not isinstance(raw_path, str)
+            or not raw_path
+            or not isinstance(raw_sha256, str)
+            or len(raw_sha256) != 64
+        ):
+            raise ValueError(
+                "Paid dispatch requires a verified native raw path and SHA-256 "
+                "for every complete capture"
+            )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -152,6 +179,7 @@ def main() -> int:
     if args.dispatch:
         _require_isolated_database()
         _validate_dispatch_caps(args, eligible_count)
+        _require_verified_raw_captures(cases, captures)
         # Validate every supplied complete receipt before any paid request. Missing
         # cases remain explicit in the report; malformed supplied receipts abort.
         for case in cases:

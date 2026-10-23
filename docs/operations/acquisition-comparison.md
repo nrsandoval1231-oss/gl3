@@ -35,7 +35,12 @@ that lack a literal match remain `UNVERIFIED`.
 
 Paid execution requires the exact isolated loopback `pipeline_m2_app` database,
 Firecrawl credentials and configured per-scrape cost, plus finite explicit call,
-credit, and total cost caps. Example after those prerequisites are independently
+credit, and total cost caps. Every supplied complete native capture must also
+include a raw-file path and SHA-256; the CLI verifies containment, adapter byte
+bound, and raw-byte hash for the full capture set before any paid request. Missing
+or incomplete cases remain visible and are never dispatched; other verified
+eligible cases remain subject to the explicit call cap. The inspection path
+remains non-dispatching. Example after those prerequisites are independently
 verified:
 
 ```powershell
