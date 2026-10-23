@@ -1,5 +1,0 @@
-{
-  "live_interruption": "Tool process reported nonzero1 on Windows; durable marker proves deliberate os._exit after evidence commit; exact OS subprocess exitcode not separately captured. Resume fenced2 and replay unchanged counts proved.",
-  "verification_initial_deferral": "Scoped fresh jobs occasionally not immediately leasable due submillisecond database/application clock skew. Helper now uses available_at one second in past and resumes its known queued job. No production worker clock policy changed.",
-  "tceq_record_first_retry_timestamp": "UNKNOWN; no exact timestamp captured; do not use approximate timestamp from pending ad hoc receipt."
-}

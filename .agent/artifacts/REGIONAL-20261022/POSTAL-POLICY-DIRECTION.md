@@ -1,6 +1,0 @@
-# Independent Sol bounded policy direction
-Raw direction: CORRECT.
-Require a comma or ZIP backed postal form for admission. Treat unpunctuated City State without a ZIP as a possible conflict only. Hold when it conflicts with an admitted state; hold as unknown when it is the sole evidence. Also hold bare OK.
-This keeps Austin, TX; Atlanta GA on HOLD while Las Cruces NM remains unknown until written as Las Cruces, NM or with a ZIP. Tests expecting unpunctuated forms to be eligible need updating. Free text cannot reliably distinguish a city name from title-cased prose without stronger location structure.
-Controller adopts CORRECT. Earlier bare-form acceptance was controller implementation assumption, not owner product authority. Owner unknown/narrative constraints govern. Terra implemented strong admission versus possible conflict distinction in existing classifier, no geocoder or source integration. Builder39focused passed14.39seconds; root11literalprobes passed. Root actual retained clone1804projects currentlyzero classifier drift; final check repeated after last source freeze.
-Prior negative evidence retained: comma-only repair missed literal noncomma conflict; title-case bare-form repair accepted Everything Is OK. No claimed production acceptance from this policy audit. Fresh independent Sol final exact-candidate review remains required.

@@ -1,6 +1,0 @@
-{
-  "at": "2026-10-22T21:49:16.273037+00:00",
-  "development_pytest": "ABORTED_INVALID_HARNESS: pytest.main launched via stdin on Windows; child spawn cannot import stdin. Partial failures are not final candidate evidence. Original log retained.",
-  "austin_adhoc": "ABORTED_INVALID_HARNESS: same stdin spawn issue. Job effects UNKNOWN until explicit DB fence/evidence inspection; no blind retry.",
-  "scope": "Only four verified task-owned Python process IDs stopped; PostgreSQL server and unrelated processes untouched."
-}
