@@ -1,0 +1,6 @@
+"ApplicationPermitNumber","SiteNumber","SiteStreet","SiteStreetType","SiteStreetDirectional","SiteZip","PlanCheckValuation","TypeofWork","Lot","Block","Subdivision","Description","TotalSquareFeet","OwnerName","ContractorName","NumberOfUnits","IssueDate","Status"
+"BP-2026-10001","4100","Edith","Blvd","N","87107","30697396.00","Building Commercial","1","2","North","Construct new 98695 sf data center. Scope includes electrical and mechanical.","98695","Example Owner LLC","","","20260301","Issued"
+"BP-2026-10002","12","Central","Ave","","87102","250000.00","Building Commercial","1","1","Downtown","Installing a generator at an existing wireless facility.","400","","","","20260302","Issued"
+"BP-2026-10003","88","Bridge","St","","87108","90000.00","Building Commercial","3","1","East","Temporary power for construction of a warehouse.","12000","","","","20260201","In Review"
+"BP-2024-00001","","","","","","100.00","Building Commercial","","","","Construct new data center.","100","","","","20160101","Expired"
+"BP-2026-10004","9","Residential","Ln","","87111","1000.00","Building Residential","","","","Generator for a house.","200","","","","20260303","Issued"

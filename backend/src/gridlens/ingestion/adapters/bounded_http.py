@@ -341,6 +341,7 @@ def read_bounded_response(
     max_bytes: int,
     params: dict[str, str | int] | None = None,
     *,
+    headers: dict[str, str] | None = None,
     extensions: dict | None = None,
     deadline: float | None = None,
     allow_not_modified: Literal[False] = False,
@@ -354,6 +355,7 @@ def read_bounded_response(
     max_bytes: int,
     params: dict[str, str | int] | None = None,
     *,
+    headers: dict[str, str] | None = None,
     extensions: dict | None = None,
     deadline: float | None = None,
     allow_not_modified: Literal[True],
@@ -366,6 +368,7 @@ def read_bounded_response(
     max_bytes: int,
     params: dict[str, str | int] | None = None,
     *,
+    headers: dict[str, str] | None = None,
     extensions: dict | None = None,
     deadline: float | None = None,
     allow_not_modified: bool = False,
@@ -382,7 +385,12 @@ def read_bounded_response(
         extensions = dict(extensions or {})
         timeouts = client.timeout.as_dict() | extensions.get("timeout", {})
         extensions["timeout"] = _clamp_timeouts(timeouts, remaining)
-    with client.stream("GET", url, params=params, extensions=extensions) as response:
+    # Headers are per request. Mutating client.headers is not safe when the
+    # same client is used concurrently (the TCEQ Host pin used to do that).
+    request_headers = headers if headers is not None else None
+    with client.stream(
+        "GET", url, params=params, headers=request_headers, extensions=extensions
+    ) as response:
         remaining = remaining_seconds(deadline)
         if remaining is not None:
             # HTTPX/httpcore reads the body timeout when iteration starts. Keep

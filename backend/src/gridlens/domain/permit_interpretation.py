@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import Any
 
 from gridlens.domain.evaluation_clock import evaluation_today
+from gridlens.domain.regional_scope import classify_project_region
 
 EVALUATOR_VERSION = "permit-project-v8"
 GEORGIA_AIR_EVALUATOR_VERSION = "georgia-air-discovery-v2"
@@ -227,6 +228,8 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return TABS_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
         return BOSTON_PERMIT_EVALUATOR_VERSION
+    if isinstance(permit, dict) and permit.get("source_type") in _REGIONAL_POWER_SOURCE_TYPES:
+        return REGIONAL_POWER_EVALUATOR_VERSION
     return EVALUATOR_VERSION
 
 
@@ -377,6 +380,13 @@ def _assess_georgia_air(
 
 
 TCEQ_NSR_EVALUATOR_VERSION = "tceq-nsr-pending-v1"
+REGIONAL_POWER_EVALUATOR_VERSION = "regional-power-record-v1"
+_REGIONAL_POWER_SOURCE_TYPES = {
+    "oklahoma-deq-public-review",
+    "spp-thermal-interconnection",
+    "albuquerque-building-permits",
+}
+_REGIONAL_DATA_CENTER = re.compile(r"\bdata\s*cent(?:er|re)s?\b|\bhyperscale\b", re.IGNORECASE)
 _TCEQ_DATA_CENTER = re.compile(r"\bdata\s*centers?\b|\bhyperscale\b", re.IGNORECASE)
 _TCEQ_ONSITE_LOAD = re.compile(
     r"onsite consumption|on-site consumption|behind[- ]the[- ]meter|"
@@ -921,6 +931,108 @@ def _distinct_open_temporary_clause(description: str) -> str | None:
     return None
 
 
+def _assess_regional_power(
+    record: dict[str, Any], permit: dict[str, Any], as_of: date
+) -> dict[str, Any]:
+    """Admit a dated in-region site only when the source text names the load mode."""
+    facility = str(permit.get("facility") or "").strip()
+    applicant = str(permit.get("applicant") or "").strip()
+    description = str(permit.get("description") or "")
+    location = permit.get("location") if isinstance(permit.get("location"), str) else None
+    raw_tags = permit.get("power_signals")
+    tags = (
+        [tag for tag in raw_tags if tag in {"btm", "bridge", "temporary"}]
+        if isinstance(raw_tags, list)
+        else []
+    )
+    text = f"{applicant} {facility} {description}"
+    data_center = bool(_REGIONAL_DATA_CENTER.search(text)) or bool(permit.get("data_center"))
+    region = classify_project_region(location)
+    event_date = record.get("event_date")
+    try:
+        event_day = date.fromisoformat(str(event_date)) if event_date else None
+    except ValueError:
+        event_day = None
+    dated = bool(event_day and event_day <= as_of)
+    citation = bool(record.get("html_url") and permit.get("row_id"))
+    explicit_mode = bool(tags)
+    accepted = bool(
+        (facility or applicant)
+        and location
+        and region.status == "ELIGIBLE"
+        and dated
+        and citation
+        and (data_center or explicit_mode)
+    )
+    if "temporary" in tags and not data_center:
+        activity = "temporary-power"
+    elif "bridge" in tags and not data_center:
+        activity = "bridge-power"
+    else:
+        activity = "facility-expansion"
+    if accepted and data_center:
+        reason = (
+            f"Official record names a data-center project at {location}. "
+            "Required MW, start, duration, buyer, and utility service remain unknown. "
+            f"Source power-signal tags: {', '.join(tags) or 'none'}."
+        )
+    elif accepted:
+        reason = (
+            f"Official record states {' / '.join(tags)} power at {location}. "
+            "That tag is copied from the source text. It does not establish MW, "
+            "a buyer, or that temporary supply is still required."
+        )
+    elif not dated:
+        reason = (
+            "The source row does not state an event date, so it stays evidence. "
+            "No date was inferred from retrieval time."
+        )
+    elif region.status != "ELIGIBLE":
+        reason = (
+            "The stated site is outside TX/OK/NM or is not an explicit place, "
+            "so the row stays evidence."
+        )
+    else:
+        reason = (
+            "Generation, interconnection, or generator text without a data center "
+            "or an explicit behind-the-meter, bridge, or temporary power statement "
+            "stays evidence. Queue or nameplate MW is not site load."
+        )
+    return {
+        "schema_version": 1,
+        "decision": "accepted" if accepted else "rejected",
+        "tier": "Signal" if accepted else None,
+        "reason": reason,
+        "subject": (applicant or facility) if accepted else None,
+        "action": description if accepted else None,
+        "location": location,
+        "missing_facts": MISSING,
+        "source_field_citations": permit.get("source_fields", {}),
+        "stable_row_id": permit.get("row_id"),
+        "permit_status": permit.get("status"),
+        "event_date": event_date,
+        "event_date_label": record.get("event_date_label"),
+        "issue_date": None,
+        "issue_date_label": None,
+        "project_hint": facility or None,
+        "power_activity": activity if accepted else None,
+        "power_signals": tags,
+        "rental_category": "regional-power-discovery" if accepted else None,
+        "reported_claim": description if accepted else None,
+        "reported_power_facts": [],
+        "rental_hypothesis": (
+            "Inferred review question only: does the stated site need temporary or bridge "
+            "power before utility service or on-site generation is available?"
+            if accepted
+            else None
+        ),
+        "activity_end_date": None,
+        "review_after": None,
+        "as_of_date": as_of.isoformat(),
+        "document_links": permit.get("document_links", {}),
+    }
+
+
 def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[str, Any]:
     permit = record.get("permit")
     if not isinstance(permit, dict):
@@ -1031,6 +1143,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         return _assess_tceq_nsr(record, permit, as_of)
     if permit.get("source_type") == "texas-tceq-temporary-batch-plants":
         return _assess_tceq_batch(record, permit, as_of)
+    if permit.get("source_type") in _REGIONAL_POWER_SOURCE_TYPES:
+        return _assess_regional_power(record, permit, as_of)
     if permit.get("source_type") == "california-ceqanet-data-centers":
         return _assess_ceqa(record, permit, as_of)
     if permit.get("source_type") == "texas-tdlr-tabs-data-centers":

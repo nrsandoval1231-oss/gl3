@@ -70,6 +70,9 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "fort-worth-permits": {"services5.arcgis.com"},
             "san-antonio-permits": {"data.sanantonio.gov"},
             "tdlr-tabs": {"www.tdlr.texas.gov"},
+            "ok-deq-public-review": {"applications.deq.ok.gov"},
+            "spp-interconnection-queue": {"opsportal.spp.org"},
+            "cabq-building-permits": {"data.cabq.gov"},
             "retained-document": {
                 "santaclara.legistar.com",
                 "efiling.energy.ca.gov",
@@ -103,6 +106,9 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "tceq-nsr-pending",
             "tceq-temporary-batch-plants",
             "retained-document",
+            "ok-deq-public-review",
+            "spp-interconnection-queue",
+            "cabq-building-permits",
         } or (1 <= query.get("window_days", 0) <= 90)
         if source["retrieval_method"] in {"json-api", "federal-register-json"}:
             bounded = (
@@ -282,6 +288,41 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and source.get("geography") == "Texas"
                 and 0 <= query.get("max_summaries", -1) <= 60
                 and set(query) == {"max_summaries"}
+            )
+        elif source["retrieval_method"] == "ok-deq-public-review":
+            bounded = (
+                source.get("id") == "oklahoma-deq-public-review"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "construction-permits"
+                and source.get("geography") == "Oklahoma"
+                and source.get("state") == "OK"
+                and set(query) == {"max_response_bytes", "max_records"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_records") == 400
+            )
+        elif source["retrieval_method"] == "spp-interconnection-queue":
+            bounded = (
+                source.get("id") == "spp-thermal-interconnection"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "interconnection-queue"
+                and source.get("geography") == "Oklahoma and New Mexico"
+                and set(query) == {"max_response_bytes", "max_queue_rows", "max_records"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_queue_rows") == 5000
+                and query.get("max_records") == 200
+            )
+        elif source["retrieval_method"] == "cabq-building-permits":
+            bounded = (
+                source.get("id") == "albuquerque-building-permits"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "construction-permits"
+                and source.get("geography") == "Albuquerque, New Mexico"
+                and source.get("city") == "Albuquerque"
+                and source.get("state") == "NM"
+                and set(query) == {"window_days", "max_response_bytes", "max_records"}
+                and query.get("window_days") == 730
+                and query.get("max_response_bytes") == 28_000_000
+                and query.get("max_records") == 200
             )
         elif source["retrieval_method"] == "taylor-newsflash":
             bounded = (

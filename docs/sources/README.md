@@ -4,6 +4,8 @@ Use the [October 22 regional inventory](regional-inventory-20261022.md) for ever
 
 [Onboarding](onboarding.md) defines the acceptance path for a new feed. [Ingestion strategy](ingestion-strategy.md) explains the discovery and monitoring approach. The remaining files in this directory are source-specific contracts, interpretation notes, and dated retrieval/review evidence. Their claims are limited to their named source, date, and candidate. Verify live health in the current coverage snapshot; do not use a source note to claim present availability.
 
+Oklahoma and New Mexico source notes for the October 23 adapters, including sources that were checked and not ingested, are in [oklahoma-new-mexico-20261023](oklahoma-new-mexico-20261023.md).
+
 The [PRD](../product/PRD.md) owns product scope and qualification. Source acquisition may preserve observations, but deterministic evidence gates decide qualification. No source note can relax those gates or authorize a new provider, paid call, or production activation.
 
 The old source map is retained unchanged in the [documentation archive](../../.agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__sources__README.md).
