@@ -1,14 +1,22 @@
 :root {
-  --gl-deep-current: #101F2D;
-  --gl-gridlens-navy: #17324A;
-  --gl-steel-blue: #395A75;
-  --gl-atmosphere: #6F879D;
-  --gl-mist: #D5DEE5;
-  --gl-ice: #F3F6F7;
+  --gl-harbor-navy: #0B1F33;
+  --gl-deep-slate: #23384C;
+  --gl-slate-steel: #607F88;
+  --gl-sea-cliff: #6E909A;
+  --gl-driftwood-gray: #A9B4BC;
+  --gl-fog: #E8ECEF;
+  --gl-graphite: #1E2A33;
   --gl-white: #FFFFFF;
-  --gl-signal-blue: #3B82F6;
-  --gl-ink: #17324A;
-  --gl-muted-ink: #395A75;
-  --gl-line: #D5DEE5;
-  --gl-type: "ABC Diatype", "DejaVu Sans", Arial, sans-serif;
+  --gl-ink: var(--gl-graphite);
+  --gl-muted-ink: var(--gl-deep-slate);
+  --gl-line: var(--gl-driftwood-gray);
+  --gl-type: "Inter", Arial, sans-serif;
+  --gl-display-type: "Sora", "Inter", Arial, sans-serif;
+  --gl-gridlens-navy: var(--gl-harbor-navy);
+  --gl-steel-blue: var(--gl-slate-steel);
+  --gl-atmosphere: var(--gl-sea-cliff);
+  --gl-mist: var(--gl-driftwood-gray);
+  --gl-ice: var(--gl-fog);
+  --gl-signal-blue: var(--gl-sea-cliff);
+  --gl-deep-current: var(--gl-harbor-navy);
 }
