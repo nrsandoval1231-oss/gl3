@@ -1,25 +1,24 @@
-# GridLens production UI canon
+# GridLens production UI canon — owner-approved 2026-10-23
 
-Owner authority: October 21, 2026 pixel-accurate Opportunity Intelligence Workspace directive. The [owner dashboard](references/opportunity-intelligence-approved.jpg) is the composition target and [Brand System v1.0](references/brand-system-v1-owner.jpg) is the visual authority. This supersedes the October20 silver/orange v3 layout. Historical references remain prior-decision evidence. The [PRD](../product/PRD.md) governs evidence, qualification, authentication and actual values.
+**Authority:** the final seven-color GridLens corporate brand board and the owner-approved compact opportunity workspace screenshot. See [BRAND_ASSETS.md](BRAND_ASSETS.md) and [brand.tokens.json](brand.tokens.json). This supersedes all prior Aperture, gold, silver/orange, Signal Blue, ABC Diatype, and left-sidebar design directives. Historical documents remain evidence, not implementation authority.
 
-## Composition and brand
+## Mandatory composition
 
-At the supplied 1280x720 reference dimensions, the navy header is approximately45px tall, the sidebar320px wide, and main content starts at335px. Scale the proportions to1648x928: sidebar25%, main gutters about18px, identity panel about134px, metrics115px and three-column region374px. These image landmarks do not authorize clipping longer real data. Match five horizontal metric cards, near-equal project/contact/commercial columns, compact evidence tabs/table, small radii, fine borders and restrained density. No maps, decorative charts or invented customer/contact content.
+- **No left sidebar or toolbar.** One compact horizontal top navigation with the canonical logo, Opportunities, Customers, Power Markets, Permits, Interconnection, Reports, search and account controls.
+- White/light workspace with restrained navy/slate typography and seven-color brand accents. No decorative photography, maps, hero illustrations or gradients in product UI.
+- Top KPI cards and quick filters; dense, sortable, filterable, paginated opportunity/customer table on the left; selected customer intelligence detail panel on the right.
+- Detail panel includes Overview, Buying Chain, Evidence, Power Analysis and Notes, using real records and verifiable values. Do not invent MW, dates, contacts, statuses or confidence.
+- Sora headings/display; Inter body, labels and tables. Wordmark uses the approved thin, tracked uppercase treatment. Use only the final G with contrasting integrated hidden L. The generated brand board is a visual reference; vector fidelity must be reviewed against it.
+- Accessible contrast, keyboard controls, and responsive tablet/phone reflow. On phones the right detail panel can stack or become a detail view, but do not introduce a permanent left navigation rail.
 
-Use Deep Current #101F2D, GridLens Navy #17324A, Steel Blue #395A75, Atmosphere #6F879D, Mist #D5DEE5, Ice #F3F6F7, White #FFFFFF and selective Signal Blue #3B82F6 for selected states, links, icons and important actions. Older Signal Blue exclusions and silver/orange application additions are superseded for this workspace.
+## Data and behavior must survive
 
-Use existing Aperture assets and preserve source masters; never redraw the logo with CSS. ABC Diatype Light, Regular, Medium and Bold are required by the brand sheet. Licensed files are absent; existing wordmark exports are documented approximations. Exact typography and master delivery remain acceptance dependencies. A fallback must never be called parity.
+Consume the existing [intelligence projection](../architecture/OPPORTUNITY_INTELLIGENCE.md). Preserve existing authentication, API records, route behavior, searches, filters, sorting, pagination, signals, operations, research, buying-chain and evidence workflows. Do not equate facility load with a credible bridge-power gap; distinguish unknown from zero, and preserve source provenance and qualification state. No screenshot-only invented data.
 
-## Data and behavior
+## Migration acceptance
 
-Consume the existing [intelligence projection](../architecture/OPPORTUNITY_INTELLIGENCE.md), dependency PR102. The five metrics are Facility Demand, Potential Bridge-Power Gap, Power Needed By, Expected Duration and Utility Energization. Missing facility demand and utility dates remain truthful integration gaps. A supported utility service status may render with its basis, without inventing a date. Facility load never becomes a temporary-power gap, unknown supply never becomes zero, and completeness is separate from qualification. Preserve status, basis, estimates/scenarios and source provenance.
-
-Keep real Opportunities, Research, Signals and Operations routes, sessions, search/filter/sort/paging, grouped Signal browsing/export and fact/call/status/research/notes workflows. Screenshot-only destinations do not authorize new pages. Selection and tabs support direct reload and browser history; stale responses cannot overwrite a newer record. Contact links require verified current evidence. Share uses the canonical URL; unavailable actions state why. Reads launch no providers and alter no budgets, qualification or ingestion.
-
-The light sidebar uses real API records. Central columns show Project & Customer Details, Key Contacts & Buying Chain, Why This Opportunity Matters and Recommended Next Action. The bottom workspace provides Evidence, Commercial Assessment, Research Gaps and Notes & Activity while preserving access to existing deeper workflows.
-
-Desktop retains five metrics and three columns when space permits. Tablet reflows. Phone uses readable stacked identity/metrics/contacts/action content, accessible selection and expandable project/evidence details. No horizontal page overflow, clipped content or unreadably scaled desktop layout.
-
-## Acceptance boundary
-
-Retain browser captures at1648x928,1440x900,1280x800,768x1024 and390x844, direct reference comparison/overlay, measured geometry, expected real-data differences, automated regressions, selection/render timings and independent review of the exact candidate. Missing fonts, fields and contacts remain explicit. Local proof and a PR do not imply merge, deployment, live-provider acceptance or parent Finish Contract completion.
+1. Replace all legacy Aperture lockups, favicons, app icons and generator outputs with verified final G/L assets, including light/dark variants.
+2. Replace old font declarations, hard-coded legacy colors and contradictory docs; remove orphaned assets after all references are migrated.
+3. Verify no left toolbar/sidebar or photography/maps across actual routes, including desktop and mobile.
+4. Run build, tests and visual comparisons at 1648x928, 1440x900, 1280x800, 768x1024 and 390x844; independently inspect final candidate.
+5. Do not merge or deploy before the logo and UI are verified; do not claim brand parity from a mockup alone.
