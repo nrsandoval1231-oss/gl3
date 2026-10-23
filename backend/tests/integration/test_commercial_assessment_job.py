@@ -1,6 +1,9 @@
 import hashlib
+import importlib.util
 import json
+import sys
 from decimal import Decimal
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -29,6 +32,14 @@ from gridlens.persistence.models import (
     Source,
 )
 from gridlens.settings import settings
+
+_CLI_SPEC = importlib.util.spec_from_file_location(
+    "run_commercial_assessment",
+    Path(__file__).resolve().parents[3] / "scripts" / "run_commercial_assessment.py",
+)
+assessment_cli = importlib.util.module_from_spec(_CLI_SPEC)
+assert _CLI_SPEC.loader is not None
+_CLI_SPEC.loader.exec_module(assessment_cli)
 
 
 @pytest.fixture
@@ -85,6 +96,7 @@ def seed(sessions, monkeypatch):
                 "evidence_id": str(evidence_id),
                 "evidence_hash": content_hash,
                 "observation_id": str(observation_id),
+                "source_id": source_id,
                 "url": "https://example.invalid/source",
             }
         ],
@@ -92,6 +104,10 @@ def seed(sessions, monkeypatch):
         "document_coverage": "RECORD_EXCERPT",
         "source_collection_status": "PARTIAL",
         "missing_fields": [],
+        "unevaluated_dimensions": [
+            "cross-claim contradictions",
+            "commercial role classification",
+        ],
     }
     with sessions.begin() as session:
         session.add(
@@ -290,6 +306,43 @@ def test_changed_retained_evidence_blocks_current_payload(sessions, monkeypatch)
         _current_payload(session, checkpoint, need_id)
 
 
+def test_package_observation_reference_must_match_current_observation(sessions, monkeypatch):
+    need_id, package_id, _evidence_id = seed(sessions, monkeypatch)
+    with sessions.begin() as session:
+        package = session.get(EvidencePackage, package_id)
+        package.payload = {
+            **package.payload,
+            "source_references": [
+                {**package.payload["source_references"][0], "observation_id": str(uuid4())}
+            ],
+        }
+    with sessions.begin() as session, pytest.raises(ValueError):
+        enqueue_intelligence(
+            session, need_id=need_id, task_type=COMMERCIAL_ASSESSMENT_TASK, package_id=package_id
+        )
+
+
+def test_changed_observation_hash_blocks_enqueue_without_provider(sessions, monkeypatch):
+    need_id, package_id, _evidence_id = seed(sessions, monkeypatch)
+    _enable_m4(monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    calls = []
+    monkeypatch.setattr(jobs, "call_openai_request", lambda **kwargs: calls.append(kwargs))
+    with sessions.begin() as session:
+        package = session.get(EvidencePackage, package_id)
+        job = enqueue_intelligence(
+            session, need_id=need_id, task_type=COMMERCIAL_ASSESSMENT_TASK, package_id=package_id
+        )
+        observation = session.get(Observation, package.observation_id)
+        observation.content_hash = "e" * 64
+        job_id = job.id
+    worker.run_one({}, job_ids=[job_id])
+    with sessions() as session:
+        job = session.get(Job, job_id)
+    assert json.loads(job.checkpoint)["status"] == "blocked"
+    assert not calls
+
+
 def test_worker_completes_exact_m4_and_reentry_does_not_dispatch_again(sessions, monkeypatch):
     _enable_m4(monkeypatch)
     need_id, package_id, _ = seed(sessions, monkeypatch)
@@ -321,6 +374,10 @@ def test_worker_completes_exact_m4_and_reentry_does_not_dispatch_again(sessions,
     )
     assert need.tier == "Signal"
     assert package.processing_status == "COMPLETE_ADVISORY"
+    assert package.payload["unevaluated_dimensions"] == [
+        "cross-claim contradictions",
+        "commercial role classification",
+    ]
     assert len(calls) == 1
 
 
@@ -363,6 +420,44 @@ def test_post_dispatch_evidence_change_is_stale_and_never_retried(sessions, monk
     assert json.loads(job.checkpoint)["status"] == "stale"
     assert call.status == "COMPLETED"
     assert len(calls) == 1
+
+
+def test_post_dispatch_observation_hash_change_cannot_accept_result(sessions, monkeypatch):
+    _enable_m4(monkeypatch)
+    need_id, package_id, _evidence_id = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    calls = []
+
+    def provider(**kwargs):
+        calls.append(kwargs["request"])
+        with sessions.begin() as session:
+            package = session.get(EvidencePackage, package_id)
+            observation = session.get(Observation, package.observation_id)
+            observation.content_hash = "a" * 64
+        return _valid_response(kwargs["request"])
+
+    monkeypatch.setattr(jobs, "call_openai_request", provider)
+    job_id = _queue_job(sessions, need_id, package_id)
+    worker.run_one({}, job_ids=[job_id])
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        call = session.scalar(select(LogicalCall))
+    assert json.loads(job.checkpoint)["status"] == "stale"
+    assert call.result_payload["validation_outcome"] == "STALE_CONTEXT"
+    assert "disposition" not in call.result_payload
+    assert len(calls) == 1
+    monkeypatch.setattr(assessment_cli, "SessionLocal", sessions)
+    monkeypatch.setattr(assessment_cli, "_safe_database", lambda **_kwargs: None)
+    monkeypatch.setattr(settings, "openai_api_key", None)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_commercial_assessment.py", "--package-id", str(package_id), "--replay"],
+    )
+    with pytest.raises(
+        ValueError, match="Package observation version or evidence relation is stale"
+    ):
+        assessment_cli.main()
 
 
 @pytest.mark.parametrize(

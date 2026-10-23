@@ -202,3 +202,26 @@ lint/format-only failures and their subsequent fixes; they were not discarded.
 This proves one bounded live M4 path and exact replay only. Full repository
 finish gates and independent review remain pending; M4 acceptance and parent
 M5–M6 milestones remain open.
+
+### M4 review repair: source version and unevaluated contradictions
+
+M4 currentness now verifies the package row's Evidence and Observation identities,
+the source-reference Observation ID against the retained Evidence relationship,
+and the current Observation hash against the cited Evidence hash. This uses the
+same equality invariant enforced by the deterministic M3 package builder; it
+does not introduce a new hash field or alter the successful live request
+identity. A post-dispatch version change preserves the provider usage and cost
+receipt as `STALE_CONTEXT` and removes the advisory disposition. Keys-disabled
+replay refuses the stale package.
+
+The accepted M3 package contract currently emits an empty `contradiction_pairs`
+list and rejects nonempty pairs without deterministic cited-claim validation.
+Accordingly, cross-claim contradictions remain explicitly unevaluated and M4
+rejects `CONFLICTING_EVIDENCE` without validated pairs. The existing empty-pair
+representation is preserved, including its request identity. A cited
+contradiction producer and validator remain an open upstream capability.
+
+The backend dependency pin and lock entry now use pypdf 6.21.2, resolving the
+three CI-reported pypdf advisories without suppressions. The live M4 result and
+keys-disabled replay evidence above remain unchanged; new-candidate gates and
+independent review are still pending.

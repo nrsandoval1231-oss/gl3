@@ -286,9 +286,24 @@ def _request_payload(
         retained = evidence_by_id.get(reference.get("evidence_id"))
         if retained is None or retained.get("content_hash") != reference.get("evidence_hash"):
             raise ValueError("Package evidence is no longer current")
-        ev = session.get(Evidence, UUID(reference["evidence_id"]))
+        evidence_id = UUID(reference["evidence_id"])
+        observation_id = UUID(reference["observation_id"])
+        if retained.get("observation_id") != str(observation_id):
+            raise ValueError("Package evidence observation identity is stale")
+        ev = session.get(Evidence, evidence_id)
         if ev is None or ev.content_hash != reference["evidence_hash"]:
             raise ValueError("Package evidence hash is stale")
+        observation = session.get(Observation, observation_id)
+        if (
+            ev.observation_id != observation_id
+            or observation is None
+            or observation.source_id != reference.get("source_id")
+            or observation.content_hash != ev.content_hash
+            or package_row.evidence_id != ev.id
+            or package_row.observation_id != observation.id
+            or package_row.evidence_hash != ev.content_hash
+        ):
+            raise ValueError("Package observation version or evidence relation is stale")
         validate_package(
             package, evidence_fields={"title": ev.title or "", "abstract": ev.abstract or ""}
         )
@@ -2008,6 +2023,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
     provider_response_id: str | None = None
     provider_response_complete = False
     billing_quarantined = False
+    m4_stale_after_dispatch = False
     error: str | None = None
     validation_reason: str | None = None
     # Prepare bounded input and the ledger identity while holding only the job
@@ -2403,7 +2419,21 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                     },
                     "billing_quarantine": quarantine_reason,
                 }
-        if not billing_quarantined:
+        if not billing_quarantined and task_type == COMMERCIAL_ASSESSMENT_TASK:
+            if job.target_id is None:
+                m4_stale_after_dispatch = True
+            else:
+                try:
+                    with SessionLocal() as session:
+                        current_after_dispatch = _current_payload(
+                            session, checkpoint, job.target_id
+                        )
+                    m4_stale_after_dispatch = _digest(current_after_dispatch) != checkpoint.get(
+                        "request_digest"
+                    )
+                except (ValueError, KeyError, TypeError):
+                    m4_stale_after_dispatch = True
+        if not billing_quarantined and not m4_stale_after_dispatch:
             if provider == "openai" and task_type == COMMERCIAL_ASSESSMENT_TASK:
                 package_context = payload["package"]
                 package_for_validation = {
@@ -2457,6 +2487,41 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     result_digest=result_digest,
+                    result_payload=call_result,
+                )
+            status = "completed"
+            error = None
+        elif m4_stale_after_dispatch:
+            estimated_cost = _estimated_cost_from_usage(
+                provider, task_type, input_tokens, output_tokens
+            )
+            call_result = {
+                "provider": provider,
+                "actual_model": actual_model,
+                "latency_ms": data.get("latency_ms", data.get("provider_latency_ms")),
+                "service_tier": data.get("service_tier", "UNKNOWN"),
+                "provider_response_id": provider_response_id,
+                "reported_usage": data.get("reported_usage"),
+                "validation_outcome": "STALE_CONTEXT",
+                "validation_reason": "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                "usage": {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "actual_cost_usd": None,
+                    "estimated_cost_usd": str(estimated_cost)
+                    if estimated_cost is not None
+                    else None,
+                    "cost_basis": "conservative_usage_estimate_not_invoice",
+                },
+            }
+            with SessionLocal() as session:
+                complete_call(
+                    session,
+                    call_id,
+                    fence_token=fence_token,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    result_digest=_digest(call_result),
                     result_payload=call_result,
                 )
             status = "completed"
@@ -2542,8 +2607,14 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 result=call_result,
                 result_status="stale_context",
                 error="INPUT_CHANGED_DURING_PROVIDER_CALL",
-                validation_outcome="VALIDATED",
-                validation_reason=None,
+                validation_outcome=(
+                    "STALE_CONTEXT" if task_type == COMMERCIAL_ASSESSMENT_TASK else "VALIDATED"
+                ),
+                validation_reason=(
+                    "INPUT_CHANGED_DURING_PROVIDER_CALL"
+                    if task_type == COMMERCIAL_ASSESSMENT_TASK
+                    else None
+                ),
                 provider_response_id=provider_response_id,
                 usage={
                     "input_tokens": input_tokens,

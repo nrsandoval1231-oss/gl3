@@ -120,6 +120,15 @@ def test_excerpt_insufficient_reason_requires_unresolved():
         validate_assessment(answer, package=package, need_id="need-1", project_id="project-1")
 
 
+def test_empty_pair_package_rejects_unsupported_conflicting_evidence_reason():
+    package, answer = fixture()
+    package["contradiction_pairs"] = []
+    answer["reason_code"] = "CONFLICTING_EVIDENCE"
+    answer["disposition"] = "UNRESOLVED"
+    with pytest.raises(ValueError, match="CONFLICT_REASON_WITHOUT_VALIDATED_CONTRADICTION"):
+        validate_assessment(answer, package=package, need_id="need-1", project_id="project-1")
+
+
 def test_request_pins_m4_controls_and_separate_schema():
     request = commercial_assessment_request_payload(
         model="gpt-6.1-sol", input_payload={"bounded": True}, schema=ASSESSMENT_SCHEMA
