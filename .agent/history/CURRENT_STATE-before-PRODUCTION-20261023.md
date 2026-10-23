@@ -1,0 +1,18 @@
+# Regional pivot and ingestion stabilization â€” October 22, 2026
+
+Owner mission: exclusive TX/OK/NM physical-project territory (TX, OK, NM priority); preserve verticals, evidence/customer/Jev and approved UI. [PRD](../docs/product/PRD.md), [inventory](../docs/sources/regional-inventory-20261022.md), [engineering report](../docs/operations/regional-stabilization-20261022.md), [graph](WORK_GRAPH.md). No new geographic adapters/UI/orchestrator/merge/deploy. Parent launch Finish Contract OPEN.
+
+Isolated checkout gl3-regional-20261022 branch feat/regional-stabilization-20261022 base 0f876440a1375c502534cc1dd3c08ceff38c7349. Dirty prior work retained. Registry29,25previousenabled,18nowenabled(11TX/7national),7outregionnewlydisabled,4predisabled. No dedicated OK/NM adapters.
+
+R1/R2/R3A/B/C/D, Q1/P1, R3H/H2, R3F, FR2/3/4/5/6 and conservative postal-policy correction handed off. Root final focused PostgreSQL gate132passed36.50seconds; full Ruff304formatted/mypy139passed; webtypecheck/build/audit0vulnerabilities; docs48/180/4; repeatedmigrationupgrade/check passed. Full exact-head CI and independent review remain OPEN.
+
+R3F actual-worker rate-limit proof passes after rejecting a handoff whose later generic health merge erased the cooldown. U2 four actual retained-data browser tests passed; independent controller repeat4passed15.8seconds. Historical exclusion, source facts and unknown buyer-authority assertions remain. No UI code changed.
+
+Actual all18 enabled definitions replayed:17jobs succeeded, sourcehealth15complete/2partial(Austin/NSR), Houstonpublisherstale failed. Original20057evidence versions/5086changes unchanged, every originalidentitypresent, no duplicate observation/projectkeys. Liveclone19155observations22275evidence1804projects/needs5593changes as last preservation receipt. Stronger geographic conflict grammar moved one historicalIL project toHOLD due ambiguousuppercaseLA streettoken; only derivedmetadata refreshed in exact2isolatedclones. Actual1804classifierdrift0; activeTX1741, excluded62, held1. ParentlaunchOPEN; no production/providerclaim.
+
+Austin final ordinary8jobchain completed both current-overlap lanes and advancedhistory; existingbudgetstops remainingbackfill. Actualhealthnow Degraded,currentcomplete true,pendingcollectionlanes[issue_backfill],budgetpaused true; H2 distinguishes completedwindow from completedlane. TCEQonelegitimate404 retained327siblings; records exact572150bytePDFtransport verified separately, listingdIDjoinunknown. HoustonlatestofficialreportSep7 exceeds30daybound; keepenabled/failed.
+
+Reserved matchedperf18535obs20057evidence1661projects: fallback1669.661â†’1614.2325ms p50,163â†’138SQL; saved8.1395â†’7.5675ms4SQL alreadyfast; health35â†’14SQL. Baseline503withoutgenerationnotlatencygain. Final R3F source freeze and saved generation rebuilt; fallback p95 slightly higher, ordinary health median slightly higher despite fewer queries. Providerkeysblank, no paidcalls; no merge/deploy. Next VALIDATE after R3F, actualall18/Austin/API/preservation/perf/UI4 proof, freezecommit, fullCI, freshindependentSolreview and reviewablePR.
+
+
+Independent review rejected a05a3cb for an omitted direct project-state regional guard. RV1 adds the three-line pre-hydration fence and matrix/history regression; controller33PASS and actual excluded-stateHTTP404. FR7 fixes two broad-suite retry fixture clocks while strengthening source-hold assertions; original broad2710PASS2FAIL3SKIP retained. Ordered builder69PASS; final combined controller102PASS56.40seconds. Actual browser4PASS17.1seconds after fingerprint-triggered generation rebuild. Final new-head CI and re-review required. No acceptance of rejected parent is implied.

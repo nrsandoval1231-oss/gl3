@@ -78,6 +78,26 @@ expired clocks. It is not permission to serve obsolete qualification. Rebuilding
 after a restart is idempotent. A failed or interrupted build preserves the
 published pointer and leaves qualification pending if canonical inputs changed.
 
+## Normal startup and initial generation
+
+The local Compose stack and the ordinary DigitalOcean Compose stack start the
+providerless `browse` maintainer after migrations. It calls retained-data
+maintenance only; it never dispatches source, research, or paid-provider jobs.
+The API switch remains `SAVED_BROWSE_ENABLED=false` unless explicitly enabled,
+so a disabled feature continues to use the canonical browse path.
+
+For native local development, after `alembic upgrade head`, run this command in
+a separate terminal to publish an initial generation and keep it fresh:
+
+```powershell
+uv run --directory backend python -m gridlens.jobs.browse maintain
+```
+
+When testing the saved-browse API, set `SAVED_BROWSE_ENABLED=true` for the API
+process, then use the normal authenticated Opportunities request. The maintainer
+publishes the initial generation automatically; no manual rebuild command is
+needed.
+
 ## Production activation gate
 
 No production activation has been performed from the saved cloud environment.
@@ -100,8 +120,8 @@ With the existing legitimate deployment identity available:
    upgrade again and `alembic check`. PR72's conflicting 0020 stays separate.
 4. Build once with the switch false; compare saved rows/ranks/groups/search against
    canonical reads on the retained corpus. Record checksum/counts unchanged.
-5. Start the existing-code `browse` service using the `saved-browse` Compose
-   profile. Its provider keys are empty, budgets zero and research/collection
+5. The ordinary Compose stack starts the providerless `browse` maintainer after
+   migrations. Its provider keys are empty, budgets zero and research/collection
    disabled. It is independent of the collection worker and scheduler.
 6. Set `SAVED_BROWSE_ENABLED=true` for API recreation through the existing
    Infisical deployment wrapper. Preserve the disabled operating configuration.
@@ -113,7 +133,7 @@ With the existing legitimate deployment identity available:
 
 For runtime rollback, set the switch false and recreate the API (or use the
 recorded previous image). Leave the additive tables/migration in place. Stop the
-profile's maintenance process if reverting the image. Do not downgrade/drop
+browse maintenance service if reverting the image. Do not downgrade/drop
 canonical evidence, change network access, enable timers or spend providers.
 When reverting to an older image, recreate only the API with `--no-deps`; do not
 run an older migration container against the newer 0022 revision. The simplest

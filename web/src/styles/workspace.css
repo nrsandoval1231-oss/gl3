@@ -86,6 +86,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .wh-breadcrumb>span[aria-hidden]{flex:none}
 .wh-breadcrumb .wh-back{padding:0;border:0;background:none;color:#4c6c85;font-size:10px;white-space:nowrap}
 .wh-record-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:clamp(94px,7.3vw,122px);padding:12px 16px;border:1px solid var(--gl-line);border-radius:10px;background:#fff}
+.wh-record-hero>*{min-width:0}
+.wh-record-identity{flex:1 1 280px}
+.wh-record-qualification{flex:0 1 220px;min-width:0}
+.wh-completeness{flex:0 1 150px;min-width:0}
+.wh-record-qualification>span,.wh-completeness>span{overflow-wrap:anywhere}
 .wh-record-identity{min-width:0}
 .wh-tier-badge{display:inline-flex;padding:4px 8px;border:1px solid #bddfc8;border-radius:5px;background:#ecf8f0;color:#237343;font-size:10px;font-weight:700}
 .wh-record-identity h2{margin:5px 0 2px;overflow-wrap:anywhere;color:var(--gl-deep-current);font-size:clamp(18px,1.45vw,25px);line-height:1.15;letter-spacing:-.025em}
@@ -109,6 +114,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .wh-metric>div{display:grid;gap:4px;min-width:0}
 .wh-metric-label{color:#5d7182;font-size:9px;line-height:1.25;text-transform:uppercase;letter-spacing:.035em}
 .wh-metric strong{overflow-wrap:anywhere;color:var(--gl-deep-current);font-size:clamp(12px,1.1vw,18px);line-height:1.2;font-variant-numeric:tabular-nums}
+.wh-metric small{min-width:0;overflow-wrap:anywhere}
 .wh-metric small{color:#718291;font-size:8px;line-height:1.3}
 .wh-summary-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0}
 .wh-summary-columns>section{min-width:0;padding:12px;border:1px solid var(--gl-line);border-radius:9px;background:#fff}
@@ -201,6 +207,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .wh-header-search{min-width:0;justify-self:end}.wh-header-search input{width:min(24vw,200px);max-width:100%}
   .wh-layout.wh-opportunity-layout:has(.wh-detail:not(.wh-empty-detail)) .wh-list{display:none}
   .wh-list{max-height:none}.wh-detail{overflow:visible}
+}
+
+@media (min-width:1151px) and (max-width:1350px){
+  .wh-metric{gap:6px;padding:10px 8px}
+  .wh-metric-icon{width:20px;height:20px}
+  .wh-metric-icon svg{width:18px;height:18px}
+  .wh-metric>div{flex:1;min-width:0}
+  .wh-metric strong{font-size:15px;line-height:1.25;overflow-wrap:break-word;word-break:normal}
+  .wh-metric small{font-size:10px;line-height:1.35;overflow-wrap:anywhere}
 }
 
 /* Account-first customer workspace */

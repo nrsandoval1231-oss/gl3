@@ -47,7 +47,6 @@ services:
 
   browse:
     <<: *backend
-    profiles: ["saved-browse"]
     command: ["uv", "run", "python", "-m", "gridlens.jobs.browse", "maintain"]
     environment:
       TYPESAFE_API_KEY: ""

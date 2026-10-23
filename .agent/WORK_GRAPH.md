@@ -1,5 +1,17 @@
-# Regional pivot and ingestion stabilization work graph
+# Production intelligence work graph
 
-Owner directive and canonical PRD govern the current mission on feat/regional-stabilization-20261022, base0f876440a1375c502534cc1dd3c08ceff38c7349. The detailed frontier, packets, evidence and next direction were recorded for REGIONAL-20261022/GRAPH.md, which is not in this tree. [Current state](CURRENT_STATE.md) identifies active ownership and material UNKNOWNs. The prior customer-intelligence graph is preserved byte-for-byte in history/WORK_GRAPH-before-REGIONAL-20261022.md; its claims are historical, not acceptance of this candidate.
+Base a70e5330ee8ad7483391abe313d2bb9f68183975. Owner directive/PRD govern; no merge/deploy.
+One opening Tribunal completed; do not reconvene during build.
 
-R0-R4 implementation and bounded regression repairs are integrated. R5 controller gate passed132tests; final source replay, API/preservation/recovery and matched performance proofs are captured. Remaining frontier: final live-browser selector repair, exact-head full CI and fresh independent Sol review, then reviewable PR delivery. External publisher/document limitations remain visible. No merge/deploy. Production/parent launch acceptance remains open.
+| Node | Dependencies | State | Acceptance |
+|---|---|---|---|
+| M1-BACKEND | opening | HANDOFF | ten records persisted; zero new/ten unchanged on live replay; normal startup authenticated200 without manual rebuild |
+| M1-UI | opening | HANDOFF | long-value fixture at1280×800,1648px and390×844; no clipping; screenshots retained |
+| M1-GATE | both handoffs | VALIDATE | freeze implementation/docs, controller full gates, exact-candidate Sol review |
+| M2-ACQUISITION | M1-GATE | WAIT | optional bounded Firecrawl reused; five-source native comparison, provenance/replay/cost/latency |
+| M3-EVIDENCE | M2 | WAIT | live Jev capability, persisted versioned packages, explicit incomplete failures |
+| M4-INTELLIGENCE | M3 | WAIT | supported OpenAI model, cited structured assessments, deterministic gates |
+| M5-RESOLUTION | M4 | WAIT | account/project/buying chain identity,446-record investigation, five regional sources, bounded continuation |
+| M6-ACCEPTANCE | M5 | WAIT | five-project live chain, cost/latency/recovery, full regressions/browser, runbook/readiness PR |
+
+Backend/frontend own disjoint files in isolated integration worktree. Builders cannot commit or alter shared runtime. Controller owns PostgreSQL/bootstrap, evidence, integration, commits/PR, graph. Integrate backend then UI. Provider access/pricing gaps stay UNKNOWN; fixtures cannot pass live acceptance.

@@ -155,8 +155,10 @@ def test_docket_index_cross_checks_html_and_excel_and_names_el_paso():
         "data%20center": _docket_xlsx([rows[1]]),
     }
     pages = {"large%20load": large, "data%20center": data_center}
+    requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
         url = str(request.url)
         key = "data%20center" if "data%20center" in url else "large%20load"
         if "exportdockets" in url:
@@ -175,13 +177,60 @@ def test_docket_index_cross_checks_html_and_excel_and_names_el_paso():
         _source("texas-puct-large-load-dockets"),
         httpx.Client(follow_redirects=False, transport=httpx.MockTransport(handler)),
     )
+    replay = retrieve_dockets(
+        _source("texas-puct-large-load-dockets"),
+        httpx.Client(follow_redirects=False, transport=httpx.MockTransport(handler)),
+    )
     by_id = {row["document_number"]: row for row in records}
+    assert [(row["document_number"], row["source_hash"]) for row in records] == [
+        (row["document_number"], row["source_hash"]) for row in replay
+    ]
     assert set(by_id) == {"PUCT-DOCKET-58481", "PUCT-DOCKET-56903"}
     assert by_id["PUCT-DOCKET-58481"]["permit"]["location"] is None
     assert by_id["PUCT-DOCKET-56903"]["permit"]["location"] == "EL PASO, TX"
     assert by_id["PUCT-DOCKET-56903"]["permit"]["data_center"] is True
     assert by_id["PUCT-DOCKET-56903"]["event_date"] is None
     assert assess_permit(by_id["PUCT-DOCKET-56903"], as_of=TODAY)["decision"] == "rejected"
+    assert [request.url.path for request in requests[:4]] == [
+        "/search/dockets/",
+        "/search/exportdockets/",
+        "/search/dockets/",
+        "/search/exportdockets/",
+    ]
+    assert [request.url.params["Description"] for request in requests[:4]] == [
+        "large load",
+        "large load",
+        "data center",
+        "data center",
+    ]
+    assert all(request.url.params["ItemMatch"] == "Equal" for request in requests)
+    assert len(requests) == 8
+
+
+def test_docket_index_uses_current_direct_search_endpoint_and_equal_match():
+    from gridlens.ingestion.adapters.puct_docket_index import (
+        SEARCH_URL,
+        _export_url,
+        _search_url,
+    )
+
+    assert SEARCH_URL == (
+        "https://interchange.puc.texas.gov/search/dockets/?UtilityType=E&"
+        "ItemMatch=Equal&DocumentType=ALL&Description=large%20load&SortOrder=Ascending"
+    )
+    assert _search_url("data center") == (
+        "https://interchange.puc.texas.gov/search/dockets/?UtilityType=E&"
+        "ItemMatch=Equal&DocumentType=ALL&Description=data%20center&SortOrder=Ascending"
+    )
+    assert _export_url("data center") == (
+        "https://interchange.puc.texas.gov/search/exportdockets/?UtilityType=E&"
+        "ItemMatch=Equal&DocumentType=ALL&Description=data%20center&"
+        "SortBy=ControlNumber&SortOrder=Ascending"
+    )
+    from gridlens.ingestion.registry import load_registry
+
+    source = next(item for item in load_registry() if item["id"] == "texas-puct-large-load-dockets")
+    assert source["endpoint"] == SEARCH_URL
 
 
 def test_ercot_status_pdf_keeps_queue_totals_and_not_a_project_site():
