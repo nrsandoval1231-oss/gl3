@@ -319,17 +319,11 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
         )
         if part
     )
+    # The plain-language summary body is the hours source. The extracted purpose
+    # sentence is already inside that body, so it is used only when no body was kept.
+    summary_text = (summary or {}).get("text") or (summary or {}).get("purpose") or ""
     hours = classify_operating_hours(
-        " ".join(
-            part
-            for part in (
-                row["applicant"],
-                row["facility"],
-                (summary or {}).get("purpose") or "",
-                (summary or {}).get("text") or "",
-            )
-            if part
-        )
+        " ".join(part for part in (row["applicant"], row["facility"], summary_text) if part)
     )
     semantic = {
         "project": row["project"],

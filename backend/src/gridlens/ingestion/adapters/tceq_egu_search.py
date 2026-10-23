@@ -28,6 +28,7 @@ from gridlens.ingestion.adapters.public_source_http import read_public_response
 SOURCE_ID = "texas-tceq-egu-registrations"
 START_URL = "https://www2.tceq.texas.gov/airperm/index.cfm?fuseaction=airpermits.start"
 SEARCH_URL = "https://www2.tceq.texas.gov/airperm/index.cfm"
+ALLOWED_HOSTS = frozenset({"www2.tceq.texas.gov"})
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_RECORDS = 400
 _QUERIES = (
@@ -261,6 +262,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             START_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"text/html"},
+            allowed_hosts=ALLOWED_HOSTS,
         )
         if b"_fuseaction=airpermits.validate_search_criteria" not in start:
             raise SourceParseError("TCEQ search form is not the expected page")
@@ -271,6 +273,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 SEARCH_URL,
                 max_bytes=MAX_RESPONSE_BYTES,
                 allowed_media_types={"text/html"},
+                allowed_hosts=ALLOWED_HOSTS,
                 method="POST",
                 content=_form(permit_type, unit_id),
                 headers={"Content-Type": "application/x-www-form-urlencoded"},

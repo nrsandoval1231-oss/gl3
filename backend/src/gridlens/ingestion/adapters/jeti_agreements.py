@@ -27,6 +27,7 @@ AGREEMENTS_URL = (
     "https://comptroller.texas.gov/economy/development/prop-tax/jeti/current-agreements.php"
 )
 LISTING_PDF = "https://gov.texas.gov/uploads/files/business/JETI_Public_Listing.pdf"
+ALLOWED_HOSTS = frozenset({"comptroller.texas.gov", "gov.texas.gov"})
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_PDF_PAGES = 8
 MAX_RECORDS = 80
@@ -230,12 +231,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             AGREEMENTS_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"text/html"},
+            allowed_hosts=ALLOWED_HOSTS,
         )
         _, pdf = read_public_response(
             http,
             LISTING_PDF,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"application/pdf"},
+            allowed_hosts=ALLOWED_HOSTS,
         )
         rows = parse_listing_pdf(pdf)
         contracted = {row["id"] for row in rows if row["status"] == "contracted"}

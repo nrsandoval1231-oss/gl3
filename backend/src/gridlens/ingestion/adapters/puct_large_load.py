@@ -35,6 +35,7 @@ ITEM_URL = (
     "https://interchange.puc.texas.gov/search/documents/?controlNumber={control}&itemNumber={item}"
 )
 MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ALLOWED_HOSTS = frozenset({"interchange.puc.texas.gov"})
 CONTROL_NUMBERS = (59142, 58481)
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_RECORDS = 500
@@ -264,12 +265,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 FILINGS_PAGE.format(control=control),
                 max_bytes=MAX_RESPONSE_BYTES,
                 allowed_media_types={"text/html"},
+                allowed_hosts=ALLOWED_HOSTS,
             )
             _, body = read_public_response(
                 http,
                 EXPORT_URL.format(control=control),
                 max_bytes=MAX_RESPONSE_BYTES,
                 allowed_media_types={MEDIA_TYPE},
+                allowed_hosts=ALLOWED_HOSTS,
             )
             rows = parse_export(body, control_number=control)
             filings_match_export(parse_filings_page(listing, control_number=control), rows)

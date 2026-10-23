@@ -24,6 +24,7 @@ from gridlens.ingestion.adapters.public_source_http import read_public_response
 SOURCE_ID = "texas-ercot-large-load-status"
 HUB_URL = "https://www.ercot.com/services/rq/large-load-integration"
 STATUS_PDF = "https://www.ercot.com/files/docs/2026/03/12/March-TAC-Report.pdf"
+ALLOWED_HOSTS = frozenset({"www.ercot.com"})
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_PDF_PAGES = 30
 _TITLE = "Large Load Interconnection Status Update"
@@ -155,6 +156,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             HUB_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"text/html"},
+            allowed_hosts=ALLOWED_HOSTS,
         )
         if b"Large Load Integration" not in hub:
             raise SourceParseError("ERCOT hub page is not the large-load integration page")
@@ -163,6 +165,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             STATUS_PDF,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"application/pdf"},
+            allowed_hosts=ALLOWED_HOSTS,
         )
         return [_record(parse_status_pdf(pdf))]
     finally:

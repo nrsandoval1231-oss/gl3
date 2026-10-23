@@ -22,6 +22,7 @@ from gridlens.ingestion.adapters.public_source_http import read_public_response
 
 SOURCE_ID = "texas-jeti-applications"
 API_URL = "https://api.comptroller.texas.gov/open-data/v1/tables/jeti"
+ALLOWED_HOSTS = frozenset({"api.comptroller.texas.gov"})
 INDEX_URL = "https://comptroller.texas.gov/economy/development/prop-tax/jeti/applications.php"
 PDF_ROOT = "https://assets.comptroller.texas.gov/open-data/jeti/"
 MAX_RESPONSE_BYTES = 2_000_000
@@ -201,6 +202,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             API_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"application/json"},
+            allowed_hosts=ALLOWED_HOSTS,
         )
         rows = parse_index(body)
         if len(rows) > MAX_RECORDS:

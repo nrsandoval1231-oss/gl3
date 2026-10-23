@@ -26,6 +26,7 @@ from gridlens.ingestion.adapters.public_source_http import read_public_response
 SOURCE_ID = "texas-tceq-construction-noi"
 START_URL = "https://www2.tceq.texas.gov/wq_dpa/"
 SEARCH_URL = "https://www2.tceq.texas.gov/wq_dpa/index.cfm"
+ALLOWED_HOSTS = frozenset({"www2.tceq.texas.gov"})
 PERMIT_TYPE = "SWC|Construction Notice of Intent (TXR15)"
 SITE_TERMS = ("data center", "datacenter")
 MAX_RESPONSE_BYTES = 2_000_000
@@ -211,6 +212,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             START_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"text/html"},
+            allowed_hosts=ALLOWED_HOSTS,
         )
         if b"TXR150000" not in start:
             raise SourceParseError("TCEQ water-quality search is not the expected page")
@@ -219,6 +221,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             SEARCH_URL,
             max_bytes=MAX_RESPONSE_BYTES,
             allowed_media_types={"text/html"},
+            allowed_hosts=ALLOWED_HOSTS,
             method="POST",
             content=_open_advanced(),
             headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -232,6 +235,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 SEARCH_URL,
                 max_bytes=MAX_RESPONSE_BYTES,
                 allowed_media_types={"text/html"},
+                allowed_hosts=ALLOWED_HOSTS,
                 method="POST",
                 content=_search(term),
                 headers={"Content-Type": "application/x-www-form-urlencoded"},

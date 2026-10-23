@@ -1,0 +1,30 @@
+TCEQ - (APD-ID 103v1.0, Revised 04/22) Plain Language Summary for NSR Amendment (English) 
+This form is for use by sources subject to air quality permit requirements 
+and may be revised periodically. Page 1 of 1 
+ 
+Plain Language Summary for New Source Review (NSR) Renewal Certification 
+Application for Air New Source Review Permit Number 131651 
+ 
+The following summary is provided for this pending air permit application being reviewed by the Texas 
+Commission on Environmental Quality as required by 30 Texas Administrative Code Chapter 39. The 
+information provided in this summary may change during the technical review of the application and are not 
+federal enforceable representations of the permit application. 
+Aligned Data Centers REIT LLC (Aligned) (CN606478972) has submitted an application for renewal of permit 
+number 131651. The ADC Plano (RN102319506) is a data center at 2800 Summit Avenue, Plano, Texas, 
+Collin County. 
+This renewal application will authorize the continued operation of twenty (20) diesel engine generators and five 
+(5) diesel tanks. Aligned has certified there will be no changes to the permit. The following permitted emission 
+rates will remain the same. 
+ 
+ 
+Pollutant Permitted Emissions (tons per year) Emissions Added/Removed (tons per year) Total Proposed Emissions (tons per year) 
+NOx 0.48 0.00 0.48 
+CO 0.06 0.00 0.06 
+VOC 0.02 0.00 0.02 
+PM 0.01 0.00 0.01 
+PM10 0.01 0.00 0.01 
+PM2.5 0.01 0.00 0.01 
+SO2 < 0.01 0.00 < 0.01 
+NH3 < 0.01 0.00 < 0.01 
+ 
+The facilities being renewed continue to be controlled by best management practices.  

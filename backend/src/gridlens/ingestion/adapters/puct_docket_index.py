@@ -27,6 +27,7 @@ SOURCE_ID = "texas-puct-large-load-dockets"
 SEARCH_URL = "https://interchange.puc.texas.gov/search/search/?UtilityType=E&ItemMatch=1&DocumentType=ALL&Description=large%20load"
 DESCRIPTIONS = ("large load", "data center")
 MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ALLOWED_HOSTS = frozenset({"interchange.puc.texas.gov"})
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_RECORDS = 40
 _NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -251,12 +252,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 _search_url(description),
                 max_bytes=MAX_RESPONSE_BYTES,
                 allowed_media_types={"text/html"},
+                allowed_hosts=ALLOWED_HOSTS,
             )
             _, workbook = read_public_response(
                 http,
                 _export_url(description),
                 max_bytes=MAX_RESPONSE_BYTES,
                 allowed_media_types={MEDIA_TYPE},
+                allowed_hosts=ALLOWED_HOSTS,
             )
             listed = parse_search(page)
             exported = parse_export(workbook)
