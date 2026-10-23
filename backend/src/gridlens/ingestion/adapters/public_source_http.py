@@ -3,9 +3,12 @@
 Timeouts come from the caller client. This helper adds a polite User-Agent,
 per-request headers, a byte cap, a content-type allowlist, and a short retry
 on retryable statuses. A 429 waits for Retry-After when that header is a
-delta-seconds value or an HTTP-date, capped, and otherwise uses the backoff.
-The request host and any redirect target must be an exact allowlist entry.
-Redirects are not followed. The shared client header map is never mutated.
+delta-seconds value or an HTTP-date within 60 seconds, and otherwise uses the
+backoff. A 429 whose Retry-After is longer than 60 seconds is raised so the
+caller can defer or fail instead of retrying early. An error body is read only
+up to the byte cap or a small limit, and the rest is discarded. The request
+host and any redirect target must be an exact allowlist entry. Redirects are
+not followed. The shared client header map is never mutated.
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from gridlens.ingestion.adapters.federal_register import SourceParseError
 
 USER_AGENT = "GridLens public source reader/1.0"
 MAX_RETRY_AFTER_SECONDS = 60
+_ERROR_BODY_LIMIT = 8_192
 _RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
 _DELTA_SECONDS = re.compile(r"[0-9]{1,10}")
 
@@ -76,21 +80,30 @@ def _reject_redirect(request_url: str, response: httpx.Response, allowed: set[st
 
 
 def _retry_after_delay(header: str | None, *, now: datetime) -> float | None:
+    """Return the requested 429 wait, uncapped, or None when the header is unusable."""
     if header is None:
         return None
     raw = header.strip()
     if not raw or len(raw) > 128:
         return None
     if _DELTA_SECONDS.fullmatch(raw):
-        return float(min(int(raw), MAX_RETRY_AFTER_SECONDS))
+        return float(int(raw))
     try:
         retry_at = parsedate_to_datetime(raw)
     except (TypeError, ValueError, OverflowError, IndexError):
         return None
     if retry_at.tzinfo is None:
         retry_at = retry_at.replace(tzinfo=UTC)
-    delay = max(0.0, (retry_at - now).total_seconds())
-    return min(delay, float(MAX_RETRY_AFTER_SECONDS))
+    return max(0.0, (retry_at - now).total_seconds())
+
+
+def _discard_error_body(response: httpx.Response, limit: int) -> None:
+    """Read at most `limit` bytes of an error body. The caller closes the rest."""
+    seen = 0
+    for part in response.iter_bytes():
+        seen += len(part)
+        if seen >= limit:
+            break
 
 
 def read_public_response(
@@ -142,9 +155,12 @@ def read_public_response(
                         honored = _retry_after_delay(
                             response.headers.get("retry-after"), now=clock()
                         )
+                        if honored is not None and honored > MAX_RETRY_AFTER_SECONDS:
+                            _discard_error_body(response, min(max_bytes, _ERROR_BODY_LIMIT))
+                            response.raise_for_status()
                         if honored is not None:
                             delay = honored
-                    response.read()
+                    _discard_error_body(response, min(max_bytes, _ERROR_BODY_LIMIT))
                     sleep(delay)
                     continue
                 response.raise_for_status()

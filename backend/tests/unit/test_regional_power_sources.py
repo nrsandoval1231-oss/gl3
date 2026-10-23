@@ -254,30 +254,56 @@ def test_429_honors_retry_after_delta_seconds_http_date_and_cap():
     assert slept == [2.0, 5.0]
     assert MAX_RETRY_AFTER_SECONDS == 60
 
-    capped: list[float] = []
+    calls["n"] = 0
 
     def long_wait(request: httpx.Request) -> httpx.Response:
-        if capped:
-            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"later")
+        calls["n"] += 1
         return httpx.Response(
             429,
             headers={"retry-after": "86400", "content-type": "text/html"},
             content=b"wait",
         )
 
-    _, later = read_public_response(
-        _public_client(long_wait),
-        "https://example.test/listing",
-        max_bytes=100,
-        allowed_media_types={"text/html"},
-        allowed_hosts={"example.test"},
-        attempts=2,
-        backoff_seconds=0.4,
-        sleep=capped.append,
-        now=lambda: frozen,
-    )
-    assert later == b"later"
-    assert capped == [float(MAX_RETRY_AFTER_SECONDS)]
+    with pytest.raises(httpx.HTTPStatusError):
+        read_public_response(
+            _public_client(long_wait),
+            "https://example.test/listing",
+            max_bytes=100,
+            allowed_media_types={"text/html"},
+            allowed_hosts={"example.test"},
+            attempts=3,
+            backoff_seconds=0.4,
+            sleep=slept.append,
+            now=lambda: frozen,
+        )
+    assert calls["n"] == 1
+    assert slept == [2.0, 5.0]
+
+    def distant_date(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(
+            429,
+            headers={
+                "retry-after": "Fri, 23 Oct 2026 03:02:00 GMT",
+                "content-type": "text/html",
+            },
+            content=b"wait",
+        )
+
+    calls["n"] = 0
+    with pytest.raises(httpx.HTTPStatusError):
+        read_public_response(
+            _public_client(distant_date),
+            "https://example.test/listing",
+            max_bytes=100,
+            allowed_media_types={"text/html"},
+            allowed_hosts={"example.test"},
+            attempts=3,
+            backoff_seconds=0.4,
+            sleep=slept.append,
+            now=lambda: frozen,
+        )
+    assert calls["n"] == 1
 
     past: list[float] = []
 
@@ -305,6 +331,47 @@ def test_429_honors_retry_after_delta_seconds_http_date_and_cap():
         now=lambda: frozen,
     )
     assert past == [0.0]
+
+
+def test_retryable_error_body_is_capped_and_the_rest_is_discarded():
+    class _Chunks(httpx.SyncByteStream):
+        def __init__(self) -> None:
+            self.chunks = [b"x" * 50 for _ in range(20)]
+            self.pulled = 0
+            self.closed = False
+
+        def __iter__(self):
+            for chunk in self.chunks:
+                self.pulled += len(chunk)
+                yield chunk
+
+        def close(self) -> None:
+            self.closed = True
+
+    stream = _Chunks()
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(503, stream=stream, headers={"content-type": "text/html"})
+        return httpx.Response(200, headers={"content-type": "text/html"}, content=b"ok")
+
+    _, body = read_public_response(
+        _public_client(handler),
+        "https://example.test/listing",
+        max_bytes=100,
+        allowed_media_types={"text/html"},
+        allowed_hosts={"example.test"},
+        attempts=2,
+        backoff_seconds=0,
+        sleep=lambda _seconds: None,
+    )
+    assert body == b"ok"
+    assert calls["n"] == 2
+    assert stream.closed is True
+    assert stream.pulled == 100
+    assert stream.pulled < len(stream.chunks) * 50
 
 
 def test_429_falls_back_to_backoff_when_retry_after_is_missing_or_invalid():

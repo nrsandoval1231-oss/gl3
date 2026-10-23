@@ -418,7 +418,9 @@ def test_worker_respects_retry_after_and_does_not_lease_early_or_duplicate(
             if retry_kind == "numeric":
                 assert scheduled.available_at >= datetime.now(UTC) + timedelta(seconds=118)
             else:
-                assert scheduled.available_at >= retry_at
+                # The HTTP-date header has one-second resolution. The scheduled
+                # instant still has to fall on or after that second.
+                assert scheduled.available_at >= retry_at.replace(microsecond=0)
 
     with saved_db.begin() as session:
         scheduled = session.get(Job, job_id)
@@ -441,6 +443,8 @@ def test_worker_respects_retry_after_and_does_not_lease_early_or_duplicate(
         assert created is not None
         if retry_kind == "oversized":
             assert created.available_at.year == 9999
+        elif retry_kind == "date":
+            assert created.available_at >= retry_at.replace(microsecond=0)
         else:
             assert created.available_at >= retry_at
     with saved_db.begin() as session:
