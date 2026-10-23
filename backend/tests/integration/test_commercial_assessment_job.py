@@ -4,12 +4,14 @@ import json
 import sys
 from decimal import Decimal
 from pathlib import Path
+from threading import Event, Thread
 from uuid import uuid4
 
 import pytest
 from pydantic import SecretStr
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.integrations.intelligence_provider import ProviderResponseError
@@ -428,17 +430,36 @@ def test_post_dispatch_observation_hash_change_cannot_accept_result(sessions, mo
     worker, jobs = _wire_m4(sessions, monkeypatch)
     calls = []
 
-    def provider(**kwargs):
-        calls.append(kwargs["request"])
+    provider_started = Event()
+    update_committed = Event()
+
+    def update_observation():
+        assert provider_started.wait(timeout=5)
         with sessions.begin() as session:
             package = session.get(EvidencePackage, package_id)
             observation = session.get(Observation, package.observation_id)
-            observation.content_hash = "a" * 64
+            observation.content_hash = "b" * 64
+        update_committed.set()
+
+    updater = Thread(target=update_observation)
+    updater.start()
+
+    def provider(**kwargs):
+        calls.append(kwargs["request"])
+        with sessions() as session:
+            job = session.scalar(select(Job).where(Job.target_id == need_id))
+            checkpoint = json.loads(job.checkpoint)
+            current = jobs._current_payload(session, checkpoint, need_id)
+            assert jobs._digest(current) == checkpoint["request_digest"]
+        provider_started.set()
+        assert update_committed.wait(timeout=5)
         return _valid_response(kwargs["request"])
 
     monkeypatch.setattr(jobs, "call_openai_request", provider)
     job_id = _queue_job(sessions, need_id, package_id)
     worker.run_one({}, job_ids=[job_id])
+    updater.join(timeout=5)
+    assert not updater.is_alive()
     with sessions() as session:
         job = session.get(Job, job_id)
         call = session.scalar(select(LogicalCall))
@@ -458,6 +479,71 @@ def test_post_dispatch_observation_hash_change_cannot_accept_result(sessions, mo
         ValueError, match="Package observation version or evidence relation is stale"
     ):
         assessment_cli.main()
+
+
+def test_publication_rolls_back_call_and_job_together(sessions, monkeypatch):
+    _enable_m4(monkeypatch)
+    need_id, package_id, _ = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    monkeypatch.setattr(
+        jobs, "call_openai_request", lambda **kwargs: _valid_response(kwargs["request"])
+    )
+
+    def fail_receipt(*_args, **_kwargs):
+        raise RuntimeError("injected publication failure")
+
+    monkeypatch.setattr(jobs, "_record_research_receipt", fail_receipt)
+    job_id = _queue_job(sessions, need_id, package_id)
+
+    # The worker reports that it consumed the lease even when its normal error
+    # path records the failed Job. The publication transaction itself must not
+    # settle the call before that outer error handling runs.
+    assert worker.run_one({}, job_ids=[job_id]) is True
+
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        call = session.scalar(select(LogicalCall))
+    checkpoint = json.loads(job.checkpoint)
+    assert job.status == "queued"
+    assert checkpoint["status"] == "dispatching"
+    assert checkpoint.get("result") is None
+    assert call.status == "SENT_OUTCOME_UNKNOWN"
+
+
+def test_publication_retries_serialization_without_provider_redispatch(sessions, monkeypatch):
+    _enable_m4(monkeypatch)
+    need_id, package_id, _ = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    calls = []
+    original_current_payload = jobs._current_payload
+    current_payload_attempts = 0
+
+    class SerializationFailure(Exception):
+        pgcode = "40001"
+
+    def transient_serialization_failure(*args, **kwargs):
+        nonlocal current_payload_attempts
+        current_payload_attempts += 1
+        if current_payload_attempts == 1:
+            raise DBAPIError("SELECT", {}, SerializationFailure())
+        return original_current_payload(*args, **kwargs)
+
+    def provider(**kwargs):
+        calls.append(kwargs["request"])
+        return _valid_response(kwargs["request"])
+
+    monkeypatch.setattr(jobs, "call_openai_request", provider)
+    monkeypatch.setattr(jobs, "_current_payload", transient_serialization_failure)
+    job_id = _queue_job(sessions, need_id, package_id)
+    worker.run_one({}, job_ids=[job_id])
+
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        call = session.scalar(select(LogicalCall))
+    assert current_payload_attempts == 2
+    assert len(calls) == 1
+    assert json.loads(job.checkpoint)["status"] == "completed"
+    assert call.status == "COMPLETED"
 
 
 @pytest.mark.parametrize(

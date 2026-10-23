@@ -225,3 +225,18 @@ The backend dependency pin and lock entry now use pypdf 6.21.2, resolving the
 three CI-reported pypdf advisories without suppressions. The live M4 result and
 keys-disabled replay evidence above remain unchanged; new-candidate gates and
 independent review are still pending.
+
+### M4 publication transaction repair candidate
+
+The M4 repair candidate settles the already-dispatched logical call and its job
+checkpoint in one final PostgreSQL `REPEATABLE READ` transaction. It locks the
+running job fence and the exact need, project, package, evidence, observation,
+and source identities before rebuilding the current request payload. A matching
+snapshot publishes `VALIDATED`; a changed or malformed current snapshot
+publishes a metadata-only `STALE_CONTEXT` receipt with reported usage and no
+accepted advisory. The call settlement uses an opt-in deferred commit, so the
+logical-call terminal state, checkpoint, and job status commit or roll back
+together. A serialization retry re-runs only this final settlement and never
+re-dispatches the provider request. Fence loss or an existing terminal call
+rolls back publication. This is local repair evidence only; controller gates,
+the retained zero-call replay, and independent review remain required.

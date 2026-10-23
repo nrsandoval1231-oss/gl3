@@ -721,6 +721,7 @@ def _transition(
     result_payload: dict[str, Any] | None = None,
     blocked_reason: str | None = None,
     allow_reconcile_override: bool = False,
+    defer_commit: bool = False,
     reconciliation_actor: str | None = None,
     reconciliation_ref: str | None = None,
 ) -> ReservationResult:
@@ -776,15 +777,18 @@ def _transition(
             call.fence_token,
         )
     if call.status in {"CANCELLED", "COMPLETED", "FAILED", "RECONCILED"}:
-        session.commit()
+        if not defer_commit:
+            session.commit()
         return ReservationResult(call_id, True, call.status, "TERMINAL", call.fence_token)
     if status == "CANCELLED" and call.status == "SENT_OUTCOME_UNKNOWN":
-        session.commit()
+        if not defer_commit:
+            session.commit()
         return ReservationResult(
             call_id, False, call.status, "DISPATCH_OUTCOME_UNKNOWN", call.fence_token
         )
     if status in {"COMPLETED", "FAILED", "RECONCILED"} and call.status != "SENT_OUTCOME_UNKNOWN":
-        session.commit()
+        if not defer_commit:
+            session.commit()
         return ReservationResult(call_id, False, call.status, "NOT_DISPATCHED", call.fence_token)
     if actual_cost_usd is not None:
         measured_cost = _money(actual_cost_usd, name="actual_cost_usd", maximum=MAX_ACTUAL_USD)
@@ -898,7 +902,8 @@ def _transition(
                 .values(active_count=LogicalCallBudget.active_count - 1)
             )
             session.execute(stmt)
-    session.commit()
+    if not defer_commit:
+        session.commit()
     return ReservationResult(call_id, False, status, blocked_reason, call.fence_token)
 
 
@@ -912,6 +917,7 @@ def complete_call(
     output_tokens: int | None = None,
     result_digest: str | None = None,
     result_payload: dict[str, Any] | None = None,
+    defer_commit: bool = False,
 ) -> ReservationResult:
     return _transition(
         session,
@@ -923,6 +929,7 @@ def complete_call(
         output_tokens=output_tokens,
         result_digest=result_digest,
         result_payload=result_payload,
+        defer_commit=defer_commit,
     )
 
 

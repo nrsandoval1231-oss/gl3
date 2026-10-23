@@ -12,6 +12,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from gridlens.integrations.intelligence_provider import (
@@ -518,6 +519,143 @@ def _current_payload(session: Session, checkpoint: dict[str, Any], need_id: UUID
         payload["watch_context"] = watch_context
         payload = _bound_grounded_payload(payload)
     return payload
+
+
+def _publish_commercial_assessment_result(
+    *,
+    job_id: UUID,
+    worker_id: str,
+    fence_token: int,
+    call_id: UUID,
+    call_result: dict[str, Any],
+    input_tokens: int,
+    output_tokens: int,
+    provider_response_id: str | None,
+) -> dict[str, Any]:
+    """Settle the M4 call and its job from one coherent publication snapshot."""
+    for attempt in range(2):
+        try:
+            with SessionLocal.begin() as session:
+                session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+                job = assert_fence(session, job_id, worker_id, fence_token)
+                checkpoint = json.loads(job.checkpoint or "{}")
+                payload = checkpoint.get("payload", {})
+                need_id = job.target_id
+                if need_id is None:
+                    raise ValueError("M4 job has no target need")
+                lock_specs = (
+                    (PowerNeed, payload.get("need", {}).get("need_id")),
+                    (Project, payload.get("project", {}).get("project_id")),
+                    (EvidencePackage, payload.get("package", {}).get("id")),
+                )
+                for model, raw_id in lock_specs:
+                    if not raw_id:
+                        raise ValueError("M4 publication identity is incomplete")
+                    row_id = UUID(str(raw_id))
+                    row = session.scalar(
+                        select(model)
+                        .where(model.id == row_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                    if row is None:
+                        raise ValueError("M4 publication identity is missing")
+                package = payload.get("package", {})
+                refs = package.get("source_references", [])
+                if not isinstance(refs, list) or len(refs) != 1:
+                    raise ValueError("M4 package source references are malformed")
+                ref = refs[0]
+                for citation_model, key in (
+                    (Evidence, "evidence_id"),
+                    (Observation, "observation_id"),
+                    (Source, "source_id"),
+                ):
+                    raw_id = ref.get(key)
+                    if not raw_id:
+                        raise ValueError("M4 citation identity is incomplete")
+                    row_id = raw_id if citation_model is Source else UUID(str(raw_id))
+                    row = session.scalar(
+                        select(citation_model)
+                        .where(citation_model.id == row_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                    if row is None:
+                        raise ValueError("M4 citation identity is missing")
+
+                try:
+                    current_payload = _current_payload(session, checkpoint, need_id)
+                    fresh = _digest(current_payload) == checkpoint.get("request_digest")
+                except (ValueError, KeyError, TypeError):
+                    fresh = False
+                published_at = datetime.now(UTC).isoformat()
+                if fresh:
+                    result = dict(call_result)
+                    result["validation_outcome"] = "VALIDATED"
+                else:
+                    result = {
+                        "provider": call_result.get("provider"),
+                        "actual_model": call_result.get("actual_model"),
+                        "service_tier": call_result.get("service_tier"),
+                        "provider_response_id": provider_response_id,
+                        "usage": call_result.get("usage"),
+                        "validation_outcome": "STALE_CONTEXT",
+                        "validation_reason": "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                    }
+                result["publication_snapshot"] = {
+                    "request_digest": checkpoint.get("request_digest"),
+                    "published_at": published_at,
+                    "basis": "as_of_publication_repeatable_read",
+                }
+                transition = complete_call(
+                    session,
+                    call_id,
+                    fence_token=fence_token,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    result_digest=_digest(result),
+                    result_payload=result,
+                    defer_commit=True,
+                )
+                if (
+                    transition.status != "COMPLETED"
+                    or transition.reused
+                    or transition.blocked_reason
+                ):
+                    raise RuntimeError("M4 call settlement did not complete under its fence")
+                checkpoint.update(
+                    status="completed" if fresh else "stale",
+                    completed_at=published_at,
+                    result=result,
+                    result_status="validated" if fresh else "stale_context",
+                    error=None if fresh else "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                    validation_outcome="VALIDATED" if fresh else "STALE_CONTEXT",
+                    validation_reason=None if fresh else "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                    provider_response_id=provider_response_id,
+                    usage=result.get("usage"),
+                )
+                if fresh:
+                    _apply_bounded_routing_effect(
+                        session,
+                        checkpoint=checkpoint,
+                        result=result,
+                        need_id=need_id,
+                    )
+                _record_research_receipt(session, checkpoint)
+                job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
+                job.status, job.lease_owner, job.lease_until = "succeeded", None, None
+            return {
+                "status": "completed" if fresh else "stale",
+                "result": result,
+                "error": None if fresh else "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                "job_id": str(job_id),
+            }
+        except DBAPIError as exc:
+            original = exc.orig
+            state = getattr(original, "sqlstate", None) or getattr(original, "pgcode", None)
+            if state != "40001" or attempt:
+                raise
+    raise RuntimeError("M4 publication retry exhausted")
 
 
 def _queue_stale_reassessment(
@@ -2023,7 +2161,6 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
     provider_response_id: str | None = None
     provider_response_complete = False
     billing_quarantined = False
-    m4_stale_after_dispatch = False
     error: str | None = None
     validation_reason: str | None = None
     # Prepare bounded input and the ledger identity while holding only the job
@@ -2419,21 +2556,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                     },
                     "billing_quarantine": quarantine_reason,
                 }
-        if not billing_quarantined and task_type == COMMERCIAL_ASSESSMENT_TASK:
-            if job.target_id is None:
-                m4_stale_after_dispatch = True
-            else:
-                try:
-                    with SessionLocal() as session:
-                        current_after_dispatch = _current_payload(
-                            session, checkpoint, job.target_id
-                        )
-                    m4_stale_after_dispatch = _digest(current_after_dispatch) != checkpoint.get(
-                        "request_digest"
-                    )
-                except (ValueError, KeyError, TypeError):
-                    m4_stale_after_dispatch = True
-        if not billing_quarantined and not m4_stale_after_dispatch:
+        if not billing_quarantined:
             if provider == "openai" and task_type == COMMERCIAL_ASSESSMENT_TASK:
                 package_context = payload["package"]
                 package_for_validation = {
@@ -2479,51 +2602,17 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 ),
             }
             result_digest = _digest(call_result)
-            with SessionLocal() as session:
-                complete_call(
-                    session,
-                    call_id,
-                    fence_token=fence_token,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    result_digest=result_digest,
-                    result_payload=call_result,
-                )
-            status = "completed"
-            error = None
-        elif m4_stale_after_dispatch:
-            estimated_cost = _estimated_cost_from_usage(
-                provider, task_type, input_tokens, output_tokens
-            )
-            call_result = {
-                "provider": provider,
-                "actual_model": actual_model,
-                "latency_ms": data.get("latency_ms", data.get("provider_latency_ms")),
-                "service_tier": data.get("service_tier", "UNKNOWN"),
-                "provider_response_id": provider_response_id,
-                "reported_usage": data.get("reported_usage"),
-                "validation_outcome": "STALE_CONTEXT",
-                "validation_reason": "INPUT_CHANGED_DURING_PROVIDER_CALL",
-                "usage": {
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                    "actual_cost_usd": None,
-                    "estimated_cost_usd": str(estimated_cost)
-                    if estimated_cost is not None
-                    else None,
-                    "cost_basis": "conservative_usage_estimate_not_invoice",
-                },
-            }
-            with SessionLocal() as session:
-                complete_call(
-                    session,
-                    call_id,
-                    fence_token=fence_token,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    result_digest=_digest(call_result),
-                    result_payload=call_result,
-                )
+            if task_type != COMMERCIAL_ASSESSMENT_TASK:
+                with SessionLocal() as session:
+                    complete_call(
+                        session,
+                        call_id,
+                        fence_token=fence_token,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        result_digest=result_digest,
+                        result_payload=call_result,
+                    )
             status = "completed"
             error = None
     except Exception as exc:
@@ -2589,6 +2678,24 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             status = "failed" if terminal_failure else "unknown"
             error, call_result = type(exc).__name__, None
             validation_reason = error
+
+    if status == "completed" and task_type == COMMERCIAL_ASSESSMENT_TASK:
+        if (
+            not isinstance(call_result, dict)
+            or type(input_tokens) is not int
+            or type(output_tokens) is not int
+        ):
+            raise RuntimeError("M4 validated response is missing its result or reported usage")
+        return _publish_commercial_assessment_result(
+            job_id=job_id,
+            worker_id=worker_id,
+            fence_token=fence_token,
+            call_id=call_id,
+            call_result=call_result,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            provider_response_id=provider_response_id,
+        )
 
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence_token)
