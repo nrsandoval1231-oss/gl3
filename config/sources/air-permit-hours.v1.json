@@ -7,5 +7,7 @@
   "btm_phrase": "onsite use only",
   "bridge_unit_pattern": "\\bportable\\b|\\btrailer[-\\s]?mounted\\b",
   "bridge_permit_pattern": "\\b(?:expiring|temporary)\\s+permits?\\b",
-  "power_generation_pattern": "\\b(?:generators?|gensets?|gen-sets?|turbines?)\\b|\\b(?:electric|power)[-\\s]+generation\\b"
+  "power_generation_pattern": "\\b(?:generator[-\\s]sets?|gensets?|gen-sets?|generators?|turbines?)\\b|\\b(?:electric|power)[-\\s]+generation\\b",
+  "power_generation_exclusion_pattern": "\\b(?:hazardous[-\\s]waste\\s+generators?|steam\\s+generators?|small[-\\s]quantity\\s+generators?|ozone\\s+generators?|nitrogen\\s+generators?|oxygen\\s+generators?|hydrogen\\s+generators?|vapor\\s+generators?|signal\\s+generators?|smoke\\s+generators?|aerosol\\s+generators?|waste\\s+generators?|(?<!natural[-\\s])gas\\s+generators?)\\b",
+  "power_negation_target_pattern": "\\b(?:(?:electric|power)[-\\s]+generation|generat(?:e|es|ing)\\s+(?:electricity|power)|generator[-\\s]sets?|gensets?|gen-sets?|generators?|turbines?)\\b"
 }
