@@ -18,6 +18,8 @@ The operator-run five-case native/Firecrawl comparison is documented in [acquisi
 
 Evidence package materialization and exact-job Jev advisory are documented in [production-pipeline-20261023](../docs/operations/production-pipeline-20261023.md). Default mode writes only a cited package; `--execute-jev` is explicitly bounded to one exact selected evidence version and the existing shared call ledger.
 
+The M4 commercial advisory runner is [`run_commercial_assessment.py`](run_commercial_assessment.py). It requires an exact `--package-id`; default mode inspects safely, `--execute` queues and runs only that need's exact M4 job, and `--replay` reads the existing job/call without dispatch or creating work. It is allowlist-gated, uses the existing logical-call budget ledger, and never promotes canonical qualification. See [production-pipeline-20261023](../docs/operations/production-pipeline-20261023.md) for the M4 controls and limitations.
+
 Retained-only operator tools: [news reassessment](../docs/sources/project-interpretation.md#bounded-operator-reassessment) and [buying-chain backfill](../docs/operations/retained-buying-chain-backfill.md). Both use bounded pages and explicit database identity for apply; application/production actions require separate authorization. Use `uv run --project backend python scripts/<script>.py --help` from the repository root.
 
 ## Regional stabilization proof utilities

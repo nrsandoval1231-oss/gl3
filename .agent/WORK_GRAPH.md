@@ -9,9 +9,9 @@ One opening Tribunal completed; do not reconvene during build.
 | M1-UI | opening | ACCEPTED | long-value fixture at1280×800,1648px and390×844; no clipping; screenshots retained |
 | M1-GATE | both handoffs | ACCEPTED | exact 5c7ad6f; backend, serial browser, docs, independent Sol PASS; remote CI 39999964231 success |
 | M2-ACQUISITION | M1-GATE | ACCEPTED | exact86a4434 independent Sol PASS; backend2779/browser191, docs and CI40009230663 PASS; one real Firecrawl call and replay |
-| M3-EVIDENCE | M2 | VALIDATING | independent914caf4FIX corrected through Sol recovery; root77focused tests and repaired real replay PASS; new frozen full gates/CI/re-review pending |
-| M4-INTELLIGENCE | M3 | WAIT | supported OpenAI model, cited structured assessments, deterministic gates |
+| M3-EVIDENCE | M2 | ACCEPTED | exactad6729d independentPASS; backend2823/browser191/docs/CI40021158613; real Jev and corrected replay0calls |
+| M4-INTELLIGENCE | M3 | VALIDATING | root86focused/static/docs PASS; one real gpt-6.1-sol assessment VALIDATED/UNRESOLVED and keys-disabledreplay0calls; frozen fullgates and independentreview OPEN |
 | M5-RESOLUTION | M4 | WAIT | account/project/buying chain identity,446-record investigation, five regional sources, bounded continuation |
 | M6-ACCEPTANCE | M5 | WAIT | five-project live chain, cost/latency/recovery, full regressions/browser, runbook/readiness PR |
 
-M3 recovery and replay correction handoffs are terminal. Original two repairs, independent FIX, interrupted full gates and subsequent recovery failures remain retained. Controller owns PostgreSQL/bootstrap, paid live runs, evidence, integration, commits/PR and graph. Independent Sol re-review follows the new frozen candidate. Builders cannot commit or alter shared runtime. Provider access/pricing gaps stay UNKNOWN; fixtures cannot pass live acceptance. M4 remains WAIT until M3 acceptance and secure OpenAI/model access.
+M3 accepted atad6729d; REVIEW-r1.json and EPISODE-accepted.json retain exact proof and boundaries. Original two repairs, independent FIX, interrupted full gates and subsequent recovery failures remain retained. Controller owns PostgreSQL/bootstrap, paid live runs, evidence, integration, commits/PR and graph. Builders cannot commit or alter shared runtime. Provider access/pricing gaps stay UNKNOWN; fixtures cannot pass live acceptance. Next: freeze M4 candidate; run full gates and independent exact-candidate review. These post-acceptance graph notes are outside the reviewed candidate; no product code changed.

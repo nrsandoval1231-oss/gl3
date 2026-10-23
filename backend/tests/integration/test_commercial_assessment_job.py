@@ -1,0 +1,448 @@
+import hashlib
+import json
+from decimal import Decimal
+from uuid import uuid4
+
+import pytest
+from pydantic import SecretStr
+from sqlalchemy import create_engine, select
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import sessionmaker
+
+from gridlens.integrations.intelligence_provider import ProviderResponseError
+from gridlens.intelligence.intelligence_jobs import (
+    COMMERCIAL_ASSESSMENT_TASK,
+    _current_payload,
+    enqueue_intelligence,
+)
+from gridlens.persistence import database
+from gridlens.persistence.database import Base
+from gridlens.persistence.models import (
+    Evidence,
+    EvidencePackage,
+    Job,
+    LogicalCall,
+    NeedObservation,
+    Observation,
+    PowerNeed,
+    Project,
+    Source,
+)
+from gridlens.settings import settings
+
+
+@pytest.fixture
+def sessions():
+    target = make_url(settings.test_database_url)
+    assert target.database and target.database.endswith("_test")
+    assert target != make_url(settings.database_url)
+    engine = create_engine(settings.test_database_url)
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    try:
+        yield factory
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+def seed(sessions, monkeypatch):
+    from gridlens.intelligence import evidence_packages
+
+    monkeypatch.setattr(evidence_packages, "validate_package", lambda *_args, **_kwargs: None)
+    source_id, project_id, need_id, observation_id, evidence_id, package_id = (
+        "m4-fixture-source",
+        uuid4(),
+        uuid4(),
+        uuid4(),
+        uuid4(),
+        uuid4(),
+    )
+    content = "Application stage: Permit application"
+    content_hash = hashlib.sha256(content.encode()).hexdigest()
+    fact = {
+        "field": "application_stage",
+        "value": "Permit application",
+        "label": "REPORTED",
+        "citation": {
+            "evidence_id": str(evidence_id),
+            "evidence_hash": content_hash,
+            "url": "https://example.invalid/source",
+            "excerpt_location": {
+                "field": "abstract",
+                "start": content.index("Permit"),
+                "end": len(content),
+            },
+        },
+    }
+    package_payload = {
+        "package_key": "a" * 64,
+        "processing_status": "COMPLETE_ADVISORY",
+        "identity": {"project_id": str(project_id), "need_id": str(need_id)},
+        "source_references": [
+            {
+                "evidence_id": str(evidence_id),
+                "evidence_hash": content_hash,
+                "observation_id": str(observation_id),
+                "url": "https://example.invalid/source",
+            }
+        ],
+        "facts": [fact],
+        "document_coverage": "RECORD_EXCERPT",
+        "source_collection_status": "PARTIAL",
+        "missing_fields": [],
+    }
+    with sessions.begin() as session:
+        session.add(
+            Source(
+                id=source_id,
+                publisher="Fixture",
+                endpoint="https://example.invalid",
+                family="test",
+                geography="TX",
+                industries=["power"],
+                retrieval_method="test",
+                enabled=True,
+                registry_enabled=True,
+                health={"collection_status": "PARTIAL"},
+            )
+        )
+        session.flush()
+        session.add(
+            Project(
+                id=project_id,
+                identity_key=f"m4-{project_id}",
+                name="Fixture project",
+                location="Austin, TX",
+                source_id=source_id,
+                external_id="m4-fixture",
+                identity_facts={"site_location": "Austin, TX"},
+            )
+        )
+        session.flush()
+        session.add(
+            PowerNeed(
+                id=need_id,
+                project_id=project_id,
+                activity_key="construction",
+                rationale="fixture",
+                supply="Unknown",
+            )
+        )
+        session.add(
+            Observation(
+                id=observation_id,
+                source_id=source_id,
+                external_id="m4-observation",
+                title="Fixture",
+                abstract=content,
+                url="https://example.invalid/source",
+                content_hash=content_hash,
+            )
+        )
+        session.flush()
+        session.add(
+            Evidence(
+                id=evidence_id,
+                observation_id=observation_id,
+                content_hash=content_hash,
+                title="Fixture",
+                abstract=content,
+                url="https://example.invalid/source",
+                extraction_location="title and abstract",
+            )
+        )
+        session.flush()
+        session.add(NeedObservation(need_id=need_id, observation_id=observation_id))
+        session.add(
+            EvidencePackage(
+                id=package_id,
+                package_key="a" * 64,
+                schema_version="evidence-package-v1",
+                evidence_id=evidence_id,
+                observation_id=observation_id,
+                project_id=project_id,
+                need_id=need_id,
+                evidence_hash=content_hash,
+                extractor_version="fixture",
+                question_contract="fixture",
+                provider="typesafe",
+                model="jev-1.13.0",
+                processing_status="COMPLETE_ADVISORY",
+                payload=package_payload,
+            )
+        )
+    return need_id, package_id, evidence_id
+
+
+def _enable_m4(monkeypatch):
+    values = {
+        "intelligence_enabled": True,
+        "intelligence_mode": "advisory",
+        "intelligence_enabled_contracts": COMMERCIAL_ASSESSMENT_TASK,
+        "intelligence_openai_enabled": True,
+        "openai_api_key": SecretStr("fixture-only"),
+        "intelligence_openai_reasoning_model": "gpt-6.1-sol",
+        "intelligence_openai_reasoning_priced_model_id": "gpt-6.1-sol",
+        "intelligence_openai_reasoning_pricing_verified": True,
+        "intelligence_openai_reasoning_input_usd_per_million": Decimal("2"),
+        "intelligence_openai_reasoning_output_usd_per_million": Decimal("10"),
+        "intelligence_max_active_calls": 1,
+        "intelligence_max_call_usd": Decimal("0.25"),
+    }
+    for name, value in values.items():
+        monkeypatch.setattr(settings, name, value)
+    for scope in ("global", "provider", "model", "source", "project"):
+        for period in ("daily", "monthly"):
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_calls", 10)
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_usd", Decimal("10"))
+
+
+def _wire_m4(sessions, monkeypatch):
+    from gridlens.intelligence import intelligence_jobs
+    from gridlens.jobs import worker
+
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    monkeypatch.setattr(intelligence_jobs, "SessionLocal", sessions)
+    monkeypatch.setattr(worker, "SessionLocal", sessions)
+    return worker, intelligence_jobs
+
+
+def _valid_response(request, *, model="gpt-6.1-sol", service_tier="default"):
+    payload = json.loads(request["input"])
+    answer = {
+        "disposition": "UNRESOLVED",
+        "reason_code": "EXCERPT_INSUFFICIENT",
+        "selected_fact_ids": [payload["package"]["facts"][0]["fact_id"]],
+        "research_dimensions": [
+            "REQUIRED_MW",
+            "START_WINDOW",
+            "BUYER_AUTHORITY",
+            "SUPPLY_GAP",
+            "DURATION",
+            "RENTAL_VS_PERMANENT",
+        ],
+        "next_question_id": "TEMP_LOAD_MW",
+    }
+    return {
+        "model": model,
+        "provider_response_id": "fixture-m4-response",
+        "latency_ms": 4,
+        "service_tier": service_tier,
+        "reported_usage": {"input_tokens": 100, "output_tokens": 25, "total_tokens": 125},
+        "input_tokens": 100,
+        "output_tokens": 25,
+        "output": answer,
+    }
+
+
+def _queue_job(sessions, need_id, package_id):
+    with sessions.begin() as session:
+        return enqueue_intelligence(
+            session,
+            need_id=need_id,
+            task_type=COMMERCIAL_ASSESSMENT_TASK,
+            package_id=package_id,
+        ).id
+
+
+def test_exact_package_job_is_fresh_and_replay_payload_is_deterministic(sessions, monkeypatch):
+    need_id, package_id, _evidence_id = seed(sessions, monkeypatch)
+    with sessions.begin() as session:
+        job = enqueue_intelligence(
+            session, need_id=need_id, task_type=COMMERCIAL_ASSESSMENT_TASK, package_id=package_id
+        )
+        checkpoint = json.loads(job.checkpoint)
+        first = checkpoint["payload"]
+        second = _current_payload(session, checkpoint, need_id)
+        assert first == second
+        assert checkpoint["package_id"] == str(package_id)
+        assert first["package"]["document_coverage"] == "RECORD_EXCERPT"
+        assert first["package"]["source_collection_status"] == "PARTIAL"
+        assert first["package"]["facts"][0]["fact_id"].startswith("f-")
+
+
+def test_package_row_payload_status_mismatch_blocks_enqueue(sessions, monkeypatch):
+    need_id, package_id, _evidence_id = seed(sessions, monkeypatch)
+    with sessions.begin() as session:
+        package = session.get(EvidencePackage, package_id)
+        package.payload = {**package.payload, "processing_status": "PREPARED"}
+    with (
+        sessions.begin() as session,
+        pytest.raises(ValueError, match="row and payload status mismatch"),
+    ):
+        enqueue_intelligence(
+            session, need_id=need_id, task_type=COMMERCIAL_ASSESSMENT_TASK, package_id=package_id
+        )
+
+
+def test_changed_retained_evidence_blocks_current_payload(sessions, monkeypatch):
+    need_id, package_id, evidence_id = seed(sessions, monkeypatch)
+    with sessions.begin() as session:
+        job = enqueue_intelligence(
+            session, need_id=need_id, task_type=COMMERCIAL_ASSESSMENT_TASK, package_id=package_id
+        )
+        checkpoint = json.loads(job.checkpoint)
+        evidence = session.get(Evidence, evidence_id)
+        evidence.content_hash = "f" * 64
+    with sessions.begin() as session, pytest.raises(ValueError, match="no longer current"):
+        _current_payload(session, checkpoint, need_id)
+
+
+def test_worker_completes_exact_m4_and_reentry_does_not_dispatch_again(sessions, monkeypatch):
+    _enable_m4(monkeypatch)
+    need_id, package_id, _ = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    calls = []
+
+    def provider(**kwargs):
+        calls.append(kwargs["request"])
+        return _valid_response(kwargs["request"])
+
+    monkeypatch.setattr(jobs, "call_openai_request", provider)
+    job_id = _queue_job(sessions, need_id, package_id)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    assert worker.run_one({}, job_ids=[job_id]) is False
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        call = session.scalar(select(LogicalCall))
+        need = session.get(PowerNeed, need_id)
+        package = session.get(EvidencePackage, package_id)
+    checkpoint = json.loads(job.checkpoint)
+    assert checkpoint["status"] == "completed"
+    assert call.status == "COMPLETED"
+    assert call.result_payload["service_tier"] == "default"
+    assert call.result_payload["reported_usage"]["input_tokens"] == 100
+    assert call.result_payload["usage"]["cost_basis"] == "conservative_usage_estimate_not_invoice"
+    assert (
+        call.result_payload["next_question"]
+        == "What exact-need evidence establishes temporary electrical load in MW?"
+    )
+    assert need.tier == "Signal"
+    assert package.processing_status == "COMPLETE_ADVISORY"
+    assert len(calls) == 1
+
+
+def test_zero_call_cap_blocks_before_provider_dispatch(sessions, monkeypatch):
+    _enable_m4(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", Decimal("0"))
+    need_id, package_id, _ = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    calls = []
+    monkeypatch.setattr(jobs, "call_openai_request", lambda **kwargs: calls.append(kwargs))
+    job_id = _queue_job(sessions, need_id, package_id)
+    worker.run_one({}, job_ids=[job_id])
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        logical_calls = session.scalars(select(LogicalCall)).all()
+    assert json.loads(job.checkpoint)["status"] == "blocked"
+    assert not logical_calls
+    assert not calls
+
+
+def test_post_dispatch_evidence_change_is_stale_and_never_retried(sessions, monkeypatch):
+    _enable_m4(monkeypatch)
+    need_id, package_id, evidence_id = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    calls = []
+
+    def provider(**kwargs):
+        calls.append(kwargs["request"])
+        with sessions.begin() as session:
+            evidence = session.get(Evidence, evidence_id)
+            evidence.abstract = "Changed after dispatch"
+        return _valid_response(kwargs["request"])
+
+    monkeypatch.setattr(jobs, "call_openai_request", provider)
+    job_id = _queue_job(sessions, need_id, package_id)
+    worker.run_one({}, job_ids=[job_id])
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        call = session.scalar(select(LogicalCall))
+    assert json.loads(job.checkpoint)["status"] == "stale"
+    assert call.status == "COMPLETED"
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("response_model", "input_tokens", "output_tokens", "expected"),
+    [
+        ("wrong-model", 100, 25, "MODEL_IDENTITY_MISMATCH"),
+        ("gpt-6.1-sol", -1, 25, "INVALID_REPORTED_USAGE"),
+        ("gpt-6.1-sol", None, 25, "MISSING_REPORTED_USAGE"),
+        ("gpt-6.1-sol", 100, 6001, "ENFORCED_OUTPUT_BOUND_EXCEEDED"),
+    ],
+)
+def test_invalid_response_identity_usage_or_output_is_quarantined(
+    sessions, monkeypatch, response_model, input_tokens, output_tokens, expected
+):
+    _enable_m4(monkeypatch)
+    need_id, package_id, _ = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    calls = []
+
+    def provider(**kwargs):
+        calls.append(kwargs["request"])
+        response = _valid_response(kwargs["request"], model=response_model)
+        response["input_tokens"] = input_tokens
+        response["output_tokens"] = output_tokens
+        response["reported_usage"] = {"input_tokens": input_tokens, "output_tokens": output_tokens}
+        return response
+
+    monkeypatch.setattr(jobs, "call_openai_request", provider)
+    job_id = _queue_job(sessions, need_id, package_id)
+    worker.run_one({}, job_ids=[job_id])
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        job = session.get(Job, job_id)
+    assert call.status == "SENT_OUTCOME_UNKNOWN", job.checkpoint
+    assert call.result_payload["billing_quarantine"]["reason"] == expected
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("tier", "input_tokens", "expected"),
+    [("flex", 100, "SERVICE_TIER_MISMATCH"), ("default", 999999, "ENFORCED_INPUT_BOUND_EXCEEDED")],
+)
+def test_wrong_tier_or_input_usage_exceeds_request_byte_bound_is_quarantined(
+    sessions, monkeypatch, tier, input_tokens, expected
+):
+    _enable_m4(monkeypatch)
+    need_id, package_id, _ = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+
+    def provider(**kwargs):
+        response = _valid_response(kwargs["request"], service_tier=tier)
+        response["input_tokens"] = input_tokens
+        response["reported_usage"]["input_tokens"] = input_tokens
+        return response
+
+    monkeypatch.setattr(jobs, "call_openai_request", provider)
+    job_id = _queue_job(sessions, need_id, package_id)
+    worker.run_one({}, job_ids=[job_id])
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+    assert call.result_payload["billing_quarantine"]["reason"] == expected
+    if expected == "SERVICE_TIER_MISMATCH":
+        assert call.result_payload["billing_quarantine"]["exposure_status"] == "UNKNOWN"
+
+
+def test_uncertain_provider_send_is_never_retried(sessions, monkeypatch):
+    _enable_m4(monkeypatch)
+    need_id, package_id, _ = seed(sessions, monkeypatch)
+    worker, jobs = _wire_m4(sessions, monkeypatch)
+    calls = []
+
+    def provider(**_kwargs):
+        calls.append(True)
+        raise ProviderResponseError("timeout", conclusive=False, response_received=False)
+
+    monkeypatch.setattr(jobs, "call_openai_request", provider)
+    job_id = _queue_job(sessions, need_id, package_id)
+    worker.run_one({}, job_ids=[job_id])
+    worker.run_one({}, job_ids=[job_id])
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+    assert call.status == "SENT_OUTCOME_UNKNOWN"
+    assert len(calls) == 1

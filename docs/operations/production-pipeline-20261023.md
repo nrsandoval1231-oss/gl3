@@ -122,3 +122,83 @@ The advisory decision is `SHOW`, which is a display decision only. It does not e
 Replay created no new calls and left the package payload, dispatch timestamps, retained evidence IDs/hashes, canonical projects and needs, and existing jobs—including the four queued buying-chain jobs—unchanged. The real zero-cap worker/ledger check also passed with `BLOCKED:GLOBAL_DAILY_CAP_ZERO`, zero logical-call rows, and zero provider attempts. Fresh and retained database migrations each passed twice with schema-drift checks. The focused evidence and signal/logical-call suite passed 64 tests.
 
 These results establish the observed M3 pilot and replay only. Frozen-candidate gates and independent review remain pending, as do M4–M6 and the overall Finish Contract. This record does not assert final milestone acceptance or authorize a deployment.
+
+## M4 commercial assessment implementation
+
+`COMMERCIAL_ASSESSMENT_V1` adds a bounded, advisory-only assessment for an exact
+current M3 package and PowerNeed. The operator runner requires `--package-id`;
+its default mode inspects metadata, `--execute` queues and runs only the exact
+need job, and `--replay` reads existing job/call metadata without dispatch or
+creating a replacement job. The task remains disabled unless explicitly named
+in `INTELLIGENCE_ENABLED_CONTRACTS` and intelligence is enabled in evaluation
+or advisory mode. It requires an eligible project and a current package whose
+database row and payload both say `COMPLETE_ADVISORY`.
+
+Before dispatch and again during the existing worker freshness check, the
+package is revalidated against retained evidence identity, hash, citation
+spans, exact need/project, and current regional eligibility. Excerpt and
+partial-source states remain visible in the model input. Output is a strict
+enumerated disposition, selected cited package fact IDs, bounded research
+dimensions, and one existing research question ID. The server constructs the
+explanatory action text. Unknown MW, start window, buyer authority, supply gap,
+duration, and rental-versus-permanent status remain unknown unless current
+deterministic need facts establish them. This advisory cannot change canonical
+facts, tiers, pursuits, or customer identity.
+
+The Responses request pins `gpt-6.1-sol`, default service tier, medium reasoning,
+30-minute prompt cache, `store:false`, no tools, and a 6,000-token output bound.
+The existing logical-call ledger enforces finite global/provider/model/source/
+project scopes and its uncertain-send quarantine. Reservation uses $2.50/M for
+all serialized request bytes and $10/M for 6,000 output tokens, capped at $0.25
+per call. The receipt records returned service tier and raw reported usage.
+Derived cost is a conservative usage estimate, never an invoice. Replay of an
+identical request reads the existing result and makes no provider call.
+
+Usage:
+
+```powershell
+uv run --project backend python scripts/run_commercial_assessment.py --package-id <package-uuid>
+uv run --project backend python scripts/run_commercial_assessment.py --package-id <package-uuid> --execute
+uv run --project backend python scripts/run_commercial_assessment.py --package-id <package-uuid> --replay
+```
+
+Fixture tests and a completed model response do not establish live M4
+acceptance. The controller owns retained-database preflight, the single capped
+pilot, exact replay proof, frozen-candidate gates, and independent review.
+
+### M4 bounded live pilot and replay
+
+The controller completed one capped live M4 assessment for package
+`082295b4-26eb-4414-a57b-af66fdb6e9f1` and need
+`97845fc4-9a71-4725-8c7e-52959816b1cd`. Logical call
+`d776be18-16b4-42b0-9888-b6f2e5678a6f` completed job
+`d4b8eaea-76e9-43cd-a75e-2e3c22f1be61` with `gpt-6.1-sol`, actual service
+tier `default`, and provider request ID `req_0d1a311d583a4c33a3f951667cd51787`.
+Reported usage was 2,705 input and 257 output tokens, including 133 reasoning
+tokens; 2,702 input tokens were written to the 30-minute cache, with zero
+cached tokens and zero 12-hour cache writes. Provider latency was 6,936 ms and
+the CLI run took 8.372 seconds. The logical-call database ceiling was $0.085483
+against a $0.0854825 reservation. The reported-usage estimate was $0.0093325;
+actual invoice cost remains `UNKNOWN`.
+
+The validated result was `UNRESOLVED` / `EXCERPT_INSUFFICIENT`, citing only
+`f-e92124bc36e1a311` (the retained stated-purpose fact). Buyer authority,
+duration, rental-versus-permanent status, required MW, start window, and supply
+gap remain unknown. The server-rendered next question was: “What dated evidence
+establishes commissioning or test-power timing for this exact need?” This
+result is advisory and does not establish rental demand or promote canonical
+qualification.
+
+A keys-disabled replay completed in 1.233 seconds without creating calls or
+jobs. The exact call and result payload, timestamps, evidence and canonical
+table hashes, existing jobs, and original M3 database remained unchanged. The
+inspect, execute, replay, final-preflight, and controller focused-gate receipts
+are preserved under ignored `.artifacts/production-pipeline/m4-live-*`,
+`m4-policy-preflight-final-r1.json`, and `m4-controller-checks-r1`. The
+controller's final focused suite reported 86 passed with tests, Ruff, format,
+and targeted mypy all green. Earlier builder receipts still record the prior
+lint/format-only failures and their subsequent fixes; they were not discarded.
+
+This proves one bounded live M4 path and exact replay only. Full repository
+finish gates and independent review remain pending; M4 acceptance and parent
+M5–M6 milestones remain open.
