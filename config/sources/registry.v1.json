@@ -693,6 +693,64 @@
       "enabled": true,
       "retention": "Public CSV fields for matching permits and the official file URL",
       "query": {"window_days": 730, "max_response_bytes": 28000000, "max_records": 200}
+    },
+    {
+      "id": "texas-tceq-egu-registrations",
+      "publisher": "Texas Commission on Environmental Quality",
+      "endpoint": "https://www2.tceq.texas.gov/airperm/index.cfm?fuseaction=airpermits.start",
+      "family": "construction-permits",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": ["data centers", "energy"],
+      "retrieval_method": "tceq-egu-search",
+      "cadence_hours": 24,
+      "publication_cadence": "NSR search ASCII result; the page states its own last-updated date. The received date is the row event.",
+      "collection_scope": "Pending standard permits for electric generating facilities (unit 8340) and natural gas electric generating units (unit 15627), and pending permit-by-rule registrations for engines and turbines (unit 7644).",
+      "coverage_limitation": "These three fixed queries are not the full NSR inventory. The existing pending-NSR listing remains a separate source. A generator or turbine row is not behind-the-meter, bridge, or temporary power unless the row text says so. Driving directions stay in the abstract; the place used for region is the near city and county.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Search-result columns for the kept rows and the official search URL",
+      "query": {"max_response_bytes": 2000000, "max_records": 400}
+    },
+    {
+      "id": "texas-puct-large-load-filings",
+      "publisher": "Public Utility Commission of Texas",
+      "endpoint": "https://interchange.puc.texas.gov/Search/Filings?ControlNumber=59142",
+      "family": "official-utility-filings",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": ["data centers", "energy"],
+      "retrieval_method": "puct-interchange",
+      "cadence_hours": 24,
+      "publication_cadence": "Interchange Excel export; each row uses its file stamp",
+      "collection_scope": "Filings in control numbers 59142 and 58481.",
+      "coverage_limitation": "This is the filing index, not an ERCOT large-load queue and not a site list. A filing is located only when its own text names a place. Docket membership is not treated as a Texas street address.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Export columns for each filing and the official item-document URL",
+      "query": {
+        "max_response_bytes": 2000000,
+        "max_records": 500,
+        "control_numbers": [59142, 58481]
+      }
+    },
+    {
+      "id": "texas-jeti-applications",
+      "publisher": "Texas Comptroller of Public Accounts",
+      "endpoint": "https://api.comptroller.texas.gov/open-data/v1/tables/jeti",
+      "family": "economic-development-publication",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": ["data centers", "energy", "industrial facilities"],
+      "retrieval_method": "jeti-open-data",
+      "cadence_hours": 24,
+      "publication_cadence": "Open-data table behind the JETI applications page. An application posted date is kept when a file states one; otherwise the row createdAt date is used.",
+      "collection_scope": "Every application object in the JETI open-data table.",
+      "coverage_limitation": "The table names an applicant and a school district. It does not name a street, city, or county, so rows are not assigned a Texas site. Posted PDFs are linked and are not downloaded. The API lastUpdated field can lag the row dates.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Index fields and official PDF links whose file names match the published path pattern",
+      "query": {"max_response_bytes": 2000000, "max_records": 200}
     }
   ]
 }

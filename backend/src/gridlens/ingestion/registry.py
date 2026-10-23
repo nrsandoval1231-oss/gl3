@@ -73,6 +73,9 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ok-deq-public-review": {"applications.deq.ok.gov"},
             "spp-interconnection-queue": {"opsportal.spp.org"},
             "cabq-building-permits": {"data.cabq.gov"},
+            "tceq-egu-search": {"www2.tceq.texas.gov"},
+            "puct-interchange": {"interchange.puc.texas.gov"},
+            "jeti-open-data": {"api.comptroller.texas.gov"},
             "retained-document": {
                 "santaclara.legistar.com",
                 "efiling.energy.ca.gov",
@@ -105,6 +108,9 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ma-cultivation-applications",
             "tceq-nsr-pending",
             "tceq-temporary-batch-plants",
+            "tceq-egu-search",
+            "puct-interchange",
+            "jeti-open-data",
             "retained-document",
             "ok-deq-public-review",
             "spp-interconnection-queue",
@@ -281,6 +287,40 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and 1 <= query.get("max_documents", 0) <= 60
                 and isinstance(query.get("development_types"), list)
                 and 1 <= len(query["development_types"]) <= 5
+            )
+        elif source["retrieval_method"] == "tceq-egu-search":
+            bounded = (
+                source.get("id") == "texas-tceq-egu-registrations"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "construction-permits"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and set(query) == {"max_response_bytes", "max_records"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_records") == 400
+            )
+        elif source["retrieval_method"] == "puct-interchange":
+            bounded = (
+                source.get("id") == "texas-puct-large-load-filings"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "official-utility-filings"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and set(query) == {"max_response_bytes", "max_records", "control_numbers"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_records") == 500
+                and query.get("control_numbers") == [59142, 58481]
+            )
+        elif source["retrieval_method"] == "jeti-open-data":
+            bounded = (
+                source.get("id") == "texas-jeti-applications"
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "economic-development-publication"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and set(query) == {"max_response_bytes", "max_records"}
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_records") == 200
             )
         elif source["retrieval_method"] == "tceq-nsr-pending":
             bounded = (

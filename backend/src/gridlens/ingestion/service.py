@@ -122,6 +122,9 @@ PERMIT_RETRIEVAL_METHODS = {
     "ok-deq-public-review",
     "spp-interconnection-queue",
     "cabq-building-permits",
+    "tceq-egu-search",
+    "puct-interchange",
+    "jeti-open-data",
 }
 
 

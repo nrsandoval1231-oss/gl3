@@ -26,6 +26,7 @@ _PERMIT_METHODS = {
     "tdlr-tabs",
     "ok-deq-public-review",
     "cabq-building-permits",
+    "tceq-egu-search",
 }
 _ENVIRONMENTAL_REVIEW_FAMILY = "environmental-review-filings"
 _ENVIRONMENTAL_REVIEW_METHODS = {"ceqanet-data-centers"}
@@ -210,6 +211,39 @@ def admit_standalone(
             "Official interconnection queue",
             "An SPP generation-interconnection row without a stated data-center or "
             "temporary, bridge, or behind-the-meter load stays queue evidence.",
+        )
+    if retrieval_method == "puct-interchange" and family == "official-utility-filings":
+        text = f"{title} {abstract or ''}".casefold()
+        explicit_load = any(
+            term in text
+            for term in (
+                "data center",
+                "datacenter",
+                "behind-the-meter",
+                "behind the meter",
+                "bridge power",
+                "temporary power",
+            )
+        )
+        if (
+            activity in {"facility-expansion", "temporary-power", "bridge-power"}
+            and explicit_load
+            and dated
+            and citation_url
+            and citation_url.startswith("https://interchange.puc.texas.gov/")
+            and identified_project
+        ):
+            return Admission(
+                True,
+                "Official utility filing",
+                "Accepted a PUCT large-load filing that names a data center or "
+                "explicit temporary, bridge, or behind-the-meter power at a stated place.",
+            )
+        return Admission(
+            False,
+            "Official utility filing",
+            "A PUCT filing without a stated place and an explicit data-center or "
+            "temporary, bridge, or behind-the-meter load stays filing evidence.",
         )
     if retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS and family == _ENVIRONMENTAL_REVIEW_FAMILY:
         return Admission(

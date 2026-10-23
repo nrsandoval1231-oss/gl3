@@ -14,10 +14,12 @@ from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.fort_worth_permits import retrieve as retrieve_fort_worth_permits
 from gridlens.ingestion.adapters.georgia_air_permits import retrieve as retrieve_georgia_air_permits
 from gridlens.ingestion.adapters.houston_permits import retrieve as retrieve_houston_permits
+from gridlens.ingestion.adapters.jeti_applications import retrieve as retrieve_jeti
 from gridlens.ingestion.adapters.ma_cultivation import retrieve as retrieve_ma_cultivation
 from gridlens.ingestion.adapters.nc_commerce import retrieve as retrieve_nc_commerce
 from gridlens.ingestion.adapters.ok_deq_public_review import retrieve as retrieve_ok_deq
 from gridlens.ingestion.adapters.publisher_rss import retrieve as retrieve_publisher_rss
+from gridlens.ingestion.adapters.puct_large_load import retrieve as retrieve_puct
 from gridlens.ingestion.adapters.rrc_flare_exceptions import (
     retrieve as retrieve_rrc_flare_exceptions,
 )
@@ -27,6 +29,7 @@ from gridlens.ingestion.adapters.san_antonio_permits import (
 from gridlens.ingestion.adapters.socrata_permits import retrieve as retrieve_socrata_permits
 from gridlens.ingestion.adapters.spp_interconnection import retrieve as retrieve_spp_queue
 from gridlens.ingestion.adapters.taylor_newsflash import retrieve as retrieve_taylor_newsflash
+from gridlens.ingestion.adapters.tceq_egu_search import retrieve as retrieve_tceq_egu
 from gridlens.ingestion.adapters.tceq_nsr_pending import retrieve as retrieve_tceq_nsr_pending
 from gridlens.ingestion.adapters.tceq_temporary_batch import (
     retrieve as retrieve_tceq_temporary_batch,
@@ -104,6 +107,12 @@ def _retrieve_source_direct(
         return retrieve_tceq_temporary_batch(source, client)
     if method == "tceq-nsr-pending":
         return retrieve_tceq_nsr_pending(source, client)
+    if method == "tceq-egu-search":
+        return retrieve_tceq_egu(source, client)
+    if method == "puct-interchange":
+        return retrieve_puct(source, client)
+    if method == "jeti-open-data":
+        return retrieve_jeti(source, client)
     if method == "taylor-newsflash":
         return retrieve_taylor_newsflash(source, client)
     if method == "ok-deq-public-review":
