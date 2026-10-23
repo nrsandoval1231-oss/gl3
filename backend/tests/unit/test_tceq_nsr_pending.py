@@ -400,7 +400,11 @@ RECORDED_PLS = (
 
 
 def test_recorded_summaries_reach_the_hours_classifier():
-    """The summary body is classified. These three official rows have no backup or BTM clause."""
+    """The summary body is classified. These three official rows have no backup or BTM clause.
+
+    A portable rock crusher is not bridge power: the portable rule needs a
+    generator, turbine, or engine in the same sentence.
+    """
     fixtures = Path(__file__).parents[1] / "fixtures"
     recorded = {}
     for permit, filename, facility, applicant in RECORDED_PLS:
@@ -412,19 +416,19 @@ def test_recorded_summaries_reach_the_hours_classifier():
         recorded[permit] = hours
 
     portable = recorded["80273L004"]
-    assert portable["classification"] == "bridge_temporary"
+    assert portable["classification"] is None
     assert portable["conflict"] is False
     assert portable["hours_per_year"] == []
-    assert portable["evidence"] == [{"clause": "portable_or_trailer_mounted", "quote": "PORTABLE"}]
+    assert portable["evidence"] == []
     portable_summary = summary_from_text(
         (fixtures / "tceq-pls-80273l004.txt").read_text(), "80273L004"
     )
-    # Drop the facility word so only the recorded summary body can match "portable".
+    # The facility name also says PORTABLE. The rock-crusher body still does not.
     from_body = _record(
         _row("CRUSHER 2", "ALLEN KELLER CO. I., LLC", "80273L004"), portable_summary
     )["permit"]["operating_hours"]
-    assert from_body["classification"] == "bridge_temporary"
-    assert from_body["evidence"] == [{"clause": "portable_or_trailer_mounted", "quote": "Portable"}]
+    assert from_body["classification"] is None
+    assert from_body["evidence"] == []
     assert (
         _record(_row("CRUSHER 2", "ALLEN KELLER CO. I., LLC", "80273L004"), None)["permit"][
             "operating_hours"
@@ -469,8 +473,8 @@ def test_recorded_summaries_reach_the_hours_classifier():
     ]
     assert len(facilities) == 18
     facility_classes = [classify_operating_hours(name)["classification"] for name in facilities]
-    assert facility_classes.count("bridge_temporary") == 1
-    assert facility_classes.count(None) == 17
+    assert facility_classes.count("bridge_temporary") == 0
+    assert facility_classes.count(None) == 18
     assert "PORTABLE CRUSHER 2" in facilities
 
     updated, egu_rows = parse_results(
@@ -483,4 +487,4 @@ def test_recorded_summaries_reach_the_hours_classifier():
     assert [
         egu_record(row, updated)["permit"]["operating_hours"]["classification"] for row in egu_rows
     ] == [None] * 3
-    assert {hours["classification"] for hours in recorded.values()} == {"bridge_temporary", None}
+    assert {hours["classification"] for hours in recorded.values()} == {None}

@@ -2,7 +2,9 @@
 
 Checked against public endpoints on October 23, 2026. A 200 response was not treated as a parse success. Registry rows are the enabled definitions. This note does not claim a scheduled production run.
 
-The ranking followed the v2 behind-the-meter, bridge, and temporary-power source notes. A generator, turbine, or filing is tagged `btm`, `bridge`, or `temporary` only when its own text uses that language. Air-permit operating hours are classified by `config/sources/air-permit-hours.v1.json`: 500 hours per year or less is backup, 2,000 through 6,000 hours per year or a portable, trailer-mounted, expiring, or temporary permit is bridge/temporary, and 8,760 hours per year with "onsite use only" is behind-the-meter. Each air-permit record stores the rule id and the matched evidence. Conflicting clauses stay unclassified.
+The ranking followed the v2 behind-the-meter, bridge, and temporary-power source notes. A generator, turbine, or filing is tagged `btm`, `bridge`, or `temporary` only when its own text uses that language. Air-permit operating hours are classified by `config/sources/air-permit-hours.v1.json`: 500 hours per year or less is backup, 2,000 through 6,000 hours per year is bridge/temporary, and 8,760 hours per year with "onsite use only" in the same sentence is behind-the-meter. A semicolon does not split that sentence, and neither does an abbreviation period such as "U.S." A portable or trailer-mounted unit is bridge/temporary only when the same sentence also names a generator, turbine, or engine. An expiring or temporary permit is bridge/temporary from that permit wording. A rock crusher that is merely called portable is not. Each air-permit record stores the rule id and the matched evidence. Conflicting clauses stay unclassified.
+
+Only New Source Review plain-language-summary rows carry summary text into that hours rule. Construction NOI rows and electric-generating-unit search rows do not fetch a summary. They classify the fields on the row itself, so an hours limit that exists only in a summary PDF is not visible on those two sources.
 
 ## Ingested
 

@@ -145,6 +145,7 @@ def parse_results(body: bytes, *, unit_id: str, unit_name: str) -> tuple[str, li
 
 
 def _record(row: dict[str, Any], updated: str) -> dict[str, Any]:
+    # EGU search rows have no plain-language summary. Hours are classified from the row fields only.
     row_id = f"TCEQ-EGU-{row['permit_number']}"
     hours = classify_operating_hours(
         " ".join(

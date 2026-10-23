@@ -114,10 +114,30 @@ def test_hour_phrasings_and_onsite_clause():
     )
     assert other_sentence["classification"] is None
     assert other_sentence["hours_per_year"] == [8760]
-    other_clause = classify_operating_hours(
-        "The generators may operate 8,760 hours per year; the yard is for onsite use only."
+    same_clause = classify_operating_hours("8,760 h/yr; onsite use only")
+    assert same_clause["classification"] == "btm"
+    assert same_clause["hours_per_year"] == [8760]
+    united_states = classify_operating_hours(
+        "The turbines may operate 8,760 hours per year at the U.S. site for on-site use only."
     )
-    assert other_clause["classification"] is None
+    assert united_states["classification"] == "btm"
+    decimal = classify_operating_hours("The engines are limited to 1.5 hours per year.")
+    assert decimal["classification"] == "backup"
+    assert decimal["hours_per_year"] == [1.5]
+    assert 5 not in decimal["hours_per_year"]
+    half_over = classify_operating_hours("limited to 500.5 hours per year")
+    assert half_over["classification"] is None
+    assert half_over["hours_per_year"] == [500.5]
+    assert (
+        classify_operating_hours("authorized for 2,000.0 hr/yr.")["classification"]
+        == "bridge_temporary"
+    )
+    assert classify_operating_hours("authorized for 2,000.0 hr/yr.")["hours_per_year"] == [2000]
+    exact_btm = classify_operating_hours(
+        "The turbines may operate 8,760.0 hours per year for onsite use only."
+    )
+    assert exact_btm["classification"] == "btm"
+    assert exact_btm["hours_per_year"] == [8760]
     assert classify_operating_hours("200 cubic yards per hour of concrete.")["evidence"] == []
     assert classify_operating_hours("hours of operation per year")["evidence"] == []
 
@@ -147,8 +167,23 @@ def test_operating_hour_boundaries_and_conflicts():
     assert btm["classification"] == "btm"
     assert classify_operating_hours("on-site use only, 8760 hours/year")["classification"] == "btm"
     portable = classify_operating_hours("portable units on trailers")
-    assert portable["classification"] == "bridge_temporary"
+    assert portable["classification"] is None
     assert portable["hours_per_year"] == []
+    assert portable["evidence"] == []
+    assert (
+        classify_operating_hours("a portable generator on a trailer")["classification"]
+        == "bridge_temporary"
+    )
+    assert (
+        classify_operating_hours("trailer-mounted engine for the yard")["classification"]
+        == "bridge_temporary"
+    )
+    assert (
+        classify_operating_hours(
+            "A portable crusher works the pit. The generator is in another sentence."
+        )["classification"]
+        is None
+    )
     assert (
         classify_operating_hours("trailer-mounted turbines, 6001 hours per year")["classification"]
         == "bridge_temporary"

@@ -109,6 +109,7 @@ def parse_results(body: bytes) -> list[dict[str, str]]:
 
 
 def _record(row: dict[str, str]) -> dict[str, Any]:
+    # NOI rows have no plain-language summary. Hours are classified from the row fields only.
     text = f"{row['site_name']} {row['permittee']} {row['site_location']}"
     tags = power_signal_tags(text)
     hours = classify_operating_hours(text)
