@@ -119,6 +119,33 @@ def test_unpunctuated_uppercase_prose_requires_postal_structure():
         assert (decision.status, decision.state) == (status, state)
 
 
+def test_la_salle_street_does_not_hold_an_illinois_site_as_louisiana():
+    """An Illinois address was held because the street token LA looked like Louisiana."""
+    street = "400 S LA SALLE ST, Chicago, IL"
+    decision = classify_project_region(street)
+    assert (decision.status, decision.state, decision.reason) == (
+        "EXCLUDED",
+        "IL",
+        "project_site_outside_region",
+    )
+    split = classify_project_region("Chicago, IL", {"site_address": "400 S LA SALLE ST"})
+    assert (split.status, split.state, split.reason) == (
+        "EXCLUDED",
+        "IL",
+        "project_site_outside_region",
+    )
+    assert "LA" not in split.provenance["possible_state_suffixes"].get(
+        "identity_facts.site_address", []
+    )
+    louisiana = classify_project_region("Baton Rouge, LA")
+    named = classify_project_region("Baton Rouge, Louisiana")
+    assert (louisiana.status, louisiana.state) == ("EXCLUDED", "LA")
+    assert (named.status, named.state) == ("EXCLUDED", "LA")
+    # A trailing state code is still a conflict. Only the mid-street token is ignored.
+    conflict = classify_project_region("Austin, TX; Baton Rouge LA")
+    assert (conflict.status, conflict.reason) == ("HOLD", "conflicting_project_site_states")
+
+
 def test_owner_region_acceptance_matrix():
     cases = [
         ("Dallas, TX", {}, "ELIGIBLE", "TX"),

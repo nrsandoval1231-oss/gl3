@@ -24,6 +24,8 @@ _PERMIT_METHODS = {
     "fort-worth-permits",
     "san-antonio-permits",
     "tdlr-tabs",
+    "ok-deq-public-review",
+    "cabq-building-permits",
 }
 _ENVIRONMENTAL_REVIEW_FAMILY = "environmental-review-filings"
 _ENVIRONMENTAL_REVIEW_METHODS = {"ceqanet-data-centers"}
@@ -175,6 +177,40 @@ def admit_standalone(
         )
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return Admission(True, origin, "Accepted evidence from an official permit source.")
+    if retrieval_method == "spp-interconnection-queue" and family == "interconnection-queue":
+        text = f"{title} {abstract or ''}".casefold()
+        explicit_load = any(
+            term in text
+            for term in (
+                "data center",
+                "datacenter",
+                "behind-the-meter",
+                "behind the meter",
+                "bridge power",
+                "temporary power",
+            )
+        )
+        if (
+            activity in {"facility-expansion", "temporary-power", "bridge-power"}
+            and explicit_load
+            and dated
+            and citation_url
+            and citation_url.startswith("https://opsportal.spp.org/")
+            and identified_project
+        ):
+            return Admission(
+                True,
+                "Official interconnection queue",
+                "Accepted an SPP interconnection row that states a data-center or "
+                "explicit temporary, bridge, or behind-the-meter load. Queue MW is "
+                "generation injection, not site load.",
+            )
+        return Admission(
+            False,
+            "Official interconnection queue",
+            "An SPP generation-interconnection row without a stated data-center or "
+            "temporary, bridge, or behind-the-meter load stays queue evidence.",
+        )
     if retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS and family == _ENVIRONMENTAL_REVIEW_FAMILY:
         return Admission(
             True,

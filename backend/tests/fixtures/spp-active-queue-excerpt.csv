@@ -1,0 +1,7 @@
+"Last Updated On",10/22/2026,
+Generation Interconnection Number,IFS Queue Number,Current Cluster,Cluster Group,Nearest Town or County,State,TO at POI,In-Service Date,Commercial Operation Date,Cessation Date,Original Generator Commercial Op Date,Capacity,MAX Summer MW,MAX Winter MW,Service Type,Requested Maximum Injection Capability (MW),Requested Network Resource Deliverability (MW),Nameplate Capacity,Generation Type,Fuel Type,Substation or Line,Request Received,Date Withdrawn,Status,JTIQ Participant,JTIQ Commitment,Cause of Delay
+GEN-2024-341,,DISIS,,Kingfisher County,OK,OG&E,,,,,1045,1045,1045,ER,1045,0,1045,Thermal,Gas,Kingfisher 345,3/1/2026,,DISIS STAGE,,,
+GEN-2026-PR18,,STUDY,,Lea County,NM,SPS,,,,,30,30,30,ER,30,0,30,Thermal,,Lea 115,1/15/2026,,SPECIAL STUDY,,,
+GEN-2024-WIND,,CLUSTER,,Custer County,OK,OG&E,,,,,200,200,200,ER,200,0,200,Wind,Wind,Custer 138,2/2/2026,,IA PENDING,,,
+GEN-2024-TX,,CLUSTER,,Carson County,TX,SPS,,,,,100,100,100,ER,100,0,100,Thermal,Gas,Carson 115,2/2/2026,,IA PENDING,,,
+GEN-2026-BTM,,STUDY,,Beckham County,OK,OG&E,,,,,50,50,50,ER,0,0,50,Thermal,Gas,behind-the-meter data center yard,4/1/2026,,IA PENDING,,,

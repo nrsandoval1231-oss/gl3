@@ -100,40 +100,33 @@ def read_tceq_response(
         raise SourceParseError("TCEQ client must not automatically follow redirects")
     current = _route(url, route)
     host = RECORDS_HOST if route == "record_pdf" else HOST
-    previous_host = client.headers.get("Host")
-    try:
-        for hop in range(_MAX_REDIRECTS + 1):
-            ip = _public_ip(host)
-            # Match the pinned public-fetch pattern: connect to the validated IP while
-            # retaining the official Host header and certificate/SNI name.
-            client.headers["Host"] = host
-            pinned_url = httpx.URL(current).copy_with(host=ip)
-            try:
-                headers, body = read_bounded_response(
-                    client,
-                    str(pinned_url),
-                    max_bytes,
-                    extensions={"sni_hostname": host},
-                )
-            except httpx.HTTPStatusError as exc:
-                response = exc.response
-                if response.status_code not in {301, 302, 303, 307, 308} or hop == _MAX_REDIRECTS:
-                    raise
-                location = response.headers.get("location")
-                if not location:
-                    raise SourceParseError("TCEQ redirect has no destination") from exc
-                current = _route(urljoin(current, location), route)
-                continue
-            media_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
-            expected_type = "text/html" if route == "listing" else "application/pdf"
-            if media_type != expected_type:
-                raise SourceParseError("TCEQ response has an unexpected media type")
-            if route in {"pdf", "record_pdf"} and not body.startswith(b"%PDF-"):
-                raise SourceParseError("TCEQ document does not have a PDF signature")
-            return headers, body
-        raise SourceParseError("TCEQ redirect limit exceeded")
-    finally:
-        if previous_host is None:
-            client.headers.pop("Host", None)
-        else:
-            client.headers["Host"] = previous_host
+    for hop in range(_MAX_REDIRECTS + 1):
+        ip = _public_ip(host)
+        # Connect to the validated IP while sending the official Host header
+        # on this request only. The shared client header map is left unchanged.
+        pinned_url = httpx.URL(current).copy_with(host=ip)
+        try:
+            headers, body = read_bounded_response(
+                client,
+                str(pinned_url),
+                max_bytes,
+                headers={"Host": host},
+                extensions={"sni_hostname": host},
+            )
+        except httpx.HTTPStatusError as exc:
+            response = exc.response
+            if response.status_code not in {301, 302, 303, 307, 308} or hop == _MAX_REDIRECTS:
+                raise
+            location = response.headers.get("location")
+            if not location:
+                raise SourceParseError("TCEQ redirect has no destination") from exc
+            current = _route(urljoin(current, location), route)
+            continue
+        media_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        expected_type = "text/html" if route == "listing" else "application/pdf"
+        if media_type != expected_type:
+            raise SourceParseError("TCEQ response has an unexpected media type")
+        if route in {"pdf", "record_pdf"} and not body.startswith(b"%PDF-"):
+            raise SourceParseError("TCEQ document does not have a PDF signature")
+        return headers, body
+    raise SourceParseError("TCEQ redirect limit exceeded")

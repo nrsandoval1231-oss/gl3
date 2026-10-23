@@ -22,6 +22,50 @@ PDF_URL = (
 )
 
 
+def test_host_header_is_per_request_and_does_not_mutate_the_shared_client(monkeypatch):
+    import threading
+
+    import gridlens.ingestion.adapters.tceq_http as policy
+
+    monkeypatch.setattr(policy, "_public_ip", lambda _host: "8.8.8.8")
+    barrier = threading.Barrier(2)
+    seen: list[tuple[str, str]] = []
+    lock = threading.Lock()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        barrier.wait(timeout=2)
+        with lock:
+            seen.append((str(request.url), request.headers["host"]))
+        # The shared client header must stay untouched while both requests run.
+        assert client.headers.get("Host") == "preserve.example"
+        if request.headers["host"] == HOST:
+            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html/>")
+        return httpx.Response(200, headers={"content-type": "application/pdf"}, content=b"%PDF-1.7")
+
+    client = httpx.Client(
+        headers={"Host": "preserve.example"},
+        follow_redirects=False,
+        transport=httpx.MockTransport(handler),
+    )
+    errors: list[BaseException] = []
+
+    def run(url: str, route: str) -> None:
+        try:
+            read_tceq_response(client, url, 100, route=route)
+        except BaseException as exc:
+            errors.append(exc)
+
+    listing = threading.Thread(target=run, args=(NSR_LISTING, "listing"))
+    record = threading.Thread(target=run, args=(RECORD_URL, "record_pdf"))
+    listing.start()
+    record.start()
+    listing.join()
+    record.join()
+    assert errors == []
+    assert {host for _url, host in seen} == {HOST, RECORDS_HOST}
+    assert client.headers["Host"] == "preserve.example"
+
+
 def test_listing_request_pins_public_dns_and_restores_host_header(monkeypatch):
     import gridlens.ingestion.adapters.tceq_http as policy
 

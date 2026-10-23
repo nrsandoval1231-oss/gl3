@@ -6,6 +6,7 @@ import httpx
 
 from gridlens.ingestion.adapters.boston_permits import retrieve as retrieve_boston_permits
 from gridlens.ingestion.adapters.bounded_http import run_isolated
+from gridlens.ingestion.adapters.cabq_building_permits import retrieve as retrieve_cabq_permits
 from gridlens.ingestion.adapters.ceqanet import retrieve as retrieve_ceqanet
 from gridlens.ingestion.adapters.dallas_permits import retrieve as retrieve_dallas_permits
 from gridlens.ingestion.adapters.el_paso_permits import retrieve as retrieve_el_paso_permits
@@ -15,6 +16,7 @@ from gridlens.ingestion.adapters.georgia_air_permits import retrieve as retrieve
 from gridlens.ingestion.adapters.houston_permits import retrieve as retrieve_houston_permits
 from gridlens.ingestion.adapters.ma_cultivation import retrieve as retrieve_ma_cultivation
 from gridlens.ingestion.adapters.nc_commerce import retrieve as retrieve_nc_commerce
+from gridlens.ingestion.adapters.ok_deq_public_review import retrieve as retrieve_ok_deq
 from gridlens.ingestion.adapters.publisher_rss import retrieve as retrieve_publisher_rss
 from gridlens.ingestion.adapters.rrc_flare_exceptions import (
     retrieve as retrieve_rrc_flare_exceptions,
@@ -23,6 +25,7 @@ from gridlens.ingestion.adapters.san_antonio_permits import (
     retrieve as retrieve_san_antonio_permits,
 )
 from gridlens.ingestion.adapters.socrata_permits import retrieve as retrieve_socrata_permits
+from gridlens.ingestion.adapters.spp_interconnection import retrieve as retrieve_spp_queue
 from gridlens.ingestion.adapters.taylor_newsflash import retrieve as retrieve_taylor_newsflash
 from gridlens.ingestion.adapters.tceq_nsr_pending import retrieve as retrieve_tceq_nsr_pending
 from gridlens.ingestion.adapters.tceq_temporary_batch import (
@@ -103,6 +106,12 @@ def _retrieve_source_direct(
         return retrieve_tceq_nsr_pending(source, client)
     if method == "taylor-newsflash":
         return retrieve_taylor_newsflash(source, client)
+    if method == "ok-deq-public-review":
+        return retrieve_ok_deq(source, client)
+    if method == "spp-interconnection-queue":
+        return retrieve_spp_queue(source, client)
+    if method == "cabq-building-permits":
+        return retrieve_cabq_permits(source, client)
     raise SourceParseError(f"Unsupported source retrieval method: {method}")
 
 

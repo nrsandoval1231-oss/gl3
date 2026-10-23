@@ -81,8 +81,13 @@ _POSTAL_STATE_TOKEN = re.compile(
     r"(" + "|".join(sorted(_STATE_CODES)) + r")\s+\d{5}(?:-\d{4})?"
     r"\s*(?=$|[,;/])"
 )
-_POSSIBLE_STATE_TOKEN = re.compile(
-    r"(?<![A-Za-z0-9])(" + "|".join(sorted(_STATE_CODES)) + r")(?![A-Za-z0-9])"
+# A postal abbreviation is a state only when it closes a place segment, sits
+# immediately before a ZIP, or is joined to the next place by "and"/"or".
+# "LA" inside "400 S LA SALLE ST" is a street token, not Louisiana.
+_CONTEXTUAL_STATE_CODE = re.compile(
+    r"(?:^|[,;/])\s*(?:[A-Za-z0-9][A-Za-z0-9.'-]*\s+){0,8}"
+    r"(" + "|".join(sorted(_STATE_CODES)) + r")"
+    r"(?=\s*(?:$|[,;/]|\d{5}\b|\b(?:and|or)\b))"
 )
 _POSSIBLE_STATE_NAME = re.compile(
     r"(?<![A-Za-z])(" + "|".join(sorted(_STATE_NAMES, key=len, reverse=True)) + r")"
@@ -109,7 +114,7 @@ def _explicit_states(value: str) -> set[str]:
 
 
 def _possible_states(value: str) -> set[str]:
-    states = {match.group(1) for match in _POSSIBLE_STATE_TOKEN.finditer(value)}
+    states = {match.group(1) for match in _CONTEXTUAL_STATE_CODE.finditer(value)}
     states.update(
         _STATE_NAMES[match.group(1).casefold()] for match in _POSSIBLE_STATE_NAME.finditer(value)
     )
@@ -136,10 +141,10 @@ def classify_project_region(
         if value and _explicit_states(value)
     }
     unique_states = set().union(*(set(value) for value in states.values())) if states else set()
-    # A bare suffix can signal a conflict, but cannot prove a location: prose
-    # such as "Everything Is OK" is indistinguishable from a city without
-    # a comma or ZIP. Consequently legitimate bare city/state strings hold;
-    # uppercase English words matching state codes may also cause a hold.
+    # A code that closes a place segment can signal a conflict, but it cannot
+    # prove a location: "Everything Is OK" is indistinguishable from a city
+    # without a comma or ZIP. A code buried in a street ("LA SALLE") is not a
+    # state. Full names such as "Louisiana" still count.
     possible = {
         key: sorted(_possible_states(value))
         for key, value in fields.items()
