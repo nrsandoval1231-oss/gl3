@@ -17,6 +17,13 @@ def test_hours_rule_thresholds_stay_in_config():
     power = re.compile(rule["power_generation_pattern"], re.IGNORECASE)
     excluded = re.compile(rule["power_generation_exclusion_pattern"], re.IGNORECASE)
     for sample in (
+        "generator",
+        "generators",
+        "portable generator",
+        "portable generator engines",
+        "engine-driven generator",
+        "gas-fired generator",
+        "propane generator",
         "diesel generator",
         "emergency generator",
         "standby generator",
@@ -35,22 +42,10 @@ def test_hours_rule_thresholds_stay_in_config():
         assert power.search(sample), sample
         assert excluded.search(sample) is None, sample
     for sample in (
-        "generator",
-        "generators",
-        "portable generator",
         "engine",
         "engines",
         "engine-driven crusher",
         "engine-driven pump",
-        "engine-driven generator",
-        "hazardous waste generator",
-        "steam generator",
-        "waste generator",
-        "small quantity generator",
-        "gas generator",
-        "process gas generator",
-        "gas-fired generator",
-        "ozone generator",
     ):
         assert power.search(sample) is None, sample
     for sample in (
@@ -59,12 +54,15 @@ def test_hours_rule_thresholds_stay_in_config():
         "waste generator",
         "small quantity generator",
         "gas generator",
+        "process gas generator",
         "ozone generator",
         "nitrogen generator",
         "oxygen generator",
         "hydrogen generator",
     ):
         assert excluded.search(sample), sample
+        classified = classify_operating_hours(f"temporary permit for the {sample}")
+        assert classified["classification"] is None, sample
 
 
 def _record(description: str) -> dict:
@@ -223,8 +221,8 @@ def test_operating_hour_boundaries_and_conflicts():
     assert portable["hours_per_year"] == []
     assert portable["evidence"] == []
     bare_generator = classify_operating_hours("a portable generator on a trailer")
-    assert bare_generator["classification"] is None
-    assert bare_generator["evidence"] == []
+    assert bare_generator["classification"] == "bridge_temporary"
+    assert bare_generator["evidence"]
     assert (
         classify_operating_hours("a portable diesel generator on a trailer")["classification"]
         == "bridge_temporary"
@@ -268,17 +266,11 @@ def test_engine_and_temporary_wording_need_power_generation_in_the_same_clause()
         "This is a temporary permit. The generator is described in the next sentence.",
         "A portable crusher works the pit. The generator is in another sentence.",
         "A portable engine-driven pump serves the pad. Power generation is a separate sentence.",
-        "a portable generator on a trailer",
-        "temporary permit for the generator",
-        "a portable engine-driven generator",
-        "temporary permit for the engine-driven generator",
-        "The crusher holds a temporary permit. A later temporary permit covers the generator.",
         "temporary permit for the hazardous waste generator",
         "portable steam generator",
         "trailer-mounted waste generator",
         "temporary permit for a small quantity generator",
         "temporary permit for the gas generator that supplies process gas",
-        "temporary permit for the gas-fired generator",
         "portable ozone generator",
         "trailer-mounted nitrogen generator",
     )
@@ -312,6 +304,17 @@ def test_engine_and_temporary_wording_need_power_generation_in_the_same_clause()
         "portable electric generator",
         "portable power generator",
         "trailer-mounted emergency diesel engine generator",
+        "a portable generator on a trailer",
+        "temporary permit for the generator",
+        "a portable engine-driven generator",
+        "temporary permit for the engine-driven generator",
+        "temporary permit for the gas-fired generator",
+        "portable propane generator",
+        "portable generator engines",
+        "expiring permit for temporary generators",
+        "2 portable generators",
+        "Portable generators will supply power.",
+        ("The crusher holds a temporary permit. A later temporary permit covers the generator."),
     )
     for text in positives:
         result = classify_operating_hours(text)
@@ -330,7 +333,7 @@ def test_engine_and_temporary_wording_need_power_generation_in_the_same_clause()
 
 
 def test_non_electric_generator_phrases_are_not_power_context():
-    """Bare and non-electric generator uses do not tag. Qualified ones still do."""
+    """Reviewed non-electric compounds do not tag. Bare and fuel-fired generators do."""
     negatives = (
         "temporary permit for the hazardous waste generator",
         "portable steam generator",
@@ -341,10 +344,9 @@ def test_non_electric_generator_phrases_are_not_power_context():
         "trailer-mounted nitrogen generator",
         "temporary permit for the oxygen generator",
         "portable hydrogen generator",
-        "a portable generator on a trailer",
-        "temporary permit for the generator",
         "emergency hazardous waste generator on a trailer",
         "portable emergency steam generator",
+        "temporary permit for a heat recovery steam generator",
     )
     for text in negatives:
         result = classify_operating_hours(text)
@@ -366,6 +368,14 @@ def test_non_electric_generator_phrases_are_not_power_context():
         "portable genset",
         "The site is a small quantity generator. A temporary permit covers the diesel generator.",
         "temporary permit for the hazardous waste generator and the emergency generator",
+        "a portable generator on a trailer",
+        "temporary permit for the generator",
+        "portable generator engines",
+        "expiring permit for temporary generators",
+        "portable gas-fired generator",
+        "portable propane generator",
+        "temporary permit for two gas turbines and a heat recovery steam generator",
+        "portable gas turbine with a heat recovery steam generator",
     )
     for text in positives:
         result = classify_operating_hours(text)
@@ -375,17 +385,17 @@ def test_non_electric_generator_phrases_are_not_power_context():
 
 
 def test_power_negation_stays_inside_the_clause():
-    """A negated power phrase blocks bridge, backup, and behind-the-meter in that sentence."""
+    """A negated power phrase blocks only that phrase, and it does not clear an hours band."""
     suppressed = (
         "This is a temporary permit with no power generation.",
         "The portable unit is not used for power generation.",
         "trailer-mounted equipment that does not generate electricity",
         "This is a temporary permit without generators.",
         "temporary permit without a diesel generator",
-        "portable emergency generator but no power generation",
-        "The boiler is limited to 2,000 hours per year and is not used for power generation.",
-        "limited to 500 hours per year and does not generate electricity.",
-        "The turbines may operate 8,760 hours per year for onsite use only without generators.",
+        "portable unit; not a generator",
+        "portable units; no generators",
+        "temporary permit without power generation",
+        "temporary permit; no power generation equipment",
         "No. 5 is a label. This temporary permit has no power generation.",
     )
     for text in suppressed:
@@ -396,19 +406,13 @@ def test_power_negation_stays_inside_the_clause():
 
     no_power = classify_operating_hours("This is a temporary permit with no power generation.")
     assert no_power["evidence"] == [{"clause": "negated_power", "quote": "no power generation"}]
-    not_used = classify_operating_hours(
-        "The boiler is limited to 2,000 hours per year and is not used for power generation."
-    )
-    assert not_used["hours_per_year"] == [2000]
-    assert not_used["evidence"][0] == {
-        "clause": "unclassified_hours",
-        "quote": "2,000 hours per year",
-    }
+    not_used = classify_operating_hours("The portable unit is not used for power generation.")
+    assert not_used["classification"] is None
     assert {"clause": "negated_power", "quote": "not used for power generation"} in not_used[
         "evidence"
     ]
     does_not = classify_operating_hours(
-        "limited to 500 hours per year and does not generate electricity."
+        "trailer-mounted equipment that does not generate electricity"
     )
     assert does_not["classification"] is None
     assert {"clause": "negated_power", "quote": "does not generate electricity"} in does_not[
@@ -416,6 +420,36 @@ def test_power_negation_stays_inside_the_clause():
     ]
     without = classify_operating_hours("This is a temporary permit without generators.")
     assert without["evidence"] == [{"clause": "negated_power", "quote": "without generators"}]
+    hours_bridge = classify_operating_hours(
+        "The boiler is limited to 2,000 hours per year and is not used for power generation."
+    )
+    assert hours_bridge["classification"] == "bridge_temporary"
+    assert hours_bridge["hours_per_year"] == [2000]
+    assert hours_bridge["evidence"][0] == {
+        "clause": "bridge_temporary",
+        "quote": "2,000 hours per year",
+    }
+    hours_backup = classify_operating_hours(
+        "limited to 500 hours per year and does not generate electricity."
+    )
+    assert hours_backup["classification"] == "backup"
+    assert hours_backup["hours_per_year"] == [500]
+    hours_btm = classify_operating_hours(
+        "The turbines may operate 8,760 hours per year for onsite use only without generators."
+    )
+    assert hours_btm["classification"] == "btm"
+    grid = classify_operating_hours(
+        "The turbines operate 8,760 hours per year for onsite use only "
+        "and do not generate electricity for the grid."
+    )
+    assert grid["classification"] == "btm"
+    assert grid["hours_per_year"] == [8760]
+    exported = classify_operating_hours(
+        "8,760 hours per year for onsite use only; no power generation is exported."
+    )
+    assert exported["classification"] == "btm"
+    assert exported["hours_per_year"] == [8760]
+    assert any(item["clause"] == "onsite_use_only" for item in exported["evidence"])
 
     # The next sentence is a new clause. Negating something else does not suppress hours.
     backup = classify_operating_hours(
@@ -445,6 +479,27 @@ def test_power_negation_stays_inside_the_clause():
         "temporary permit for the emergency generator and the diesel tank"
     )
     assert same_sentence["classification"] == "bridge_temporary"
+    scoped = (
+        "no backup boilers; 2 portable diesel generators",
+        "no turbines; portable diesel generators",
+        "portable diesel generators, not turbines",
+        "no turbines, portable diesel generators",
+        "portable emergency generator but no power generation",
+        "No. 5 portable diesel generator",
+        "not to exceed 500 hours per year",
+        "emergency diesel generator, not to exceed 500 hours per year",
+        "portable diesel generator not to exceed 6,000 h/yr",
+        "trailer-mounted turbines will not operate more than 4,000 h/yr",
+        "No boilers are proposed. Two portable diesel generators will supply power.",
+    )
+    expected = {
+        "not to exceed 500 hours per year": "backup",
+        "emergency diesel generator, not to exceed 500 hours per year": "backup",
+    }
+    for text in scoped:
+        result = classify_operating_hours(text)
+        assert result["classification"] == expected.get(text, "bridge_temporary"), text
+        assert result["conflict"] is False, text
 
 
 def test_hour_ranges_keep_both_endpoints():
