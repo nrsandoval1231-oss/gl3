@@ -119,6 +119,9 @@ PERMIT_RETRIEVAL_METHODS = {
     "fort-worth-permits",
     "san-antonio-permits",
     "tdlr-tabs",
+    "ok-deq-public-review",
+    "spp-interconnection-queue",
+    "cabq-building-permits",
 }
 
 
