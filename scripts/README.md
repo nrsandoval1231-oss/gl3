@@ -14,6 +14,8 @@ From the repository root, run the docs graph check as `uv run --project backend 
 
 Other scripts are purpose-specific. A successful local or synthetic command is not production, live-provider, or commercial acceptance evidence.
 
+The operator-run five-case native/Firecrawl comparison is documented in [acquisition-comparison](../docs/operations/acquisition-comparison.md). Its default inspect mode consumes immutable adapter captures and makes no provider request; paid execution is explicitly bounded and isolated.
+
 Retained-only operator tools: [news reassessment](../docs/sources/project-interpretation.md#bounded-operator-reassessment) and [buying-chain backfill](../docs/operations/retained-buying-chain-backfill.md). Both use bounded pages and explicit database identity for apply; application/production actions require separate authorization. Use `uv run --project backend python scripts/<script>.py --help` from the repository root.
 
 ## Regional stabilization proof utilities
