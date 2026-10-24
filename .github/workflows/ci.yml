@@ -77,7 +77,9 @@ jobs:
         run: uv tool run --python 3.11 --from pip-audit==2.10.1 pip-audit -r .artifacts/backend-requirements.txt --disable-pip --no-deps --format json > .artifacts/backend-dependency-audit.json
         working-directory: backend
       - name: Audit brand tool dependencies
-        run: uv tool run --python 3.11 --from pip-audit==2.10.1 pip-audit -r tools/brand/requirements.txt --format json > .artifacts/brand-dependency-audit.json
+        run: |
+          mkdir -p .artifacts
+          uv tool run --python 3.11 --from pip-audit==2.10.1 pip-audit -r tools/brand/requirements.txt --format json > .artifacts/brand-dependency-audit.json
       - name: Retain brand dependency audit report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
