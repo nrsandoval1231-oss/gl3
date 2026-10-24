@@ -198,7 +198,7 @@ test('commercial queue filters backend states, exposes UNKNOWN, and saves target
   expect(await contrastRatio(page.locator('.buying-chain h3').first())).toBeGreaterThanOrEqual(4.5)
   expect(await contrastRatio(page.locator('.buying-chain-note').first())).toBeGreaterThanOrEqual(4.5)
   expect(await contrastRatio(page.locator('.buying-chain a').last())).toBeGreaterThanOrEqual(4.5)
-  await expect(page.getByRole('heading', { name: 'Buying chain' }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Buying Chain' }).first()).toBeVisible()
   await expect(page.locator('.buying-chain')).toContainText('Avery Chen')
   await expect(page.locator('.buying-chain')).toContainText('Person → project')
   await expect(page.locator('.buying-chain')).toContainText('Project relationship unknown')

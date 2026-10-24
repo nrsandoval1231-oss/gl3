@@ -4,7 +4,8 @@ import { projectTitle } from '../opportunities/projectCards'
 // Required demand is not remaining power gap; never substitute one for the other.
 export function remainingGap(item: WorkspaceNeed): string {
   const gap = item.qualified_remaining_gap
-  if (gap && typeof gap.remaining_mw_min === 'string' && typeof gap.remaining_mw_max === 'string') {
+  const required = ['required_mw_min', 'required_mw_max', 'available_mw_min', 'available_mw_max', 'remaining_mw_min', 'remaining_mw_max', 'start_window', 'duration', 'basis_quote', 'value_kind', 'calculation', 'version']
+  if (gap && required.every(key => typeof gap[key] === 'string' && gap[key].length > 0)) {
     return `${gap.remaining_mw_min}–${gap.remaining_mw_max} MW`
   }
   const projected = item.intelligence_card?.power_gap?.remaining_mw

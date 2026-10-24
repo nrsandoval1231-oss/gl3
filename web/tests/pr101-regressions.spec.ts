@@ -85,6 +85,7 @@ test('queue keeps commercial disposition separate from qualification and scopes 
   await page.goto('/')
   await expect(page.locator('.wh-queue-meta')).toContainText('Signal')
   await expect(page.locator('.wh-queue-meta')).toContainText('RESEARCH')
+  await page.locator('.wh-tools > summary').click()
   await expect(page.locator('.wh-briefing-scope')).toContainText('ignore the selected disposition')
 })
 

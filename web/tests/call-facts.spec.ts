@@ -291,7 +291,7 @@ async function openNeed(page: Page, needId: string) {
   } else {
     await topLevel.click()
   }
-  await page.getByRole('button', { name: 'Next steps', exact: true }).click()
+  await page.getByRole('button', { name: 'Notes', exact: true }).click()
 }
 
 test('exact-Need timing correction uses the server target and status is separately attributed', async ({ page }) => {

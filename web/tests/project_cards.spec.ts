@@ -539,6 +539,19 @@ test('active first-page tier click preserves ready metadata and closes its detai
 })
 
 test('active first-page tier click while loading lets the matching request settle', async ({ page }) => {
+  // Count fetch starts in the browser, not asynchronously delivered route events.
+  // StrictMode's replay can reach the route handler after the first request is seen.
+  await page.addInitScript(() => {
+    const state = window as Window & { signalFetchStarts?: number }
+    state.signalFetchStarts = 0
+    const original = window.fetch.bind(window)
+    window.fetch = (...args) => {
+      const input = args[0]
+      const url = new URL(input instanceof Request ? input.url : String(input), location.href)
+      if (url.pathname === '/api/opportunities') state.signalFetchStarts! += 1
+      return original(...args)
+    }
+  })
   const record = permit('active-tier-pending', 'Pending campus facility activity')
   let requestCount = 0
   let releaseRequest: (() => void) | undefined
@@ -563,15 +576,15 @@ test('active first-page tier click while loading lets the matching request settl
     await page.goto('/?tier=Signals')
     await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
     await expect.poll(() => requestCount).toBeGreaterThan(0)
-    const initialCount = requestCount
     await expect(page.getByText('Loading current Signal cohort…')).toBeVisible()
+    const initialCount = await page.evaluate(() => (window as Window & { signalFetchStarts?: number }).signalFetchStarts)
     await page.getByRole('button', { name: 'Signals' }).click()
     releaseRequest?.()
     await expect(page.locator('[data-opportunity-id="active-tier-pending"]')).toBeVisible()
     await expect(page.getByText('Loading current Signal cohort…')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
     await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
-    expect(requestCount).toBe(initialCount)
+    expect(await page.evaluate(() => (window as Window & { signalFetchStarts?: number }).signalFetchStarts)).toBe(initialCount)
   } finally {
     releaseRequest?.()
   }
