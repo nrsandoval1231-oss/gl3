@@ -1,0 +1,56 @@
+{
+  "version": "production-five-sources-v1",
+  "max_cases": 5,
+  "cases": [
+    {
+      "case_id": "longhorn-tceq-400428-182126",
+      "source_id": "texas-tceq-nsr-pending",
+      "external_id": "TCEQ-400428",
+      "identity_kind": "native_record_id",
+      "url": "https://www.tceq.texas.gov/downloads/permitting/air/bilingual/pending-permit-notices/182126-pls-english.pdf",
+      "media_type": "application/pdf",
+      "max_bytes": 2000000,
+      "recovery_fact_paths": ["city", "county", "purpose", "regulated_entity"]
+    },
+    {
+      "case_id": "puct-docket-index",
+      "source_id": "texas-puct-large-load-dockets",
+      "external_id": null,
+      "identity_kind": "capture_label",
+      "url": "https://interchange.puc.texas.gov/search/dockets/?UtilityType=E&ItemMatch=Equal&DocumentType=ALL&Description=large%20load&SortOrder=Ascending",
+      "media_type": "text/html",
+      "max_bytes": 2000000,
+      "recovery_fact_paths": ["rows[].control", "rows[].description"]
+    },
+    {
+      "case_id": "tceq-nsr-pending",
+      "source_id": "texas-tceq-nsr-pending",
+      "external_id": "pending-listing",
+      "identity_kind": "capture_label",
+      "url": "https://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/nsr-pending-permits.html",
+      "media_type": "text/html",
+      "max_bytes": 3000000,
+      "recovery_fact_paths": ["target.applicant", "target.facility", "target.permits[]", "target.project"]
+    },
+    {
+      "case_id": "oklahoma-deq-public-review",
+      "source_id": "oklahoma-deq-public-review",
+      "external_id": "public-review-index",
+      "identity_kind": "capture_label",
+      "url": "https://applications.deq.ok.gov/PermitsPublicReview/",
+      "media_type": "text/html",
+      "max_bytes": 2000000,
+      "recovery_fact_paths": ["[].company", "[].facility", "[].permit_no", "[].status"]
+    },
+    {
+      "case_id": "albuquerque-building-permits",
+      "source_id": "albuquerque-building-permits",
+      "external_id": "building-permits-csv",
+      "identity_kind": "capture_label",
+      "url": "https://data.cabq.gov/business/buildingpermits/BuildingPermitsCABQ-en-us.csv",
+      "media_type": "text/csv",
+      "max_bytes": 28000000,
+      "recovery_fact_paths": ["records[].number", "records[].issued", "records[].description"]
+    }
+  ]
+}

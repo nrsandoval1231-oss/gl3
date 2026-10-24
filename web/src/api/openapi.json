@@ -6151,6 +6151,191 @@
         ],
         "title": "ChangeSourceOut"
       },
+      "CommercialAssessmentCitationOut": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          },
+          "evidence_hash": {
+            "type": "string",
+            "title": "Evidence Hash"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt"
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "title",
+              "abstract"
+            ],
+            "title": "Field"
+          },
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "evidence_hash",
+          "source_url",
+          "excerpt",
+          "field",
+          "start",
+          "end"
+        ],
+        "title": "CommercialAssessmentCitationOut"
+      },
+      "CommercialAssessmentFactSupportOut": {
+        "properties": {
+          "fact_id": {
+            "type": "string",
+            "title": "Fact Id"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "support_status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "saved",
+              "unavailable",
+              "stale"
+            ],
+            "title": "Support Status"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          },
+          "citation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialAssessmentCitationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "fact_id",
+          "support_status"
+        ],
+        "title": "CommercialAssessmentFactSupportOut"
+      },
+      "CommercialAssessmentSupportOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "saved",
+              "unavailable",
+              "stale"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "document_coverage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Coverage"
+          },
+          "source_collection_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Collection Status"
+          },
+          "selected_facts": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialAssessmentFactSupportOut"
+            },
+            "type": "array",
+            "title": "Selected Facts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "selected_facts"
+        ],
+        "title": "CommercialAssessmentSupportOut"
+      },
       "CommercialResearchBody": {
         "properties": {
           "question": {
@@ -9206,6 +9391,16 @@
             ],
             "title": "Result Status"
           },
+          "commercial_assessment_support": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialAssessmentSupportOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "error": {
             "anyOf": [
               {
@@ -9391,6 +9586,16 @@
               }
             ],
             "title": "Result Status"
+          },
+          "commercial_assessment_support": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialAssessmentSupportOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "error": {
             "anyOf": [

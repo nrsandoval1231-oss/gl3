@@ -10,6 +10,10 @@ Texas RRC memberships use the regulator's operator identifier, scoped to the two
 
 Versioned project memberships retain the company, physical project, participant role, original source and evidence identifiers, evidence hash, decision basis, and superseded/retracted history. Attributed corrections require an expected version and idempotency key. Automatic refresh must preserve corrections. Distinct physical sites remain distinct even when they share an operator.
 
+TDLR TABS retained owner extraction binds the literal `Owner:` field to the selected current project, exact TABS number and official HTTPS project URL, project name, and physical site. A single unambiguous owner field supports an `owner_developer` organization relationship. Missing or conflicting owner fields, unrelated project/site context, applicant-only evidence, or a mismatched URL remain unresolved. The existing evidence-currentness and citation checks still govern publication. The registered owner does not establish purchasing authority, operating status, a supply gap, or temporary-power demand.
+
+Without a separate supported company identifier or attributed identity review, these owner claims use project-scoped company identities. Shared owner names and addresses do not consolidate distinct TABS buildings; an `aka` string is preserved literally and does not establish legal equivalence. Source publication dates remain null when absent, and registration, developer-reported start, and completion dates keep their separate meanings.
+
 ## Published account summaries
 
 Customer and unresolved-identity summaries belong to the existing `BrowseGeneration`. Maintenance validates current citations and responsibility before publication. `BrowseCustomerMembership` joins compact `BrowseRow` needs by generation and project. Ambiguous or unsupported customers remain project-specific research items rather than a combined unknown company.

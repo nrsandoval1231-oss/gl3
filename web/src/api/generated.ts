@@ -1723,6 +1723,61 @@ export interface components {
             /** Published At */
             published_at: string | null;
         };
+        /** CommercialAssessmentCitationOut */
+        CommercialAssessmentCitationOut: {
+            /** Evidence Id */
+            evidence_id: string;
+            /** Evidence Hash */
+            evidence_hash: string;
+            /** Source Url */
+            source_url: string;
+            /** Excerpt */
+            excerpt: string;
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "title" | "abstract";
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+        };
+        /** CommercialAssessmentFactSupportOut */
+        CommercialAssessmentFactSupportOut: {
+            /** Fact Id */
+            fact_id: string;
+            /** Field */
+            field?: string | null;
+            /** Value */
+            value?: string | null;
+            /** Label */
+            label?: string | null;
+            /**
+             * Support Status
+             * @enum {string}
+             */
+            support_status: "current" | "saved" | "unavailable" | "stale";
+            /** Unavailable Reason */
+            unavailable_reason?: string | null;
+            citation?: components["schemas"]["CommercialAssessmentCitationOut"] | null;
+        };
+        /** CommercialAssessmentSupportOut */
+        CommercialAssessmentSupportOut: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "current" | "saved" | "unavailable" | "stale";
+            /** Reason */
+            reason?: string | null;
+            /** Document Coverage */
+            document_coverage?: string | null;
+            /** Source Collection Status */
+            source_collection_status?: string | null;
+            /** Selected Facts */
+            selected_facts: components["schemas"]["CommercialAssessmentFactSupportOut"][];
+        };
         /** CommercialResearchBody */
         CommercialResearchBody: {
             /** Question */
@@ -2764,6 +2819,7 @@ export interface components {
             provider_response_id?: string | null;
             /** Result Status */
             result_status?: string | null;
+            commercial_assessment_support?: components["schemas"]["CommercialAssessmentSupportOut"] | null;
             /** Error */
             error: string | null;
             /** Evidence Ids */
@@ -2819,6 +2875,7 @@ export interface components {
             provider_response_id?: string | null;
             /** Result Status */
             result_status?: string | null;
+            commercial_assessment_support?: components["schemas"]["CommercialAssessmentSupportOut"] | null;
             /** Error */
             error: string | null;
             /** Evidence Ids */

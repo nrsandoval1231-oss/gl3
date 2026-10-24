@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { needB } from './fixtures/dashboard'
 
-test('dashboard preserves account table, tab history, truthful gaps, and responsive detail', async ({ page }) => {
+test('dashboard preserves account table, tab history, truthful gaps, and responsive detail', async ({ page }, testInfo) => {
   page.on('pageerror', error => { throw error })
   const requests: URL[] = []
   const rows = Array.from({ length: 26 }, (_, i) => ({ ...needB, id: `need-${i}`, project_id: `project-${i}`, company_identity_id: `company-${i}`, account_name: `Fixture Customer ${i + 1}`, commercial_organization: `Fixture Customer ${i + 1}`, name: `Site development ${i + 1}`, browse_title: `Site development ${i + 1}`, project_count: 2, need_count: 3, required_mw: '250', rank_score: 82 - i, start_window: 'Not established', intelligence_card: { ...needB.intelligence_card, need_id: `need-${i}`, project_id: `project-${i}`, fields: needB.intelligence_card.fields.map(f => ({ ...f, value: f.key === 'customer' ? `Fixture Customer ${i + 1}` : f.key === 'project' ? `Site development ${i + 1}` : f.value })) } }))
@@ -41,14 +41,14 @@ test('dashboard preserves account table, tab history, truthful gaps, and respons
     if (width === 768) await page.locator('.wh-detail').scrollIntoViewIfNeeded()
     else await page.evaluate(() => window.scrollTo(0, 0))
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-    await page.screenshot({ path: `../docs/design/screenshots/fixture-dashboard-${width}x${height}.png` })
+    await page.screenshot({ path: testInfo.outputPath(`fixture-dashboard-${width}x${height}.png`) })
   }
   await page.getByRole('button', { name: 'Back to power needs', exact: true }).click()
   await expect(page.locator('.opportunity-select').first()).toBeVisible()
   await expect(page.locator('.wh-sort select')).toBeInViewport()
   const tools = await page.locator('.wh-tools > summary').boundingBox()
   expect(tools!.x + tools!.width).toBeLessThanOrEqual(390)
-  await page.screenshot({ path: '../docs/design/screenshots/fixture-dashboard-mobile-list.png' })
+  await page.screenshot({ path: testInfo.outputPath('fixture-dashboard-mobile-list.png') })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByRole('textbox', { name: 'Search workspace' }).fill('customer')
   await expect.poll(() => requests.at(-1)?.searchParams.get('search')).toBe('customer')

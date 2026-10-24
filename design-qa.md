@@ -1,11 +1,9 @@
 # GridLens implementation visual QA
 
-**final result: blocked** — exact brand fidelity and populated real-data acceptance remain unverified.
+**Current bounded result (2026-10-24): PASS_BOUNDED_POPULATED_REAL_DATA_UI.** The owner accepted the existing brand geometry and wordmark; provenance is recorded in `docs/design/brand.tokens.json`. This records explicit owner acceptance in chat. No additional comparison or independent graphic verification is claimed.
 
-Implementation visual review passes with no remaining P1/P2 findings, independently reviewed across 1648×928, 1440×900, 1280×800, 768×1024, and 390×844. Source: owner-provided inline dashboard. Rendered evidence: `docs/design/screenshots/fixture-dashboard-*.png`, including mobile list; separate `dashboard-*.png` captures use the authenticated real local API and its zero-row cohort.
+The retained-source browser gate passed with six authenticated accounts and 14 power needs across six checks and ten screenshots. DAL130 search/sort/clear, evidence, buying chain, saved unresolved assessment, reload/history, Prime citation/cost with Invoice `UNKNOWN`, Albuquerque provider `UNKNOWN` with retry blocked, and 390px list/detail/evidence/Back were checked. There were no page JavaScript errors, external browser requests or phone-width overflow. The isolated source matched across all 66 tables; the 15 protected clone tables were unchanged, with no new jobs or logical calls. See [PR116 acceptance evidence](docs/design/PR116_ACCEPTANCE_20261024.md).
 
-Corrected: desktop proportions, header treatment, KPI arrangement, dense columns, persistent table on account selection, mobile/tablet detail, toolbar clipping, sticky-header occlusion, account-menu contrast and selection/tab/direct-entry history.
+Selected real screenshots: [DAL130 desktop](docs/design/screenshots/accepted-real-dal130-desktop-20261024.png), [DAL130 mobile](docs/design/screenshots/accepted-real-dal130-mobile-20261024.png), and [Albuquerque UNKNOWN mobile](docs/design/screenshots/accepted-real-albuquerque-unknown-mobile-20261024.png). Fixture and empty-cohort captures remain historical. The earlier P3 observation about a strip of rows below the sticky footer remains recorded in the implementation report.
 
-P3: a small strip of scrolled rows can remain visible below the sticky footer. No P1/P2 issue remains in independent review.
-
-Blocking dependencies: PR #115's logo geometry/wordmark verification flags remain false; there is no populated eligible local API cohort. Do not merge or claim exact parity. See `docs/design/DASHBOARD_IMPLEMENTATION.md` for changes, provenance, measurements, tests and delivery limitations.
+This bounded gate does not complete M6, the original 446-record QA corpus requirement or the parent Finish Contract. Full exact-candidate gates, independent review, fresh GitHub CI and merge remain pending. No deployment occurred.

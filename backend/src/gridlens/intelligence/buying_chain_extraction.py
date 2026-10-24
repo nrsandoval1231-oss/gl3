@@ -59,6 +59,8 @@ _AMBIGUOUS = re.compile(
     re.I,
 )
 _RENTAL = re.compile(r"\b(?:rental|equipment hire)\b", re.I)
+_TDLR_SOURCE = "texas-tdlr-tabs-data-centers"
+_TDLR_NUMBER = re.compile(r"^TABS-(TABS\d{10})$")
 
 
 @dataclass
@@ -247,7 +249,90 @@ CHICAGO_CATEGORIES = {
 }
 
 
-def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -> list[Extracted]:
+def _extract_tdlr_retained_owner(doc: PublicDocument, project: Project) -> list[Extracted]:
+    """Resolve only the literal Owner field on the selected official TABS project page."""
+    project_number = _TDLR_NUMBER.fullmatch(project.external_id or "")
+    try:
+        parts = urlsplit(doc.url)
+        port = parts.port
+    except ValueError:
+        return []
+    if (
+        project.source_id != _TDLR_SOURCE
+        or not project_number
+        or parts.scheme != "https"
+        or parts.hostname != "www.tdlr.texas.gov"
+        or port is not None
+        or parts.username is not None
+        or parts.password is not None
+        or parts.path != f"/TABS/Search/Project/{project_number.group(1)}"
+        or parts.query
+        or parts.fragment
+    ):
+        return []
+
+    def field_values(label: str) -> list[str]:
+        return re.findall(rf"^{re.escape(label)}:[ \t]*(.*?)[ \t]*$", doc.text, re.M)
+
+    project_fields = field_values("Project")
+    location_fields = field_values("Location")
+    owner_lines = re.findall(r"^Owner:[ \t]*[^\r\n]*$", doc.text, re.M)
+    if len(project_fields) != 1 or len(location_fields) != 1 or len(owner_lines) != 1:
+        return []
+
+    source_project = project_fields[0]
+    selected_names = _project_names(project)
+    project_name_matches = any(
+        re.fullmatch(re.escape(name) + r"(?:\s+\([^\r\n]*\))?", source_project, re.I)
+        for name in selected_names
+        if name
+    )
+    source_location = location_fields[0]
+    if not project_name_matches or normalized_identity(source_location) in {
+        "",
+        "not stated",
+        "unknown",
+    }:
+        return []
+    selected_sites = [(project.identity_facts or {}).get("site"), project.location]
+    if not any(
+        normalized_identity(source_location) == normalized_identity(site)
+        or same_physical_site(source_location, site)
+        for site in selected_sites
+        if site
+    ):
+        return []
+
+    owner_line = owner_lines[0]
+    organization = owner_line.removeprefix("Owner:").strip()
+    owner_key = normalized_identity(organization)
+    if (
+        not organization
+        or len(organization) > 200
+        or owner_key in {"not stated", "unknown", "none", "n a", "na", "not available"}
+        or not re.search(r"[A-Za-z]", organization)
+        or _RENTAL.search(organization)
+    ):
+        return []
+
+    return [
+        Extracted(
+            organization,
+            Category.OWNER.value,
+            organization_relationship="DIRECT",
+            reason=(
+                "TDLR lists this organization as owner of the registered project; this does not "
+                "establish purchasing authority, current operational status, a supply gap, or "
+                "temporary-power demand."
+            ),
+            citations=[_citation(doc, owner_line, "project_organization")],
+        )
+    ]
+
+
+def extract_retained_permit_organizations(
+    doc: PublicDocument, source_id: str, *, project: Project | None = None
+) -> list[Extracted]:
     from gridlens.ingestion.adapters.retained_document import retained_organization_claims
 
     f17 = retained_organization_claims(
@@ -274,6 +359,8 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
             )
             for claim in f17
         ]
+    if source_id == _TDLR_SOURCE:
+        return _extract_tdlr_retained_owner(doc, project) if project is not None else []
     if source_id == "ma-ccc-cultivation-applications":
         applicant = permit_fields(source_id, doc.text).get("applicant_org")
         if not applicant or _RENTAL.search(applicant[0]):

@@ -23,7 +23,7 @@ Consume the existing [intelligence projection](../architecture/OPPORTUNITY_INTEL
 2. Replace old font declarations, hard-coded legacy colors and contradictory docs; remove orphaned assets after all references are migrated.
 3. Verify no left toolbar/sidebar or photography/maps across actual routes, including desktop and mobile.
 4. Run build, tests and visual comparisons at 1648x928, 1440x900, 1280x800, 768x1024 and 390x844; independently inspect final candidate.
-5. Do not merge or deploy before the logo and UI are verified; do not claim brand parity from a mockup alone.
+5. Owner acceptance of the existing logo geometry and wordmark is recorded in `brand.tokens.json`. Complete exact-candidate implementation, browser, and required review gates before merge; do not claim independent graphic verification or exact pixel parity from mockups.
 
 ## October 24 implementation evidence
 
@@ -31,4 +31,4 @@ See [dashboard implementation report](DASHBOARD_IMPLEMENTATION.md) and [screensh
 
 Existing Opportunities, Research, Signals and Operations destinations remain functional. The screenshot’s Power Markets, Permits, Interconnection and Reports destinations have no implemented routes and are not fabricated. Customer aggregation remains inside Opportunities. No favorite/watchlist write API is invented.
 
-The original source geometry/wordmark verification flags remain false. Do not treat UI integration or automated asset validation as approval of that trace.
+Owner acceptance of the existing geometry and wordmark was recorded on 2026-10-24; no additional comparison or independent graphic verification is claimed. The bounded retained-real-source desktop/mobile UI gate passed on 2026-10-24. See [PR116 acceptance evidence](PR116_ACCEPTANCE_20261024.md). Full exact-candidate gates and independent review remain pending; parent M6 and Finish Contract remain open.

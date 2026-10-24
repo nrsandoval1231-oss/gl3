@@ -31,7 +31,7 @@ All captures are Chromium screenshots of the real running Vite application, not 
 
 [Phone list](screenshots/fixture-dashboard-mobile-list.png). Additional `fixture-workspace-*` captures test adversarial long customer/project names. Fixture names, scores and records exist only in tests and never enter application operation or the local database.
 
-Local runtime: existing loopback PostgreSQL and API were started; existing migrations were applied to the local development database. The first capture correctly exposed an unpublished cohort. Running the existing saved-browse projection builder published **zero eligible rows**. Final `dashboard-*` captures show this real empty cohort and authenticated session. No new discovery records or provider calls were created. This verifies real login/API/empty-state rendering, not populated real-data acceptance.
+Historical local-runtime run: existing loopback PostgreSQL and API were started; existing migrations were applied to the local development database. The first capture exposed an unpublished cohort. Running the existing saved-browse projection builder published **zero eligible rows**; the `dashboard-*` captures show that real empty cohort and authenticated session. No new discovery records or provider calls were created. This earlier run verified only login/API/empty-state rendering; the later retained-source proof is recorded separately below.
 
 ## Visual comparison and independent review
 
@@ -43,11 +43,11 @@ Expected differences: supported existing navigation destinations and disposition
 
 ## Acceptance blockers and delivery boundary
 
-1. `brand.tokens.json` still records `geometry_verified: false` and `wordmark_verified: false`; PR #115's G/L trace and outlined wordmark are review candidates. This task reused them without redrawing or asserting approval.
-2. The local API publishes zero eligible records. Populated real-record selection/research verification requires an eligible retained cohort; fixtures do not satisfy that gate.
+1. Owner approval of PR #115's existing G/L trace and outlined wordmark is recorded on 2026-10-24 in `brand.tokens.json`. Artwork was not redrawn; no independent graphic verification is claimed.
+2. The earlier local API run published zero eligible records. Its fixtures do not establish populated acceptance. The bounded retained-source acceptance passed later; see `PR116_ACCEPTANCE_20261024.md`.
 3. Screenshot-only Power Markets, Permits, Interconnection and Reports routes do not exist. Existing Opportunities/customer accounts, Research, Signals and Operations remain functional. No fake destinations or watchlist mutation endpoint was introduced.
 
-The dashboard follow-up PR remains draft and unmerged under the owner's explicit acceptance criteria. No production deployment occurred.
+The owner-accepted brand state and bounded populated UI result are recorded as of 2026-10-24. Full exact-candidate gates, independent review, GitHub CI and merge remain pending. No production deployment occurred.
 
 ## Validation
 
@@ -56,9 +56,9 @@ The dashboard follow-up PR remains draft and unmerged under the owner's explicit
 - `npx playwright test -c playwright.brand.config.ts --workers=2`: **191 passed, 1 skipped** in each of the last two complete locked-dependency runs, including the final visible/accessible tab labels. After incorporating the concurrent account-menu/Windows fixes, the combined-branch dashboard, responsive account-menu contrast and login check passed **10/10**; build and asset validation also passed again. The skipped optional synthetic authenticated write-through check requires its dedicated isolated API setup; populated live acceptance is not claimed.
 - Browser coverage includes search, quick/advanced filters, category filters, server sorting, pagination/cohorts, account/project aggregation, keyboard selection, immediate detail replacement, tabs, reload, Back/Forward, direct-entry Back, stale responses, research/title polling, buying-chain relationships, evidence provenance, notes and fact corrections, login failures, Signals and Operations.
 - Earlier runs exposed stale presentation expectations and a Signals request-count race. Tests now navigate explicitly to Evidence/Power Analysis for those workflows. The Signals invariant counts fetch starts inside the browser instead of racing asynchronous route-handler delivery during StrictMode replay; it continues to prohibit a refetch on clicking the active tier.
-- `python tools/brand/validate.py`: **216 assets passed** hashes, SVG geometry format, dimensions, alpha, filenames, active references, fonts, token consistency and eight checked semantic AA pairs. This is not visual logo approval.
+- `python tools/brand/validate.py`: **216 assets passed** hashes, SVG geometry format, dimensions, alpha, filenames, active references, fonts, token consistency and eight checked semantic AA pairs. Owner acceptance is recorded separately; this validation does not claim independent graphic verification.
 - `git diff --check`: passed. Active frontend search found no legacy Aperture/ABC Diatype/old navy literals or gold styling. Prior archived records were preserved.
-- Real API capture: authenticated session, actual zero-row saved projection, all five sizes, no page JavaScript errors and no page overflow. No production deployment or provider invocation.
+- Historical real API capture: authenticated session, actual zero-row saved projection, all five sizes, no page JavaScript errors and no page overflow. The later bounded populated retained-source result is documented separately. No production deployment or provider invocation.
 
 ## Changed files
 
@@ -73,3 +73,15 @@ The dashboard follow-up PR remains draft and unmerged under the owner's explicit
 | Updated navigation, accessibility and workflow regressions | `web/tests/{buying_chain,call-facts,commercial-pursuits,customer-accounts,environment,first_path,pr101-regressions,project_cards,workspace}.spec.ts` |
 | Reproducible real local capture | `web/scripts/capture-dashboard.mjs` (run from `web/` with API/Vite running) |
 | Canon, delivery and visual evidence | `docs/design/UI_CANON.md`, this report, `docs/design/screenshots/`, `design-qa.md` |
+
+
+## 2026-10-24 integration status
+
+The owner approved the existing brand geometry and wordmark; provenance is recorded in `brand.tokens.json` and `asset-manifest.json`. Current-main integration preserves the dashboard and commercial-assessment detail behavior. Bounded populated retained-real-source desktop/mobile acceptance **PASSED** on 2026-10-24; see `PR116_ACCEPTANCE_20261024.md`. This does not claim full product acceptance.
+
+
+## 2026-10-24 retained-source acceptance update
+
+The bounded populated real-data UI gate passed against an isolated clone of the retained M6 source. It covered six authenticated customer accounts and 14 power needs through six checks and ten screenshots, with no page errors or external browser requests. The retained source matched across all 66 tables; all 15 protected tables in the clone remained unchanged. Only derived browse tables and authentication login/session tables changed in the clone. No source acquisition, worker execution, or provider call occurred. See [acceptance evidence and screenshot set](PR116_ACCEPTANCE_20261024.md).
+
+This result does not complete M6, the original 446-record QA corpus gate, the parent Finish Contract, full exact-candidate gates, independent review or GitHub CI.

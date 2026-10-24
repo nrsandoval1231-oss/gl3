@@ -149,19 +149,21 @@ with canonical promotion prohibited and independent verification required.
    providers, collection, monitoring and research switches still OFF/zero. Follow
    the existing deployment command with secret-manager injection; image recreation
    without injection does not prove runtime credentials survived.
-   After deployment, if `SAVED_BROWSE_ENABLED=true`, verify the retained browse
-   cache before readiness claims:
+   The ordinary Compose stack starts the providerless browse maintainer after
+   migrations. If `SAVED_BROWSE_ENABLED=true`, verify its retained generation
+   before readiness claims:
 
    ```powershell
    cd backend
    uv run python -m gridlens.jobs.browse status
-   # If stale or pending, rebuild from retained local data only.
-   uv run python -m gridlens.jobs.browse rebuild
    uv run python -m gridlens.jobs.browse status
    ```
 
-   Then smoke authenticated browse/list/map/triage/detail reads. This rebuild uses
-   retained data and makes no provider request. Preserve worker-stop, provider-OFF,
+   If the status is pending, run `uv run python -m gridlens.jobs.browse maintain`
+   in a separate process and repeat the status check after publication.
+
+   Then smoke authenticated browse/list/map/triage/detail reads. This maintenance
+   uses retained data and makes no provider request. Preserve worker-stop, provider-OFF,
    and rollback controls throughout this prerequisite.
 4. Verify authenticated reads, unknown states, API/worker identity, source coverage,
    queue visibility and last-good commercial state before the bounded activation.
