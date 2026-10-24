@@ -13,14 +13,14 @@ async function mockApi(page: Page, loginResponse: LoginResponse) {
 }
 
 for (const [label, path] of [['workspace', '/?tier=Signals'], ['environment', '/?view=environment']] as const) {
-  test(`${label} login responds at desktop and phone sizes, then retries after a rejected password`, async ({ page }) => {
+  test(`${label} login responds at desktop and phone sizes, then retries after a rejected password`, async ({ page }, testInfo) => {
     let loginCount = 0
     await mockApi(page, async (route) => {
       loginCount += 1
       if (loginCount === 1) return route.fulfill({ status: 401, json: { detail: 'private auth provider text' } })
       return route.fulfill({ json: { authenticated: true } })
     })
-    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(path)
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
     await expect(page.getByRole('img', { name: 'GridLens' })).toBeVisible()
@@ -28,10 +28,13 @@ for (const [label, path] of [['workspace', '/?tier=Signals'], ['environment', '/
     await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 
+    if (label === 'workspace') await page.screenshot({ path: testInfo.outputPath('login-1440x900.png') })
     await page.setViewportSize({ width: 390, height: 844 })
     const password = page.getByLabel('Password', { exact: true })
     await expect(password).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    expect(await password.evaluate(el => el.parentElement!.getBoundingClientRect().right <= document.querySelector('.login-panel-inner')!.getBoundingClientRect().right)).toBe(true)
+    if (label === 'workspace') await page.screenshot({ path: testInfo.outputPath('login-390x844.png') })
     await expect(password).toHaveAttribute('type', 'password')
     await expect(password).toHaveAttribute('autocomplete', 'current-password')
     await password.fill('synthetic-password')

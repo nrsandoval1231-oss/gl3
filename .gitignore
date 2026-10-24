@@ -25,3 +25,6 @@ playwright-report/
 *.egg-info/
 .env.prod
 web/pw.local.tmp.config.ts
+
+# Local reproducible brand tool environment
+.venv-brand/

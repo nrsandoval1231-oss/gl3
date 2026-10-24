@@ -1,0 +1,653 @@
+{
+  "baseline": "b3d020d34893d384073b3489e5171b0ef0a57343",
+  "scope": [
+    "web/src",
+    "web/public",
+    "tools/brand",
+    "docs/design"
+  ],
+  "note": "Baseline inventory, not a passing acceptance report. Historical matches require classification, not blind deletion.",
+  "findings": [
+    {
+      "path": "web/src/features/auth/LoginPage.tsx",
+      "line": 42,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/lockup-pursuits-v3.svg"
+      ]
+    },
+    {
+      "path": "web/src/features/auth/login.css",
+      "line": 1,
+      "category": "invalid_variable_alpha",
+      "matches": [
+        "var(--gl-harbor-navy)12"
+      ]
+    },
+    {
+      "path": "web/src/features/pursuits/ResearchChanges.css",
+      "line": 2,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324a"
+      ]
+    },
+    {
+      "path": "web/src/features/pursuits/ResearchChanges.css",
+      "line": 3,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324a"
+      ]
+    },
+    {
+      "path": "web/src/features/workspace/Workspace.tsx",
+      "line": 353,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/lockup-horizontal-white.svg"
+      ]
+    },
+    {
+      "path": "web/src/features/workspace/intelligence-card.css",
+      "line": 25,
+      "category": "legacy_palette",
+      "matches": [
+        "#f3f6f7"
+      ]
+    },
+    {
+      "path": "web/src/styles/app.css",
+      "line": 48,
+      "category": "legacy_palette",
+      "matches": [
+        "#6f879d"
+      ]
+    },
+    {
+      "path": "web/src/styles/pursuits.css",
+      "line": 1,
+      "category": "legacy_palette",
+      "matches": [
+        "#6f879d",
+        "#d5dee5",
+        "#f3f6f7"
+      ]
+    },
+    {
+      "path": "web/src/styles/pursuits.css",
+      "line": 7,
+      "category": "legacy_palette",
+      "matches": [
+        "#d5dee5"
+      ]
+    },
+    {
+      "path": "web/src/styles/pursuits.css",
+      "line": 10,
+      "category": "legacy_palette",
+      "matches": [
+        "#d5dee5"
+      ]
+    },
+    {
+      "path": "web/src/styles/pursuits.css",
+      "line": 86,
+      "category": "invalid_variable_alpha",
+      "matches": [
+        "var(--gl-harbor-navy)08"
+      ]
+    },
+    {
+      "path": "web/src/styles/workspace.css",
+      "line": 6,
+      "category": "invalid_variable_alpha",
+      "matches": [
+        "var(--gl-harbor-navy)0b"
+      ]
+    },
+    {
+      "path": "web/src/styles/workspace.css",
+      "line": 11,
+      "category": "invalid_variable_alpha",
+      "matches": [
+        "var(--gl-harbor-navy)0a"
+      ]
+    },
+    {
+      "path": "web/src/styles/workspace.css",
+      "line": 16,
+      "category": "invalid_variable_alpha",
+      "matches": [
+        "var(--gl-harbor-navy)0b"
+      ]
+    },
+    {
+      "path": "web/src/styles/workspace.css",
+      "line": 20,
+      "category": "invalid_variable_alpha",
+      "matches": [
+        "var(--gl-harbor-navy)0a"
+      ]
+    },
+    {
+      "path": "web/src/styles/workspace.css",
+      "line": 171,
+      "category": "legacy_palette",
+      "matches": [
+        "#6f879d",
+        "#d5dee5",
+        "#f3f6f7"
+      ]
+    },
+    {
+      "path": "web/src/styles/workspace.css",
+      "line": 176,
+      "category": "invalid_variable_alpha",
+      "matches": [
+        "var(--gl-harbor-navy)22"
+      ]
+    },
+    {
+      "path": "web/src/styles/workspace.css",
+      "line": 208,
+      "category": "legacy_palette",
+      "matches": [
+        "#f3f6f7"
+      ]
+    },
+    {
+      "path": "web/public/brand/aperture-gradient.svg",
+      "line": 1,
+      "category": "legacy_identity",
+      "matches": [
+        "Aperture"
+      ]
+    },
+    {
+      "path": "web/public/brand/aperture-gradient.svg",
+      "line": 2,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "web/public/brand/aperture-gradient.svg",
+      "line": 4,
+      "category": "legacy_palette",
+      "matches": [
+        "#395A75"
+      ]
+    },
+    {
+      "path": "web/public/brand/aperture-gradient.svg",
+      "line": 5,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/aperture-navy.svg",
+      "line": 1,
+      "category": "legacy_identity",
+      "matches": [
+        "Aperture"
+      ]
+    },
+    {
+      "path": "web/public/brand/aperture-navy.svg",
+      "line": 1,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "web/public/brand/aperture-white.svg",
+      "line": 1,
+      "category": "legacy_identity",
+      "matches": [
+        "Aperture"
+      ]
+    },
+    {
+      "path": "web/public/brand/app-icon-dark.svg",
+      "line": 1,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/app-icon-light.svg",
+      "line": 2,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "web/public/brand/app-icon-light.svg",
+      "line": 4,
+      "category": "legacy_palette",
+      "matches": [
+        "#395A75"
+      ]
+    },
+    {
+      "path": "web/public/brand/app-icon-light.svg",
+      "line": 5,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/favicon.svg",
+      "line": 1,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-horizontal-navy.svg",
+      "line": 2,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-horizontal-navy.svg",
+      "line": 4,
+      "category": "legacy_palette",
+      "matches": [
+        "#395A75"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-horizontal-navy.svg",
+      "line": 5,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-horizontal-navy.svg",
+      "line": 6,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-pursuits-v3.svg",
+      "line": 2,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-pursuits-v3.svg",
+      "line": 4,
+      "category": "legacy_palette",
+      "matches": [
+        "#395A75"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-pursuits-v3.svg",
+      "line": 5,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-pursuits-v3.svg",
+      "line": 6,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-stacked-navy.svg",
+      "line": 2,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-stacked-navy.svg",
+      "line": 4,
+      "category": "legacy_palette",
+      "matches": [
+        "#395A75"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-stacked-navy.svg",
+      "line": 5,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/brand/lockup-stacked-navy.svg",
+      "line": 6,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "web/public/site.webmanifest",
+      "line": 6,
+      "category": "legacy_palette",
+      "matches": [
+        "#F3F6F7"
+      ]
+    },
+    {
+      "path": "web/public/site.webmanifest",
+      "line": 7,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "web/public/site.webmanifest",
+      "line": 10,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/icon-192.png"
+      ]
+    },
+    {
+      "path": "web/public/site.webmanifest",
+      "line": 15,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/icon-512.png"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 2,
+      "category": "legacy_identity",
+      "matches": [
+        "Aperture"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 4,
+      "category": "legacy_identity",
+      "matches": [
+        "DejaVu"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 5,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/generate.py"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 25,
+      "category": "legacy_identity",
+      "matches": [
+        "DejaVu",
+        "dejavu"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 30,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 31,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 32,
+      "category": "legacy_palette",
+      "matches": [
+        "#395A75"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 33,
+      "category": "legacy_palette",
+      "matches": [
+        "#6F879D"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 34,
+      "category": "legacy_palette",
+      "matches": [
+        "#D5DEE5"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 35,
+      "category": "legacy_palette",
+      "matches": [
+        "#F3F6F7"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 49,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 51,
+      "category": "legacy_palette",
+      "matches": [
+        "#395A75"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 52,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 129,
+      "category": "legacy_palette",
+      "matches": [
+        "#17324A"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 130,
+      "category": "legacy_palette",
+      "matches": [
+        "#101F2D",
+        "#395A75"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 198,
+      "category": "legacy_identity",
+      "matches": [
+        "aperture"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 199,
+      "category": "legacy_identity",
+      "matches": [
+        "aperture"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 200,
+      "category": "legacy_identity",
+      "matches": [
+        "aperture"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 202,
+      "category": "legacy_identity",
+      "matches": [
+        "Aperture"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 226,
+      "category": "legacy_identity",
+      "matches": [
+        "aperture"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 227,
+      "category": "legacy_identity",
+      "matches": [
+        "aperture"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 239,
+      "category": "legacy_identity",
+      "matches": [
+        "aperture"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 257,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/icon-192.png"
+      ]
+    },
+    {
+      "path": "tools/brand/generate.py",
+      "line": 258,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/icon-512.png"
+      ]
+    },
+    {
+      "path": "docs/design/BRAND_ASSETS.md",
+      "line": 3,
+      "category": "legacy_identity",
+      "matches": [
+        "ABC Diatype",
+        "Aperture"
+      ]
+    },
+    {
+      "path": "docs/design/BRAND_ASSETS.md",
+      "line": 30,
+      "category": "legacy_identity",
+      "matches": [
+        "aperture"
+      ]
+    },
+    {
+      "path": "docs/design/BRAND_ASSETS.md",
+      "line": 30,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/aperture-*`,"
+      ]
+    },
+    {
+      "path": "docs/design/BRAND_ASSETS.md",
+      "line": 31,
+      "category": "asset_reference",
+      "matches": [
+        "/brand/generate.py`,"
+      ]
+    },
+    {
+      "path": "docs/design/UI_CANON.md",
+      "line": 3,
+      "category": "legacy_identity",
+      "matches": [
+        "ABC Diatype",
+        "Aperture"
+      ]
+    },
+    {
+      "path": "docs/design/UI_CANON.md",
+      "line": 20,
+      "category": "legacy_identity",
+      "matches": [
+        "Aperture"
+      ]
+    },
+    {
+      "path": "docs/design/archive/BUILD_FOCUS_EXPERIENCE_2026-10-01_SUPERSEDED.md",
+      "line": 46,
+      "category": "legacy_identity",
+      "matches": [
+        "Aperture"
+      ]
+    },
+    {
+      "path": "docs/design/brand.tokens.json",
+      "line": 28,
+      "category": "legacy_identity",
+      "matches": [
+        "ABC Diatype",
+        "Aperture"
+      ]
+    },
+    {
+      "path": "docs/design/references/opportunity-intelligence-reference.json",
+      "line": 22,
+      "category": "legacy_identity",
+      "matches": [
+        "ABC Diatype"
+      ]
+    }
+  ]
+}

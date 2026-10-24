@@ -100,14 +100,14 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
     </> : <>
       <h2>Customer accounts</h2>
       <p>Companies are grouped across their matching projects and power needs.</p>
-      <div className="ci-account-list">{accounts.map(account => <button type="button" key={account.company_identity_id} onClick={() => openAccount(account.company_identity_id!)}>
+      <div className="ci-account-list"><table className="brand-account-table"><caption className="sr-only">Customer opportunities</caption><thead><tr><th scope="col">Customer / evidence</th><th scope="col">Projects</th><th scope="col">Power needs</th></tr></thead><tbody>{accounts.map(account => <tr key={account.company_identity_id}><td><button type="button" onClick={() => openAccount(account.company_identity_id!)}>
         <strong>{account.account_name ?? account.commercial_organization ?? account.browse_title ?? 'Customer name not established'}</strong>
         <span>{account.location ?? 'Location not established'} · {account.project_count ?? '—'} projects · {account.need_count ?? '—'} power needs · {account.supporting_evidence_count ?? 0} supporting evidence items</span>
         {displayAliases(account.account_name, account.account_aliases).length ? <span>Also known as: {displayAliases(account.account_name, account.account_aliases).join(', ')}</span> : null}
         {account.last_evidence_update ? <span>Evidence updated {formatEvidenceDate(account.last_evidence_update)}</span> : null}
         <span>{account.asset_type?.replaceAll('_', ' ') ?? 'Industry not established'} · {account.tier} · {[account.required_mw ? `${account.required_mw} MW` : '', account.start_window, account.commercial_disposition].filter(Boolean).join(' · ') || 'Needs confirmation'}</span>
         <span>{account.commercial_next_action ?? 'Research needed'}</span>
-      </button>)}</div>
+      </button></td><td>{account.project_count ?? "—"}</td><td>{account.need_count ?? "—"}</td></tr>)}</tbody></table></div>
       {accountPaging}
       <details className="ci-unresolved" open={unresolvedOpen} onToggle={event => setUnresolvedOpen(event.currentTarget.open)}>
         <summary>Projects needing customer research{unresolved ? ` (${unresolved.total})` : ''}</summary>

@@ -202,9 +202,9 @@ test('operator-reported contact is history-backed, has no call action and can be
   await section.getByRole('button', { name: 'Save contact correction' }).click()
   await expect.poll(() => history.length).toBe(1)
   await expect.poll(() => historyReads).toBeGreaterThan(0)
-  if (await section.getByLabel('Corrected contact value').count() === 0) {
-    await section.getByRole('button', { name: 'Correct or retract contact' }).click()
-  }
+  // A confirmed correction remounts detail during canonical readback. Wait for
+  // the new closed form instead of racing an instantaneous count on the old one.
+  await section.getByRole('button', { name: 'Correct or retract contact' }).click()
   await expect(section.getByText(/not a verified public call or email method/)).toBeVisible()
   await expect(section.getByRole('link', { name: /Call|Email/ })).toHaveCount(0)
   await expect(section.getByRole('button', { name: 'Retract this project relationship' })).toBeVisible()

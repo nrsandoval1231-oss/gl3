@@ -1,21 +1,76 @@
 {
   "name": "GridLens",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "status": "Palette hex labels transcribed from owner board; vector geometry pending visual approval",
   "colors": {
-    "deep_current": "#101F2D",
-    "gridlens_navy": "#17324A",
-    "steel_blue": "#395A75",
-    "atmosphere": "#6F879D",
-    "mist": "#D5DEE5",
-    "ice": "#F3F6F7",
-    "white": "#FFFFFF",
-    "signal_blue": "#3B82F6"
+    "harbor_navy": "#0B1F33",
+    "deep_slate": "#23384C",
+    "slate_steel": "#607F88",
+    "sea_cliff": "#6E909A",
+    "driftwood_gray": "#A9B4BC",
+    "fog": "#E8ECEF",
+    "graphite": "#1E2A33"
   },
-  "primary_ui_color": "#17324A",
+  "typography": {
+    "display": "Sora",
+    "body": "Inter",
+    "wordmark": "Thin, widely tracked uppercase GRID LENS per approved reference; custom geometry must be traced from approved master"
+  },
   "application_tokens": {
-    "workspace_header": "#17324A",
-    "workspace_canvas": "#F3F6F7",
-    "workspace_accent": "#3B82F6",
-    "sidebar_desktop_fraction": 0.25
-  }
+    "workspace_header": "#0B1F33",
+    "workspace_canvas": "#FFFFFF",
+    "workspace_accent": "#6E909A",
+    "workspace_text": "#1E2A33",
+    "workspace_border": "#A9B4BC"
+  },
+  "constraints": [
+    "Preserve exact approved G and integrated contrasting hidden-L geometry",
+    "No gold, metallic treatments, legacy Aperture icon or ABC Diatype",
+    "Horizontal top navigation only; no left sidebar",
+    "No maps or photography in product UI",
+    "Dense opportunities table left and customer intelligence panel right",
+    "Do not claim generated raster brand board is production SVG",
+    "Logo uses exactly two colors: the upper G and diagonal return share the primary color; the integrated L uses the secondary color. Monochrome variants use one ink."
+  ],
+  "source": {
+    "kind": "owner-supplied inline brand board",
+    "dimensions": [
+      1280,
+      960
+    ],
+    "date": "2026-10-23",
+    "palette_basis": "Printed labels, not image sampling",
+    "geometry_verified": false,
+    "wordmark_verified": false
+  },
+  "semantic": {
+    "surface": "white",
+    "surface_secondary": "fog",
+    "text": "graphite",
+    "text_secondary": "deep_slate",
+    "border": "driftwood_gray",
+    "divider": "fog",
+    "interactive": "harbor_navy",
+    "interactive_hover": "deep_slate",
+    "selected": "fog",
+    "selected_text": "harbor_navy",
+    "button": "harbor_navy",
+    "button_text": "white",
+    "table_heading": "fog",
+    "navigation": "white",
+    "focus": "deep_slate",
+    "logo_primary": "harbor_navy",
+    "logo_secondary": "slate_steel",
+    "logo_dark_primary": "fog",
+    "logo_dark_secondary": "sea_cliff"
+  },
+  "status_colors": {
+    "danger": "#A22F32",
+    "danger_surface": "#FFF1ED",
+    "success": "#237343",
+    "success_surface": "#ECF8F0",
+    "warning": "#684A37",
+    "warning_surface": "#FFF9F4"
+  },
+  "status_color_basis": "Existing operational status colors retained outside the seven-color identity; always pair with text."
 }
