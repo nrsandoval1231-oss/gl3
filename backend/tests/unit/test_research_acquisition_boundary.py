@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import multiprocessing
 import os
 import pickle
@@ -13,6 +15,8 @@ from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from gridlens.ingestion.adapters.bounded_http import (
     AcquisitionFailure,
     ResponseTooLarge,
+    _isolated_result_limit,
+    _send_bounded_result,
     run_isolated,
 )
 from gridlens.ingestion.adapters.buying_chain_public import (
@@ -208,6 +212,142 @@ def test_isolated_result_size_is_bounded_before_parent_unpickles():
             {},
             deadline=time.monotonic() + 5,
         )
+
+
+def test_rrc_ipc_allowance_requires_exact_source_and_retrieval_method():
+    from gridlens.ingestion.adapters.bounded_http import (
+        _RRC_DRILLING_RESULT_BYTES,
+        MAX_ISOLATED_RESULT_BYTES,
+    )
+
+    path = "gridlens.ingestion.adapters:_retrieve_source_direct"
+    source = {
+        "id": "texas-rrc-drilling-permits",
+        "retrieval_method": "rrc-drilling-permits",
+    }
+    assert _isolated_result_limit(path, (source,)) == _RRC_DRILLING_RESULT_BYTES
+    assert _isolated_result_limit(path, ({**source, "id": "spoofed"},)) == MAX_ISOLATED_RESULT_BYTES
+    assert _isolated_result_limit(
+        path, ({**source, "retrieval_method": "rrc-flare-exceptions"},)
+    ) == MAX_ISOLATED_RESULT_BYTES
+    assert _isolated_result_limit("builtins:bytes", (source,)) == MAX_ISOLATED_RESULT_BYTES
+    assert (
+        _isolated_result_limit(path, ("texas-rrc-drilling-permits",))
+        == MAX_ISOLATED_RESULT_BYTES
+    )
+
+
+def test_rrc_ipc_bound_round_trips_large_exact_evidence_over_pipe():
+    from gridlens.ingestion.adapters.bounded_http import (
+        _RRC_DRILLING_RESULT_BYTES,
+        MAX_ISOLATED_RESULT_BYTES,
+    )
+
+    source = {
+        "id": "texas-rrc-drilling-permits",
+        "retrieval_method": "rrc-drilling-permits",
+    }
+    limit = _isolated_result_limit(
+        "gridlens.ingestion.adapters:_retrieve_source_direct", (source,)
+    )
+    raw = b"RRC fixture evidence\x00" * 350_000
+    digest = hashlib.sha256(raw).hexdigest()
+    record = {
+        "source_id": source["id"],
+        "retrieval_method": source["retrieval_method"],
+        "provenance": {"filename": "daf420.dat", "ordinal": 7},
+        "raw_b64": base64.b64encode(raw).decode("ascii"),
+        "raw_sha256": digest,
+    }
+    assert len(pickle.dumps((True, [record]), protocol=5)) > MAX_ISOLATED_RESULT_BYTES
+    assert limit == _RRC_DRILLING_RESULT_BYTES
+
+    receiver, sender = multiprocessing.get_context("spawn").Pipe(duplex=False)
+    send_errors = []
+
+    def send_result():
+        try:
+            _send_bounded_result(
+                sender,
+                True,
+                [record],
+                function_path="gridlens.ingestion.adapters:_retrieve_source_direct",
+                args=(source,),
+            )
+        except BaseException as exc:
+            send_errors.append(exc)
+
+    sender_thread = threading.Thread(target=send_result)
+    sender_thread.start()
+    received = receiver.recv_bytes(limit)
+    sender_thread.join(timeout=5)
+    receiver.close()
+    sender.close()
+    assert not sender_thread.is_alive()
+    assert not send_errors
+    success, rows = pickle.loads(received)
+    assert success is True
+    assert len(rows) == 1
+    assert rows[0]["source_id"] == source["id"]
+    assert rows[0]["retrieval_method"] == source["retrieval_method"]
+    assert rows[0]["provenance"] == {"filename": "daf420.dat", "ordinal": 7}
+    restored = base64.b64decode(rows[0]["raw_b64"], validate=True)
+    assert restored == raw
+    assert rows[0]["raw_sha256"] == hashlib.sha256(restored).hexdigest() == digest
+
+
+def test_rrc_ipc_over_limit_is_replaced_with_safe_failure_payload():
+    from gridlens.ingestion.adapters.bounded_http import _RRC_DRILLING_RESULT_BYTES
+
+    receiver, sender = multiprocessing.get_context("spawn").Pipe(duplex=False)
+    _send_bounded_result(
+        sender,
+        True,
+        b"x" * (_RRC_DRILLING_RESULT_BYTES + 1),
+        function_path="gridlens.ingestion.adapters:_retrieve_source_direct",
+        args=({
+            "id": "texas-rrc-drilling-permits",
+            "retrieval_method": "rrc-drilling-permits",
+        },),
+    )
+    message = receiver.recv_bytes(_RRC_DRILLING_RESULT_BYTES)
+    receiver.close()
+    sender.close()
+    success, error = pickle.loads(message)
+    assert success is False
+    assert isinstance(error, AcquisitionFailure)
+    assert str(error) == "acquisition_result_too_large"
+
+
+def test_parent_pipe_rejects_payload_over_selected_rrc_cap_before_unpickle():
+    from gridlens.ingestion.adapters.bounded_http import _RRC_DRILLING_RESULT_BYTES
+
+    source = {
+        "id": "texas-rrc-drilling-permits",
+        "retrieval_method": "rrc-drilling-permits",
+    }
+    limit = _isolated_result_limit(
+        "gridlens.ingestion.adapters:_retrieve_source_direct", (source,)
+    )
+    receiver, sender = multiprocessing.get_context("spawn").Pipe(duplex=False)
+    send_error = []
+
+    def send_oversized_payload():
+        try:
+            sender.send_bytes(b"x" * (limit + 1))
+        except BaseException as exc:
+            send_error.append(exc)
+
+    sender_thread = threading.Thread(target=send_oversized_payload)
+    sender_thread.start()
+    with pytest.raises(OSError):
+        receiver.recv_bytes(limit)
+    sender_thread.join(timeout=5)
+    receiver.close()
+    sender.close()
+    assert not sender_thread.is_alive()
+    assert not send_error or isinstance(send_error[0], BrokenPipeError)
+    assert limit == _RRC_DRILLING_RESULT_BYTES
 
 
 def test_isolated_rss_snapshot_preserves_validator_metadata():
