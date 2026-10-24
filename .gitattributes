@@ -1,3 +1,9 @@
 .agent/artifacts/GL3-AUDIT-A6-DISPATCH/*.bin -text -diff
 # Generated brand guide is a binary artifact, not source text.
 *.pdf binary
+# Hash-bound brand text exports use canonical LF bytes on Windows.
+tools/brand/masters/*.svg text eol=lf
+docs/design/brand.tokens.json text eol=lf
+web/public/brand/**/*.svg text eol=lf
+web/public/brand/**/*.html text eol=lf
+web/public/brand/asset-manifest.json text eol=lf

@@ -216,6 +216,8 @@ h1,h2,.login-heading{font-family:var(--gl-display-type)}
 .wh-header-search input::placeholder{color:var(--gl-text-secondary)}
 .wh-header .wh-signout{color:var(--gl-harbor-navy);border-color:var(--gl-border)}
 .wh-header .wh-signout:hover{background:var(--gl-fog)}
+.wh-account .wh-signout{color:var(--gl-fog);border-color:var(--gl-driftwood-gray)}
+.wh-account .wh-signout:hover{background:var(--gl-deep-slate)}
 .workspace-home,.wh-main,.wh-detail{background:var(--gl-surface)}
 .wh-layout.wh-opportunity-layout{grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;padding:16px}
 .wh-list,.wh-detail{min-width:0;border:1px solid var(--gl-divider);border-radius:8px;max-height:calc(100vh - 100px)}

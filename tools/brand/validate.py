@@ -53,7 +53,7 @@ def main():
             im=Image.open(p); assert im.size==(row['width'],row['height']),f'Dimensions {p}'
             lo,hi=im.convert('RGBA').getextrema()[3]
             assert lo==0 if row['transparent'] else lo==255,f'Transparency {p}'
-    assert set(names)|{'asset-manifest.json'}=={str(p.relative_to(OUT)) for p in OUT.rglob('*') if p.is_file()},'Unmanaged/orphan public assets'
+    assert set(names)|{'asset-manifest.json'}=={p.relative_to(OUT).as_posix() for p in OUT.rglob('*') if p.is_file()},'Unmanaged/orphan public assets'
     tokens=json.loads((ROOT/'docs/design/brand.tokens.json').read_text())
     css=(ROOT/'web/src/styles/brand-tokens.css').read_text()
     for name,h in tokens['colors'].items(): assert f'--gl-{name.replace("_","-")}: {h};' in css
