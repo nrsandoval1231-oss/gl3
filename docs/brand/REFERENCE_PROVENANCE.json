@@ -1,0 +1,13 @@
+{
+  "source": "Owner-supplied inline brand-board image in the implementation conversation",
+  "received_date": "2026-10-23",
+  "display_dimensions": [1280, 960],
+  "local_source_file": null,
+  "source_sha256": null,
+  "source_limitation": "The image is visible in the conversation, but no downloadable attachment identifier or local byte file was supplied. No file hash or pixel-overlay claim is fabricated.",
+  "color_basis": "Printed hexadecimal labels, not sampled shaded pixels",
+  "geometry_source": "tools/brand/masters/symbol.svg",
+  "geometry_status": "Review candidate: rounded contours, continuous hidden-L segmentation and diagonal boundary require visual approval",
+  "wordmark_status": "Outlined Inter Light reconstruction; original wordmark typeface and exact tracking not independently established",
+  "approval_required": true
+}

@@ -170,3 +170,18 @@ jobs:
       - run: npm audit --prefix web --audit-level=high
       - run: npm run typecheck --prefix web
       - run: npm run build --prefix web
+
+  brand-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          python-version: "3.11"
+      - run: uv venv .venv-brand
+      - run: uv pip install --python .venv-brand/bin/python -r tools/brand/requirements.txt
+      - name: Validate brand sources, outputs, references and contrast
+        run: .venv-brand/bin/python tools/brand/validate.py
+      # Passing structural checks is not owner visual acceptance. The manifest
+      # records review-candidate until the exact geometry and wordmark are approved.

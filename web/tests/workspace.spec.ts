@@ -48,7 +48,9 @@ test('workspace sends server filters, opens canonical detail, and restores list 
   await page.getByRole('button', { name: 'Research Gaps' }).click()
   await expect(page.getByText(/Buying authority: not evaluated in this summary/)).toBeVisible()
   await page.getByRole('button', { name: 'Overview' }).click()
-  expect(await page.locator('.wh-queue-item:first-child').evaluate(el => getComputedStyle(el).display)).toBe('flex')
+  // The October 23 workspace uses semantic table rows, preserving the same selection button.
+  await expect(page.getByRole('table', { name: 'Opportunity power needs' })).toBeVisible()
+  expect(await page.locator('.wh-queue-item:first-child').evaluate(el => getComputedStyle(el).display)).toBe('table-row')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280)
   await expect(page.getByText('A numerical gap is unavailable')).toHaveCount(0)
   await page.getByRole('button', { name: 'Evidence' }).click()

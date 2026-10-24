@@ -1,32 +1,25 @@
-# GridLens brand assets · v1.0
+# GridLens brand assets · seven-color system
 
-This is the production asset set for the approved Aperture identity. The owner-provided brand sheet is preserved at [`references/brand-system.webp`](references/brand-system.webp); generated assets live in [`../../web/public/brand/`](../../web/public/brand/). Source geometry and export settings live in [`../../tools/brand/generate.py`](../../tools/brand/generate.py).
+The October 23 owner-supplied G/hidden-L board supersedes earlier identity directions.
+Printed palette labels are recorded in `brand.tokens.json`; fonts are locally distributed Sora and Inter with SIL Open Font License notices.
 
-## Core identity
+**Current delivery is a review candidate.** Exact logo contours, flat segmentation of the shaded board and outlined wordmark require visual approval. The generator intentionally refuses production generation while geometry/wordmark approval flags are false. Do not merge or release artwork to vendors yet.
 
-The Aperture consists of four engineered pieces around an unpainted central diamond and narrow vertical openings. Keep its proportions, negative space, and upright orientation intact. The SVG is the master for new sizes; use PNG or WebP where vectors are unsupported. The outlined wordmark is self-contained in the lockup SVGs.
+See [brand guidelines](../brand/GRIDLENS_BRAND_GUIDELINES.md), [visual PDF](../brand/GRIDLENS_BRAND_GUIDE.pdf) and [candidate comparison](../../web/public/brand/review/comparison.svg).
 
-| Need | Asset |
+| Surface | Asset |
 | --- | --- |
-| Main logo on a light surface | `lockup-horizontal-navy.svg` |
-| Main logo on a dark surface | `lockup-horizontal-white.svg` |
-| Narrow compositions | `lockup-stacked-navy.svg`, `lockup-stacked-white.svg` |
-| Standalone symbol outside the product UI | `aperture-gradient.svg`, `aperture-navy.svg`, `aperture-white.svg` |
-| Dark and light application icon | `app-icon-dark.svg`, `app-icon-light.svg` |
-| Browser favicon | `favicon.svg`, `favicon.ico`, `favicon-{16,32,48}.png` |
-| Installed app and touch icon | `icon-192.png`, `icon-512.png`, `apple-touch-icon-180.png` |
-| Raster sharing and presentation | `*-1024.png`, `*-1024.webp`, `lockup-horizontal-*-1100.png`, `lockup-horizontal-*-1100.webp` |
+| Light app / login | `/brand/logos/horizontal-light.svg` |
+| Dark surface | `/brand/logos/horizontal-dark.svg` |
+| Standalone | `/brand/logos/symbol-light.svg` |
+| One ink | `/brand/logos/symbol-navy.svg`, `/brand/logos/symbol-white.svg` |
+| Browser | `/brand/icons/favicon.svg`, `favicon.ico`, `favicon-{16,32,48}.png` |
+| Installation | `/brand/icons/pwa-{192,512}.png`, `pwa-maskable-512.png`, `apple-touch-icon.png` |
+| Social | `/brand/social/sharing.png` |
+| Physical/business | `web/public/brand/production/` |
 
-The app icon is a square with its own navy or white background. The standalone mark and lockups have transparent backgrounds. `site.webmanifest` points to the installable icons.
+Complete outputs and integrity hashes are in `web/public/brand/asset-manifest.json`. Editable geometry is `tools/brand/masters/symbol.svg`; wordmark outlining is reproducible from the pinned Inter source in the generator. No embedded raster substitutes for vector geometry.
 
-## Application rules
+Regenerate with `python tools/brand/generate.py --review-candidate`, then `python tools/brand/validate.py` and `python tools/brand/guide.py` using dependencies from `tools/brand/requirements.txt`. Historical masters and generator are preserved outside the active public pipeline in `docs/design/archive/pre-seven-color/`.
 
-The October21 [UI canon](UI_CANON.md) restores the dark navy header and selective Signal Blue accents from the owner screenshot. Use an existing light-on-dark Aperture lockup once at the top left. Preserve all original masters; do not regenerate or approximate a new logo. Silver/orange v3 presentation rules are superseded for this workspace.
-
-The palette is Deep Current #101F2D, GridLens Navy #17324A, Steel Blue #395A75, Atmosphere #6F879D, Mist #D5DEE5, Ice #F3F6F7, White #FFFFFF and selective Signal Blue #3B82F6. See [tokens](brand.tokens.json).
-
-## Typography and reproducibility
-
-The brand sheet specifies ABC Diatype. That commercial font is not included in this repository. The supplied lockup exports use outlined DejaVu Sans Bold as a self-contained approximation, so the wordmark will not depend on installed fonts. Replace the wordmark outline from an authorized ABC Diatype source when the licensed master is available; the Aperture geometry and palette remain the same. The DejaVu font license is included in `../../web/public/brand/FONT-LICENSE.txt`.
-
-Run `python3 tools/brand/generate.py` from the repository root with Pillow, NumPy, fontTools and DejaVu Sans Bold installed to regenerate the exports. The generator does not need any old GridLens code.
+Owner correction, October 24: the logo uses two colors only (one ink for monochrome). Both G segments share the primary color; the integrated L uses the secondary. The seven-color application palette remains canonical.

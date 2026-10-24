@@ -34,7 +34,7 @@ const needA = {
 }
 const needB = { ...needA, id: 'need-b', project_id: 'project-b', name: 'Second supported power need', browse_title: 'Second supported power need', intelligence_card: { ...card, need_id: 'need-b', project_id: 'project-b', fields: card.fields.map(field => field.key === 'customer' ? { ...field, value: 'Example Customer' } : field.key === 'project' ? { ...field, value: 'Second supported power need' } : field), contacts: [], evidence: [] }, evidence: needA.evidence }
 
-test('approved intelligence dashboard preserves evidence, verified actions, selection history, and mobile width', async ({ page }) => {
+test('approved intelligence dashboard preserves evidence, verified actions, selection history, and mobile width', async ({ page }, testInfo) => {
   let providerPosts = 0
   const workspace = (items: typeof needA[], total = items.length) => ({ items, total, counts: { action_now: 0, research: total, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'approved-cohort', count_unit: 'power needs', changes_available: false })
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
@@ -53,6 +53,36 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto('/?view=workspace')
   await expect(page.locator('.wh-list')).toBeVisible()
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    const account = page.locator('.wh-account')
+    const summary = account.locator('summary')
+    const signOut = page.getByRole('button', { name: 'Sign out' })
+    await summary.focus()
+    await page.keyboard.press('Enter')
+    await expect(account).toHaveAttribute('open', '')
+    await expect(signOut).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(signOut).toBeFocused()
+    const contrast = await signOut.evaluate(button => {
+      const panel = button.parentElement!
+      const parse = (color: string) => color.match(/[\d.]+/g)!.slice(0, 3).map(Number)
+      const luminance = (color: string) => {
+        const [r, g, b] = parse(color).map(channel => {
+          const normalized = channel / 255
+          return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
+        })
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+      }
+      const foreground = luminance(getComputedStyle(button).color)
+      const background = luminance(getComputedStyle(panel).backgroundColor)
+      return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+    })
+    expect(contrast).toBeGreaterThanOrEqual(4.5)
+    await summary.press('Enter')
+    await expect(account).not.toHaveAttribute('open', '')
+  }
+  await page.setViewportSize({ width: 1280, height: 720 })
   // Reserve the scrollbar gutter that Windows Chrome allocates in this list.
   await page.locator('.wh-list').evaluate(element => { element.style.scrollbarGutter = 'stable' })
   await expect(page.locator('.wh-queue-heading > span')).toHaveText('1659 opportunities')
@@ -114,16 +144,20 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   await page.locator('.wh-detail').evaluate(el => { el.scrollTop = 0 })
   const geometry = await page.evaluate(() => ({ header: document.querySelector('.wh-header')!.getBoundingClientRect(), rail: document.querySelector('.wh-list')!.getBoundingClientRect(), metrics: document.querySelector('.wh-metrics')!.getBoundingClientRect(), columns: document.querySelector('.ic-dashboard')!.getBoundingClientRect(), tabs: document.querySelector('.wh-tabs')!.getBoundingClientRect(), table: document.querySelector('.wh-evidence-table')!.getBoundingClientRect() }))
   expect(geometry.header.height).toBeCloseTo(58, 0)
-  expect(geometry.rail.width).toBeCloseTo(412, 0)
-  expect(geometry.metrics.top).toBeGreaterThanOrEqual(241)
-  expect(geometry.metrics.top).toBeLessThanOrEqual(261)
-  expect(geometry.columns.top).toBeGreaterThanOrEqual(367)
-  expect(geometry.columns.top).toBeLessThanOrEqual(387)
-  expect(geometry.columns.height).toBeGreaterThanOrEqual(374)
-  expect(geometry.columns.height).toBeLessThanOrEqual(390)
-  expect(geometry.tabs.top).toBeGreaterThanOrEqual(751)
-  expect(geometry.tabs.top).toBeLessThanOrEqual(781)
-  expect(geometry.table.top).toBeLessThanOrEqual(875)
+  // October 23 supersedes the old fixed 25% queue / three-column detail.
+  expect(geometry.rail.width).toBeGreaterThan(1648 * .5)
+  expect(geometry.rail.width).toBeLessThan(1648 * .65)
+  expect(geometry.metrics.top).toBeGreaterThan(geometry.header.bottom)
+  expect(geometry.columns.top).toBeGreaterThan(geometry.metrics.top)
+  expect(await page.locator('.wh-header').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
+  await page.evaluate(() => document.fonts.ready)
+  expect(await page.evaluate(() => document.fonts.check('14px Inter') && document.fonts.check('22px Sora'))).toBe(true)
+  for (const [width, height] of [[1648,928],[1440,900],[1280,800],[768,1024],[390,844]]) {
+    await page.setViewportSize({ width, height })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    await page.screenshot({ path: testInfo.outputPath(`workspace-${width}x${height}.png`), fullPage: false })
+  }
+  await page.setViewportSize({ width: 1648, height: 928 })
   // Wider action labels model platform font metrics without changing production typography.
   await page.addStyleTag({ content: '.wh-record-actions button { letter-spacing: 3px; }' })
   const actionGeometry = await page.evaluate(() => {
@@ -134,7 +168,7 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   expect(actionGeometry.share.top).toBeCloseTo(actionGeometry.workflow.top, 0)
   expect(actionGeometry.share.right).toBeLessThanOrEqual(actionGeometry.workflow.left)
   expect(actionGeometry.workflow.right).toBeLessThanOrEqual(1648)
-  expect(actionGeometry.metrics.top).toBeLessThanOrEqual(261)
+  expect(actionGeometry.metrics.top).toBeGreaterThan(geometry.header.bottom)
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
   await page.getByText('Source record', { exact: true }).click()
