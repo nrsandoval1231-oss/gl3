@@ -6,12 +6,15 @@ retrieval, normal saved-browse startup, and the approved desktop detail layout.
 The full live Firecrawl → Jev → OpenAI → verified commercial record acceptance
 remains open. This record does not authorize a production deployment.
 
-Latest accepted checkpoint: M1–M4 are independently accepted, with M4 at
-`d2a2c6ca80bc082891c5f127389b66f2405928c4` and CI run 40038044951 passing.
+Latest accepted product checkpoint: M1–M4 and the bounded M5 source/owner
+slice are independently accepted, with M5 at
+`88a429dd2a53dd8cdc0678680f1eab0d7c524039` and CI run 40056035939 passing.
 Earlier candidate sections below preserve the evidence available at those
 checkpoints; their pending-review language is historical. Current M5 work and
 remaining acceptance limits are recorded in the [M5 validation record](production-m5-20261024.md)
-and [work graph](../../.agent/WORK_GRAPH.md).
+and [work graph](../../.agent/WORK_GRAPH.md). The [M6 runtime record](production-m6-20261024.md)
+reports five completed Jev packages, four validated Sol assessments and one
+unknown Sol outcome. Five-chain acceptance remains open; no blind retry is allowed.
 
 ## Milestone 1 implementation
 
@@ -114,7 +117,7 @@ Replay an already stored package to check its digest and confirm that job and lo
 uv run --project backend python scripts/materialize_evidence_package.py --evidence-id <evidence-uuid> --replay
 ```
 
-`--execute-jev` is restricted to the isolated loopback `pipeline_m3_app` database. The runner checks the exact retained hash, enabled registered source, existing `SIGNAL_ADJUDICATION` contract/model policy, exact prior decision and call ledger, and then dispatches at most one exact queued job. It will not retry completed or uncertain calls. Configure finite budgets and the selected observation allowlist before attempting dispatch. The current estimate policy is a reservation, not a hard invoice ceiling. The runner never prints credentials or retained source text.
+`--execute-jev` accepts the original isolated `pipeline_m3_app` target and the exact loopback port55443 `pipeline_m6_app` target. The runner checks the exact retained hash, enabled registered source, existing `SIGNAL_ADJUDICATION` contract/model policy, exact prior decision and call ledger, and then dispatches at most one exact queued job. It will not retry completed or uncertain calls. Configure finite budgets and the selected observation allowlist before attempting dispatch. The current estimate policy is a reservation, not a hard invoice ceiling. The runner never prints credentials or retained source text.
 
 ```powershell
 uv run --project backend python scripts/materialize_evidence_package.py --evidence-id <evidence-uuid> --execute-jev

@@ -32,6 +32,7 @@ FACT_LABELS = {"REPORTED", "DERIVED", "INFERRED", "UNKNOWN"}
 FACT_FIELDS = {
     "applicant",
     "facility",
+    "permit",
     "permit_number",
     "permit_numbers",
     "permit_no",

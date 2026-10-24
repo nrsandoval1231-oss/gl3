@@ -5,15 +5,22 @@ from __future__ import annotations
 import json
 from datetime import date, datetime
 from typing import Any, Literal
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
+from gridlens.intelligence.commercial_assessment import digest as assessment_digest
+from gridlens.intelligence.commercial_assessment import validate_assessment
+from gridlens.intelligence.evidence_packages import validate_package
 from gridlens.intelligence.intelligence_jobs import (
+    COMMERCIAL_ASSESSMENT_TASK,
     GROUND_TASKS,
     _cost_bound,
+    _current_payload,
+    _digest,
     _enabled,
     _request_payload,
     _retained_context,
@@ -37,6 +44,7 @@ from gridlens.intelligence.scanned_pdf_ocr import (
 )
 from gridlens.persistence.models import (
     Evidence,
+    EvidencePackage,
     Job,
     LogicalCall,
     NeedObservation,
@@ -121,6 +129,34 @@ class OwnerFeedback(BaseModel):
     evidence_refs: list[ReviewEvidenceRef] = Field(min_length=1, max_length=12)
 
 
+class CommercialAssessmentCitationOut(BaseModel):
+    evidence_id: str
+    evidence_hash: str
+    source_url: str
+    excerpt: str
+    field: Literal["title", "abstract"]
+    start: int
+    end: int
+
+
+class CommercialAssessmentFactSupportOut(BaseModel):
+    fact_id: str
+    field: str | None = None
+    value: str | None = None
+    label: str | None = None
+    support_status: Literal["current", "saved", "unavailable", "stale"]
+    unavailable_reason: str | None = None
+    citation: CommercialAssessmentCitationOut | None = None
+
+
+class CommercialAssessmentSupportOut(BaseModel):
+    status: Literal["current", "saved", "unavailable", "stale"]
+    reason: str | None = None
+    document_coverage: str | None = None
+    source_collection_status: str | None = None
+    selected_facts: list[CommercialAssessmentFactSupportOut]
+
+
 class IntelligenceHistoryOut(BaseModel):
     job_id: UUID
     task_type: str | None
@@ -131,6 +167,7 @@ class IntelligenceHistoryOut(BaseModel):
     validation_reason: str | None = None
     provider_response_id: str | None = None
     result_status: str | None = None
+    commercial_assessment_support: CommercialAssessmentSupportOut | None = None
     error: str | None
     evidence_ids: list[str]
     logical_call_id: UUID | None
@@ -255,6 +292,230 @@ def _job_view(job: Job) -> dict[str, Any]:
     }
 
 
+def _commercial_assessment_support(
+    session, *, need_id: UUID, checkpoint: dict[str, Any], job_status: str
+) -> dict[str, Any]:
+    """Project selected M4 facts from the exact saved package, never raw package data."""
+    result = checkpoint.get("result")
+    payload = checkpoint.get("payload")
+    package_payload = payload.get("package") if isinstance(payload, dict) else None
+    empty = {
+        "status": "unavailable",
+        "reason": "ASSESSMENT_SUPPORT_UNAVAILABLE",
+        "selected_facts": [],
+    }
+    if (
+        job_status != "completed"
+        or checkpoint.get("validation_outcome") != "VALIDATED"
+        or not isinstance(result, dict)
+        or not isinstance(payload, dict)
+        or not isinstance(package_payload, dict)
+    ):
+        return empty
+    try:
+        project_id = UUID(str(payload["project"]["project_id"]))
+        package_id = UUID(str(package_payload["id"]))
+        current_need = payload["need"]
+        if (
+            not isinstance(current_need, dict)
+            or str(current_need.get("need_id")) != str(need_id)
+            or str(current_need.get("project_id")) != str(project_id)
+        ):
+            return {**empty, "reason": "CHECKPOINT_NEED_IDENTITY_MISMATCH"}
+        checkpoint_references = package_payload.get("source_references")
+        if not isinstance(checkpoint_references, list) or len(checkpoint_references) != 1:
+            return {**empty, "reason": "CHECKPOINT_SOURCE_REFERENCE_INVALID"}
+        checkpoint_reference = checkpoint_references[0]
+        if not isinstance(checkpoint_reference, dict):
+            return {**empty, "reason": "CHECKPOINT_SOURCE_REFERENCE_INVALID"}
+        package_row = session.get(EvidencePackage, package_id)
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        if (
+            package_row is None
+            or need is None
+            or project is None
+            or need.project_id != project_id
+            or package_row.need_id != need_id
+            or package_row.project_id != project_id
+            or package_row.processing_status != "COMPLETE_ADVISORY"
+            or package_row.package_key != package_payload.get("package_key")
+            or assessment_digest(package_row.payload) != package_payload.get("payload_digest")
+            or package_row.evidence_id != UUID(str(checkpoint_reference["evidence_id"]))
+            or package_row.observation_id != UUID(str(checkpoint_reference["observation_id"]))
+            or package_row.evidence_hash != checkpoint_reference["evidence_hash"]
+        ):
+            return {**empty, "reason": "SAVED_PACKAGE_IDENTITY_MISMATCH"}
+        package = package_row.payload
+        identity = package.get("identity") if isinstance(package, dict) else None
+        if (
+            not isinstance(identity, dict)
+            or identity.get("need_id") != str(need_id)
+            or identity.get("project_id") != str(project_id)
+        ):
+            return {**empty, "reason": "SAVED_PACKAGE_IDENTITY_MISMATCH"}
+        checkpoint_facts = package_payload.get("facts")
+        if (
+            package_payload.get("source_references") != package.get("source_references")
+            or package_payload.get("document_coverage") != package.get("document_coverage")
+            or package_payload.get("source_collection_status")
+            != package.get("source_collection_status")
+            or not isinstance(checkpoint_facts, list)
+        ):
+            return {**empty, "reason": "CHECKPOINT_PACKAGE_PROJECTION_MISMATCH"}
+        expected_facts = {
+            f"f-{assessment_digest(fact)[:16]}": fact
+            for fact in package.get("facts", [])
+            if isinstance(fact, dict)
+        }
+        for checkpoint_fact in checkpoint_facts:
+            if not isinstance(checkpoint_fact, dict):
+                return {**empty, "reason": "CHECKPOINT_PACKAGE_FACT_INVALID"}
+            fact_id = checkpoint_fact.get("fact_id")
+            source_fact = {key: value for key, value in checkpoint_fact.items() if key != "fact_id"}
+            if not isinstance(fact_id, str) or expected_facts.get(fact_id) != source_fact:
+                return {**empty, "reason": "CHECKPOINT_PACKAGE_FACT_MISMATCH"}
+        package_for_validation = {
+            **package_payload,
+            "processing_status": package_payload.get("processing_status"),
+            "project_id": str(project_id),
+            "need_id": str(need_id),
+        }
+        validate_assessment(
+            {
+                key: result[key]
+                for key in (
+                    "disposition",
+                    "reason_code",
+                    "selected_fact_ids",
+                    "research_dimensions",
+                    "next_question_id",
+                )
+                if key in result
+            },
+            package=package_for_validation,
+            need_id=str(need_id),
+            project_id=str(project_id),
+            current_need=current_need,
+        )
+        references = package.get("source_references")
+        facts = package.get("facts")
+        if not isinstance(references, list) or len(references) != 1 or not isinstance(facts, list):
+            return {**empty, "reason": "SAVED_PACKAGE_CITATION_INVALID"}
+        reference = references[0]
+        evidence_id = UUID(str(reference["evidence_id"]))
+        observation_id = UUID(str(reference["observation_id"]))
+        evidence = session.get(Evidence, evidence_id)
+        observation = session.get(Observation, observation_id)
+        attached = session.scalar(
+            select(NeedObservation.id).where(
+                NeedObservation.need_id == need_id,
+                NeedObservation.observation_id == observation_id,
+            )
+        )
+        if (
+            evidence is None
+            or observation is None
+            or not attached
+            or evidence.observation_id != observation_id
+            or evidence.content_hash != reference.get("evidence_hash")
+            or evidence.url != reference.get("url")
+            or observation.source_id != reference.get("source_id")
+        ):
+            return {**empty, "reason": "RETAINED_EVIDENCE_VERSION_UNAVAILABLE"}
+        validate_package(
+            package,
+            evidence_fields={"title": evidence.title or "", "abstract": evidence.abstract or ""},
+        )
+        try:
+            current = _digest(_current_payload(session, checkpoint, need_id)) == checkpoint.get(
+                "request_digest"
+            )
+        except (ValueError, KeyError, TypeError):
+            current = False
+        support_status = "current" if current else "saved"
+        fact_map = {
+            fact.get("fact_id"): fact for fact in checkpoint_facts if isinstance(fact, dict)
+        }
+        selected_facts: list[dict[str, Any]] = []
+        for fact_id in result.get("selected_fact_ids", []):
+            fact = fact_map.get(fact_id) if isinstance(fact_id, str) else None
+            if fact is None:
+                selected_facts.append(
+                    {
+                        "fact_id": str(fact_id),
+                        "support_status": "unavailable",
+                        "unavailable_reason": "SELECTED_FACT_NOT_IN_SAVED_PACKAGE",
+                    }
+                )
+                continue
+            citation = fact.get("citation")
+            span = citation.get("excerpt_location") if isinstance(citation, dict) else None
+            field = span.get("field") if isinstance(span, dict) else None
+            start = span.get("start") if isinstance(span, dict) else None
+            end = span.get("end") if isinstance(span, dict) else None
+            source_text = (
+                evidence.title or ""
+                if field == "title"
+                else evidence.abstract or ""
+                if field == "abstract"
+                else None
+            )
+            parsed_url = urlparse(evidence.url or "")
+            valid = (
+                isinstance(citation, dict)
+                and citation.get("evidence_id") == str(evidence.id)
+                and citation.get("evidence_hash") == evidence.content_hash
+                and type(start) is int
+                and type(end) is int
+                and 0 <= start < end
+                and isinstance(source_text, str)
+                and end <= len(source_text)
+                and source_text[start:end] == fact.get("value")
+                and parsed_url.scheme in {"http", "https"}
+                and bool(parsed_url.netloc)
+                and parsed_url.username is None
+                and parsed_url.password is None
+            )
+            if not valid:
+                selected_facts.append(
+                    {
+                        "fact_id": fact_id,
+                        "support_status": "unavailable",
+                        "unavailable_reason": "SAVED_CITATION_FAILED_VALIDATION",
+                    }
+                )
+                continue
+            assert isinstance(source_text, str) and type(start) is int and type(end) is int
+            selected_facts.append(
+                {
+                    "fact_id": fact_id,
+                    "field": fact.get("field") if isinstance(fact.get("field"), str) else "unknown",
+                    "value": fact.get("value") if isinstance(fact.get("value"), str) else "",
+                    "label": fact.get("label") if isinstance(fact.get("label"), str) else "Unknown",
+                    "support_status": support_status,
+                    "citation": {
+                        "evidence_id": str(evidence.id),
+                        "evidence_hash": evidence.content_hash,
+                        "source_url": str(evidence.url),
+                        "excerpt": source_text[start:end],
+                        "field": field,
+                        "start": start,
+                        "end": end,
+                    },
+                }
+            )
+        return {
+            "status": support_status,
+            "reason": None,
+            "document_coverage": package.get("document_coverage"),
+            "source_collection_status": package.get("source_collection_status"),
+            "selected_facts": selected_facts,
+        }
+    except (KeyError, TypeError, ValueError):
+        return {**empty, "reason": "SAVED_PACKAGE_VALIDATION_FAILED"}
+
+
 def _history_view(session, need_id: UUID, limit: int) -> list[dict[str, Any]]:
     items = intelligence_history(session, need_id, limit)
     job_ids = [UUID(item["job_id"]) for item in items]
@@ -299,6 +560,14 @@ def _history_view(session, need_id: UUID, limit: int) -> list[dict[str, Any]]:
     )
     for item in items:
         result = item.get("result")
+        if item.get("task_type") == COMMERCIAL_ASSESSMENT_TASK:
+            checkpoint = checkpoints.get(str(item["job_id"]), {})
+            item["commercial_assessment_support"] = _commercial_assessment_support(
+                session,
+                need_id=need_id,
+                checkpoint=checkpoint,
+                job_status=item.get("status", "unknown"),
+            )
         if item.get("task_type") == OCR_TASK and item.get("logical_call_id"):
             call = logical_calls.get(item["logical_call_id"])
             if call is not None and call.status == "COMPLETED":

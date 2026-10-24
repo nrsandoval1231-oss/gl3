@@ -48,14 +48,23 @@ def _safe_database(*, dispatch: bool) -> None:
         and (url.database == "test" or url.database.endswith("_test"))
     ):
         return
-    allowed = {"pipeline_test", "pipeline_m3_app"} if not dispatch else {"pipeline_m3_app"}
+    allowed = (
+        {"pipeline_test", "pipeline_m3_app", "pipeline_m6_app"}
+        if not dispatch
+        else {
+            "pipeline_m3_app",
+            "pipeline_m6_app",
+        }
+    )
     if (
         url.host not in {"127.0.0.1", "localhost", "::1"}
         or url.port != 55443
         or url.database not in allowed
         or url.query
     ):
-        raise ValueError("Evidence package operation requires its exact isolated loopback database")
+        raise ValueError(
+            "Evidence package operation requires its exact isolated loopback database"
+        )
 
 
 def _task_key(observation_id: UUID, content_hash: str) -> str:
@@ -64,7 +73,9 @@ def _task_key(observation_id: UUID, content_hash: str) -> str:
 
 def _json_digest(value: dict) -> str:
     return hashlib.sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+        json.dumps(
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        ).encode()
     ).hexdigest()
 
 
@@ -84,7 +95,8 @@ def _counts(session, observation_id: UUID, task_key: str) -> dict:
         "jobs": int(jobs or 0),
         "calls": len(calls),
         "dispatch_timestamps": sorted(
-            call.dispatched_at.isoformat() if call.dispatched_at else None for call in calls
+            call.dispatched_at.isoformat() if call.dispatched_at else None
+            for call in calls
         ),
     }
 
@@ -123,7 +135,9 @@ def _matching_decision(session, observation_id: UUID, evidence_hash: str, model:
     )
 
 
-def _call_matches_exact_evidence(session, call, observation, evidence, job_id=None) -> bool:
+def _call_matches_exact_evidence(
+    session, call, observation, evidence, job_id=None
+) -> bool:
     from gridlens.intelligence.signal_adjudication import POLICY_VERSION
 
     task_key = _task_key(observation.id, evidence.content_hash)
@@ -187,7 +201,9 @@ def _exact_completion_proof(
     if (
         call.status != "COMPLETED"
         or not isinstance(call.result_payload, dict)
-        or not _call_matches_exact_evidence(session, call, observation, evidence, job_id)
+        or not _call_matches_exact_evidence(
+            session, call, observation, evidence, job_id
+        )
     ):
         return None
     decisions = session.scalars(
@@ -207,7 +223,9 @@ def _exact_completion_proof(
     try:
         dimensions = validated_dimensions(call.result_payload, expected_model=MODEL)
         state = _evidence_state(session, observation, evidence)
-        mapped = map_dimensions(dimensions, title=state["title"], abstract=state["abstract"])
+        mapped = map_dimensions(
+            dimensions, title=state["title"], abstract=state["abstract"]
+        )
     except (KeyError, TypeError, ValueError):
         return None
     if exact_decision.dimensions != dimensions or exact_decision.decision != mapped:
@@ -224,8 +242,14 @@ def _verify_completed_package(session, package: EvidencePackage) -> None:
         return
     evidence = session.get(Evidence, package.evidence_id)
     observation = session.get(Observation, package.observation_id)
-    call = session.get(LogicalCall, package.logical_call_id) if package.logical_call_id else None
-    decision = _matching_decision(session, package.observation_id, package.evidence_hash, MODEL)
+    call = (
+        session.get(LogicalCall, package.logical_call_id)
+        if package.logical_call_id
+        else None
+    )
+    decision = _matching_decision(
+        session, package.observation_id, package.evidence_hash, MODEL
+    )
     if (
         evidence is None
         or observation is None
@@ -237,7 +261,9 @@ def _verify_completed_package(session, package: EvidencePackage) -> None:
         raise CompletedPackageVerificationError(
             "Complete advisory lacks its exact matching call and decision"
         )
-    proof = _exact_completion_proof(session, call, observation, evidence, decision=decision)
+    proof = _exact_completion_proof(
+        session, call, observation, evidence, decision=decision
+    )
     if proof is None:
         raise CompletedPackageVerificationError(
             "Complete advisory does not match its exact call response and mapped decision"
@@ -257,7 +283,9 @@ def _verify_completed_package(session, package: EvidencePackage) -> None:
         )
 
 
-def _persist_invalid_completed_package(session, package: EvidencePackage, reason: str) -> None:
+def _persist_invalid_completed_package(
+    session, package: EvidencePackage, reason: str
+) -> None:
     call_id = package.logical_call_id
     _persist_status(
         session,
@@ -353,7 +381,9 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             or not definition
             or definition.get("enabled", True) is False
         ):
-            _persist_status(session, package, "BLOCKED", "SOURCE_DISABLED_OR_UNREGISTERED")
+            _persist_status(
+                session, package, "BLOCKED", "SOURCE_DISABLED_OR_UNREGISTERED"
+            )
             return "BLOCKED", None
         task_key = _task_key(observation.id, evidence.content_hash)
         prior_calls = session.scalars(
@@ -364,14 +394,20 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             .order_by(LogicalCall.created_at.desc())
         ).all()
         if len(prior_calls) > 1:
-            _persist_status(session, package, "INCOMPLETE", "AMBIGUOUS_PRIOR_CALLS_NO_REDISPATCH")
+            _persist_status(
+                session, package, "INCOMPLETE", "AMBIGUOUS_PRIOR_CALLS_NO_REDISPATCH"
+            )
             return "INCOMPLETE", None
         if prior_calls:
             call = prior_calls[0]
             if call.status == "COMPLETED" and isinstance(call.result_payload, dict):
-                decision = _matching_decision(session, observation.id, evidence.content_hash, MODEL)
+                decision = _matching_decision(
+                    session, observation.id, evidence.content_hash, MODEL
+                )
                 proof = (
-                    _exact_completion_proof(session, call, observation, evidence, decision=decision)
+                    _exact_completion_proof(
+                        session, call, observation, evidence, decision=decision
+                    )
                     if decision is not None
                     else None
                 )
@@ -427,9 +463,13 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             "evidence_id": str(evidence.id),
             "evidence_hash": evidence.content_hash,
         }
-        enabled, provider, model, reason = _enabled("SIGNAL_ADJUDICATION", payload=gate_payload)
+        enabled, provider, model, reason = _enabled(
+            "SIGNAL_ADJUDICATION", payload=gate_payload
+        )
         if not enabled or provider != "typesafe" or model != MODEL:
-            _persist_status(session, package, "BLOCKED", reason or "PINNED_POLICY_MISMATCH")
+            _persist_status(
+                session, package, "BLOCKED", reason or "PINNED_POLICY_MISMATCH"
+            )
             return "BLOCKED", None
 
         prior_decision = session.scalar(
@@ -459,13 +499,17 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             .order_by(Job.created_at.desc())
         ).all()
         if len(active_jobs) > 1:
-            _persist_status(session, package, "BLOCKED", "AMBIGUOUS_ACTIVE_ADJUDICATION_JOBS")
+            _persist_status(
+                session, package, "BLOCKED", "AMBIGUOUS_ACTIVE_ADJUDICATION_JOBS"
+            )
             return "BLOCKED", None
         job: Job | None
         if active_jobs:
             job = active_jobs[0]
         else:
-            queue_adjudication(session, observation, evidence, policy_version=POLICY_VERSION)
+            queue_adjudication(
+                session, observation, evidence, policy_version=POLICY_VERSION
+            )
             active_jobs = session.scalars(
                 select(Job)
                 .where(
@@ -476,11 +520,15 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
                 .order_by(Job.created_at.desc())
             ).all()
             if len(active_jobs) > 1:
-                _persist_status(session, package, "BLOCKED", "AMBIGUOUS_ACTIVE_ADJUDICATION_JOBS")
+                _persist_status(
+                    session, package, "BLOCKED", "AMBIGUOUS_ACTIVE_ADJUDICATION_JOBS"
+                )
                 return "BLOCKED", None
             job = active_jobs[0] if active_jobs else None
         if job is None:
-            _persist_status(session, package, "BLOCKED", "EXACT_ADJUDICATION_JOB_NOT_QUEUED")
+            _persist_status(
+                session, package, "BLOCKED", "EXACT_ADJUDICATION_JOB_NOT_QUEUED"
+            )
             return "BLOCKED", None
         try:
             checkpoint = json.loads(job.checkpoint or "{}")
@@ -523,7 +571,9 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             session.get(LogicalCall, post_call_id) if post_call_id else None
         )
         try:
-            current_evidence, observation, source = _validate_current_package(session, package)
+            current_evidence, observation, source = _validate_current_package(
+                session, package
+            )
         except ValueError:
             _persist_status(
                 session,
@@ -551,7 +601,9 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
                 logical_call_id=post_call_id,
             )
             return "INCOMPLETE", str(post_call_id) if post_call_id else None
-        decision = _matching_decision(session, observation.id, package.evidence_hash, MODEL)
+        decision = _matching_decision(
+            session, observation.id, package.evidence_hash, MODEL
+        )
         proof = (
             _exact_completion_proof(
                 session,
@@ -561,7 +613,11 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
                 decision=decision,
                 job_id=job.id,
             )
-            if post_call and decision and job and job.status == "succeeded" and not job.error
+            if post_call
+            and decision
+            and job
+            and job.status == "succeeded"
+            and not job.error
             else None
         )
         if post_call and proof is not None:
@@ -602,7 +658,8 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             )
             return "INCOMPLETE", str(post_call.id)
         if post_call and (
-            post_call.dispatched_at is not None or post_call.status in {"FAILED", "RECONCILED"}
+            post_call.dispatched_at is not None
+            or post_call.status in {"FAILED", "RECONCILED"}
         ):
             error = job.error if job and job.error else f"CALL_{post_call.status}"
             _persist_status(session, package, "INCOMPLETE", error, call=post_call)
@@ -611,7 +668,10 @@ def _execute(package_id: UUID) -> tuple[str, str | None]:
             f"CALL_{post_call.status}" if post_call else "NO_CALL_RECEIPT"
         )
         blocked = bool(
-            job and job.status == "succeeded" and error.startswith("BLOCKED:") and post_call is None
+            job
+            and job.status == "succeeded"
+            and error.startswith("BLOCKED:")
+            and post_call is None
         ) or error in {
             "STALE_EVIDENCE",
             "STALE_EVIDENCE_OR_POLICY_AFTER_PROVIDER",
@@ -659,7 +719,9 @@ def main() -> int:
         if args.replay:
             _validate_current_package(session, package)
             if package.processing_status != package.payload.get("processing_status"):
-                raise ValueError("Stored package processing status differs from its payload")
+                raise ValueError(
+                    "Stored package processing status differs from its payload"
+                )
         try:
             _verify_completed_package(session, package)
         except CompletedPackageVerificationError as exc:
@@ -676,7 +738,9 @@ def main() -> int:
         if final_package is None:
             raise ValueError("Evidence package disappeared before final validation")
         _validate_current_package(session, final_package)
-        if final_package.processing_status != final_package.payload.get("processing_status"):
+        if final_package.processing_status != final_package.payload.get(
+            "processing_status"
+        ):
             raise ValueError("Stored package status differs from its validated payload")
         try:
             _verify_completed_package(session, final_package)
@@ -717,7 +781,9 @@ def main() -> int:
                         or logical_call.output_tokens is not None
                     )
                 ),
-                "cost_available": bool(logical_call and logical_call.actual_cost_usd is not None),
+                "cost_available": bool(
+                    logical_call and logical_call.actual_cost_usd is not None
+                ),
                 "replay_counts": after if args.replay else None,
                 "elapsed_ms": round((time.monotonic() - started) * 1000),
                 "execute_elapsed_ms": round((time.monotonic() - started) * 1000)

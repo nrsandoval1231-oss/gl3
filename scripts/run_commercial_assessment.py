@@ -33,7 +33,9 @@ from gridlens.settings import settings  # noqa: E402
 def _safe_database(*, execute: bool) -> None:
     url = make_url(settings.database_url)
     allowed = (
-        {"pipeline_test", "pipeline_m4_app"} if execute else {"pipeline_test", "pipeline_m4_app"}
+        {"pipeline_test", "pipeline_m4_app", "pipeline_m6_app"}
+        if execute
+        else {"pipeline_test", "pipeline_m4_app", "pipeline_m6_app"}
     )
     if (
         url.host not in {"127.0.0.1", "localhost", "::1"}
@@ -44,7 +46,9 @@ def _safe_database(*, execute: bool) -> None:
         raise ValueError("M4 operation requires the exact isolated loopback database")
 
 
-def _public_result(package: EvidencePackage, job: Job | None, call: LogicalCall | None) -> dict:
+def _public_result(
+    package: EvidencePackage, job: Job | None, call: LogicalCall | None
+) -> dict:
     checkpoint = {}
     if job and job.checkpoint:
         try:
@@ -77,10 +81,13 @@ def _public_result(package: EvidencePackage, job: Job | None, call: LogicalCall 
         "logical_call_id": str(call.id) if call else checkpoint.get("logical_call_id"),
         "call_status": call.status if call else None,
         "model": call.model if call else (result or {}).get("actual_model"),
-        "reported_usage": (result or {}).get("reported_usage") or (result or {}).get("usage"),
+        "reported_usage": (result or {}).get("reported_usage")
+        or (result or {}).get("usage"),
         "actual_service_tier": (result or {}).get("service_tier", "UNKNOWN"),
         "latency_ms": (result or {}).get("latency_ms"),
-        "cost_estimate_usd": ((result or {}).get("usage") or {}).get("estimated_cost_usd"),
+        "cost_estimate_usd": ((result or {}).get("usage") or {}).get(
+            "estimated_cost_usd"
+        ),
         "cost_basis": ((result or {}).get("usage") or {}).get("cost_basis", "UNKNOWN"),
         "disposition": (result or {}).get("disposition"),
         "selected_fact_ids": (result or {}).get("selected_fact_ids"),
@@ -100,7 +107,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--package-id", required=True, type=UUID)
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--execute", action="store_true", help="queue and run at most this exact job")
+    mode.add_argument(
+        "--execute", action="store_true", help="queue and run at most this exact job"
+    )
     mode.add_argument(
         "--replay",
         action="store_true",
@@ -147,7 +156,9 @@ def main() -> int:
             ):
                 matching.append(row)
         if len(matching) > 1:
-            raise ValueError("Multiple exact M4 jobs exist; refusing ambiguous selection")
+            raise ValueError(
+                "Multiple exact M4 jobs exist; refusing ambiguous selection"
+            )
         if args.execute and not matching:
             job = enqueue_intelligence(
                 session,
@@ -160,7 +171,9 @@ def main() -> int:
         elif matching:
             job_id = matching[0].id
         if args.replay and not matching:
-            raise ValueError("No exact M4 job exists to replay; replay never creates a job")
+            raise ValueError(
+                "No exact M4 job exists to replay; replay never creates a job"
+            )
         if job_id and matching:
             existing = session.get(Job, job_id)
             if existing is None:
@@ -187,8 +200,12 @@ def main() -> int:
                 call.task_type != COMMERCIAL_ASSESSMENT_TASK
                 or call.task_key != f"{need.id}:{COMMERCIAL_ASSESSMENT_TASK}"
             ):
-                raise ValueError("Logical call identity does not match the exact M4 need/task")
-        output = _public_result(package, session.get(Job, job_id) if job_id else None, call)
+                raise ValueError(
+                    "Logical call identity does not match the exact M4 need/task"
+                )
+        output = _public_result(
+            package, session.get(Job, job_id) if job_id else None, call
+        )
     if args.execute and job_id and output.get("job_status") in {"queued", "running"}:
         run_one({item["id"]: item for item in load_registry()}, job_ids=[job_id])
         with SessionLocal() as session:

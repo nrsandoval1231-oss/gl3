@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { projectTitle } from '../opportunities/projectCards'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { FactWorkflowPanel } from '../pursuits/FactWorkflowPanel'
+import { SavedCommercialAssessment } from '../pursuits/IntelligenceResearch'
 import { QuickCallLog } from '../pursuits/QuickCallLog'
 import { ReportedPowerSchedule } from './ReportedPowerSchedule'
 
@@ -343,6 +344,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
       {tab === 'Buying chain' && item.project_id && <BuyingChain projectId={item.project_id} onReadback={onReadback}/>}
       {tab === 'Buying chain' && !item.project_id && <p>Project identity is unavailable, so a buying chain cannot be resolved.</p>}
       {tab === 'Power gap' && <div>
+        <SavedCommercialAssessment key={item.id} needId={item.id}/>
         {gap ? <>
           <p><strong>Qualified remaining gap:</strong> {gap.remaining_mw_min}–{gap.remaining_mw_max} MW ({gap.value_kind})</p>
           <p>Supported required power: {gap.required_mw_min}–{gap.required_mw_max} MW · Available suitable supply: {gap.available_mw_min}–{gap.available_mw_max} MW</p>

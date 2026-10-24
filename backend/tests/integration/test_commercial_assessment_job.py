@@ -44,6 +44,42 @@ assert _CLI_SPEC.loader is not None
 _CLI_SPEC.loader.exec_module(assessment_cli)
 
 
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgresql://operator:unused@127.0.0.1:55443/pipeline_m4_app",
+        "postgresql://operator:unused@127.0.0.1:55443/pipeline_m6_app",
+        "postgresql://operator:unused@127.0.0.1:55443/pipeline_test",
+    ],
+)
+@pytest.mark.parametrize("execute", [False, True])
+def test_commercial_assessment_guard_allows_existing_and_m6_targets(
+    monkeypatch, database_url, execute
+):
+    monkeypatch.setattr(
+        settings,
+        "database_url",
+        database_url,
+    )
+    assessment_cli._safe_database(execute=execute)
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgresql://operator:unused@example.com:55443/pipeline_m6_app",
+        "postgresql://operator:unused@127.0.0.1:5432/pipeline_m6_app",
+        "postgresql://operator:unused@127.0.0.1:55443/pipeline_m5_app",
+        "postgresql://operator:unused@127.0.0.1:55443/pipeline_m6_app?sslmode=disable",
+    ],
+)
+@pytest.mark.parametrize("execute", [False, True])
+def test_commercial_assessment_guard_rejects_nonexact_targets(monkeypatch, database_url, execute):
+    monkeypatch.setattr(settings, "database_url", database_url)
+    with pytest.raises(ValueError, match="exact isolated loopback database"):
+        assessment_cli._safe_database(execute=execute)
+
+
 @pytest.fixture
 def sessions():
     target = make_url(settings.test_database_url)

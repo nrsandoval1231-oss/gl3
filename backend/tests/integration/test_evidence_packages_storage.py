@@ -205,6 +205,61 @@ def test_product_database_guard_never_allows_test_database_for_dispatch(monkeypa
         cli._safe_database(dispatch=True)
 
 
+@pytest.mark.parametrize(
+    ("database", "dispatch"),
+    [
+        ("pipeline_m3_app", False),
+        ("pipeline_m3_app", True),
+        ("pipeline_m6_app", False),
+        ("pipeline_m6_app", True),
+        ("pipeline_test", False),
+    ],
+)
+def test_product_database_guard_allows_existing_and_m6_targets(monkeypatch, database, dispatch):
+    monkeypatch.setattr(
+        settings,
+        "database_url",
+        f"postgresql://operator:unused@127.0.0.1:55443/{database}",
+    )
+    cli._safe_database(dispatch=dispatch)
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgresql://operator:unused@example.com:55443/pipeline_m6_app",
+        "postgresql://operator:unused@127.0.0.1:5432/pipeline_m6_app",
+        "postgresql://operator:unused@127.0.0.1:55443/pipeline_m5_app",
+        "postgresql://operator:unused@127.0.0.1:55443/pipeline_m6_app?sslmode=disable",
+    ],
+)
+@pytest.mark.parametrize("dispatch", [False, True])
+def test_product_database_guard_rejects_nonexact_targets(monkeypatch, database_url, dispatch):
+    monkeypatch.setattr(settings, "database_url", database_url)
+    with pytest.raises(ValueError, match="exact isolated loopback database"):
+        cli._safe_database(dispatch=dispatch)
+
+
+def test_bare_permit_is_emitted_and_cited_by_package_builder(evidence_db):
+    with evidence_db.begin() as session:
+        _observation, evidence = seed_evidence(session, abstract="Permit: TXR123")
+        payload, *_ = build_package(session, evidence.id)
+    permit = next(fact for fact in payload["facts"] if fact["field"] == "permit")
+    citation = permit["citation"]
+    assert permit["value"] == "TXR123"
+    assert citation["excerpt_location"] == {"field": "abstract", "start": 8, "end": 14}
+    start = citation["excerpt_location"]["start"]
+    end = citation["excerpt_location"]["end"]
+    assert evidence.abstract[start:end] == permit["value"]
+    assert {item["field"] for item in payload["missing_fields"]} >= {
+        "buyer",
+        "required_mw",
+        "start_window",
+        "duration",
+        "supply",
+    }
+
+
 def _insert_call_history(
     session,
     observation,

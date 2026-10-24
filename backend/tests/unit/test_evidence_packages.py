@@ -103,6 +103,37 @@ def test_valid_package_requires_matching_evidence_citation():
     )
 
 
+def test_bare_permit_fact_is_supported_with_exact_citation_span():
+    package = valid_package()
+    title = "Permit: TXR123"
+    package["source_references"][0]["field_lengths"]["title"] = len(title)
+    package["jev_input_coverage"]["title_sent_characters"] = len(title)
+    package["jev_input_coverage"]["title"] = "WHOLE_RETAINED_FIELD"
+    package["facts"] = [
+        {
+            "field": "permit",
+            "value": "TXR123",
+            "unit": None,
+            "label": "REPORTED",
+            "extractor_basis": "explicit retained label 'Permit'",
+            "citation": {
+                **package["facts"][0]["citation"],
+                "excerpt_location": {"field": "title", "start": 8, "end": 14},
+            },
+        }
+    ]
+    validate_package(package, evidence_fields={"title": title, "abstract": ""})
+
+
+def test_unsupported_fact_field_is_rejected():
+    package = valid_package()
+    package["facts"][0]["field"] = "buyer"
+    with pytest.raises(ValueError, match="fact field is unsupported"):
+        validate_package(
+            package, evidence_fields={"title": "Applicant: ACME Builders", "abstract": ""}
+        )
+
+
 @pytest.mark.parametrize(
     "change",
     [
