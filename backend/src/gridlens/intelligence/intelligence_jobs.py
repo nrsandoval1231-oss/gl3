@@ -2867,9 +2867,7 @@ def intelligence_history(
         from sqlalchemy import case, cast, literal_column
         from sqlalchemy.dialects.postgresql import JSONB
 
-        valid_checkpoint = func.pg_input_is_valid(
-            Job.checkpoint, literal_column("'jsonb'")
-        )
+        valid_checkpoint = func.pg_input_is_valid(Job.checkpoint, literal_column("'jsonb'"))
         checkpoint = case((valid_checkpoint, cast(Job.checkpoint, JSONB)), else_=None)
         query = query.where(
             func.coalesce(
