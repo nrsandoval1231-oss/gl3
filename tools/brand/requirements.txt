@@ -1,5 +1,5 @@
-CairoSVG==2.8.2
+CairoSVG==2.9.1
 Pillow==13.0.0
-fonttools==4.60.1
+fonttools==4.60.2
 brotli==1.2.1
 reportlab==4.4.4
