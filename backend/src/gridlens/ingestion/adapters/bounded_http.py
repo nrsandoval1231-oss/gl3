@@ -63,7 +63,23 @@ _WINDOWS_JOB_LIMIT = 0x100
 _WINDOWS_JOB_EXTENDED_LIMIT_INFORMATION = 9
 _ACQUISITION_MEMORY_LIMIT = 512 * 1024**2
 MAX_ISOLATED_RESULT_BYTES = 8 * 1024**2
+_RRC_DRILLING_RESULT_BYTES = 64 * 1024**2
+_RRC_DRILLING_SOURCE_ID = "texas-rrc-drilling-permits"
+_RRC_DRILLING_METHOD = "rrc-drilling-permits"
 _windows_job_handle: int | None = None
+
+
+def _isolated_result_limit(function_path: str, args: tuple) -> int:
+    """Select the fixed IPC bound for the one reviewed large-result source."""
+    if (
+        function_path == "gridlens.ingestion.adapters:_retrieve_source_direct"
+        and args
+        and isinstance(args[0], dict)
+        and args[0].get("id") == _RRC_DRILLING_SOURCE_ID
+        and args[0].get("retrieval_method") == _RRC_DRILLING_METHOD
+    ):
+        return _RRC_DRILLING_RESULT_BYTES
+    return MAX_ISOLATED_RESULT_BYTES
 
 
 def _configure_memory_limit() -> None:
@@ -163,12 +179,18 @@ def _isolated_entry(connection, function_path: str, args: tuple, kwargs: dict) -
         _configure_memory_limit()
         module, name = function_path.split(":", 1)
         result = getattr(importlib.import_module(module), name)(*args, **kwargs)
-        _send_bounded_result(connection, True, result)
+        _send_bounded_result(connection, True, result, function_path=function_path, args=args)
     except BaseException as exc:
         # Exceptions contain no HTTP authorization headers in retained receipts.
         # Transport exceptions can reference unpicklable streams; use a safe
         # class/code representation instead of serializing the request object.
-        _send_bounded_result(connection, False, _safe_acquisition_error(exc))
+        _send_bounded_result(
+            connection,
+            False,
+            _safe_acquisition_error(exc),
+            function_path=function_path,
+            args=args,
+        )
     finally:
         connection.close()
 
@@ -228,14 +250,22 @@ def _redacted_acquisition_error(exc: BaseException) -> BaseException:
     return AcquisitionFailure(type(exc).__name__.casefold()[:80] or "acquisition_failed")
 
 
-def _send_bounded_result(connection, success: bool, result: Any) -> None:
+def _send_bounded_result(
+    connection,
+    success: bool,
+    result: Any,
+    *,
+    function_path: str,
+    args: tuple,
+) -> None:
+    result_limit = _isolated_result_limit(function_path, args)
     try:
         payload = pickle.dumps((success, result), protocol=5)
     except Exception:
         payload = pickle.dumps(
             (False, AcquisitionFailure("acquisition_result_not_serializable")), protocol=5
         )
-    if len(payload) > MAX_ISOLATED_RESULT_BYTES:
+    if len(payload) > result_limit:
         payload = pickle.dumps(
             (False, AcquisitionFailure("acquisition_result_too_large")), protocol=5
         )
@@ -250,6 +280,7 @@ def run_isolated(function_path: str, args: tuple, kwargs: dict, *, deadline: flo
     where all canonical writes and lease checks occur. This is not a job runner.
     """
     remaining = remaining_seconds(deadline)
+    result_limit = _isolated_result_limit(function_path, args)
     context = multiprocessing.get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
     process = context.Process(
@@ -263,7 +294,7 @@ def run_isolated(function_path: str, args: tuple, kwargs: dict, *, deadline: flo
 
         def receive_bounded_message() -> None:
             try:
-                receive_state.append(receiver.recv_bytes(MAX_ISOLATED_RESULT_BYTES))
+                receive_state.append(receiver.recv_bytes(result_limit))
             except BaseException as exc:
                 receive_state.append(exc)
 
