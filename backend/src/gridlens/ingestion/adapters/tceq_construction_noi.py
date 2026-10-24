@@ -71,7 +71,11 @@ def _summary_url(href: str, auth: str) -> str:
 
 def parse_results(body: bytes) -> list[dict[str, str]]:
     text = body.decode("utf-8", errors="replace")
-    declared = re.search(r"Your search returned (\d+) records", text)
+    # TCEQ encodes spacing in the count/paging banner (for example, &nbsp;).
+    # Decode only this plain-text check; table and authorization-link parsing
+    # below must continue to operate on the original HTML.
+    count_text = unescape(text)
+    declared = re.search(r"Your search returned (\d+) records", count_text)
     if not declared:
         raise SourceParseError("TCEQ NOI search did not state a record count")
     expected = int(declared.group(1))
@@ -79,7 +83,7 @@ def parse_results(body: bytes) -> list[dict[str, str]]:
         if re.search(r"<table", text, re.IGNORECASE):
             raise SourceParseError("TCEQ NOI search says it is empty and contains a table")
         return []
-    paging = re.search(r"(\d+)\s*-\s*(\d+)\s+of\s+(\d+)\s+Records", text)
+    paging = re.search(r"(\d+)\s*-\s*(\d+)\s+of\s+(\d+)\s+Records", count_text)
     if not paging or tuple(int(part) for part in paging.groups()) != (1, expected, expected):
         raise SourceParseError("TCEQ NOI search is paginated or its count disagrees")
     table = re.search(r"<table[^>]*>([\s\S]*?)</table>", text, re.IGNORECASE)
@@ -108,14 +112,24 @@ def parse_results(body: bytes) -> list[dict[str, str]]:
     return rows
 
 
-def _record(row: dict[str, str]) -> dict[str, Any]:
+def _record(
+    row: dict[str, str], source_classification_rows: list[dict[str, Any]]
+) -> dict[str, Any]:
     # NOI rows have no plain-language summary. Hours are classified from the row fields only.
     text = f"{row['site_name']} {row['permittee']} {row['site_location']}"
     tags = power_signal_tags(text)
     hours = classify_operating_hours(text)
     place = f"{row['city']}, {row['county']} County, TX"
     row_id = f"TXR150000-{row['auth']}"
-    semantic = {**row, "power_signals": tags, "operating_hours": hours}
+    semantic = {
+        **row,
+        "source_classification_rows": source_classification_rows,
+        "power_signals": tags,
+        "operating_hours": hours,
+    }
+    classification_json = json.dumps(
+        source_classification_rows, sort_keys=True, separators=(",", ":")
+    )
     return {
         "document_number": row_id,
         "title": f"{row['site_name']} — {row['auth']}",
@@ -131,6 +145,7 @@ def _record(row: dict[str, str]) -> dict[str, Any]:
                 f"Operating-hour rule {hours['rule_id']}: "
                 f"{hours['classification'] or 'unclassified'}",
                 f"Power signal tags: {', '.join(tags) or 'none'}",
+                f"Source classification rows: {classification_json}",
             ]
         ),
         "publication_date": None,
@@ -157,11 +172,13 @@ def _record(row: dict[str, str]) -> dict[str, Any]:
             "power_signals": tags,
             "operating_hours": hours,
             "document_links": {"TCEQ NOI summary": row["summary_url"]},
+            "source_classification_rows": source_classification_rows,
             "source_fields": {
                 "applicant": "Permittee",
                 "facility": "Site Name",
                 "location": "City and County; site directions are kept in the description",
                 "event_date": "not present on the search result",
+                "source_classification_rows": "SIC and segment values with submitted search terms",
             },
         },
     }
@@ -229,7 +246,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
         )
         if b"validate_search_crit" not in advanced:
             raise SourceParseError("TCEQ NOI advanced search form did not open")
-        kept: dict[str, dict[str, str]] = {}
+        kept: dict[str, dict[str, Any]] = {}
         for term in SITE_TERMS:
             _, body = read_public_response(
                 http,
@@ -243,12 +260,25 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             )
             for row in parse_results(body):
                 prior = kept.get(row["auth"])
-                if prior is not None and prior != row:
+                common = {key: value for key, value in row.items() if key not in {"sic", "segment"}}
+                if prior is not None and prior["common"] != common:
                     raise SourceParseError("TCEQ NOI authorization was returned with a conflict")
-                kept.setdefault(row["auth"], row)
+                if prior is None:
+                    prior = {"common": common, "classifications": {}}
+                    kept[row["auth"]] = prior
+                pair = (row["sic"], row["segment"])
+                prior["classifications"].setdefault(pair, set()).add(term)
         if len(kept) > MAX_RECORDS:
             raise SourceParseError("TCEQ NOI count exceeds its bound")
-        return [_record(kept[auth]) for auth in sorted(kept)]
+        records = []
+        for auth in sorted(kept):
+            item = kept[auth]
+            classifications = [
+                {"sic": sic, "segment": segment, "search_terms": sorted(terms)}
+                for (sic, segment), terms in sorted(item["classifications"].items())
+            ]
+            records.append(_record(item["common"], classifications))
+        return records
     finally:
         if client is None:
             http.close()

@@ -24,7 +24,10 @@ from gridlens.ingestion.adapters.power_signals import power_signal_tags
 from gridlens.ingestion.adapters.public_source_http import read_public_response
 
 SOURCE_ID = "texas-puct-large-load-dockets"
-SEARCH_URL = "https://interchange.puc.texas.gov/search/search/?UtilityType=E&ItemMatch=1&DocumentType=ALL&Description=large%20load"
+SEARCH_URL = (
+    "https://interchange.puc.texas.gov/search/dockets/?UtilityType=E&"
+    "ItemMatch=Equal&DocumentType=ALL&Description=large%20load&SortOrder=Ascending"
+)
 DESCRIPTIONS = ("large load", "data center")
 MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 ALLOWED_HOSTS = frozenset({"interchange.puc.texas.gov"})
@@ -44,16 +47,17 @@ def _query(description: str) -> str:
     return urlencode(
         {
             "UtilityType": "E",
-            "ItemMatch": "1",
+            "ItemMatch": "Equal",
             "DocumentType": "ALL",
             "Description": description,
+            "SortOrder": "Ascending",
         },
         quote_via=quote,
     )
 
 
 def _search_url(description: str) -> str:
-    return "https://interchange.puc.texas.gov/search/search/?" + _query(description)
+    return "https://interchange.puc.texas.gov/search/dockets/?" + _query(description)
 
 
 def _export_url(description: str) -> str:

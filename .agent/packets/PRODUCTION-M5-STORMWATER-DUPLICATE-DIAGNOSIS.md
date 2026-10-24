@@ -1,0 +1,9 @@
+# M5 stormwater duplicate authorization diagnosis
+
+READY after the entity-decoding repair: the fresh native job f715b484-0481-4817-a600-21b24aa07979 failed once. Read-only m5-stormwater-diagnostic-r1.json proves duplicate_authorization_conflict after three successful HTTP reads. Base d2a2c6ca80bc082891c5f127389b66f2405928c4; branch feat/production-intelligence-20261023; checkout gl3-production-20261023.
+
+One Luna owns only ignored .artifacts/production-pipeline/m5_stormwater_duplicate_shape.py and .agent/artifacts/PRODUCTION-M5-SOURCES/DUPLICATE-HANDOFF.json. Product, tests, registry, governance, databases, credentials, network execution and Git are excluded. Root executes the helper. Other agents own other surfaces; do not revert their work.
+
+Build a compact read-only helper using the existing bounded native adapter request path. Stop after parsing the first result page, before any second-term request or persistence. Capture exact first-page row count, unique authorization count, duplicate groups, differing field names, and the public row values only for the conflicting groups. Use parse_results unchanged. Preserve original byte/host/media/redirect bounds and original receipts. No response bodies, headers, cookies, credentials, or unrelated content persisted. Three logical reads maximum; fail if output exists. Include UTC, elapsed, candidate product hashes, zero database/provider access, safe error classification and final status. This is source diagnosis, not adapter success or acceptance.
+
+Validation: static AST/Ruff where practical; root reviews then executes once. Return exact hashes/commands/exits and UNKNOWN tokens/config when unmeasured. No product repair until controller evaluates observed conflict and issues a bounded second-repair direction. Two distinct product repairs maximum; first was count/paging entity decoding.

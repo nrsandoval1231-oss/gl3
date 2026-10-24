@@ -58,6 +58,18 @@ uv run --project backend uvicorn gridlens.api.app:app --host 127.0.0.1 --port 80
 npm --prefix web run dev
 ```
 
+When using saved-browse reads, start this command in its own terminal after the
+migrations:
+
+```powershell
+uv run --directory backend python -m gridlens.jobs.browse maintain
+```
+
+The maintainer only rebuilds retained projections; it does not start the acquisition worker.
+The API keeps `SAVED_BROWSE_ENABLED=false` by default. Enable it explicitly for
+the API process when validating saved-browse reads; the maintainer publishes the
+initial generation on its ordinary loop.
+
 The browser is at `http://127.0.0.1:5173`; Vite proxies `/api` to the API on port 8000. Use the password in the ignored `.artifacts/local-auth.txt`. The direct Uvicorn command includes `--no-proxy-headers`; do not trust forwarded headers from arbitrary loopback peers.
 
 Starting `python -m gridlens.jobs.worker` with the code default `WORKER_AUTO_REFRESH=true` plans and fetches due sources on startup and hourly. Omit the worker for UI/API development. If starting it for an approved local acquisition, set `WORKER_AUTO_REFRESH=false` first unless you intend its scheduler behavior. It does not establish a cloud schedule or seven production cycles.

@@ -17,8 +17,15 @@ export type NeedWorkflowStatusBody = components['schemas']['NeedWorkflowStatusBo
 
 export type IntelligenceHistoryItem = {
   job_id: string; task_type: string | null; need_id: string; status: string
-  result: Record<string, unknown> | null; result_status?: string | null; error: string | null; evidence_ids: string[]
-  logical_call_id: string | null; usage: { input_tokens?: number | null; output_tokens?: number | null; cost_usd?: string | number | null } | null
+  result: Record<string, unknown> | null; result_status?: string | null; validation_outcome?: string; validation_reason?: string | null; error: string | null; evidence_ids: string[]
+  commercial_assessment_support?: {
+    status: 'current' | 'saved' | 'unavailable' | 'stale'
+    reason?: string | null
+    document_coverage?: string | null
+    source_collection_status?: string | null
+    selected_facts: { fact_id: string; field?: string | null; value?: string | null; label?: string | null; support_status: 'current' | 'saved' | 'unavailable' | 'stale'; unavailable_reason?: string | null; citation?: { evidence_id: string; evidence_hash: string; source_url: string; excerpt: string; field: string; start: number; end: number } | null }[]
+  } | null
+  logical_call_id: string | null; usage: { input_tokens?: number | null; output_tokens?: number | null; cost_usd?: string | number | null; estimated_cost_usd?: string | number | null; cost_basis?: string | null } | null
   reserved: boolean; uncertain: boolean; created_at: string | null; completed_at: string | null
 }
 export type IntelligenceTasks = {

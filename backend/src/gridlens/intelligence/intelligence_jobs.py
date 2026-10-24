@@ -12,12 +12,15 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from gridlens.integrations.intelligence_provider import (
     GROUNDED_INSTRUCTIONS,
     call_openai,
+    call_openai_request,
     call_typesafe,
+    commercial_assessment_request_payload,
     openai_request_payload,
 )
 from gridlens.integrations.logical_calls import (
@@ -30,6 +33,10 @@ from gridlens.integrations.logical_calls import (
     quarantine_call,
     reserve_call,
 )
+from gridlens.intelligence.commercial_assessment import (
+    ASSESSMENT_SCHEMA,
+    validate_assessment,
+)
 from gridlens.intelligence.grounded_candidates import validate_grounded_candidates
 from gridlens.intelligence.jev_contracts import CONTRACTS, validate_answer
 from gridlens.intelligence.jev_task_context import build_task_context
@@ -40,6 +47,7 @@ from gridlens.persistence.models import (
     CallFactDecision,
     CallFactVersion,
     Evidence,
+    EvidencePackage,
     Interpretation,
     Job,
     NeedObservation,
@@ -79,6 +87,8 @@ LEGACY_TASKS = {
     "FIRECRAWL_SEARCH_V2",
     "FIRECRAWL_SCRAPE_V2",
 }
+COMMERCIAL_ASSESSMENT_TASK = "COMMERCIAL_ASSESSMENT_V1"
+COMMERCIAL_ASSESSMENT_OUTPUT_TOKENS = 6000
 
 
 def legacy_paid_path_block_reason() -> str | None:
@@ -235,6 +245,7 @@ def _request_payload(
     project: Project,
     source: Source,
     evidence: list[dict[str, Any]],
+    package_id: UUID | None = None,
 ) -> dict[str, Any]:
     current_state = {
         "need_id": str(need.id),
@@ -253,6 +264,111 @@ def _request_payload(
         current_state["project_research_policy_version"] = PROJECT_RESEARCH_VERSION
         current_state["grounding_policy_version"] = "retained-grounding-v2"
     state_version_digest = _digest(current_state)
+    if task_type == COMMERCIAL_ASSESSMENT_TASK:
+        if package_id is None:
+            raise ValueError("Exact M3 package ID is required")
+        from gridlens.intelligence.evidence_packages import validate_package
+
+        package_row = session.get(EvidencePackage, package_id)
+        if package_row is None or package_row.processing_status != "COMPLETE_ADVISORY":
+            raise ValueError("Package is not COMPLETE_ADVISORY")
+        package = package_row.payload
+        if package_row.project_id != project.id or package_row.need_id != need.id:
+            raise ValueError("Package project/need identity mismatch")
+        if package_row.processing_status != package.get("processing_status"):
+            raise ValueError("Package row and payload status mismatch")
+        if package.get("package_key") != package_row.package_key:
+            raise ValueError("Package row and payload key mismatch")
+        evidence_by_id = {item["id"]: item for item in evidence}
+        references = package.get("source_references")
+        if not isinstance(references, list) or len(references) != 1:
+            raise ValueError("Package evidence references are malformed")
+        reference = references[0]
+        retained = evidence_by_id.get(reference.get("evidence_id"))
+        if retained is None or retained.get("content_hash") != reference.get("evidence_hash"):
+            raise ValueError("Package evidence is no longer current")
+        evidence_id = UUID(reference["evidence_id"])
+        observation_id = UUID(reference["observation_id"])
+        if retained.get("observation_id") != str(observation_id):
+            raise ValueError("Package evidence observation identity is stale")
+        ev = session.get(Evidence, evidence_id)
+        if ev is None or ev.content_hash != reference["evidence_hash"]:
+            raise ValueError("Package evidence hash is stale")
+        observation = session.get(Observation, observation_id)
+        if (
+            ev.observation_id != observation_id
+            or observation is None
+            or observation.source_id != reference.get("source_id")
+            or observation.content_hash != ev.content_hash
+            or package_row.evidence_id != ev.id
+            or package_row.observation_id != observation.id
+            or package_row.evidence_hash != ev.content_hash
+        ):
+            raise ValueError("Package observation version or evidence relation is stale")
+        validate_package(
+            package, evidence_fields={"title": ev.title or "", "abstract": ev.abstract or ""}
+        )
+        from gridlens.intelligence.commercial_assessment import digest as m4_digest
+
+        facts = []
+        for fact in package.get("facts", []):
+            citation = fact.get("citation", {})
+            span = citation.get("excerpt_location", {})
+            field_name = span.get("field")
+            source_text = ev.title or "" if field_name == "title" else ev.abstract or ""
+            start, end = span.get("start"), span.get("end")
+            if (
+                type(start) is not int
+                or type(end) is not int
+                or start < 0
+                or end < start
+                or end > len(source_text)
+            ):
+                raise ValueError("Package citation span is stale")
+            if source_text[start:end] != fact.get("value"):
+                raise ValueError("Package citation text mismatch")
+            facts.append({**fact, "fact_id": f"f-{m4_digest(fact)[:16]}"})
+        if project.region_status != "ELIGIBLE":
+            raise ValueError("Project region is not eligible")
+        return {
+            "schema_version": "commercial-assessment-v1",
+            "task_type": task_type,
+            "need": {
+                "need_id": str(need.id),
+                "project_id": str(project.id),
+                "updated_at": need.updated_at.isoformat() if need.updated_at else None,
+                "activity": need.activity_key,
+                "required_mw": need.required_mw,
+                "start_window": need.start_window,
+                "duration": need.duration,
+                "supply": need.supply,
+                "accepted_facts": getattr(need, "_intelligence_accepted_facts", []),
+            },
+            "project": {
+                "project_id": str(project.id),
+                "identity_key": project.identity_key,
+                "identity_facts": project.identity_facts,
+                "region_status": project.region_status,
+                "region_state": project.region_state,
+                "region_provenance": project.region_provenance,
+            },
+            "package": {
+                "id": str(package_row.id),
+                "package_key": package_row.package_key,
+                "schema_version": package_row.schema_version,
+                "processing_status": package_row.processing_status,
+                "payload_digest": m4_digest(package),
+                "document_coverage": package.get("document_coverage"),
+                "source_collection_status": package.get("source_collection_status"),
+                "facts": facts,
+                "missing_fields": package.get("missing_fields"),
+                "source_references": references,
+                "source_id": source.id,
+                "source_health": source.health,
+                "source_enabled": source.enabled,
+                "source_registry_enabled": source.registry_enabled,
+            },
+        }
     if task_type in CONTRACTS:
         contract = CONTRACTS[task_type]
         context = build_task_context(session, task_type, need, project, source, evidence)
@@ -388,7 +504,14 @@ def _current_payload(session: Session, checkpoint: dict[str, Any], need_id: UUID
     task_type = checkpoint["task_type"]
     need, project, source, evidence = _retained_context(session, need_id)
     payload = _request_payload(
-        session, task_type, checkpoint.get("question_id"), need, project, source, evidence
+        session,
+        task_type,
+        checkpoint.get("question_id"),
+        need,
+        project,
+        source,
+        evidence,
+        UUID(checkpoint["package_id"]) if checkpoint.get("package_id") else None,
     )
     payload = _bound_grounded_payload(payload)
     watch_context = _watch_context(session, need_id, checkpoint.get("origin", ""))
@@ -396,6 +519,143 @@ def _current_payload(session: Session, checkpoint: dict[str, Any], need_id: UUID
         payload["watch_context"] = watch_context
         payload = _bound_grounded_payload(payload)
     return payload
+
+
+def _publish_commercial_assessment_result(
+    *,
+    job_id: UUID,
+    worker_id: str,
+    fence_token: int,
+    call_id: UUID,
+    call_result: dict[str, Any],
+    input_tokens: int,
+    output_tokens: int,
+    provider_response_id: str | None,
+) -> dict[str, Any]:
+    """Settle the M4 call and its job from one coherent publication snapshot."""
+    for attempt in range(2):
+        try:
+            with SessionLocal.begin() as session:
+                session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+                job = assert_fence(session, job_id, worker_id, fence_token)
+                checkpoint = json.loads(job.checkpoint or "{}")
+                payload = checkpoint.get("payload", {})
+                need_id = job.target_id
+                if need_id is None:
+                    raise ValueError("M4 job has no target need")
+                lock_specs = (
+                    (PowerNeed, payload.get("need", {}).get("need_id")),
+                    (Project, payload.get("project", {}).get("project_id")),
+                    (EvidencePackage, payload.get("package", {}).get("id")),
+                )
+                for model, raw_id in lock_specs:
+                    if not raw_id:
+                        raise ValueError("M4 publication identity is incomplete")
+                    row_id = UUID(str(raw_id))
+                    row = session.scalar(
+                        select(model)
+                        .where(model.id == row_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                    if row is None:
+                        raise ValueError("M4 publication identity is missing")
+                package = payload.get("package", {})
+                refs = package.get("source_references", [])
+                if not isinstance(refs, list) or len(refs) != 1:
+                    raise ValueError("M4 package source references are malformed")
+                ref = refs[0]
+                for citation_model, key in (
+                    (Evidence, "evidence_id"),
+                    (Observation, "observation_id"),
+                    (Source, "source_id"),
+                ):
+                    raw_id = ref.get(key)
+                    if not raw_id:
+                        raise ValueError("M4 citation identity is incomplete")
+                    row_id = raw_id if citation_model is Source else UUID(str(raw_id))
+                    row = session.scalar(
+                        select(citation_model)
+                        .where(citation_model.id == row_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                    if row is None:
+                        raise ValueError("M4 citation identity is missing")
+
+                try:
+                    current_payload = _current_payload(session, checkpoint, need_id)
+                    fresh = _digest(current_payload) == checkpoint.get("request_digest")
+                except (ValueError, KeyError, TypeError):
+                    fresh = False
+                published_at = datetime.now(UTC).isoformat()
+                if fresh:
+                    result = dict(call_result)
+                    result["validation_outcome"] = "VALIDATED"
+                else:
+                    result = {
+                        "provider": call_result.get("provider"),
+                        "actual_model": call_result.get("actual_model"),
+                        "service_tier": call_result.get("service_tier"),
+                        "provider_response_id": provider_response_id,
+                        "usage": call_result.get("usage"),
+                        "validation_outcome": "STALE_CONTEXT",
+                        "validation_reason": "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                    }
+                result["publication_snapshot"] = {
+                    "request_digest": checkpoint.get("request_digest"),
+                    "published_at": published_at,
+                    "basis": "as_of_publication_repeatable_read",
+                }
+                transition = complete_call(
+                    session,
+                    call_id,
+                    fence_token=fence_token,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    result_digest=_digest(result),
+                    result_payload=result,
+                    defer_commit=True,
+                )
+                if (
+                    transition.status != "COMPLETED"
+                    or transition.reused
+                    or transition.blocked_reason
+                ):
+                    raise RuntimeError("M4 call settlement did not complete under its fence")
+                checkpoint.update(
+                    status="completed" if fresh else "stale",
+                    completed_at=published_at,
+                    result=result,
+                    result_status="validated" if fresh else "stale_context",
+                    error=None if fresh else "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                    validation_outcome="VALIDATED" if fresh else "STALE_CONTEXT",
+                    validation_reason=None if fresh else "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                    provider_response_id=provider_response_id,
+                    usage=result.get("usage"),
+                )
+                if fresh:
+                    _apply_bounded_routing_effect(
+                        session,
+                        checkpoint=checkpoint,
+                        result=result,
+                        need_id=need_id,
+                    )
+                _record_research_receipt(session, checkpoint)
+                job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
+                job.status, job.lease_owner, job.lease_until = "succeeded", None, None
+            return {
+                "status": "completed" if fresh else "stale",
+                "result": result,
+                "error": None if fresh else "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                "job_id": str(job_id),
+            }
+        except DBAPIError as exc:
+            original = exc.orig
+            state = getattr(original, "sqlstate", None) or getattr(original, "pgcode", None)
+            if state != "40001" or attempt:
+                raise
+    raise RuntimeError("M4 publication retry exhausted")
 
 
 def _queue_stale_reassessment(
@@ -421,10 +681,13 @@ def enqueue_intelligence(
     task_type: str,
     question_id: str | None = None,
     origin: str = "operator",
+    package_id: UUID | None = None,
 ) -> Job:
     """Queue one exact need/evidence request; active unchanged jobs are reused."""
     need, project, source, evidence = _retained_context(session, need_id)
-    payload = _request_payload(session, task_type, question_id, need, project, source, evidence)
+    payload = _request_payload(
+        session, task_type, question_id, need, project, source, evidence, package_id
+    )
     payload = _bound_grounded_payload(payload)
     watch_context = _watch_context(session, need_id, origin)
     if watch_context is not None:
@@ -488,6 +751,7 @@ def enqueue_intelligence(
             {
                 "schema_version": SCHEMA_VERSION,
                 "task_type": task_type,
+                "package_id": str(package_id) if package_id else None,
                 "question_id": question_id,
                 "origin": origin[:40],
                 "request_digest": identity,
@@ -642,6 +906,21 @@ def _enabled(
         payload and payload.get("task_context", {}).get("party_candidates")
     ):
         return False, "", "", "BUYER_SUBJECT_UNRESOLVED"
+    if task_type == COMMERCIAL_ASSESSMENT_TASK:
+        model = settings.intelligence_openai_reasoning_model
+        if not settings.intelligence_enabled or mode not in {"evaluation", "advisory"}:
+            return False, "", "", "INTELLIGENCE_DISABLED"
+        if not settings.intelligence_openai_enabled or not settings.openai_api_key:
+            return False, "", "", "OPENAI_DISABLED_OR_KEY_MISSING"
+        if (
+            model != "gpt-6.1-sol"
+            or settings.intelligence_openai_reasoning_priced_model_id != model
+            or not settings.intelligence_openai_reasoning_pricing_verified
+        ):
+            return False, "", "", "M4_PINNED_MODEL_PRICING_MISSING"
+        if not payload or payload.get("project", {}).get("region_status") != "ELIGIBLE":
+            return False, "", "", "M4_PROJECT_REGION_NOT_ELIGIBLE"
+        return True, "openai", model, ""
     if not settings.intelligence_enabled or mode not in {
         "evaluation",
         "advisory",
@@ -902,6 +1181,19 @@ def _billing_policy_identity(
     }
     response_policy = {"response_guard_policy": "exact-model-usage-v1", "provider_model": model}
     if provider == "openai":
+        if task_type == COMMERCIAL_ASSESSMENT_TASK:
+            return {
+                **response_policy,
+                **financial_identity,
+                "task_type": COMMERCIAL_ASSESSMENT_TASK,
+                "policy_id": "m4-commercial-assessment-v1",
+                "input_rate_usd_per_million": "2.50",
+                "output_rate_usd_per_million": "10",
+                "max_output_tokens": str(COMMERCIAL_ASSESSMENT_OUTPUT_TOKENS),
+                "service_tier": "default",
+                "reasoning_effort": "medium",
+                "prompt_cache_ttl": "30m",
+            }
         prefix = (
             "ocr"
             if task_type in {"OCR_EXTRACTION", "OCR_GROUNDED_FOLLOWON"}
@@ -974,6 +1266,8 @@ def _billing_policy_identity(
 
 
 def _openai_output_bound(task_type: str) -> int:
+    if task_type == COMMERCIAL_ASSESSMENT_TASK:
+        return COMMERCIAL_ASSESSMENT_OUTPUT_TOKENS
     if task_type == "POWER_NEED_TITLE":
         return POWER_NEED_TITLE_OUTPUT_TOKENS
     if task_type in {"OCR_EXTRACTION", "OCR_GROUNDED_FOLLOWON"}:
@@ -1064,6 +1358,17 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
         )
         return unit or Decimal("0")
     if provider == "openai":
+        if task_type == COMMERCIAL_ASSESSMENT_TASK:
+            request = commercial_assessment_request_payload(
+                model=settings.intelligence_openai_reasoning_model,
+                input_payload=payload,
+                schema=ASSESSMENT_SCHEMA,
+            )
+            input_upper = _serialized_request_bytes(request)
+            reserved = (
+                Decimal(input_upper) * Decimal("2.50") + Decimal(6000) * Decimal("10")
+            ) / Decimal(1_000_000)
+            return reserved if reserved <= Decimal("0.25") else Decimal("0")
         from gridlens.intelligence.briefs import brief_request_payload
 
         if task_type == "POWER_NEED_TITLE":
@@ -1177,6 +1482,11 @@ def _estimated_cost_from_usage(
     if type(output_tokens) is not int or output_tokens < 0:
         raise ValueError("Provider output token usage is invalid")
     if provider == "openai":
+        if task_type == COMMERCIAL_ASSESSMENT_TASK:
+            input_price, output_price = Decimal("2.50"), Decimal("10")
+            return (
+                Decimal(input_tokens) * input_price + Decimal(output_tokens) * output_price
+            ) / Decimal(1_000_000)
         prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
         input_price = getattr(settings, f"intelligence_openai_{prefix}_input_usd_per_million")
         output_price = getattr(settings, f"intelligence_openai_{prefix}_output_usd_per_million")
@@ -1327,6 +1637,7 @@ def _provider_error_quarantine_details(
     expected_model: str,
     input_token_limit: int | None = None,
     billing_policy: dict[str, str] | None = None,
+    actual_service_tier: Any = None,
 ) -> dict[str, Any] | None:
     """Normalize a received provider error into bounded quarantine evidence."""
     if provider not in {"typesafe", "openai"} or not getattr(error, "response_received", False):
@@ -1342,6 +1653,8 @@ def _provider_error_quarantine_details(
             actual_model = raw.get("model")
         if not isinstance(usage, dict):
             usage = raw.get("usage")
+        if actual_service_tier is None:
+            actual_service_tier = raw.get("service_tier")
     if not isinstance(usage, dict):
         usage = {}
     input_tokens = usage.get("input_tokens")
@@ -1355,6 +1668,8 @@ def _provider_error_quarantine_details(
         reason = "RESPONSE_TOO_LARGE"
     elif actual_model != expected_model:
         reason = "MODEL_IDENTITY_MISMATCH"
+    elif task_type == COMMERCIAL_ASSESSMENT_TASK and actual_service_tier != "default":
+        reason = "SERVICE_TIER_MISMATCH"
     elif not _valid_reported_tokens(input_tokens) or not _valid_reported_tokens(output_tokens):
         reason = "INVALID_REPORTED_USAGE"
     elif input_tokens is None or (provider == "openai" and output_tokens is None):
@@ -1442,6 +1757,7 @@ def _provider_error_quarantine_details(
     return {
         "reason": reason,
         "actual_model": actual_model,
+        "service_tier": actual_service_tier if actual_service_tier is not None else "UNKNOWN",
         "input_tokens": input_tokens if _valid_reported_tokens(input_tokens) else None,
         "output_tokens": output_tokens if _valid_reported_tokens(output_tokens) else None,
         "response_payload": response_payload,
@@ -1841,6 +2157,7 @@ def _enqueue_routed_grounding(
 def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> dict[str, Any]:
     input_tokens: int | None = None
     output_tokens: int | None = None
+    input_token_upper_bound: int | None = None
     provider_response_id: str | None = None
     provider_response_complete = False
     billing_quarantined = False
@@ -1867,6 +2184,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                     project,
                     source,
                     evidence,
+                    UUID(checkpoint["package_id"]) if checkpoint.get("package_id") else None,
                 )
             )
             watch_context = _watch_context(session, job.target_id, checkpoint.get("origin", ""))
@@ -2135,31 +2453,56 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 )
         else:
             key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
-            instructions = GROUNDED_INSTRUCTIONS
             output_limit = (
-                settings.intelligence_openai_fast_max_output_tokens
+                COMMERCIAL_ASSESSMENT_OUTPUT_TOKENS
+                if task_type == COMMERCIAL_ASSESSMENT_TASK
+                else settings.intelligence_openai_fast_max_output_tokens
                 if task_type == "GROUNDED_EXTRACTION"
                 else settings.intelligence_openai_reasoning_max_output_tokens
             )
-            data = call_openai(
-                api_key=key,
-                model=model,
-                instructions=instructions,
-                input_payload=payload,
-                max_output_tokens=output_limit,
-            )
+            if task_type == COMMERCIAL_ASSESSMENT_TASK:
+                request = commercial_assessment_request_payload(
+                    model=model, input_payload=payload, schema=ASSESSMENT_SCHEMA
+                )
+                input_token_upper_bound = _serialized_request_bytes(request)
+                data = call_openai_request(
+                    api_key=key,
+                    request=request,
+                )
+            else:
+                data = call_openai(
+                    api_key=key,
+                    model=model,
+                    instructions=GROUNDED_INSTRUCTIONS,
+                    input_payload=payload,
+                    max_output_tokens=output_limit,
+                )
             provider_response_complete = True
             provider_response_id = _provider_response_id(data)
             response_model = data.get("model")
             input_tokens, output_tokens = data.get("input_tokens"), data.get("output_tokens")
             actual_model = response_model
+            actual_service_tier = data.get("service_tier")
             quarantine_reason = None
             if actual_model != model:
                 quarantine_reason = "MODEL_IDENTITY_MISMATCH"
+            elif task_type == COMMERCIAL_ASSESSMENT_TASK and actual_service_tier != "default":
+                quarantine_reason = "SERVICE_TIER_MISMATCH"
+            elif task_type == COMMERCIAL_ASSESSMENT_TASK and (
+                type(input_tokens) is not int or type(output_tokens) is not int
+            ):
+                quarantine_reason = "MISSING_REPORTED_USAGE"
             elif not _valid_reported_tokens(input_tokens) or not _valid_reported_tokens(
                 output_tokens
             ):
                 quarantine_reason = "INVALID_REPORTED_USAGE"
+            elif (
+                task_type == COMMERCIAL_ASSESSMENT_TASK
+                and input_token_upper_bound is not None
+                and input_tokens is not None
+                and input_tokens > input_token_upper_bound
+            ):
+                quarantine_reason = "ENFORCED_INPUT_BOUND_EXCEEDED"
             elif output_tokens is not None and output_tokens > output_limit:
                 quarantine_reason = "ENFORCED_OUTPUT_BOUND_EXCEEDED"
             elif _provider_audit_exceeds_bound(data):
@@ -2170,6 +2513,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 exposure_basis = None
                 if (
                     actual_model == model
+                    and not (
+                        task_type == COMMERCIAL_ASSESSMENT_TASK and actual_service_tier != "default"
+                    )
                     and _valid_reported_tokens(input_tokens)
                     and _valid_reported_tokens(output_tokens)
                     and input_tokens is not None
@@ -2203,6 +2549,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 call_result = {
                     "provider": provider,
                     "actual_model": actual_model,
+                    "service_tier": actual_service_tier or "UNKNOWN",
                     "usage": {
                         "input_tokens": input_tokens,
                         "output_tokens": output_tokens,
@@ -2210,13 +2557,30 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                     "billing_quarantine": quarantine_reason,
                 }
         if not billing_quarantined:
-            if provider == "openai":
+            if provider == "openai" and task_type == COMMERCIAL_ASSESSMENT_TASK:
+                package_context = payload["package"]
+                package_for_validation = {
+                    **package_context,
+                    "processing_status": package_context["processing_status"],
+                    "project_id": payload["project"]["project_id"],
+                    "need_id": payload["need"]["need_id"],
+                }
+                parsed = validate_assessment(
+                    data["output"],
+                    package=package_for_validation,
+                    need_id=payload["need"]["need_id"],
+                    project_id=payload["project"]["project_id"],
+                    current_need=payload["need"],
+                )
+            elif provider == "openai":
                 parsed = validate_grounded_candidates(data["output"], payload["evidence"])
             call_result = {
                 **parsed,
                 "provider": provider,
                 "actual_model": actual_model,
                 "latency_ms": data.get("latency_ms", data.get("provider_latency_ms")),
+                "service_tier": data.get("service_tier", "UNKNOWN"),
+                "reported_usage": data.get("reported_usage"),
                 "validation_outcome": "VALIDATED",
             }
             if provider_response_id:
@@ -2230,28 +2594,35 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "actual_cost_usd": None,
                 "estimated_cost_usd": str(estimated_cost) if estimated_cost is not None else None,
                 "cost_basis": (
-                    "derived_from_verified_usage_and_pinned_rates"
+                    "conservative_usage_estimate_not_invoice"
+                    if task_type == COMMERCIAL_ASSESSMENT_TASK
+                    else "derived_from_verified_usage_and_pinned_rates"
                     if estimated_cost is not None
                     else None
                 ),
             }
             result_digest = _digest(call_result)
-            with SessionLocal() as session:
-                complete_call(
-                    session,
-                    call_id,
-                    fence_token=fence_token,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    result_digest=result_digest,
-                    result_payload=call_result,
-                )
+            if task_type != COMMERCIAL_ASSESSMENT_TASK:
+                with SessionLocal() as session:
+                    complete_call(
+                        session,
+                        call_id,
+                        fence_token=fence_token,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        result_digest=result_digest,
+                        result_payload=call_result,
+                    )
             status = "completed"
             error = None
     except Exception as exc:
         provider_request_id = getattr(exc, "request_id", None)
         error_quarantine = _provider_error_quarantine_details(
-            exc, provider=provider, task_type=task_type, expected_model=model
+            exc,
+            provider=provider,
+            task_type=task_type,
+            expected_model=model,
+            input_token_limit=input_token_upper_bound,
         )
         if error_quarantine is not None:
             actual_model = error_quarantine["actual_model"]
@@ -2308,6 +2679,24 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             error, call_result = type(exc).__name__, None
             validation_reason = error
 
+    if status == "completed" and task_type == COMMERCIAL_ASSESSMENT_TASK:
+        if (
+            not isinstance(call_result, dict)
+            or type(input_tokens) is not int
+            or type(output_tokens) is not int
+        ):
+            raise RuntimeError("M4 validated response is missing its result or reported usage")
+        return _publish_commercial_assessment_result(
+            job_id=job_id,
+            worker_id=worker_id,
+            fence_token=fence_token,
+            call_id=call_id,
+            call_result=call_result,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            provider_response_id=provider_response_id,
+        )
+
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence_token)
         checkpoint = json.loads(job.checkpoint or "{}")
@@ -2325,8 +2714,14 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 result=call_result,
                 result_status="stale_context",
                 error="INPUT_CHANGED_DURING_PROVIDER_CALL",
-                validation_outcome="VALIDATED",
-                validation_reason=None,
+                validation_outcome=(
+                    "STALE_CONTEXT" if task_type == COMMERCIAL_ASSESSMENT_TASK else "VALIDATED"
+                ),
+                validation_reason=(
+                    "INPUT_CHANGED_DURING_PROVIDER_CALL"
+                    if task_type == COMMERCIAL_ASSESSMENT_TASK
+                    else None
+                ),
                 provider_response_id=provider_response_id,
                 usage={
                     "input_tokens": input_tokens,

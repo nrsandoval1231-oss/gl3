@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from importlib import import_module
 
 from fastapi.testclient import TestClient
@@ -138,6 +138,9 @@ def test_cached_replay_inherits_original_success_receipt(sessions, monkeypatch):
     with sessions.begin() as session:
         original_checkpoint = json.loads(session.get(Job, job_id).checkpoint)
         replay = enqueue_intelligence(session, need_id=need_id, task_type="SOURCE_RELEVANCE_V1")
+        # Job.available_at uses the database clock; lease_one checks it against
+        # the worker clock, so make the replay due before attempting to claim it.
+        replay.available_at = datetime.now(UTC) - timedelta(seconds=1)
         replay_id = replay.id
     worker = _wire_worker(sessions, monkeypatch)
     monkeypatch.setattr(worker, "WORKER_ID", "receipt-cached-worker")

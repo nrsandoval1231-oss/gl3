@@ -42,7 +42,7 @@ async function contrastRatio(locator: import('@playwright/test').Locator) {
   })
 }
 
-async function useCommercialFixture(page: import('@playwright/test').Page, researchStatus = 200, failFirstNote = false) {
+async function useCommercialFixture(page: import('@playwright/test').Page, researchStatus = 200, failFirstNote = false, m4Scenario: 'completed' | 'unknown' | 'invalid_citation' | 'unvalidated_legacy' | null = null) {
   let savedNote: NonNullable<CommercialTriageCard['notes']>[number] | null = null
   let receivedQuestion = ''
   let statusQuestion = ''
@@ -72,12 +72,23 @@ async function useCommercialFixture(page: import('@playwright/test').Page, resea
       publisher: 'Synthetic utility filing', published_date: '2026-10-10', support: 'direct', status: 'candidate',
       source_url: 'https://example.test/intelligence-evidence', source_id: 'utility-filings',
     }
+    const m4Job = m4Scenario ? {
+      job_id: `job-m4-${m4Scenario}`, task_type: 'COMMERCIAL_ASSESSMENT_V1', need_id: needId,
+      status: m4Scenario === 'unknown' ? 'unknown' : 'completed', validation_outcome: ['unknown', 'unvalidated_legacy'].includes(m4Scenario) ? 'UNKNOWN' : 'VALIDATED',
+      result_status: 'validated', validation_reason: null,
+      result: m4Scenario === 'unknown' ? null : { disposition: 'UNRESOLVED', reason_code: 'EXCERPT_INSUFFICIENT', next_question: 'What load is required?', next_action: 'Verify the load with the project team.', unknown_fields: ['REQUIRED_MW'], selected_fact_ids: ['f-m4'], actual_model: 'gpt-6.1-sol' },
+      commercial_assessment_support: m4Scenario === 'invalid_citation'
+        ? { status: 'saved', document_coverage: 'RECORD_EXCERPT', source_collection_status: 'PARTIAL', selected_facts: [{ fact_id: 'f-m4', support_status: 'unavailable', unavailable_reason: 'SAVED_CITATION_FAILED_VALIDATION', citation: null }] }
+        : { status: 'saved', document_coverage: 'RECORD_EXCERPT', source_collection_status: 'PARTIAL', selected_facts: [{ fact_id: 'f-m4', field: 'application_stage', value: 'Permit application', label: 'REPORTED', support_status: 'saved', citation: { evidence_id: 'ev-m4', evidence_hash: 'b'.repeat(64), source_url: 'https://example.test/m4', excerpt: 'Application stage: Permit application', field: 'abstract', start: 18, end: 36 } }] },
+      error: m4Scenario === 'unknown' ? 'ProviderResponseError' : null, evidence_ids: ['ev-m4'], logical_call_id: 'call-m4',
+      usage: { input_tokens: 10, output_tokens: 8, cost_usd: null }, reserved: true, uncertain: m4Scenario === 'unknown', created_at: '2026-10-10T12:00:00Z', completed_at: null,
+    } : null
     await route.fulfill({ json: { items: needId === 'need-a' ? [{
       job_id: 'job-intel-a', task_type: 'GROUNDED_DOSSIER', need_id: needId, status: 'completed',
       result: { candidates: [candidate], hypotheses: ['Potential temporary need'], contradictions: [], unresolved_questions: ['Utility service date'], candidate_orgs: [], proposed_queries: [], suggested_pursuit: null },
       error: null, evidence_ids: ['ev-intel'], logical_call_id: 'call-intel-a', usage: { input_tokens: 18, output_tokens: 24, cost_usd: null },
       reserved: true, uncertain: false, created_at: '2026-10-10T12:00:00Z', completed_at: '2026-10-10T12:00:01Z',
-    }] : [] } })
+    }, ...(m4Job ? [m4Job] : [])] : [] } })
   })
   await page.route('**/api/intelligence/needs/need-a/feedback', async (route) => {
     intelligenceFeedback = route.request().postDataJSON() as Record<string, unknown>
@@ -125,6 +136,67 @@ async function useCommercialFixture(page: import('@playwright/test').Page, resea
   return { get savedNote() { return savedNote }, get receivedQuestion() { return receivedQuestion }, get statusQuestion() { return statusQuestion }, get researchCalls() { return researchCalls }, get statusCalls() { return statusCalls }, get evaluationCalls() { return evaluationCalls }, get intelligenceFeedback() { return intelligenceFeedback }, intelligenceNeedRequests, noteIds }
 }
 
+type M6Scenario = 'completed' | 'unknown' | 'invalid_citation' | 'unvalidated_legacy' | 'missing_estimate'
+const m6Need = (id: string, name: string, projectId: string) => ({
+  id, project_id: projectId, name, location: 'Austin, TX', tier: 'Signal', workflow_status: 'New', activity: 'construction',
+  rationale: 'A retained project filing supports investigation.', signal_evidence_state: 'active', conflict_state: 'Not assessed',
+  required_mw: null, supply: 'Unknown', start_window: null, duration: null,
+  evidence: [{ id: `ev-${id}`, source_id: 'city-permit', document_number: 'P-1', title: 'Permit filing', url: 'https://example.test/m4', published_at: null, retrieved_at: '2026-10-18T10:00:00Z', event_date: null, event_date_label: 'Event date', source_origin: 'City permits', extraction_location: 'Page 1', abstract: 'Construction filing.' }],
+  missing_facts: ['Activity-specific load', 'Suitable utility supply'], project_identity_key: name, commercial_disposition: 'RESEARCH',
+  commercial_reason: 'Load and supply remain unknown.', commercial_next_question: 'Who owns the electrical scope?', commercial_next_action: 'Research the project contractor.',
+  commercial_organization: null, qualified_remaining_gap: null,
+} as any)
+
+async function useM6WorkspaceFixture(page: import('@playwright/test').Page, scenario: M6Scenario, includeSecond = false) {
+  const needs = [m6Need('need-a', 'Northstar Campus', 'project-a')]
+  if (includeSecond) needs.push(m6Need('need-b', 'South Ridge Works', 'project-b'))
+  const result = {
+    disposition: 'UNRESOLVED', reason_code: 'EXCERPT_INSUFFICIENT', next_question: 'What load is required?',
+    next_action: 'Verify the load with the project team.', unknown_fields: ['REQUIRED_MW'], selected_fact_ids: ['f-m4'],
+    actual_model: 'gpt-6.1-sol',
+  }
+  const completed = scenario !== 'unknown'
+  const validated = !['unknown', 'unvalidated_legacy'].includes(scenario)
+  const support = scenario === 'unknown' ? { status: 'unavailable', reason: 'ASSESSMENT_SUPPORT_UNAVAILABLE', selected_facts: [] }
+    : { status: 'saved', document_coverage: 'RECORD_EXCERPT', source_collection_status: 'PARTIAL', selected_facts: [{
+      fact_id: 'f-m4', field: 'application_stage', value: 'Permit application', label: 'REPORTED',
+      support_status: scenario === 'invalid_citation' ? 'unavailable' : 'saved',
+      unavailable_reason: scenario === 'invalid_citation' ? 'SAVED_CITATION_FAILED_VALIDATION' : null,
+      citation: scenario === 'invalid_citation' ? null : { evidence_id: 'ev-need-a', evidence_hash: 'b'.repeat(64), source_url: 'https://example.test/m4', excerpt: 'Permit application', field: 'abstract', start: 19, end: 37 },
+    }] }
+  const usage = { input_tokens: 10, output_tokens: 8, ...(scenario === 'completed' ? { estimated_cost_usd: '0.0057725', cost_basis: 'conservative_usage_estimate_not_invoice' } : {}) }
+  const job = {
+    job_id: `job-m4-${scenario}`, task_type: 'COMMERCIAL_ASSESSMENT_V1', need_id: 'need-a',
+    status: completed ? 'completed' : 'unknown', validation_outcome: validated ? 'VALIDATED' : 'UNKNOWN',
+    result_status: 'validated', validation_reason: scenario === 'unvalidated_legacy' ? 'UNKNOWN' : null,
+    result: completed ? result : null, commercial_assessment_support: support,
+    error: scenario === 'unknown' ? 'ProviderResponseError' : null, evidence_ids: ['ev-need-a'],
+    logical_call_id: 'call-m4', usage, reserved: true, uncertain: scenario === 'unknown',
+    created_at: '2026-10-10T12:00:00Z', completed_at: completed ? '2026-10-10T12:00:01Z' : null,
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/health', route => route.fulfill({ json: {} }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: {
+    items: needs, total: needs.length, counts: { action_now: 0, research: needs.length, watch: 0, reject: 0 },
+    offset: 0, limit: 25, next_offset: null, cohort_token: 'm6-fixture', count_unit: 'power needs', changes_available: false,
+  } }))
+  await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: {
+    items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 },
+    total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: null,
+    baseline_identity: null, baseline_reviewed_at: null, first_use: true, token: 'm6-fixture', source_health_exceptions: [],
+  } }))
+  await page.route(url => /^\/api\/opportunities\/needs\/need-[ab]$/.test(url.pathname), route => {
+    const id = new URL(route.request().url()).pathname.split('/').at(-1)!
+    return route.fulfill({ json: needs.find(item => item.id === id) ?? needs[0] })
+  })
+  await page.route('**/api/power-needs/need-*/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [], generated_at: null, model: null, error: null } }))
+  await page.route('**/api/intelligence/needs/*/history?limit=20', route => {
+    const needId = new URL(route.request().url()).pathname.split('/')[4]
+    return route.fulfill({ json: { items: needId === 'need-a' ? [job] : [] } })
+  })
+  await page.goto('/?view=workspace')
+}
+
 test('advisory candidates cite the exact source, preserve UNKNOWNs, and save pending owner review', async ({ page }) => {
   const captured = await useCommercialFixture(page)
   await page.locator('.commercial-list .commercial-card-heading').click()
@@ -162,17 +234,73 @@ test('all ineligible intelligence tasks retain a real selection and explain why 
 })
 
 test('switching exact need aborts stale intelligence history and clears prior candidates', async ({ page }) => {
-  const captured = await useCommercialFixture(page)
-  await page.locator('.commercial-list .commercial-card-heading').click()
-  await expect(page.locator('.intelligence-research')).toBeVisible()
-  await page.locator('.commercial-filters button').nth(1).click()
-  await expect(page.locator('.commercial-list .commercial-card-heading')).toContainText('South Ridge Works')
-  await page.locator('.commercial-list .commercial-card-heading').click()
-  const research = page.getByRole('region', { name: 'Advisory intelligence research' })
-  await expect(research).toContainText('No saved intelligence jobs for this need.')
-  await expect(research).not.toContainText('Synthetic filing states an activity-specific 2.0 MW load.')
-  expect(captured.intelligenceNeedRequests).toContain('need-a')
-  expect(captured.intelligenceNeedRequests).toContain('need-b')
+  await useM6WorkspaceFixture(page, 'completed', true)
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
+  const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
+  await expect(assessment).toContainText('UNRESOLVED')
+  await page.locator('[data-need-row="need-b"]').click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
+  await expect(page.getByRole('region', { name: 'Saved commercial assessment' })).toContainText('No saved commercial assessment is available for this need.')
+  await expect(page.getByRole('region', { name: 'Saved commercial assessment' })).not.toContainText('UNRESOLVED')
+})
+
+test('commercial assessment renders verified facts, fail-closed citations, UNKNOWN, and mobile layout', async ({ page }, testInfo) => {
+  await useM6WorkspaceFixture(page, 'completed')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
+  const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
+  await expect(assessment).toContainText('UNRESOLVED')
+  await expect(assessment).toContainText('Still unknown')
+  await expect(assessment).toContainText('Saved historical support')
+  await expect(assessment.getByRole('link', { name: 'Open cited source' })).toHaveAttribute('href', 'https://example.test/m4')
+  await assessment.getByText('Assessment details', { exact: true }).click()
+  await expect(assessment).toContainText('Returned model: gpt-6.1-sol')
+  await expect(assessment).toContainText('Recorded estimate: $0.0057725 USD · Estimate basis: conservative usage estimate (not an invoice) · Invoice: UNKNOWN')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('m6-assessment-completed-390.png'), fullPage: true })
+})
+
+test('invalid commercial-assessment citation is shown without an actionable source link', async ({ page }) => {
+  await useM6WorkspaceFixture(page, 'invalid_citation')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
+  const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
+  await expect(assessment).toContainText('Selected source support unavailable')
+  await expect(assessment.getByRole('link', { name: 'Open cited source' })).toHaveCount(0)
+})
+
+test('legacy result_status cannot substitute for an explicit VALIDATED outcome', async ({ page }) => {
+  await useM6WorkspaceFixture(page, 'unvalidated_legacy')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
+  const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
+  await expect(assessment).toContainText('Assessment COMPLETED: UNKNOWN')
+  await expect(assessment).not.toContainText('UNRESOLVED')
+})
+
+test('UNKNOWN commercial assessment keeps retry blocked visible on mobile', async ({ page }, testInfo) => {
+  await useM6WorkspaceFixture(page, 'unknown')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
+  const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
+  await expect(assessment).toContainText('ProviderResponseError')
+  await expect(assessment).toContainText('Provider outcome UNKNOWN; retry is blocked until reconciled.')
+  await expect(assessment).not.toContainText('UNRESOLVED')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('m6-assessment-unknown-390.png'), fullPage: true })
+})
+
+test('commercial assessment reports UNKNOWN when no recorded estimate is present', async ({ page }) => {
+  await useM6WorkspaceFixture(page, 'missing_estimate')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Commercial Assessment' }).click()
+  const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
+  await assessment.getByText('Assessment details', { exact: true }).click()
+  await expect(assessment).toContainText('Estimate: UNKNOWN · Estimate basis: UNKNOWN · Invoice: UNKNOWN')
 })
 
 test('commercial queue filters backend states, exposes UNKNOWN, and saves targeted research and linked notes', async ({ page }) => {
