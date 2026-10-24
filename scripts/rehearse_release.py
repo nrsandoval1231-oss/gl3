@@ -797,7 +797,7 @@ def rehearsal(args: argparse.Namespace) -> dict[str, Any]:
             "POSTGRES_PASSWORD",
             "--env",
             "POSTGRES_DB",
-            args.pg_image,
+            pg_image_id,
             env=pg_env,
         )
         db_id = container_id(names["db"])
@@ -842,7 +842,7 @@ def rehearsal(args: argparse.Namespace) -> dict[str, Any]:
             "--label",
             f"gridlens.rehearsal={run_id}",
             *(part for key in sorted(runtime) for part in ("--env", key)),
-            args.api_image,
+            revisions["resolved_image_ids"]["candidate_api"],
             "uv",
             "run",
             "uvicorn",
@@ -895,7 +895,7 @@ def rehearsal(args: argparse.Namespace) -> dict[str, Any]:
             network,
             "--label",
             f"gridlens.rehearsal={run_id}",
-            args.web_image,
+            revisions["resolved_image_ids"]["candidate_web"],
         )
         web_id = container_id(names["web"])
         owned.append(web_id)
@@ -934,7 +934,7 @@ def rehearsal(args: argparse.Namespace) -> dict[str, Any]:
             "--label",
             f"gridlens.rehearsal={run_id}",
             *(part for key in sorted(runtime) for part in ("--env", key)),
-            args.prior_api_image,
+            revisions["resolved_image_ids"]["prior_api"],
             "uv",
             "run",
             "uvicorn",
@@ -967,7 +967,7 @@ def rehearsal(args: argparse.Namespace) -> dict[str, Any]:
             network,
             "--label",
             f"gridlens.rehearsal={run_id}",
-            args.prior_web_image,
+            revisions["resolved_image_ids"]["prior_web"],
         )
         rollback_web_id = container_id(rollback_web_name)
         owned.append(rollback_web_id)

@@ -65,7 +65,13 @@ def test_revision_and_candidate_image_identity_are_exact(monkeypatch: pytest.Mon
         "prior-web": prior,
     }
     monkeypatch.setattr(rehearsal, "image_revision", lambda image: revisions[image])
-    monkeypatch.setattr(rehearsal, "image_id", lambda image: "sha256:" + "c" * 64)
+    image_ids = {
+        "candidate-api": "sha256:" + "1" * 64,
+        "candidate-web": "sha256:" + "2" * 64,
+        "prior-api": "sha256:" + "3" * 64,
+        "prior-web": "sha256:" + "4" * 64,
+    }
+    monkeypatch.setattr(rehearsal, "image_id", lambda image: image_ids[image])
     result = rehearsal.validate_images(
         "candidate-api", "candidate-web", "prior-api", "prior-web", candidate
     )
@@ -73,10 +79,10 @@ def test_revision_and_candidate_image_identity_are_exact(monkeypatch: pytest.Mon
         "candidate": {"api": candidate, "web": candidate},
         "prior": {"api": prior, "web": prior},
         "resolved_image_ids": {
-            "candidate_api": "sha256:" + "c" * 64,
-            "candidate_web": "sha256:" + "c" * 64,
-            "prior_api": "sha256:" + "c" * 64,
-            "prior_web": "sha256:" + "c" * 64,
+            "candidate_api": image_ids["candidate-api"],
+            "candidate_web": image_ids["candidate-web"],
+            "prior_api": image_ids["prior-api"],
+            "prior_web": image_ids["prior-web"],
         },
     }
     with pytest.raises(rehearsal.RehearsalBlocked, match="label_mismatch"):

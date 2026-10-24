@@ -2,10 +2,20 @@
 
 ## Authority and observed host
 
-This is a manual operator plan for a future, separately authorized release. The
-rehearsal helper in `scripts/rehearse_release.py` accepts local inputs only and
-has no production target or deployment mode. Production remains held until the
-owner authorizes the exact candidate and a controller records fresh evidence.
+**Production cutover is BLOCKED / NOT EXECUTABLE.** The verified
+`/etc/gridlens/start-gridlens.py` wrapper only starts the full Compose service
+set. It does not support the selective candidate start, one-shot browse rebuild,
+and worker/browse write-hold sequence required for a safe canary and guarded
+rollback. Its normal all-service command is not approved for canary use. Do not
+invoke it for this release. Production remains NO-GO until an authorized,
+protected-wrapper procedure for that sequence is prepared, independently
+validated without production mutation, and separately authorized for the exact
+candidate.
+
+The repository candidate's local rehearsal is development evidence only. The
+helper in `scripts/rehearse_release.py` accepts local inputs only and has no
+production target or deployment mode. It demonstrates local behavior, not
+execution or support by the protected production wrapper.
 
 The latest supplied read-only host receipt is
 `.artifacts/hardening-20261024/production-readonly.json` (2026-10-24
@@ -81,16 +91,16 @@ forced empty and automation/call budgets are zero. The helper writes private
 table count/hash snapshots, logical-call hashes, and phase events without row
 data. It binds image refs to inspected content IDs and revision labels.
 
-After exact candidate staging, a fresh backup, all gates, and explicit owner
-authorization, the verified wrapper invocation is:
+The wrapper's only verified start command is:
 
 ```bash
 COMPOSE_PROFILES=saved-browse python3 /etc/gridlens/start-gridlens.py
 ```
 
-It starts services from the staged `/etc/gridlens/compose.app.yaml` using the
+It starts all services from `/etc/gridlens/compose.app.yaml` using the
 wrapper's protected Infisical context and `/etc/gridlens/runtime.env`. This
-command is recorded for a future authorized release and was not run during
+all-service invocation is **not approved for candidate canary** and must not be
+used as a workaround for the missing selective sequence. It was not run during
 preparation.
 
 ## Release gates
@@ -114,13 +124,42 @@ preparation.
    final results against the frozen SHA and image digests. The rehearsal is one
    gate and does not close unrelated launch, provider, corpus, or Finish
    Contract requirements.
+   A green repository review or local rehearsal does not clear the production
+   procedure blocker below.
 4. **Recheck the host immediately before a future change.** Using the approved
    secret wrapper, inspect compose service/image identities, the running
    database/schema, job/worker state, backup completion and provider/automation
    controls. Save only protected evidence. Stop if any identity differs from
    the authorized preflight or if backup, service, schema, or quiescence proof
    is incomplete.
-5. **Manual candidate cutover after explicit authorization.** Preserve a
+5. **Production cutover — BLOCKED / NOT EXECUTABLE.** Do not start cutover with
+   the currently verified all-service wrapper. Before any future authorized
+   cutover, an authorized controller must prepare and validate a protected
+   selective-start sequence that drains services, captures and preserves the
+   prior compatible browse generation, keeps worker/browse writes held, runs
+   the candidate's one-shot browse rebuild, proves retained-data equality and
+   candidate-cache validity, and only then permits API reads. The local helper
+   proves this behavior only in its isolated development environment; it does
+   not prove the production wrapper can execute the sequence. Changing the
+   protected production wrapper/configuration or testing a cutover mutates
+   production and requires owner deployment authorization. No such
+   authorization exists. Until this prerequisite is closed, the remaining
+   cutover/rollback steps are a requirements checklist, not executable
+   instructions, and release status remains NO-GO.
+
+   The required candidate one-shot operation is:
+
+   ```bash
+   uv run python -m gridlens.jobs.browse rebuild
+   ```
+
+   It must run after candidate migration and before any candidate API reads,
+   within the future protected selective sequence. Require guarded proof that
+   retained data is unchanged and the candidate browse generation is valid;
+   preserve the captured prior compatible generation for guarded rollback.
+   The available wrapper does not support or authorize this sequence.
+
+6. **Future authorized cutover checks.** Preserve a
    protected byte-for-byte compose checkpoint and runtime-env metadata. Keep the
    database and its existing Postgres volume/image in place. Drain/stop `api`,
    `worker`, and `browse` according to the approved host wrapper. Before
@@ -141,7 +180,7 @@ preparation.
    be demonstrated, stop before cutover. Do not
    change ingress, database image, provider keys, scheduled automation, or
    runtime configuration as part of this release.
-6. **Verify and stop on uncertainty.** Verify exact running API/web image IDs,
+7. **Verify and stop on uncertainty.** Verify exact running API/web image IDs,
    schema `0041_evidence_packages`, authenticated session, health, customer,
    opportunity/workspace and intelligence read endpoints, web root, saved
    browse availability, worker/browse health, and unchanged retained snapshot.
@@ -150,7 +189,7 @@ preparation.
    or startup outcome is `UNKNOWN`; preserve state and follow the approved
    recovery authority. Never downgrade the database or restore over the live
    database as application rollback.
-7. **Application rollback only after compatible derived-cache restoration.** If
+8. **Application rollback only after compatible derived-cache restoration.** If
    candidate verification fails, keep the migrated database at its current
    forward schema and keep worker/browse writes paused. Use the generation UUID,
    policy fingerprint, input revision, and validity captured before candidate
@@ -167,8 +206,10 @@ preparation.
    record the outcome. Database restore or migration downgrade is a separate
    recovery event requiring its own explicit authorization and plan.
 
-The startup wrapper and its compose invocation are verified; staging the
-candidate compose, draining services, backup execution, and rollback edits still
-require controller validation and explicit authorization. Do not run a guessed
-command from this document. No deployment was performed while preparing this
-plan.
+The all-service startup wrapper invocation is verified, but is not approved for
+canary. Selective start, candidate one-shot rebuild, write holds, and guarded
+cache-proof steps have not been validated through that wrapper. Changing or
+testing the protected wrapper/configuration requires owner deployment
+authorization; none was granted. Fresh host preflight, backup execution,
+candidate staging, and any production operation remain pending. No deployment
+was performed while preparing this plan.
