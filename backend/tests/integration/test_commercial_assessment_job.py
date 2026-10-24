@@ -348,8 +348,7 @@ def test_source_claim_acceptance_retraction_and_conflict_change_m4_context_and_f
         conflicted = _current_payload(session, checkpoint, need_id)
         assert conflicted["need"]["accepted_source_claims"] == claims
         assert (
-            conflicted["need"]["state_version_digest"]
-            != retracted["need"]["state_version_digest"]
+            conflicted["need"]["state_version_digest"] != retracted["need"]["state_version_digest"]
         )
         assert _digest(accepted) != _digest(retracted) != _digest(conflicted)
 

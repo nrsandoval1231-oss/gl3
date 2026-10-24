@@ -350,9 +350,7 @@ def _request_payload(
                 "duration": need.duration,
                 "supply": need.supply,
                 "accepted_facts": getattr(need, "_intelligence_accepted_facts", []),
-                "accepted_source_claims": getattr(
-                    need, "_intelligence_accepted_source_claims", {}
-                ),
+                "accepted_source_claims": getattr(need, "_intelligence_accepted_source_claims", {}),
                 "project_research_policy_version": current_state.get(
                     "project_research_policy_version"
                 ),
