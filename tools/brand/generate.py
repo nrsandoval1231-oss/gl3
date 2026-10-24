@@ -95,11 +95,14 @@ def main():
                 raster(f'rasters/{kind}-{treatment}-{size}',source,size,round(size*h/w))
     write('masters/symbol.svg',MASTER.read_bytes())
     icon=svg(512,512,f'<rect width="512" height="512" rx="100" fill="{colors["harbor_navy"]}"/>'+symbol(80,80,352,'dark'))
+    write('icons/app-dark.svg',icon)
+    write('icons/app-light.svg',svg(512,512,f'<rect width="512" height="512" rx="100" fill="{colors["white"]}"/>'+symbol(80,80,352,'light')))
+    square_icon=svg(512,512,f'<rect width="512" height="512" fill="{colors["harbor_navy"]}"/>'+symbol(80,80,352,'dark'))
     write('icons/favicon.svg',svg(240,240,symbol(20,20,200)))
     for size in [16,32,48]:
         raster(f'icons/favicon-{size}',svg(240,240,symbol(20,20,200)),size,size)
     for name,size in [('apple-touch-icon',180),('pwa-192',192),('pwa-512',512)]:
-        raster(f'icons/{name}',icon,size,size)
+        raster(f'icons/{name}',square_icon if name=='apple-touch-icon' else icon,size,size,name!='apple-touch-icon')
     mask=svg(512,512,f'<rect width="512" height="512" fill="{colors["harbor_navy"]}"/>'+symbol(116,116,280,'dark'))
     raster('icons/pwa-maskable-512',mask,512,512,False)
     im=Image.open(OUT/'icons/favicon-48.png'); buf=io.BytesIO(); im.save(buf,format='ICO',sizes=[(16,16),(32,32),(48,48)])
@@ -125,9 +128,10 @@ def main():
         elif label:
             body+=lettering('GRIDLENS',x+size+5,y+size*.68,min(size*.30,17),None,min(size*.04,2))
             body+=lettering(label,x,y+size+14,min(w*.035,6))
+        if name=='business-card': body+=lettering('[EMAIL] / [PHONE]',x,44,2.8)
         source=svg(w,h,body).replace(f'width="{w}" height="{h}"',f'width="{w}mm" height="{h}mm"')
         write(f'production/{name}.svg',source)
-    write('production/email-signature.html','<!doctype html><html lang="en"><meta charset="utf-8"><title>GridLens email signature template</title><table role="presentation" style="font-family:Arial,sans-serif;color:#0B1F33"><tr><td><strong>[Name]</strong><br>[Title] · GridLens<br><a href="mailto:replace@example.com" style="color:#23384C">[Email]</a><br>[Phone]</td></tr></table><!-- Replace placeholders and use an absolute hosted logos/horizontal-light.svg URL where supported. -->\n')
+    write('production/email-signature.html','<!doctype html><html lang="en"><meta charset="utf-8"><title>GridLens email signature template</title><table role="presentation" style="font-family:Arial,sans-serif;color:#0B1F33"><tr><td><img src="../rasters/horizontal-light-512.png" width="160" height="38" alt="GridLens"><br><strong>[Name]</strong><br>[Title] · GridLens<br><a href="mailto:replace@example.com" style="color:#23384C">[Email]</a><br>[Phone]</td></tr></table><!-- Replace placeholders and replace the relative image source with an absolute hosted rasters/horizontal-light-512.png URL before sending. -->\n')
     # The visual comparison sheet deliberately exposes uncertainty.
     board=svg(1200,700,f'<rect width="1200" height="700" fill="#FFFFFF"/>'+lettering('GRIDLENS / VECTOR REVIEW',50,60,28)+lettering('CANDIDATE - OWNER FIDELITY APPROVAL REQUIRED',50,100,17)+symbol(60,160,280)+f'<rect x="440" y="140" width="370" height="360" fill="{colors["harbor_navy"]}"/>'+symbol(480,180,280,'dark')+symbol(890,210,170,'navy')+lettering('LIGHT',60,545,19)+lettering('DARK',480,545,19)+lettering('ONE INK',890,545,19)+lettering('Review: rounded return, diagonal boundary, hidden-L continuity, wordmark spacing.',50,610,17)+lettering('Flat color interpretation of shaded reference; not an approved replacement master.',50,650,17))
     write('review/comparison.svg',board); raster('review/comparison',board,1200,700,False)

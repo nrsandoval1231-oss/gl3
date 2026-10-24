@@ -21,6 +21,8 @@ def main():
     assert manifest['source_sha256']==hashlib.sha256((ROOT/'tools/brand/masters/symbol.svg').read_bytes()).hexdigest(), 'Stale master exports'
     assert manifest['tokens_sha256']==hashlib.sha256((ROOT/'docs/design/brand.tokens.json').read_bytes()).hexdigest(), 'Stale token exports'
     for family,h in manifest['font_sha256'].items(): assert h==hashlib.sha256((ROOT/f'web/public/fonts/{family}.ttf').read_bytes()).hexdigest(), 'Stale font exports'
+    tokens=json.loads((ROOT/'docs/design/brand.tokens.json').read_text())
+    approved_fills=set(tokens['colors'].values())|{'#FFFFFF','none','transparent'}
     rows=manifest['assets']; names=[r['path'] for r in rows]
     assert len(names)==len(set(names)), 'Duplicate asset paths'
     assert len({Path(n).name for n in names})==len(names), 'Duplicate asset basenames'
@@ -30,6 +32,9 @@ def main():
         if p.suffix=='.svg':
             svg=ET.parse(p).getroot()
             assert svg.get('viewBox'), f'No viewBox {p}'
+            for element in svg.iter():
+                for attribute in ['fill','stroke']:
+                    if attribute in element.attrib: assert element.attrib[attribute] in approved_fills, f'Noncanonical SVG color: {p}'
             assert not svg.findall('.//{http://www.w3.org/2000/svg}image'),f'Raster in SVG {p}'
         if 'width' in row:
             im=Image.open(p); assert im.size==(row['width'],row['height']),f'Dimensions {p}'
@@ -39,6 +44,8 @@ def main():
     tokens=json.loads((ROOT/'docs/design/brand.tokens.json').read_text())
     css=(ROOT/'web/src/styles/brand-tokens.css').read_text()
     for name,h in tokens['colors'].items(): assert f'--gl-{name.replace("_","-")}: {h};' in css
+    for name,value in tokens['semantic'].items(): assert f'--gl-{name.replace("_","-")}: var(--gl-{value.replace("_","-")});' in css, f'Semantic token drift: {name}'
+    for name,value in tokens['status_colors'].items(): assert f'--gl-{name.replace("_","-")}: {value};' in css, f'Status token drift: {name}'
     for family in ['inter','sora']:
         for suffix in ['ttf','woff2','-OFL.txt']:
             p=ROOT/'web/public/fonts'/f'{family}{suffix if suffix.startswith("-") else "."+suffix}'

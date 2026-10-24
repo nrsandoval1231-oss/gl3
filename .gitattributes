@@ -1,1 +1,3 @@
 .agent/artifacts/GL3-AUDIT-A6-DISPATCH/*.bin -text -diff
+# Generated brand guide is a binary artifact, not source text.
+*.pdf binary

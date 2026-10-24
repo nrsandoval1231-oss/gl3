@@ -1213,6 +1213,14 @@
       "sha256": "97c03ff3cbba17a9cd27a02e505651b9f3c39f2be8204b77416740818c9afdd8"
     },
     {
+      "path": "icons/app-dark.svg",
+      "sha256": "7e61ba8f26e041a75dd5deb725d3eccf843869e06fe23ef2b6ac11a6d0c02ad5"
+    },
+    {
+      "path": "icons/app-light.svg",
+      "sha256": "d7e82a583d87ef3082bf3d2f7db5cddaa2a2964cf8eb94f990cf3d27bc64db32"
+    },
+    {
       "path": "icons/favicon.svg",
       "sha256": "20cb7b22cbef58bec7bdbe4d98a6a443585588d3c4a387fcc5938eab4e5ff05a"
     },
@@ -1260,17 +1268,17 @@
     },
     {
       "path": "icons/apple-touch-icon.png",
-      "sha256": "1e432397bf73ff2de54690b3ec697e5fa4ac170d5e3b62197f8d5a78774ff2fc",
+      "sha256": "356b6000984a8ffb29d3e9c3ce21102463d2dd9bb9fc3a37aa0536942e313645",
       "width": 180,
       "height": 180,
-      "transparent": true
+      "transparent": false
     },
     {
       "path": "icons/apple-touch-icon.webp",
-      "sha256": "3ff9a7c55c6d14d8f5312c2d17a7246ea5fe93a57aa763d4150fae64a4925407",
+      "sha256": "aec352d0757ae6590b005cf4e7179a6d4536d5e9dab8fd111deb78258da3ed2f",
       "width": 180,
       "height": 180,
-      "transparent": true
+      "transparent": false
     },
     {
       "path": "icons/pwa-192.png",
@@ -1338,7 +1346,7 @@
     },
     {
       "path": "production/business-card.svg",
-      "sha256": "1b51b2ed3a0cc607d12cd14ac0dfddb24af4d7517e9ed8bb5331d51fb02c604b"
+      "sha256": "c65d9ecb2d5342f94f6c32075e7e2cc214684fb4bd3966a48f2b23fb392342dc"
     },
     {
       "path": "production/letterhead.svg",
@@ -1378,7 +1386,7 @@
     },
     {
       "path": "production/email-signature.html",
-      "sha256": "fc6c265b66632a7357c977dcaa27041181bd7c584babee04da3a03863f67a509"
+      "sha256": "e22ef4fce291a59ad3329e84756bc5957313f866e84a993dcefdbe560adc3169"
     },
     {
       "path": "review/comparison.svg",
