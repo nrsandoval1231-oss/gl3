@@ -2,20 +2,41 @@
 
 ## Authority and observed host
 
-**Production cutover is BLOCKED / NOT EXECUTABLE.** The verified
-`/etc/gridlens/start-gridlens.py` wrapper only starts the full Compose service
-set. It does not support the selective candidate start, one-shot browse rebuild,
-and worker/browse write-hold sequence required for a safe canary and guarded
-rollback. Its normal all-service command is not approved for canary use. Do not
-invoke it for this release. Production remains NO-GO until an authorized,
-protected-wrapper procedure for that sequence is prepared, independently
-validated without production mutation, and separately authorized for the exact
-candidate.
+**Production cutover remains NO-GO; host installation and runtime are not
+done.** The currently installed `/etc/gridlens/start-gridlens.py` wrapper only
+starts the full Compose service set, and its normal all-service command is not
+approved for canary use. A local side-by-side companion and isolated Compose
+canary sequence have now been prepared and passed their bounded checks, but the
+companion has not been installed or executed on the protected host. Host
+installation, production execution, or any protected production modification
+requires fresh owner deployment authorization for the exact candidate.
 
-The repository candidate's local rehearsal is development evidence only. The
-helper in `scripts/rehearse_release.py` accepts local inputs only and has no
-production target or deployment mode. It demonstrates local behavior, not
-execution or support by the protected production wrapper.
+Gate A remains NO-GO because credential ownership and residual image risk are
+unresolved and deployment authority is absent. Gate B remains INCOMPLETE because
+the original 446-record corpus and M6 requirements are open and Albuquerque
+remains `SENT_OUTCOME_UNKNOWN`. Passing the repository candidate gates cannot
+convert either gate into acceptance or make the release GO.
+
+The offline-only `scripts/stage_release_wrapper.py` prepared a private,
+side-by-side selective-wrapper companion from only the exact controller-observed
+source bytes. It preserves the existing protected startup wrapper and exposes
+only explicit named operations: stop app services, one-shot migrate, one-shot
+browse rebuild, API/web canary start, worker/browse release, and UUID-guarded
+browse rollback. It rejects an existing output, changed source bytes/AST/command
+suffix, a default all-service start, and arbitrary arguments. It is not
+installed or executed on the protected host, does not select a prior image,
+and does not authorize or perform any host action. The staging CLI completed
+against the exact private wrapper and wrote the private companion successfully.
+`.artifacts/hardening-20261024/wrapper-staging-proof.json` records
+`PASS_OFFLINE_WRAPPER_PROVENANCE`: private JSON/main-prefix guards, environment
+and Infisical prefixes preserved, and the static operation map matches the
+isolated Compose proof. The wrapper was not installed or executed.
+
+The repository candidate's local rehearsal and Compose canary are development
+evidence only. The helper in `scripts/rehearse_release.py` accepts local inputs
+only and has no production target or deployment mode. The isolated Compose
+canary proof demonstrates the required service sequence on a fresh local
+database, not execution on or installation to the protected production host.
 
 The latest supplied read-only host receipt is
 `.artifacts/hardening-20261024/production-readonly.json` (2026-10-24
@@ -100,8 +121,7 @@ COMPOSE_PROFILES=saved-browse python3 /etc/gridlens/start-gridlens.py
 It starts all services from `/etc/gridlens/compose.app.yaml` using the
 wrapper's protected Infisical context and `/etc/gridlens/runtime.env`. This
 all-service invocation is **not approved for candidate canary** and must not be
-used as a workaround for the missing selective sequence. It was not run during
-preparation.
+used as a workaround. It was not run during preparation.
 
 ## Release gates
 
@@ -125,91 +145,103 @@ preparation.
    gate and does not close unrelated launch, provider, corpus, or Finish
    Contract requirements.
    A green repository review or local rehearsal does not clear the production
-   procedure blocker below.
+   host-install/runtime gate below. Gate A remains NO-GO while credential
+   ownership and residual image risk are unresolved. Gate B remains INCOMPLETE
+   while the original 446-record corpus, M6 requirements, and Albuquerque
+   `SENT_OUTCOME_UNKNOWN` remain unresolved.
+   Source candidate `d33fb65201771364bc52c801e37667f8f1e01ddb` has local
+   full gates PASS (backend 2,928 passed/2 skipped; browser 197 passed/1
+   skipped), combined affected tests 30 passed, and GitHub run `40131919486`
+   PASS (backend 2,929 passed/1 skipped; browser 197 passed/1 skipped). These
+   results predate this final documentation reconciliation. The integrated
+   documentation-complete SHA still requires final exact-candidate gates and
+   follow-up independent review; do not transfer these results to a changed SHA.
 4. **Recheck the host immediately before a future change.** Using the approved
    secret wrapper, inspect compose service/image identities, the running
    database/schema, job/worker state, backup completion and provider/automation
    controls. Save only protected evidence. Stop if any identity differs from
    the authorized preflight or if backup, service, schema, or quiescence proof
    is incomplete.
-5. **Production cutover — BLOCKED / NOT EXECUTABLE.** Do not start cutover with
-   the currently verified all-service wrapper. Before any future authorized
-   cutover, an authorized controller must prepare and validate a protected
-   selective-start sequence that drains services, captures and preserves the
-   prior compatible browse generation, keeps worker/browse writes held, runs
-   the candidate's one-shot browse rebuild, proves retained-data equality and
-   candidate-cache validity, and only then permits API reads. The local helper
-   proves this behavior only in its isolated development environment; it does
-   not prove the production wrapper can execute the sequence. Changing the
-   protected production wrapper/configuration or testing a cutover mutates
-   production and requires owner deployment authorization. No such
-   authorization exists. Until this prerequisite is closed, the remaining
-   cutover/rollback steps are a requirements checklist, not executable
-   instructions, and release status remains NO-GO.
+5. **Production cutover — HOST INSTALLATION/RUNTIME NOT DONE; NO-GO.** Do not
+   use the installed all-service wrapper for canary. The local companion and
+   isolated Compose proof do not authorize host installation or execution.
+   Only after fresh exact-candidate owner deployment authorization and host
+   preflight may the approved companion be installed/executed. That operation
+   remains future work; no production action has occurred.
 
-   The required candidate one-shot operation is:
+   The companion accepts only these named operations and fixed Docker Compose
+   argument suffixes. The prefix (Docker executable, protected environment,
+   compose file and project context) comes from the captured wrapper; these
+   suffixes are not standalone host commands.
 
-   ```bash
-   uv run python -m gridlens.jobs.browse rebuild
-   ```
+   | Named operation and arguments | Fixed Compose argument suffix |
+   |---|---|
+   | `stop-app` | `stop api worker browse web` |
+   | `migrate` | `run --rm --no-deps migrate` |
+   | `rebuild-browse` | `run --rm --no-deps browse uv run python -m gridlens.jobs.browse rebuild` |
+   | `start-canary` | `up -d --no-build --no-deps api web` |
+   | `start-workers` | `up -d --no-build --no-deps worker browse` |
+   | `rollback-browse <canonical-UUID>` | `run --rm --no-deps browse uv run python -m gridlens.jobs.browse rollback --generation <UUID>` |
 
-   It must run after candidate migration and before any candidate API reads,
-   within the future protected selective sequence. Require guarded proof that
-   retained data is unchanged and the candidate browse generation is valid;
-   preserve the captured prior compatible generation for guarded rollback.
-   The available wrapper does not support or authorize this sequence.
+   If separately authorized, perform one ordered sequence:
 
-6. **Future authorized cutover checks.** Preserve a
-   protected byte-for-byte compose checkpoint and runtime-env metadata. Keep the
-   database and its existing Postgres volume/image in place. Drain/stop `api`,
-   `worker`, and `browse` according to the approved host wrapper. Before
-   stopping or changing any candidate service, capture the current browse
-   generation UUID, policy fingerprint, input revision, and validity from the
-   prior-image-compatible state. Confirm the generation is unexpired and its
-   input revision remains available; retain that exact generation through the
-   canary window. If no compatible, unexpired generation can be preserved,
-   do not begin cutover because guarded application rollback may be blocked.
-   Keep worker and browse writes/maintenance held until canary acceptance or
-   completion of a guarded rollback. Take a post-stop retained-data snapshot
-   and prove quiescence. Run the candidate
-   `migrate` service once through the verified compose procedure, then verify
-   migration head and retained-data equality. Start the candidate API and web
-   with the existing runtime secret injection. Keep worker and browse write or
-   maintenance loops paused through the canary; start their services only if
-   the approved procedure proves those loops remain held. If that hold cannot
-   be demonstrated, stop before cutover. Do not
-   change ingress, database image, provider keys, scheduled automation, or
-   runtime configuration as part of this release.
-7. **Verify and stop on uncertainty.** Verify exact running API/web image IDs,
-   schema `0041_evidence_packages`, authenticated session, health, customer,
-   opportunity/workspace and intelligence read endpoints, web root, saved
-   browse availability, worker/browse health, and unchanged retained snapshot.
-   Confirm provider dispatch remains zero and compare runtime-env metadata to
-   the preflight. Retain private receipts. Any ambiguous migration, snapshot,
-   or startup outcome is `UNKNOWN`; preserve state and follow the approved
-   recovery authority. Never downgrade the database or restore over the live
-   database as application rollback.
-8. **Application rollback only after compatible derived-cache restoration.** If
-   candidate verification fails, keep the migrated database at its current
-   forward schema and keep worker/browse writes paused. Use the generation UUID,
-   policy fingerprint, input revision, and validity captured before candidate
-   cutover; do not discover or substitute a generation after the candidate has
-   run. The prior image must restore that exact UUID
-   using `python -m gridlens.jobs.browse rollback --generation <UUID>`; its
-   existing guard rejects a pruned generation, expired generation, changed
-   canonical input revision, or policy mismatch. Do not directly update the
-   browse pointer, rebuild a cache with the prior image, downgrade a migration,
-   or restore the database. If the retained generation cannot be restored,
-   record rollback as blocked; a derived-only rebuild needs separate tested
-   authority and write holds remain in place pending an authorized recovery
-   path. Then verify authenticated reads and retained-data equality, and
-   record the outcome. Database restore or migration downgrade is a separate
-   recovery event requiring its own explicit authorization and plan.
+   1. Preserve the protected compose checkpoint and runtime-env metadata. Stop
+      application services with `stop-app`, leaving the existing database in
+      place. With worker/browse stopped, capture the current prior-image browse
+      generation UUID, policy, input revision and validity. Confirm it is
+      unexpired and compatible; capture the retained-data and provider/ledger
+      hashes. If any proof is missing, stop before migration.
+   2. Run `migrate` exactly once. Prove schema state and retained-data equality
+      against the pre-migration snapshot.
+   3. Run `rebuild-browse` exactly once before any candidate API reads. Prove
+      retained data and provider/ledger hashes are unchanged, candidate browse
+      generation is valid, and the captured prior generation/input revision
+      remains preserved for guarded rollback.
+   4. Run `start-canary` only. Keep worker and browse absent. Verify exact
+      candidate API/web identities, authenticated API reads, web health, and
+      retained-data/provider/ledger proofs while worker/browse remain absent.
+      Accept the canary only if every check passes; on uncertainty or failure,
+      keep workers held and follow the rollback path below.
+   5. After canary acceptance, run `start-workers`; verify worker heartbeat and
+      all five application services. The retained-data/provider hashes were
+      checked before worker release; do not require them to remain identical
+      after normal worker activity begins. Retain private receipts.
 
-The all-service startup wrapper invocation is verified, but is not approved for
-canary. Selective start, candidate one-shot rebuild, write holds, and guarded
-cache-proof steps have not been validated through that wrapper. Changing or
-testing the protected wrapper/configuration requires owner deployment
-authorization; none was granted. Fresh host preflight, backup execution,
-candidate staging, and any production operation remain pending. No deployment
-was performed while preparing this plan.
+   The isolated proof is
+   `.artifacts/hardening-20261024/compose-development-2-d33fb65/receipt.json`
+   (`PASS_COMPOSE_CANARY`, revision
+   `d33fb65201771364bc52c801e37667f8f1e01ddb`). It exercised fresh-database
+   migration and rebuild, API/web canary while worker/browse were absent,
+   worker/browse release and heartbeat, five-service health, stop with only DB
+   remaining, zero jobs/calls/budgets/business records, and owned-project
+   cleanup. It proves local Compose behavior only. Gate A stays NO-GO for
+   unresolved credential ownership and residual image risk; Gate B stays
+   INCOMPLETE for the original 446 corpus, M6 requirements, and Albuquerque
+   `SENT_OUTCOME_UNKNOWN`.
+
+6. **Rollback on failed or uncertain canary.** Keep workers/browse held and the
+   database at its current forward schema. Select the prior-image composition
+   through the separately authorized protected process; do not run migration
+   during rollback. Run `rollback-browse <captured-UUID>` to restore only the
+   captured generation. Its guard rejects a pruned/expired generation or
+   changed policy/input revision. Then run `start-canary` with prior API/web
+   images and verify authenticated reads and retained-data equality while
+   worker/browse remain absent. If guarded restoration or reads fail, keep
+   workers held and record rollback BLOCKED pending a separately authorized
+   recovery. Never directly change the browse pointer, rebuild with the prior
+   image, downgrade schema, or restore the database as application rollback.
+   Only after the prior-image canary passes may `start-workers` release normal
+   activity. Never require identical retained/provider hashes after that
+   release.
+
+   No stage above is currently authorized for production. Any ambiguous
+   migration, snapshot, wrapper, or service result is `UNKNOWN`; preserve state
+   and stop. Database restore or migration downgrade requires its own explicit
+   authorization and plan.
+
+The all-service startup wrapper invocation is verified but not approved for
+canary. The selective companion and canary sequence passed local preparation
+and isolated Compose checks; neither was installed or executed on production.
+Host installation/runtime, fresh host preflight, backup execution, and any
+production operation remain pending and require new owner deployment
+authorization. No deployment was performed while preparing this plan.
