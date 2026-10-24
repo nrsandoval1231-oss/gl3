@@ -471,6 +471,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/evidence/{evidence_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Evidence Content
+         * @description Return one bounded chunk of retained raw evidence on explicit request.
+         */
+        get: operations["evidence_content_api_evidence__evidence_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunities/export.csv": {
         parameters: {
             query?: never;
@@ -2300,6 +2320,26 @@ export interface components {
             /** Next Offset */
             next_offset?: number | null;
             account?: components["schemas"]["CustomerAccountOut"] | null;
+        };
+        /** EvidenceContentOut */
+        EvidenceContentOut: {
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Source Url */
+            source_url: string;
+            /** Offset */
+            offset: number;
+            /** Total Chars */
+            total_chars: number;
+            /** Content */
+            content: string;
+            /** Next Offset */
+            next_offset: number | null;
         };
         /** EvidenceOut */
         EvidenceOut: {
@@ -4734,6 +4774,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                task_type?: string | null;
             };
             header?: never;
             path: {
@@ -5548,6 +5589,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpportunityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evidence_content_api_evidence__evidence_id__content_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceContentOut"];
                 };
             };
             /** @description Validation Error */

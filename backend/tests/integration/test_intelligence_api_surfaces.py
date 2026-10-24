@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
 from uuid import UUID, uuid4
 
@@ -276,6 +276,71 @@ def test_authenticated_bounded_intelligence_tasks_and_off_request(intelligence_a
             )
             == 0
         )
+
+
+def test_history_task_type_filter_applies_before_bounded_limit(intelligence_api):
+    client, factory, ids = intelligence_api
+    need_id = ids[0]
+    now = datetime.now(UTC)
+    with factory.begin() as session:
+        session.add(
+            Job(
+                source_id="austin-building-permits",
+                kind="intelligence_process",
+                target_id=need_id,
+                status="succeeded",
+                checkpoint="legacy malformed checkpoint [",
+                created_at=now + timedelta(seconds=1),
+            )
+        )
+        for index in range(20):
+            session.add(
+                Job(
+                    source_id="austin-building-permits",
+                    kind="intelligence_process",
+                    target_id=need_id,
+                    status="succeeded",
+                    checkpoint=json.dumps(
+                        {"task_type": "GROUNDED_EXTRACTION", "status": "completed"}
+                    ),
+                    created_at=now - timedelta(seconds=index),
+                )
+            )
+        session.add(
+            Job(
+                source_id="austin-building-permits",
+                kind="intelligence_process",
+                target_id=need_id,
+                status="succeeded",
+                checkpoint=json.dumps(
+                    {
+                        "task_type": "COMMERCIAL_ASSESSMENT_V1",
+                        "request_kind": "COMMERCIAL_ASSESSMENT_V1",
+                        "status": "completed",
+                    }
+                ),
+                created_at=now - timedelta(days=1),
+            )
+        )
+    client.cookies.set("gridlens_session", token_for(int(now.timestamp()) + 300))
+    unfiltered = client.get(f"/api/intelligence/needs/{need_id}/history?limit=20")
+    assert unfiltered.status_code == 200
+    assert all(
+        item["task_type"] != "COMMERCIAL_ASSESSMENT_V1" for item in unfiltered.json()["items"]
+    )
+
+    filtered = client.get(
+        f"/api/intelligence/needs/{need_id}/history?limit=20&task_type=COMMERCIAL_ASSESSMENT_V1"
+    )
+    assert filtered.status_code == 200, filtered.text
+    assert len(filtered.json()["items"]) == 1
+    assert filtered.json()["items"][0]["task_type"] == "COMMERCIAL_ASSESSMENT_V1"
+
+    other_type = client.get(
+        f"/api/intelligence/needs/{need_id}/history?limit=20&task_type=NO_SUCH_TASK"
+    )
+    assert other_type.status_code == 200
+    assert other_type.json()["items"] == []
 
 
 def test_m4_history_projects_actual_orm_evidence_and_current_or_saved_support(intelligence_api):

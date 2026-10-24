@@ -1,5 +1,14 @@
 # Production hardening release plan — 2026-10-24
 
+> Historical preparation receipt. After this document was written, the owner
+> authorized the audit repairs, local validation, PR resolution and controlled
+> deployment. The [audit completion release record](audit-completion-release-20261024.md)
+> now governs that release. References below to absent deployment authority and
+> pending repository integration describe the earlier preparation state; they
+> are not a new approval requirement. Credential disposition, residual image
+> findings, corpus gaps and unknown provider outcomes remain unresolved unless
+> separately supported by current evidence. This note does not assert a cutover.
+
 ## Authority and observed host
 
 **Production cutover remains NO-GO; host installation and runtime are not

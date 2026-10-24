@@ -359,7 +359,10 @@ def test_generic_permit_name_is_not_presented_as_project_identity():
     assert fields["source_identifier"].value == "ETS1870328"
 
 
-def test_f17_compound_project_name_requires_exact_current_source_alias_and_site_quotes():
+@pytest.mark.parametrize("proof_after_excerpt", [False, True])
+def test_f17_compound_project_name_requires_exact_current_source_alias_and_site_quotes(
+    proof_after_excerpt,
+):
     policy = SOURCES["f17-stack-cec-filing"]
     record = item()
     evidence = record["evidence"][0]
@@ -378,6 +381,11 @@ def test_f17_compound_project_name_requires_exact_current_source_alias_and_site_
         ),
     )
 
+    if proof_after_excerpt:
+        evidence["abstract"] = (
+            "Background outside the compact preview. " * 40 + evidence["abstract"]
+        )
+
     def project_field(value):
         card = assemble_card(value, {}, {"disposition": "WATCH"}, [], research_enabled=False)
         return next(field for field in card.fields if field.key == "project")
@@ -391,6 +399,9 @@ def test_f17_compound_project_name_requires_exact_current_source_alias_and_site_
 
     normalized = _source(evidence)
     assert stack_project_alias(record, [normalized]).status == "verified"
+    assert "evidence_text" not in normalized.model_dump()
+    if proof_after_excerpt:
+        assert "SVY02A Memorex" not in normalized.passage
     wrong_normalized_id = normalized.model_copy(
         update={"retained_evidence_id": "mismatched-canonical-row"}
     )
@@ -523,6 +534,29 @@ def test_source_specific_rrc_and_austin_names_keep_raw_record_identifier(
         "HAUG-KIESCHNICK AC UNIT 33" in project_quote and "well: 1H" in project_quote
     ) or project in project_quote
     assert identifier in fields["source_identifier"].sources[0].passage
+
+
+def test_late_austin_project_reference_keeps_default_citation_compact():
+    record = item()
+    record["name"] = "Generic permit record"
+    record["evidence"][0].update(
+        source_id="austin-building-permits",
+        abstract=(
+            "row: 2026-068264 EP\n"
+            + "Retained background. " * 80
+            + "\ndescription: "
+            + "Supporting permit detail. " * 100
+            + "Construction power for TXDOT project # 14-0914-04-362R. "
+            + "Supporting permit detail. " * 200
+            + "RAW-TAIL"
+        ),
+    )
+    card = assemble_card(record, {}, {"disposition": "WATCH"}, [], research_enabled=False)
+    project = next(field for field in card.fields if field.key == "project")
+    assert project.value == "TXDOT project # 14-0914-04-362R"
+    assert project.value in project.sources[0].passage
+    assert len(project.sources[0].passage) <= 641
+    assert "RAW-TAIL" not in card.model_dump_json()
 
 
 @pytest.mark.parametrize(

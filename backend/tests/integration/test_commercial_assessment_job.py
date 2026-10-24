@@ -2,6 +2,7 @@ import hashlib
 import importlib.util
 import json
 import sys
+from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
 from threading import Event, Thread
@@ -18,6 +19,7 @@ from gridlens.integrations.intelligence_provider import ProviderResponseError
 from gridlens.intelligence.intelligence_jobs import (
     COMMERCIAL_ASSESSMENT_TASK,
     _current_payload,
+    _digest,
     enqueue_intelligence,
 )
 from gridlens.persistence import database
@@ -315,6 +317,40 @@ def test_exact_package_job_is_fresh_and_replay_payload_is_deterministic(sessions
         assert first["package"]["document_coverage"] == "RECORD_EXCERPT"
         assert first["package"]["source_collection_status"] == "PARTIAL"
         assert first["package"]["facts"][0]["fact_id"].startswith("f-")
+
+
+def test_source_claim_acceptance_retraction_and_conflict_change_m4_context_and_freshness(
+    sessions, monkeypatch
+):
+    need_id, package_id, _evidence_id = seed(sessions, monkeypatch)
+    from gridlens.intelligence import project_state
+
+    claims = {"temporary_load": {"status": "SUPPORTED", "value": "2 MW"}}
+    monkeypatch.setattr(project_state, "current_research_state", lambda *a, **k: deepcopy(claims))
+    with sessions.begin() as session:
+        job = enqueue_intelligence(
+            session, need_id=need_id, task_type=COMMERCIAL_ASSESSMENT_TASK, package_id=package_id
+        )
+        checkpoint = json.loads(job.checkpoint)
+        accepted = _current_payload(session, checkpoint, need_id)
+        assert accepted["need"]["accepted_source_claims"] == claims
+        assert accepted["need"]["project_research_policy_version"]
+
+        claims.clear()  # retraction removes the formerly accepted claim
+        retracted = _current_payload(session, checkpoint, need_id)
+        assert retracted["need"]["accepted_source_claims"] == {}
+        assert retracted["need"]["state_version_digest"] != accepted["need"]["state_version_digest"]
+
+        claims["temporary_load"] = {
+            "status": "CONFLICT",
+            "claims": [{"value": "2 MW"}, {"value": "4 MW"}],
+        }
+        conflicted = _current_payload(session, checkpoint, need_id)
+        assert conflicted["need"]["accepted_source_claims"] == claims
+        assert (
+            conflicted["need"]["state_version_digest"] != retracted["need"]["state_version_digest"]
+        )
+        assert _digest(accepted) != _digest(retracted) != _digest(conflicted)
 
 
 def test_package_row_payload_status_mismatch_blocks_enqueue(sessions, monkeypatch):

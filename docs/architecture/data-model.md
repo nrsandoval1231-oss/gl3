@@ -16,7 +16,7 @@
 
 An observation envelope can point at a newer content hash while old evidence remains. Reappearance of a previously seen version must reuse retained evidence without a uniqueness error. Alternate representations require explicit shared identity and do not create a second project or corroborating source claim.
 
-The initial implementation uses ordinary relational tables. It does not introduce a configurable ontology or import schemas from older GridLens repositories. User notes, detailed supply scenarios, and later assessments remain governed future scope. Merged GL3-017 buying-chain tables and the GL3-018 admission column are below.
+The implementation uses ordinary relational tables and does not import schemas from older GridLens repositories. User notes, supply scenarios and commercial assessments now have persisted models; their presence does not establish complete commercial or live-provider acceptance. Merged GL3-017 buying-chain tables and the GL3-018 admission column are below; current migrations are the authoritative schema inventory.
 
 Migration `0012_evidence_graph_jev_shadow` adds these small relational projections. `project_material_states` contains only semantic accepted fields; retrieval metadata, updated timestamps and rationale-only churn are excluded. Project locking encloses prior-state reads, writes, diffs and revision updates. Legacy state is seeded without manufacturing a discovery event. `EvidenceJudgeRun` is separate from `signal_adjudication` and is written only by explicit shadow execution; normal ingestion remains provider-independent.
 
@@ -29,9 +29,10 @@ The merged buying chain adds `buying_chain_evidence`, `buying_chain_claims` and
 may reference an existing `evidence.id`; otherwise its public source URL, content
 hash, extraction location and dates are retained. Claim snapshots distinguish
 project–organization, organization–person/current role and person–project links.
-Organizations and people remain project-scoped normalized identities, not a
-cross-project contacts database. Semantic versions and replay retain prior
-claims. Neither PowerNeed tier nor source observations are changed.
+Claims remain project-scoped. Later company/person identity tables and reviewed
+identity links can associate supported claims across projects; name similarity
+alone is not authority to merge them. Semantic versions and replay retain prior
+claims. Neither PowerNeed tier nor source observations are changed by identity linking.
 
 `BuyingChainEvidence.observed_at` is immutable first observation; `last_seen_at`
 records verified reobservation without creating a content version. Run evidence

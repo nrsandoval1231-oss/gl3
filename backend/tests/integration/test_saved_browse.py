@@ -19,7 +19,10 @@ from gridlens.intelligence.saved_browse import current_generation, page, rebuild
 from gridlens.persistence.browse_invalidation import INPUT_TABLES, install
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
+    BrowseCustomerMembership,
     BrowseState,
+    BrowseUnresolvedCustomer,
+    CompanyIdentity,
     Evidence,
     Interpretation,
     NeedObservation,
@@ -614,6 +617,169 @@ def test_incremental_refresh_is_atomic_and_rebuilds_only_dirty_project(saved_db,
     with saved_db() as reader:
         actual = page(reader, filters())["items"]
     assert [str(item["id"]) for item in actual] == [str(item["id"]) for item in baseline]
+
+
+def test_incremental_customer_projection_reassignment_matches_full_rebuild(saved_db, monkeypatch):
+    from types import SimpleNamespace
+
+    from gridlens.intelligence import customer_accounts
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+
+    need_ids = seed(saved_db, count=3)
+    old_identity_id, new_identity_id = uuid4(), uuid4()
+    with saved_db.begin() as session:
+        session.add_all([CompanyIdentity(id=old_identity_id), CompanyIdentity(id=new_identity_id)])
+    with saved_db.begin() as session:
+        project_ids = dict(
+            session.execute(
+                select(PowerNeed.id, PowerNeed.project_id).where(PowerNeed.id.in_(need_ids))
+            ).all()
+        )
+    project_id = project_ids[need_ids[0]]
+    untouched_project_id = project_ids[need_ids[1]]
+    latest_support = datetime.now(UTC) - timedelta(days=1)
+    claims_by_project = {
+        project_id: (
+            old_identity_id,
+            SimpleNamespace(
+                organization="Shared owner",
+                category="owner_developer",
+                citations=[{"evidence_id": "old-dirty-support"}],
+                observed_at=latest_support - timedelta(days=1),
+            ),
+        ),
+        untouched_project_id: (
+            old_identity_id,
+            SimpleNamespace(
+                organization="Shared owner",
+                category="owner_developer",
+                citations=[{"evidence_id": "untouched-support"}],
+                observed_at=latest_support,
+            ),
+        ),
+    }
+
+    def current_claims(session, identity_ids=None, *, project_ids=None, include_conflicts=False):
+        return [
+            (identity_id, current_project_id, claim)
+            for current_project_id, (identity_id, claim) in claims_by_project.items()
+            if (project_ids is None or current_project_id in project_ids)
+            and (identity_ids is None or identity_id in identity_ids)
+        ]
+
+    monkeypatch.setattr(customer_accounts, "_current_customer_claims", current_claims)
+    monkeypatch.setattr(customer_accounts, "_current_conflicted_memberships", lambda *_args: [])
+    monkeypatch.setattr(customer_accounts, "_current_role_claims", lambda *_args, **_kwargs: [])
+    rebuild(saved_db)
+    with saved_db() as session:
+        previous_generation = current_generation(session)
+        untouched = session.scalar(
+            select(BrowseCustomerMembership).where(
+                BrowseCustomerMembership.generation_id == previous_generation.id,
+                BrowseCustomerMembership.company_identity_id == old_identity_id,
+                BrowseCustomerMembership.project_id == untouched_project_id,
+            )
+        )
+        assert untouched.supporting_evidence_count == 2
+    claims_by_project[project_id] = (
+        new_identity_id,
+        SimpleNamespace(
+            organization="New owner",
+            category="owner_developer",
+            citations=[{"evidence_id": "reassigned-support"}],
+            observed_at=latest_support + timedelta(days=1),
+        ),
+    )
+
+    with saved_db.begin() as session:
+        session.get(PowerNeed, need_ids[0]).rationale = "Updated synthetic evidence"
+        session.flush()
+        result = refresh_project_changes(session)
+        assert result["status"] == "published"
+        assert result["projects"] == 1
+
+    with saved_db() as session:
+        incremental = current_generation(session)
+        memberships = session.scalars(
+            select(BrowseCustomerMembership).where(
+                BrowseCustomerMembership.generation_id == incremental.id
+            )
+        ).all()
+        dirty_memberships = [row for row in memberships if row.project_id == project_id]
+        assert [(row.company_identity_id, row.organization_name) for row in dirty_memberships] == [
+            (new_identity_id, "New owner")
+        ]
+        untouched = next(row for row in memberships if row.project_id == untouched_project_id)
+        assert untouched.company_identity_id == old_identity_id
+        assert untouched.supporting_evidence_count == 1
+        assert untouched.last_evidence_update == latest_support
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BrowseUnresolvedCustomer)
+                .where(
+                    BrowseUnresolvedCustomer.generation_id == incremental.id,
+                    BrowseUnresolvedCustomer.project_id == project_id,
+                )
+            )
+            == 0
+        )
+
+    rebuild(saved_db)
+    with saved_db() as session:
+        rebuilt = current_generation(session)
+        incremental_memberships = session.execute(
+            select(
+                BrowseCustomerMembership.company_identity_id,
+                BrowseCustomerMembership.project_id,
+                BrowseCustomerMembership.organization_name,
+                BrowseCustomerMembership.role,
+                BrowseCustomerMembership.supporting_evidence_count,
+                BrowseCustomerMembership.last_evidence_update,
+            )
+            .where(BrowseCustomerMembership.generation_id == incremental.id)
+            .order_by(
+                BrowseCustomerMembership.project_id,
+                BrowseCustomerMembership.company_identity_id,
+            )
+        ).all()
+        rebuilt_memberships = session.execute(
+            select(
+                BrowseCustomerMembership.company_identity_id,
+                BrowseCustomerMembership.project_id,
+                BrowseCustomerMembership.organization_name,
+                BrowseCustomerMembership.role,
+                BrowseCustomerMembership.supporting_evidence_count,
+                BrowseCustomerMembership.last_evidence_update,
+            )
+            .where(BrowseCustomerMembership.generation_id == rebuilt.id)
+            .order_by(
+                BrowseCustomerMembership.project_id,
+                BrowseCustomerMembership.company_identity_id,
+            )
+        ).all()
+        incremental_unresolved = session.execute(
+            select(
+                BrowseUnresolvedCustomer.project_id,
+                BrowseUnresolvedCustomer.organization_name,
+                BrowseUnresolvedCustomer.role,
+                BrowseUnresolvedCustomer.reason,
+            )
+            .where(BrowseUnresolvedCustomer.generation_id == incremental.id)
+            .order_by(BrowseUnresolvedCustomer.project_id)
+        ).all()
+        rebuilt_unresolved = session.execute(
+            select(
+                BrowseUnresolvedCustomer.project_id,
+                BrowseUnresolvedCustomer.organization_name,
+                BrowseUnresolvedCustomer.role,
+                BrowseUnresolvedCustomer.reason,
+            )
+            .where(BrowseUnresolvedCustomer.generation_id == rebuilt.id)
+            .order_by(BrowseUnresolvedCustomer.project_id)
+        ).all()
+        assert incremental_memberships == rebuilt_memberships
+        assert incremental_unresolved == rebuilt_unresolved
 
 
 def test_incremental_rollback_unknown_write_and_expiry_fail_closed(saved_db):

@@ -457,6 +457,7 @@ def test_stale_identity_or_evidence_hash_cannot_keep_historical_event(lifecycle_
         refresh_lifecycle_projection(session, project)
         session.flush()
         assert session.get(ProjectLifecycle, project_id) is None
+        assert project.asset_type == "unknown"
         interpretation.assessment["project_identity_key"] = project.identity_key
         interpretation.assessment["evidence_hash"] = "b" * 64
         refresh_lifecycle_projection(session, project)

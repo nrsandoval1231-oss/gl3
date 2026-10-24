@@ -1,0 +1,90 @@
+{
+  "packet": "B",
+  "status": "complete",
+  "completed_at_utc": "2026-10-24T22:14:03Z",
+  "timing": {
+    "overall_execution_seconds": "UNKNOWN",
+    "token_usage": "UNKNOWN",
+    "focused_backend_pytest_seconds": 2.52,
+    "focused_backend_ruff_seconds": 0.11,
+    "focused_backend_format_seconds": 0.12,
+    "web_typecheck_seconds": 4.05,
+    "focused_browser_test_seconds": 4.8
+  },
+  "changed_files": [
+    "backend/src/gridlens/api/app.py",
+    "backend/src/gridlens/domain/opportunity_intelligence.py",
+    "backend/src/gridlens/ingestion/adapters/project_asset_classification.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/src/gridlens/intelligence/lifecycle_service.py",
+    "backend/tests/integration/test_packet_b_asset_classification.py",
+    "backend/tests/unit/test_packet_b_completion.py",
+    "web/src/features/workspace/WorkspaceDetail.tsx",
+    "web/src/styles/workspace.css",
+    "web/tests/evidence-content.spec.ts"
+  ],
+  "behavior": [
+    "TDLR TABS explicit data-center project descriptions now determine project asset_type from current accepted, evidence-bound records independently of an achieved lifecycle milestone. Ordinary process_records ingestion invokes the industry-only recompute after binding accepted or rejected changed source versions; unchanged replays preserve the established classification.",
+    "The primary TDLR project's exact source_id/external_id record is valid even with ingestion's null-candidate separate decision. A current project-specific unmatched/separate decision overrides this direct evidence; supplemental records still require current matched decisions.",
+    "Current source revisions and explicit latest project-match retractions remove stale industry support; conflicting supported asset types resolve to unknown and incompatible derived lifecycle projections are omitted while event history is retained.",
+    "The bounded existing-record recompute is gridlens.intelligence.lifecycle_service.refresh_project_asset_type(session, project) -> (before, after). It mutates only Project.asset_type and does not flush or commit; callers control transaction scope.",
+    "Default opportunity evidence and intelligence-card passages use concise readable excerpts. The canonical Evidence abstract and exact source quotes remain retained; exact research-claim quote validation uses the internal non-serialized source text.",
+    "Authenticated GET /api/evidence/{evidence_id}/content?offset=0&limit=4096 exposes retained evidence text only on request, in chunks of at most 4096 characters. The evidence panel loads successive chunks only after the user selects Load full source.",
+    "Data-center industry classification does not add lifecycle events, reported dates, MW values, tier changes, or qualification conclusions."
+  ],
+  "measurements": {
+    "method": "Synthetic representative payload with six repeated source passages, each 4016 characters including opaque base64 text; JSON encoded size compared before and after compact source assembly.",
+    "source_passage_characters": 4016,
+    "repeated_passages": 6,
+    "before_json_bytes": 24276,
+    "after_json_bytes": 2232,
+    "reduction_percent": 90.81,
+    "note": "The measured fixture covers six evidence representations; the 43,853-byte live payload from the audit remains the pre-fix reference and was not queried again."
+  },
+  "regression_coverage": [
+    "Real process_records primary TDLR path: new accepted record, unchanged replay, explicit project-specific unmatch, accepted evidence revision, then rejected revision retracting asset classification; no lifecycle milestone, MW, date, or tier is inferred.",
+    "Exact source_id/external_id classification alongside ingestion's null-candidate separate decision; project-specific current unmatched decision retracts it.",
+    "Database-backed accepted evidence revision, explicit unmatch retraction, and conflicting lifecycle asset types without an UNKNOWN lifecycle-rank crash.",
+    "Asset-only recompute preserves Signal tier, unknown MW/start/duration, and empty lifecycle event/projection state.",
+    "Compact source excerpts drop opaque base64 payload while retaining an exact source claim quote and excluding internal raw text from serialization.",
+    "Authenticated evidence content route returns bounded offsets and rejects an offset past the retained text.",
+    "Browser evidence pane does not request full content until clicked and continues loading bounded chunks on demand."
+  ],
+  "checks": [
+    {
+      "command": "pytest tests/integration/test_packet_b_asset_classification.py -q",
+      "result": "3 passed in 2.52s; isolated completion_b_test, including actual process_records path"
+    },
+    {
+      "command": "ruff check src/gridlens/intelligence/lifecycle_service.py src/gridlens/ingestion/service.py tests/integration/test_packet_b_asset_classification.py tests/unit/test_packet_b_completion.py",
+      "result": "passed"
+    },
+    {
+      "command": "ruff format --check src/gridlens/intelligence/lifecycle_service.py src/gridlens/ingestion/service.py tests/integration/test_packet_b_asset_classification.py tests/unit/test_packet_b_completion.py",
+      "result": "passed"
+    },
+    {
+      "command": "mypy src/gridlens/intelligence/lifecycle_service.py src/gridlens/ingestion/service.py",
+      "result": "passed"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "Playwright tests/evidence-content.spec.ts",
+      "result": "1 passed in 4.8s"
+    }
+  ],
+  "remaining_blockers": [],
+  "risks_and_limits": [
+    "The project asset parser intentionally classifies only explicit data-center language from TDLR TABS; it does not infer asset type from lifecycle events, facility size, dates, MW, or qualification.",
+    "The raw-content route returns the retained Evidence.abstract text. It does not stream separate object-storage artifacts.",
+    "No broad backend suite, production query, provider call, migration, commit, push, PR action, or deployment was run."
+  ],
+  "publication": {
+    "commit": "not created",
+    "push": "not performed",
+    "production_actions": "none"
+  }
+}

@@ -311,6 +311,7 @@ def test_account_workspace_groups_filtered_saved_rows_in_sql(customer_db):
                         "name": project.name,
                         "location": "Texas",
                         "tier": "Lead",
+                        "asset_type": "oil_and_gas",
                         "activity": "drilling",
                         "rationale": "Source-backed permit",
                         "required_mw": None,
@@ -353,13 +354,59 @@ def test_account_workspace_groups_filtered_saved_rows_in_sql(customer_db):
         assert result["items"][0]["account_aliases"] == ["DIAMONDBACK E&P LLC"]
         assert result["items"][0]["evidence"] == []
         assert result["items"][0]["evidence_count"] == 1
+        saved_row = session.scalar(
+            select(BrowseRow).where(
+                BrowseRow.generation_id == generation_id, BrowseRow.need_id == need_id
+            )
+        )
+        for disposition in ("ACTION NOW", "RESEARCH", "WATCH", "REJECT"):
+            saved_row.compact = {
+                **saved_row.compact,
+                "commercial_preview": {
+                    **saved_row.compact["commercial_preview"],
+                    "disposition": disposition,
+                },
+            }
+            session.flush()
+            selected = account_browse_page(
+                session,
+                {**filters, "disposition": disposition},
+                limit=25,
+                offset=0,
+                token=None,
+            )
+            assert selected["total"] == 1
+            assert selected["items"][0]["commercial_disposition"] == disposition
+            assert selected["items"][0]["matching_need_count"] == 1
+            assert selected["counts"] == {
+                "action_now": int(disposition == "ACTION NOW"),
+                "research": int(disposition == "RESEARCH"),
+                "watch": int(disposition == "WATCH"),
+                "reject": int(disposition == "REJECT"),
+            }
+            other = next(
+                item
+                for item in ("ACTION NOW", "RESEARCH", "WATCH", "REJECT")
+                if item != disposition
+            )
+            empty = account_browse_page(
+                session,
+                {**filters, "disposition": other},
+                limit=25,
+                offset=0,
+                token=None,
+            )
+            assert empty["items"] == []
+            assert empty["total"] == 0
         accounts = account_queue(session, search=None, limit=25, offset=0)
         assert accounts["total"] == 1
         assert accounts["items"][0]["highest_priority_need"]["id"] == str(need_id)
+        assert accounts["items"][0]["highest_priority_need"]["industry"] == "oil_and_gas"
         assert accounts["items"][0]["supporting_evidence_count"] == 3
         assert accounts["items"][0]["aliases"] == ["DIAMONDBACK E&P LLC"]
         projects = account_projects(session, identity_id, limit=25, offset=0)
         assert projects["account"]["company_identity_id"] == identity_id
+        assert projects["account"]["highest_priority_need"]["industry"] == "oil_and_gas"
         assert projects["account"]["project_count"] == 1
         assert projects["account"]["need_count"] == 1
         assert projects["account"]["supporting_evidence_count"] == 3

@@ -30,7 +30,8 @@ def test_source_native_project_identity_requires_exact_supported_format_and_quot
     identity = source_native_project_identity("austin-building-permits", austin)
     assert identity is not None
     assert identity.value == "TXDOT project # 14-0914-04-362R"
-    assert identity.quote == austin.strip()
+    assert identity.quote == "TXDOT project # 14-0914-04-362R"
+    assert identity.quote in austin
     assert source_native_project_identity("austin-building-permits", "TXDOT project # ???") is None
 
 

@@ -178,7 +178,7 @@ def source_native_project_identity(source_id: str, passage: str) -> RetainedIden
         match = re.search(r"(?i)\bTXDOT[ \t]+project[ \t]*#[ \t]*(?P<id>[A-Z0-9-]+)", passage)
         if match:
             value = f"TXDOT project # {match.group('id')}"
-            quote = next((line for line in passage.splitlines() if match.group(0) in line), "")
+            quote = match.group(0)
             if quote and quote in passage:
                 return RetainedIdentity(value, quote, "Current Austin permit project reference")
     return None

@@ -345,12 +345,14 @@ def test_retained_buying_chain_job_reads_and_cites_its_fifth_current_document(
         ), candidates
         stale_checkpoint = json.loads(session.get(Job, job_id).checkpoint)
         stale_checkpoint["status"] = "queued"
+        # This job must already be due; the server and worker clocks need not align.
         stale_job = Job(
             source_id=source["id"],
             kind=session.get(Job, job_id).kind,
             target_id=project_id,
             checkpoint=json.dumps(stale_checkpoint, separators=(",", ":")),
             status="queued",
+            available_at=datetime.now(UTC) - timedelta(seconds=1),
         )
         session.add(stale_job)
         session.flush()

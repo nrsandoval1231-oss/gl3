@@ -1,0 +1,41 @@
+{
+  "packet": "E",
+  "status": "diagnosis_complete_no_verified_bounded_code_fix",
+  "base": "223849b1559532ae89dd1d2f53f7217add02084a",
+  "changed_paths": [
+    "docs/operations/completion-source-findings-20261024.md",
+    ".agent/completion-20261024/E_COMPLETION.json"
+  ],
+  "source_findings": {
+    "austin-building-permits": {
+      "observed": "1000 fetched and parsed; 13 accepted; partial at chain-job budget",
+      "classification": "bounded_policy_pause",
+      "verified_code_behavior": "worker persists collection_paused_for_budget and an explicit pause error; structured collection advances durable bounded lanes",
+      "action": "preserve pause and configured cap; controller/owner disposition is needed for any bounded continuation"
+    },
+    "houston-weekly-permits": {
+      "observed": "publisher_stale; zero fetched and parsed",
+      "classification": "official_publisher_freshness_gap",
+      "verified_code_behavior": "adapter reports a source error when newest official dated report is more than 30 days old; focused test covers stale listing",
+      "action": "retain failed/stale state until an official update or evidence-backed policy review"
+    },
+    "texas-tceq-nsr-pending": {
+      "observed": "328 fetched; 327 parsed; 4 accepted; one record-local rejection: TCEQ-406704 / permit 4381, tceq_document http_status_404 (controller read-only receipt 2026-10-24T21:56:39Z)",
+      "classification": "record_local_partial_acquisition",
+      "verified_code_behavior": "adapter maps summary-document 404 to http_status_404, preserves stable identity as presence_only/partial_snapshot, omits unavailable body, and preserves valid sibling records; existing focused test covers this behavior",
+      "action": "retain partial/rejected visibility; official Plain Language Summary availability is an external source gap"
+    }
+  },
+  "tests": {
+    "run": [],
+    "reason": "Diagnosis found no verified source-code defect to change; no broad or speculative tests were run. Existing focused adapter test contracts were inspected only."
+  },
+  "production_queries": false,
+  "source_or_provider_calls": false,
+  "budgets_retries_or_cadence_changed": false,
+  "remaining_blockers": [
+    "Austin collection continuation/capacity disposition belongs to the controller/owner; no budget increase is recommended.",
+    "Houston requires official publisher freshness evidence or owner-approved source policy review.",
+    "TCEQ official Plain Language Summary for listed filing TCEQ-406704 / permit 4381 returned 404 in the sanitized controller receipt; adapter behavior is correct and source availability remains unresolved."
+  ]
+}

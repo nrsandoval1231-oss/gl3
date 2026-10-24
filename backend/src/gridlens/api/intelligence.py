@@ -516,8 +516,10 @@ def _commercial_assessment_support(
         return {**empty, "reason": "SAVED_PACKAGE_VALIDATION_FAILED"}
 
 
-def _history_view(session, need_id: UUID, limit: int) -> list[dict[str, Any]]:
-    items = intelligence_history(session, need_id, limit)
+def _history_view(
+    session, need_id: UUID, limit: int, task_type: str | None = None
+) -> list[dict[str, Any]]:
+    items = intelligence_history(session, need_id, limit, task_type=task_type)
     job_ids = [UUID(item["job_id"]) for item in items]
     jobs = (
         {str(job.id): job for job in session.scalars(select(Job).where(Job.id.in_(job_ids))).all()}
@@ -743,11 +745,15 @@ def intelligence_operations():
     response_model=IntelligenceHistoryPageOut,
     dependencies=[Depends(require_session)],
 )
-def need_intelligence_history(need_id: UUID, limit: int = Query(default=20, ge=1, le=50)):
+def need_intelligence_history(
+    need_id: UUID,
+    limit: int = Query(default=20, ge=1, le=50),
+    task_type: str | None = Query(default=None, min_length=1, max_length=80),
+):
     with _session_factory()() as session:
         if session.get(PowerNeed, need_id) is None:
             raise HTTPException(404, "Power need not found")
-        return {"items": _history_view(session, need_id, limit)}
+        return {"items": _history_view(session, need_id, limit, task_type=task_type)}
 
 
 @router.post(

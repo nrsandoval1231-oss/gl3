@@ -1,0 +1,77 @@
+{
+  "packet": "C",
+  "status": "implemented",
+  "finished_utc": "2026-10-24 22:10:19 UTC",
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "build_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "token_usage": "UNKNOWN"
+  },
+  "changes": [
+    {
+      "path": "backend/src/gridlens/intelligence/intelligence_jobs.py",
+      "details": "M4 request payload now includes accepted source claims, project research policy version, and a state digest that binds those values to advisory freshness. Intelligence history accepts an optional task type and applies it in PostgreSQL before the bounded row limit, preferring request_kind consistently with API projection."
+    },
+    {
+      "path": "backend/src/gridlens/api/intelligence.py",
+      "details": "The bounded history endpoint accepts an optional task_type filter and forwards it to the SQL history query."
+    },
+    {
+      "path": "web/src/api/client.ts",
+      "details": "History requests can specify task_type. Added typed evidenceContent method requested by packet B for its bounded source-content control."
+    },
+    {
+      "path": "web/src/features/pursuits/IntelligenceResearch.tsx",
+      "details": "Saved commercial assessment requests only M4 history from the server, so newer unrelated tasks cannot crowd it out."
+    },
+    {
+      "path": "backend/tests/integration/test_commercial_assessment_job.py",
+      "details": "Added a persisted-package regression for accepted claim, retraction, and conflict payload/freshness changes."
+    },
+    {
+      "path": "backend/tests/integration/test_intelligence_api_surfaces.py",
+      "details": "Added a 21-job regression showing server-side filtering returns the older assessment after 20 newer unrelated jobs, plus empty and unfiltered behavior."
+    }
+  ],
+  "validation": [
+    {
+      "command": "focused runner: pytest tests/integration/test_commercial_assessment_job.py tests/integration/test_intelligence_api_surfaces.py -q",
+      "result": "PASS: 38 passed, 1 warning, 14.03 seconds",
+      "database": "Parent-provided isolated completion_c_test on 127.0.0.1:55459"
+    },
+    {
+      "command": "focused runner: ruff check on the two implementation and two test files",
+      "result": "PASS"
+    },
+    {
+      "command": "focused runner: pytest test_history_task_type_filter_applies_before_bounded_limit and test_source_claim_acceptance_retraction_and_conflict_change_m4_context_and_freshness -q",
+      "result": "PASS: 2 passed, 1 warning, 2.53 seconds after malformed-checkpoint hardening",
+      "database": "Parent-provided isolated completion_c_test on 127.0.0.1:55459"
+    },
+    {
+      "command": "npm run typecheck --prefix web",
+      "result": "PASS"
+    },
+    {
+      "command": "focused Playwright run for all six commercial-pursuits history-filter regressions (alternate ports 8127/5327)",
+      "result": "PASS: 6 passed, 7.8 seconds"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "controls": {
+    "provider_calls": 0,
+    "provider_accounting_changes": 0,
+    "unknown_call_accounting_changes": 0,
+    "schema_or_migration_changes": 0,
+    "generated_types": "No OpenAPI response schema changed; controller owns shared generated type regeneration."
+  },
+  "risks_and_limits": [
+    "Filtered history uses PostgreSQL pg_input_is_valid before its guarded JSONB cast. This is supported by the canonical PostgreSQL 18 runtime; the history filter therefore skips malformed legacy checkpoint text without widening the result window.",
+    "The claim-state regression swaps current_research_state results through a focused test seam; it exercises payload and freshness behavior, not end-to-end source interpretation admission.",
+    "The evidence-content client method was added at packet B's request; its UI integration remains owned by packet B."
+  ]
+}

@@ -84,8 +84,14 @@ def _is_uuid(value: str) -> bool:
     return True
 
 
-def _write_customer_projection(session, generation_id: UUID) -> None:
-    """Snapshot current source-supported customer roles with the browse generation."""
+def _write_customer_projection(
+    session,
+    generation_id: UUID,
+    *,
+    project_scope: set[UUID] | None = None,
+    previous_generation_id: UUID | None = None,
+) -> None:
+    """Snapshot current source-supported customer roles for a generation/project scope."""
     from gridlens.intelligence.customer_accounts import (
         _current_conflicted_memberships,
         _current_customer_claims,
@@ -94,24 +100,38 @@ def _write_customer_projection(session, generation_id: UUID) -> None:
     selected: dict[tuple[UUID, UUID], tuple[str, str]] = {}
     supporting_refs: dict[UUID, set[str]] = {}
     evidence_updates: dict[UUID, datetime] = {}
-    raw_memberships = _current_customer_claims(session, include_conflicts=True)
+    scoped_memberships = _current_customer_claims(
+        session, project_ids=project_scope, include_conflicts=True
+    )
+    affected_identities = {identity_id for identity_id, _project_id, _claim in scoped_memberships}
+    if project_scope is not None and previous_generation_id is not None:
+        affected_identities.update(
+            session.scalars(
+                select(BrowseCustomerMembership.company_identity_id).where(
+                    BrowseCustomerMembership.generation_id == previous_generation_id,
+                    BrowseCustomerMembership.project_id.in_(project_scope),
+                )
+            )
+        )
+    raw_memberships = (
+        _current_customer_claims(session, identity_ids=affected_identities, include_conflicts=True)
+        if project_scope is not None and affected_identities
+        else scoped_memberships
+    )
     identities_by_project: dict[UUID, set[UUID]] = {}
-    for identity_id, project_id, _claim in raw_memberships:
+    for identity_id, project_id, _claim in scoped_memberships:
         identities_by_project.setdefault(project_id, set()).add(identity_id)
     conflicts = {project_id for project_id, ids in identities_by_project.items() if len(ids) > 1}
     membership_conflicts: dict[UUID, set[tuple[UUID, str]]] = {}
-    for project_id, identity_id, organization_name in _current_conflicted_memberships(session):
+    for project_id, identity_id, organization_name in _current_conflicted_memberships(
+        session, project_scope
+    ):
         membership_conflicts.setdefault(project_id, set()).add((identity_id, organization_name))
         identities_by_project.setdefault(project_id, set()).add(identity_id)
     conflicts.update(
         project_id for project_id, ids in identities_by_project.items() if len(ids) > 1
     )
-    for identity_id, project_id, claim in raw_memberships:
-        if project_id in conflicts:
-            continue
-        key = (identity_id, project_id)
-        current = selected.get(key)
-        value = (claim.organization, claim.category)
+    for identity_id, _project_id, claim in raw_memberships:
         refs = {
             str(citation["evidence_id"])
             for citation in getattr(claim, "citations", [])
@@ -123,6 +143,12 @@ def _write_customer_projection(session, generation_id: UUID) -> None:
             current_update = evidence_updates.get(identity_id)
             if current_update is None or observed_at > current_update:
                 evidence_updates[identity_id] = observed_at
+    for identity_id, project_id, claim in scoped_memberships:
+        if project_id in conflicts:
+            continue
+        key = (identity_id, project_id)
+        current = selected.get(key)
+        value = (claim.organization, claim.category)
         if current is None or value[0].casefold() < current[0].casefold():
             selected[key] = value
     reference_ids = {
@@ -146,6 +172,13 @@ def _write_customer_projection(session, generation_id: UUID) -> None:
         for identity_id, references in supporting_refs.items()
     }
     if selected:
+        membership_metadata = {
+            identity_id: (
+                len(supporting_refs.get(identity_id, set())),
+                evidence_updates.get(identity_id),
+            )
+            for identity_id in affected_identities
+        }
         session.execute(
             insert(BrowseCustomerMembership),
             [
@@ -161,16 +194,40 @@ def _write_customer_projection(session, generation_id: UUID) -> None:
                 for (identity_id, project_id), (name, role) in selected.items()
             ],
         )
+    else:
+        membership_metadata = {
+            identity_id: (
+                len(supporting_refs.get(identity_id, set())),
+                evidence_updates.get(identity_id),
+            )
+            for identity_id in affected_identities
+        }
+    for identity_id, (evidence_count, last_update) in membership_metadata.items():
+        session.execute(
+            update(BrowseCustomerMembership)
+            .where(
+                BrowseCustomerMembership.generation_id == generation_id,
+                BrowseCustomerMembership.company_identity_id == identity_id,
+            )
+            .values(
+                supporting_evidence_count=evidence_count,
+                last_evidence_update=last_update,
+            )
+        )
     from gridlens.intelligence.customer_accounts import _current_role_claims
 
     roles_by_project: dict[UUID, set[tuple[str, str]]] = {}
-    for project, claim in _current_role_claims(session, include_noncustomer=True):
+    for project, claim in _current_role_claims(
+        session, include_noncustomer=True, project_ids=project_scope
+    ):
         roles_by_project.setdefault(project.id, set()).add((claim.organization, claim.category))
     project_ids = set(
         session.scalars(
             select(BrowseRow.project_id).where(BrowseRow.generation_id == generation_id).distinct()
         )
     )
+    if project_scope is not None:
+        project_ids.intersection_update(project_scope)
     projects = (
         {
             project.id: project
@@ -579,7 +636,10 @@ def refresh_project_changes(
                     literal(generation.id) if column.name == "generation_id" else column
                     for column in BrowseCustomerMembership.__table__.columns
                 ]
-            ).where(BrowseCustomerMembership.generation_id == previous.id),
+            ).where(
+                BrowseCustomerMembership.generation_id == previous.id,
+                BrowseCustomerMembership.project_id.not_in(projects),
+            ),
         )
     )
     session.execute(
@@ -590,7 +650,10 @@ def refresh_project_changes(
                     literal(generation.id) if column.name == "generation_id" else column
                     for column in BrowseUnresolvedCustomer.__table__.columns
                 ]
-            ).where(BrowseUnresolvedCustomer.generation_id == previous.id),
+            ).where(
+                BrowseUnresolvedCustomer.generation_id == previous.id,
+                BrowseUnresolvedCustomer.project_id.not_in(projects),
+            ),
         )
     )
     changed_digest = hashlib.sha256()
@@ -607,6 +670,12 @@ def refresh_project_changes(
             _, batch_digest = _write_rows(session, generation.id, summaries, **budget_args)
             changed_digest.update(batch_digest.encode())
             check_budget()
+    _write_customer_projection(
+        session,
+        generation.id,
+        project_scope=set(projects),
+        previous_generation_id=previous.id,
+    )
     generation.row_count = session.scalar(
         select(func.count()).select_from(BrowseRow).where(BrowseRow.generation_id == generation.id)
     )
