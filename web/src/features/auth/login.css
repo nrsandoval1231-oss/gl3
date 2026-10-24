@@ -5,3 +5,5 @@
 .login-panel-inner,.login-form{min-width:0}
 .login-kicker{color:var(--gl-deep-slate)}
 button:focus-visible,input:focus-visible{outline-color:var(--gl-focus)}
+.login-form{grid-template-columns:minmax(0,1fr)}
+.login-input-wrap{min-width:0;width:100%}

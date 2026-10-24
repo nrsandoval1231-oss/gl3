@@ -1,8 +1,8 @@
 # Opportunity Intelligence Workspace interaction contract
 
-The October21 owner directive and [UI canon](UI_CANON.md) supersede the October20 silver/orange queue composition. Existing API identities, sessions and commercial workflows remain authoritative.
+The October 23 seven-color owner directive and [UI canon](UI_CANON.md) supersede earlier visual composition rules. Existing API identities, sessions and commercial workflows remain authoritative.
 
-The real need-level Opportunities queue occupies the light desktop sidebar. Search, supported category/qualification/disposition filters, sorting and pagination operate on server cohorts. Selection opens the dashboard. URL reload, Back and Forward restore record/tab state. Stale responses cannot replace a newer selection. Grouped physical-project Signals remain distinct, retaining member/source counts, qualification filters, exports and SHOW/REVIEW/HOLD decisions.
+The real customer/need Opportunities table occupies the left pane of the light desktop workspace; selected intelligence occupies the right pane. Primary navigation is horizontal, never a sidebar. Search, supported category/qualification/disposition filters, sorting and pagination operate on server cohorts. Selection opens the dashboard. URL reload, Back and Forward restore record/tab state. Stale responses cannot replace a newer selection. Grouped physical-project Signals remain distinct, retaining member/source counts, qualification filters, exports and SHOW/REVIEW/HOLD decisions.
 
 The dashboard presents identity, supported power facts, contacts, commercial relevance and next action. Evidence, Commercial Assessment, Research Gaps and Notes & Activity provide the bottom workspace. Existing buying-chain, power, timeline, brief/title, fact-correction and call workflows remain reachable. Contact links require verified provenance. Share copies the canonical URL; an unavailable action states the reason.
 

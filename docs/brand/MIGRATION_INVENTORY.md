@@ -1,7 +1,9 @@
 # GridLens brand migration inventory
 
 Inspected 2026-10-23 against PR #115 head `b3d020d34893d384073b3489e5171b0ef0a57343`.
-Status: **blocked on missing approved source artwork; implementation incomplete**.
+Status at initial inspection: **blocked on missing artwork**.
+
+Update: the owner subsequently attached the 1280 × 960 board. The missing-image blocker is resolved; exact vector geometry/wordmark approval remains open. This inventory and JSON scan are baseline evidence, not current-state claims. See `VALIDATION.md` for delivery status.
 
 ## Source material gate
 
