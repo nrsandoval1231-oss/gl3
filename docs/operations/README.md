@@ -1,5 +1,8 @@
 # Operations authority
 
+Current read-only refresh: [October 24 repository and production readiness audit](readiness-audit-20261024.md). It records repaired repository candidates and remaining production/provider/corpus blockers; production changes still require explicit authorization.
+
+
 This page is the only current summary for production, deployment, rollback, and backup/restore. **Production remains on hold.** The latest documented production observation spans October 20, 2026, 18:28:48–18:50:41 UTC. It is a read-only snapshot, not a release authorization or a runbook. See the [sanitized observation receipt](observations/2026-10-20-production-readonly.md).
 
 ## Observed host and runtime
@@ -37,3 +40,4 @@ For an authorized future drill, retain the source dump read-only, verify its dig
 Other `docs/operations/` pages describe particular code paths or dated proofs (source scheduling, saved browse, buying chain, pursuit research, local restore, and intelligence). They do not authorize production commands. Their original dated text is preserved; see the [documentation inventory and archive index](../../.agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTORY-20261020.md).
 
 GitHub branch protection was unconfigured at inspection. The owner has not authorized governance settings changes. Proposed protection for `main`: `required_status_checks.strict=true`, required contexts `backend` and `web`, `enforce_admins=true`, `allow_force_pushes=false`, and `allow_deletions=false`. No standing bypass is proposed. An emergency owner override would require a separately authorized, recorded rule change and restoration of protection afterward. Applying and freshly verifying this proposal remains an owner action; no settings were changed here.
+

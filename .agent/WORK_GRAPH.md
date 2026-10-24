@@ -7,7 +7,7 @@ The owner audit continues existing implementation; no new architecture or routin
 | R1 repository / branch / deployment inventory | COMPLETE_BOUNDED | Fetched main fae481db; integrity0; all59 refs classified; read-only actual image/schema/runtime/scans |
 | R2 dependency repair | IMPLEMENTED_PENDING_FINAL_ACCEPTANCE | Four compatible brand pins, UTF8 repair, complete brand CI audit; initial independent FIX then bounded directory correction |
 | R3 RRC IPC repair | IMPLEMENTED_PENDING_FINAL_ACCEPTANCE | Generic8MiB preserved; exactRRC64MiB; Linux28 boundary tests; builder67 source/retained tests |
-| R4 container remediation | IN_PROGRESS | Separate Luna, Dockerfiles only; local image scans and runtime smoke; production untouched |
+| R4 container remediation | IMPLEMENTED_PENDING_FINAL_ACCEPTANCE | Separate Luna, Dockerfiles only; local image scans and runtime smoke; production untouched |
 | R5 final deterministic validation | DEPENDENT R2/R3/R4 | Exact frozen SHA, complete checks; skipped or missing !=pass |
 | R6 independent integrated review | DEPENDENT R5 | Sol exact candidate; blockers repaired and re-frozen before acceptance |
 | R7 GitHub gates / guarded merge | DEPENDENT R6 | Reviewed PR exact head, all3CIjobs success, main unchanged; no deployment |
@@ -15,4 +15,5 @@ The owner audit continues existing implementation; no new architecture or routin
 
 23 verified merged remote branches removed; all25 unique-work branches, 8 ancestral refs with active/uncertain ownership, main and two initial openPRs retained at inventory checkpoint. No local branch/worktree cleanup. Later audit refs recorded separately.
 
-Next direction VALIDATE after bounded container handoff. Parent production readiness, original446 QA, Albuquerque UNKNOWN, M6 five-chain/contradiction-pair and Finish Contract remain OPEN. No new source acquisition, provider spend or production mutation is authorized by a repository PASS.
+Next direction VALIDATE the integrated source and explanatory documentation. Parent production readiness, original446 QA, Albuquerque UNKNOWN, M6 five-chain/contradiction-pair and Finish Contract remain OPEN. No new source acquisition, provider spend or production mutation is authorized by a repository PASS.
+
