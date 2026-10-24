@@ -21,3 +21,5 @@ See [brand guidelines](../brand/GRIDLENS_BRAND_GUIDELINES.md), [visual PDF](../b
 Complete outputs and integrity hashes are in `web/public/brand/asset-manifest.json`. Editable geometry is `tools/brand/masters/symbol.svg`; wordmark outlining is reproducible from the pinned Inter source in the generator. No embedded raster substitutes for vector geometry.
 
 Regenerate with `python tools/brand/generate.py --review-candidate`, then `python tools/brand/validate.py` and `python tools/brand/guide.py` using dependencies from `tools/brand/requirements.txt`. Historical masters and generator are preserved outside the active public pipeline in `docs/design/archive/pre-seven-color/`.
+
+Owner correction, October 24: the logo uses two colors only (one ink for monochrome). Both G segments share the primary color; the integrated L uses the secondary. The seven-color application palette remains canonical.

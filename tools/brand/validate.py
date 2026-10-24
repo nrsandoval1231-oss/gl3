@@ -23,6 +23,8 @@ def main():
     for family,h in manifest['font_sha256'].items(): assert h==hashlib.sha256((ROOT/f'web/public/fonts/{family}.ttf').read_bytes()).hexdigest(), 'Stale font exports'
     tokens=json.loads((ROOT/'docs/design/brand.tokens.json').read_text())
     approved_fills=set(tokens['colors'].values())|{'#FFFFFF','none','transparent'}
+    ns='{http://www.w3.org/2000/svg}'
+    geometry=[e.attrib['d'] for e in ET.parse(ROOT/'tools/brand/masters/symbol.svg').getroot().findall(ns+'path')]
     rows=manifest['assets']; names=[r['path'] for r in rows]
     assert len(names)==len(set(names)), 'Duplicate asset paths'
     assert len({Path(n).name for n in names})==len(names), 'Duplicate asset basenames'
@@ -31,6 +33,17 @@ def main():
         assert hashlib.sha256(p.read_bytes()).hexdigest()==row['sha256'],f'Stale export: {p}'
         if p.suffix=='.svg':
             svg=ET.parse(p).getroot()
+            # Each embedded symbol must keep G segments one color; never add a third ink.
+            for container in svg.iter():
+                paths=container.findall(ns+'path')
+                if [e.get('d') for e in paths] == geometry:
+                    fills=[e.get('fill') for e in paths]
+                    assert len(set(fills)) <= 2 and fills[0] == fills[2], f'Third symbol color or inconsistent G: {p}'
+            if p.parent.name == 'logos':
+                treatment=p.stem.rsplit('-',1)[1]
+                expected={'light':{tokens['colors']['harbor_navy'],tokens['colors']['slate_steel']}, 'dark':{tokens['colors']['fog'],tokens['colors']['sea_cliff']}, 'navy':{tokens['colors']['harbor_navy']}, 'white':{'#FFFFFF'}}[treatment]
+                actual={e.attrib['fill'] for e in svg.iter() if 'fill' in e.attrib}
+                assert actual == expected, f'Logo color-count/palette mismatch: {p}'
             assert svg.get('viewBox'), f'No viewBox {p}'
             for element in svg.iter():
                 for attribute in ['fill','stroke']:

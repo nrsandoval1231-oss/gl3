@@ -132,3 +132,16 @@ tests requiring retained real-source records were not represented as fixture pro
    before merchandise release; no professional Pantone/CMYK equivalence is claimed.
 
 PR #115 remains draft and unmerged. Production deployment is not authorized.
+
+## October 24 owner correction: two-color logo
+
+Removed the third logo color from the editable master and all generated variants.
+The upper G and diagonal return share the primary ink; the continuous integrated L
+uses the secondary ink. Light variants use Harbor Navy / Slate Steel; dark variants
+use Fog / Sea Cliff. Monochrome remains one ink. Path geometry is unchanged.
+
+Regenerated all 216 assets, the PDF and seven browser captures. The validator now
+checks the exact logo palettes and rejects any embedded symbol with a third color
+or different colors on the two G segments. Asset validation, frontend build and
+all nine targeted workspace/login browser tests passed. This correction does not
+constitute approval of the remaining geometry/wordmark fidelity gate.

@@ -1,8 +1,8 @@
 {
   "version": "2.0.0",
   "approval": "review-candidate",
-  "source_sha256": "97c03ff3cbba17a9cd27a02e505651b9f3c39f2be8204b77416740818c9afdd8",
-  "tokens_sha256": "2f2b0ae8ed18e3da332890295e3db58a0a212a80390924c698b8c6eb03470b70",
+  "source_sha256": "484b3651f1564c565c2539dbef955cf262857a46655c20013e060dd5f795077d",
+  "tokens_sha256": "0223eaa344ec4550f6d34e02887c67200dceca62a436d5755943e298977df6a6",
   "font_sha256": {
     "inter": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
     "sora": "84ff7096ae3ec6c8be47d906d1a0ba4de7f2ce78c615275c77301964a316e16c"
@@ -10,240 +10,240 @@
   "assets": [
     {
       "path": "logos/symbol-light.svg",
-      "sha256": "20cb7b22cbef58bec7bdbe4d98a6a443585588d3c4a387fcc5938eab4e5ff05a"
+      "sha256": "711249ef9da67faf16eb508cec42fae1057516bfee11ba9c730b565f62771667"
     },
     {
       "path": "rasters/symbol-light-256.png",
-      "sha256": "479d46b836a875726c65e1e2a909300fa188730175ffcf304d90345e81a4dff6",
+      "sha256": "cece99281c12622dd0f94d220911ab95f187264a4d77e297dfa46f86927c7b3b",
       "width": 256,
       "height": 256,
       "transparent": true
     },
     {
       "path": "rasters/symbol-light-256.webp",
-      "sha256": "41819d979e9a3a047602e1d10a5b3777dcf9c67bdd4cbda18d6b7a96073251de",
+      "sha256": "21045c3c84f54e681c0238c696326697787042b09e9d149a396bcfda58b86860",
       "width": 256,
       "height": 256,
       "transparent": true
     },
     {
       "path": "rasters/symbol-light-512.png",
-      "sha256": "3a797793c0fb6062c283a1109f679dde428cf7d91d6d54f262e65f90c67dde43",
+      "sha256": "b64242151d928402590c6e6a8fbd9584661a45537dad9cd5378ac116e2e463d3",
       "width": 512,
       "height": 512,
       "transparent": true
     },
     {
       "path": "rasters/symbol-light-512.webp",
-      "sha256": "1759d50791cac85e9a046fb80daf2bb7cd830a2913b0ba2ca653e97495ef7fb9",
+      "sha256": "a188a911ff68b8a2ef24b22a9616ef152b8831debcd1149ae0c6ab69d247194d",
       "width": 512,
       "height": 512,
       "transparent": true
     },
     {
       "path": "rasters/symbol-light-1024.png",
-      "sha256": "951eff946cbd198e1c8363394a0103d7e377249acd4abdff9ba8702002e45696",
+      "sha256": "28c5fe5286f78edbf6b6e2deec7fae9d236725b4e03b8a88e962c5ec627b1fcb",
       "width": 1024,
       "height": 1024,
       "transparent": true
     },
     {
       "path": "rasters/symbol-light-1024.webp",
-      "sha256": "3e719afb225e350c1720e09cfc99a2149779908f3f0856c85a66137a3cba9b9a",
+      "sha256": "667838a0968c4a23c572fd3f52f50a6c33549941c648b42c2457e7a9eae69220",
       "width": 1024,
       "height": 1024,
       "transparent": true
     },
     {
       "path": "rasters/symbol-light-2048.png",
-      "sha256": "0df0149c7dd0146c29ac1562e1ac06c09e404fa6170ef4b132569af357873c48",
+      "sha256": "c277ba46977c8653a43e6d89e6e75a993bb9d743ca49349199fbdc1d3bc5e59a",
       "width": 2048,
       "height": 2048,
       "transparent": true
     },
     {
       "path": "rasters/symbol-light-2048.webp",
-      "sha256": "8e80470b113a52b92f3587688bc52bc11c84dbc75a135cb77b4f9b4450317e50",
+      "sha256": "febe18f81c1c0f31c762618c8e148ef979ed8e1897c8561dbe4e1c799f23f5fd",
       "width": 2048,
       "height": 2048,
       "transparent": true
     },
     {
       "path": "logos/horizontal-light.svg",
-      "sha256": "8e4182e6634cb10b14fe637efc81dd7228da64c7eb68df3aeb8ee149d074d826"
+      "sha256": "bdad7a85ae274ace86d0e9722380b5e1465176c130f08f8ed7a8197dde95e5b2"
     },
     {
       "path": "rasters/horizontal-light-256.png",
-      "sha256": "77b1c18fed9c9d9b7d306999e4e64dab8f2f771e9ebef95c7d8d8209f8d7a08a",
+      "sha256": "7b626e61133994dd12c438d512fc53e39627db10fa1ab11b7a88c033af5875b4",
       "width": 256,
       "height": 61,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-light-256.webp",
-      "sha256": "5e7a15e82941858070cc3fdb666477f9516b228f75bbc8f7628db86d9ec6c096",
+      "sha256": "b9f8e1f7da8eee92f9ff48dfa61a62f6d6fbcd84849f3de4b33e75af113b8de9",
       "width": 256,
       "height": 61,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-light-512.png",
-      "sha256": "8fba33e2feae4575ee60a36ed82ac32e8468641805a60d14e4bf24acb7aa8b47",
+      "sha256": "def8436550dd2ff4dde2355b3b012f61d16faeb2eda366ec84e0fc2807b80d88",
       "width": 512,
       "height": 123,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-light-512.webp",
-      "sha256": "b6ee273a9c76cc40a4e40210ad42b7aeb8a76a3b6916f37a9295d0e7353512e4",
+      "sha256": "b17b802f6f5ebaaa7a52f7f89fb986abe77427f06b888d48445bfd5128eb7e2b",
       "width": 512,
       "height": 123,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-light-1024.png",
-      "sha256": "93a713ae7346e3ce2066cd17be59100ed8d82b7e8225c8f0018b75e938e7f554",
+      "sha256": "ff15bd09fdbfb388a48f2a4c99dacb7be074f7ed4b7920eb61b1ae2a4dc3b7dc",
       "width": 1024,
       "height": 246,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-light-1024.webp",
-      "sha256": "6962344b4abe5ce4cfbcca399bce088041e05c6fc0fdf0d9783558f1c0cf2a7a",
+      "sha256": "6c5d516b123cfacbabe70ee75d0844c1ae789437dc801b18cef78e36e259a52a",
       "width": 1024,
       "height": 246,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-light-2048.png",
-      "sha256": "c7ec525449f6bfea3b8d2e16dbddfdc51afc84ad1092f8c84fc8a8881a72fee0",
+      "sha256": "aaa3ba1d38c59a3c3f638d32531e77b6006bb439ce665587f7b9a9c04a435ef2",
       "width": 2048,
       "height": 492,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-light-2048.webp",
-      "sha256": "19573410da73c3f6b4e2d83c76572cc6c2b8c94734292a8ecc8581d86d36dd43",
+      "sha256": "d7a45b743e9822d865daecc090cd2d9eba6d6a378b0cf4b7f9dcb4de7a560469",
       "width": 2048,
       "height": 492,
       "transparent": true
     },
     {
       "path": "logos/primary-horizontal-light.svg",
-      "sha256": "20f65ddf8dad2d480ab8751b0591750876a19304141ea8a7f0dfe432554d1615"
+      "sha256": "69c7c5eb0bb46da67253e165aabf3ff841cad2af52a094d833d22fbaf6d0e63e"
     },
     {
       "path": "rasters/primary-horizontal-light-256.png",
-      "sha256": "2b7732395c71ca815295144f1e3de0f8cfcd531585b0d591d2e3cf937c8c9c5e",
+      "sha256": "92cebb02b84cdc0b7e5eebb543db145d8498933ec7be34508f399a72b67c0f7f",
       "width": 256,
       "height": 61,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-light-256.webp",
-      "sha256": "44b80ae7f7bd01c538be4d98a4edf4c4735b7232e7d07882f5396d08c61e58cf",
+      "sha256": "3130554c2749bbb8af8a47982418bb9bc927cb23a52c98850fa273d146b84ee4",
       "width": 256,
       "height": 61,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-light-512.png",
-      "sha256": "fdbb2c9eb34221f008ee920dbe85e96f0ca61255767a9ce52a1dfcec22044805",
+      "sha256": "f91144d4f2b7332a451ffdeff29ffdc5f146d632c0447b74dd84e9e99d35c809",
       "width": 512,
       "height": 123,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-light-512.webp",
-      "sha256": "407e19214f94d4723b9823739adb2d2f551d57e0584094953c138c1fe035fde7",
+      "sha256": "e05d3bea9b62d19efc29dd4d8b0a8a251001d5a2bc4a0efc1311154b4af44c00",
       "width": 512,
       "height": 123,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-light-1024.png",
-      "sha256": "cdcf4ca79085e486146e44fe6bd8d32f2a5b3e8e7798381bacc501ca60f4007d",
+      "sha256": "de93950098791c29ee9191b610d9597b4a0bc78543f7d8f0362d3ad2611bfc94",
       "width": 1024,
       "height": 246,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-light-1024.webp",
-      "sha256": "bb2f36f8a5bb11e048cad38de4d812864482cdb54eb46f46d86c9225e977d183",
+      "sha256": "6f4a5699a06b7bf6f3a99ff92a82a76fa72bcc58a5c5073b829a387aeafaa286",
       "width": 1024,
       "height": 246,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-light-2048.png",
-      "sha256": "60f0983d0c6cf136ff1618e177f85908d4ffbcbab5a7e45078524a2cd9cb31a2",
+      "sha256": "fe13de3b96c48068261945b4e201f12904d4f8fd3e6ba92e0246b10ef1dc8428",
       "width": 2048,
       "height": 492,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-light-2048.webp",
-      "sha256": "d58c8f2eb7536c5ea0caf88de5af760f3fbc1696b715a801336ce1ee6cccd90d",
+      "sha256": "77122ecb3755902e6093962fdde71557d33e12e5d215af63ccd696f51756aa14",
       "width": 2048,
       "height": 492,
       "transparent": true
     },
     {
       "path": "logos/stacked-light.svg",
-      "sha256": "ea49273c9e17e952fdf559ec740a2149a460a7566abbd190d1e1890f674bfaa0"
+      "sha256": "e5611679af0e5363d5188d4ad47c0d8ba5f11bf875170ced279c2b897ed1c7f5"
     },
     {
       "path": "rasters/stacked-light-256.png",
-      "sha256": "1be5c01ad435ef62b738c5a0beeda8d244b8d604608f465720ac0d4d7164ce72",
+      "sha256": "480f6b70d7eb57663f35c7b526e484de2010a38b895cc3340bee4a02eacab3a4",
       "width": 256,
       "height": 155,
       "transparent": true
     },
     {
       "path": "rasters/stacked-light-256.webp",
-      "sha256": "9c0e8dc01b61c24fadfb9a6ee3c3e4394645bfd7eebcc15b028468e51b216b37",
+      "sha256": "ab8d0a00d37e9ae4327eb91a94fb34b9f591cb0a25565e1c4c9f4a7daaacfa74",
       "width": 256,
       "height": 155,
       "transparent": true
     },
     {
       "path": "rasters/stacked-light-512.png",
-      "sha256": "9b42b3621e041ca17ceb6b1d62372e9af42d37db55a2f581e21a49c5ac8de934",
+      "sha256": "ab0a1d78d948c308717d3b88556255e5e33d534e5737b6d0f8ddc293484af8c8",
       "width": 512,
       "height": 310,
       "transparent": true
     },
     {
       "path": "rasters/stacked-light-512.webp",
-      "sha256": "422d11c83f71caca4f6183c2f3d9e0528ee7f8c580ebf636cdfbb6e5fd2dff0b",
+      "sha256": "58f9f8dc5aec0cea8b7fefe931fae959b0b96d372d1ef79e9f302372cc029eda",
       "width": 512,
       "height": 310,
       "transparent": true
     },
     {
       "path": "rasters/stacked-light-1024.png",
-      "sha256": "c236d8f8dbecc5cf45f5212538f24a9335966a30ca02b5c59932678f97a4a6d9",
+      "sha256": "2c63a88ed28f43adbb847038d67d0d971fb1180fa434284a7e6142b0e68fb432",
       "width": 1024,
       "height": 621,
       "transparent": true
     },
     {
       "path": "rasters/stacked-light-1024.webp",
-      "sha256": "77c793af48f5fc0d91be68e2e27ed36e7a01fd9ee87c56bc53b6eadc75e84229",
+      "sha256": "ecc0cfe6c760916ede4260c8ceb3bbb380f70462411de1032012d0d38afd55d4",
       "width": 1024,
       "height": 621,
       "transparent": true
     },
     {
       "path": "rasters/stacked-light-2048.png",
-      "sha256": "8bc8a4d9c67cb856debd24fdc7fe11b953a162392ea007c485a258dfa5d57bc4",
+      "sha256": "5e789f5b1544ffd35b26b52e2c60719f49897de43b0ab13c646f1631d4228e29",
       "width": 2048,
       "height": 1241,
       "transparent": true
     },
     {
       "path": "rasters/stacked-light-2048.webp",
-      "sha256": "a6e52a3e63b69863229654978a5ff36f4d468b193ea12bf6b99960fca798f46d",
+      "sha256": "41737ecb0bc973f99a6c61f47ef5380d8de914afa5b71f19d389ea8cb9c7930b",
       "width": 2048,
       "height": 1241,
       "transparent": true
@@ -310,240 +310,240 @@
     },
     {
       "path": "logos/symbol-dark.svg",
-      "sha256": "3ef5c7998fdf33d582eb81ca15e130d9be430c787c090ecbfa37420279b00a29"
+      "sha256": "0dadb23d59c18bd1666d79d5eb9902eacca834cb9be472fcee00eaf28515e170"
     },
     {
       "path": "rasters/symbol-dark-256.png",
-      "sha256": "4c8cf9243433d8b5002d7cbd3236865a9af1d80da5212ccfa47a84530f7054af",
+      "sha256": "3c3c1528156812c094ae19a776d081002f057a7161dfae2d9193168f7cbdd9af",
       "width": 256,
       "height": 256,
       "transparent": true
     },
     {
       "path": "rasters/symbol-dark-256.webp",
-      "sha256": "ddca641e5858dd58aca017e30b331f0af1efb0a9485f52fd8ed9684c89992528",
+      "sha256": "156060feca65467715709f67ff595aa84caabf1782de130cb6e6860174f54f3c",
       "width": 256,
       "height": 256,
       "transparent": true
     },
     {
       "path": "rasters/symbol-dark-512.png",
-      "sha256": "cf66f696800589a6eda08a6aba595eb904c951dc1165ab648044c8a88c108884",
+      "sha256": "3f49a1edd3816dbb2a4fbad53d3b2036c87b8719b439e31490d67408ff81746a",
       "width": 512,
       "height": 512,
       "transparent": true
     },
     {
       "path": "rasters/symbol-dark-512.webp",
-      "sha256": "da2552f697289cee1b6d9746491539db036b2644c7ca8c7f971fdf629d18e2d9",
+      "sha256": "ff79693f6328f34b36674861e23dd21cfdf096227e76c2654e5858b5e4f6eecb",
       "width": 512,
       "height": 512,
       "transparent": true
     },
     {
       "path": "rasters/symbol-dark-1024.png",
-      "sha256": "98a187377a84f1dbe6e5ca6982e3f979d8caf14b2e965311e207f3ec2e4ca2e5",
+      "sha256": "35994909904734b2c1ad6b838838beac34339d3ed71707a311dc816d27065ebd",
       "width": 1024,
       "height": 1024,
       "transparent": true
     },
     {
       "path": "rasters/symbol-dark-1024.webp",
-      "sha256": "dc30556ec4a233cbf4f877450d69452a17faf6dcbb180349591e9a11835f1c96",
+      "sha256": "a94964ac89f01bd2f743d23f792cce71f72556e1cc8b2c0b29f57f61d4eca8f7",
       "width": 1024,
       "height": 1024,
       "transparent": true
     },
     {
       "path": "rasters/symbol-dark-2048.png",
-      "sha256": "01d47cf4da7d3e55ce4679f1be32f9722d18fe8886f4ac2ac2025c7ae793167a",
+      "sha256": "2f0220fbc526bd6b8c7625d3ffa5a7e3af506803350d04091798480793d4e290",
       "width": 2048,
       "height": 2048,
       "transparent": true
     },
     {
       "path": "rasters/symbol-dark-2048.webp",
-      "sha256": "77da03b785ee0baf1c82d32dbf2a3a1d1ae3f095c1c88bde350d47391ce60e74",
+      "sha256": "a27d555389835d1b496fe065bc40ec90bae5bcae97f6f9a40c82eaf4ae60bdc8",
       "width": 2048,
       "height": 2048,
       "transparent": true
     },
     {
       "path": "logos/horizontal-dark.svg",
-      "sha256": "e50bad64cd46193901d57b8973d3b41f32a49840c8c8e90060868b24485b1841"
+      "sha256": "39bb5e15c84af7f2c5df164c6cee2185dbd7a65d7b8229ffa5441fda644d2202"
     },
     {
       "path": "rasters/horizontal-dark-256.png",
-      "sha256": "4cac49a7b339d3fca536a3b83fcef3e50540b901f28cfb26a56565a7b88d871f",
+      "sha256": "5c3d4ac9ab99957162885d75e46252cb79503c54e58bfe964076b30828e3cb18",
       "width": 256,
       "height": 61,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-dark-256.webp",
-      "sha256": "fdc1dddf9e04934f38036ab7d7803e830fde97826c20af69b091ec6b17cee0f1",
+      "sha256": "61cb70cf345c4cc454a07bee170151b7cd9f57bddb22673356bd2f27a92c5a9e",
       "width": 256,
       "height": 61,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-dark-512.png",
-      "sha256": "418aca255a473ae99aa1c5b787919e30187c10077a3a80a947a38df4f6f64c2c",
+      "sha256": "7150891b2fbcc66c18ce0b29f7f5d9ce419682b72545bca983e366bc18863ca3",
       "width": 512,
       "height": 123,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-dark-512.webp",
-      "sha256": "a656cb34d3bfd3c5b126ec1a9be9ce80d4c2507a30dc0f331321fafeefd0471b",
+      "sha256": "7a6b823094bc8af1fa26d64fef501904c0ddc0390a19a50b683147f611b2a1c9",
       "width": 512,
       "height": 123,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-dark-1024.png",
-      "sha256": "c06f522f1a27dfca3d7c62d9002f89862c984811510410790b800eb1e0876488",
+      "sha256": "ae162203ebadcfe5d383eebb991a5cccbb64c2a878047909eae59efaae082339",
       "width": 1024,
       "height": 246,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-dark-1024.webp",
-      "sha256": "11325d7219befdfba4c068d340e4d375a9ca6431efd0b34d7423edd9a8775af3",
+      "sha256": "3e715a5d0ee81a76c640ac08656868b2418fd9b801c5bffbf076240777da5b61",
       "width": 1024,
       "height": 246,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-dark-2048.png",
-      "sha256": "a6758ce4067921036014de2cbc6437c9a087c32ad8f408ffb99c86c58aca44cb",
+      "sha256": "fb55d799f8bd8f3337efdb61b786d4804444d2f85b1e457a68052f177d6e9ceb",
       "width": 2048,
       "height": 492,
       "transparent": true
     },
     {
       "path": "rasters/horizontal-dark-2048.webp",
-      "sha256": "dff3b9139baedd8733a7a1474e40160675d8fbac5af84b56dfc19459923549ef",
+      "sha256": "4a887ff06bff8f8a38188bc1511c7ceaeef8c8f42807a57a7c2cb9b0102c70c4",
       "width": 2048,
       "height": 492,
       "transparent": true
     },
     {
       "path": "logos/primary-horizontal-dark.svg",
-      "sha256": "efa7ee97105d80ace2181aa0dd3fddf12a4dede9318a4b8b43ea34b94e69baa9"
+      "sha256": "49db98774df246781ba7497b274261cebbc53c9ba0092daa975a7e516fa2a84f"
     },
     {
       "path": "rasters/primary-horizontal-dark-256.png",
-      "sha256": "e6b0424a72fd301d784de7fd6ae5e72f58f14f4d28a1e17f13716fa96a4f550c",
+      "sha256": "5e413be753bdacd1e465c8a734559384c8ffcaaf1facb489d1c7f75573a479d7",
       "width": 256,
       "height": 61,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-dark-256.webp",
-      "sha256": "8cadeed53a1fe44a0438ba767e483169cceabf683d64c1b4ca3c0c13cf03aa7e",
+      "sha256": "687e2fd0d3a36b05023aac547a7512f05ea85ad01977cae54ac3aea46b7ea872",
       "width": 256,
       "height": 61,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-dark-512.png",
-      "sha256": "9b1686c7c95e45f84a9b77c7c0632b4332d1cf8c43189aab2612df571fa82273",
+      "sha256": "686ac40da4d25964d567823f76c36c0671e10680d44505b283dfc985fc9edd95",
       "width": 512,
       "height": 123,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-dark-512.webp",
-      "sha256": "0229b47f9834ac56e6ed73a83b33f90bb859f595192f44b6d956c1fb5b5e4d95",
+      "sha256": "f30d6a6a7e8a7f35dbb7d3db5a48d24f3f06941e6c0b2ee89f6777e7ff8d4167",
       "width": 512,
       "height": 123,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-dark-1024.png",
-      "sha256": "6b1ad420af7f1b17f44bdae946311797793896f61592e402f606bc399ba4a611",
+      "sha256": "2d3008e2843349692af97a73a63365813fbadd64333fc7cf75de3f7679185c9a",
       "width": 1024,
       "height": 246,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-dark-1024.webp",
-      "sha256": "42b9f5ec6b9bb048e83d4fbc98ffca9201fca15eb63be9f2ce638602d08a7fff",
+      "sha256": "ec595bbb943704b43277017dd9444e14ffc5439d97e57c660e196855ce6063ce",
       "width": 1024,
       "height": 246,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-dark-2048.png",
-      "sha256": "f696d77f714a71e2ef552ad4184969ffe39788b5940ce3e522f83327e6f48c60",
+      "sha256": "a7c3d0994c741d6047adea9d83626e4cd44643acf91fe3c023afd4179f05bba1",
       "width": 2048,
       "height": 492,
       "transparent": true
     },
     {
       "path": "rasters/primary-horizontal-dark-2048.webp",
-      "sha256": "a46f0a0852137dfb00d648d8779a216549f0ce1c1db539ed561a4636bd04cc9a",
+      "sha256": "ccf431316e48d68e084205f9f5f920e85af5c08acad465c34e908c4a41b49c27",
       "width": 2048,
       "height": 492,
       "transparent": true
     },
     {
       "path": "logos/stacked-dark.svg",
-      "sha256": "39a26fc8cf5a96e14ee3e703b6b5c229321a12a0fae632834cee855ba941823d"
+      "sha256": "d531e6bbcb89b3c11df83d88e8a787dd4299cdd91f7214ed358560cf865c2a80"
     },
     {
       "path": "rasters/stacked-dark-256.png",
-      "sha256": "f07f10479009f4f05540274829e2e15de4ad0fc9f81f2bf18d7c5d33138476d3",
+      "sha256": "b508594e19208f020c969d70248f9cf7e9579b86ee0e9bee629b00a0e3be4280",
       "width": 256,
       "height": 155,
       "transparent": true
     },
     {
       "path": "rasters/stacked-dark-256.webp",
-      "sha256": "4d121f32853e55d561c577b3cf0ffc398e361c2102e3c644ab9d3caeb1cbe4be",
+      "sha256": "6ceee74f5c901979d187f992f12d76423892c371414c95d7d489f59f64de5fbc",
       "width": 256,
       "height": 155,
       "transparent": true
     },
     {
       "path": "rasters/stacked-dark-512.png",
-      "sha256": "fb38382f08bc779e5ddbc270a251c225ecc7f6d92279a00b8262c03d01fe03d4",
+      "sha256": "e5fa8e4b73ea06bcdd826509d42ba23d3ae0d1c396b74be26ce3e3cec6dec18f",
       "width": 512,
       "height": 310,
       "transparent": true
     },
     {
       "path": "rasters/stacked-dark-512.webp",
-      "sha256": "9fecef788a7c68be18a13cb5b2df3a62309e4ab6074385f1c0d1ba04c13760a8",
+      "sha256": "742c84b77ae4a472bb9bbba8bb3432b2fa3b91c6ac849d312c8214f629decb8e",
       "width": 512,
       "height": 310,
       "transparent": true
     },
     {
       "path": "rasters/stacked-dark-1024.png",
-      "sha256": "a0d03b054f71b1f152b2f5f068a8036231f1e533caf934391b9f234c2d782b0e",
+      "sha256": "7aac89d36cf17d716356a35b4913693085497a4af041e7cebae9913698e11f5f",
       "width": 1024,
       "height": 621,
       "transparent": true
     },
     {
       "path": "rasters/stacked-dark-1024.webp",
-      "sha256": "49de50a48411655a54f0e202055dc5778e4c95d4c80875a3341ad7641f1e694f",
+      "sha256": "546a1521c01bdd8590029eb6636da6f52cac9cbb36b72f5e894930a12ec490d2",
       "width": 1024,
       "height": 621,
       "transparent": true
     },
     {
       "path": "rasters/stacked-dark-2048.png",
-      "sha256": "c01dce94f8cdaf7ee3e068e902f1db236d03aa8ce24b7776c9240feaf7fe40ed",
+      "sha256": "377f2e3c9804ca91f5363dafd27290e3eb25d4b284e29b5299dd312e7649f6be",
       "width": 2048,
       "height": 1241,
       "transparent": true
     },
     {
       "path": "rasters/stacked-dark-2048.webp",
-      "sha256": "86bf07308f104eae57461ef85fc7b90260f9058cef3b8d3fdf91547faf36c711",
+      "sha256": "759847b2d548306da6a0450725ef6949befb45b210827e3d083ed8fb1ee4b742",
       "width": 2048,
       "height": 1241,
       "transparent": true
@@ -1210,136 +1210,136 @@
     },
     {
       "path": "masters/symbol.svg",
-      "sha256": "97c03ff3cbba17a9cd27a02e505651b9f3c39f2be8204b77416740818c9afdd8"
+      "sha256": "484b3651f1564c565c2539dbef955cf262857a46655c20013e060dd5f795077d"
     },
     {
       "path": "icons/app-dark.svg",
-      "sha256": "7e61ba8f26e041a75dd5deb725d3eccf843869e06fe23ef2b6ac11a6d0c02ad5"
+      "sha256": "ab7e14fa925d89ff6d2d1cefc300bc898c68a79931c52d00b43bf4edd125e531"
     },
     {
       "path": "icons/app-light.svg",
-      "sha256": "d7e82a583d87ef3082bf3d2f7db5cddaa2a2964cf8eb94f990cf3d27bc64db32"
+      "sha256": "29ccb374fad73325b305d314e687d242f71f46a395e100f1dde34c8405440e99"
     },
     {
       "path": "icons/favicon.svg",
-      "sha256": "20cb7b22cbef58bec7bdbe4d98a6a443585588d3c4a387fcc5938eab4e5ff05a"
+      "sha256": "711249ef9da67faf16eb508cec42fae1057516bfee11ba9c730b565f62771667"
     },
     {
       "path": "icons/favicon-16.png",
-      "sha256": "4843b3cc62abc01efeb6a813ef67fd208fccf15752fc62f533348c42c80fdc60",
+      "sha256": "6611496b7f75459c65c1439736a52b9d8928b3ad44222b1ef69e1186222436c6",
       "width": 16,
       "height": 16,
       "transparent": true
     },
     {
       "path": "icons/favicon-16.webp",
-      "sha256": "e67f28bbdb8d4fe8f60878e5cf2aa27f5f7ccb6c9b36946815afd9e3a01ae14d",
+      "sha256": "43d63a0bdbb0368c2345d350f75896bb433ba26eb3901af5a835d3762c2eabc7",
       "width": 16,
       "height": 16,
       "transparent": true
     },
     {
       "path": "icons/favicon-32.png",
-      "sha256": "e64ad06a35b8e77eed8243fb41ec01d65debc21ca555c66d4e19973af94e4a79",
+      "sha256": "ceedae5e274905ac8b56f7febe8d1f33d16905e51c9e307f341fb82d39a537f0",
       "width": 32,
       "height": 32,
       "transparent": true
     },
     {
       "path": "icons/favicon-32.webp",
-      "sha256": "73405deaa2923ef411143c239fb48291f6ae915398d10bf09ff36d3bc9f87726",
+      "sha256": "ce6de7d9f7831f5dac966af7b37e42b42935b6c99be41513390dd9e96b4aa4df",
       "width": 32,
       "height": 32,
       "transparent": true
     },
     {
       "path": "icons/favicon-48.png",
-      "sha256": "84501aae182be5b3715f8fa8f3e9fbcf46495507f7d40719f122dfed8d20c059",
+      "sha256": "64dbc6d51d974c5fe87fa986c11eea7cc989d3c1cb4f31871b79a029571d6f6e",
       "width": 48,
       "height": 48,
       "transparent": true
     },
     {
       "path": "icons/favicon-48.webp",
-      "sha256": "91ccc5ee56823276b7a6b7fb77d2a84b01f9c0f8636f3f8c8d054fb5370ef9f4",
+      "sha256": "d0d43f06d2eb875acca2a6efb285153d76c992788f7fe5e67b2e12c8142490cf",
       "width": 48,
       "height": 48,
       "transparent": true
     },
     {
       "path": "icons/apple-touch-icon.png",
-      "sha256": "356b6000984a8ffb29d3e9c3ce21102463d2dd9bb9fc3a37aa0536942e313645",
+      "sha256": "680a79d5cd178f2769f64161f7a0fcb0a351ca6255d9cd4b9c1bb6ea22826fe4",
       "width": 180,
       "height": 180,
       "transparent": false
     },
     {
       "path": "icons/apple-touch-icon.webp",
-      "sha256": "aec352d0757ae6590b005cf4e7179a6d4536d5e9dab8fd111deb78258da3ed2f",
+      "sha256": "faff5049f0141e4d791bc57d34b51a3f84293eaa02d73930067c13fbf057dd21",
       "width": 180,
       "height": 180,
       "transparent": false
     },
     {
       "path": "icons/pwa-192.png",
-      "sha256": "ba94aae154a7af76f697cc3c51af532c9a1da9d40637490510306d864998aa77",
+      "sha256": "1aab2215803f8543952e0e17c47ef9a0ef0c77ebfb7e2a20af015d1216db93fc",
       "width": 192,
       "height": 192,
       "transparent": true
     },
     {
       "path": "icons/pwa-192.webp",
-      "sha256": "db0b40a7b1ff6f9a4576025eaf5fa1df7f769b19d6bc0fd1ccb3c9868d1948b8",
+      "sha256": "25c96c402133706db0988b7952de186a1ed9217e29cc42d2b53fe8fba66b4a82",
       "width": 192,
       "height": 192,
       "transparent": true
     },
     {
       "path": "icons/pwa-512.png",
-      "sha256": "1683c21b2a8a9fe8cb62e85339b27023c3bc4aa52310257f7ebfa736396cf8ac",
+      "sha256": "a8a4cd396ac372b4922934ea1f0ea77963e60e9314585fb94a372bc4c56a9c90",
       "width": 512,
       "height": 512,
       "transparent": true
     },
     {
       "path": "icons/pwa-512.webp",
-      "sha256": "dc6ece5d9df8111e06027692f28c559490d100332033cad2fd7cf06759788d93",
+      "sha256": "a14f2df4498ec934f4778249454b508d3e55c3d342d2335f788ab9e5b7dc42cf",
       "width": 512,
       "height": 512,
       "transparent": true
     },
     {
       "path": "icons/pwa-maskable-512.png",
-      "sha256": "722c36f30523720fc46d05939885764806a0f75bed7751988b9838ae81a37e12",
+      "sha256": "6de9e56d8bb2cfe0ff9de9485bee6fb1989d5ddb2f9d470aee2ffb722e708fd6",
       "width": 512,
       "height": 512,
       "transparent": false
     },
     {
       "path": "icons/pwa-maskable-512.webp",
-      "sha256": "2335aef09653ea4167377c4db692f6b38a11706277ebd5053d45a52d06f935cd",
+      "sha256": "3fe2ddf72a19caebb6c068995c4cdb453ab7bdf23a26ae6c39b62ec4af0ad0ed",
       "width": 512,
       "height": 512,
       "transparent": false
     },
     {
       "path": "icons/favicon.ico",
-      "sha256": "badb0947c546b3cbdfd14a3d8a348cafcbf55c53e7512cbab3409f4b1db2daa4"
+      "sha256": "6d39b032df94b34b714d0b8205440e0b3de4dd71dc06b910f9fcd56f8d2dc0fb"
     },
     {
       "path": "social/sharing.svg",
-      "sha256": "e6d9f77e539ea8df87e2316ffe25471e75d3a21d61bed788eca1ecdbd7775b4c"
+      "sha256": "2a02a3081a8ec54b49ad0f2096b4ffff7aa6725697b91a7023649b2471b1fd77"
     },
     {
       "path": "social/sharing.png",
-      "sha256": "c503fb87865504f471affeb91b0d866ae035633358fe293c8cea528fe11adec0",
+      "sha256": "b74ca013eb927c33b89151c2ceac1d01d1b2a2b1d9dba1de2a31a4129493a3c1",
       "width": 1200,
       "height": 630,
       "transparent": false
     },
     {
       "path": "social/sharing.webp",
-      "sha256": "f3ea69244d85faa96b78badf4e3f407b028511407cfa509a49349ae60338b71c",
+      "sha256": "1fd076a1353fd724dc6a7a535c891721b4a38ee722ef76bb42a02cc1ebba1568",
       "width": 1200,
       "height": 630,
       "transparent": false
@@ -1390,18 +1390,18 @@
     },
     {
       "path": "review/comparison.svg",
-      "sha256": "4cb13d15f4e0c0d09da9bcbbfe4a2261faa49ee676bc0be6319a4fa780ed0f1e"
+      "sha256": "319a135d98d689d9e0fbf497889fa58d820ae0c67aca437cab482dd3edb8b61a"
     },
     {
       "path": "review/comparison.png",
-      "sha256": "4b18ef59b60caf42948886c0b3f022d238f0531c08239738c297a99bd02c301e",
+      "sha256": "f529d81468c5af7534f1dd7b3fca7189122fa97232a9bdef97f146f14856dfd0",
       "width": 1200,
       "height": 700,
       "transparent": false
     },
     {
       "path": "review/comparison.webp",
-      "sha256": "97f7d8fe32fd66d5293b158711a085ae90e415e7dab7a7127b84dca630bd3cd8",
+      "sha256": "e9a3acf432dada8af779e4fb3a3f12aa6c5e8f7280c2d2a591929214bafc7b42",
       "width": 1200,
       "height": 700,
       "transparent": false

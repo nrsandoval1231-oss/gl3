@@ -55,7 +55,7 @@ def main():
         return f'<g fill="{fill or colors["harbor_navy"]}" transform="translate({x} {y}) scale({size/units:.8f} {-size/units:.8f})">'+''.join(pen_paths)+'</g>'
 
     def symbol(x=0, y=0, size=200, treatment='light'):
-        fills = {'light': ['harbor_navy','slate_steel','deep_slate'], 'dark': ['fog','sea_cliff','driftwood_gray'], 'navy':['harbor_navy']*3, 'white':['white']*3}[treatment]
+        fills = {'light': [tokens['semantic']['logo_primary'],tokens['semantic']['logo_secondary'],tokens['semantic']['logo_primary']], 'dark': [tokens['semantic']['logo_dark_primary'],tokens['semantic']['logo_dark_secondary'],tokens['semantic']['logo_dark_primary']], 'navy':['harbor_navy']*3, 'white':['white']*3}[treatment]
         paths = ''.join(f'<path fill="{colors[c]}" d="{p.attrib["d"]}"/>' for p,c in zip(master.findall(NS+'path'), fills))
         return f'<g transform="translate({x} {y}) scale({size/200})">{paths}</g>'
 

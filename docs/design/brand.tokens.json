@@ -29,7 +29,8 @@
     "Horizontal top navigation only; no left sidebar",
     "No maps or photography in product UI",
     "Dense opportunities table left and customer intelligence panel right",
-    "Do not claim generated raster brand board is production SVG"
+    "Do not claim generated raster brand board is production SVG",
+    "Logo uses exactly two colors: the upper G and diagonal return share the primary color; the integrated L uses the secondary color. Monochrome variants use one ink."
   ],
   "source": {
     "kind": "owner-supplied inline brand board",

@@ -8,7 +8,7 @@ GridLens provides commercial intelligence for constrained power: real power, rea
 
 ## Construction and fidelity gate
 
-`tools/brand/masters/symbol.svg` is the editable path source, in a 200 × 200 coordinate system. Three closed paths describe the rounded upper G, continuous integrated lower/left return, and diagonal right return. The L is part of the silhouette and color segmentation, never a separately inserted letter. No raster is embedded in these SVGs.
+`tools/brand/masters/symbol.svg` is the editable path source, in a 200 × 200 coordinate system. The logo uses exactly two colors: Harbor Navy and Slate Steel on light backgrounds, Fog and Sea Cliff on dark backgrounds. The upper G and diagonal return share the primary color; the continuous integrated L uses the secondary color. Monochrome exports use one ink. Three closed paths describe the rounded upper G, continuous integrated lower/left return, and diagonal right return. The L is part of the silhouette and color segmentation, never a separately inserted letter. No raster is embedded in these SVGs.
 
 The supplied board is 1280 × 960. Its large logo occupies roughly 132 × 128 pixels and includes shading and highlights. The trace uses flat palette fills in accordance with the implementation directive. The exact curvature at the upper-left shoulder and lower-left return, junction at the horizontal bar, diagonal fold, hidden-L boundary and wordmark tracking cannot be certified from this image alone. Compare `web/public/brand/review/comparison.svg` with the supplied board, especially the large header mark and icon-only sample. The comparison sheet shows the candidate on both backgrounds; it is not a pixel overlay because the source attachment is not available as a local byte file.
 
