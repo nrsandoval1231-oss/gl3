@@ -66,6 +66,7 @@ from gridlens.intelligence.lifecycle_service import (
     apply_lifecycle_observation,
     apply_planning_withdrawal,
     refresh_lifecycle_projection,
+    refresh_project_asset_type,
 )
 from gridlens.intelligence.matching import interpret
 from gridlens.intelligence.project_identity import (
@@ -4494,6 +4495,13 @@ def process_records(
                 enqueue_retained_buying_chain_research(
                     session, project.id, lifecycle_evidence.id, lifecycle_evidence.content_hash
                 )
+
+        # TDLR's primary registration is direct evidence for the exact project
+        # created from its source ID, even when no achieved lifecycle event is
+        # admitted. Recompute after both accepted and rejected processed
+        # versions so source corrections retract stale industry support.
+        if source.id == "texas-tdlr-tabs-data-centers" and project is not None:
+            refresh_project_asset_type(session, project)
 
         job = assert_fence(session, job_id, worker_id, fence)
         if commit:

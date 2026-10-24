@@ -1,6 +1,6 @@
 {
   "packet": "D",
-  "status": "focused_checks_passed_controller_full_acceptance_pending",
+  "status": "focused_checks_passed_p2_regression",
   "base": "223849b1559532ae89dd1d2f53f7217add02084a",
   "changed_paths": [
     "web/src/features/workspace/CustomerAccountsQueue.tsx",
@@ -9,8 +9,8 @@
   ],
   "changes": [
     "Persist nested customer project page in its own project_offset URL parameter and restore it on reload, Back, and Forward while leaving account offset and need_offset independent.",
-    "Reset unresolved-project pagination to offset zero when the search cohort changes; retain abort and request-sequence guards so late prior-search responses cannot replace current results.",
-    "Add browser regressions for 26 projects with page-two selection/history restoration and unresolved page-two search narrowing with a delayed old response."
+    "Reset unresolved-project pagination to offset zero when each search cohort changes, including when returning to a previous search; retain abort and request-sequence guards so late prior-search responses cannot replace current results.",
+    "Add browser regressions for 26 projects with page-two selection/history restoration and unresolved page-two search narrowing, delayed old responses, and returning to the prior search."
   ],
   "tests": {
     "run": [
@@ -36,17 +36,29 @@
         "log": "../completion-20261024/focused-navigation-1792879401638289300.log",
         "results_directory": "../completion-20261024/navigation-1792879401638289300-results"
       }
+    },
+    "follow_up_p2_regression": {
+      "scenario": "Alpha page 2 → Beta → Alpha; assert the second Alpha request uses offset 0 while a delayed prior Alpha page response is released.",
+      "command": "customer-accounts.spec.ts --project=regression",
+      "result": "passed",
+      "passed": 11,
+      "failed": 0,
+      "exit_code": 0,
+      "seconds": 12.1,
+      "ports": [8120, 5320],
+      "results_directory": "../completion-20261024/navigation-p2-20261024-r2-results",
+      "receipt": "../completion-20261024/navigation-p2-20261024-r2-results/.last-run.json"
     }
   },
   "timing": {
     "start_utc": "UNKNOWN",
-    "finish_utc": "2026-10-24T22:03:44Z",
+    "finish_utc": "2026-10-24T22:10:35Z",
     "implementation_seconds": "UNKNOWN",
     "validation_seconds": "UNKNOWN",
     "tokens": "UNKNOWN"
   },
   "risks": [
-    "The controller's final combined browser and full candidate acceptance remain pending."
+    "The controller's final combined acceptance remains pending."
   ],
   "production_queries": false,
   "provider_calls": false,

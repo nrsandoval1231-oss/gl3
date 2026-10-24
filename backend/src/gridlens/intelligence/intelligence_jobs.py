@@ -2862,11 +2862,15 @@ def intelligence_history(
     query = select(Job).where(Job.kind == JOB_KIND, Job.target_id == need_id)
     if task_type is not None:
         # Checkpoint is stored as text for compatibility with existing job history.
-        # Cast it in SQL so the task predicate applies before the bounded limit.
-        from sqlalchemy import cast
+        # Guard PostgreSQL's JSONB cast so legacy malformed text cannot break reads.
+        # The task predicate still runs in SQL before the bounded history limit.
+        from sqlalchemy import case, cast, literal_column
         from sqlalchemy.dialects.postgresql import JSONB
 
-        checkpoint = cast(Job.checkpoint, JSONB)
+        valid_checkpoint = func.pg_input_is_valid(
+            Job.checkpoint, literal_column("'jsonb'")
+        )
+        checkpoint = case((valid_checkpoint, cast(Job.checkpoint, JSONB)), else_=None)
         query = query.where(
             func.coalesce(
                 checkpoint["request_kind"].astext,

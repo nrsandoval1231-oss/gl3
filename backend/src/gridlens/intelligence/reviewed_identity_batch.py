@@ -285,8 +285,53 @@ def _check_rollback_source(
     return current, restore, False
 
 
-def _digest(snapshot: dict[str, Any]) -> str:
-    body = json.dumps(snapshot, sort_keys=True, separators=(",", ":"), default=str)
+def _normalized_manifest(
+    operation: str, batch_id: str, target: dict[str, Any], items: list[dict[str, Any]]
+) -> dict[str, Any]:
+    def normalized_item(item: dict[str, Any]) -> dict[str, str]:
+        fields = {
+            "claim_id": str(_uuid(item["claim_id"], "claim_id")),
+            "project_id": str(_uuid(item["project_id"], "project_id")),
+            "entity_type": item["entity_type"],
+            "current_link_id": str(_uuid(item["current_link_id"], "current_link_id")),
+            "current_identity_id": str(_uuid(item["current_identity_id"], "current_identity_id")),
+            "evidence_id": str(_uuid(item["evidence_id"], "evidence_id")),
+            "evidence_hash": item["evidence_hash"].strip(),
+            "target_identity_id": str(_uuid(item["target_identity_id"], "target_identity_id")),
+            "reviewed_by": item["reviewed_by"].strip(),
+            "reason": item["reason"].strip(),
+        }
+        if operation == "rollback":
+            fields["restore_link_id"] = str(_uuid(item["restore_link_id"], "restore_link_id"))
+        return fields
+
+    normalized_target = None
+    if operation == "map":
+        normalized_target = {
+            "company_identity_id": str(
+                _uuid(target["company_identity_id"], "target.company_identity_id")
+            ),
+            "claim_id": str(_uuid(target["claim_id"], "target.claim_id")),
+            "project_id": str(_uuid(target["project_id"], "target.project_id")),
+            "link_id": str(_uuid(target["link_id"], "target.link_id")),
+            "evidence_id": str(_uuid(target["evidence_id"], "target.evidence_id")),
+            "evidence_hash": target["evidence_hash"].strip(),
+        }
+    return {
+        "operation": operation,
+        "batch_id": _required_text(batch_id, "batch_id"),
+        "target": normalized_target,
+        "items": [normalized_item(item) for item in items],
+    }
+
+
+def _digest(snapshot: dict[str, Any], manifest: dict[str, Any]) -> str:
+    body = json.dumps(
+        {"snapshot": snapshot, "manifest": manifest},
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
@@ -371,7 +416,10 @@ def execute_batch(
         "target_anchor_link_id": str(target["link_id"]) if target else None,
         "items": planned,
     }
-    digest = _digest(snapshot)
+    digest = _digest(
+        snapshot,
+        _normalized_manifest(operation, manifest["batch_id"], target, items),
+    )
     if not apply:
         return {"mode": "dry_run", "digest": digest, **snapshot}
     if not expected_digest or expected_digest != digest:

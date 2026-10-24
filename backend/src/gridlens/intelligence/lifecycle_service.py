@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from copy import copy
 
 from sqlalchemy import select
@@ -267,7 +268,17 @@ def _current_project_asset_types(session: Session, project: Project) -> set[str]
             ProjectMatchDecision.evidence_id.is_not(None),
         )
     ).all()
+    direct_observation = None
+    if project.source_id == "texas-tdlr-tabs-data-centers":
+        direct_observation = session.scalar(
+            select(Observation).where(
+                Observation.source_id == project.source_id,
+                Observation.external_id == project.external_id,
+            )
+        )
     observation_ids = {row.observation_id for row in linked}
+    if direct_observation is not None:
+        observation_ids.add(direct_observation.id)
     if not observation_ids:
         return set()
     decisions = session.scalars(
@@ -275,19 +286,43 @@ def _current_project_asset_types(session: Session, project: Project) -> set[str]
         .where(ProjectMatchDecision.observation_id.in_(observation_ids))
         .order_by(ProjectMatchDecision.decided_at, ProjectMatchDecision.id)
     ).all()
-    latest: dict[tuple[object, object], ProjectMatchDecision] = {}
-    for decision in decisions:
-        if decision.evidence_id is not None:
-            latest[(decision.observation_id, decision.evidence_id)] = decision
+    latest_by_candidate = {
+        (decision.observation_id, decision.evidence_id, decision.candidate_project_id): decision
+        for decision in decisions
+        if decision.evidence_id is not None
+    }
+    candidates = {
+        (decision.observation_id, decision.evidence_id)
+        for decision in latest_by_candidate.values()
+        if decision.candidate_project_id == project.id and decision.decision == "matched"
+    }
+    if direct_observation is not None:
+        for direct_evidence in session.scalars(
+            select(Evidence).where(Evidence.observation_id == direct_observation.id)
+        ).all():
+            own_decision = latest_by_candidate.get(
+                (direct_observation.id, direct_evidence.id, project.id)
+            )
+            separate_decision = latest_by_candidate.get(
+                (direct_observation.id, direct_evidence.id, None)
+            )
+            # A newly ingested TDLR primary record is retained as a separate
+            # project when no existing candidate matches. That null-candidate
+            # decision does not invalidate the project's own exact source ID.
+            # A decision explicitly about this project is authoritative and a
+            # current unmatched/separate decision must retract its support.
+            if (own_decision and own_decision.decision == "matched") or (
+                own_decision is None
+                and (separate_decision is None or separate_decision.decision == "separate")
+            ):
+                candidates.add((direct_observation.id, direct_evidence.id))
 
     asset_types: set[str] = set()
-    for decision in latest.values():
-        if decision.candidate_project_id != project.id or decision.decision != "matched":
-            continue
-        evidence = session.get(Evidence, decision.evidence_id)
-        observation = session.get(Observation, decision.observation_id)
+    for observation_id, evidence_id in candidates:
+        evidence = session.get(Evidence, evidence_id)
+        observation = session.get(Observation, observation_id)
         interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == decision.observation_id)
+            select(Interpretation).where(Interpretation.observation_id == observation_id)
         )
         assessment = interpretation.assessment if interpretation else None
         if (
@@ -319,7 +354,7 @@ def _current_project_asset_types(session: Session, project: Project) -> set[str]
 
 
 def refresh_project_asset_type(
-    session: Session, project: Project, *, events: list[LifecycleEvent] | None = None
+    session: Session, project: Project, *, events: Sequence[LifecycleEvent] | None = None
 ) -> tuple[str, str]:
     """Recompute only the project's industry field from current accepted evidence.
 
@@ -444,6 +479,10 @@ def _rebuild_projection(session: Session, project: Project) -> None:
             session.flush()
             return
         current = [item for item in current if item.event_type != "planning_application_withdrawn"]
+    if project.asset_type == AssetType.UNKNOWN.value:
+        if projection is not None:
+            session.delete(projection)
+        return
     current.sort(
         key=lambda item: (
             lifecycle_rank(AssetType(project.asset_type), item.state),

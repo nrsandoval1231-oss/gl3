@@ -27,7 +27,7 @@ NOW = datetime(2026, 10, 24, 12, tzinfo=UTC)
 def f_db():
     target = make_url(settings.test_database_url)
     application = make_url(settings.database_url)
-    assert target.database == "completion_f_test"
+    assert target.database and target.database.endswith("_test")
     assert target != application
     engine = create_engine(settings.test_database_url)
     Base.metadata.drop_all(engine)
@@ -222,6 +222,25 @@ def test_exact_reviewed_mapping_is_scoped_idempotent_and_reversible(f_db):
         assert len(preview["items"]) == 3
         assert len({row["project_id"] for row in preview["items"]}) == 3
         assert preview["items"][0]["replayed"]  # selected identity anchor is already the target
+        changed_review = {
+            **manifest,
+            "items": [
+                *manifest["items"][:1],
+                {
+                    **manifest["items"][1],
+                    "reviewed_by": "different-reviewer",
+                    "reason": "Changed after preview.",
+                },
+                *manifest["items"][2:],
+            ],
+        }
+        with pytest.raises(BatchRejected, match="digest differs"):
+            execute_batch(
+                session,
+                changed_review,
+                apply=True,
+                expected_digest=preview["digest"],
+            )
         applied = execute_batch(session, manifest, apply=True, expected_digest=preview["digest"])
         assert applied["mode"] == "applied"
         assert len(applied["results"]) == 3
@@ -273,6 +292,38 @@ def test_exact_reviewed_mapping_is_scoped_idempotent_and_reversible(f_db):
             "items": rollback_items,
         }
         preview = execute_batch(session, rollback_manifest)
+        first_restore = session.get(
+            BuyingChainIdentityLink, UUID(rollback_items[0]["restore_link_id"])
+        )
+        alternate_restore = BuyingChainIdentityLink(
+            claim_id=first_restore.claim_id,
+            entity_type="company",
+            company_identity_id=first_restore.company_identity_id,
+            reason="Alternate synthetic superseded history row.",
+            basis="project_scoped",
+            source_evidence_id=first_restore.source_evidence_id,
+            source_version_hash=first_restore.source_version_hash,
+            state="superseded",
+        )
+        session.add(alternate_restore)
+        session.flush()
+        changed_anchor = {
+            **rollback_manifest,
+            "items": [
+                {
+                    **rollback_items[0],
+                    "restore_link_id": str(alternate_restore.id),
+                },
+                *rollback_items[1:],
+            ],
+        }
+        with pytest.raises(BatchRejected, match="digest differs"):
+            execute_batch(
+                session,
+                changed_anchor,
+                apply=True,
+                expected_digest=preview["digest"],
+            )
         applied = execute_batch(
             session, rollback_manifest, apply=True, expected_digest=preview["digest"]
         )

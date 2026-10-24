@@ -41,6 +41,9 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
     if (accountId !== accountParam) { const params = new URLSearchParams(location.search); setAccountId(accountParam); setProjectOffset(routeOffset('project_offset')); setProjectId(params.get('project') ?? ''); setNeedOffset(Number(params.get('need_offset') ?? 0) || 0) }
   }, [accountParam, accountId])
   useEffect(() => {
+    setUnresolvedPage(current => current.search === search ? current : { search, offset: 0 })
+  }, [search])
+  useEffect(() => {
     const controller = new AbortController()
     if (!accountId) { setProjects(null); return () => controller.abort() }
     setProjects(null); setError('')

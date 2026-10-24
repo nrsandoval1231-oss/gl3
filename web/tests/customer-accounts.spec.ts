@@ -302,6 +302,7 @@ test('account project page is deep-linked and restored through reload, Back, and
 test('unresolved pagination resets on search and ignores the previous search response', async ({ page }) => {
   const unresolvedQueries: Array<{ search: string; offset: number }> = []
   let releaseOldPage: (() => void) | undefined
+  let heldAlphaPage = false
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
@@ -310,28 +311,38 @@ test('unresolved pagination resets on search and ignores the previous search res
     if (url.pathname === '/api/customer-accounts/unresolved') {
       const search = url.searchParams.get('search') ?? '', offset = Number(url.searchParams.get('offset') ?? 0)
       unresolvedQueries.push({ search, offset })
-      if (!search && offset === 25) {
+      if (search === 'Alpha' && offset === 25 && !heldAlphaPage) {
+        heldAlphaPage = true
         await new Promise<void>(resolve => { releaseOldPage = resolve })
         try { return await route.fulfill({ json: { items: [{ project_id: 'old-page', project_name: 'Old search page', location: null, organization: 'Old Organization', role: 'Unknown', reason: 'Stale result.' }], total: 26, limit: 25, offset } }) } catch { return }
       }
-      const items = search ? [{ project_id: 'narrow-result', project_name: 'Narrow result', location: null, organization: 'Narrow Organization', role: 'Unknown', reason: 'Current search.' }] : [{ project_id: 'first-page', project_name: 'First search page', location: null, organization: 'First Organization', role: 'Unknown', reason: 'Initial result.' }]
-      return route.fulfill({ json: { items, total: search ? 1 : 26, limit: 25, offset } })
+      const items = search === 'Beta' ? [{ project_id: 'narrow-result', project_name: 'Narrow result', location: null, organization: 'Narrow Organization', role: 'Unknown', reason: 'Current search.' }] : offset ? [{ project_id: 'alpha-page-two', project_name: 'Alpha second page', location: null, organization: 'Alpha Organization', role: 'Unknown', reason: 'Second page.' }] : [{ project_id: 'first-page', project_name: 'First search page', location: null, organization: 'First Organization', role: 'Unknown', reason: 'Initial result.' }]
+      return route.fulfill({ json: { items, total: search === 'Beta' ? 1 : 26, limit: 25, offset } })
     }
     return route.fulfill({ json: [] })
   })
 
+  const unresolvedSection = page.locator('.ci-unresolved')
+  const openUnresolved = async () => { if (!(await unresolvedSection.evaluate(element => (element as HTMLDetailsElement).open))) await unresolvedSection.locator('summary').click() }
   await page.goto('/?view=workspace')
-  await page.locator('.ci-unresolved summary').click()
-  await expect(page.locator('.ci-unresolved')).toContainText('First search page')
-  await page.locator('.ci-unresolved').getByRole('button', { name: 'Next' }).click()
-  await expect.poll(() => unresolvedQueries.some(query => query.search === '' && query.offset === 25)).toBe(true)
-  await page.getByLabel('Search workspace').fill('Narrow')
-  await expect.poll(() => unresolvedQueries.some(query => query.search === 'Narrow' && query.offset === 0)).toBe(true)
-  await expect(page.locator('.ci-unresolved')).toContainText('Narrow result')
+  await page.getByLabel('Search workspace').fill('Alpha')
+  await expect.poll(() => unresolvedQueries.some(query => query.search === 'Alpha' && query.offset === 0)).toBe(true)
+  await openUnresolved()
+  await expect(unresolvedSection).toContainText('First search page')
+  await unresolvedSection.getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => unresolvedQueries.some(query => query.search === 'Alpha' && query.offset === 25)).toBe(true)
+  await page.getByLabel('Search workspace').fill('Beta')
+  await expect.poll(() => unresolvedQueries.some(query => query.search === 'Beta' && query.offset === 0)).toBe(true)
+  await openUnresolved()
+  await expect(unresolvedSection).toContainText('Narrow result')
   releaseOldPage?.()
-  await expect(page.locator('.ci-unresolved')).toContainText('Narrow result')
-  await expect(page.locator('.ci-unresolved')).not.toContainText('Old search page')
-  await expect(page.locator('.ci-unresolved')).toContainText('1\u20131 of 1')
+  await expect(unresolvedSection).toContainText('Narrow result')
+  await expect(unresolvedSection).not.toContainText('Old search page')
+  await page.getByLabel('Search workspace').fill('Alpha')
+  await expect.poll(() => unresolvedQueries.at(-1)).toEqual({ search: 'Alpha', offset: 0 })
+  await openUnresolved()
+  await expect(unresolvedSection).toContainText('First search page')
+  await expect(unresolvedSection).toContainText('1\u20131 of 26')
 })
 
 for (const scenario of [

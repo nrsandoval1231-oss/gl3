@@ -88,7 +88,12 @@ def _asset_projection(
 ):
     project_id, observation_id, evidence_id = uuid4(), uuid4(), uuid4()
     project = SimpleNamespace(
-        id=project_id, identity_key="tdlr:TABS1", name=title, asset_type="unknown"
+        id=project_id,
+        identity_key="tdlr:TABS1",
+        name=title,
+        asset_type="unknown",
+        source_id="synthetic-project-source",
+        external_id="TABS1",
     )
     observation = SimpleNamespace(
         id=observation_id, source_id="texas-tdlr-tabs-data-centers", content_hash="a" * 64

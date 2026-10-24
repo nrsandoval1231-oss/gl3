@@ -51,6 +51,7 @@ async function useCommercialFixture(page: import('@playwright/test').Page, resea
   let evaluationCalls = 0
   let intelligenceFeedback: Record<string, unknown> | null = null
   const intelligenceNeedRequests: string[] = []
+  const intelligenceHistoryQueries: { needId: string; limit: string | null; taskType: string | null }[] = []
   const noteIds: string[] = []
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/health', (route) => route.fulfill({ json: {} }))
@@ -61,8 +62,14 @@ async function useCommercialFixture(page: import('@playwright/test').Page, resea
     items: [{ task_type: 'GROUNDED_DOSSIER', question_id: 'TEMP_LOAD_MW', eligible: false, reason: 'INTELLIGENCE_DISABLED', provider: null, pinned_model: null }],
     mode: 'disabled', enabled: false, provider_configuration: { openai_key_present: false, typesafe_key_present: false }, note: 'Configuration metadata only.',
   } }))
-  await page.route('**/api/intelligence/needs/*/history?limit=20', async (route) => {
-    const needId = new URL(route.request().url()).pathname.split('/')[4]
+  await page.route(url => /^\/api\/intelligence\/needs\/[^/]+\/history$/.test(url.pathname), async (route) => {
+    const requestUrl = new URL(route.request().url())
+    const needId = requestUrl.pathname.split('/')[4]
+    const limit = requestUrl.searchParams.get('limit')
+    const taskType = requestUrl.searchParams.get('task_type')
+    expect(limit).toBe('20')
+    if (taskType !== null) expect(taskType).toBe('COMMERCIAL_ASSESSMENT_V1')
+    intelligenceHistoryQueries.push({ needId, limit, taskType })
     intelligenceNeedRequests.push(needId)
     if (needId === 'need-a') await new Promise((resolve) => setTimeout(resolve, 250))
     const candidate = {
@@ -133,7 +140,7 @@ async function useCommercialFixture(page: import('@playwright/test').Page, resea
       : { status: 'ready', job_id: 'job-a', input_hash: 'fingerprint-a', generated_at: '2026-10-03T14:05:00Z', result: { event_summary: [{ text: 'Source review confirms the filing stage.', evidence_id: 'ev-1' }], commercial_hypothesis: { text: 'Timing needs confirmation.', evidence_id: 'ev-1' }, unknowns: ['Need-specific MW remains unknown.'], next_step: 'Confirm the activity load schedule.' }, citations: [{ evidence_id: 'ev-1', url: 'https://example.test/fact', title: 'Retained filing' }], error: null } })
   })
   await page.goto('/?view=pursuits')
-  return { get savedNote() { return savedNote }, get receivedQuestion() { return receivedQuestion }, get statusQuestion() { return statusQuestion }, get researchCalls() { return researchCalls }, get statusCalls() { return statusCalls }, get evaluationCalls() { return evaluationCalls }, get intelligenceFeedback() { return intelligenceFeedback }, intelligenceNeedRequests, noteIds }
+  return { get savedNote() { return savedNote }, get receivedQuestion() { return receivedQuestion }, get statusQuestion() { return statusQuestion }, get researchCalls() { return researchCalls }, get statusCalls() { return statusCalls }, get evaluationCalls() { return evaluationCalls }, get intelligenceFeedback() { return intelligenceFeedback }, intelligenceNeedRequests, intelligenceHistoryQueries, noteIds }
 }
 
 type M6Scenario = 'completed' | 'unknown' | 'invalid_citation' | 'unvalidated_legacy' | 'missing_estimate'
@@ -149,6 +156,7 @@ const m6Need = (id: string, name: string, projectId: string) => ({
 
 async function useM6WorkspaceFixture(page: import('@playwright/test').Page, scenario: M6Scenario, includeSecond = false) {
   const needs = [m6Need('need-a', 'Northstar Campus', 'project-a')]
+  const historyRequests: { needId: string; taskType: string | null; limit: string | null }[] = []
   if (includeSecond) needs.push(m6Need('need-b', 'South Ridge Works', 'project-b'))
   const result = {
     disposition: 'UNRESOLVED', reason_code: 'EXCERPT_INSUFFICIENT', next_question: 'What load is required?',
@@ -190,11 +198,16 @@ async function useM6WorkspaceFixture(page: import('@playwright/test').Page, scen
     return route.fulfill({ json: needs.find(item => item.id === id) ?? needs[0] })
   })
   await page.route('**/api/power-needs/need-*/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [], generated_at: null, model: null, error: null } }))
-  await page.route('**/api/intelligence/needs/*/history?limit=20', route => {
-    const needId = new URL(route.request().url()).pathname.split('/')[4]
+  await page.route(url => /^\/api\/intelligence\/needs\/[^/]+\/history$/.test(url.pathname), route => {
+    const requestUrl = new URL(route.request().url())
+    const needId = requestUrl.pathname.split('/')[4]
+    const taskType = requestUrl.searchParams.get('task_type')
+    const limit = requestUrl.searchParams.get('limit')
+    historyRequests.push({ needId, taskType, limit })
     return route.fulfill({ json: { items: needId === 'need-a' ? [job] : [] } })
   })
   await page.goto('/?view=workspace')
+  return { historyRequests }
 }
 
 test('advisory candidates cite the exact source, preserve UNKNOWNs, and save pending owner review', async ({ page }) => {
@@ -234,7 +247,7 @@ test('all ineligible intelligence tasks retain a real selection and explain why 
 })
 
 test('switching exact need aborts stale intelligence history and clears prior candidates', async ({ page }) => {
-  await useM6WorkspaceFixture(page, 'completed', true)
+  const captured = await useM6WorkspaceFixture(page, 'completed', true)
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Power Analysis' }).click()
   const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
@@ -243,10 +256,12 @@ test('switching exact need aborts stale intelligence history and clears prior ca
   await page.getByRole('button', { name: 'Power Analysis' }).click()
   await expect(page.getByRole('region', { name: 'Saved commercial assessment' })).toContainText('No saved commercial assessment is available for this need.')
   await expect(page.getByRole('region', { name: 'Saved commercial assessment' })).not.toContainText('UNRESOLVED')
+  expect(captured.historyRequests).toContainEqual({ needId: 'need-a', taskType: 'COMMERCIAL_ASSESSMENT_V1', limit: '20' })
+  expect(captured.historyRequests).toContainEqual({ needId: 'need-b', taskType: 'COMMERCIAL_ASSESSMENT_V1', limit: '20' })
 })
 
 test('commercial assessment renders verified facts, fail-closed citations, UNKNOWN, and mobile layout', async ({ page }, testInfo) => {
-  await useM6WorkspaceFixture(page, 'completed')
+  const captured = await useM6WorkspaceFixture(page, 'completed')
   await page.setViewportSize({ width: 390, height: 844 })
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Power Analysis' }).click()
@@ -255,6 +270,7 @@ test('commercial assessment renders verified facts, fail-closed citations, UNKNO
   await expect(assessment).toContainText('Still unknown')
   await expect(assessment).toContainText('Saved historical support')
   await expect(assessment.getByRole('link', { name: 'Open cited source' })).toHaveAttribute('href', 'https://example.test/m4')
+  expect(captured.historyRequests).toContainEqual({ needId: 'need-a', taskType: 'COMMERCIAL_ASSESSMENT_V1', limit: '20' })
   await assessment.getByText('Assessment details', { exact: true }).click()
   await expect(assessment).toContainText('Returned model: gpt-6.1-sol')
   await expect(assessment).toContainText('Recorded estimate: $0.0057725 USD · Estimate basis: conservative usage estimate (not an invoice) · Invoice: UNKNOWN')
@@ -263,26 +279,28 @@ test('commercial assessment renders verified facts, fail-closed citations, UNKNO
 })
 
 test('invalid commercial-assessment citation is shown without an actionable source link', async ({ page }) => {
-  await useM6WorkspaceFixture(page, 'invalid_citation')
+  const captured = await useM6WorkspaceFixture(page, 'invalid_citation')
   await page.setViewportSize({ width: 390, height: 844 })
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Power Analysis' }).click()
   const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
   await expect(assessment).toContainText('Selected source support unavailable')
   await expect(assessment.getByRole('link', { name: 'Open cited source' })).toHaveCount(0)
+  expect(captured.historyRequests).toContainEqual({ needId: 'need-a', taskType: 'COMMERCIAL_ASSESSMENT_V1', limit: '20' })
 })
 
 test('legacy result_status cannot substitute for an explicit VALIDATED outcome', async ({ page }) => {
-  await useM6WorkspaceFixture(page, 'unvalidated_legacy')
+  const captured = await useM6WorkspaceFixture(page, 'unvalidated_legacy')
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Power Analysis' }).click()
   const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
   await expect(assessment).toContainText('Assessment COMPLETED: UNKNOWN')
   await expect(assessment).not.toContainText('UNRESOLVED')
+  expect(captured.historyRequests).toContainEqual({ needId: 'need-a', taskType: 'COMMERCIAL_ASSESSMENT_V1', limit: '20' })
 })
 
 test('UNKNOWN commercial assessment keeps retry blocked visible on mobile', async ({ page }, testInfo) => {
-  await useM6WorkspaceFixture(page, 'unknown')
+  const captured = await useM6WorkspaceFixture(page, 'unknown')
   await page.setViewportSize({ width: 390, height: 844 })
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Power Analysis' }).click()
@@ -290,17 +308,19 @@ test('UNKNOWN commercial assessment keeps retry blocked visible on mobile', asyn
   await expect(assessment).toContainText('ProviderResponseError')
   await expect(assessment).toContainText('Provider outcome UNKNOWN; retry is blocked until reconciled.')
   await expect(assessment).not.toContainText('UNRESOLVED')
+  expect(captured.historyRequests).toContainEqual({ needId: 'need-a', taskType: 'COMMERCIAL_ASSESSMENT_V1', limit: '20' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('m6-assessment-unknown-390.png'), fullPage: true })
 })
 
 test('commercial assessment reports UNKNOWN when no recorded estimate is present', async ({ page }) => {
-  await useM6WorkspaceFixture(page, 'missing_estimate')
+  const captured = await useM6WorkspaceFixture(page, 'missing_estimate')
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Power Analysis' }).click()
   const assessment = page.getByRole('region', { name: 'Saved commercial assessment' })
   await assessment.getByText('Assessment details', { exact: true }).click()
   await expect(assessment).toContainText('Estimate: UNKNOWN · Estimate basis: UNKNOWN · Invoice: UNKNOWN')
+  expect(captured.historyRequests).toContainEqual({ needId: 'need-a', taskType: 'COMMERCIAL_ASSESSMENT_V1', limit: '20' })
 })
 
 test('commercial queue filters backend states, exposes UNKNOWN, and saves targeted research and linked notes', async ({ page }) => {

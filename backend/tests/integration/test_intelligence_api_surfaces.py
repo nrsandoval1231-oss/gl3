@@ -283,6 +283,16 @@ def test_history_task_type_filter_applies_before_bounded_limit(intelligence_api)
     need_id = ids[0]
     now = datetime.now(UTC)
     with factory.begin() as session:
+        session.add(
+            Job(
+                source_id="austin-building-permits",
+                kind="intelligence_process",
+                target_id=need_id,
+                status="succeeded",
+                checkpoint="legacy malformed checkpoint [",
+                created_at=now + timedelta(seconds=1),
+            )
+        )
         for index in range(20):
             session.add(
                 Job(

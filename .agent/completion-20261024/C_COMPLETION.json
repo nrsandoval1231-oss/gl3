@@ -1,7 +1,7 @@
 {
   "packet": "C",
   "status": "implemented",
-  "finished_utc": "2026-10-24 21:53:06 UTC",
+  "finished_utc": "2026-10-24 22:10:19 UTC",
   "timing": {
     "start_utc": "UNKNOWN",
     "build_duration": "UNKNOWN",
@@ -45,8 +45,17 @@
       "result": "PASS"
     },
     {
+      "command": "focused runner: pytest test_history_task_type_filter_applies_before_bounded_limit and test_source_claim_acceptance_retraction_and_conflict_change_m4_context_and_freshness -q",
+      "result": "PASS: 2 passed, 1 warning, 2.53 seconds after malformed-checkpoint hardening",
+      "database": "Parent-provided isolated completion_c_test on 127.0.0.1:55459"
+    },
+    {
       "command": "npm run typecheck --prefix web",
       "result": "PASS"
+    },
+    {
+      "command": "focused Playwright run for all six commercial-pursuits history-filter regressions (alternate ports 8127/5327)",
+      "result": "PASS: 6 passed, 7.8 seconds"
     },
     {
       "command": "git diff --check",
@@ -61,7 +70,7 @@
     "generated_types": "No OpenAPI response schema changed; controller owns shared generated type regeneration."
   },
   "risks_and_limits": [
-    "The filtered history query casts stored checkpoint text to PostgreSQL JSONB; it relies on persisted checkpoint values being valid JSON, as produced by the job writer.",
+    "Filtered history uses PostgreSQL pg_input_is_valid before its guarded JSONB cast. This is supported by the canonical PostgreSQL 18 runtime; the history filter therefore skips malformed legacy checkpoint text without widening the result window.",
     "The claim-state regression swaps current_research_state results through a focused test seam; it exercises payload and freshness behavior, not end-to-end source interpretation admission.",
     "The evidence-content client method was added at packet B's request; its UI integration remains owned by packet B."
   ]
