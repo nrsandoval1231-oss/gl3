@@ -29,7 +29,7 @@ def main():
     for path in [TOKENS, MASTER, FONT, ROOT/'web/public/fonts/sora.ttf']:
         if not path.is_file():
             raise SystemExit(f'Missing required source: {path.relative_to(ROOT)}')
-    tokens = json.loads(TOKENS.read_text())
+    tokens = json.loads(TOKENS.read_text(encoding='utf-8'))
     verified = tokens['source']['geometry_verified'] and tokens['source']['wordmark_verified']
     if not verified and not args.review_candidate:
         raise SystemExit('Unverified source geometry/wordmark: visual approval required. Use --review-candidate for review exports only.')
@@ -146,7 +146,7 @@ def main():
     css.extend(f'  --gl-{k.replace("_","-")}: {v};' for k,v in tokens['status_colors'].items())
     css.extend(f'  --gl-{k.replace("_","-")}: var(--gl-{v.replace("_","-")});' for k,v in tokens['semantic'].items())
     css.extend(['  --gl-ink: var(--gl-text);','  --gl-muted-ink: var(--gl-text-secondary);','  --gl-line: var(--gl-border);','  --gl-type: "Inter", Arial, sans-serif;','  --gl-display-type: "Sora", "Inter", Arial, sans-serif;','  --gl-ui-accent: var(--gl-interactive);','  --gl-ui-selected: var(--gl-selected);','  --gl-shadow: rgb(11 31 51 / 8%);','}'])
-    (ROOT/'web/src/styles/brand-tokens.css').write_text('\n'.join(css)+'\n')
+    (ROOT/'web/src/styles/brand-tokens.css').write_text('\n'.join(css)+'\n', encoding='utf-8')
     names=[r['path'] for r in records]
     assert len(names)==len(set(names))
     write('asset-manifest.json',json.dumps({'version':tokens['version'],'approval':'verified' if verified else 'review-candidate','source_sha256':hashlib.sha256(MASTER.read_bytes()).hexdigest(),'tokens_sha256':hashlib.sha256(TOKENS.read_bytes()).hexdigest(),'font_sha256':{family:hashlib.sha256((ROOT/f'web/public/fonts/{family}.ttf').read_bytes()).hexdigest() for family in ['inter','sora']},'assets':records},indent=2)+'\n')
