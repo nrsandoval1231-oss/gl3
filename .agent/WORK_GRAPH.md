@@ -1,48 +1,18 @@
-## Current checkpoint — PR116 — 2026-10-24
+# Readiness audit work graph — 2026-10-24
 
-This dated checkpoint supersedes the historical directions below. Bounded retained-source UI acceptance passed; the evidence and limits are in [PR116 acceptance](../docs/design/PR116_ACCEPTANCE_20261024.md). Owner acceptance of existing brand geometry/wordmark is recorded; no additional comparison or independent graphic verification is claimed.
+The owner audit continues existing implementation; no new architecture or routine Tribunal. Prior graph archived unchanged at history/pre-readiness-audit-20261024-WORK_GRAPH.md. Canonical PRD, owner boundaries and Finish Contract govern.
 
-| Node | State | Current authority / acceptance |
+| Node | State at source freeze preparation | Evidence / dependency |
 |---|---|---|
-| PR116-INTEGRATE | PASS_BOUNDED_UI | Six authenticated accounts, 14 power needs, six checks/ten screenshots; 66 source tables matched, 15 protected clone tables unchanged; no page errors, external browser requests, new jobs or logical calls. |
-| PR116-DOCS-FREEZE | READY_FOR_CONTROLLER_VALIDATION | Dated proof, provenance, screenshots, state and graph recorded; token digest matches manifest; no artwork regenerated. |
-| PR116-FULL-GATES | PENDING | Controller runs full exact-candidate backend/web/docs gates, independent Sol review, fresh GitHub CI and guarded merge. No deployment. |
+| R1 repository / branch / deployment inventory | COMPLETE_BOUNDED | Fetched main fae481db; integrity0; all59 refs classified; read-only actual image/schema/runtime/scans |
+| R2 dependency repair | IMPLEMENTED_PENDING_FINAL_ACCEPTANCE | Four compatible brand pins, UTF8 repair, complete brand CI audit; initial independent FIX then bounded directory correction |
+| R3 RRC IPC repair | IMPLEMENTED_PENDING_FINAL_ACCEPTANCE | Generic8MiB preserved; exactRRC64MiB; Linux28 boundary tests; builder67 source/retained tests |
+| R4 container remediation | IN_PROGRESS | Separate Luna, Dockerfiles only; local image scans and runtime smoke; production untouched |
+| R5 final deterministic validation | DEPENDENT R2/R3/R4 | Exact frozen SHA, complete checks; skipped or missing !=pass |
+| R6 independent integrated review | DEPENDENT R5 | Sol exact candidate; blockers repaired and re-frozen before acceptance |
+| R7 GitHub gates / guarded merge | DEPENDENT R6 | Reviewed PR exact head, all3CIjobs success, main unchanged; no deployment |
+| R8 main verification / release record | DEPENDENT R7 | Verify remoteSHA, postmergeCI, protected paths, hygiene ledger; final evidence outside sourcefreeze |
 
-Direction: **VALIDATE** frozen candidate. Parent M6 and Finish Contract remain OPEN; Albuquerque Sol remains UNKNOWN with no retry/replacement; original 446-record corpus remains unavailable. This checkpoint changes no source/runtime/provider state.
----
+23 verified merged remote branches removed; all25 unique-work branches, 8 ancestral refs with active/uncertain ownership, main and two initial openPRs retained at inventory checkpoint. No local branch/worktree cleanup. Later audit refs recorded separately.
 
-# Production intelligence work graph
-
-Base a70e5330ee8ad7483391abe313d2bb9f68183975. Owner directive/PRD govern; no merge/deploy.
-One opening Tribunal completed; do not reconvene during build.
-
-| Node | Dependencies | State | Acceptance |
-|---|---|---|---|
-| M1-BACKEND | opening | ACCEPTED | ten records persisted; zero new/ten unchanged on live replay; normal startup authenticated200 without manual rebuild |
-| M1-UI | opening | ACCEPTED | long-value fixture at1280Ã—800,1648px and390Ã—844; no clipping; screenshots retained |
-| M1-GATE | both handoffs | ACCEPTED | exact 5c7ad6f; backend, serial browser, docs, independent Sol PASS; remote CI 39999964231 success |
-| M2-ACQUISITION | M1-GATE | ACCEPTED | exact86a4434 independent Sol PASS; backend2779/browser191, docs and CI40009230663 PASS; one real Firecrawl call and replay |
-| M3-EVIDENCE | M2 | ACCEPTED | exactad6729d independentPASS; backend2823/browser191/docs/CI40021158613; real Jev and corrected replay0calls |
-| M4-INTELLIGENCE | M3 | ACCEPTED | exactd2a2c6c, independent Sol PASS; focused93/backend2850/browser191, docs/CI40038044951; real Sol assessment plus retained zero-call replay |
-| M3-CONTRADICTION-CONTRACT | M4 | WAIT | separately versioned cited-pair producer/validator; current M3 correctly rejects nonempty pairs and labels cross-claim contradictions unevaluated |
-| M5-RESOLUTION | M4 | IN_PROGRESS | existing canonical account/project APIs; exact retained clone; original446 export pending |
-| M5-NEGATIVE-BASELINE | M4 | PASS_BOUNDED | four eligible needs, no applicant account inference, stable projection replay;2.223s/zero calls; two probe failures retained |
-| M5-RETAINED-BUYING-CHAIN | M5-NEGATIVE-BASELINE | PASS_BOUNDED | four existing fenced jobs, four cited unresolved runs, stable enqueue/API replay;1.709s/zero external reads or paid calls |
-| M5-POSITIVE-GROUPING | retained source-backed identities | PASS_BOUNDED_HISTORICAL | real RRC typed identity across distinct projects; no name merge; current live/original446 acceptance remains separate |
-| M5-RRC-RETAINED-POSITIVE | accepted TDLR/stormwater candidate | ACCEPTED_BOUNDED | independent Sol PASS on88a429d;235accounts/1504memberships;131Pioneerprojects and separate Aethon; all six authenticated replay comparisons true; raw/canonical/jobs/calls unchanged |
-| M5-REGIONAL-SOURCES | M4 | TESTED_WITH_SOURCE_FAILURE | SPP59/ERCOT1/JETI29 evidence-only; TDLR11records/6Signals; TXR150000terminalSourceParseError;15.043s/zero paid calls |
-| M5-STORMWATER-DIAGNOSIS | M5-REGIONAL-SOURCES | PASS_BOUNDED | official46row complete result; raw HTML paging fails while entity decoding matches1-46of46; no relaxed security |
-| M5-STORMWATER-ENCODING | M5-STORMWATER-DIAGNOSIS | ACCEPTED_BOUNDED | exact88a429d Sol PASS; complete count parsing with exact authorization conflict guards |
-| M5-STORMWATER-MULTIVALUE | M5-STORMWATER-ENCODING | ACCEPTED_BOUNDED | exact88a429d;35 real evidence-only records/7 exact repeated-code groups;50 preservation checks; backend2874/browser191/CI40056035939/independentPASS; failed helpers preserved |
-| M5-TDLR-OWNER-RESOLUTION | M5-REGIONAL-SOURCES | ACCEPTED_BOUNDED | exact88a429d;6 cited project-scoped accounts;10 needs remain Signal; replay0calls; full gates/independentPASS; no name merge |
-| M6-ACCEPTANCE | M5 | WAIT | five-project live chain, cost/latency/recovery, full regressions/browser, runbook/readiness PR |
-| M6-FIVE-LIVE-PROOF | bounded M5 retained proof | INCOMPLETE_UNKNOWN | 578evidence/14Signals; TX4/NM1 selection; five Jev/four Sol complete with zero-effect replay; Albuquerque Sol SENT_OUTCOME_UNKNOWN;11call cap exhausted; originalM5 unchanged |
-| M6-COMMERCIAL-RESULT-READABILITY | readback and Sol recovery direction | VALIDATING | 44focusedAPI/unit/integration and21browser cases pass; real result/citation/UNKNOWN views checked; frozen full gates and independent review pending |
-
-M3 accepted atad6729d; REVIEW-r1.json and EPISODE-accepted.json retain exact proof and boundaries. Original two repairs, independent FIX, interrupted full gates and subsequent recovery failures remain retained. Controller owns PostgreSQL/bootstrap, paid live runs, evidence, integration, commits/PR and graph. Builders cannot commit or alter shared runtime. Provider access/pricing gaps stay UNKNOWN; fixtures cannot pass live acceptance. M4 bounded acceptance is recorded in PRODUCTION-M4-CONTROLLER/EPISODE-accepted.json and independent REVIEW-r2.json. Historical next direction was M5 investigation; current direction below supersedes it. Parent and M6 remain OPEN. Rejected258fe783 and48ee7dc, corrected review assumption and atomic-publication recovery remain preserved; no new paid call. These post-acceptance graph notes are outside the reviewed candidate; no product code changed.
-
-
-
-Current direction VALIDATE after bounded CORRECT from PRODUCTION-M6/RECOVERY-DIRECTION.json. Readback and UI projection implemented with focused checks passing; run frozen gates and independent review. Subsequent exact-candidate direction is recorded in PRODUCTION-M6/EPISODE.json. M6 and parent acceptance remain OPEN; no blind retry or replacement call.
-
-M6 readback completed: authenticated exact identities/citations/account separation,5Jev/4Sol/1UNKNOWN,11calls5packages;2.477s protectedrows unchanged. Initial stale-browse503 and providerdisabled derived refresh preserved. No fifth assessment accepted.
+Next direction VALIDATE after bounded container handoff. Parent production readiness, original446 QA, Albuquerque UNKNOWN, M6 five-chain/contradiction-pair and Finish Contract remain OPEN. No new source acquisition, provider spend or production mutation is authorized by a repository PASS.

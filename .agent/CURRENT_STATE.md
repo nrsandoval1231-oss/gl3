@@ -1,19 +1,13 @@
-# GridLens current state — 2026-10-24
+# GridLens current state — readiness audit, 2026-10-24
 
-## Current bounded PR116 result
+Owner direction: full repository repair, deterministic validation, reviewed exact-head PR merges, verified stale remote-branch cleanup; production remains read-only with no deployment or provider budget. Canonical PRD and approved seven-color G/L identity, horizontal navigation/customer table/detail panel, TX/OK/NM physical-site scope and intelligence pipeline remain protected.
 
-PR116 documentation and integration candidate is under controller validation; no merge or deployment is claimed. Owner authorization is explicit: “I approve. Merge when you can,” after a request for brand signoff and conditional push/merge authorization. The owner accepted the existing logo geometry and wordmark. No additional comparison or independent graphic verification is claimed. Details: [acceptance record](../docs/design/PR116_ACCEPTANCE_20261024.md).
+Repository truth: initial fetched main fae481db749b2e71dfb41ee63547c3fa1f6b1170. Isolated controller branch audit/repository-readiness-20261024. Recovery checkout and existing worktrees/data remain untouched. [Audit and release blockers](../docs/operations/readiness-audit-20261024.md), [bounded graph/packet](readiness-20261024/WORK_GRAPH_AND_PACKET.md), [Finish Contract](FINISH_CONTRACT.md).
 
-The retained-source UI gate **PASS_BOUNDED_POPULATED_REAL_DATA_UI** used isolated clone `dashboard_real116`: six authenticated accounts, 14 power needs, six checks and ten screenshots; zero page errors, external browser requests, new jobs or logical calls. DAL130 account browse/evidence/buying-chain/saved UNRESOLVED/reload/history passed; Prime retained citation and estimate with Invoice UNKNOWN; Albuquerque remains ProviderResponseError/UNKNOWN/retry blocked; 390px list, selection, evidence and Back passed without overflow. Source matched across 66 tables and all 15 protected clone tables were unchanged. Only clone derived-browse and auth login/session tables changed. No source acquisition, worker run or provider call occurred. The earlier empty-cohort and fixture screenshots remain historical.
+Implemented frontier: brand security pins/audit and CI credential-persistence hardening, Windows UTF-8 generation repair, evidence-preserving RRC-only IPC correction. First independent security FIX and correction evidence remain retained. 23 remote branches deleted atomically after exact-tip ancestry/merged-PR/no-active-worktree verification; every original branch is inventoried. All unique unmerged work retained.
 
-PR116 full exact-candidate backend/web/docs gates, independent Sol review, fresh GitHub CI and guarded merge are **PENDING**. No deployment. The 23-case focused mock regression suite passed after R2; this is not the full gate.
+Current direction VALIDATE the frozen integrated security/ingestion/container candidate. Controller must bind full backend/migrations/contracts/web/browser/brand checks and independent review to the actual candidate and verify all hosted jobs before guarded merge. Raw results and final SHA/merge receipts live outside the candidate in .agent/artifacts/READINESS-20261024/. No skipped or missing gate may count as passing.
 
-## M6 and parent contract
+Production observed: web fae481db..., API/worker/browse ca013d4c..., database0041 and healthy; existing browse generation valid. Container scans and source failures leave production readiness BLOCKED. No production write, source retry or provider call performed by this audit.
 
-M6 remains **OPEN**: four Sol outcomes completed; Albuquerque Sol remains `SENT_OUTCOME_UNKNOWN`, one attempt, and no retry or replacement is authorized. Do not convert UNKNOWN to success. The original 446-record QA corpus remains unavailable; the 578-observation retained M6 clone is a distinct source and does not replace it. Five-chain acceptance, contradiction-pair contract and broader Finish Contract remain open. See the [M6 record](../docs/operations/production-m6-20261024.md) and [Finish Contract](FINISH_CONTRACT.md).
-
-## Current direction
-
-**VALIDATE** the frozen exact PR116 candidate through controller-owned full gates, independent review and fresh GitHub CI; preserve the guarded merge boundary. Keep source/runtime and provider effects outside the accepted scope.
-
-Prior current-state bytes are preserved at `.agent/history/pr116-20261024-CURRENT_STATE.md` as an exact archive.
+M6/parent remain OPEN: Albuquerque SENT_OUTCOME_UNKNOWN, one attempt, no retry/replacement. Original 446 QA corpus from Grok /workspace/gl3-qa remains unavailable; other retained corpora cannot replace it. Five-chain acceptance, contradiction pairs, missing Firecrawl runtime key and wider Finish Contract gates remain unresolved. Prior state bytes archived unchanged under .agent/history/pre-readiness-audit-20261024-*.
