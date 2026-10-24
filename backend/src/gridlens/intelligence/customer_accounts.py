@@ -1048,7 +1048,7 @@ def _account_need(compact_text: str | None) -> dict[str, Any] | None:
         "commercial_reason": preview.get("reason"),
         "commercial_next_action": preview.get("next_action"),
         "project_title": compact.get("name"),
-        "industry": compact.get("industry"),
+        "industry": compact.get("asset_type") or compact.get("industry"),
         "location": compact.get("location"),
         "rank_score": compact.get("rank_score"),
     }

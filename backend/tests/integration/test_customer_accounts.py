@@ -311,6 +311,7 @@ def test_account_workspace_groups_filtered_saved_rows_in_sql(customer_db):
                         "name": project.name,
                         "location": "Texas",
                         "tier": "Lead",
+                        "asset_type": "oil_and_gas",
                         "activity": "drilling",
                         "rationale": "Source-backed permit",
                         "required_mw": None,
@@ -400,10 +401,12 @@ def test_account_workspace_groups_filtered_saved_rows_in_sql(customer_db):
         accounts = account_queue(session, search=None, limit=25, offset=0)
         assert accounts["total"] == 1
         assert accounts["items"][0]["highest_priority_need"]["id"] == str(need_id)
+        assert accounts["items"][0]["highest_priority_need"]["industry"] == "oil_and_gas"
         assert accounts["items"][0]["supporting_evidence_count"] == 3
         assert accounts["items"][0]["aliases"] == ["DIAMONDBACK E&P LLC"]
         projects = account_projects(session, identity_id, limit=25, offset=0)
         assert projects["account"]["company_identity_id"] == identity_id
+        assert projects["account"]["highest_priority_need"]["industry"] == "oil_and_gas"
         assert projects["account"]["project_count"] == 1
         assert projects["account"]["need_count"] == 1
         assert projects["account"]["supporting_evidence_count"] == 3
