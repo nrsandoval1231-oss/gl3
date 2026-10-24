@@ -1,5 +1,5 @@
 CairoSVG==2.8.2
-Pillow==11.3.0
+Pillow==13.0.0
 fonttools==4.60.1
 brotli==1.1.0
 reportlab==4.4.4
