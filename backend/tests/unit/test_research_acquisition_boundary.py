@@ -227,13 +227,13 @@ def test_rrc_ipc_allowance_requires_exact_source_and_retrieval_method():
     }
     assert _isolated_result_limit(path, (source,)) == _RRC_DRILLING_RESULT_BYTES
     assert _isolated_result_limit(path, ({**source, "id": "spoofed"},)) == MAX_ISOLATED_RESULT_BYTES
-    assert _isolated_result_limit(
-        path, ({**source, "retrieval_method": "rrc-flare-exceptions"},)
-    ) == MAX_ISOLATED_RESULT_BYTES
+    assert (
+        _isolated_result_limit(path, ({**source, "retrieval_method": "rrc-flare-exceptions"},))
+        == MAX_ISOLATED_RESULT_BYTES
+    )
     assert _isolated_result_limit("builtins:bytes", (source,)) == MAX_ISOLATED_RESULT_BYTES
     assert (
-        _isolated_result_limit(path, ("texas-rrc-drilling-permits",))
-        == MAX_ISOLATED_RESULT_BYTES
+        _isolated_result_limit(path, ("texas-rrc-drilling-permits",)) == MAX_ISOLATED_RESULT_BYTES
     )
 
 
@@ -247,9 +247,7 @@ def test_rrc_ipc_bound_round_trips_large_exact_evidence_over_pipe():
         "id": "texas-rrc-drilling-permits",
         "retrieval_method": "rrc-drilling-permits",
     }
-    limit = _isolated_result_limit(
-        "gridlens.ingestion.adapters:_retrieve_source_direct", (source,)
-    )
+    limit = _isolated_result_limit("gridlens.ingestion.adapters:_retrieve_source_direct", (source,))
     raw = b"RRC fixture evidence\x00" * 350_000
     digest = hashlib.sha256(raw).hexdigest()
     record = {
@@ -305,10 +303,12 @@ def test_rrc_ipc_over_limit_is_replaced_with_safe_failure_payload():
         True,
         b"x" * (_RRC_DRILLING_RESULT_BYTES + 1),
         function_path="gridlens.ingestion.adapters:_retrieve_source_direct",
-        args=({
-            "id": "texas-rrc-drilling-permits",
-            "retrieval_method": "rrc-drilling-permits",
-        },),
+        args=(
+            {
+                "id": "texas-rrc-drilling-permits",
+                "retrieval_method": "rrc-drilling-permits",
+            },
+        ),
     )
     message = receiver.recv_bytes(_RRC_DRILLING_RESULT_BYTES)
     receiver.close()
@@ -326,9 +326,7 @@ def test_parent_pipe_rejects_payload_over_selected_rrc_cap_before_unpickle():
         "id": "texas-rrc-drilling-permits",
         "retrieval_method": "rrc-drilling-permits",
     }
-    limit = _isolated_result_limit(
-        "gridlens.ingestion.adapters:_retrieve_source_direct", (source,)
-    )
+    limit = _isolated_result_limit("gridlens.ingestion.adapters:_retrieve_source_direct", (source,))
     receiver, sender = multiprocessing.get_context("spawn").Pipe(duplex=False)
     send_error = []
 
