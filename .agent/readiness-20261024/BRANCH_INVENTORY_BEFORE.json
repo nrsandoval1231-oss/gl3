@@ -1,0 +1,1123 @@
+[
+  {
+    "branch": "brand/gridlens-seven-color-canon",
+    "tip": "fdf8d03a2192ff3110fce18cf09c0c50a2d81206",
+    "tipDate": "2026-10-24T03:05:43Z",
+    "ancestor": false,
+    "unique": 4,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      115
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "chore/repo-audit-cleanup",
+    "tip": "48ea408665d6a141866b911885db1bd298908dab",
+    "tipDate": "2026-10-20T02:54:28Z",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      92
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      92
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "codex/gl3-intelligence-f8b13dd",
+    "tip": "76f4f244033e5132ceef4e620d166f18fcc0059a",
+    "tipDate": "2026-10-19T08:28:04-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      84
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      84
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "codex/portfolio-cleanup-20261005",
+    "tip": "8b7ac3a4aac1e08cb36a32b8e404618f20453dc1",
+    "tipDate": "2026-10-04T23:15:07-05:00",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      25
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "codex/pr99-postmerge-repairs",
+    "tip": "fc3423d1346f1ac2c06d319e422c1042233571ad",
+    "tipDate": "2026-10-20T19:06:06-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      100
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      100
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "cursor/air-permit-generator-negation-ee6a",
+    "tip": "87ea90bd9856419b66f5340a4326bf5c4e3276cd",
+    "tipDate": "2026-10-23T14:56:01Z",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      112
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      112
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "cursor/air-permit-hours-power-context-835c",
+    "tip": "dc7ab65f2e1af7dac3d28c2ce88893da598e2c3a",
+    "tipDate": "2026-10-23T12:49:02Z",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      111
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      111
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "cursor/ok-nm-adapters-and-scope-fixes-ffc0",
+    "tip": "8a2fb2eacfdc9533bb9b3519dc5f15d25a0693c8",
+    "tipDate": "2026-10-23T04:22:42Z",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      109
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      109
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "cursor/texas-power-source-expansion-ffc0",
+    "tip": "6c895336f1ef504a0f9dc5debf42ea46359cd1c7",
+    "tipDate": "2026-10-23T04:24:26Z",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      110
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      110
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "dependabot/pip/tools/brand/brotli-1.2.1",
+    "tip": "34fa00b2dbe34ab77bd185558418b789cdb24935",
+    "tipDate": "2026-10-24T06:15:42Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      118
+    ],
+    "prs": [
+      118
+    ],
+    "classification": "active-pr",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "dependabot/pip/tools/brand/pillow-13.0.0",
+    "tip": "38cd22dd0f0bd09bfe9a00ea99f49147901bd0d2",
+    "tipDate": "2026-10-24T06:15:37Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      117
+    ],
+    "prs": [
+      117
+    ],
+    "classification": "active-pr",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "docs/db-name-and-backup-plan",
+    "tip": "8d4d1d6c9f307416684bb782615204f33eb8b033",
+    "tipDate": "2026-10-21T20:59:45-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      97
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      97
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "docs/editorial-deploy-notes",
+    "tip": "d02bf563e09aacec4039a365248282a98160d350",
+    "tipDate": "2026-10-17T11:50:06-05:00",
+    "ancestor": false,
+    "unique": 2,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      71
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "docs/evidence-graph-jev-architecture",
+    "tip": "c2eef5dcf1dfa64f6bf38b7d0b56433e2550fe32",
+    "tipDate": "2026-10-01T22:41:54-05:00",
+    "ancestor": false,
+    "unique": 3,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      20
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "docs/gl3-deployment-handoff-20261020",
+    "tip": "b1572bdd5a7d430a89d6db12814bb6a3d68a8adf",
+    "tipDate": "2026-10-21T20:59:42-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      91
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      91
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "docs/oct-1-runtime-status",
+    "tip": "e3d0fe1956ddf03ca957c510b0476f230ae2bec5",
+    "tipDate": "2026-10-01T01:05:55Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      12
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "docs/recovery-handoff-20261020",
+    "tip": "cbade4207e2b55e1a5529bda46bc4c2ecd7f25dc",
+    "tipDate": "2026-10-21T20:59:48-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      98
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      98
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "docs/refresh-status-2026-10-17",
+    "tip": "75d9d7fe75f7be8cffb54314d80044517b1d4548",
+    "tipDate": "2026-10-17T10:03:48-05:00",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      69
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      69
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/approved-gridlens-login",
+    "tip": "6ad94d64438678d9eaa2d7728171431f2e743663",
+    "tipDate": "2026-10-17T17:36:36-05:00",
+    "ancestor": false,
+    "unique": 2,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      74
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      74
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/approved-intelligence-ui-20261021",
+    "tip": "171a4be89becd72e7b2f0a05517922f8d9a9fe0a",
+    "tipDate": "2026-10-21T11:00:28-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      103
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      103
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "feat/canonical-customer-intelligence-20261022",
+    "tip": "6804a29023a2ff871534171a39d8c21baa59def6",
+    "tipDate": "2026-10-22T12:53:16-05:00",
+    "ancestor": false,
+    "unique": 9,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      107
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": true,
+    "exactMergedPR": [
+      107
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/canonical-pursuit-ui",
+    "tip": "74423fece5cf877bb5395e12f87c8d2901d3447e",
+    "tipDate": "2026-10-20T20:18:06-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      101
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": true,
+    "exactMergedPR": [
+      101
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/commercial-pursuits",
+    "tip": "945190c641ae2258947bbad3b9d5400ee64539c6",
+    "tipDate": "2026-10-03T19:22:39-05:00",
+    "ancestor": false,
+    "unique": 2,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      23
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": true,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/editorial-intelligence-v1",
+    "tip": "0e5761affbe726f13182b0c12645a43e412c5fc8",
+    "tipDate": "2026-10-17T10:54:14-05:00",
+    "ancestor": false,
+    "unique": 4,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      68
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      68
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/forward-openai-key",
+    "tip": "6450eb44024eb46c611cb116d070fd79f366ca70",
+    "tipDate": "2026-10-17T10:16:37-05:00",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      70
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      70
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/market-newsletter-generation",
+    "tip": "933c9cb8b6ad391823ca62a94726bc58f44c9150",
+    "tipDate": "2026-10-17T12:26:02-05:00",
+    "ancestor": false,
+    "unique": 4,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      73
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/market-newsletter-window",
+    "tip": "c5fa1fcf173ade9c27a47d034013a4f24421f791",
+    "tipDate": "2026-10-17T12:26:00-05:00",
+    "ancestor": false,
+    "unique": 2,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      72
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/opportunity-intelligence",
+    "tip": "5ef5f3f29e94fffb071351b61e186d236d40068c",
+    "tipDate": "2026-10-21T04:15:18Z",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      102
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      102
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "feat/production-intelligence-20261023",
+    "tip": "373c862053c1d7239d7f3ec4c091b8ab7f8f59c2",
+    "tipDate": "2026-10-24T02:04:34-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      114
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": true,
+    "exactMergedPR": [
+      114
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/pursuit-workspace-79",
+    "tip": "07d676b57df4b02d85257a1f6c10aa5f33db4e5d",
+    "tipDate": "2026-10-19T13:54:16-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      87
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": true,
+    "exactMergedPR": [
+      87
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/quieter-environment",
+    "tip": "7b7309b7627764689b75ce287e90427a08772dbf",
+    "tipDate": "2026-10-14T16:47:29Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      66
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      66
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "feat/regional-stabilization-20261022",
+    "tip": "408255ddf57a9f487c43e1b44e4f7ad661f85452",
+    "tipDate": "2026-10-22T20:31:55-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      108
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": true,
+    "exactMergedPR": [
+      108
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "finish/pr102-remaining-20261021",
+    "tip": "d50b8723cafee3c4beacc125048ee40a6e7c932f",
+    "tipDate": "2026-10-21T21:22:38-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      105
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": true,
+    "exactMergedPR": [
+      105
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/gl3-029-scheduler-retry-boundaries",
+    "tip": "9320797195fc827957b3418f9ad42f973dd9f4a7",
+    "tipDate": "2026-10-07T00:11:20-05:00",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      28
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/jev-runtime-injection",
+    "tip": "36e5aec5c81fb524249fe1282b454096e4d1e9fc",
+    "tipDate": "2026-10-14T18:36:25Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      67
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      67
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/news-early-stage-signals",
+    "tip": "290c6af2b36f11d59f1166c3d3dfd653797c7198",
+    "tipDate": "2026-10-20T16:42:24Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      96
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/official-feed-link-normalization",
+    "tip": "8628948b32a538da511c0a043ae9c1f53b7b8f3a",
+    "tipDate": "2026-10-17T20:15:44-05:00",
+    "ancestor": false,
+    "unique": 3,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      75
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      75
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/opportunity-browse-performance",
+    "tip": "93c09c36cefd1b8224623a307b29cb0c2cef04e4",
+    "tipDate": "2026-10-17T22:05:39-05:00",
+    "ancestor": false,
+    "unique": 3,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      76
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      76
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/pr87-call-preparation",
+    "tip": "85acc0eca4dbc6ae5d1c80def712b72c5e6207bc",
+    "tipDate": "2026-10-19T17:00:20-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      88
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      88
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "fix/provider-transport-deadline",
+    "tip": "be0dcb1ad3f50ff3c73dc6a4d6b57265cc487e39",
+    "tipDate": "2026-10-20T10:48:10-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      94
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      94
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "fix/repository-audit",
+    "tip": "e011308fc3f0ade80d54c668ee25867e6d1745e6",
+    "tipDate": "2026-10-06T23:06:39Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      27
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/saved-browse-ingestion-publication",
+    "tip": "aba07cb28466a7c2d05743236c155f0a17244f81",
+    "tipDate": "2026-10-19T10:31:10-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      85
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      85
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "fix/saved-browse-publication-20261023",
+    "tip": "c99354e0d9a255b7683f5656c35fc83ceebf5c9d",
+    "tipDate": "2026-10-23T10:18:10-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      113
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      113
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "fix/saved-browse-pursuit-publication",
+    "tip": "48e18c29285bbcadb8aaff1bc399c3759dc509a9",
+    "tipDate": "2026-10-19T11:50:10-05:00",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      86
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      86
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/sidebar-controls-20261021",
+    "tip": "d778a8d42a87031775b13eaa99d7bcd2eccb2b16",
+    "tipDate": "2026-10-21T13:54:05-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      106
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": true,
+    "exactMergedPR": [
+      106
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "fix/source-backed-opportunity-titles",
+    "tip": "802cbb4055c515699ce998445f77f98ab96d65b1",
+    "tipDate": "2026-10-19T19:36:02-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      90
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      90
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "fix/source-collection-recovery",
+    "tip": "121d94f8eedb4d1ae33bcf7e0707056d064297ab",
+    "tipDate": "2026-10-20T10:30:15-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      95
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      95
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "fix/validated-workspace-titles",
+    "tip": "d58691eaa5f94c4915d4b0790c6b7a0bf13e84fd",
+    "tipDate": "2026-10-19T18:14:00-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      89
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      89
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "fix/workspace-back-20261021",
+    "tip": "d44cf5aca88880c23c732a9b5dd399279d3a4f2c",
+    "tipDate": "2026-10-21T13:19:11-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      104
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      104
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "main",
+    "tip": "fae481db749b2e71dfb41ee63547c3fa1f6b1170",
+    "tipDate": "2026-10-24T11:11:14-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      null
+    ],
+    "classification": "protected-main",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "perf/b1-clock-transitions",
+    "tip": "15c7488faf5cf4a3fd89776c3d29ce6f878ced13",
+    "tipDate": "2026-10-18T05:44:15Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      78
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      78
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "perf/b1-pursuit-saves",
+    "tip": "fa18c3ac3f3ba263583743deb5a586ad7f83aefe",
+    "tipDate": "2026-10-18T07:22:31Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      81
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      81
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "perf/b1-pursuits",
+    "tip": "c81d38954a15fb07a67e54aefc2bbe3d768ae577",
+    "tipDate": "2026-10-18T06:36:10Z",
+    "ancestor": false,
+    "unique": 1,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      80
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      80
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "perf/b1-versioned-browse",
+    "tip": "ae0e1ea8b3d0ad9de4826ef30d201e5744e7b1e8",
+    "tipDate": "2026-10-18T05:12:09Z",
+    "ancestor": false,
+    "unique": 5,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      77
+    ],
+    "classification": "review-unique-work",
+    "checkedOut": false,
+    "exactMergedPR": [
+      77
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "perf/evaluation-post",
+    "tip": "bce0ccf7fe69fb02c2cfc96c91c25f0ec86891e9",
+    "tipDate": "2026-10-18T04:09:48-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      82
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      82
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "remove/editorial",
+    "tip": "eba435c3dbff5adf9ee7dba2719b5c96e759071e",
+    "tipDate": "2026-10-18T08:56:32-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      83
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      83
+    ],
+    "disposition": "delete-verified-merged"
+  },
+  {
+    "branch": "repair/audit-remediation-20261020",
+    "tip": "67ac975053d4f21283888b7d73ff4c1e73b68dd9",
+    "tipDate": "2026-10-20T17:24:53-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      99
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": true,
+    "exactMergedPR": [
+      99
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "review/pr94-pr95-post-merge-20261020",
+    "tip": "9e9e188bdf2825a8305a0e9eac0b23f0af1df47e",
+    "tipDate": "2026-10-20T11:03:32-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      null
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      null
+    ],
+    "disposition": "retain"
+  },
+  {
+    "branch": "ui/approved-gridlens-dashboard",
+    "tip": "cae8bf78f5db6b6a58a69d05554d5f3a807277e3",
+    "tipDate": "2026-10-24T10:50:24-05:00",
+    "ancestor": true,
+    "unique": 0,
+    "openPRs": [
+      null
+    ],
+    "prs": [
+      116
+    ],
+    "classification": "merged-stale-candidate",
+    "checkedOut": false,
+    "exactMergedPR": [
+      116
+    ],
+    "disposition": "delete-verified-merged"
+  }
+]
