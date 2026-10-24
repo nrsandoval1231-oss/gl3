@@ -1,5 +1,8 @@
 # Operations authority
 
+Current read-only refresh: [October 24 repository and production readiness audit](readiness-audit-20261024.md). It records repaired repository candidates and remaining production/provider/corpus blockers; production changes still require explicit authorization.
+
+
 This page is the only current summary for production, deployment, rollback, and backup/restore. **Production remains on hold.** The latest documented production observation spans October 20, 2026, 18:28:48–18:50:41 UTC. It is a read-only snapshot, not a release authorization or a runbook. See the [sanitized observation receipt](observations/2026-10-20-production-readonly.md).
 
 ## Observed host and runtime

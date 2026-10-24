@@ -1,0 +1,163 @@
+[
+  {
+    "branch": "chore/repo-audit-cleanup",
+    "tip": "48ea408665d6a141866b911885db1bd298908dab",
+    "exactMergedPR": [
+      92
+    ]
+  },
+  {
+    "branch": "codex/gl3-intelligence-f8b13dd",
+    "tip": "76f4f244033e5132ceef4e620d166f18fcc0059a",
+    "exactMergedPR": [
+      84
+    ]
+  },
+  {
+    "branch": "codex/pr99-postmerge-repairs",
+    "tip": "fc3423d1346f1ac2c06d319e422c1042233571ad",
+    "exactMergedPR": [
+      100
+    ]
+  },
+  {
+    "branch": "cursor/air-permit-generator-negation-ee6a",
+    "tip": "87ea90bd9856419b66f5340a4326bf5c4e3276cd",
+    "exactMergedPR": [
+      112
+    ]
+  },
+  {
+    "branch": "cursor/air-permit-hours-power-context-835c",
+    "tip": "dc7ab65f2e1af7dac3d28c2ce88893da598e2c3a",
+    "exactMergedPR": [
+      111
+    ]
+  },
+  {
+    "branch": "cursor/ok-nm-adapters-and-scope-fixes-ffc0",
+    "tip": "8a2fb2eacfdc9533bb9b3519dc5f15d25a0693c8",
+    "exactMergedPR": [
+      109
+    ]
+  },
+  {
+    "branch": "cursor/texas-power-source-expansion-ffc0",
+    "tip": "6c895336f1ef504a0f9dc5debf42ea46359cd1c7",
+    "exactMergedPR": [
+      110
+    ]
+  },
+  {
+    "branch": "docs/db-name-and-backup-plan",
+    "tip": "8d4d1d6c9f307416684bb782615204f33eb8b033",
+    "exactMergedPR": [
+      97
+    ]
+  },
+  {
+    "branch": "docs/gl3-deployment-handoff-20261020",
+    "tip": "b1572bdd5a7d430a89d6db12814bb6a3d68a8adf",
+    "exactMergedPR": [
+      91
+    ]
+  },
+  {
+    "branch": "docs/recovery-handoff-20261020",
+    "tip": "cbade4207e2b55e1a5529bda46bc4c2ecd7f25dc",
+    "exactMergedPR": [
+      98
+    ]
+  },
+  {
+    "branch": "feat/approved-intelligence-ui-20261021",
+    "tip": "171a4be89becd72e7b2f0a05517922f8d9a9fe0a",
+    "exactMergedPR": [
+      103
+    ]
+  },
+  {
+    "branch": "feat/opportunity-intelligence",
+    "tip": "5ef5f3f29e94fffb071351b61e186d236d40068c",
+    "exactMergedPR": [
+      102
+    ]
+  },
+  {
+    "branch": "fix/pr87-call-preparation",
+    "tip": "85acc0eca4dbc6ae5d1c80def712b72c5e6207bc",
+    "exactMergedPR": [
+      88
+    ]
+  },
+  {
+    "branch": "fix/provider-transport-deadline",
+    "tip": "be0dcb1ad3f50ff3c73dc6a4d6b57265cc487e39",
+    "exactMergedPR": [
+      94
+    ]
+  },
+  {
+    "branch": "fix/saved-browse-ingestion-publication",
+    "tip": "aba07cb28466a7c2d05743236c155f0a17244f81",
+    "exactMergedPR": [
+      85
+    ]
+  },
+  {
+    "branch": "fix/saved-browse-publication-20261023",
+    "tip": "c99354e0d9a255b7683f5656c35fc83ceebf5c9d",
+    "exactMergedPR": [
+      113
+    ]
+  },
+  {
+    "branch": "fix/source-backed-opportunity-titles",
+    "tip": "802cbb4055c515699ce998445f77f98ab96d65b1",
+    "exactMergedPR": [
+      90
+    ]
+  },
+  {
+    "branch": "fix/source-collection-recovery",
+    "tip": "121d94f8eedb4d1ae33bcf7e0707056d064297ab",
+    "exactMergedPR": [
+      95
+    ]
+  },
+  {
+    "branch": "fix/validated-workspace-titles",
+    "tip": "d58691eaa5f94c4915d4b0790c6b7a0bf13e84fd",
+    "exactMergedPR": [
+      89
+    ]
+  },
+  {
+    "branch": "fix/workspace-back-20261021",
+    "tip": "d44cf5aca88880c23c732a9b5dd399279d3a4f2c",
+    "exactMergedPR": [
+      104
+    ]
+  },
+  {
+    "branch": "perf/evaluation-post",
+    "tip": "bce0ccf7fe69fb02c2cfc96c91c25f0ec86891e9",
+    "exactMergedPR": [
+      82
+    ]
+  },
+  {
+    "branch": "remove/editorial",
+    "tip": "eba435c3dbff5adf9ee7dba2719b5c96e759071e",
+    "exactMergedPR": [
+      83
+    ]
+  },
+  {
+    "branch": "ui/approved-gridlens-dashboard",
+    "tip": "cae8bf78f5db6b6a58a69d05554d5f3a807277e3",
+    "exactMergedPR": [
+      116
+    ]
+  }
+]

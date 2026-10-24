@@ -1,0 +1,518 @@
+[
+  {
+    "branch": "acceptance/gl3-stage2-source-quality-20261009",
+    "tip": "5edd894ebcc95255a4e31624167b34524632209a",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-stage2-source-quality-20261009",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "audit/container-security-20261024",
+    "tip": "fae481db749b2e71dfb41ee63547c3fa1f6b1170",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-readiness-containers-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "audit/pr117-validation-20261024",
+    "tip": "fd031527b339d9b96de9dfdf4c9e51f65de906c7",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-readiness-pr117-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "audit/pr118-validation-20261024",
+    "tip": "1cea096901c394a4aab2b35b9a26a4bd037d8118",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-readiness-pr118-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "audit/repository-readiness-20261024",
+    "tip": "7e0a46acce55cbdabb65bc1e2ba846373933a7f8",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-readiness-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "audit/rrc-ipc-repair-20261024",
+    "tip": "81d159e1768929f9dc72e2a61003468306f7e2de",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-readiness-rrc-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "audit/security-dependencies-20261024",
+    "tip": "5ed07d21cbf8b479252bf467765c4bd5f13a1551",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-security-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "build/ingestion-slice",
+    "tip": "85d3d4a635e2561bb559dfcff3f4a59e6023618d",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "docs/gl3-stage1-baseline-20261009",
+    "tip": "d0146aa8177ee107276c3759ae7c9abb05ebe981",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-stage1-baseline-20261009",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "docs/no-github-ci",
+    "tip": "fa75344ec78830e39d7f5d004a58e3e3bfd889d4",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr4-repair",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "docs/sync-post-pr21-20261002",
+    "tip": "6f9d590c03dcdf3fa33fd1fb6b8787fb5d7fbfaf",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr22-docsync",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/approved-intelligence-ui-20261021",
+    "tip": "171a4be89becd72e7b2f0a05517922f8d9a9fe0a",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/canonical-customer-intelligence-20261022",
+    "tip": "6804a29023a2ff871534171a39d8c21baa59def6",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-customer-intelligence-20261022",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/canonical-pursuit-ui",
+    "tip": "e6a63e0e36d4128c8ff4e4883ad2ff30113dcb00",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-canonical-pursuit-ui",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/commercial-pursuits",
+    "tip": "64dec2d2c833f5e743b314a580e03f6ecd2660ce",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-commercial",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/evidence-graph-jev-shadow",
+    "tip": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-evidence-shadow",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/gl3-015",
+    "tip": "acab88b3ac06249f5445f6cf6d0659ba1b3d811c",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-015",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/gl3-016",
+    "tip": "88d7d45c0b07ebcfe12568f217a967af1b6f3396",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-016",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/gl3-017",
+    "tip": "59b64399dbc064d50690270ce0492955ebf228dc",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-017",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/gl3-023-city-permits",
+    "tip": "ce6b8fc688085c7a43f1bdefa35eeabeddb72903",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/gl3-026-national-intake",
+    "tip": "94cba4e13197701bde52178e6ece6acd4c485296",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/gl3-027-priority-flare-intake",
+    "tip": "d0e4a94182ea83afe6aaa5201249adff532a5905",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-023",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/gl3-030-qualification-cohort",
+    "tip": "c11545efed8987e90968294194d41e5d3198569e",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-030-qualification",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/gridlens-focus-experience",
+    "tip": "5df22d190a481d8344255e808fb85be7df3f3cff",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr17-merge",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/intelligence-integration-20261018",
+    "tip": "f8b13dd5d5222da8206ed60ef766901b3f0b88e8",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-intelligence-20261018",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/production-intelligence-20261023",
+    "tip": "373c862053c1d7239d7f3ec4c091b8ab7f8f59c2",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-production-20261023",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/pursuit-workspace-79",
+    "tip": "07d676b57df4b02d85257a1f6c10aa5f33db4e5d",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-ui-79",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "feat/regional-stabilization-20261022",
+    "tip": "8971589a5fcf1460e2300660afe12728c9530b64",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-regional-20261022",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "finish/pr102-remaining-20261021",
+    "tip": "59d0e9f813093b48dc933c2411f85125fc0c06d2",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr102-finish",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "fix/backend-dependency-audit-20261024",
+    "tip": "ca013d4c2dc8084a708ff5cfc092ec20b1d8c61b",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-backend-audit-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "fix/pr117-backend-audit-20261024",
+    "tip": "2f7fffb8b5befadcf289c7fe95e19af37fa56bcb",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr117-audit-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "fix/pr118-backend-audit-20261024",
+    "tip": "6b89cba66e07b09824ee3116f332151c8024d5cf",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr118-audit-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "fix/pr21-correctness",
+    "tip": "f75f1661be1da3a465e3dbd5bc2e8cfa3d154f2c",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr21-review",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "fix/project-cards",
+    "tip": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "fix/sidebar-controls-20261021",
+    "tip": "d778a8d42a87031775b13eaa99d7bcd2eccb2b16",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-approved-intelligence-ui",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "fix/vertical-navigation",
+    "tip": "85020128c585c41b2420bfe53ab6e0325a93b45a",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "fix/workspace-back-20261021",
+    "tip": "d44cf5aca88880c23c732a9b5dd399279d3a4f2c",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "improve/local-ingestion-quality",
+    "tip": "c5a98a69b20b382501468cb03c8c824d6c75abaf",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "integrate/pr116-approved-20261024",
+    "tip": "cae8bf78f5db6b6a58a69d05554d5f3a807277e3",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr116-merge-20261024",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "main",
+    "tip": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "recovery/uncommitted-2026-09-30",
+    "tip": "66cd3acfead50c4231ef5e2d61fd2c94c2064724",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-call-preflight-20261020",
+    "tip": "7cca861e64c036f46c8b215d65ca044ef4bf43dc",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-call-preflight-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-certifi-20261020",
+    "tip": "9b3d885175865a242387d3d2dbb969b52fb952f7",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-certifi-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-core-20261020",
+    "tip": "83ed6e4e1dd416bbfc9d4886fe64c29025c8ed4f",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-core-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-docs-20261020",
+    "tip": "a5e7f9647733e10e6a2735c97278b748b920ba14",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-docs-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-fixture-clock-20261020",
+    "tip": "d0bfa98340a72d18657458816467bdc497d1244b",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-fixture-clock-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-news-specialist-20261020",
+    "tip": "06cd34b3a858d7fe76bc9dd8d9577049f0bebf33",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-news-specialist-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-publication-20261020",
+    "tip": "dbc50fd15741f09ebd5171a484dd1e5636ebe203",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-publication-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-publication-fixture-20261020",
+    "tip": "03697b3101e1e9c3e49138aad1272479271e46b2",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-publication-fixture-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-publication-repair-20261020",
+    "tip": "e3d0a3a6f69510df306fb737051794eb05272f98",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-publication-repair-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-remediation-20261020",
+    "tip": "d266d3fc10627dd0e3b924c9df83cf6f2db7a806",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-remediation-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-retained-20261020",
+    "tip": "eb0c477b53b37b29417aaef5b5b06760aaa41543",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-retained-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-vite-20261020",
+    "tip": "281c38d82ac2c3528f33c0e31b55f6c6607c94b2",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-vite-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-workspace-20261020",
+    "tip": "3d694d5519f8e2bf8d8da88c064da33448e928ab",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-workspace-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/audit-workspace-perf-20261020",
+    "tip": "5a7a57a5cc55ef9f079c16bf420fe6ff3673592b",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-workspace-perf-20261020",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-029-current-main-20261005",
+    "tip": "38f0573e86b353a9f4b0089a3724e3bf3312ca13",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-029-acceptance-20261005",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-audit-20261007",
+    "tip": "bd9f2fee4b306f875eb193ac8e5bf7fbb76d75f4",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-repair-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-audit-integration-20261008",
+    "tip": "604732856c6ca5e7700a5e064fc7bf655122eeef",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-integration-20261008",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-auth-20261007",
+    "tip": "53b77ad5c802e7dc6543569f4dd79384b7354c78",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-auth-repair-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-facts-entry-20261008",
+    "tip": "604732856c6ca5e7700a5e064fc7bf655122eeef",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-facts-entry-20261008",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-facts-workflow-20261008",
+    "tip": "daedade06adc0dbe18fb09c46a5dcfc2444681f5",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-facts-workflow-20261008",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-governance-20261007",
+    "tip": "a87afdf6ef6155a5eae11d375af265c91b65e54b",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-governance-repair-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-governance-delivery-20261007",
+    "tip": "1d24f2e84dea02f971f954d4837fc9a74cd8c69c",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-governance-delivery-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-lifecycle-20261007",
+    "tip": "e4263a9b1ef74d1b02b266dd904314fd4df8f76e",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-lifecycle-repair-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-lifecycle-delivery-20261007",
+    "tip": "20328d7fd723622192557a70736258a27fa9f274",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-lifecycle-delivery-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-operations-preparation-20261009",
+    "tip": "0ca2cdf4d14ba2d2769618ea5f295b80af485ce8",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-operations-preparation-20261009",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-pr24-20261004",
+    "tip": "9d741570a4f732b4490b2e123c53186520846754",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-repair-20261004",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-public-browse-20261008",
+    "tip": "df4e8216bfa07ec8194aa00053d5883f6065d5db",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-public-browse-20261008",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-query-performance-20261008",
+    "tip": "fb65ceb70a58c5c8d7f414a4b46cc7e3aa9e2f39",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-query-performance-20261008",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-research-delivery-20261007",
+    "tip": "1ef6b5961d7dcbb87c703b555ac201b08ee01f8e",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-research-delivery-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-research-grouping-20261007",
+    "tip": "1c7aceee0cea3fda51d03641cf35ec3b0adc3c29",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-research-grouping-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-source-controls-20261007",
+    "tip": "27913cbcabf1e450b07b16cde6c8d316d94f35f5",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-source-controls-20261007",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-stage3-recall-20261009",
+    "tip": "85a37bb79c28253861fac98771ef08035e024437",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/gl3-stage3-service-candidate-20261010",
+    "tip": "fdc32be09ae1ea11271afc8a1e7f6f558587364f",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-stage3-recall-20261009",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/ingestion-recovery-20261022",
+    "tip": "0f876440a1375c502534cc1dd3c08ceff38c7349",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-ingestion-recovery-20261022",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr102-backend-review-20261021",
+    "tip": "b6f1b7e9610ee7ce400807921890e8284ba15f2b",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr102-proof",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr102-corpus-20261021",
+    "tip": "69c19f85bd67e35028e0c9def43d4e689e068406",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr102-correction-compose-20261021",
+    "tip": "ace2674b94bbc12363330dce10830965b0da6c60",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr102-fields",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr102-fields-20261021",
+    "tip": "a88f169a7ef04d79c60adc040099736b29467a24",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr102-finish-20261021",
+    "tip": "0f3df426c1e633b30a71c9db95689a342406f8d9",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr102-identity-guard-20261021",
+    "tip": "ce72e8de538cdffa4e00fd7669e98d4324e282f3",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr102-phases-20261021",
+    "tip": "c191bf61259b82150bc25e0f312ed71cfe931d8a",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr102-ui-context-20261021",
+    "tip": "b5335cd0a312d6b6e552342da4f424d0c18a698b",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr102-ui-context",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "repair/pr4-lifecycle",
+    "tip": "122614c8d7b0edca64be1a327661c6a650fbf8e4",
+    "worktree": "",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "verify/local-signal-pipeline",
+    "tip": "37fdcbbc092cd4a8583a960872384b0a341520ab",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-local-proof",
+    "disposition": "retained-no-local-deletion"
+  },
+  {
+    "branch": "verify/open-pr-integration-20261001",
+    "tip": "c85a0b7ce7ca952d2d32a06453b957151e53521a",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr-merge",
+    "disposition": "retained-no-local-deletion"
+  }
+]
