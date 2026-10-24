@@ -1,3 +1,4 @@
+import hashlib
 import json
 from datetime import UTC, date, datetime
 from importlib import import_module
@@ -20,6 +21,7 @@ from gridlens.persistence.models import (
     Project,
     Pursuit,
     PursuitCallNote,
+    SignalDecision,
     Source,
 )
 from gridlens.security import token_for
@@ -274,6 +276,214 @@ def test_authenticated_bounded_intelligence_tasks_and_off_request(intelligence_a
             )
             == 0
         )
+
+
+def test_m4_history_projects_actual_orm_evidence_and_current_or_saved_support(intelligence_api):
+    from gridlens.intelligence.commercial_assessment import validate_assessment
+    from gridlens.intelligence.evidence_packages import (
+        MODEL,
+        materialize_package,
+        update_status,
+    )
+    from gridlens.intelligence.intelligence_jobs import (
+        COMMERCIAL_ASSESSMENT_TASK,
+        _digest,
+        _request_payload,
+        _retained_context,
+    )
+    from gridlens.intelligence.signal_adjudication import (
+        POLICY_VERSION,
+        map_dimensions,
+        validated_dimensions,
+    )
+
+    client, factory, ids = intelligence_api
+    need_id, _old_job_id, _call_id, evidence_id, project_id, _pursuit_id = ids
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        evidence = session.get(Evidence, evidence_id)
+        observation = session.get(Observation, evidence.observation_id)
+        source = session.get(Source, observation.source_id)
+        body = "Application stage: Permit application"
+        content_hash = hashlib.sha256(body.encode()).hexdigest()
+        observation.abstract = evidence.abstract = body
+        observation.content_hash = evidence.content_hash = content_hash
+        observation.url = evidence.url = "https://example.test/records/1"
+        project.region_status = "ELIGIBLE"
+        package_row = materialize_package(session, evidence.id)
+        jev_job_id = uuid4()
+        jev_call_id = uuid4()
+        jev_result = {
+            "model": MODEL,
+            "answers": {
+                name: {"type": "noul", "noul": 0.5}
+                for name in (
+                    "physical_project_event",
+                    "meaningful_new_activity",
+                    "commercial_relevance",
+                    "temporary_power_relevance",
+                    "routine_maintenance",
+                    "transient_event",
+                )
+            },
+        }
+        jev_dimensions = validated_dimensions(jev_result)
+        jev_decision = map_dimensions(
+            jev_dimensions, title=evidence.title, abstract=evidence.abstract
+        )
+        session.add(
+            Job(
+                id=jev_job_id,
+                source_id=source.id,
+                kind="signal_adjudication",
+                target_id=observation.id,
+                status="succeeded",
+                checkpoint=json.dumps(
+                    {
+                        "evidence_id": str(evidence.id),
+                        "content_hash": evidence.content_hash,
+                        "policy_version": POLICY_VERSION,
+                        "logical_call_id": str(jev_call_id),
+                    }
+                ),
+                created_at=datetime.now(UTC),
+            )
+        )
+        session.add(
+            LogicalCall(
+                id=jev_call_id,
+                fingerprint=hashlib.sha256(str(jev_call_id).encode()).hexdigest(),
+                task_type="SIGNAL_ADJUDICATION",
+                task_key=f"{observation.id}:{evidence.content_hash}:signal-display-v2",
+                evidence_digest=hashlib.sha256(
+                    json.dumps(
+                        str(evidence.id), sort_keys=True, separators=(",", ":"), ensure_ascii=True
+                    ).encode()
+                ).hexdigest(),
+                context_digest="d" * 64,
+                prompt_contract="legacy-signal_adjudication-v1",
+                provider="typesafe",
+                model=MODEL,
+                policy_version="legacy-shared-ledger-v1",
+                source_id=source.id,
+                project_id=project.id,
+                lease_authority="job",
+                job_id=jev_job_id,
+                worker_id="test-worker",
+                status="COMPLETED",
+                fence_token=1,
+                estimated_cost_usd=0,
+                max_cost_usd=0,
+                actual_cost_usd=None,
+                result_payload=jev_result,
+                budget_scopes=[],
+            )
+        )
+        session.add(
+            SignalDecision(
+                observation_id=observation.id,
+                content_hash=evidence.content_hash,
+                policy_version=POLICY_VERSION,
+                decision=jev_decision,
+                source="jev",
+                model_version=MODEL,
+                dimensions=jev_dimensions,
+                reason="Synthetic test receipt",
+            )
+        )
+        session.flush()
+        update_status(
+            session,
+            package_row,
+            "COMPLETE_ADVISORY",
+            logical_call_id=jev_call_id,
+            advisory={
+                "source": "jev",
+                "model": MODEL,
+                "logical_call_id": str(jev_call_id),
+                "decision": jev_decision,
+                "dimensions": jev_dimensions,
+                "validated": True,
+            },
+        )
+        need, project, source, retained = _retained_context(session, need_id)
+        payload = _request_payload(
+            session,
+            COMMERCIAL_ASSESSMENT_TASK,
+            None,
+            need,
+            project,
+            source,
+            retained,
+            package_row.id,
+        )
+        selected = payload["package"]["facts"][0]["fact_id"]
+        result = validate_assessment(
+            {
+                "disposition": "UNRESOLVED",
+                "reason_code": "EXCERPT_INSUFFICIENT",
+                "selected_fact_ids": [selected],
+                "research_dimensions": ["REQUIRED_MW", "BUYER_AUTHORITY"],
+                "next_question_id": "TEMP_LOAD_MW",
+            },
+            package={
+                **payload["package"],
+                "project_id": payload["project"]["project_id"],
+                "need_id": payload["need"]["need_id"],
+            },
+            need_id=str(need_id),
+            project_id=str(project_id),
+            current_need=payload["need"],
+        )
+        base = {
+            "task_type": COMMERCIAL_ASSESSMENT_TASK,
+            "request_kind": COMMERCIAL_ASSESSMENT_TASK,
+            "package_id": str(package_row.id),
+            "status": "completed",
+            "validation_outcome": "VALIDATED",
+            "result_status": "validated",
+            "request_digest": _digest(payload),
+            "payload": payload,
+            "result": result,
+            "usage": {"input_tokens": 10, "output_tokens": 8, "cost_usd": None},
+            "logical_call_id": None,
+            "uncertain": False,
+        }
+        session.add_all(
+            [
+                Job(
+                    source_id=source.id,
+                    kind="intelligence_process",
+                    target_id=need_id,
+                    status="succeeded",
+                    checkpoint=json.dumps(base),
+                    created_at=datetime.now(UTC),
+                ),
+                Job(
+                    source_id=source.id,
+                    kind="intelligence_process",
+                    target_id=need_id,
+                    status="succeeded",
+                    checkpoint=json.dumps({**base, "request_digest": "historical-request"}),
+                    created_at=datetime.now(UTC),
+                ),
+            ]
+        )
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get(f"/api/intelligence/needs/{need_id}/history?limit=20")
+    assert response.status_code == 200, response.text
+    items = [
+        item for item in response.json()["items"] if item["task_type"] == "COMMERCIAL_ASSESSMENT_V1"
+    ]
+    assert len(items) == 2
+    supports = [item["commercial_assessment_support"] for item in items]
+    assert {item["status"] for item in supports} == {"current", "saved"}
+    citation = next(item for item in supports if item["selected_facts"])["selected_facts"][0][
+        "citation"
+    ]
+    assert citation["source_url"] == "https://example.test/records/1"
+    assert citation["excerpt"] == "Permit application"
 
 
 def test_owner_feedback_replay_is_exact_attributed_and_pending_review(intelligence_api):

@@ -119,6 +119,43 @@ def test_reservation_reuse_unknown_dispatch_and_fences(sessions):
         assert budget.cost_usd == Decimal("0.050000")
 
 
+def test_deferred_completion_is_caller_transactional(sessions):
+    reserved = _reserve(sessions, "deferred-completion")
+    with sessions() as session:
+        assert mark_dispatched(session, reserved.call_id, fence_token=7, enabled=True).status == (
+            "SENT_OUTCOME_UNKNOWN"
+        )
+    with sessions() as session:
+        result = complete_call(
+            session,
+            reserved.call_id,
+            fence_token=7,
+            input_tokens=12,
+            output_tokens=3,
+            result_payload={"validation_outcome": "VALIDATED"},
+            defer_commit=True,
+        )
+        assert result.status == "COMPLETED"
+        session.rollback()
+    with sessions() as session:
+        call = session.get(LogicalCall, reserved.call_id)
+        assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    with sessions() as session:
+        result = complete_call(
+            session,
+            reserved.call_id,
+            fence_token=7,
+            input_tokens=12,
+            output_tokens=3,
+            result_payload={"validation_outcome": "VALIDATED"},
+        )
+        assert result.status == "COMPLETED"
+    with sessions() as session:
+        call = session.get(LogicalCall, reserved.call_id)
+        assert call and call.status == "COMPLETED"
+        assert call.result_payload == {"validation_outcome": "VALIDATED"}
+
+
 def test_owner_unlimited_skips_only_usd_reservation_and_keeps_count_caps(sessions):
     caps = {
         scope: {"daily": 2, "monthly": 2, "daily_usd": 0, "monthly_usd": 0}

@@ -12,6 +12,16 @@ type Candidate = Record<string, unknown> & {
 
 const text = (value: unknown, fallback = 'Unknown') => typeof value === 'string' && value ? value : fallback
 const list = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+function recordedEstimate(usage: IntelligenceHistoryItem['usage']) {
+  const value = usage?.estimated_cost_usd
+  const validNumber = typeof value === 'number' && Number.isFinite(value) && value >= 0
+  const validText = typeof value === 'string' && /^(?:\d+\.?\d*|\.\d+)$/.test(value) && Number.isFinite(Number(value))
+  if (!validNumber && !validText) return 'Estimate: UNKNOWN · Estimate basis: UNKNOWN · Invoice: UNKNOWN'
+  const basis = usage?.cost_basis === 'conservative_usage_estimate_not_invoice'
+    ? 'conservative usage estimate (not an invoice)'
+    : usage?.cost_basis?.replaceAll('_', ' ') || 'UNKNOWN'
+  return `Recorded estimate: $${String(value)} USD · Estimate basis: ${basis} · Invoice: UNKNOWN`
+}
 const questionTitles: Record<string, string> = {
   UTILITY_ONLINE_DATE: 'Utility service timing',
   TEMP_LOAD_MW: 'Temporary electrical load',
@@ -86,11 +96,84 @@ export function IntelligenceResearch({ needId }: { needId: string }) {
       <h4>{job.task_type === 'GROUNDED_DOSSIER' || job.task_type === 'GROUNDED_EXTRACTION' ? 'Grounded evidence review' : 'Advisory research'} · {job.status.toUpperCase()}</h4>
       <p>Created {job.created_at ? new Date(job.created_at).toLocaleString() : 'Unknown'} · {job.logical_call_id ? `Call ${job.logical_call_id}` : 'No provider call reserved'}{job.uncertain && ' · Provider outcome UNKNOWN; retry blocked.'}</p>
       {job.error && <p role="alert">{job.error}</p>}
-      {job.usage && <p>Usage: {job.usage.input_tokens ?? 'Unknown'} input / {job.usage.output_tokens ?? 'Unknown'} output tokens · Cost {job.usage.cost_usd == null ? 'Unknown' : `$${job.usage.cost_usd}`}</p>}
-      <Candidates needId={needId} job={job}/>
-      {job.result && !Array.isArray(job.result.candidates) && <p>Advisory result: {text(job.result.choice, 'Structured result recorded')} · This is not accepted evidence.</p>}
+      {job.task_type === 'COMMERCIAL_ASSESSMENT_V1'
+        ? <CommercialAssessmentResult job={job}/>
+        : <><Candidates needId={needId} job={job}/>
+          {job.result && !Array.isArray(job.result.candidates) && <p>Advisory result: {text(job.result.choice, 'Structured result recorded')} · This is not accepted evidence.</p>}
+          {job.usage && <details><summary>Job details</summary><p>Returned model: Unknown · Usage: {job.usage.input_tokens ?? 'Unknown'} input / {job.usage.output_tokens ?? 'Unknown'} output tokens · Estimate: UNKNOWN · Invoice: UNKNOWN</p></details>}
+        </>}
     </article>)}
   </section>
+}
+
+export function SavedCommercialAssessment({ needId }: { needId: string }) {
+  const [jobs, setJobs] = useState<IntelligenceHistoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    const controller = new AbortController()
+    let active = true
+    setJobs([]); setLoading(true); setError('')
+    void client.intelligenceHistory(needId, controller.signal).then(({ items }) => {
+      if (active) setJobs(items.filter(job => job.need_id === needId && job.task_type === 'COMMERCIAL_ASSESSMENT_V1'))
+    }).catch(cause => {
+      if (active && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Saved assessment is unavailable.')
+    }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false; controller.abort() }
+  }, [needId])
+
+  const job = jobs[0]
+  return <section className="commercial-action" aria-label="Saved commercial assessment">
+    <h3>Saved commercial assessment</h3>
+    <p>Advisory only. This assessment does not change evidence, qualification, or commercial status.</p>
+    {loading && <p role="status">Loading saved assessment…</p>}
+    {error && <p role="alert">{error}</p>}
+    {!loading && !error && !job && <p>No saved commercial assessment is available for this need.</p>}
+    {job && <CommercialAssessmentResult job={job}/>}
+  </section>
+}
+
+function CommercialAssessmentResult({ job }: { job: IntelligenceHistoryItem }) {
+  const result = job.result
+  const validated = job.status === 'completed' && job.validation_outcome === 'VALIDATED' && result !== null
+  const selectedIds = Array.isArray(result?.selected_fact_ids) ? result.selected_fact_ids.filter((id): id is string => typeof id === 'string') : []
+  const support = job.commercial_assessment_support
+  const nextQuestion = typeof result?.next_question === 'string' ? result.next_question : null
+  const nextAction = typeof result?.next_action === 'string' ? result.next_action : null
+  const unknownFields = list(result?.unknown_fields)
+  const returnedModel = text(result?.actual_model, text(result?.model, 'Unknown'))
+  return <>
+    {!validated && <>
+      <p role="status">Assessment {job.status.toUpperCase()}: {job.error || job.validation_reason || job.validation_outcome || job.result_status || 'No validated assessment is available.'}</p>
+    </>}
+    {job.uncertain && <p role="status">Provider outcome UNKNOWN; retry is blocked until reconciled.</p>}
+    {validated && <>
+      <p><strong>{text(result?.disposition, 'Disposition unavailable')}</strong> · {text(result?.reason_code, 'Reason unavailable')}</p>
+      <p>{nextQuestion ? <><strong>Next question:</strong> {nextQuestion}</> : 'Next question: Unknown'}</p>
+      <p>{nextAction ? <><strong>Suggested action:</strong> {nextAction}</> : 'Suggested action unavailable.'}</p>
+      {unknownFields.length > 0 && <><strong>Still unknown</strong><ul>{unknownFields.map(value => <li key={value}>{value.replaceAll('_', ' ')}</li>)}</ul></>}
+      <p>Document coverage: {support?.document_coverage ?? 'Unknown'} · Source coverage: {support?.source_collection_status ?? 'Unknown'}</p>
+      {selectedIds.length > 0 && <section aria-label="Selected assessment facts"><h4>Selected source facts</h4>
+        {selectedIds.map(id => {
+          const fact = support?.selected_facts.find(entry => entry.fact_id === id)
+          if (!fact || fact.support_status === 'unavailable' || fact.support_status === 'stale' || !fact.citation) return <p key={id} role="status">Selected source support unavailable for {id}: {fact?.unavailable_reason || support?.reason || 'Citation could not be verified.'}</p>
+          const citation = fact.citation
+          const safeUrl = /^https:\/\//i.test(citation.source_url) && citation.end > citation.start && citation.start >= 0
+          return <article className="commercial-note" key={id}>
+            <p><strong>{text(fact.field, 'Selected fact').replaceAll('_', ' ')}:</strong> {text(fact.value)} · {text(fact.label)}</p>
+            <blockquote>{citation.excerpt}</blockquote>
+            <p>Evidence {citation.evidence_id} · {fact.support_status === 'current' ? 'Current retained support' : 'Saved historical support'}</p>
+            {safeUrl ? <a href={citation.source_url} target="_blank" rel="noreferrer">Open cited source</a> : <p role="status">Source link unavailable.</p>}
+          </article>
+        })}
+      </section>}
+      {selectedIds.length === 0 && <p>No source fact was selected. Supporting evidence remains unavailable.</p>}
+    </>}
+    <details><summary>Assessment details</summary>
+      <p>Job {job.job_id} · Call {job.logical_call_id ?? 'not reserved'} · Returned model: {returnedModel}</p>
+      <p>Usage: {job.usage?.input_tokens ?? 'Unknown'} input / {job.usage?.output_tokens ?? 'Unknown'} output tokens · {recordedEstimate(job.usage)}</p>
+    </details>
+  </>
 }
 
 function Candidates({ needId, job }: { needId: string; job: IntelligenceHistoryItem }) {

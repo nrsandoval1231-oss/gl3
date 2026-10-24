@@ -2,6 +2,7 @@ import zipfile
 from datetime import date
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import parse_qs
 
 import httpx
 import pytest
@@ -155,8 +156,10 @@ def test_docket_index_cross_checks_html_and_excel_and_names_el_paso():
         "data%20center": _docket_xlsx([rows[1]]),
     }
     pages = {"large%20load": large, "data%20center": data_center}
+    requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
         url = str(request.url)
         key = "data%20center" if "data%20center" in url else "large%20load"
         if "exportdockets" in url:
@@ -175,13 +178,60 @@ def test_docket_index_cross_checks_html_and_excel_and_names_el_paso():
         _source("texas-puct-large-load-dockets"),
         httpx.Client(follow_redirects=False, transport=httpx.MockTransport(handler)),
     )
+    replay = retrieve_dockets(
+        _source("texas-puct-large-load-dockets"),
+        httpx.Client(follow_redirects=False, transport=httpx.MockTransport(handler)),
+    )
     by_id = {row["document_number"]: row for row in records}
+    assert [(row["document_number"], row["source_hash"]) for row in records] == [
+        (row["document_number"], row["source_hash"]) for row in replay
+    ]
     assert set(by_id) == {"PUCT-DOCKET-58481", "PUCT-DOCKET-56903"}
     assert by_id["PUCT-DOCKET-58481"]["permit"]["location"] is None
     assert by_id["PUCT-DOCKET-56903"]["permit"]["location"] == "EL PASO, TX"
     assert by_id["PUCT-DOCKET-56903"]["permit"]["data_center"] is True
     assert by_id["PUCT-DOCKET-56903"]["event_date"] is None
     assert assess_permit(by_id["PUCT-DOCKET-56903"], as_of=TODAY)["decision"] == "rejected"
+    assert [request.url.path for request in requests[:4]] == [
+        "/search/dockets/",
+        "/search/exportdockets/",
+        "/search/dockets/",
+        "/search/exportdockets/",
+    ]
+    assert [request.url.params["Description"] for request in requests[:4]] == [
+        "large load",
+        "large load",
+        "data center",
+        "data center",
+    ]
+    assert all(request.url.params["ItemMatch"] == "Equal" for request in requests)
+    assert len(requests) == 8
+
+
+def test_docket_index_uses_current_direct_search_endpoint_and_equal_match():
+    from gridlens.ingestion.adapters.puct_docket_index import (
+        SEARCH_URL,
+        _export_url,
+        _search_url,
+    )
+
+    assert SEARCH_URL == (
+        "https://interchange.puc.texas.gov/search/dockets/?UtilityType=E&"
+        "ItemMatch=Equal&DocumentType=ALL&Description=large%20load&SortOrder=Ascending"
+    )
+    assert _search_url("data center") == (
+        "https://interchange.puc.texas.gov/search/dockets/?UtilityType=E&"
+        "ItemMatch=Equal&DocumentType=ALL&Description=data%20center&SortOrder=Ascending"
+    )
+    assert _export_url("data center") == (
+        "https://interchange.puc.texas.gov/search/exportdockets/?UtilityType=E&"
+        "ItemMatch=Equal&DocumentType=ALL&Description=data%20center&"
+        "SortBy=ControlNumber&SortOrder=Ascending"
+    )
+    from gridlens.ingestion.registry import load_registry
+
+    source = next(item for item in load_registry() if item["id"] == "texas-puct-large-load-dockets")
+    assert source["endpoint"] == SEARCH_URL
 
 
 def test_ercot_status_pdf_keeps_queue_totals_and_not_a_project_site():
@@ -315,3 +365,218 @@ def test_construction_noi_uses_city_and_county_and_keeps_directions_out_of_place
     assert "event date" in rejected["reason"]
     with pytest.raises(SourceParseError, match="outside the official search host"):
         parse_results(page.replace(b"index.cfm?", b"https://evil.example/index.cfm?"))
+
+
+def _construction_noi_source_row(auth: str, sic: str, segment: str) -> dict[str, str]:
+    return {
+        "auth": auth,
+        "site_name": "CORE SCIENTIFIC DATA CENTER EXPANSION",
+        "permittee": "T5 Construction, Llc",
+        "sic": sic,
+        "segment": segment,
+        "county": "DENTON",
+        "region": "4",
+        "city": "DENTON",
+        "site_location": "8171 JIM CHRISTAL RD DENTON TX 76207 3719",
+    }
+
+
+def _construction_noi_page(rows: list[dict[str, str]]) -> bytes:
+    if not rows:
+        return b"Your search returned 0 records."
+    rendered = []
+    for row in rows:
+        auth = row["auth"]
+        cells = [
+            f'<td><a href="index.cfm?fuseaction=home.permit_summary&amp;'
+            f'lgl_ident_txt={auth}">{auth}</a></td>'
+        ]
+        cells.extend(
+            f"<td>{row[key]}</td>"
+            for key in (
+                "site_name",
+                "permittee",
+                "sic",
+                "segment",
+                "county",
+                "region",
+                "city",
+                "site_location",
+            )
+        )
+        rendered.append(f"<tr>{''.join(cells)}</tr>")
+    count = len(rows)
+    return (
+        f"<p>Your search returned {count} records.</p>"
+        f"<span>1-{count} of {count} Records</span>"
+        f"<table>{''.join(rendered)}</table>"
+    ).encode()
+
+
+def _retrieve_construction_noi_pages(pages: dict[str, list[dict[str, str]]]):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/html"},
+                content=b"TXR150000 - Construction (NOI & Waiver)",
+            )
+        body = request.content.decode()
+        if "permit_info_search" in body:
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/html"},
+                content=b'<input name="_fuseaction=home.validate_search_crit">',
+            )
+        term = parse_qs(body).get("phys_name", [""])[0]
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/html"},
+            content=_construction_noi_page(pages[term]),
+        )
+
+    return retrieve_noi(
+        _source("texas-tceq-construction-noi"),
+        httpx.Client(follow_redirects=False, transport=httpx.MockTransport(handler)),
+    )
+
+
+def test_construction_noi_retains_actual_repeated_classification_rows_deterministically():
+    variants = [
+        _construction_noi_source_row("TXR1528SY", sic, segment)
+        for sic, segment in (
+            ("1542", "0802"),
+            ("1542", "0823"),
+            ("7374", "0802"),
+            ("7374", "0823"),
+        )
+    ]
+    pages = {"data center": [*variants, variants[0]], "datacenter": []}
+
+    records = _retrieve_construction_noi_pages(pages)
+    replay = _retrieve_construction_noi_pages(
+        {"data center": list(reversed(pages["data center"])), "datacenter": []}
+    )
+    record = records[0]
+    classifications = record["permit"]["source_classification_rows"]
+
+    assert len(records) == 1
+    assert [(item["sic"], item["segment"]) for item in classifications] == [
+        ("1542", "0802"),
+        ("1542", "0823"),
+        ("7374", "0802"),
+        ("7374", "0823"),
+    ]
+    assert all(item["search_terms"] == ["data center"] for item in classifications)
+    assert "Source classification rows:" in record["abstract"]
+    assert record["event_date"] is None
+    assert assess_permit(record, as_of=TODAY)["decision"] == "rejected"
+    assert [(row["document_number"], row["source_hash"]) for row in records] == [
+        (row["document_number"], row["source_hash"]) for row in replay
+    ]
+    fewer = _retrieve_construction_noi_pages({"data center": variants[:-1], "datacenter": []})
+    assert record["source_hash"] != fewer[0]["source_hash"]
+
+
+def test_construction_noi_tracks_classification_provenance_across_search_terms():
+    one = {
+        "auth": "TXR1588WJ",
+        "site_name": "NEXUS DATA CENTER HUBBARD",
+        "permittee": "Nexus Hubbard Power, LLC",
+        "sic": "4911",
+        "segment": "0836",
+        "county": "HILL",
+        "region": "9",
+        "city": "HUBBARD",
+        "site_location": "880 STATE HIGHWAY 171 HUBBARD TX 76648 2847",
+    }
+    two = {**one, "sic": "7374"}
+
+    records = _retrieve_construction_noi_pages({"data center": [one], "datacenter": [two]})
+
+    assert records[0]["permit"]["source_classification_rows"] == [
+        {"sic": "4911", "segment": "0836", "search_terms": ["data center"]},
+        {"sic": "7374", "segment": "0836", "search_terms": ["datacenter"]},
+    ]
+
+
+def test_construction_noi_still_rejects_nonclassification_duplicate_conflicts():
+    first = _construction_noi_source_row("TXR1528SY", "1542", "0802")
+    conflict = {**first, "sic": "7374", "site_location": "DIFFERENT SITE"}
+
+    with pytest.raises(SourceParseError, match="authorization was returned with a conflict"):
+        _retrieve_construction_noi_pages({"data center": [first, conflict], "datacenter": []})
+
+
+def _tceq_result_page(row_count: int, declared_count: str, paging: str) -> bytes:
+    rows = []
+    for index in range(row_count):
+        auth = f"TXR15{index:04d}"
+        summary_link = (
+            f'<td><a href="index.cfm?fuseaction=home.permit_summary&amp;'
+            f'lgl_ident_txt={auth}">{auth}</a></td>'
+        )
+        rows.append(
+            "<tr>"
+            + summary_link
+            + f"<td>Data Center {index}</td><td>Permittee {index}</td>"
+            + "<td>1541</td><td>0820</td><td>TRAVIS</td><td>11</td>"
+            + f"<td>AUSTIN</td><td>Site {index}</td></tr>"
+        )
+    return (
+        f"<p>Your search returned {declared_count} records.</p>"
+        f"<span>{paging}</span><table>{''.join(rows)}</table>"
+    ).encode()
+
+
+def test_construction_noi_decodes_entity_spacing_for_complete_count_only():
+    page = _tceq_result_page(46, "46", "1&nbsp;-&nbsp;46 of 46 Records")
+
+    rows = parse_results(page)
+
+    assert len(rows) == 46
+    assert rows[0]["auth"] == "TXR150000"
+    assert rows[-1]["auth"] == "TXR150045"
+    assert rows[0]["summary_url"].startswith("https://www2.tceq.texas.gov/wq_dpa/index.cfm?")
+
+
+@pytest.mark.parametrize(
+    ("row_count", "declared", "paging", "message"),
+    [
+        (46, "46", "1&nbsp;-&nbsp;45 of 46 Records", "paginated or its count disagrees"),
+        (46, "45", "1&nbsp;-&nbsp;46 of 46 Records", "paginated or its count disagrees"),
+        (45, "46", "1&nbsp;-&nbsp;46 of 46 Records", "count does not match its rows"),
+        (1, "4x", "1&nbsp;-&nbsp;1 of 1 Records", "did not state a record count"),
+    ],
+)
+def test_construction_noi_rejects_incomplete_or_malformed_count(
+    row_count: int, declared: str, paging: str, message: str
+):
+    with pytest.raises(SourceParseError, match=message):
+        parse_results(_tceq_result_page(row_count, declared, paging))
+
+
+@pytest.mark.parametrize(
+    ("href", "message"),
+    [
+        (
+            "https://www2.tceq.texas.gov.evil.example/wq_dpa/index.cfm?"
+            "fuseaction=home.permit_summary&amp;lgl_ident_txt=TXR150000",
+            "outside the official search host",
+        ),
+        (
+            "https://www2.tceq.texas.gov/wq_dpa/index.cfm?"
+            "fuseaction=home.permit_summary&amp;lgl_ident_txt=TXR150001",
+            "not that authorization's summary",
+        ),
+    ],
+)
+def test_construction_noi_preserves_official_authorization_link_binding(href: str, message: str):
+    page = _tceq_result_page(1, "1", "1&nbsp;-&nbsp;1 of 1 Records")
+    page = page.replace(
+        b"index.cfm?fuseaction=home.permit_summary&amp;lgl_ident_txt=TXR150000",
+        href.encode(),
+    )
+
+    with pytest.raises(SourceParseError, match=message):
+        parse_results(page)

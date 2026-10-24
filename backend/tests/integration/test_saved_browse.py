@@ -770,6 +770,29 @@ def test_source_health_checkpoint_does_not_discard_current_browse(saved_db):
         current_generation(reader)
 
 
+def test_ordinary_maintainer_publishes_first_generation_for_opportunities(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence.saved_browse import maintain_once
+    from gridlens.security import token_for
+
+    seed(saved_db, count=2, histories=0)
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    monkeypatch.setattr(settings, "typesafe_api_key", None)
+    token = token_for(int(datetime.now(UTC).timestamp()) + 300)
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token)
+        assert client.get("/api/opportunities").status_code == 200
+
+        monkeypatch.setattr(settings, "saved_browse_enabled", True)
+        pending = client.get("/api/opportunities")
+        assert pending.status_code == 503
+        assert pending.headers["x-qualification-state"] == "pending"
+
+        assert maintain_once(saved_db)["status"] == "published"
+        assert client.get("/api/opportunities").status_code == 200
+
+
 @pytest.mark.parametrize("count", [4, 101])
 def test_authenticated_signal_backfill_publishes_within_operator_bound(
     saved_db, monkeypatch, count
