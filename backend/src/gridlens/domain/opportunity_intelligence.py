@@ -305,7 +305,7 @@ def _source_project_name(
                 return proof.value, [
                     source.model_copy(
                         update={
-                            "passage": quote,
+                            "passage": compact_source_excerpt(quote),
                             "verification_status": "Current source-native project alias and site",
                         }
                     )
@@ -325,19 +325,19 @@ def _source_project_name(
     from gridlens.ingestion.adapters.retained_permits import source_native_project_identity
 
     for source in sources:
-        passage = source.passage or ""
+        passage = source.evidence_text or source.passage or ""
         identity = source_native_project_identity(source.source_id or "", passage)
         if identity:
             return identity.value, [
                 source.model_copy(
                     update={
-                        "passage": identity.quote,
+                        "passage": compact_source_excerpt(identity.quote),
                         "verification_status": identity.verification_status,
                     }
                 )
             ]
     for source in sources:
-        passage = source.passage or ""
+        passage = source.evidence_text or source.passage or ""
         narrative_name = re.search(
             r"(?i)\bFacility Name:\s*(?P<name>.*?)"
             r"(?=\s+(?:AIRS No\.|Location:|Application #|Date of Application:)|[\r\n]|$)",
@@ -349,7 +349,7 @@ def _source_project_name(
                 return value, [
                     source.model_copy(
                         update={
-                            "passage": narrative_name.group(0).strip(),
+                            "passage": compact_source_excerpt(narrative_name.group(0)),
                             "verification_status": "Current narrative facility name",
                         }
                     )
@@ -370,16 +370,18 @@ def _source_project_name(
         supported = [
             source.model_copy(
                 update={
-                    "passage": next(
-                        line
-                        for line in (source.passage or "").splitlines()
-                        if candidate.casefold() in line.casefold()
+                    "passage": compact_source_excerpt(
+                        next(
+                            line
+                            for line in (source.evidence_text or source.passage or "").splitlines()
+                            if candidate.casefold() in line.casefold()
+                        )
                     ),
                     "verification_status": "Current source-native project name",
                 }
             )
             for source in sources
-            if candidate.casefold() in (source.passage or "").casefold()
+            if candidate.casefold() in (source.evidence_text or source.passage or "").casefold()
         ]
         if supported:
             return candidate, supported
@@ -391,7 +393,7 @@ def _source_location(
 ) -> tuple[str | None, list[IntelligenceSource]]:
     """Prefer a precise address only when the current source states it explicitly."""
     for source in sources:
-        passage = source.passage or ""
+        passage = source.evidence_text or source.passage or ""
         from gridlens.ingestion.adapters.retained_permits import source_native_georgia_location
 
         location = source_native_georgia_location(source.source_id or "", passage)
@@ -399,7 +401,7 @@ def _source_location(
             return location.value, [
                 source.model_copy(
                     update={
-                        "passage": location.quote,
+                        "passage": compact_source_excerpt(location.quote),
                         "verification_status": location.verification_status,
                     }
                 )
@@ -413,12 +415,14 @@ def _source_identifier(
     from gridlens.ingestion.adapters.retained_permits import source_record_identifier
 
     for source in sources:
-        identity = source_record_identifier(source.source_id or "", source.passage or "")
+        identity = source_record_identifier(
+            source.source_id or "", source.evidence_text or source.passage or ""
+        )
         if identity:
             return identity.value, [
                 source.model_copy(
                     update={
-                        "passage": identity.quote,
+                        "passage": compact_source_excerpt(identity.quote),
                         "verification_status": identity.verification_status,
                     }
                 )
@@ -428,12 +432,12 @@ def _source_identifier(
             r"(?m)^Permit number:\s*(?P<value>[A-Z0-9-]+)",
             r"(?m)^Application number:\s*(?P<value>[A-Z0-9-]+)",
         ):
-            match = re.search(pattern, source.passage or "", re.I)
+            match = re.search(pattern, source.evidence_text or source.passage or "", re.I)
             if match:
                 return match.group("value"), [
                     source.model_copy(
                         update={
-                            "passage": match.group(0),
+                            "passage": compact_source_excerpt(match.group(0)),
                             "verification_status": "Current source identifier",
                         }
                     )
@@ -507,7 +511,7 @@ def assemble_card(
                     claim_sources.append(
                         source.model_copy(
                             update={
-                                "passage": claim["quote"],
+                                "passage": compact_source_excerpt(claim["quote"]),
                                 "verification_status": "Current source-reported claim",
                             }
                         )
@@ -649,11 +653,17 @@ def assemble_card(
         if quote:
             for source in current:
                 matched = next(
-                    (text for text in (source.passage, source.title) if text and quote in text),
+                    (
+                        text
+                        for text in (source.evidence_text or source.passage, source.title)
+                        if text and quote in text
+                    ),
                     None,
                 )
                 if matched is not None:
-                    refs.append(source.model_copy(update={"passage": quote}))
+                    refs.append(
+                        source.model_copy(update={"passage": compact_source_excerpt(quote)})
+                    )
         fact_types = {
             "demand": {"demand"},
             "start": {"timing"},

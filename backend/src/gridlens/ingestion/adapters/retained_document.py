@@ -385,7 +385,7 @@ def stack_project_alias(item: Mapping[str, Any], sources: Sequence[Any]) -> Stac
             or evidence.get("url") != policy["url"]
         ):
             continue
-        passage = source.passage or ""
+        passage = getattr(source, "evidence_text", None) or source.passage or ""
         identity = re.search(
             r"\b(?P<identifier>SVY02A)\s+Memorex\b.{0,100}?"
             r"\b(?P<alias>Memorex Junction)\s+Operational Study\b",

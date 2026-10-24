@@ -60,12 +60,16 @@ class _ProjectionSession:
             rows = [row for row in self.decisions if row.candidate_project_id == self.project.id]
         elif self.scalars_calls == 3:
             rows = self.decisions
+        elif self.scalars_calls == 4:
+            rows = [self.evidence]
         else:
             rows = []
         return SimpleNamespace(all=lambda: rows)
 
     def scalar(self, _statement):
         self.scalar_calls += 1
+        if _statement.column_descriptions[0].get("name") == "Observation":
+            return self.observation
         return self.interpretation
 
     def get(self, model, _identifier):
@@ -92,7 +96,7 @@ def _asset_projection(
         identity_key="tdlr:TABS1",
         name=title,
         asset_type="unknown",
-        source_id="synthetic-project-source",
+        source_id="texas-tdlr-tabs-data-centers",
         external_id="TABS1",
     )
     observation = SimpleNamespace(
@@ -141,7 +145,6 @@ def test_explicit_asset_type_survives_projection_without_achieved_event():
     project, session, _matched = _asset_projection()
     _rebuild_projection(session, project)
     assert project.asset_type == "data_center"
-    assert session.scalars_calls == 3
 
 
 def test_current_revision_and_retraction_remove_old_asset_classification():
@@ -154,7 +157,7 @@ def test_current_revision_and_retraction_remove_old_asset_classification():
     project, session, matched = _asset_projection()
     unmatched = SimpleNamespace(
         observation_id=matched.observation_id,
-        candidate_project_id=None,
+        candidate_project_id=project.id,
         evidence_id=matched.evidence_id,
         decision="unmatched",
         decided_at=matched.decided_at + timedelta(seconds=1),
@@ -165,12 +168,21 @@ def test_current_revision_and_retraction_remove_old_asset_classification():
     assert project.asset_type == "unknown"
 
 
-def test_compact_evidence_preserves_exact_quotes_and_drops_opaque_payload():
+@pytest.mark.parametrize("quote_after_excerpt", [False, True])
+def test_compact_evidence_preserves_exact_quotes_and_drops_opaque_payload(quote_after_excerpt):
     quote = "Construction of Building B requires a temporary power package."
     readable = f"Project: PECOS COUNTY DATA CENTER\nScope: {quote}"
     raw = readable + "\nOpaque source bytes (base64): " + ("QUJD" * 900)
+    if quote_after_excerpt:
+        raw = (
+            "Project: PECOS COUNTY DATA CENTER\n"
+            + "Retained background detail. " * 80
+            + quote
+            + "\nOpaque source bytes (base64): "
+            + "QUJD" * 900
+        )
     excerpt = compact_source_excerpt(raw)
-    assert excerpt == readable
+    assert excerpt == ("Project: PECOS COUNTY DATA CENTER" if quote_after_excerpt else readable)
 
     evidence = {
         "id": "ev-1",
@@ -181,6 +193,8 @@ def test_compact_evidence_preserves_exact_quotes_and_drops_opaque_payload():
         "assessment_current": True,
     }
     source = _source(evidence)
+    if quote_after_excerpt:
+        assert quote not in source.passage
     card = assemble_card(
         {
             "id": "need-1",
@@ -213,6 +227,50 @@ def test_default_evidence_payload_compacts_repeated_raw_passages():
     assert original_bytes > 24_000
     assert compacted_bytes < 4_000
     assert compacted_bytes < original_bytes / 6
+
+
+@pytest.mark.parametrize("research_claim", [False, True])
+def test_long_supported_quote_is_verified_in_full_but_displayed_compactly(research_claim):
+    quote = "Construction requires 5 MW. " + "Retained supporting detail. " * 200 + "RAW-TAIL"
+    record = {
+        "id": "need-1",
+        "project_id": "project-1",
+        "name": "Example project",
+        "tier": "Signal",
+        "activity": "construction",
+        "location": "Fort Stockton, TX",
+        "evidence": [
+            {
+                "id": "ev-1",
+                "abstract": "Background. " * 100 + quote,
+                "content_hash": "c" * 64,
+                "assessment_current": True,
+            }
+        ],
+    }
+    if research_claim:
+        record["research_state"] = {
+            "activity_load_mw": {
+                "status": "SUPPORTED",
+                "value": "5",
+                "claims": [
+                    {
+                        "evidence_id": "ev-1",
+                        "evidence_hash": "c" * 64,
+                        "quote": quote,
+                    }
+                ],
+            }
+        }
+    else:
+        record.update(required_mw="5 MW", demand_quote=quote)
+    card = assemble_card(record, {}, {}, [], research_enabled=False)
+    demand = next(field for field in card.fields if field.key == "required_mw")
+    assert demand.status == "Verified"
+    assert demand.sources[0].retained_evidence_id == "ev-1"
+    assert len(demand.sources[0].passage) <= 641
+    assert "RAW-TAIL" not in card.model_dump_json()
+    assert "evidence_text" not in card.model_dump_json()
 
 
 def test_raw_evidence_endpoint_returns_only_requested_bounded_chunk(monkeypatch):

@@ -10,7 +10,10 @@ from gridlens.domain.lifecycle import (
     estimate_first_production,
     lifecycle_rank,
 )
-from gridlens.ingestion.adapters.project_asset_classification import classify_project_asset
+from gridlens.ingestion.adapters.project_asset_classification import (
+    TDLR_TABS_SOURCE,
+    classify_project_asset,
+)
 from gridlens.ingestion.adapters.retained_permits import (
     reported_permit_event_type,
     requires_achieved_lifecycle_milestone,
@@ -356,12 +359,15 @@ def _current_project_asset_types(session: Session, project: Project) -> set[str]
 def refresh_project_asset_type(
     session: Session, project: Project, *, events: Sequence[LifecycleEvent] | None = None
 ) -> tuple[str, str]:
-    """Recompute only the project's industry field from current accepted evidence.
+    """Recompute a TDLR-origin project's industry from current accepted evidence.
 
     Safe for bounded existing-record correction: it changes no lifecycle, need,
     qualification, date, MW, or workflow fields and performs no writes itself.
+    Other sources retain their established lifecycle classification path.
     Callers can inspect the returned before/after values and commit or roll back.
     """
+    if project.source_id != TDLR_TABS_SOURCE:
+        return project.asset_type, project.asset_type
     current_events = events
     if current_events is None:
         current_events = session.scalars(
@@ -422,7 +428,8 @@ def _rebuild_projection(session: Session, project: Project) -> None:
             LifecycleEvent.id,
         )
     ).all()
-    refresh_project_asset_type(session, project, events=events)
+    if project.source_id == TDLR_TABS_SOURCE:
+        refresh_project_asset_type(session, project, events=events)
     accepted_events = []
     for event in events:
         interpretation = session.scalar(
@@ -443,6 +450,8 @@ def _rebuild_projection(session: Session, project: Project) -> None:
     if not current:
         if projection is not None:
             session.delete(projection)
+        if project.source_id != TDLR_TABS_SOURCE:
+            project.asset_type = "unknown"
         return
     withdrawal_events = [
         item for item in current if item.event_type == "planning_application_withdrawn"
