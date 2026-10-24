@@ -14,6 +14,8 @@ Commands ran from `backend` under uv's isolated Python 3.11 environment. `DATABA
 |---|---:|---|
 | `uv run --offline --python 3.11 --extra dev pytest tests/unit/test_research_acquisition_boundary.py -q` | 0 | 28 passed; includes generic >8 MiB rejection, exact ID+method allowlist and spoof cases, >8 MiB evidence/provenance/hash pipe round-trip, >64 MiB child failure payload, parent receive rejection before unpickling, 512 MiB invariant and timeout cleanup. |
 | `uv run --offline --python 3.11 --extra dev pytest tests/unit/test_rrc_drilling.py tests/unit/test_retained_permits.py -q` | 0 | 67 passed. |
+| `uv run --offline --python 3.11 --extra dev ruff format tests/unit/test_research_acquisition_boundary.py` | 0 | Reformatted the assigned test file to satisfy repository formatting gate. |
+| `uv run --offline --python 3.11 --extra dev ruff format --check tests/unit/test_research_acquisition_boundary.py` | 0 | 1 file already formatted. |
 | `uv run --offline --python 3.11 --extra dev ruff check src/gridlens/ingestion/adapters/bounded_http.py tests/unit/test_research_acquisition_boundary.py` | 0 | All checks passed. |
 | `git diff --check` | 0 | No whitespace errors. |
 
