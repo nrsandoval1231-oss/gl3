@@ -31,4 +31,3 @@ export const needA = {
   intelligence_card: card,
 }
 export const needB = { ...needA, id: 'need-b', project_id: 'project-b', name: 'Second supported power need', browse_title: 'Second supported power need', intelligence_card: { ...card, need_id: 'need-b', project_id: 'project-b', fields: card.fields.map(field => field.key === 'customer' ? { ...field, value: 'Example Customer' } : field.key === 'project' ? { ...field, value: 'Second supported power need' } : field), contacts: [], evidence: [] }, evidence: needA.evidence }
-
