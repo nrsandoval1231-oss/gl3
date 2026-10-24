@@ -363,7 +363,7 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
     """Run one exact Jev request outside the transaction and append its display result."""
     import json
 
-    from gridlens.integrations.legacy_calls import perform_legacy_call
+    from gridlens.integrations.legacy_calls import LegacyCallBlocked, perform_legacy_call
     from gridlens.jobs.queue import assert_fence
     from gridlens.persistence.database import SessionLocal
 
@@ -415,6 +415,7 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
         usage = usage_value if isinstance(usage_value, dict) else {}
         return result, usage.get("input_tokens"), usage.get("output_tokens")
 
+    block_reason: str | None = None
     try:
         call = perform_legacy_call(
             task_type="SIGNAL_ADJUDICATION",
@@ -448,8 +449,16 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
     except Exception as exc:
         decision, source, model_version = "REVIEW", "jev_error", None
         status = failure_status(exc)
-        dims = {"status": status}
-        reason = f"Jev {status}; evidence retained and manual review required."
+        if isinstance(exc, LegacyCallBlocked):
+            block_reason = str(exc)
+            status = "blocked"
+            dims = {"status": status, "reason": block_reason}
+            reason = (
+                f"Jev blocked before provider dispatch: {block_reason}; manual review required."
+            )
+        else:
+            dims = {"status": status}
+            reason = f"Jev {status}; evidence retained and manual review required."
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence)
         current_observation = session.get(Observation, observation.id)
@@ -479,7 +488,17 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
                     reason=reason,
                 )
             )
-            job.status, job.error = "succeeded", None
+            job.status = "succeeded"
+            if block_reason is not None:
+                try:
+                    current_checkpoint = json.loads(job.checkpoint or "{}")
+                except (TypeError, ValueError):
+                    current_checkpoint = {}
+                current_checkpoint["legacy_call_block_reason"] = block_reason
+                job.checkpoint = json.dumps(current_checkpoint)
+                job.error = f"BLOCKED:{block_reason}"
+            else:
+                job.error = None
         job.lease_owner, job.lease_until = None, None
 
 

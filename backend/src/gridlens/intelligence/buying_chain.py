@@ -1406,11 +1406,19 @@ def enrich_buying_chain(
                     session.get(Observation, original.observation_id) if original else None
                 )
                 if observation:
-                    if observation.source_id in F17_SOURCES:
+                    if observation.source_id == "texas-tdlr-tabs-data-centers":
                         f17_source_id = observation.source_id
-                    organizations.extend(
-                        extract_retained_permit_organizations(doc, observation.source_id)
-                    )
+                        organizations.extend(
+                            extract_retained_permit_organizations(
+                                doc, observation.source_id, project=project
+                            )
+                        )
+                    else:
+                        if observation.source_id in F17_SOURCES:
+                            f17_source_id = observation.source_id
+                        organizations.extend(
+                            extract_retained_permit_organizations(doc, observation.source_id)
+                        )
             elif (
                 project.source_id == "houston-weekly-permits"
                 and "/ibi_apps/WFServlet.ibfs" in doc.url

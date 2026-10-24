@@ -755,7 +755,7 @@
     {
       "id": "texas-puct-large-load-dockets",
       "publisher": "Public Utility Commission of Texas",
-      "endpoint": "https://interchange.puc.texas.gov/search/search/?UtilityType=E&ItemMatch=1&DocumentType=ALL&Description=large%20load",
+      "endpoint": "https://interchange.puc.texas.gov/search/dockets/?UtilityType=E&ItemMatch=Equal&DocumentType=ALL&Description=large%20load&SortOrder=Ascending",
       "family": "official-utility-filings",
       "geography": "Texas",
       "state": "TX",

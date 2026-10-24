@@ -69,7 +69,7 @@ async function shell(page: import('@playwright/test').Page, buying: (route: impo
   })
   await page.goto('/?tier=Signals')
   await page.getByRole('button', { name: /Test facility one/ }).click()
-  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
+  await page.getByRole('button', { name: 'Buying Chain', exact: true }).click()
 }
 
 test('buying chain exposes three separate relationships and retains evidence after enrichment failure', async ({ page }) => {
@@ -80,7 +80,7 @@ test('buying chain exposes three separate relationships and retains evidence aft
       await route.fulfill({ status: 503, body: 'unavailable' })
     } else await route.fulfill({ contentType: 'application/json', body: JSON.stringify(chain('one')) })
   })
-  const section = page.getByRole('region', { name: 'Buying chain' })
+  const section = page.getByRole('region', { name: 'Buying Chain' })
   await expect(section.getByRole('heading', { name: 'Test Electrical one' })).toBeVisible()
   await expect(section.getByText('Project → organization')).toBeVisible()
   await expect(section.getByText('Organization → person')).toBeVisible()
@@ -109,8 +109,8 @@ test('navigation ignores a late enrichment result and limits repeated requests',
   await button.click()
   await expect(page.getByRole('button', { name: 'Checking evidence…' })).toBeDisabled()
   await page.getByRole('button', { name: /Test facility two/ }).click()
-  await page.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('button', { name: 'Buying chain', exact: true }).click()
-  const selectedChain = page.getByRole('region', { name: 'Buying chain' })
+  await page.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('button', { name: 'Buying Chain', exact: true }).click()
+  const selectedChain = page.getByRole('region', { name: 'Buying Chain' })
   await expect(selectedChain.getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
   const finished = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/buying-chain/enrich'))
   finish!()
@@ -119,9 +119,9 @@ test('navigation ignores a late enrichment result and limits repeated requests',
   await expect(selectedChain.getByRole('heading', { name: 'Test Electrical one' })).toHaveCount(0)
   expect(posts).toBe(1)
   await page.goBack()
-  await expect(page.getByRole('region', { name: 'Buying chain' }).getByRole('heading', { name: 'Test Electrical one' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Buying Chain' }).getByRole('heading', { name: 'Test Electrical one' })).toBeVisible()
   await page.goForward()
-  await expect(page.getByRole('region', { name: 'Buying chain' }).getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Buying Chain' }).getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
 })
 
 test('contact correction surfaces 409, verifies history read-back and retracts the project claim', async ({ page }) => {
@@ -155,7 +155,7 @@ test('contact correction surfaces 409, verifies history read-back and retracts t
     candidate.public_contacts = []
     await route.fulfill({ json: value })
   })
-  const section = page.getByRole('region', { name: 'Buying chain' })
+  const section = page.getByRole('region', { name: 'Buying Chain' })
   await section.getByRole('button', { name: 'Correct or retract contact' }).click()
   await section.getByLabel('Corrected contact value').fill('+1 312 555 0199')
   await section.getByLabel('Operator-reported contact; not a verified public method').check()
@@ -194,7 +194,7 @@ test('operator-reported contact is history-backed, has no call action and can be
     candidate.public_contacts = []
     await route.fulfill({ json: value })
   })
-  const section = page.getByRole('region', { name: 'Buying chain' })
+  const section = page.getByRole('region', { name: 'Buying Chain' })
   await section.getByRole('button', { name: 'Correct or retract contact' }).click()
   await section.getByLabel('Corrected contact value').fill('+1 312 555 0199')
   await section.getByLabel('Operator-reported contact; not a verified public method').check()
@@ -263,7 +263,7 @@ test('a historical stale correction can be repaired using fresh evidence', async
     ]
     await route.fulfill({ json: value })
   })
-  const section = page.getByRole('region', { name: 'Buying chain' })
+  const section = page.getByRole('region', { name: 'Buying Chain' })
   await expect(section.getByText('phone: +1 312 555 0100', { exact: false })).toBeVisible()
   await section.getByRole('button', { name: 'Correct or retract contact' }).click()
   await section.getByLabel('Corrected contact value').fill('+1 312 555 0199')
@@ -307,7 +307,7 @@ test('contact correction readback reports an unverified replacement without rest
     }]
     await route.fulfill({ json: value })
   })
-  const section = page.getByRole('region', { name: 'Buying chain' })
+  const section = page.getByRole('region', { name: 'Buying Chain' })
   await section.getByRole('button', { name: 'Correct or retract contact' }).click()
   await section.getByLabel('Corrected contact value').fill('+1 312 555 0199')
   await section.getByLabel('Current public-contact evidence').selectOption('current-contact')
@@ -358,8 +358,8 @@ test('workspace overview refresh removes superseded contact action and keeps the
   await page.locator('[data-need-row="one"]').click()
   const overview = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
   await expect(overview.getByRole('link', { name: 'Call +1 312 555 0100' })).toHaveAttribute('href', 'tel:+13125550100')
-  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
-  const buyingChain = page.getByRole('region', { name: 'Buying chain' })
+  await page.getByRole('button', { name: 'Buying Chain', exact: true }).click()
+  const buyingChain = page.getByRole('region', { name: 'Buying Chain' })
   await buyingChain.getByRole('button', { name: 'Correct or retract contact' }).click()
   await buyingChain.getByLabel('Corrected contact value').fill('+1 312 555 0199')
   await buyingChain.getByLabel('Current public-contact evidence').selectOption('current-contact')
@@ -370,7 +370,7 @@ test('workspace overview refresh removes superseded contact action and keeps the
   await expect(buyingChain.getByRole('button', { name: 'Correct or retract contact' })).toBeVisible()
   await page.getByRole('button', { name: 'Overview', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Commercial intelligence card', exact: true }).getByRole('link', { name: 'Call +1 312 555 0100' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
+  await page.getByRole('button', { name: 'Buying Chain', exact: true }).click()
   await expect(page.getByText(correctionNotice, { exact: true })).toBeVisible()
 })
 
@@ -416,8 +416,8 @@ test('late correction response cannot reopen a different selected need', async (
 
   await page.goto('/?view=workspace')
   await page.locator('[data-need-row="one"]').click()
-  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
-  const buyingChain = page.getByRole('region', { name: 'Buying chain' })
+  await page.getByRole('button', { name: 'Buying Chain', exact: true }).click()
+  const buyingChain = page.getByRole('region', { name: 'Buying Chain' })
   await buyingChain.getByRole('button', { name: 'Correct or retract contact' }).click()
   await buyingChain.getByLabel('Corrected contact value').fill('+1 312 555 0199')
   await buyingChain.getByLabel('Current public-contact evidence').selectOption('contact-evidence')
@@ -480,8 +480,8 @@ test('late correction readback cannot reopen a need after navigating back', asyn
 
   await page.goto('/?view=workspace')
   await page.locator('[data-need-row="one"]').click()
-  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
-  const buyingChain = page.getByRole('region', { name: 'Buying chain' })
+  await page.getByRole('button', { name: 'Buying Chain', exact: true }).click()
+  const buyingChain = page.getByRole('region', { name: 'Buying Chain' })
   await buyingChain.getByRole('button', { name: 'Correct or retract contact' }).click()
   await buyingChain.getByLabel('Corrected contact value').fill('+1 312 555 0199')
   await buyingChain.getByLabel('Current public-contact evidence').selectOption('contact-evidence')
@@ -523,7 +523,7 @@ test('queued buying-chain job survives reload and polls to a truthful terminal s
       ...chain('one'), research_job: { id: 'job-1', status: state, detail_status: state, created_at: stamp },
     }) })
   })
-  const section = page.getByRole('region', { name: 'Buying chain' })
+  const section = page.getByRole('region', { name: 'Buying Chain' })
   await section.getByRole('button', { name: 'Enrich buying chain' }).click()
   await expect(section.getByRole('status')).toContainText('queued')
   await page.reload()

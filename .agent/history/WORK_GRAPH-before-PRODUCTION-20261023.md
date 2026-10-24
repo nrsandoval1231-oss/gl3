@@ -1,0 +1,5 @@
+# Regional pivot and ingestion stabilization work graph
+
+Owner directive and canonical PRD govern the current mission on feat/regional-stabilization-20261022, base0f876440a1375c502534cc1dd3c08ceff38c7349. The detailed frontier, packets, evidence and next direction were recorded for REGIONAL-20261022/GRAPH.md, which is not in this tree. [Current state](CURRENT_STATE.md) identifies active ownership and material UNKNOWNs. The prior customer-intelligence graph is preserved byte-for-byte in history/WORK_GRAPH-before-REGIONAL-20261022.md; its claims are historical, not acceptance of this candidate.
+
+R0-R4 implementation and bounded regression repairs are integrated. R5 controller gate passed132tests; final source replay, API/preservation/recovery and matched performance proofs are captured. Remaining frontier: final live-browser selector repair, exact-head full CI and fresh independent Sol review, then reviewable PR delivery. External publisher/document limitations remain visible. No merge/deploy. Production/parent launch acceptance remains open.

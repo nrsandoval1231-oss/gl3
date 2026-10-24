@@ -26,6 +26,7 @@ For an authorized future drill, retain the source dump read-only, verify its dig
 
 ## Current state and detailed guides
 
+- [Production intelligence implementation record](production-pipeline-20261023.md): October 23 repair candidate and remaining live-provider acceptance gates; no deployment authorization.
 - [Dated observation receipt](observations/2026-10-20-production-readonly.md): sanitized source files, SHA-256 digests and exact October 20 counts.
 - [Runtime configuration](runtime-configuration.md): settings defaults and what they control, verified against `backend/src/gridlens/settings.py`.
 - [Local runtime](local-runtime.md): clean-checkout loopback PostgreSQL, separate app/test databases, and local env loading.
