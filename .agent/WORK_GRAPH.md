@@ -1,18 +1,14 @@
-# Readiness audit work graph — 2026-10-24
+# Production hardening work graph — 2026-10-24
 
-The owner audit continues existing implementation; no new architecture or routine Tribunal. Prior graph archived unchanged at history/pre-readiness-audit-20261024-WORK_GRAPH.md. Canonical PRD, owner boundaries and Finish Contract govern.
+Build on accepted PR119/main `de1c7b0`; no hygiene re-audit, new architecture, or Tribunal.
 
-| Node | State at source freeze preparation | Evidence / dependency |
+| Node | State | Evidence / dependency |
 |---|---|---|
-| R1 repository / branch / deployment inventory | COMPLETE_BOUNDED | Fetched main fae481db; integrity0; all59 refs classified; read-only actual image/schema/runtime/scans |
-| R2 dependency repair | IMPLEMENTED_PENDING_FINAL_ACCEPTANCE | Four compatible brand pins, UTF8 repair, complete brand CI audit; initial independent FIX then bounded directory correction |
-| R3 RRC IPC repair | IMPLEMENTED_PENDING_FINAL_ACCEPTANCE | Generic8MiB preserved; exactRRC64MiB; Linux28 boundary tests; builder67 source/retained tests |
-| R4 container remediation | IMPLEMENTED_PENDING_FINAL_ACCEPTANCE | Separate Luna, Dockerfiles only; local image scans and runtime smoke; production untouched |
-| R5 final deterministic validation | DEPENDENT R2/R3/R4 | Exact frozen SHA, complete checks; skipped or missing !=pass |
-| R6 independent integrated review | DEPENDENT R5 | Sol exact candidate; blockers repaired and re-frozen before acceptance |
-| R7 GitHub gates / guarded merge | DEPENDENT R6 | Reviewed PR exact head, all3CIjobs success, main unchanged; no deployment |
-| R8 main verification / release record | DEPENDENT R7 | Verify remoteSHA, postmergeCI, protected paths, hygiene ledger; final evidence outside sourcefreeze |
+| H1 security residuals | INVESTIGATION_COMPLETE / RISK_OPEN | Historical 242-row matrix and fresh preliminary API/web/Postgres scans documented. Preliminary images are from `de1c7b0`, before H2 lease fix. Residual package/vendor risk and owner credential disposition remain open; exact-candidate scans pending. |
+| H2 DB/source reliability | IMPLEMENTED / FOCUSED_TESTS_PASS | Bounded lease-renewer `SKIP LOCKED` retry. Focused Postgres tests: 2 passed in 2.73s. Historical blocker identity and autovacuum conflict remain unknown; no speculative DB settings changes. |
+| H3 credential/corpus | BLOCKED_EXTERNAL_EVIDENCE | Owner says Google key ownership UNKNOWN; no GCP admin evidence. Alert remains open. Original 446-record export absent from targeted connected/local named-export searches; 578 corpus is not a substitute. |
+| H4 release/restore/rollback | LOCAL_PREP_AND_COMPOSE_PROOFS_PASS / HOST_INSTALL_NOT_DONE | `wrapper-staging-proof.json` is `PASS_OFFLINE_WRAPPER_PROVENANCE`; `compose-development-2-d33fb65/receipt.json` is `PASS_COMPOSE_CANARY` for d33fb65, with migrate/rebuild, API/web before worker/browse, then worker heartbeat/all-five-services, zero jobs/calls/budgets/business records, owned cleanup. Private companion not installed/executed. |
+| H5 exact validation/review | FINAL_DOC_SHA_GATES_AND_REVIEW_PENDING | d33fb65 local full gates PASS (backend 2,928/2 skipped; browser 197/1 skipped), 30 affected tests PASS, GH `40131919486` PASS (backend 2,929/1 skipped; browser 197/1 skipped). Results predate current docs. Revalidate and review final documentation-complete SHA; preliminary `de1c7b0` scans do not include H2. |
+| H6 release/merge record | GATE_A_NO_GO / GATE_B_INCOMPLETE / HOST_NO_GO | Gate A blocked by unresolved credential ownership/residual image risk and absent owner deployment authorization. Gate B remains open for original 446 corpus, M6 requirements, and Albuquerque `SENT_OUTCOME_UNKNOWN`. Host install, production execution/modification, and deployment require new owner deployment authorization. |
 
-23 verified merged remote branches removed; all25 unique-work branches, 8 ancestral refs with active/uncertain ownership, main and two initial openPRs retained at inventory checkpoint. No local branch/worktree cleanup. Later audit refs recorded separately.
-
-Next direction VALIDATE the integrated source and explanatory documentation. Parent production readiness, original446 QA, Albuquerque UNKNOWN, M6 five-chain/contradiction-pair and Finish Contract remain OPEN. No new source acquisition, provider spend or production mutation is authorized by a repository PASS.
+Controller owns builds, shared Docker/test DB, live read-only probes, and final integration. No production deployment, mutation, provider dispatch, Albuquerque retry, budget change, history rewrite, or uncertain cleanup.

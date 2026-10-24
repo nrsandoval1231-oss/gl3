@@ -1,0 +1,89 @@
+{
+  "packet": "H4-preparation",
+  "status": "builder_complete_local_checks_passed",
+  "repository": "GridLens",
+  "worktree": "gl3-hardening-20261024",
+  "branch": "release/production-hardening-20261024",
+  "base_sha": "de1c7b00aa6adde68f5c9fdb2553b249930a9d2f",
+  "changed_files": [
+    "scripts/rehearse_release.py",
+    "backend/tests/unit/test_release_rehearsal.py",
+    "docs/operations/hardening-release-plan-20261024.md",
+    ".agent/hardening-20261024/REHEARSAL_COMPLETION.json"
+  ],
+  "implementation": {
+    "local_only": true,
+    "docker_remote_endpoint_guard": "blocks DOCKER_HOST and active context unless unix:// or npipe://",
+    "postgres_image": "postgres:18.6 by default; optional --pg-image resolves and records Docker image ID",
+    "postgres_client_identity": "pg_isready and pg_restore run as container default OS user; --username gridlens selects the PostgreSQL role",
+    "required_source_schema": "0041_evidence_packages",
+    "candidate_migration": "upgrade head twice; schema and retained digests must remain stable",
+    "network": "new random Docker internal network; no external egress; no database host port",
+    "provider_and_automation_controls": "provider keys empty; automation disabled; call budgets zero",
+    "http_ports": "random ports bound to 127.0.0.1",
+    "retained_snapshot": "all catalog tables except named auth/browse/jobs/planner/heartbeat and Alembic metadata; row data is never written to receipts",
+    "logical_calls": "count and canonical hash receipts for logical_calls and logical_call_budgets",
+    "rollback": "prior API/web images read the same restored schema and compare retained snapshots",
+    "worker_browse": "module import smoke only; no worker dispatch or browse maintenance loop",
+    "cleanup": "only on full success, remove exact captured container IDs and exact captured network ID; failures retain resources and write private status receipt"
+  },
+  "validation": {
+    "focused_tests": {
+      "command": "uv run --project . --extra dev pytest tests/unit/test_release_rehearsal.py -q",
+      "exit_code": 0,
+      "result": "8 passed, including PostgreSQL client versus container OS-user command-shape regression"
+    },
+    "syntax": {
+      "command": "uv run --project . python -m py_compile ../scripts/rehearse_release.py tests/unit/test_release_rehearsal.py",
+      "exit_code": 0
+    },
+    "lint": {
+      "command": "uv run --project . --extra dev ruff check ../scripts/rehearse_release.py tests/unit/test_release_rehearsal.py",
+      "exit_code": 0,
+      "result": "All checks passed"
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "note": "Only line-ending warnings from controller-owned dirty CURRENT_STATE and WORK_GRAPH files."
+    },
+    "docker_rehearsal": "NOT_RUN by builder; controller owns Docker and shared artifacts"
+  },
+  "rehearsal_recovery": {
+    "attempt_1": "TERMINAL_BLOCKED: PostgreSQL readiness used nonexistent OS user gridlens; corrected by using pg_isready --username gridlens as container default OS user",
+    "attempt_2": "TERMINAL_BLOCKED: pg_restore stdin rejected trailing '-' filename; corrected by omitting filename and using --username gridlens",
+    "restore_diagnostics": "Only sanitized reason codes are emitted; raw pg_restore stderr is not included in receipts",
+    "next_runtime_attempt": "controller-owned new network and fresh database; no prior rehearsal database reused"
+  },
+  "operational_evidence": {
+    "verified_start_wrapper": "/etc/gridlens/start-gridlens.py",
+    "wrapper_sha256": "1cedfc857f6e29e818098f5fbd2e7ae3c691221467864779e350768b1dfd1920",
+    "wrapper_validate_only": "reported private setup present; no authentication or startup attempted",
+    "compose_path": "/etc/gridlens/compose.app.yaml",
+    "runtime_env_path": "/etc/gridlens/runtime.env",
+    "production_start_command_documented": "COMPOSE_PROFILES=saved-browse python3 /etc/gridlens/start-gridlens.py; not executed",
+    "source_dump_sha256": "99fe6e61f198d45ae3f4f489e7cbb6c3207a6211316438cfe996f636b3ab1fe7",
+    "source_dump_schema": "0041_evidence_packages",
+    "full_candidate_and_rollback_runtime_proof": "PENDING controller execution"
+  },
+  "authority": {
+    "production_mutation": "not performed",
+    "provider_dispatch": "not performed",
+    "push_merge_deploy": "not performed"
+  },
+  "metadata": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-10-24T20:16:37Z",
+    "planning_build_validation_audit_durations": "UNKNOWN",
+    "repair_count": "UNKNOWN",
+    "lane": "single builder",
+    "model_config_identity": "UNKNOWN",
+    "token_usage": "UNKNOWN",
+    "audit": "NOT_PERFORMED"
+  },
+  "acceptance": {
+    "independent_review": "pending",
+    "Docker rehearsal and prior-image rollback": "pending controller-owned execution",
+    "overall hardening acceptance": "open"
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "packet": "H2",
+  "base_sha": "de1c7b00aa6adde68f5c9fdb2553b249930a9d2f",
+  "disposition": "BOUNDED_LEASE_RENEWER_RETRY_FIX",
+  "changed_files": [
+    "backend/src/gridlens/ingestion/adapters/acquisition_runtime.py",
+    "backend/tests/integration/test_acquisition_runtime_bounds.py",
+    "docs/operations/hardening-runtime-20261024.md",
+    ".agent/hardening-20261024/RUNTIME_COMPLETION.json"
+  ],
+  "code_changes": [
+    "Use SKIP LOCKED in the fenced job lease renewer; retry a still-present job after a skipped locked row until the existing settlement deadline.",
+    "Add a Postgres integration test proving transient row-lock contention does not kill renewal and renewal still respects the settlement cap."
+  ],
+  "evidence": {
+    "readiness_artifact": "../gl3-readiness-20261024/.artifacts/readiness-20261024/production-runtime.json",
+    "readonly_artifacts": [
+      ".artifacts/hardening-20261024/production-readonly.json",
+      ".artifacts/hardening-20261024/production-readonly-detail.json"
+    ],
+    "row_lock_events": 53,
+    "autovacuum_cancellations": 24,
+    "timeout_events": {
+      "lock": 2,
+      "statement": 1
+    },
+    "current_connections": 11,
+    "max_connections": 100,
+    "current_blocked_sessions": 0,
+    "current_idle_in_transaction_sessions": 0,
+    "cumulative_deadlocks": 0,
+    "historical_blocker_identity": "UNKNOWN",
+    "job_nowait_event_correlation": "PARSER_ASSOCIATION_UNCONFIRMED",
+    "likely_owned_path": "FencedLeaseRenewer locks its own Job NOWAIT and previously stopped after any lock exception",
+    "ANALYZE_timeout_events": "2 lock-timeout and 1 statement-timeout attributed to ANALYZE browse_rows",
+    "ANALYZE_recovery": "Worker scoped refresh rolls back derived savepoint and keeps canonical writes pending; full rebuild leaves old generation selected",
+    "autovacuum_conflict_operation": "UNKNOWN"
+  },
+  "source_findings": {
+    "houston-weekly-permits": "publisher_stale: newest official weekly report older than 30 days; zero fetched/parsed",
+    "austin-building-permits": "PARTIAL: 1000 fetched and parsed, 13 accepted, bounded chain-job budget reached",
+    "texas-tceq-nsr-pending": "PARTIAL: 328 fetched, 327 parsed, 4 accepted; RecordLocalFailures",
+    "puct_oklahoma": "sampled PUCT and Oklahoma DEQ checks reported updated"
+  },
+  "validation": {
+    "commands_run": [
+      "cwd=backend; PYTHONPATH=C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-hardening-20261024\\backend\\src; ..\\..\\gl3-readiness-20261024\\backend\\.venv\\Scripts\\python.exe -m pytest -q tests/integration/test_acquisition_runtime_bounds.py::test_lease_renewer_resumes_after_transient_job_row_lock tests/integration/test_acquisition_runtime_bounds.py::test_lease_renewer_caps_extension_at_original_deadline_plus_grace (DATABASE_URL, TEST_DATABASE_URL, APP_PASSWORD_HASH, and SESSION_SECRET loaded process-locally; values not emitted)"
+    ],
+    "exit_codes": [0],
+    "tests_run": [
+      {
+        "name": "test_lease_renewer_resumes_after_transient_job_row_lock",
+        "result": "PASSED"
+      },
+      {
+        "name": "test_lease_renewer_caps_extension_at_original_deadline_plus_grace",
+        "result": "PASSED"
+      }
+    ],
+    "result": "2 passed in 2.73 seconds",
+    "setup_attempts": [
+      "Initial invocation stopped during settings collection because required non-secret APP_PASSWORD_HASH and SESSION_SECRET fields were not yet loaded; no tests or database operations ran.",
+      "Second invocation stopped at the unchanged test database name guard because the initially supplied DB name lacked the required _test suffix; no tests or database operations ran. Controller supplied a fresh correctly named isolated test database for the passing run."
+    ],
+    "reason": "Focused Postgres validation passed; full combined validation is controller-owned"
+  },
+  "live_operations": "NOT_PERFORMED",
+  "merge_push_deploy": "NOT_PERFORMED",
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "UNKNOWN",
+    "duration": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "independent_review": "PENDING_CONTROLLER"
+}
