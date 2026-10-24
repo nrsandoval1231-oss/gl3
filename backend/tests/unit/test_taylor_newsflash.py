@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from pathlib import Path
 
@@ -15,6 +16,12 @@ from gridlens.ingestion.adapters.taylor_newsflash import (
 from gridlens.ingestion.registry import load_registry
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+
+
+def test_public_taylor_fixtures_do_not_reintroduce_google_api_keys():
+    google_api_key = re.compile(rb"AIza[0-9A-Za-z_-]{20,}")
+    for name in ("taylor-newsflash-2032.html", "taylor-newsflash-1839-3427.html"):
+        assert google_api_key.search((FIXTURES / name).read_bytes()) is None
 
 
 def test_archived_revision_identity_and_category_are_retained():
