@@ -253,6 +253,87 @@ test('unresolved customer project failures remain visible and retry successfully
   expect(attempts).toBeGreaterThanOrEqual(2)
 })
 
+test('account project page is deep-linked and restored through reload, Back, and Forward', async ({ page }) => {
+  const projectQueries: number[] = []
+  const projects = Array.from({ length: 26 }, (_, index) => ({
+    id: `project-${index + 1}`, name: `Project ${String(index + 1).padStart(2, '0')}`, location: 'Austin, TX', customer_role: 'Owner',
+    need_count: 1, need_next_offset: null, needs: [{ id: `need-${index + 1}`, project_id: `project-${index + 1}`, tier: 'Signal', activity_key: 'construction', required_mw: null, start_window: null, duration: null, supply: 'Unknown' }],
+  }))
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams) })
+    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
+    if (url.pathname === '/api/customer-accounts/company-1/projects') {
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      projectQueries.push(offset)
+      return route.fulfill({ json: { account: { company_identity_id: 'company-1', name: 'Northstar Compute', project_count: 26, need_count: 26 }, items: projects.slice(offset, offset + 25), total: 26, limit: 25, offset, next_offset: offset + 25 < 26 ? 25 : null } })
+    }
+    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
+    return route.fulfill({ json: [] })
+  })
+
+  await page.goto('/?view=workspace&account=company-1&accountBrowse=1')
+  await expect(page.getByRole('heading', { name: 'Project 01' })).toBeVisible()
+  const pager = page.getByRole('navigation', { name: 'Account project pages' })
+  await pager.getByRole('button', { name: 'Next' }).click()
+  await expect(page).toHaveURL(/project_offset=25/)
+  await expect(page.getByRole('heading', { name: 'Project 26' })).toBeVisible()
+  await page.getByRole('button', { name: 'Project 26' }).click()
+  await expect(page).toHaveURL(/project=project-26/)
+  await expect(page).toHaveURL(/project_offset=25/)
+  await expect(page.getByRole('button', { name: 'Project 26' })).toHaveAttribute('aria-pressed', 'true')
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Project 26' })).toHaveAttribute('aria-pressed', 'true')
+  expect(projectQueries.at(-1)).toBe(25)
+  await page.goBack()
+  await expect(page).not.toHaveURL(/project=/)
+  await expect(page).toHaveURL(/project_offset=25/)
+  await expect(page.getByRole('heading', { name: 'Project 26' })).toBeVisible()
+  await page.goForward()
+  await expect(page).toHaveURL(/project=project-26/)
+  await expect(page.getByRole('button', { name: 'Project 26' })).toHaveAttribute('aria-pressed', 'true')
+  await page.goBack()
+  await page.goBack()
+  await expect(page).not.toHaveURL(/project_offset=/)
+  await expect(page.getByRole('heading', { name: 'Project 01' })).toBeVisible()
+})
+
+test('unresolved pagination resets on search and ignores the previous search response', async ({ page }) => {
+  const unresolvedQueries: Array<{ search: string; offset: number }> = []
+  let releaseOldPage: (() => void) | undefined
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams, []) })
+    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
+    if (url.pathname === '/api/customer-accounts/unresolved') {
+      const search = url.searchParams.get('search') ?? '', offset = Number(url.searchParams.get('offset') ?? 0)
+      unresolvedQueries.push({ search, offset })
+      if (!search && offset === 25) {
+        await new Promise<void>(resolve => { releaseOldPage = resolve })
+        try { return await route.fulfill({ json: { items: [{ project_id: 'old-page', project_name: 'Old search page', location: null, organization: 'Old Organization', role: 'Unknown', reason: 'Stale result.' }], total: 26, limit: 25, offset } }) } catch { return }
+      }
+      const items = search ? [{ project_id: 'narrow-result', project_name: 'Narrow result', location: null, organization: 'Narrow Organization', role: 'Unknown', reason: 'Current search.' }] : [{ project_id: 'first-page', project_name: 'First search page', location: null, organization: 'First Organization', role: 'Unknown', reason: 'Initial result.' }]
+      return route.fulfill({ json: { items, total: search ? 1 : 26, limit: 25, offset } })
+    }
+    return route.fulfill({ json: [] })
+  })
+
+  await page.goto('/?view=workspace')
+  await page.locator('.ci-unresolved summary').click()
+  await expect(page.locator('.ci-unresolved')).toContainText('First search page')
+  await page.locator('.ci-unresolved').getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => unresolvedQueries.some(query => query.search === '' && query.offset === 25)).toBe(true)
+  await page.getByLabel('Search workspace').fill('Narrow')
+  await expect.poll(() => unresolvedQueries.some(query => query.search === 'Narrow' && query.offset === 0)).toBe(true)
+  await expect(page.locator('.ci-unresolved')).toContainText('Narrow result')
+  releaseOldPage?.()
+  await expect(page.locator('.ci-unresolved')).toContainText('Narrow result')
+  await expect(page.locator('.ci-unresolved')).not.toContainText('Old search page')
+  await expect(page.locator('.ci-unresolved')).toContainText('1\u20131 of 1')
+})
+
 for (const scenario of [
   { label: 'mismatched account identity', association: { company_identity_id: 'company-2', name: 'Different Operator', role: 'asset_operator', basis: 'Current retained operator evidence.', support_status: 'current', evidence_refs: [] }, notice: 'Current evidence associates this need with Different Operator.' },
   { label: 'retracted account identity', association: null, notice: 'current evidence does not support an account association' },

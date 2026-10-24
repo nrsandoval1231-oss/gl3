@@ -1,14 +1,16 @@
-# Production hardening work graph — 2026-10-24
+# Audit completion work graph — October 24, 2026
 
-Build on accepted PR119/main `de1c7b0`; no hygiene re-audit, new architecture, or Tribunal.
+The previous hardening graph is archived unchanged in `archive/COMPLETION-20261024/WORK_GRAPH.md`. PR120 is merged into base `223849b`. Owner authorization covers this bounded repair, reviewed merge and controlled release; no provider spending or access expansion.
 
-| Node | State | Evidence / dependency |
+| Node | Required outcome | Acceptance dependency |
 |---|---|---|
-| H1 security residuals | INVESTIGATION_COMPLETE / RISK_OPEN | Historical 242-row matrix and fresh preliminary API/web/Postgres scans documented. Preliminary images are from `de1c7b0`, before H2 lease fix. Residual package/vendor risk and owner credential disposition remain open; exact-candidate scans pending. |
-| H2 DB/source reliability | IMPLEMENTED / FOCUSED_TESTS_PASS | Bounded lease-renewer `SKIP LOCKED` retry. Focused Postgres tests: 2 passed in 2.73s. Historical blocker identity and autovacuum conflict remain unknown; no speculative DB settings changes. |
-| H3 credential/corpus | BLOCKED_EXTERNAL_EVIDENCE | Owner says Google key ownership UNKNOWN; no GCP admin evidence. Alert remains open. Original 446-record export absent from targeted connected/local named-export searches; 578 corpus is not a substitute. |
-| H4 release/restore/rollback | LOCAL_PREP_AND_COMPOSE_PROOFS_PASS / HOST_INSTALL_NOT_DONE | `wrapper-staging-proof.json` is `PASS_OFFLINE_WRAPPER_PROVENANCE`; `compose-development-2-d33fb65/receipt.json` is `PASS_COMPOSE_CANARY` for d33fb65, with migrate/rebuild, API/web before worker/browse, then worker heartbeat/all-five-services, zero jobs/calls/budgets/business records, owned cleanup. Private companion not installed/executed. |
-| H5 exact validation/review | FINAL_DOC_SHA_GATES_AND_REVIEW_PENDING | d33fb65 local full gates PASS (backend 2,928/2 skipped; browser 197/1 skipped), 30 affected tests PASS, GH `40131919486` PASS (backend 2,929/1 skipped; browser 197/1 skipped). Results predate current docs. Revalidate and review final documentation-complete SHA; preliminary `de1c7b0` scans do not include H2. |
-| H6 release/merge record | GATE_A_NO_GO / GATE_B_INCOMPLETE / HOST_NO_GO | Gate A blocked by unresolved credential ownership/residual image risk and absent owner deployment authorization. Gate B remains open for original 446 corpus, M6 requirements, and Albuquerque `SENT_OUTCOME_UNKNOWN`. Host install, production execution/modification, and deployment require new owner deployment authorization. |
+| A accounts | Filter/total parity; dirty customer projections and account support metadata | Focused PostgreSQL cases and combined final suite |
+| B intelligence presentation | Evidence-bound industry; compact default content and explicit bounded full-source loading | Source retraction/conflict and payload/browser regressions |
+| C assessment | Accepted source claims in context/freshness; filter history before limit | Deterministic no-provider integration tests |
+| D navigation | Project page restoration; unresolved search cohort reset | Desktop/mobile history and delayed-response tests |
+| E sources | Repair verified code causes; retain truthful external/policy failures | Sanitized rejection evidence and existing bounded adapter tests |
+| F identity/docs | Exact attributed reversible mappings; current authority pointers | Dry-run/apply/replay/rollback regressions, no fuzzy merging |
+| G candidate | Frozen source/docs, local full gates, independent Sol verdict | Candidate manifest and exact PR head; no Actions |
+| H release | Reviewed merge, verified recovery checkpoint, immutable images and live acceptance | Current host preflight, guarded canary/rollback, final PR inventory |
 
-Controller owns builds, shared Docker/test DB, live read-only probes, and final integration. No production deployment, mutation, provider dispatch, Albuquerque retry, budget change, history rewrite, or uncertain cleanup.
+Controller serializes integration and owns production. Final receipts record actual node outcomes; these requirements do not assert unexecuted tests, deployment or full commercial acceptance.

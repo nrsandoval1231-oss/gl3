@@ -183,7 +183,8 @@ def account_browse_page(
                  ) best_rank
           FROM browse_customer_memberships m
           JOIN browse_rows r ON r.generation_id=m.generation_id AND r.project_id=m.project_id
-          WHERE m.generation_id=:generation AND ({base}) AND ({need_or_account_search})
+          WHERE m.generation_id=:generation AND ({filtered_without_search})
+            AND ({need_or_account_search})
         ), aggregate_matching AS (
           SELECT company_identity_id, min(organization_name) account_name,
                  count(DISTINCT project_id) matching_project_count,
@@ -971,8 +972,16 @@ def associated_accounts_for_projects(
     return result
 
 
-def _current_role_claims(session: Session, *, include_noncustomer: bool = False):
-    all_claims = session.scalars(select(BuyingChainClaim)).all()
+def _current_role_claims(
+    session: Session,
+    *,
+    include_noncustomer: bool = False,
+    project_ids: set[UUID] | None = None,
+):
+    claims_query = select(BuyingChainClaim)
+    if project_ids is not None:
+        claims_query = claims_query.where(BuyingChainClaim.project_id.in_(project_ids))
+    all_claims = session.scalars(claims_query).all()
     candidates = [
         claim for claim in all_claims if include_noncustomer or claim.category in CUSTOMER_ROLES
     ]

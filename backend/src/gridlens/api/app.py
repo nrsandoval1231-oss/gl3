@@ -45,7 +45,7 @@ from gridlens.domain.commercial_triage import (
 )
 from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
 from gridlens.domain.lifecycle import is_industrial_asset_type
-from gridlens.domain.opportunity_intelligence import IntelligenceCard
+from gridlens.domain.opportunity_intelligence import IntelligenceCard, compact_source_excerpt
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
     AutonomousResearchOut,
@@ -174,6 +174,16 @@ class EvidenceOut(BaseModel):
     source_origin: str = "Source evidence"
     assessment_current: bool = False
     permit_status: str | None = None
+
+
+class EvidenceContentOut(BaseModel):
+    evidence_id: UUID
+    content_hash: str
+    source_url: str
+    offset: int
+    total_chars: int
+    content: str
+    next_offset: int | None
 
 
 class LifecycleEventOut(BaseModel):
@@ -3124,6 +3134,7 @@ def opportunity_need_detail(
             attach_cards(session, details, chains)
             if not details:
                 raise HTTPException(404, "Opportunity not found")
+            _compact_detail_evidence(details[0])
             detail = _bounded_opportunity_payload(details)[0]
             if summary:
                 for key in ("priority_segment", "priority_label", "workflow_status"):
@@ -3196,11 +3207,48 @@ def opportunity_need_detail(
         attach_cards(session, items, chains)
         if not items:
             raise HTTPException(404, "Opportunity not found")
+        _compact_detail_evidence(items[0])
         detail = _bounded_opportunity_payload(items)[0]
         detail["priority_segment"] = _opportunity_priority_segment(summary)
         detail["priority_label"] = _opportunity_priority_label(summary)
         detail["workflow_status"] = summary.get("workflow_status", "UNKNOWN")
         return detail
+
+
+def _compact_detail_evidence(detail: dict[str, Any]) -> None:
+    """Compact default source abstracts while leaving raw records addressable by ID."""
+    for evidence in detail.get("evidence", []):
+        evidence["abstract"] = compact_source_excerpt(evidence.get("abstract"))
+
+
+@app.get(
+    "/api/evidence/{evidence_id}/content",
+    response_model=EvidenceContentOut,
+    dependencies=[Depends(require_session)],
+)
+def evidence_content(
+    evidence_id: UUID,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=4096)] = 4096,
+):
+    """Return one bounded chunk of retained raw evidence on explicit request."""
+    with SessionLocal() as session:
+        evidence = session.get(Evidence, evidence_id)
+        if evidence is None:
+            raise HTTPException(404, "Evidence not found")
+        content = evidence.abstract or ""
+        if offset > len(content):
+            raise HTTPException(416, "Evidence content offset is past the end of the record")
+        end = min(offset + limit, len(content))
+        return {
+            "evidence_id": evidence.id,
+            "content_hash": evidence.content_hash,
+            "source_url": evidence.url,
+            "offset": offset,
+            "total_chars": len(content),
+            "content": content[offset:end],
+            "next_offset": end if end < len(content) else None,
+        }
 
 
 def _csv_cell(value: Any) -> str:

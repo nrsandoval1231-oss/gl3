@@ -1,3 +1,5 @@
+from copy import copy
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -7,6 +9,7 @@ from gridlens.domain.lifecycle import (
     estimate_first_production,
     lifecycle_rank,
 )
+from gridlens.ingestion.adapters.project_asset_classification import classify_project_asset
 from gridlens.ingestion.adapters.retained_permits import (
     reported_permit_event_type,
     requires_achieved_lifecycle_milestone,
@@ -18,6 +21,7 @@ from gridlens.persistence.models import (
     Observation,
     Project,
     ProjectLifecycle,
+    ProjectMatchDecision,
 )
 
 
@@ -254,6 +258,122 @@ def _supported_event_date(evidence: Evidence, event_type: str):
     )
 
 
+def _current_project_asset_types(session: Session, project: Project) -> set[str]:
+    """Read explicit asset classifications from currently accepted, linked evidence."""
+    linked = session.scalars(
+        select(ProjectMatchDecision).where(
+            ProjectMatchDecision.candidate_project_id == project.id,
+            ProjectMatchDecision.decision == "matched",
+            ProjectMatchDecision.evidence_id.is_not(None),
+        )
+    ).all()
+    observation_ids = {row.observation_id for row in linked}
+    if not observation_ids:
+        return set()
+    decisions = session.scalars(
+        select(ProjectMatchDecision)
+        .where(ProjectMatchDecision.observation_id.in_(observation_ids))
+        .order_by(ProjectMatchDecision.decided_at, ProjectMatchDecision.id)
+    ).all()
+    latest: dict[tuple[object, object], ProjectMatchDecision] = {}
+    for decision in decisions:
+        if decision.evidence_id is not None:
+            latest[(decision.observation_id, decision.evidence_id)] = decision
+
+    asset_types: set[str] = set()
+    for decision in latest.values():
+        if decision.candidate_project_id != project.id or decision.decision != "matched":
+            continue
+        evidence = session.get(Evidence, decision.evidence_id)
+        observation = session.get(Observation, decision.observation_id)
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == decision.observation_id)
+        )
+        assessment = interpretation.assessment if interpretation else None
+        if (
+            evidence is None
+            or observation is None
+            or interpretation is None
+            or not assessment
+            or evidence.observation_id != observation.id
+            or observation.content_hash != interpretation.content_hash
+            or evidence.content_hash != assessment.get("evidence_hash")
+            or observation.content_hash != assessment.get("semantic_hash")
+            or assessment.get("project_identity_key") != project.identity_key
+            or not _assessment_evidence_id_matches(assessment, evidence)
+            or not (
+                interpretation.status == "accepted"
+                or (
+                    interpretation.status in {"failed", "pending"}
+                    and assessment.get("decision") == "accepted"
+                )
+            )
+        ):
+            continue
+        asset_type = classify_project_asset(
+            observation.source_id, evidence.title, evidence.abstract
+        )
+        if asset_type:
+            asset_types.add(asset_type)
+    return asset_types
+
+
+def refresh_project_asset_type(
+    session: Session, project: Project, *, events: list[LifecycleEvent] | None = None
+) -> tuple[str, str]:
+    """Recompute only the project's industry field from current accepted evidence.
+
+    Safe for bounded existing-record correction: it changes no lifecycle, need,
+    qualification, date, MW, or workflow fields and performs no writes itself.
+    Callers can inspect the returned before/after values and commit or roll back.
+    """
+    current_events = events
+    if current_events is None:
+        current_events = session.scalars(
+            select(LifecycleEvent).where(LifecycleEvent.project_id == project.id)
+        ).all()
+    asset_types = _current_project_asset_types(session, project)
+    for event in current_events:
+        evidence = session.get(Evidence, event.evidence_id)
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == event.observation_id)
+        )
+        candidate = copy(project)
+        candidate.asset_type = "unknown"
+        if (
+            not lifecycle_event_supported(
+                event.event_type, evidence, interpretation, candidate, event.state, event=event
+            )
+            or evidence is None
+        ):
+            continue
+        observation = session.get(Observation, event.observation_id)
+        if observation is None:
+            continue
+        classification = classify_event(
+            "Drilling permit"
+            if observation.source_id == "texas-rrc-drilling-permits"
+            else evidence.title,
+            None if observation.source_id == "texas-rrc-drilling-permits" else evidence.abstract,
+            project_name=project.name,
+            project_identity_key=project.identity_key,
+            project_asset_type="unknown",
+            reported_permit_event=reported_permit_event_type(
+                observation.source_id,
+                evidence.title,
+                evidence.abstract,
+                evidence.event_date,
+                evidence.event_date_label,
+            ),
+            require_achieved_milestone=requires_achieved_lifecycle_milestone(observation.source_id),
+        )
+        if classification is not None and classification.event_type == event.event_type:
+            asset_types.add(classification.asset_type.value)
+    before = project.asset_type
+    project.asset_type = next(iter(asset_types)) if len(asset_types) == 1 else "unknown"
+    return before, project.asset_type
+
+
 def _rebuild_projection(session: Session, project: Project) -> None:
     # A correction supersedes only that observation's earlier interpretation.
     events = session.scalars(
@@ -267,6 +387,7 @@ def _rebuild_projection(session: Session, project: Project) -> None:
             LifecycleEvent.id,
         )
     ).all()
+    refresh_project_asset_type(session, project, events=events)
     accepted_events = []
     for event in events:
         interpretation = session.scalar(
@@ -287,7 +408,6 @@ def _rebuild_projection(session: Session, project: Project) -> None:
     if not current:
         if projection is not None:
             session.delete(projection)
-        project.asset_type = "unknown"
         return
     withdrawal_events = [
         item for item in current if item.event_type == "planning_application_withdrawn"

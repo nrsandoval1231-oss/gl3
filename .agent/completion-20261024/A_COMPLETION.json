@@ -1,0 +1,65 @@
+{
+  "packet": "A",
+  "status": "implemented_and_focused_validations_passed",
+  "finished_utc": "2026-10-24 21:54 UTC",
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "build_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "token_usage": "UNKNOWN"
+  },
+  "changes": [
+    {
+      "path": "backend/src/gridlens/intelligence/customer_accounts.py",
+      "details": "Account browse rows and matching totals now use the full selected disposition predicate. Disposition chip counts remain based on the broader matching cohort. Current role-claim reads can be scoped to dirty projects."
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/saved_browse.py",
+      "details": "Incremental generations copy customer membership and unresolved rows only for untouched projects. Dirty-project customer membership and unresolved projections are rebuilt in the same transaction as need rows and publication. Affected identities have current evidence count and latest evidence time recomputed across current claims and propagated to their copied memberships."
+    },
+    {
+      "path": "backend/tests/integration/test_customer_accounts.py",
+      "details": "The account browse regression covers ACTION NOW, RESEARCH, WATCH, and REJECT selection, confirms rows and account totals agree, and checks that disposition chip counts retain the broader cohort semantics."
+    },
+    {
+      "path": "backend/tests/integration/test_saved_browse.py",
+      "details": "The incremental projection regression simulates a shared identity on dirty and untouched projects, reassigns the dirty project, verifies the untouched membership's evidence count and latest timestamp are refreshed, and compares incremental memberships and unresolved rows with a full rebuild."
+    }
+  ],
+  "validation": [
+    {
+      "command": "Focused controller pytest: account browse, existing incremental atomicity, and incremental customer projection parity node IDs",
+      "result": "PASS: initial three-node run exited 0 in 5.08 seconds; after expanding cross-project support propagation, the updated projection node exited 0 (test 2.17 seconds, runner 3.08 seconds)."
+    },
+    {
+      "command": "Focused Ruff check on both implementation and both test files",
+      "result": "PASS"
+    },
+    {
+      "command": "Focused Ruff format check on both implementation and both test files",
+      "result": "PASS"
+    },
+    {
+      "command": "Focused mypy on customer_accounts.py and saved_browse.py",
+      "result": "PASS (19.78 seconds)"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "controls": {
+    "database": "Controller-provided disposable completion_a_test on 127.0.0.1:55459",
+    "provider_calls": 0,
+    "production_database_queries": 0,
+    "schema_or_migration_changes": 0,
+    "identity_merges": 0,
+    "broad_test_suites": 0,
+    "git_commits_or_pushes": 0
+  },
+  "risks_and_limits": [
+    "The incremental projection test uses synthetic current-claim helper outputs to exercise membership reassignment and support-metadata parity; it does not exercise the full source claim admission or identity-link reconciliation pipeline.",
+    "Incremental publication remains bounded by the existing dirty-project and need limits; recomputing account-level support for an affected identity reads that identity's current claims across projects.",
+    "An initial worker database attempt was blocked by loopback sandbox policy. The controller reran the exact focused tests through approved isolated execution; those final results passed."
+  ]
+}

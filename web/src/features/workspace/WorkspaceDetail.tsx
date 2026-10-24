@@ -43,6 +43,7 @@ function associatedAccountBasisLabel(basis: string) {
 export function WorkspaceDetail({ item, pending, loading, error, tab, associationNotice, onTab, onBack, onRetry, onReadback, onTitleReady, correctionNotice }: Props) {
   const [shareState, setShareState] = useState('')
   const [sourceFilter, setSourceFilter] = useState('All sources')
+  const [deepEvidence, setDeepEvidence] = useState<Record<string, { content: string; total: number; next: number | null; loading: boolean; error: string }>>({})
   const [brief, setBrief] = useState<Brief | null>(null)
   const [briefBusy, setBriefBusy] = useState(false)
   const [briefError, setBriefError] = useState('')
@@ -61,6 +62,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
   useEffect(() => { onTitleReadyRef.current = onTitleReady }, [onTitleReady])
   useEffect(() => { setShareState('') }, [item?.id])
   useEffect(() => { setSourceFilter('All sources') }, [item?.id])
+  useEffect(() => { setDeepEvidence({}) }, [item?.id])
   useEffect(() => {
     const id = item?.id
     const sequence = ++briefRequestSequence.current
@@ -208,6 +210,42 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
       if (briefRequestSequence.current === sequence && activeBriefNeedId.current === id) setBriefError(cause instanceof Error ? cause.message : 'GridLens could not request a brief.')
     } finally { if (briefRequestSequence.current === sequence && activeBriefNeedId.current === id) setBriefBusy(false) }
   }
+  async function loadEvidenceContent(sourceId: string) {
+    const current = deepEvidence[sourceId]
+    if (current?.loading || (current && current.next === null)) return
+    const offset = current?.next ?? 0
+    setDeepEvidence(previous => ({
+      ...previous,
+      [sourceId]: { content: current?.content ?? '', total: current?.total ?? 0, next: offset, loading: true, error: '' },
+    }))
+    try {
+      const page = await client.evidenceContent(sourceId, offset, 4096)
+      setDeepEvidence(previous => {
+        const prior = previous[sourceId]
+        return {
+          ...previous,
+          [sourceId]: {
+            content: (prior?.content ?? '') + page.content,
+            total: page.total_chars,
+            next: page.next_offset,
+            loading: false,
+            error: '',
+          },
+        }
+      })
+    } catch (cause) {
+      setDeepEvidence(previous => ({
+        ...previous,
+        [sourceId]: {
+          content: current?.content ?? '',
+          total: current?.total ?? 0,
+          next: offset,
+          loading: false,
+          error: cause instanceof Error ? cause.message : 'Full source content could not be loaded.',
+        },
+      }))
+    }
+  }
   const briefContent = brief?.result as { event_summary?: { text: string; evidence_id: string }[]; commercial_hypothesis?: { text: string; evidence_id: string }; unknowns?: string[]; next_step?: string } | null
   const briefStatements = [...(briefContent?.event_summary ?? []), ...(briefContent?.commercial_hypothesis ? [briefContent.commercial_hypothesis] : [])]
   const supportedGap = qualifiedGap(item.qualified_remaining_gap)
@@ -309,7 +347,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
         <header className="wh-evidence-heading"><div><h2>Evidence &amp; Sources</h2><p>Retained records: {evidence.length} · Intelligence citations: {cardEvidence.length}. Citations may refer to records listed here.</p></div><label>Filter sources <select aria-label="Filter evidence sources" value={sourceFilter} onChange={event => setSourceFilter(event.target.value)}><option value="All sources">All sources</option>{sourceFilters.map(filter => <option key={filter} value={filter}>{filter}</option>)}</select></label></header>
         {evidence.length === 0 && <p>No retained evidence is attached to this opportunity.</p>}
         {evidence.length > 0 && <table className="wh-evidence-table"><thead><tr><th>Date</th><th>Source</th><th>Title</th><th>Key insight</th><th>Type</th></tr></thead><tbody>{visibleEvidence.map(source => <tr key={`${source.source_id}-${source.document_number}-${source.content_hash}`}>
-          <td>{source.event_date ?? 'Date unknown'}</td><td>{source.source_id}</td><td><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a><details><summary>Source record</summary><p>{source.document_number ?? 'Document number unknown'} · {source.event_date_label}: {source.event_date ?? 'Unknown'}</p><p>{source.published_at ? `Published ${source.published_at}` : 'Publication date unknown'} · Retrieved {new Date(source.retrieved_at).toLocaleString()}</p><p>{source.assessment_current ? 'Current assessment evidence' : 'Historical evidence version'} · {source.extraction_location} · {source.content_hash}</p>{source.permit_status && <p>Permit status: {source.permit_status}</p>}</details></td><td>{source.abstract ?? 'No source abstract.'}</td><td>{source.source_origin}</td>
+          <td>{source.event_date ?? 'Date unknown'}</td><td>{source.source_id}</td><td><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a><details><summary>Source record</summary><p>{source.document_number ?? 'Document number unknown'} · {source.event_date_label}: {source.event_date ?? 'Unknown'}</p><p>{source.published_at ? `Published ${source.published_at}` : 'Publication date unknown'} · Retrieved {new Date(source.retrieved_at).toLocaleString()}</p><p>{source.assessment_current ? 'Current assessment evidence' : 'Historical evidence version'} · {source.extraction_location} · {source.content_hash}</p>{source.permit_status && <p>Permit status: {source.permit_status}</p>}</details></td><td>{source.abstract ?? 'No source abstract.'}<button type="button" className="wh-evidence-load" onClick={() => void loadEvidenceContent(source.id)} disabled={Boolean(deepEvidence[source.id]?.loading || (deepEvidence[source.id] && deepEvidence[source.id].next === null))}>{deepEvidence[source.id]?.loading ? 'Loading full source…' : deepEvidence[source.id]?.content ? (deepEvidence[source.id].next === null ? 'Full source loaded' : 'Load next section') : deepEvidence[source.id]?.error ? 'Retry full source' : 'Load full source'}</button>{deepEvidence[source.id]?.error && <p role="alert">{deepEvidence[source.id].error}</p>}{deepEvidence[source.id]?.content && <details open><summary>Retained source text · {deepEvidence[source.id].content.length} of {deepEvidence[source.id].total} characters</summary><pre className="wh-evidence-raw">{deepEvidence[source.id].content}</pre></details>}</td><td>{source.source_origin}</td>
         </tr>)}</tbody></table>}
         {visibleCardEvidence.length > 0 && <section className="wh-card-sources" aria-label="Intelligence card sources">{visibleCardEvidence.map(source => <article key={source.reference}><strong>{source.title}</strong><p>{source.reference} · {source.source_date ?? 'Source date unavailable'} · {source.verification_status} · {source.extraction_method}</p>{source.passage && <blockquote>{source.passage}</blockquote>}{source.url && <a href={source.url} target="_blank" rel="noreferrer">Open retained source</a>}</article>)}</section>}
       </div>}

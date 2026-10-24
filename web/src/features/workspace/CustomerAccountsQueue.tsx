@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { client, type WorkspaceNeed, type WorkspacePage, type WorkspaceFilters, type CustomerProjectsPage, type CustomerAccount, type UnresolvedCustomerProjectsPage } from '../../api/client'
 
 const expandedAccount = () => { const p = new URLSearchParams(location.search); return p.has('need') && !p.has('accountBrowse') ? '' : p.get('account') ?? '' }
+const routeOffset = (key: string) => { const value = Number(new URLSearchParams(location.search).get(key) ?? 0); return Number.isSafeInteger(value) && value >= 0 ? value : 0 }
 
 type AccountRow = WorkspaceNeed & { company_identity_id: string }
 const displayAliases = (name: string | null | undefined, aliases: string[] | undefined) => (aliases ?? []).filter(alias => alias.trim() && alias.trim().toLocaleLowerCase() !== (name ?? '').trim().toLocaleLowerCase())
@@ -17,11 +18,13 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
   const accounts = rows.filter((row): row is AccountRow => Boolean(row.company_identity_id))
   const [accountId, setAccountId] = useState(expandedAccount)
   const [projectId, setProjectId] = useState(() => new URLSearchParams(location.search).get('project') ?? '')
-  const [projectOffset, setProjectOffset] = useState(0)
+  const [projectOffset, setProjectOffset] = useState(() => routeOffset('project_offset'))
   const [needOffset, setNeedOffset] = useState(() => Number(new URLSearchParams(location.search).get('need_offset') ?? 0) || 0)
   const [projects, setProjects] = useState<CustomerProjectsPage | null>(null)
   const [unresolved, setUnresolved] = useState<UnresolvedCustomerProjectsPage | null>(null)
-  const [unresolvedOffset, setUnresolvedOffset] = useState(0)
+  const search = filters.search ?? ''
+  const [unresolvedPage, setUnresolvedPage] = useState(() => ({ search, offset: 0 }))
+  const unresolvedOffset = unresolvedPage.search === search ? unresolvedPage.offset : 0
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
   const [unresolvedOpen, setUnresolvedOpen] = useState(false)
@@ -30,12 +33,12 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
   const accountParam = expandedAccount()
 
   useEffect(() => {
-    const sync = () => { const params = new URLSearchParams(location.search); setAccountId(expandedAccount()); setProjectId(params.get('project') ?? ''); setProjectOffset(0); setNeedOffset(Number(params.get('need_offset') ?? 0) || 0) }
+    const sync = () => { const params = new URLSearchParams(location.search); setAccountId(expandedAccount()); setProjectId(params.get('project') ?? ''); setProjectOffset(routeOffset('project_offset')); setNeedOffset(Number(params.get('need_offset') ?? 0) || 0) }
     addEventListener('popstate', sync)
     return () => removeEventListener('popstate', sync)
   }, [])
   useEffect(() => {
-    if (accountId !== accountParam) { const params = new URLSearchParams(location.search); setAccountId(accountParam); setProjectOffset(0); setProjectId(params.get('project') ?? ''); setNeedOffset(Number(params.get('need_offset') ?? 0) || 0) }
+    if (accountId !== accountParam) { const params = new URLSearchParams(location.search); setAccountId(accountParam); setProjectOffset(routeOffset('project_offset')); setProjectId(params.get('project') ?? ''); setNeedOffset(Number(params.get('need_offset') ?? 0) || 0) }
   }, [accountParam, accountId])
   useEffect(() => {
     const controller = new AbortController()
@@ -50,15 +53,15 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
     const sequence = ++unresolvedRequest.current
     client.unresolvedCustomerProjects(filters.search ?? '', unresolvedOffset, controller.signal).then(value => { if (!controller.signal.aborted && sequence === unresolvedRequest.current) setUnresolved(value) }).catch(() => { if (!controller.signal.aborted && sequence === unresolvedRequest.current) setUnresolved(null) })
     return () => controller.abort()
-  }, [filters.search, unresolvedOffset, retry])
+  }, [search, unresolvedOffset, retry])
 
   const openAccount = (id: string) => {
-    const params = new URLSearchParams(location.search); params.set('account', id); params.set('accountBrowse', '1'); params.delete('project')
+    const params = new URLSearchParams(location.search); params.set('account', id); params.set('accountBrowse', '1'); params.delete('project'); params.delete('project_offset')
     history.pushState(history.state, '', `${location.pathname}?${params}`)
     setProjectOffset(0); setNeedOffset(0); setAccountId(id); setProjectId('')
   }
   const closeAccount = () => {
-    const params = new URLSearchParams(location.search); params.delete('account'); params.delete('project'); params.delete('accountBrowse')
+    const params = new URLSearchParams(location.search); params.delete('account'); params.delete('project'); params.delete('project_offset'); params.delete('accountBrowse')
     history.pushState(history.state, '', `${location.pathname}${params.size ? `?${params}` : ''}`)
     setAccountId(''); setProjectId(''); setNeedOffset(0)
   }
@@ -75,6 +78,11 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
     const params = new URLSearchParams(location.search); if (offset) params.set('need_offset', String(offset)); else params.delete('need_offset')
     history.pushState(history.state, '', `${location.pathname}?${params}`); setNeedOffset(offset)
   }
+  const updateProjectOffset = (offset: number) => {
+    const params = new URLSearchParams(location.search); if (offset) params.set('project_offset', String(offset)); else params.delete('project_offset')
+    history.pushState(history.state, '', `${location.pathname}?${params}`); setProjectOffset(offset)
+  }
+  const updateUnresolvedOffset = (offset: number) => setUnresolvedPage({ search, offset })
   const accountPaging = <nav className="ci-paging" aria-label="Customer account pages"><span>Accounts {page ? pageNeeds(page.offset, accounts.length) : '—'} of {page?.total ?? '—'}</span><button type="button" disabled={!pagingAvailable || !page?.offset} onClick={() => { if (page) onPage(Math.max(0, page.offset - page.limit), page.cohort_token) }}>Previous</button><button type="button" disabled={!pagingAvailable || page?.next_offset == null} onClick={() => { if (page?.next_offset != null) onPage(page.next_offset, page.cohort_token) }}>Next</button></nav>
 
   return <section className="ci-accounts" aria-label="Customer accounts">
@@ -99,14 +107,14 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
           {(needOffset > 0 || project.need_next_offset != null) && <nav className="ci-paging" aria-label={`${project.name} power need pages`}><span>Needs {pageNeeds(needOffset, project.needs.length)} of {project.need_count}</span><button type="button" disabled={needOffset === 0} onClick={() => updateNeedOffset(Math.max(0, needOffset - 25))}>Previous</button><button type="button" disabled={project.need_next_offset == null} onClick={() => updateNeedOffset(project.need_next_offset!)}>Next</button></nav>}
         </>}
       </article>)}
-      {projects && <nav className="ci-paging" aria-label="Account project pages"><span>{projects.items.length} of {projects.total} projects</span><button type="button" disabled={!projects.offset} onClick={() => setProjectOffset(Math.max(0, projects.offset - projects.limit))}>Previous</button><button type="button" disabled={projects.next_offset == null} onClick={() => setProjectOffset(projects.next_offset!)}>Next</button></nav>}
+      {projects && <nav className="ci-paging" aria-label="Account project pages"><span>{projects.items.length} of {projects.total} projects</span><button type="button" disabled={!projects.offset} onClick={() => updateProjectOffset(Math.max(0, projects.offset - projects.limit))}>Previous</button><button type="button" disabled={projects.next_offset == null} onClick={() => updateProjectOffset(projects.next_offset!)}>Next</button></nav>}
     </> : <>
       <OpportunityTable items={accounts} selectedId={new URLSearchParams(location.search).get('need') ?? undefined} onSelect={account => onNeed(account.id, { accountId: account.company_identity_id!, projectId: account.project_id })} onAccount={account => openAccount(account.company_identity_id!)}/>
       {accountPaging}
       <details className="ci-unresolved" open={unresolvedOpen} onToggle={event => setUnresolvedOpen(event.currentTarget.open)}>
         <summary>Projects needing customer research{unresolved ? ` (${unresolved.total})` : ''}</summary>
         {unresolvedItems.map(project => <article key={project.project_id}><strong>{project.project_name}</strong><span>{project.location ?? 'Location not established'} · {project.role}</span><span className="ci-customer-review">Customer needs confirmation</span><p>{project.reason}</p>{project.need_id && !project.no_eligible_need ? <button type="button" onClick={() => onNeed(project.need_id!)}>Review this power need</button> : <a href={`/?view=pursuits&pursuitQuery=${encodeURIComponent(project.organization)}`}>Research {project.organization}</a>}</article>)}
-        {unresolved && <nav className="ci-paging" aria-label="Unresolved customer project pages"><span>{pageNeeds(unresolved.offset, unresolved.items.length)} of {unresolved.total}</span><button type="button" disabled={!unresolved.offset} onClick={() => setUnresolvedOffset(Math.max(0, unresolved.offset - unresolved.limit))}>Previous</button><button type="button" disabled={unresolved.offset + unresolved.items.length >= unresolved.total} onClick={() => setUnresolvedOffset(unresolved.offset + unresolved.limit)}>Next</button></nav>}
+        {unresolved && <nav className="ci-paging" aria-label="Unresolved customer project pages"><span>{pageNeeds(unresolved.offset, unresolved.items.length)} of {unresolved.total}</span><button type="button" disabled={!unresolved.offset} onClick={() => updateUnresolvedOffset(Math.max(0, unresolved.offset - unresolved.limit))}>Previous</button><button type="button" disabled={unresolved.offset + unresolved.items.length >= unresolved.total} onClick={() => updateUnresolvedOffset(unresolved.offset + unresolved.limit)}>Next</button></nav>}
         {!unresolved && <p>Unresolved customer projects could not be loaded. <button type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></p>}
       </details>
     </>}

@@ -114,7 +114,7 @@ export function SavedCommercialAssessment({ needId }: { needId: string }) {
     const controller = new AbortController()
     let active = true
     setJobs([]); setLoading(true); setError('')
-    void client.intelligenceHistory(needId, controller.signal).then(({ items }) => {
+    void client.intelligenceHistory(needId, controller.signal, 'COMMERCIAL_ASSESSMENT_V1').then(({ items }) => {
       if (active) setJobs(items.filter(job => job.need_id === needId && job.task_type === 'COMMERCIAL_ASSESSMENT_V1'))
     }).catch(cause => {
       if (active && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Saved assessment is unavailable.')

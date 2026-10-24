@@ -1,6 +1,6 @@
 # PR116 bounded populated UI acceptance — 2026-10-24
 
-**Result: PASS_BOUNDED_POPULATED_REAL_DATA_UI.** This result covers the retained-source workspace UI gate only. It does not establish PR116 merge readiness or completion of the parent M6/Finish Contract.
+**Historical result: PASS_BOUNDED_POPULATED_REAL_DATA_UI.** This receipt covers the retained-source workspace UI gate only. PR116 was subsequently merged; this receipt does not establish completion of the parent M6/Finish Contract or acceptance of later releases.
 
 ## Owner acceptance
 
@@ -27,4 +27,4 @@ The other seven screenshots remain in the external run artifact. Earlier fixture
 
 ## Remaining boundaries
 
-This proof does not resolve Albuquerque's unknown provider outcome, satisfy M6's five-chain acceptance, recover the original 446-record QA corpus, or complete the parent Finish Contract. The original M6 record still includes one Albuquerque `SENT_OUTCOME_UNKNOWN`; no retry or replacement was made. Full exact-candidate backend/web/docs gates, independent Sol review, fresh GitHub CI and guarded merge remain pending. No deployment occurred.
+This proof does not resolve Albuquerque's unknown provider outcome, satisfy M6's five-chain acceptance, recover the original 446-record QA corpus, or complete the parent Finish Contract. The original M6 record still includes one Albuquerque `SENT_OUTCOME_UNKNOWN`; no retry or replacement was made. At the time of this receipt, full exact-candidate gates, independent review and merge were pending; PR116 has since merged. No deployment occurred as part of this receipt. The [current release record](../operations/audit-completion-release-20261024.md) tracks subsequent validation without changing this historical evidence.

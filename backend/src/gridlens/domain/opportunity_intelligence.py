@@ -31,6 +31,7 @@ class IntelligenceSource(BaseModel):
     retained_evidence_id: str | None = None
     content_hash: str | None = None
     passage: str | None = None
+    evidence_text: str | None = Field(default=None, exclude=True, repr=False)
     extraction_method: str
     verification_status: str
     assessed_at: str | None = None
@@ -90,6 +91,51 @@ def _iso(value: Any) -> str | None:
     return value.isoformat() if hasattr(value, "isoformat") else str(value) if value else None
 
 
+def compact_source_excerpt(value: Any, *, max_chars: int = 640) -> str | None:
+    """Keep a readable, source-backed excerpt out of normal detail payloads."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    lowered = text.casefold()
+    noisy = any(
+        marker in lowered
+        for marker in ("base64", "opaque source bytes", "source provenance", '"provenance"')
+    )
+    if len(text) <= max_chars and not noisy:
+        return text
+
+    lines = []
+    for raw_line in text.splitlines():
+        line = " ".join(raw_line.split()).strip()
+        folded = line.casefold()
+        if not line or any(
+            marker in folded
+            for marker in (
+                "base64",
+                "opaque source bytes",
+                "source provenance",
+                '"provenance"',
+                "raw source bytes",
+            )
+        ):
+            continue
+        lines.append(line)
+    # Prefer labeled project facts when a source gives a large field dump.
+    preferred = [
+        line
+        for label in ("project:", "facility:", "location:", "scope:", "type of work:", "status:")
+        for line in lines
+        if line.casefold().startswith(label)
+    ]
+    selected = preferred or lines
+    excerpt = "\n".join(selected)
+    if len(excerpt) > max_chars:
+        excerpt = excerpt[:max_chars].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+    return excerpt or "Source record retained; open the referenced evidence for details."
+
+
 def normalize_gap(item: dict) -> dict | None:
     """Normalize both accepted official and operator shapes, checking arithmetic.
 
@@ -136,6 +182,7 @@ def normalize_gap(item: dict) -> dict | None:
 
 def _source(row: dict, *, chain: bool = False) -> IntelligenceSource:
     reference = str(row.get("id") or row.get("evidence_id") or "")
+    raw_passage = row.get("quote") or row.get("abstract")
     return IntelligenceSource(
         reference=("buying-chain:" if chain else "evidence:") + reference,
         source_id=row.get("source_id"),
@@ -150,7 +197,8 @@ def _source(row: dict, *, chain: bool = False) -> IntelligenceSource:
             else reference
         ),
         content_hash=row.get("content_hash"),
-        passage=row.get("quote") or row.get("abstract"),
+        passage=compact_source_excerpt(raw_passage),
+        evidence_text=str(raw_passage) if raw_passage is not None else None,
         extraction_method=str(row.get("extraction_location") or "canonical projection"),
         verification_status="Current retained support"
         if chain or row.get("assessment_current")
@@ -453,8 +501,8 @@ def assemble_card(
                     source.retained_evidence_id == claim.get("evidence_id")
                     and source.content_hash == claim.get("evidence_hash")
                     and claim.get("quote")
-                    and source.passage
-                    and claim["quote"] in source.passage
+                    and (source.evidence_text or source.passage)
+                    and claim["quote"] in (source.evidence_text or source.passage or "")
                 ):
                     claim_sources.append(
                         source.model_copy(

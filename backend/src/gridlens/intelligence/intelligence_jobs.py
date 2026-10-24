@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
@@ -263,6 +263,13 @@ def _request_payload(
         )
         current_state["project_research_policy_version"] = PROJECT_RESEARCH_VERSION
         current_state["grounding_policy_version"] = "retained-grounding-v2"
+    elif task_type == COMMERCIAL_ASSESSMENT_TASK:
+        from gridlens.domain.project_research import VERSION as PROJECT_RESEARCH_VERSION
+
+        current_state["accepted_source_claims"] = getattr(
+            need, "_intelligence_accepted_source_claims", {}
+        )
+        current_state["project_research_policy_version"] = PROJECT_RESEARCH_VERSION
     state_version_digest = _digest(current_state)
     if task_type == COMMERCIAL_ASSESSMENT_TASK:
         if package_id is None:
@@ -343,6 +350,13 @@ def _request_payload(
                 "duration": need.duration,
                 "supply": need.supply,
                 "accepted_facts": getattr(need, "_intelligence_accepted_facts", []),
+                "accepted_source_claims": getattr(
+                    need, "_intelligence_accepted_source_claims", {}
+                ),
+                "project_research_policy_version": current_state.get(
+                    "project_research_policy_version"
+                ),
+                "state_version_digest": state_version_digest,
             },
             "project": {
                 "project_id": str(project.id),
@@ -2839,15 +2853,30 @@ def _record_research_receipt(session: Session, checkpoint: dict[str, Any]) -> No
         question.completed_at = datetime.now(UTC)
 
 
-def intelligence_history(session: Session, need_id: UUID, limit: int = 50) -> list[dict[str, Any]]:
+def intelligence_history(
+    session: Session,
+    need_id: UUID,
+    limit: int = 50,
+    task_type: str | None = None,
+) -> list[dict[str, Any]]:
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 50:
         raise ValueError("limit must be between 1 and 50")
-    rows = session.scalars(
-        select(Job)
-        .where(Job.kind == JOB_KIND, Job.target_id == need_id)
-        .order_by(Job.created_at.desc())
-        .limit(limit)
-    ).all()
+    query = select(Job).where(Job.kind == JOB_KIND, Job.target_id == need_id)
+    if task_type is not None:
+        # Checkpoint is stored as text for compatibility with existing job history.
+        # Cast it in SQL so the task predicate applies before the bounded limit.
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB
+
+        checkpoint = cast(Job.checkpoint, JSONB)
+        query = query.where(
+            func.coalesce(
+                checkpoint["request_kind"].astext,
+                checkpoint["task_type"].astext,
+            )
+            == task_type
+        )
+    rows = session.scalars(query.order_by(Job.created_at.desc()).limit(limit)).all()
     output = []
     for job in rows:
         try:

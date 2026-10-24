@@ -1,3 +1,5 @@
-# Morning view
+# Morning changes
 
-The app shell shows a compact Today summary of material change events. A check time is not the source publication date. A separate morning module, promotion digest, and closed-opportunity digest are not implemented in this folder. Requirement 32's full morning view remains open.
+The workspace's `WorkspaceChanges.tsx` displays discovered, changed, promoted and closed categories plus source-health exceptions. It links changes back to the working queue and preserves narrow-screen navigation. A check time is not a source publication date.
+
+This folder documents ownership rather than duplicating that component. PRD32 acceptance includes truthful material-change and source coverage; rendering the categories does not by itself prove sustained production ingestion.

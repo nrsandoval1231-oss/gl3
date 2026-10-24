@@ -1,0 +1,54 @@
+{
+  "packet": "D",
+  "status": "focused_checks_passed_controller_full_acceptance_pending",
+  "base": "223849b1559532ae89dd1d2f53f7217add02084a",
+  "changed_paths": [
+    "web/src/features/workspace/CustomerAccountsQueue.tsx",
+    "web/tests/customer-accounts.spec.ts",
+    ".agent/completion-20261024/D_COMPLETION.json"
+  ],
+  "changes": [
+    "Persist nested customer project page in its own project_offset URL parameter and restore it on reload, Back, and Forward while leaving account offset and need_offset independent.",
+    "Reset unresolved-project pagination to offset zero when the search cohort changes; retain abort and request-sequence guards so late prior-search responses cannot replace current results.",
+    "Add browser regressions for 26 projects with page-two selection/history restoration and unresolved page-two search narrowing with a delayed old response."
+  ],
+  "tests": {
+    "run": [
+      {
+        "command": "TypeScript transpileModule syntax check of CustomerAccountsQueue.tsx and customer-accounts.spec.ts",
+        "result": "passed"
+      },
+      {
+        "command": "npm run typecheck --prefix web",
+        "result": "passed"
+      }
+    ],
+    "browser": {
+      "initial_controller_run": "10 passed, 1 failed; the only failure was the pagination-range assertion expecting an ASCII hyphen instead of the UI's en dash.",
+      "repair": "Updated the assertion to use the escaped en dash (\\u2013).",
+      "post_fix_run": {
+        "command": "customer-accounts.spec.ts --project=regression",
+        "result": "passed",
+        "passed": 11,
+        "failed": 0,
+        "exit_code": 0,
+        "seconds": 12.08,
+        "log": "../completion-20261024/focused-navigation-1792879401638289300.log",
+        "results_directory": "../completion-20261024/navigation-1792879401638289300-results"
+      }
+    }
+  },
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-10-24T22:03:44Z",
+    "implementation_seconds": "UNKNOWN",
+    "validation_seconds": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "risks": [
+    "The controller's final combined browser and full candidate acceptance remain pending."
+  ],
+  "production_queries": false,
+  "provider_calls": false,
+  "git_commit_or_push": false
+}

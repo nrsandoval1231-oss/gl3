@@ -76,6 +76,24 @@
               "default": 20,
               "title": "Limit"
             }
+          },
+          {
+            "name": "task_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task Type"
+            }
           }
         ],
         "responses": {
@@ -2347,6 +2365,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpportunityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evidence/{evidence_id}/content": {
+      "get": {
+        "summary": "Evidence Content",
+        "description": "Return one bounded chunk of retained raw evidence on explicit request.",
+        "operationId": "evidence_content_api_evidence__evidence_id__content_get",
+        "parameters": [
+          {
+            "name": "evidence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evidence Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 4096,
+              "minimum": 1,
+              "default": 4096,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceContentOut"
                 }
               }
             }
@@ -7990,6 +8072,57 @@
           "offset"
         ],
         "title": "CustomerProjectsPageOut"
+      },
+      "EvidenceContentOut": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evidence Id"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "total_chars": {
+            "type": "integer",
+            "title": "Total Chars"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "content_hash",
+          "source_url",
+          "offset",
+          "total_chars",
+          "content",
+          "next_offset"
+        ],
+        "title": "EvidenceContentOut"
       },
       "EvidenceOut": {
         "properties": {

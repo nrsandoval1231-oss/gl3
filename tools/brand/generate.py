@@ -149,7 +149,7 @@ def main():
     (ROOT/'web/src/styles/brand-tokens.css').write_text('\n'.join(css)+'\n', encoding='utf-8')
     names=[r['path'] for r in records]
     assert len(names)==len(set(names))
-    write('asset-manifest.json',json.dumps({'version':tokens['version'],'approval':'verified' if verified else 'review-candidate','source_sha256':hashlib.sha256(MASTER.read_bytes()).hexdigest(),'tokens_sha256':hashlib.sha256(TOKENS.read_bytes()).hexdigest(),'font_sha256':{family:hashlib.sha256((ROOT/f'web/public/fonts/{family}.ttf').read_bytes()).hexdigest() for family in ['inter','sora']},'assets':records},indent=2)+'\n')
-    print(f'Generated {len(names)} assets; approval={"verified" if verified else "review-candidate"}')
+    write('asset-manifest.json',json.dumps({'version':tokens['version'],'approval':'owner-approved' if verified else 'review-candidate','source_sha256':hashlib.sha256(MASTER.read_bytes()).hexdigest(),'tokens_sha256':hashlib.sha256(TOKENS.read_bytes()).hexdigest(),'font_sha256':{family:hashlib.sha256((ROOT/f'web/public/fonts/{family}.ttf').read_bytes()).hexdigest() for family in ['inter','sora']},'assets':records},indent=2)+'\n')
+    print(f'Generated {len(names)} assets; approval={"owner-approved" if verified else "review-candidate"}')
 
 if __name__ == '__main__': main()

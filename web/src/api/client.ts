@@ -9,6 +9,15 @@ export type WorkflowStatus = typeof workflowStatuses[number]
 export type WorkflowStatusFilter = Uppercase<WorkflowStatus> | 'UNKNOWN' | ''
 export type CallFact = components['schemas']['CallFactOut']
 export type CallFactPage = components['schemas']['CallFactPageOut']
+export type EvidenceContent = {
+  evidence_id: string
+  content_hash: string
+  source_url: string
+  offset: number
+  total_chars: number
+  content: string
+  next_offset: number | null
+}
 export type TimingCorrectionTarget = components['schemas']['TimingCorrectionTargetOut']
 export type CallFactDraftBody = components['schemas']['CallFactDraftBody']
 export type CallFactDecisionBody = components['schemas']['CallFactDecisionBody']
@@ -283,9 +292,17 @@ export const client = {
   autonomousResearch: (needId: string, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { signal }, true),
   intelligenceTasks: (signal?: AbortSignal) => api<IntelligenceTasks>('/api/intelligence/tasks', { signal }),
   intelligenceOperations: (signal?: AbortSignal) => api<IntelligenceOperations>('/api/intelligence/operations', { signal }),
-  intelligenceHistory: (needId: string, signal?: AbortSignal) => api<{ items: IntelligenceHistoryItem[] }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/history?limit=20`, { signal }),
+  intelligenceHistory: (needId: string, signal?: AbortSignal, taskType?: string) => {
+    const params = new URLSearchParams({ limit: '20' })
+    if (taskType) params.set('task_type', taskType)
+    return api<{ items: IntelligenceHistoryItem[] }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/history?${params}`, { signal })
+  },
   requestIntelligence: (needId: string, taskType: string, questionId?: string) => api<IntelligenceHistoryItem>(`/api/intelligence/needs/${encodeURIComponent(needId)}/jobs`, { method: 'POST', body: JSON.stringify({ task_type: taskType, ...(questionId ? { question_id: questionId } : {}) }) }),
   saveIntelligenceFeedback: (needId: string, body: OwnerFeedbackBody) => api<{ id: string; metadata: Record<string, unknown>; note: string }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
+  evidenceContent: (evidenceId: string, offset = 0, limit = 4096, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
+    return api<EvidenceContent>(`/api/evidence/${encodeURIComponent(evidenceId)}/content?${params}`, { signal }, true)
+  },
   refreshAutonomousResearch: (needId: string, force: boolean, signal?: AbortSignal, completeIntelligence = false) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { method: 'POST', body: JSON.stringify({ force, ...(completeIntelligence ? { complete_intelligence: true } : {}) }), signal }, true),
   session: () => api<{ authenticated: boolean }>('/api/auth/session').then((session) => {
     if (!session.authenticated) clearContinuity()
