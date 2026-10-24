@@ -1,4 +1,7 @@
 FROM python:3.11-slim
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.7.13 /uv /uvx /bin/
@@ -12,5 +15,8 @@ WORKDIR /app/backend
 # Install the project in editable mode so imports resolve without PYTHONPATH
 # and source-relative config paths stay at /app/config.
 RUN uv sync --locked --no-dev
+# The base image's global setuptools is build tooling only. The application
+# runs from the uv environment and does not need this vulnerable bootstrap copy.
+RUN python -m pip uninstall -y setuptools
 ENV UV_NO_SYNC=1
 CMD ["uv", "run", "uvicorn", "gridlens.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
