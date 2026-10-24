@@ -232,7 +232,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
   }
 
   return <aside className="wh-detail" aria-label="Opportunity detail">
-    <div className="wh-detail-head">
+    <div className="wh-detail-head"><p className="wh-kicker">Customer Intelligence</p>
       <div className="wh-identity-toolbar"><div className="wh-breadcrumb"><button className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button><span aria-hidden="true">/</span><span>{displayOrganization || 'Project'}</span><span aria-hidden="true">/</span><span>{displayTitle}</span></div><div className="wh-record-actions"><button className="wh-share" onClick={() => void copyShareLink()}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.7 6.3 8.1 8.9m0 2.2 4.6 2.6"/><circle cx="14.8" cy="5.1" r="2.1"/><circle cx="5.3" cy="10" r="2.1"/><circle cx="14.8" cy="14.9" r="2.1"/></svg>Share</button><button className="wh-primary-action" onClick={openNextSteps}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg>Update workflow</button>{shareState && <span role="status">{shareState}</span>}</div></div>
       <div className="wh-record-hero">
         <span className="wh-customer-monogram" aria-hidden="true">{(displayOrganization || displayTitle).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span>
@@ -241,31 +241,40 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
           {displayOrganization && <p className="wh-record-project">{displayTitle}</p>}
           <p className="wh-record-subtitle">{displayLocation} · {item.activity.replaceAll('-', ' ')}</p>
         </div>
-        <div className="wh-record-qualification"><span className="wh-tier-badge">{item.tier} · {item.commercial_disposition ?? item.intelligence_card?.disposition ?? 'Disposition unavailable'}</span><span>{item.intelligence_card?.last_intelligence_update ? `Evidence updated ${new Date(item.intelligence_card.last_intelligence_update).toLocaleDateString()}` : 'Evidence update date unavailable'}</span></div>
-        {item.intelligence_card && <div className="wh-completeness"><span>Intelligence completeness</span><strong>{item.intelligence_card.completeness.supported}/{item.intelligence_card.completeness.total}</strong><progress aria-label="Intelligence completeness" max={item.intelligence_card.completeness.total} value={item.intelligence_card.completeness.supported}/></div>}
-      </div>      {item.associated_account && <p className="wh-group-context"><strong>Current account association:</strong> {item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p>}
+
+      </div>
+      {item.associated_account && <p className="wh-group-context"><strong>Current account association:</strong> {item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p>}
       {associationNotice && <p role="status" className="wh-integrity">{associationNotice}</p>}
       {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
       {item.signal_evidence_state === 'planning_status_unknown' && <p className="wh-integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}
       {item.signal_evidence_state === 'source_listing_absent' && <p className="wh-integrity"><strong>Status review needed.</strong> This filing is no longer in the source current listing; it may have been issued, denied, or withdrawn. Its evidence is retained.</p>}
       {item.group_total_filtered && item.group_total_filtered > 1 && <p className="wh-group-context">Part of a group with {item.group_total_filtered} retained records. Each record and its evidence remain separate and available.</p>}
-      {hasConflict(item.conflict_state) && <p role="status" className="wh-integrity">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}    </div>
-    <section className="wh-metrics" aria-label="Power need metrics">
-      {metrics.map(metric => <article className="wh-metric" key={metric.key}><span className="wh-metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24">{metric.icon === 'demand' ? <><path d="m13 2-8 11h6l-1 9 9-12h-6z"/></> : metric.icon === 'gap' ? <><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></> : metric.icon === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></> : metric.icon === 'clock' ? <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></> : <><path d="M4 21h16M6 18h12l-2-12H8zM9 3h6M10 10h4m-4 4h4"/></>}</svg></span><div><span className="wh-metric-label">{metric.label}</span><strong className={metric.value === 'Not established' ? 'wh-metric-unknown' : undefined}>{metric.value}</strong><small>{metric.basis}</small></div></article>)}
+      {hasConflict(item.conflict_state) && <p role="status" className="wh-integrity">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}
+    </div>
+    <section className="wh-customer-metrics" aria-label="Customer intelligence metrics">
+      <div><strong>{metrics[1].value}</strong><span>Estimated Power Gap</span><small>{metrics[1].basis}</small></div>
+      <div><strong>{metrics[2].value}</strong><span>Target Need Date</span></div>
+      <div><strong>Unavailable</strong><span>Confidence Score</span></div>
     </section>
-    {item.intelligence_card ? <IntelligenceCard key={item.id} card={item.intelligence_card} opportunityName={displayTitle} customer={customer} location={item.location} activity={item.activity.replaceAll('-', ' ')} tier={item.tier} why={item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment rationale is available.'} nextAction={item.commercial_next_action || item.next_action || item.commercial_next_question || 'Review retained evidence and confirm the unresolved details.'} onReadback={onReadback} onReview={openNextSteps} /> : <div className="wh-summary-columns">
+    <nav ref={tabsRef} className="wh-tabs" aria-label="Opportunity detail">
+      {([['Overview', 'Overview'], ['Buying chain', 'Buying Chain'], ['Evidence', 'Evidence'], ['Power gap', 'Power Analysis'], ['Next steps', 'Notes']] as const).map(([value, label]) => <button key={value} aria-label={value === 'Power gap' ? 'Commercial Assessment' : value} aria-pressed={value === tab} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{label}</button>)}
+      <details className="wh-more-tabs"><summary>More</summary><div>{(['Timeline', 'Unknowns'] as const).map(value => <button key={value} aria-pressed={value === tab} onClick={() => onTab(value)}>{value === 'Unknowns' ? 'Research Gaps' : value}</button>)}</div></details>
+    </nav>
+    {tab === 'Overview' && <div className="wh-overview"><h3>Opportunity Summary</h3><p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment summary is available.'}</p>{item.intelligence_card ? <IntelligenceCard key={item.id} card={item.intelligence_card} opportunityName={displayTitle} customer={customer} location={item.location} activity={item.activity.replaceAll('-', ' ')} tier={item.tier} why={item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment rationale is available.'} nextAction={item.commercial_next_action || item.next_action || item.commercial_next_question || 'Review retained evidence and confirm the unresolved details.'} onReadback={onReadback} onReview={openNextSteps} /> : <div className="wh-summary-columns">
       <section><h3>Project &amp; customer details</h3><dl><div><dt>Project</dt><dd>{displayTitle}</dd></div>{customer && <div><dt>Customer / end user</dt><dd>{customer}</dd></div>}<div><dt>Power activity</dt><dd>{item.activity.replaceAll('-', ' ')}</dd></div><div><dt>Location</dt><dd>{item.location ?? 'Unknown'}</dd></div></dl></section>
       <section><h3>Key contacts &amp; buying chain</h3><p>No current verified contact is available in the intelligence summary.</p>{item.project_id && <button onClick={() => onTab('Buying chain')}>Review buying chain</button>}</section>
       <section><h3>Why this opportunity matters</h3><p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment rationale is available.'}</p><h4>Recommended next action</h4><p>{item.commercial_next_action || item.next_action || item.commercial_next_question || 'Review retained evidence and confirm the unresolved details.'}</p><button onClick={() => onTab('Next steps')}>Update workflow</button></section>
-    </div>}
-    <nav ref={tabsRef} className="wh-tabs" aria-label="Opportunity detail">
-      {(['Evidence', 'Power gap', 'Unknowns', 'Next steps'] as const).map(value => <button key={value} aria-pressed={value === tab} aria-label={value === 'Next steps' ? 'Next steps' : value === 'Power gap' ? 'Commercial Assessment' : value === 'Unknowns' ? 'Research Gaps' : 'Evidence'} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{value === 'Power gap' ? 'Commercial Assessment' : value === 'Unknowns' ? 'Research Gaps' : value === 'Next steps' ? 'Notes & Activity' : 'Evidence'}</button>)}
-      <details className="wh-more-tabs" open><summary>More</summary><div>{(['Overview', 'Buying chain', 'Timeline'] as const).map(value => <button key={value} aria-pressed={tab === value} onClick={() => onTab(value)}>{value}</button>)}</div></details>
-    </nav>
+    </div>}</div>}
     <div className="wh-detail-content">
+      {<details className="wh-record-metadata"><summary>Qualification &amp; provenance</summary>        <div className="wh-record-qualification"><span className="wh-tier-badge">{item.tier} · {item.commercial_disposition ?? item.intelligence_card?.disposition ?? 'Disposition unavailable'}</span><span>{item.intelligence_card?.last_intelligence_update ? `Evidence updated ${new Date(item.intelligence_card.last_intelligence_update).toLocaleDateString()}` : 'Evidence update date unavailable'}</span></div>
+        {item.intelligence_card && <div className="wh-completeness"><span>Intelligence completeness</span><strong>{item.intelligence_card.completeness.supported}/{item.intelligence_card.completeness.total}</strong><progress aria-label="Intelligence completeness" max={item.intelligence_card.completeness.total} value={item.intelligence_card.completeness.supported}/></div>}</details>}
       {loading && <p role="status">Loading verified detail…</p>}
       {correctionNotice && <p role="status">{correctionNotice}</p>}
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
+      {tab === 'Power gap' && <>    <section className="wh-metrics" aria-label="Power need metrics">
+      {metrics.map(metric => <article className="wh-metric" key={metric.key}><span className="wh-metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24">{metric.icon === 'demand' ? <><path d="m13 2-8 11h6l-1 9 9-12h-6z"/></> : metric.icon === 'gap' ? <><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></> : metric.icon === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></> : metric.icon === 'clock' ? <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></> : <><path d="M4 21h16M6 18h12l-2-12H8zM9 3h6M10 10h4m-4 4h4"/></>}</svg></span><div><span className="wh-metric-label">{metric.label}</span><strong className={metric.value === 'Not established' ? 'wh-metric-unknown' : undefined}>{metric.value}</strong><small>{metric.basis}</small></div></article>)}
+    </section>
+</>}
       {tab === 'Overview' && !item.intelligence_card && <>
         <details className="wh-provenance-disclosure"><summary>Decision and evidence diagnostics</summary>
           {item.signal_admission_origin && <p>Signal admission origin: {item.signal_admission_origin}</p>}
