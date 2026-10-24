@@ -1,6 +1,8 @@
 # Operations authority
 
-Current read-only refresh: [October 24 repository and production readiness audit](readiness-audit-20261024.md). It records repaired repository candidates and remaining production/provider/corpus blockers; production changes still require explicit authorization.
+Current continuation: [October 24 hardening release plan](hardening-release-plan-20261024.md), [security dispositions](hardening-security-20261024.md), [database/source reliability](hardening-runtime-20261024.md), and [credential/commercial acceptance boundaries](hardening-credentials-and-acceptance-20261024.md). These build on [merged PR119's audit](readiness-audit-20261024.md); the older observations below remain dated history. Production changes still require explicit authorization.
+
+The installed `/etc/gridlens/start-gridlens.py` wrapper and its metadata-only `--validate-only` path are now verified read-only. This supersedes the older wrapper-identity UNKNOWN below, without authorizing startup. Exact candidate images, current isolated restore/rollback results, and independent acceptance are bound in the final hardening receipt; pending or absent receipts are not passes. Gate A security/reliability and Gate B commercial completion are separate decisions. Production remains on hold.
 
 
 This page is the only current summary for production, deployment, rollback, and backup/restore. **Production remains on hold.** The latest documented production observation spans October 20, 2026, 18:28:48–18:50:41 UTC. It is a read-only snapshot, not a release authorization or a runbook. See the [sanitized observation receipt](observations/2026-10-20-production-readonly.md).

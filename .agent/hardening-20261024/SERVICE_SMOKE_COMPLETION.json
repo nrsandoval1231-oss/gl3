@@ -1,0 +1,36 @@
+{
+  "packet": "H4-local-service-smoke-preparation",
+  "status": "builder_complete_static_validation_only",
+  "base_sha": "de1c7b00aa6adde68f5c9fdb2553b249930a9d2f",
+  "owned_files": [
+    ".artifacts/hardening-20261024/cross_service_smoke.py",
+    ".agent/hardening-20261024/SERVICE_SMOKE_COMPLETION.json"
+  ],
+  "scope": "A new internal Docker network, PostgreSQL 18.6 empty database, API, web proxy, worker, and browse-maintenance startup proof. No provider, source, operator, or production target is accepted.",
+  "guards": [
+    "Refuses remote Docker endpoints through the shared local-target guard.",
+    "Requires API and web image revision labels to equal the supplied full revision.",
+    "Passes private values only from the controller process environment to Docker --env keys; no secret-bearing env file or command-line secret is created.",
+    "Applies migrations to a newly created database, disables all source and epoch enabled flags, then proves that pre-worker condition and empty jobs, logical calls, observations, evidence, and projects. The worker may synchronize registry state later, so the receipt does not claim source flags remain disabled after startup.",
+    "Uses the explicit disabled provider and budget runtime environment, an internal network, and no host-published service ports.",
+    "Starts the API on the internal api alias, then worker, browse maintenance, and web; requires worker heartbeat and published empty browse before authenticated workspace reads and web proxy proof in a 15 second bounded probe.",
+    "After services stop, requires zero jobs, logical calls, logical-call budgets, observations, evidence, and projects.",
+    "On success removes only captured container IDs and the exact captured network ID; any failure preserves owned resources and writes a sanitized receipt."
+  ],
+  "validation": {
+    "commands": [
+      "backend/.venv/Scripts/python.exe -m py_compile .artifacts/hardening-20261024/cross_service_smoke.py",
+      "backend/.venv/Scripts/python.exe -m ruff check .artifacts/hardening-20261024/cross_service_smoke.py",
+      "backend/.venv/Scripts/python.exe .artifacts/hardening-20261024/cross_service_smoke.py --help",
+      "backend/.venv/Scripts/python.exe -m pytest -q backend/tests/unit/test_release_rehearsal.py with synthetic process-local required settings"
+    ],
+    "result": "syntax, lint, and CLI help passed; release-helper focused tests passed 8/8; Docker runtime intentionally not run"
+  },
+  "authority": {
+    "docker_runtime": "controller only; not performed",
+    "production_mutation": "not performed",
+    "provider_or_source_calls": "not performed",
+    "merge_push_deploy": "not performed"
+  },
+  "acceptance": "A successful controller run reports PASS_SERVICE_STARTUP only. It is not commercial, provider, release, production-Go, or Finish Contract acceptance."
+}

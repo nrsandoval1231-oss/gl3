@@ -92,11 +92,20 @@ class FencedLeaseRenewer:
                     session.execute(text("SET LOCAL statement_timeout = '750ms'"))
                     session.execute(text("SET LOCAL lock_timeout = '250ms'"))
                     job = session.scalar(
-                        select(Job).where(Job.id == self.job_id).with_for_update(nowait=True)
+                        select(Job).where(Job.id == self.job_id).with_for_update(skip_locked=True)
                     )
+                    if job is None:
+                        # A competing short checkpoint/status transaction may own
+                        # this row for one tick. Keep the bounded renewal loop alive;
+                        # an actually missing job ends the renewal immediately.
+                        exists = session.scalar(
+                            select(Job.id).where(Job.id == self.job_id).limit(1)
+                        )
+                        if exists is None:
+                            return
+                        continue
                     if (
-                        job is None
-                        or job.status != "running"
+                        job.status != "running"
                         or job.lease_owner != self.worker_id
                         or job.fence != self.fence
                         or job.lease_until is None

@@ -488,3 +488,79 @@ def test_lease_renewer_caps_extension_at_original_deadline_plus_grace(
         assert not renewer._thread.is_alive()
     finally:
         renewer.stop()
+
+
+def test_lease_renewer_resumes_after_transient_job_row_lock(acquisition_runtime_db, monkeypatch):
+    import gridlens.ingestion.adapters.acquisition_runtime as runtime
+
+    factory, _engine = acquisition_runtime_db
+    now = datetime.now(UTC)
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id="c5-renew-lock-source",
+                publisher="Fixture",
+                endpoint="https://example.test/c5-renew-lock",
+                family="synthetic",
+                geography="US",
+                industries=["mining"],
+                retrieval_method="json-api",
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id="c5-renew-lock-source",
+            status="running",
+            lease_owner="c5-renewer",
+            fence=4,
+            lease_until=now + timedelta(seconds=120),
+        )
+        session.add(job)
+        session.flush()
+        job_id, original_expiry = job.id, job.lease_until
+
+    fake_clock = [original_expiry - timedelta(seconds=100)]
+
+    class ControlledDateTime:
+        @classmethod
+        def now(cls, _timezone):
+            return fake_clock[0]
+
+    monkeypatch.setattr(runtime, "datetime", ControlledDateTime)
+    holder = factory()
+    holder.begin()
+    holder.scalar(select(Job).where(Job.id == job_id).with_for_update())
+    renewer = FencedLeaseRenewer(
+        factory,
+        job_id,
+        "c5-renewer",
+        4,
+        original_expiry,
+        interval_seconds=0.01,
+    ).start()
+    try:
+        time.sleep(0.05)
+        assert renewer._thread.is_alive()
+        with factory() as session:
+            assert session.get(Job, job_id).lease_until == original_expiry
+
+        holder.rollback()
+        fake_clock[0] = original_expiry - timedelta(seconds=80)
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            with factory() as session:
+                current = session.get(Job, job_id).lease_until
+            if current >= original_expiry + timedelta(seconds=ACQUISITION_SETTLEMENT_GRACE_SECONDS):
+                break
+            time.sleep(0.01)
+        assert current == original_expiry + timedelta(seconds=ACQUISITION_SETTLEMENT_GRACE_SECONDS)
+        fake_clock[0] = original_expiry + timedelta(
+            seconds=ACQUISITION_SETTLEMENT_GRACE_SECONDS + 1
+        )
+        renewer._thread.join(timeout=1)
+        assert not renewer._thread.is_alive()
+    finally:
+        holder.rollback()
+        holder.close()
+        renewer.stop()

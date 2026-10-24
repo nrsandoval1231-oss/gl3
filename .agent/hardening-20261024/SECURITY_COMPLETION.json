@@ -1,0 +1,72 @@
+{
+  "packet": "H1",
+  "status": "builder_complete",
+  "repository": "GridLens",
+  "branch": "release/production-hardening-20261024",
+  "base_sha": "de1c7b00aa6adde68f5c9fdb2553b249930a9d2f",
+  "changed_files": [
+    ".agent/hardening-20261024/trivy-high-critical-matrix.csv",
+    "docs/operations/hardening-security-20261024.md",
+    ".agent/hardening-20261024/SECURITY_COMPLETION.json"
+  ],
+  "dockerfile_changes": [],
+  "reason_no_dockerfile_change": "Both Dockerfiles already upgrade distro packages. Final API scan retains 44 HIGH Debian package/CVE rows with blank fixed versions, final API has zero HIGH/CRITICAL Python rows, and final web has zero HIGH/CRITICAL rows. Archived-image findings are not proof of an actionable fix on the current exact candidate.",
+  "matrix": {
+    "path": ".agent/hardening-20261024/trivy-high-critical-matrix.csv",
+    "rows": 242,
+    "counts_by_scan": {
+      "trivy-final-api.json": 44,
+      "trivy-final-web.json": 0,
+      "trivy-production-api.json": 46,
+      "trivy-production-web.json": 64,
+      "trivy-production-postgres.json": 88
+    },
+    "disposition_counts": {
+      "UNKNOWN_NO_FIXED_TRIXIE_PACKAGE_REPORTED": 1,
+      "SUPPORTED_FIX_AVAILABLE_IN_REPORTED_PACKAGE_REPOSITORY": 66,
+      "UNKNOWN_CONDITION_NOT_PROVEN_ABSENT": 1,
+      "UNKNOWN_EXACT_BINARY_GOVULNCHECK_REQUIRED": 26,
+      "UNKNOWN_NO_FIXED_VERSION_IN_TRIVY": 148
+    }
+  },
+  "validation": {
+    "status": "static_assessment_and_exact_gosu_binary_scan_complete",
+    "reason": "Controller owns builds and shared Docker state; no build was run in parallel.",
+    "evidence": "Original five-scan matrix remains 242 Trivy package/CVE occurrences. Controller fresh preflight scans: API 170 total/44 HIGH/0 CRITICAL/0 fixable HIGH-CRITICAL; web 0 HIGH-CRITICAL; PostgreSQL 378 total/86 HIGH/2 CRITICAL/26 fixable HIGH-CRITICAL. Exact gosu binary SHA-256 52c8749d0142edd234e9d6bd5237dff2d81e71f43537e2f4f66f75dd4b243dd0 scanned by govulncheck v1.9.0 binary/symbol mode: 3 symbol findings for GO-2026-6686/CVE-2026-61801 in moby/sys/user v0.1.0 (fixed v0.4.1); 26 Trivy Go stdlib occurrences, with no symbol findings for those individual advisories, but no claim of blanket clearance. Scanner exits 0 despite findings. Fresh preflight is not an exact-candidate post-build scan.",
+    "evidence_artifact": ".artifacts/hardening-20261024/production-libraries.json",
+    "evidence_artifacts": [
+      ".artifacts/hardening-20261024/gosu-identity.json",
+      ".artifacts/hardening-20261024/gosu-reachability.json",
+      ".artifacts/hardening-20261024/gosu-govulncheck.json",
+      ".artifacts/hardening-20261024/production-permissions.json",
+      ".artifacts/hardening-20261024/trivy-api-preflight.json",
+      ".artifacts/hardening-20261024/trivy-web-preflight.json",
+      ".artifacts/hardening-20261024/trivy-postgres-fresh.json"
+    ],
+    "static_checks": [
+      "Import-Csv parsed 242 rows with original scan occurrence counts 44,0,46,64,88 and original disposition counts unchanged.",
+      "SECURITY_COMPLETION.json parsed with ConvertFrom-Json.",
+      "Docs and matrix references checked against controller-supplied gosu and fresh Trivy evidence."
+    ]
+  },
+  "acceptance": {
+    "independent_review": "pending",
+    "exact_candidate_scan": "pending",
+    "overall_hardening_acceptance": "pending",
+    "owner_acceptance_credential_and_vendor_risk": "pending",
+    "deployment_authorization": "pending"
+  },
+  "authority": {
+    "database_image_upgrade": "not performed",
+    "production_operations": "not performed",
+    "push_merge_deploy": "not performed"
+  },
+  "metadata": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "UNKNOWN",
+    "planning_build_validation_audit_durations": "UNKNOWN",
+    "model_config_identity": "UNKNOWN",
+    "token_usage": "UNKNOWN",
+    "repair_count": 0
+  }
+}
