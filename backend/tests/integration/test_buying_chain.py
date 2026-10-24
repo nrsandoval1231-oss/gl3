@@ -1,6 +1,7 @@
 from collections import Counter
 from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
+from hashlib import sha256
 from importlib import import_module
 from types import SimpleNamespace
 from uuid import UUID
@@ -25,6 +26,7 @@ from gridlens.intelligence.buying_chain_corrections import (
     correct_buying_chain_claim,
     overlay_corrections,
 )
+from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
 from gridlens.intelligence.identity_reconciliation import (
     current_claim_identity_links,
     ensure_project_scoped_identity_links,
@@ -4569,6 +4571,7 @@ def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_pr
             )
             == retained_before
         )
+
         assert (
             set(
                 session.scalars(
@@ -4591,3 +4594,358 @@ def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_pr
             )
             == retained_before
         )
+
+
+TDLR_SOURCE = "texas-tdlr-tabs-data-centers"
+TDLR_CASES = [
+    (
+        "TABS2027002672",
+        "DAL130 - Data Center",
+        "13572 N. Main Street, Westlake, TX 76262 (Tarrant County)",
+        "Circle T Owner LP",
+        """Project: DAL130 - Data Center (Circle T Ranch DAL130 Campus)
+Location: 13572 N. Main Street, Westlake, TX 76262 (Tarrant County)
+Registered: 2026-10-02
+Developer-reported start: 2026-12-01; completion: 2027-06-01
+Estimated cost: $83,000,000
+Type of work: New Construction
+Scope: New construction of a data center - 224,152 square feet +/-
+Owner: Circle T Owner LP
+Design firm: Ci Design
+TABS status: Project Registered""",
+    ),
+    (
+        "TABS2026026955",
+        "PECOS COUNTY DATA CENTER",
+        "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+        "AMAZON DATA SERVICES, INC",
+        """Project: PECOS COUNTY DATA CENTER (Building B)
+Location: 6000 TX-18, Fort Stockton, TX 79735 (Pecos County)
+Registered: 2026-08-04
+Developer-reported start: 2026-08-01; completion: 2026-12-01
+Estimated cost: $300,000,000
+Type of work: New Construction
+Scope: New data center building
+Owner: AMAZON DATA SERVICES, INC
+Design firm: M. ARTHUR GENSLER & ASSOCIATES, INC.
+TABS status: Project Registered""",
+    ),
+    (
+        "TABS2027002808",
+        "EG AI RICE CAMPUS DATA CENTER",
+        "800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)",
+        "EG AI CORP",
+        """Project: EG AI RICE CAMPUS DATA CENTER (EG AI RICE CAMPUS)
+Location: 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)
+Registered: 2026-10-05
+Developer-reported start: 2026-11-06; completion: 2028-04-30
+Estimated cost: $5,000,000
+Type of work: New Construction
+Scope: NEW BUILDING FOR DATA CENTER, INCLUDING FOUNDATION, SLAB, FRAMING, WALLS AND ROOF
+Owner: EG AI CORP
+Design firm: not stated
+TABS status: Project Registered""",
+    ),
+    (
+        "TABS2027000611",
+        "Beacon Point Data Center Project",
+        "4650 FM 1694, ROBSTOWN, TX 78380, Corpus Christi, TX 78380 (Nueces County)",
+        "Beacon Point DC LLC aka Lon Hill Infrastructure LLC",
+        """Project: Beacon Point Data Center Project (Beacon Point Data Center)
+Location: 4650 FM 1694, ROBSTOWN, TX 78380, Corpus Christi, TX 78380 (Nueces County)
+Registered: 2026-09-09
+Developer-reported start: 2026-09-28; completion: 2027-11-05
+Estimated cost: $398,985,153
+Type of work: New Construction
+Scope: Type IIB construction of a fully sprinklered, 657,130 square foot, mixed use occupancy \
+(primarily B) data center building and associated guardhouse, fire water tank and pump, and \
+exterior mechanical and electrical support structures.
+Owner: Beacon Point DC LLC aka Lon Hill Infrastructure LLC
+Design firm: Jacobs Project Management Co.
+TABS status: Project Registered""",
+    ),
+    (
+        "TABS2026026959",
+        "PECOS COUNTY DATA CENTER",
+        "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+        "AMAZON DATA SERVICES, INC",
+        """Project: PECOS COUNTY DATA CENTER (Building C)
+Location: 6000 TX-18, Fort Stockton, TX 79735 (Pecos County)
+Registered: 2026-08-04
+Developer-reported start: 2026-08-01; completion: 2026-12-01
+Estimated cost: $300,000,000
+Type of work: New Construction
+Scope: New data center building
+Owner: AMAZON DATA SERVICES, INC
+Design firm: M. ARTHUR GENSLER & ASSOCIATES, INC.
+TABS status: Project Registered""",
+    ),
+    (
+        "TABS2026026954",
+        "PECOS COUNTY DATA CENTER",
+        "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+        "AMAZON DATA SERVICES, INC",
+        """Project: PECOS COUNTY DATA CENTER (Building A)
+Location: 6000 TX-18, Fort Stockton, TX 79735 (Pecos County)
+Registered: 2026-08-04
+Developer-reported start: 2026-08-01; completion: 2026-12-01
+Estimated cost: $300,000,000
+Type of work: New Construction
+Scope: New data center building.
+Owner: AMAZON DATA SERVICES, INC
+Design firm: M. ARTHUR GENSLER & ASSOCIATES, INC.
+TABS status: Project Registered""",
+    ),
+]
+
+
+def _tdlr_document(number, name, location, owner, excerpt, *, url_number=None, extra=""):
+    url_number = url_number or number
+    text = excerpt + (f"\n{extra}" if extra else "")
+    return PublicDocument(
+        f"https://www.tdlr.texas.gov/TABS/Search/Project/{url_number}",
+        f"{name} — TDLR TABS {number}",
+        text,
+        None,
+        NOW,
+        "TDLR TABS project details page",
+        retained_version="a" * 64,
+    )
+
+
+@pytest.mark.parametrize(("number", "name", "location", "owner", "excerpt"), TDLR_CASES)
+def test_tdlr_retained_owner_is_bound_to_exact_current_project(
+    number, name, location, owner, excerpt
+):
+    project = SimpleNamespace(
+        source_id=TDLR_SOURCE,
+        external_id=f"TABS-{number}",
+        name=name,
+        location=location,
+        identity_facts={"site": location},
+    )
+    doc = _tdlr_document(number, name, location, owner, excerpt)
+    claims = extract_retained_permit_organizations(doc, TDLR_SOURCE, project=project)
+
+    assert len(claims) == 1
+    claim = claims[0]
+    assert claim.organization == owner
+    assert claim.category == "owner_developer"
+    assert claim.organization_relationship == "DIRECT"
+    assert claim.citations[0]["url"] == doc.url
+    assert claim.citations[0]["quote"] == f"Owner: {owner}"
+    assert claim.citations[0]["supports"] == "project_organization"
+    assert "purchasing authority" in claim.reason
+    assert "temporary-power demand" in claim.reason
+
+
+@pytest.mark.parametrize(
+    ("case", "url_number", "project_name", "location", "owner", "extra"),
+    [
+        (
+            "wrong-url",
+            "TABS2026000000",
+            "PECOS COUNTY DATA CENTER",
+            "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+            "Amazon Data Services, Inc",
+            "",
+        ),
+        (
+            "missing-owner",
+            "TABS2026026955",
+            "PECOS COUNTY DATA CENTER",
+            "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+            "",
+            "",
+        ),
+        (
+            "conflicting-owner",
+            "TABS2026026955",
+            "PECOS COUNTY DATA CENTER",
+            "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+            "Amazon Data Services, Inc",
+            "Owner: Other Company LLC\n",
+        ),
+        (
+            "not-stated",
+            "TABS2026026955",
+            "PECOS COUNTY DATA CENTER",
+            "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+            "not stated",
+            "",
+        ),
+        (
+            "applicant-only",
+            "TABS2026026955",
+            "PECOS COUNTY DATA CENTER",
+            "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+            "",
+            "Applicant: Amazon Data Services, Inc\n",
+        ),
+        (
+            "wrong-project",
+            "TABS2026026955",
+            "OTHER DATA CENTER",
+            "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+            "Amazon Data Services, Inc",
+            "",
+        ),
+        (
+            "wrong-site",
+            "TABS2026026955",
+            "PECOS COUNTY DATA CENTER",
+            "800 NW McKinney St, Rice, TX 75155 (Navarro County)",
+            "Amazon Data Services, Inc",
+            "",
+        ),
+    ],
+)
+def test_tdlr_owner_parser_rejects_unbound_or_ambiguous_evidence(
+    case, url_number, project_name, location, owner, extra
+):
+    del case
+    project = SimpleNamespace(
+        source_id=TDLR_SOURCE,
+        external_id="TABS-TABS2026026955",
+        name="PECOS COUNTY DATA CENTER",
+        location="6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+        identity_facts={"site": "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)"},
+    )
+    excerpt = TDLR_CASES[1][4]
+    excerpt = (
+        excerpt.replace("PECOS COUNTY DATA CENTER (Building B)", project_name, 1)
+        .replace(TDLR_CASES[1][2], location, 1)
+        .replace("Owner: AMAZON DATA SERVICES, INC", f"Owner: {owner}", 1)
+    )
+    doc = _tdlr_document(
+        "TABS2026026955", project_name, location, owner, excerpt, url_number=url_number, extra=extra
+    )
+    assert extract_retained_permit_organizations(doc, TDLR_SOURCE, project=project) == []
+
+
+def _seed_tdlr_retained_project(session, case, *, bound_project_key=None):
+    number, name, location, owner, excerpt = case
+    if session.get(Source, TDLR_SOURCE) is None:
+        session.add(
+            Source(
+                id=TDLR_SOURCE,
+                publisher="Texas Department of Licensing and Regulation",
+                endpoint="https://www.tdlr.texas.gov/TABS/Search/SearchProjects",
+                family="construction-permits",
+                geography="Texas",
+                industries=["data center"],
+                retrieval_method="tdlr-tabs",
+                health={},
+            )
+        )
+        session.flush()
+    project = Project(
+        source_id=TDLR_SOURCE,
+        external_id=f"TABS-{number}",
+        name=name,
+        location=location,
+        identity_key=f"tdlr-{number}",
+        identity_facts={"site": location},
+    )
+    session.add(project)
+    session.flush()
+    observation_hash = sha256(excerpt.encode()).hexdigest()
+    registered = date.fromisoformat(
+        next(
+            line.removeprefix("Registered: ")
+            for line in excerpt.splitlines()
+            if line.startswith("Registered:")
+        )
+    )
+    url = f"https://www.tdlr.texas.gov/TABS/Search/Project/{number}"
+    title = f"{name} — TDLR TABS {number}"
+    observation = Observation(
+        source_id=TDLR_SOURCE,
+        external_id=project.external_id,
+        title=title,
+        url=url,
+        abstract=excerpt,
+        published_at=None,
+        content_hash=observation_hash,
+    )
+    session.add(observation)
+    session.flush()
+    evidence = Evidence(
+        observation_id=observation.id,
+        title=title,
+        abstract=excerpt,
+        url=url,
+        content_hash=observation_hash,
+        published_at=None,
+        observed_at=NOW,
+        event_date=registered,
+        event_date_label="Registered with TDLR (Architectural Barriers)",
+        extraction_location="TDLR TABS project details page",
+    )
+    session.add_all(
+        [
+            evidence,
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=observation_hash,
+                evaluator_version="tdlr-tabs-data-center-v1",
+                status="accepted",
+                assessment={
+                    "evidence_hash": observation_hash,
+                    "decision": "accepted",
+                    "project_identity_key": bound_project_key or project.identity_key,
+                    "subject": project.name,
+                    "location": project.location,
+                    "power_activity": "construction",
+                    "admission_status": "admitted",
+                },
+            ),
+            PowerNeed(
+                project_id=project.id,
+                activity_key="construction",
+                tier="Signal",
+                rationale="Current accepted TDLR registration fixture.",
+            ),
+        ]
+    )
+    session.flush()
+    return project, evidence, owner
+
+
+def test_tdlr_retained_job_links_each_pecos_project_without_name_merging(db):
+    with db.begin() as session:
+        pecos_cases = [TDLR_CASES[index] for index in (1, 4, 5)]
+        projects = [_seed_tdlr_retained_project(session, case) for case in pecos_cases]
+        linked_identities = []
+        for project, retained, owner in projects:
+            result = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
+            candidate = next(item for item in result["candidates"] if item["organization"] == owner)
+            cited_owner = next(
+                item for item in candidate["evidence"] if item["supports"] == "project_organization"
+            )
+            assert cited_owner["quote"] == f"Owner: {owner}"
+            assert cited_owner["current_support"] is True
+            assert cited_owner["current_source_version_id"] == cited_owner["id"]
+            stored_source = session.get(BuyingChainEvidence, cited_owner["id"])
+            assert stored_source is not None
+            assert stored_source.retained_evidence_id == retained.id
+            link = session.scalar(
+                select(BuyingChainIdentityLink).where(
+                    BuyingChainIdentityLink.claim_id == UUID(str(candidate["id"])),
+                    BuyingChainIdentityLink.entity_type == "company",
+                    BuyingChainIdentityLink.state == "current",
+                )
+            )
+            assert link is not None
+            assert link.basis == "project_scoped"
+            linked_identities.append(link.company_identity_id)
+
+        assert len({project.id for project, _, _ in projects}) == 3
+        assert len(set(linked_identities)) == 3
+
+        wrong_case = TDLR_CASES[0]
+        wrong_project, _, _ = _seed_tdlr_retained_project(
+            session, wrong_case, bound_project_key="another-project-key"
+        )
+        rejected = enrich_buying_chain(session, wrong_project.id, retained_only=True, now=NOW)
+        assert rejected["candidates"] == []

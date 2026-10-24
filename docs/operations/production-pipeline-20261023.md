@@ -6,6 +6,13 @@ retrieval, normal saved-browse startup, and the approved desktop detail layout.
 The full live Firecrawl → Jev → OpenAI → verified commercial record acceptance
 remains open. This record does not authorize a production deployment.
 
+Latest accepted checkpoint: M1–M4 are independently accepted, with M4 at
+`d2a2c6ca80bc082891c5f127389b66f2405928c4` and CI run 40038044951 passing.
+Earlier candidate sections below preserve the evidence available at those
+checkpoints; their pending-review language is historical. Current M5 work and
+remaining acceptance limits are recorded in the [M5 validation record](production-m5-20261024.md)
+and [work graph](../../.agent/WORK_GRAPH.md).
+
 ## Milestone 1 implementation
 
 - PUCT docket searches now use the official direct `/search/dockets/` endpoint
