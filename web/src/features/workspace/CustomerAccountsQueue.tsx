@@ -1,5 +1,8 @@
+import { OpportunityTable } from './OpportunityTable'
 import { useEffect, useRef, useState } from 'react'
 import { client, type WorkspaceNeed, type WorkspacePage, type WorkspaceFilters, type CustomerProjectsPage, type CustomerAccount, type UnresolvedCustomerProjectsPage } from '../../api/client'
+
+const expandedAccount = () => { const p = new URLSearchParams(location.search); return p.has('need') && !p.has('accountBrowse') ? '' : p.get('account') ?? '' }
 
 type AccountRow = WorkspaceNeed & { company_identity_id: string }
 const displayAliases = (name: string | null | undefined, aliases: string[] | undefined) => (aliases ?? []).filter(alias => alias.trim() && alias.trim().toLocaleLowerCase() !== (name ?? '').trim().toLocaleLowerCase())
@@ -9,10 +12,10 @@ const formatEvidenceDate = (value: string | null | undefined) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
 }
 
-export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAvailable }: { page: WorkspacePage | null; filters: WorkspaceFilters; onNeed: (needId: string) => void; onPage: (offset: number, cohortToken: string | undefined) => void; pagingAvailable: boolean }) {
+export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAvailable }: { page: WorkspacePage | null; filters: WorkspaceFilters; onNeed: (needId: string, context?: { accountId: string; projectId?: string }) => void; onPage: (offset: number, cohortToken: string | undefined) => void; pagingAvailable: boolean }) {
   const rows = page?.items ?? []
   const accounts = rows.filter((row): row is AccountRow => Boolean(row.company_identity_id))
-  const [accountId, setAccountId] = useState(() => new URLSearchParams(location.search).get('account') ?? '')
+  const [accountId, setAccountId] = useState(expandedAccount)
   const [projectId, setProjectId] = useState(() => new URLSearchParams(location.search).get('project') ?? '')
   const [projectOffset, setProjectOffset] = useState(0)
   const [needOffset, setNeedOffset] = useState(() => Number(new URLSearchParams(location.search).get('need_offset') ?? 0) || 0)
@@ -24,10 +27,10 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
   const [unresolvedOpen, setUnresolvedOpen] = useState(false)
   const projectRequest = useRef(0)
   const unresolvedRequest = useRef(0)
-  const accountParam = new URLSearchParams(location.search).get('account') ?? ''
+  const accountParam = expandedAccount()
 
   useEffect(() => {
-    const sync = () => { const params = new URLSearchParams(location.search); setAccountId(params.get('account') ?? ''); setProjectId(params.get('project') ?? ''); setProjectOffset(0); setNeedOffset(Number(params.get('need_offset') ?? 0) || 0) }
+    const sync = () => { const params = new URLSearchParams(location.search); setAccountId(expandedAccount()); setProjectId(params.get('project') ?? ''); setProjectOffset(0); setNeedOffset(Number(params.get('need_offset') ?? 0) || 0) }
     addEventListener('popstate', sync)
     return () => removeEventListener('popstate', sync)
   }, [])
@@ -50,12 +53,12 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
   }, [filters.search, unresolvedOffset, retry])
 
   const openAccount = (id: string) => {
-    const params = new URLSearchParams(location.search); params.set('account', id); params.delete('project')
+    const params = new URLSearchParams(location.search); params.set('account', id); params.set('accountBrowse', '1'); params.delete('project')
     history.pushState(history.state, '', `${location.pathname}?${params}`)
     setProjectOffset(0); setNeedOffset(0); setAccountId(id); setProjectId('')
   }
   const closeAccount = () => {
-    const params = new URLSearchParams(location.search); params.delete('account'); params.delete('project')
+    const params = new URLSearchParams(location.search); params.delete('account'); params.delete('project'); params.delete('accountBrowse')
     history.pushState(history.state, '', `${location.pathname}${params.size ? `?${params}` : ''}`)
     setAccountId(''); setProjectId(''); setNeedOffset(0)
   }
@@ -98,16 +101,7 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
       </article>)}
       {projects && <nav className="ci-paging" aria-label="Account project pages"><span>{projects.items.length} of {projects.total} projects</span><button type="button" disabled={!projects.offset} onClick={() => setProjectOffset(Math.max(0, projects.offset - projects.limit))}>Previous</button><button type="button" disabled={projects.next_offset == null} onClick={() => setProjectOffset(projects.next_offset!)}>Next</button></nav>}
     </> : <>
-      <h2>Customer accounts</h2>
-      <p>Companies are grouped across their matching projects and power needs.</p>
-      <div className="ci-account-list"><table className="brand-account-table"><caption className="sr-only">Customer opportunities</caption><thead><tr><th scope="col">Customer / evidence</th><th scope="col">Projects</th><th scope="col">Power needs</th></tr></thead><tbody>{accounts.map(account => <tr key={account.company_identity_id}><td><button type="button" onClick={() => openAccount(account.company_identity_id!)}>
-        <strong>{account.account_name ?? account.commercial_organization ?? account.browse_title ?? 'Customer name not established'}</strong>
-        <span>{account.location ?? 'Location not established'} · {account.project_count ?? '—'} projects · {account.need_count ?? '—'} power needs · {account.supporting_evidence_count ?? 0} supporting evidence items</span>
-        {displayAliases(account.account_name, account.account_aliases).length ? <span>Also known as: {displayAliases(account.account_name, account.account_aliases).join(', ')}</span> : null}
-        {account.last_evidence_update ? <span>Evidence updated {formatEvidenceDate(account.last_evidence_update)}</span> : null}
-        <span>{account.asset_type?.replaceAll('_', ' ') ?? 'Industry not established'} · {account.tier} · {[account.required_mw ? `${account.required_mw} MW` : '', account.start_window, account.commercial_disposition].filter(Boolean).join(' · ') || 'Needs confirmation'}</span>
-        <span>{account.commercial_next_action ?? 'Research needed'}</span>
-      </button></td><td>{account.project_count ?? "—"}</td><td>{account.need_count ?? "—"}</td></tr>)}</tbody></table></div>
+      <OpportunityTable items={accounts} selectedId={new URLSearchParams(location.search).get('need') ?? undefined} onSelect={account => onNeed(account.id, { accountId: account.company_identity_id!, projectId: account.project_id })} onAccount={account => openAccount(account.company_identity_id!)}/>
       {accountPaging}
       <details className="ci-unresolved" open={unresolvedOpen} onToggle={event => setUnresolvedOpen(event.currentTarget.open)}>
         <summary>Projects needing customer research{unresolved ? ` (${unresolved.total})` : ''}</summary>
