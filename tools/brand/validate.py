@@ -17,11 +17,11 @@ def contrast(a,b):
     a,b=sorted([luminance(a),luminance(b)])
     return (b+.05)/(a+.05)
 def main():
-    manifest=json.loads((OUT/'asset-manifest.json').read_text())
+    manifest=json.loads((OUT/'asset-manifest.json').read_text(encoding='utf-8'))
     assert manifest['source_sha256']==hashlib.sha256((ROOT/'tools/brand/masters/symbol.svg').read_bytes()).hexdigest(), 'Stale master exports'
     assert manifest['tokens_sha256']==hashlib.sha256((ROOT/'docs/design/brand.tokens.json').read_bytes()).hexdigest(), 'Stale token exports'
     for family,h in manifest['font_sha256'].items(): assert h==hashlib.sha256((ROOT/f'web/public/fonts/{family}.ttf').read_bytes()).hexdigest(), 'Stale font exports'
-    tokens=json.loads((ROOT/'docs/design/brand.tokens.json').read_text())
+    tokens=json.loads((ROOT/'docs/design/brand.tokens.json').read_text(encoding='utf-8'))
     approved_fills=set(tokens['colors'].values())|{'#FFFFFF','none','transparent'}
     ns='{http://www.w3.org/2000/svg}'
     geometry=[e.attrib['d'] for e in ET.parse(ROOT/'tools/brand/masters/symbol.svg').getroot().findall(ns+'path')]
@@ -53,9 +53,9 @@ def main():
             im=Image.open(p); assert im.size==(row['width'],row['height']),f'Dimensions {p}'
             lo,hi=im.convert('RGBA').getextrema()[3]
             assert lo==0 if row['transparent'] else lo==255,f'Transparency {p}'
-    assert set(names)|{'asset-manifest.json'}=={str(p.relative_to(OUT)) for p in OUT.rglob('*') if p.is_file()},'Unmanaged/orphan public assets'
-    tokens=json.loads((ROOT/'docs/design/brand.tokens.json').read_text())
-    css=(ROOT/'web/src/styles/brand-tokens.css').read_text()
+    assert set(names)|{'asset-manifest.json'}=={p.relative_to(OUT).as_posix() for p in OUT.rglob('*') if p.is_file()},'Unmanaged/orphan public assets'
+    tokens=json.loads((ROOT/'docs/design/brand.tokens.json').read_text(encoding='utf-8'))
+    css=(ROOT/'web/src/styles/brand-tokens.css').read_text(encoding='utf-8')
     for name,h in tokens['colors'].items(): assert f'--gl-{name.replace("_","-")}: {h};' in css
     for name,value in tokens['semantic'].items(): assert f'--gl-{name.replace("_","-")}: var(--gl-{value.replace("_","-")});' in css, f'Semantic token drift: {name}'
     for name,value in tokens['status_colors'].items(): assert f'--gl-{name.replace("_","-")}: {value};' in css, f'Status token drift: {name}'
@@ -66,7 +66,7 @@ def main():
     definitions=set(re.findall(r'(--[\w-]+)\s*:',css))
     sources=list((ROOT/'web/src').rglob('*.css'))+list((ROOT/'web/src').rglob('*.tsx'))+[ROOT/'web/index.html',ROOT/'web/public/site.webmanifest']
     for p in sources:
-        s=p.read_text()
+        s=p.read_text(encoding='utf-8')
         assert not re.search(r'aperture|Diatype|DejaVu|lockup-pursuits|#17324A|#3B82F6',s,re.I),f'Legacy identity {p}'
         assert not re.search(r'var\(--[^)]+\)[0-9a-f]{2}\b',s,re.I),f'Invalid variable alpha {p}'
         for ref in re.findall(r'[\"\'](/brand/[\w./-]+)',s): assert (ROOT/'web/public'/ref.lstrip('/')).is_file(),f'Broken {ref}'

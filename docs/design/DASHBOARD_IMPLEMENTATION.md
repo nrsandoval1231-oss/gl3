@@ -2,7 +2,7 @@
 
 ## Result and repository inspection
 
-Extended existing draft PR #115 (`brand/gridlens-seven-color-canon`) from `fe913f9`; no competing implementation branch. Main was `a70e533`. PR #115 was open, unmerged and contained the seven-color migration, two-ink G/L candidate assets, Sora/Inter fonts, and initial table/detail integration. Those changes were reused. All remote branch heads were inspected; the other active PR, #114 (`d2a2c6c`), contains separate evidence/acquisition work and long-value CSS fixes. Its backend work was not imported or overwritten. The existing React/API architecture is retained.
+Extended existing draft PR #115 (`brand/gridlens-seven-color-canon`) from `fe913f9`; no competing implementation branch. Main was `a70e533`. PR #115 was open, unmerged and contained the seven-color migration, two-ink G/L candidate assets, Sora/Inter fonts, and initial table/detail integration. Those changes were reused. During implementation, concurrent PR #115 commits `bb2bf6e` and `54770e0` added account-menu contrast checks and Windows/UTF-8 asset validation. They were merged and preserved, including test-artifact output paths. All remote branch heads were inspected; the other active PR, #114 (`d2a2c6c`), contains separate evidence/acquisition work and long-value CSS fixes. Its backend work was not imported or overwritten. The existing React/API architecture is retained.
 
 ## Implementation
 

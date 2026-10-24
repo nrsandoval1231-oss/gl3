@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 import { needA, needB } from './fixtures/dashboard'
 
-test('approved intelligence dashboard preserves evidence, verified actions, selection history, and mobile width', async ({ page }) => {
+test('approved intelligence dashboard preserves evidence, verified actions, selection history, and mobile width', async ({ page }, testInfo) => {
   let providerPosts = 0
   const workspace = (items: typeof needA[], total = items.length) => ({ items, total, counts: { action_now: 0, research: total, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'approved-cohort', count_unit: 'power needs', changes_available: false })
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
@@ -21,6 +21,36 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto('/?view=workspace')
   await expect(page.locator('.wh-list')).toBeVisible()
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    const account = page.locator('.wh-account')
+    const summary = account.locator('summary')
+    const signOut = page.getByRole('button', { name: 'Sign out' })
+    await summary.focus()
+    await page.keyboard.press('Enter')
+    await expect(account).toHaveAttribute('open', '')
+    await expect(signOut).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(signOut).toBeFocused()
+    const contrast = await signOut.evaluate(button => {
+      const panel = button.parentElement!
+      const parse = (color: string) => color.match(/[\d.]+/g)!.slice(0, 3).map(Number)
+      const luminance = (color: string) => {
+        const [r, g, b] = parse(color).map(channel => {
+          const normalized = channel / 255
+          return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
+        })
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+      }
+      const foreground = luminance(getComputedStyle(button).color)
+      const background = luminance(getComputedStyle(panel).backgroundColor)
+      return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+    })
+    expect(contrast).toBeGreaterThanOrEqual(4.5)
+    await summary.press('Enter')
+    await expect(account).not.toHaveAttribute('open', '')
+  }
+  await page.setViewportSize({ width: 1280, height: 720 })
   // Reserve the scrollbar gutter that Windows Chrome allocates in this list.
   await page.locator('.wh-list').evaluate(element => { element.style.scrollbarGutter = 'stable' })
   await expect(page.locator('.wh-queue-heading > span')).toHaveText('1659 opportunities')
@@ -94,7 +124,7 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   for (const [width, height] of [[1648,928],[1440,900],[1280,800],[768,1024],[390,844]]) {
     await page.setViewportSize({ width, height })
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-    await page.screenshot({ path: new URL(`../../docs/design/screenshots/fixture-workspace-${width}x${height}.png`, import.meta.url).pathname, fullPage: false })
+    await page.screenshot({ path: testInfo.outputPath(`workspace-${width}x${height}.png`), fullPage: false })
   }
   await page.setViewportSize({ width: 1648, height: 928 })
   // Wider action labels model platform font metrics without changing production typography.
