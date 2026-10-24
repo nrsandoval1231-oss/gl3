@@ -1,3 +1,16 @@
+## Current checkpoint — PR116 — 2026-10-24
+
+This dated checkpoint supersedes the historical directions below. Bounded retained-source UI acceptance passed; the evidence and limits are in [PR116 acceptance](../docs/design/PR116_ACCEPTANCE_20261024.md). Owner acceptance of existing brand geometry/wordmark is recorded; no additional comparison or independent graphic verification is claimed.
+
+| Node | State | Current authority / acceptance |
+|---|---|---|
+| PR116-INTEGRATE | PASS_BOUNDED_UI | Six authenticated accounts, 14 power needs, six checks/ten screenshots; 66 source tables matched, 15 protected clone tables unchanged; no page errors, external browser requests, new jobs or logical calls. |
+| PR116-DOCS-FREEZE | READY_FOR_CONTROLLER_VALIDATION | Dated proof, provenance, screenshots, state and graph recorded; token digest matches manifest; no artwork regenerated. |
+| PR116-FULL-GATES | PENDING | Controller runs full exact-candidate backend/web/docs gates, independent Sol review, fresh GitHub CI and guarded merge. No deployment. |
+
+Direction: **VALIDATE** frozen candidate. Parent M6 and Finish Contract remain OPEN; Albuquerque Sol remains UNKNOWN with no retry/replacement; original 446-record corpus remains unavailable. This checkpoint changes no source/runtime/provider state.
+---
+
 # Production intelligence work graph
 
 Base a70e5330ee8ad7483391abe313d2bb9f68183975. Owner directive/PRD govern; no merge/deploy.

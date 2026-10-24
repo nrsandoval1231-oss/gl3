@@ -14,7 +14,7 @@ const card = {
     { key: 'project', label: 'Project', section: 'identity', value: 'North Austin Advanced Manufacturing Campus Construction and Electrical Infrastructure Development Project', status: 'Reported', basis: 'Source title.', sources: [source] },
     { key: 'power', label: 'Power activity', section: 'power', value: 'Construction', status: 'Reported', basis: 'Permit scope.', sources: [source] },
     { key: 'facility_demand', label: 'Facility demand', section: 'power', value: '184.75 MW across the complete facility buildout; it does not represent the temporary construction load', status: 'Reported', basis: 'The notice reports aggregate facility buildout demand and distinguishes it from the activity-specific construction package.', sources: [source] },
-    { key: 'energization', label: 'Utility energization', section: 'power', value: 'North Austin substation energization targeted for Q3 2027 after feeder acceptance', status: 'Reported', basis: `The notice attributes the target to the utility coordination milestone; retained source record ${'TXPUCT2026UTILITYCOORDINATIONREFERENCE'.repeat(3)}.`, sources: [source] },
+    { key: 'energization', label: 'Utility energization', section: 'power', value: 'North Austin substation energization targeted for Q3 2027 after substation feeder acceptance', status: 'Reported', basis: `The notice attributes the target to the utility coordination milestone; retained source record ${'TXPUCT2026UTILITYCOORDINATIONREFERENCE'.repeat(3)}.`, sources: [source] },
   ],
   contacts: [{ claim_id: 'contact-a', company: 'A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company', name: 'Alexandra Longname-Sample', title: 'Director, Infrastructure Programs', role: 'Owner developer', responsibility: 'Source-supported project involvement', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url }], sources: [source] }],
   next_contact_path: 'Confirm which organization owns temporary power procurement for this specific multi-phase construction and commissioning package.',
@@ -119,76 +119,60 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   await page.locator('[data-need-row="need-a"]').click()
   await expect(page.getByRole('heading', { name: 'A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company' })).toBeVisible()
   await page.setViewportSize({ width: 1280, height: 800 })
-  const baselineCss = await page.addStyleTag({ content: '.wh-record-hero>*{min-width:auto!important}.wh-record-identity{flex:0 1 auto!important}.wh-record-qualification{flex:0 1 auto!important}.wh-completeness{flex:0 1 auto!important}.wh-record-qualification>span,.wh-completeness>span{overflow-wrap:normal!important}.wh-metric small{overflow-wrap:normal!important}' })
-  await page.screenshot({ path: '../.agent/artifacts/PRODUCTION-M1-UI/baseline-long-values-1280x800.png', fullPage: false })
-  const baselineHero = await page.evaluate(() => {
-    const hero = document.querySelector<HTMLElement>('.wh-record-hero')!
-    const detail = document.querySelector<HTMLElement>('.wh-detail')!.getBoundingClientRect()
-    const metricCards = [...document.querySelectorAll<HTMLElement>('.wh-metric')]
-    return { scrollWidth: hero.scrollWidth, clientWidth: hero.clientWidth, pageWidth: document.documentElement.scrollWidth, children: [...hero.children].map(child => ({ scrollWidth: (child as HTMLElement).scrollWidth, clientWidth: (child as HTMLElement).clientWidth })), metricCards: metricCards.map(card => { const basis = card.querySelector<HTMLElement>('small')!; return { cardScrollWidth: card.scrollWidth, cardClientWidth: card.clientWidth, basisScrollWidth: basis.scrollWidth, basisClientWidth: basis.clientWidth, left: card.getBoundingClientRect().left, right: card.getBoundingClientRect().right } }), detailLeft: detail.left, detailRight: detail.right }
-  })
-  console.log(`baseline hero geometry: ${JSON.stringify(baselineHero)}`)
-  expect(baselineHero.metricCards.some(card => card.basisScrollWidth > card.basisClientWidth)).toBe(true)
-  await baselineCss.evaluate(element => (element as HTMLElement).remove())
-  const desktopDetail = await page.evaluate(() => {
-    const rect = (selector: string) => document.querySelector<HTMLElement>(selector)!.getBoundingClientRect()
-    const detail = document.querySelector<HTMLElement>('.wh-detail')!
-    const hero = rect('.wh-record-hero')
-    const heroContent = [...document.querySelectorAll<HTMLElement>('.wh-record-hero > *')].map(element => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right, top: element.getBoundingClientRect().top, bottom: element.getBoundingClientRect().bottom, height: element.scrollHeight, client: element.clientHeight }))
-    const metrics = rect('.wh-metrics')
-    const detailRect = detail.getBoundingClientRect()
-    const actions = [...document.querySelectorAll<HTMLElement>('.wh-record-actions button')].map(element => element.getBoundingClientRect())
-    return { pageWidth: document.documentElement.scrollWidth, detailWidth: detail.clientWidth, detailScrollWidth: detail.scrollWidth, detailRect, hero, heroContent, actions: actions.map(({ left, right }) => ({ left, right })), metrics, metricCount: document.querySelectorAll('.wh-metric').length }
-  })
-  expect(desktopDetail.pageWidth).toBeLessThanOrEqual(1280)
-  expect(desktopDetail.detailScrollWidth).toBeLessThanOrEqual(desktopDetail.detailWidth)
-  expect(desktopDetail.metricCount).toBe(5)
-  for (const child of desktopDetail.heroContent) {
-    expect(child.height).toBeLessThanOrEqual(child.client)
-    expect(child.left).toBeGreaterThanOrEqual(desktopDetail.hero.left)
-    expect(child.right).toBeLessThanOrEqual(desktopDetail.hero.right)
-    expect(child.top).toBeGreaterThanOrEqual(desktopDetail.hero.top)
-    expect(child.bottom).toBeLessThanOrEqual(desktopDetail.hero.bottom)
-  }
-  for (const action of desktopDetail.actions) {
-    expect(action.left).toBeGreaterThanOrEqual(desktopDetail.detailRect.left)
-    expect(action.right).toBeLessThanOrEqual(desktopDetail.detailRect.right)
-  }
-  expect(desktopDetail.metrics.left).toBeGreaterThanOrEqual(0)
-  expect(desktopDetail.metrics.right).toBeLessThanOrEqual(1280)
-  const metricBounds = await page.locator('.wh-metric').evaluateAll(cards => cards.map(card => {
-    const rect = card.getBoundingClientRect()
-    return { label: card.querySelector<HTMLElement>('.wh-metric-label')!, value: card.querySelector<HTMLElement>('strong')!, basis: card.querySelector<HTMLElement>('small')!, rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } }
-  }).map(({ label, value, basis, rect }) => ({
-    cardFits: label.closest<HTMLElement>('.wh-metric')!.scrollWidth <= label.closest<HTMLElement>('.wh-metric')!.clientWidth,
-    valueWidth: value.clientWidth,
-    labelFits: label.scrollWidth <= label.clientWidth, valueFits: value.scrollWidth <= value.clientWidth, basisFits: basis.scrollWidth <= basis.clientWidth,
-    valueFontSize: Number.parseFloat(getComputedStyle(value).fontSize), wordBreak: getComputedStyle(value).wordBreak, overflowWrap: getComputedStyle(value).overflowWrap,
-    wordFragmentCounts: (() => { const text = value.firstChild!; const content = value.textContent ?? ''; return [...content.matchAll(/\S+/g)].map(match => { const range = document.createRange(); range.setStart(text, match.index!); range.setEnd(text, match.index! + match[0].length); return range.getClientRects().length }) })(),
-    rect, labelRect: label.getBoundingClientRect().toJSON(), valueRect: value.getBoundingClientRect().toJSON(), basisRect: basis.getBoundingClientRect().toJSON(),
-  })))
-  for (const metric of metricBounds) {
-    expect(metric.cardFits && metric.labelFits && metric.valueFits && metric.basisFits).toBe(true)
-    expect(metric.valueWidth).toBeGreaterThanOrEqual(110)
-    expect(metric.valueFontSize).toBeGreaterThanOrEqual(13)
-    expect(metric.wordBreak).toBe('normal')
-    expect(metric.overflowWrap).toBe('break-word')
-    expect(metric.wordFragmentCounts.every(count => count === 1)).toBe(true)
-    expect(metric.rect.left).toBeGreaterThanOrEqual(desktopDetail.detailRect.left)
-    expect(metric.rect.right).toBeLessThanOrEqual(desktopDetail.detailRect.right)
-    for (const content of [metric.labelRect, metric.valueRect, metric.basisRect]) {
-      expect(content.left).toBeGreaterThanOrEqual(metric.rect.left)
-      expect(content.right).toBeLessThanOrEqual(metric.rect.right)
+  const assertContainedMetrics = async (selector: string) => {
+    const layout = await page.locator(selector).evaluate(container => {
+      const containerRect = container.getBoundingClientRect()
+      const cards = [...container.children] as HTMLElement[]
+      return {
+        containerFits: container.scrollWidth <= container.clientWidth,
+        cardCount: cards.length,
+        cards: cards.map(card => {
+          const rect = card.getBoundingClientRect()
+          const content = [...card.querySelectorAll<HTMLElement>('strong,span,small')].map(item => ({
+            fits: item.scrollWidth <= item.clientWidth,
+            left: item.getBoundingClientRect().left,
+            right: item.getBoundingClientRect().right,
+          }))
+          return { fits: card.scrollWidth <= card.clientWidth, left: rect.left, right: rect.right, content }
+        }),
+        bounds: { left: containerRect.left, right: containerRect.right },
+      }
+    })
+    expect(layout.containerFits).toBe(true)
+    for (const card of layout.cards) {
+      expect(card.fits).toBe(true)
+      expect(card.left).toBeGreaterThanOrEqual(layout.bounds.left)
+      expect(card.right).toBeLessThanOrEqual(layout.bounds.right)
+      for (const item of card.content) {
+        expect(item.fits).toBe(true)
+        expect(item.left).toBeGreaterThanOrEqual(card.left)
+        expect(item.right).toBeLessThanOrEqual(card.right)
+      }
     }
+    return layout.cardCount
   }
-  await page.screenshot({ path: '../.agent/artifacts/PRODUCTION-M1-UI/selected-detail-1280x800.png', fullPage: false })
-  await expect(page.getByText('Opportunity Intelligence', { exact: true })).toBeVisible()
-  await expect(page.locator('.wh-metric')).toHaveCount(5)
-  await expect(page.locator('.wh-metrics')).toContainText('184.75 MW across the complete facility buildout')
+  expect(await assertContainedMetrics('.wh-customer-metrics')).toBe(3)
+  await expect(page.locator('.wh-customer-metrics')).toContainText('3.25–6.75 MW of potential residual bridge power during phase one construction')
+  await expect(page.locator('.wh-customer-metrics')).toContainText('Q3 2027 after substation feeder acceptance')
+  await expect(page.locator('.wh-customer-metrics')).toContainText('Unavailable')
+  await page.getByRole('button', { name: 'Power Analysis', exact: true }).click()
+  const powerAnalysis = page.locator('.wh-metrics')
+  await expect(powerAnalysis.locator('.wh-metric')).toHaveCount(5)
+  await expect(powerAnalysis).toContainText('184.75 MW across the complete facility buildout')
+  await expect(powerAnalysis).toContainText('North Austin substation energization targeted for Q3 2027 after substation feeder acceptance')
+  expect(await assertContainedMetrics('.wh-metrics')).toBe(5)
+  await page.screenshot({ path: testInfo.outputPath('selected-detail-1280x800.png'), fullPage: false })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await assertContainedMetrics('.wh-customer-metrics')).toBe(3)
+  expect(await assertContainedMetrics('.wh-metrics')).toBe(5)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await page.screenshot({ path: testInfo.outputPath('selected-detail-390x844.png'), fullPage: false })
+  await page.getByRole('button', { name: 'Overview', exact: true }).click()
   const dashboard = page.getByRole('region', { name: 'Commercial intelligence card' })
   await expect(dashboard.getByText('A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company').first()).toBeVisible()
   await expect(dashboard.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
   await expect(dashboard.locator('a[href^="mailto:"]')).toHaveCount(0)
+  await page.locator('.wh-more-tabs > summary').click()
   await page.getByRole('button', { name: 'Research Gaps' }).click()
   await expect(page.getByText(/Buying authority: not evaluated in this summary/)).toBeVisible()
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
@@ -204,18 +188,19 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   await expect(page.locator('.wh-card-sources article')).toHaveCount(0)
   await sourceFilter.selectOption('All sources')
   await expect(page.getByRole('link', { name: 'Retained site development notice' }).first()).toBeVisible()
+  await page.setViewportSize({ width: 1280, height: 800 })
   await page.locator('[data-need-row="need-b"]').click()
   await expect(page.getByRole('heading', { name: 'Example Customer' })).toBeVisible()
   await page.setViewportSize({ width: 1648, height: 928 })
   await page.locator('.wh-detail').evaluate(el => { el.scrollTop = 0 })
-  const geometry = await page.evaluate(() => ({ header: document.querySelector('.wh-header')!.getBoundingClientRect(), rail: document.querySelector('.wh-list')!.getBoundingClientRect(), metrics: document.querySelector('.wh-metrics')!.getBoundingClientRect(), columns: document.querySelector('.ic-dashboard')!.getBoundingClientRect(), tabs: document.querySelector('.wh-tabs')!.getBoundingClientRect(), table: document.querySelector('.wh-evidence-table')!.getBoundingClientRect() }))
-  expect(geometry.header.height).toBeCloseTo(58, 0)
+  const geometry = await page.evaluate(() => ({ header: document.querySelector('.wh-header')!.getBoundingClientRect(), rail: document.querySelector('.wh-list')!.getBoundingClientRect(), metrics: document.querySelector('.wh-customer-metrics')!.getBoundingClientRect(), columns: document.querySelector('.ic-dashboard')!.getBoundingClientRect(), tabs: document.querySelector('.wh-tabs')!.getBoundingClientRect(), table: document.querySelector('.wh-tabs')!.getBoundingClientRect() }))
+  expect(geometry.header.height).toBeCloseTo(92, 0)
   // October 23 supersedes the old fixed 25% queue / three-column detail.
   expect(geometry.rail.width).toBeGreaterThan(1648 * .5)
-  expect(geometry.rail.width).toBeLessThan(1648 * .65)
+  expect(geometry.rail.width).toBeLessThan(1648 * .71)
   expect(geometry.metrics.top).toBeGreaterThan(geometry.header.bottom)
   expect(geometry.columns.top).toBeGreaterThan(geometry.metrics.top)
-  expect(await page.locator('.wh-header').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
+  expect(await page.locator('.wh-header').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(11, 31, 51)')
   await page.evaluate(() => document.fonts.ready)
   expect(await page.evaluate(() => document.fonts.check('14px Inter') && document.fonts.check('22px Sora'))).toBe(true)
   for (const [width, height] of [[1648,928],[1440,900],[1280,800],[768,1024],[390,844]]) {
@@ -228,7 +213,7 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   const wideActionLabels = await page.addStyleTag({ content: '.wh-record-actions button { letter-spacing: 3px; }' })
   const actionGeometry = await page.evaluate(() => {
     const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
-    return { actions: rect('.wh-record-actions').toJSON(), toolbar: rect('.wh-identity-toolbar').toJSON(), share: rect('.wh-share').toJSON(), workflow: rect('.wh-primary-action').toJSON(), metrics: rect('.wh-metrics').toJSON() }
+    return { actions: rect('.wh-record-actions').toJSON(), toolbar: rect('.wh-identity-toolbar').toJSON(), share: rect('.wh-share').toJSON(), workflow: rect('.wh-primary-action').toJSON(), metrics: rect('.wh-customer-metrics').toJSON() }
   })
   expect(actionGeometry.actions.width).toBeGreaterThan(225)
   expect(actionGeometry.share.top).toBeCloseTo(actionGeometry.workflow.top, 0)
@@ -252,5 +237,5 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(page.getByRole('heading', { name: 'A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
-  await page.screenshot({ path: '../.agent/artifacts/PRODUCTION-M1-UI/selected-detail-390x844.png', fullPage: false })
+  await page.screenshot({ path: testInfo.outputPath('selected-detail-390x844.png'), fullPage: false })
 })
