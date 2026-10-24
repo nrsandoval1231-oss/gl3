@@ -7,18 +7,12 @@ import ast
 import errno
 import hashlib
 import os
-from pathlib import Path
 import stat
+from pathlib import Path
 
-EXPECTED_WRAPPER_SHA256 = (
-    "1cedfc857f6e29e818098f5fbd2e7ae3c691221467864779e350768b1dfd1920"
-)
-EXPECTED_WRAPPER_AST_SHA256 = (
-    "f70761b76d98087a2e2d90c1569c05bfbf3dd102c5e41e7ef47cf5a79ba4f88c"
-)
-EXPECTED_COMMAND_AST_SHA256 = (
-    "a40c5cc646adaae3b23c3d5f8fb81cf1792eacfd1322320bd0a922651f34d3b8"
-)
+EXPECTED_WRAPPER_SHA256 = "1cedfc857f6e29e818098f5fbd2e7ae3c691221467864779e350768b1dfd1920"
+EXPECTED_WRAPPER_AST_SHA256 = "f70761b76d98087a2e2d90c1569c05bfbf3dd102c5e41e7ef47cf5a79ba4f88c"
+EXPECTED_COMMAND_AST_SHA256 = "a40c5cc646adaae3b23c3d5f8fb81cf1792eacfd1322320bd0a922651f34d3b8"
 EXPECTED_ALL_SERVICE_SUFFIX = ("up", "-d", "--no-build")
 
 
@@ -29,9 +23,7 @@ def _ast_digest(node: ast.AST) -> str:
 
 
 def _offset(source: str, line: int, column: int = 0) -> int:
-    return (
-        sum(len(part) for part in source.splitlines(keepends=True)[: line - 1]) + column
-    )
+    return sum(len(part) for part in source.splitlines(keepends=True)[: line - 1]) + column
 
 
 def _literal_tail(node: ast.AST) -> tuple[str, ...] | None:
@@ -50,11 +42,7 @@ def _render(source: str) -> str:
     if _ast_digest(tree) != EXPECTED_WRAPPER_AST_SHA256:
         raise ValueError("wrapper AST identity is not authorized")
     main = next(
-        (
-            node
-            for node in tree.body
-            if isinstance(node, ast.FunctionDef) and node.name == "main"
-        ),
+        (node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "main"),
         None,
     )
     if main is None or len(main.body) < 5:
@@ -65,8 +53,7 @@ def _render(source: str) -> str:
             for node in main.body
             if isinstance(node, ast.Assign)
             and any(
-                isinstance(target, ast.Name) and target.id == "command"
-                for target in node.targets
+                isinstance(target, ast.Name) and target.id == "command" for target in node.targets
             )
         ),
         None,
@@ -76,10 +63,7 @@ def _render(source: str) -> str:
             node
             for node in main.body
             if isinstance(node, ast.Assign)
-            and any(
-                isinstance(target, ast.Name) and target.id == "env"
-                for target in node.targets
-            )
+            and any(isinstance(target, ast.Name) and target.id == "env" for target in node.targets)
         ),
         None,
     )
@@ -106,9 +90,7 @@ def _render(source: str) -> str:
     if _ast_digest(command.value) != EXPECTED_COMMAND_AST_SHA256:
         raise ValueError("wrapper command identity is not authorized")
     if _literal_tail(command.value) != EXPECTED_ALL_SERVICE_SUFFIX:
-        raise ValueError(
-            "wrapper command suffix is not the observed all-service startup"
-        )
+        raise ValueError("wrapper command suffix is not the observed all-service startup")
     if not isinstance(command.value, ast.List):
         raise ValueError("wrapper command must be a literal list")
     command_prefix = ast.unparse(ast.List(elts=command.value.elts[:-3]))
@@ -138,7 +120,18 @@ def _render(source: str) -> str:
     static_operations = {
         "stop-app": ["stop", "api", "worker", "browse", "web"],
         "migrate": ["run", "--rm", "--no-deps", "migrate"],
-        "rebuild-browse": ["run", "--rm", "--no-deps", "browse", "uv", "run", "python", "-m", "gridlens.jobs.browse", "rebuild"],
+        "rebuild-browse": [
+            "run",
+            "--rm",
+            "--no-deps",
+            "browse",
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "gridlens.jobs.browse",
+            "rebuild",
+        ],
         "start-canary": ["up", "-d", "--no-build", "--no-deps", "api", "web"],
         "start-workers": ["up", "-d", "--no-build", "--no-deps", "worker", "browse"],
     }
@@ -152,7 +145,20 @@ def _render(source: str) -> str:
             raise SystemExit("rollback-browse generation must be a canonical UUID") from None
         if generation != arguments[0]:
             raise SystemExit("rollback-browse generation must be a canonical UUID")
-        suffix = ["run", "--rm", "--no-deps", "browse", "uv", "run", "python", "-m", "gridlens.jobs.browse", "rollback", "--generation", generation]
+        suffix = [
+            "run",
+            "--rm",
+            "--no-deps",
+            "browse",
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "gridlens.jobs.browse",
+            "rollback",
+            "--generation",
+            generation,
+        ]
     elif operation in static_operations and not arguments:
         suffix = static_operations[operation]
     else:
