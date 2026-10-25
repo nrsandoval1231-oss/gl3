@@ -1,0 +1,113 @@
+{
+  "code_candidate_sha": "d3c4d5ffb1fbf205a00e48dd87f575e9b35f3ad7",
+  "backend_measurement_sha": "ba0e52cc6c5069dc42a9080606f1474e9a8c516f",
+  "unauthenticated_contacts_http_status": 401,
+  "authenticated_login": "success",
+  "viewports": [
+    {
+      "width": 1280,
+      "height": 900
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "actual_company_records": [
+    "eg-ai",
+    "eog",
+    "circle-t"
+  ],
+  "verified_method_order_links_sources_dates_and_reload_passed": true,
+  "latest_method_date_matches_actual_api": [
+    {
+      "company": "eg-ai",
+      "latest_method_summary_matches_api": true,
+      "expected_summary": "Last verified 10/25/2026"
+    }
+  ],
+  "missing_method_research_required_passed": true,
+  "screenshots_retained_locally": [
+    {
+      "file": "ui13-browser-eg-ai-desktop.png",
+      "sha256": "33aae20c5775a79cee7c7c6a69dceab77f0c456735aaa00e3c3cabaf5f8d772d"
+    },
+    {
+      "file": "ui13-browser-eg-ai-mobile.png",
+      "sha256": "7396eb5e9e13fdb8b76d949ea16228ad912831a173bfc92c73fce6f6bd93a66a"
+    },
+    {
+      "file": "ui13-browser-eog-desktop.png",
+      "sha256": "9cb9e1be5ccff8741b9bda0885ad7e452f69983ef67b9aa33332bf611d7573d0"
+    },
+    {
+      "file": "ui13-browser-eog-mobile.png",
+      "sha256": "2ad1fa69b0f635aa1d10d8627f032a019d6bc677523057829e762631f80e27e2"
+    },
+    {
+      "file": "ui13-browser-circle-t-desktop.png",
+      "sha256": "8edd46cf308a76b04490c67e04592f7dcde351bf548291e604c160bae3cecedc"
+    },
+    {
+      "file": "ui13-browser-circle-t-mobile.png",
+      "sha256": "d4f289e92d07e14debbd97bc3841b363f361966784daa172e650ede5e0b29694"
+    }
+  ],
+  "canonical_sharing": {
+    "company_identity_id": "2eeafc8f-cf4b-443e-9e80-733fea261e72",
+    "distinct_need_routes_share_same_eog_contacts": true,
+    "routes": [
+      {
+        "project_id": "53a977c5-b56f-4d6f-bd15-f8eafa7eecbc",
+        "project_name": "Texas W-1 permit 0904017",
+        "need_id": "51cee868-ae5d-4179-a62e-bdeddf83b8b4",
+        "detail_status": 200,
+        "associated_company_identity_id": "2eeafc8f-cf4b-443e-9e80-733fea261e72",
+        "associated_account_name": "EOG RESOURCES, INC.",
+        "contacts_panel_visible": true,
+        "phone_method_hrefs": [
+          "tel:7136517000",
+          "tel:8773633647"
+        ],
+        "source_urls": [
+          "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "https://www.eogresources.com/company/contacts/",
+          "https://www.eogresources.com/company/contacts/",
+          "https://www.eogresources.com/company/owners/",
+          "https://www.eogresources.com/company/owners/",
+          "https://www.eogresources.com/company/owners/",
+          "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "https://www.eogresources.com/company/leadership/"
+        ],
+        "named_professional": "Gregory T. Miller",
+        "purchasing_authority": "unconfirmed"
+      },
+      {
+        "project_id": "89620e32-1e8d-42ff-80bf-09d0575404d3",
+        "project_name": "Texas W-1 permit 0913310",
+        "need_id": "2e8b1e45-c41a-44ea-9014-622b6cd445fa",
+        "detail_status": 200,
+        "associated_company_identity_id": "2eeafc8f-cf4b-443e-9e80-733fea261e72",
+        "associated_account_name": "EOG RESOURCES, INC.",
+        "contacts_panel_visible": true,
+        "phone_method_hrefs": [
+          "tel:7136517000",
+          "tel:8773633647"
+        ],
+        "source_urls": [
+          "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "https://www.eogresources.com/company/contacts/",
+          "https://www.eogresources.com/company/contacts/",
+          "https://www.eogresources.com/company/owners/",
+          "https://www.eogresources.com/company/owners/",
+          "https://www.eogresources.com/company/owners/",
+          "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "https://www.eogresources.com/company/leadership/"
+        ],
+        "named_professional": "Gregory T. Miller",
+        "purchasing_authority": "unconfirmed"
+      }
+    ]
+  },
+  "synthetic_contacts_used_for_runtime_proof": false
+}

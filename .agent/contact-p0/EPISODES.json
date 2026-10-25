@@ -1,0 +1,160 @@
+{
+  "task": "CONTACT-P0",
+  "baseline_candidate": "93437131a6b0fa84300732426a5698c0bb99100b",
+  "episodes": [
+    {
+      "state": "PR122 extraction/preservation/API/UI implemented; automatic discovery and production coverage open",
+      "decision": "Extend existing jobs and append-only evidence, start with actual production inventory and an isolated restore",
+      "action": "Read-only live inventory and pg_dump; new local PostgreSQL cluster and original-row fingerprints",
+      "outcome": "235 current eligible companies, all Signal, four data_center and 231upstream_well; primary-company email/phone coverage0/235",
+      "deterministic_evaluation": "Read-only transaction and restored snapshot agree; existing63contractor contact claims remain separate from primary customers",
+      "attribution": "Typed membership-backed canonical accounts and claim-backed contact projection are distinct paths",
+      "candidate_lesson": "Prove a membership-only account through persistence before generalizing a company enrichment wrapper",
+      "lesson_status": "CANDIDATE",
+      "metric": "Real canonical company accounts with a verified contact method; direction increase without new duplicate company identities",
+      "reversibility": "Reject the routing policy if it adds unneeded complexity or weakens evidence/identity requirements"
+    },
+    {
+      "state": "First queue wrapper passed focused unit tests",
+      "decision": "Run two real companies via exact worker job IDs on isolated production restore",
+      "action": "Native EOG and EG AI official URL hints, no contact values or paid providers",
+      "outcome": "Pilot1: EOG incorrectly complete with0contacts; EG queued after InvalidRequestError",
+      "deterministic_evaluation": "FAIL; worker status was not commercial evidence",
+      "attribution": "Missing membership-only anchor, invalid persistence/run handling and inner unresolved result discarded",
+      "candidate_lesson": "Require real source to canonical company API readback, and reject complete when no method persisted",
+      "lesson_status": "CANDIDATE",
+      "metric": "False completion outcomes; direction decrease to0",
+      "reversibility": "Keep failed receipts and revert the rule only with contrary behavioral evidence"
+    },
+    {
+      "state": "Sol reconstructed PRD28/29 after bounded builders returned incomplete integration",
+      "decision": "Repair the material integration with an exact retained-membership bridge and retrieve outside write transactions",
+      "action": "PostgreSQL integration tests and real pilot2",
+      "outcome": "EG AI published email persisted under existing company ID; EOG correctly unresolved because broad neighboring fax context filtered legitimate phones",
+      "deterministic_evaluation": "PARTIAL; EG actual readback passed, EOG coverage remained0",
+      "attribution": "Canonical persistence repaired; source-specific line-label extraction still needed",
+      "candidate_lesson": "Classify a phone by its own published field label, not an unrelated nearby fax/navigation term",
+      "lesson_status": "CANDIDATE",
+      "metric": "Known published headquarters phones recovered while fax/hotline false positives stay0",
+      "reversibility": "Retain exact source layout regression and failed pilot receipts"
+    },
+    {
+      "state": "Real20-company v6 source verification found3usable companies but a marketing heading was counted as a named person",
+      "decision": "Reject v6 commercial metric; require occupational-title evidence and choose a valid current anchor",
+      "action": "Retained real roster negative regression, bounded current-anchor scan, fresh original-snapshot restore",
+      "outcome": "v7 has3usable companies and3real relevant named roles; no fabricated person",
+      "deterministic_evaluation": "Named false-positive count reduced from1to0; current later BKV anchor selected without accepting stale source",
+      "attribution": "Adjacent text is not automatically a name/title pair; lowest project ID is not an evidence-validity rule",
+      "candidate_lesson": "Require published occupational-title semantics and source/hash validity before network",
+      "lesson_status": "CANDIDATE",
+      "metric": "False named professionals and valid companies wrongly skipped; direction decrease",
+      "reversibility": "Retain actual-layout and stale-first-anchor regressions; no relaxation of canonical evidence"
+    },
+    {
+      "state": "Fresh same-manifest v7 replay preserved contact records but created1unnecessary EG AI job",
+      "decision": "Fence to original company relationship evidence rather than the jobs own appended person claims",
+      "action": "v8 stable-fingerprint regression, genuine SQL-error savepoint isolation and deadline propagation checks; clean20-company rerun",
+      "outcome": "20terminal in33.188s;3usable companies;6phones/1email;3named roles,0direct buyer methods;17no method; allResearchRequired",
+      "deterministic_evaluation": "All original rows preserved; same/fresh checkpoint replay identical jobIDs, rowcounts and original hashes; zero new paid dispatches",
+      "attribution": "Derived contact claims had entered the input fingerprint; swallowing SQL errors without a savepoint could poison primary ingestion",
+      "candidate_lesson": "Separate canonical source context from self-generated enrichment and prove queue isolation using a real database error",
+      "lesson_status": "CANDIDATE",
+      "metric": "Redundant replay jobs and primary ingestion failures caused by contact enqueue; direction decrease to0",
+      "reversibility": "Keep failed v7 receipt, exact canonical replay regression and SQL transaction test"
+    },
+    {
+      "state": "Independent frozen-candidate review rejected fdea291 despite valid native coverage/preservation receipts",
+      "decision": "FIX exact company relationship attribution before full regression acceptance or transport",
+      "action": "v9 own-organization/typed-role/current-quote write and read guards, same-source named-role company peer, strong/review precedence; genuine mixed OwnerA/ContractorB PostgreSQL test including old invalid link/sourcechange/retraction",
+      "outcome": "151affectedtests pass; fresh independent source review identifies no remaining blocker; clean20rerun32.969s repeats3usablecompanies,6phones/1email,3namedroles,0direct methods; all originals and exact replay IDs/counts preserved",
+      "deterministic_evaluation": "Source collision fixture excludes contractor method from owner API; fresh clone paid dispatches0; final fullgates and exact-candidate acceptance stillrequired",
+      "attribution": "Retained Evidence is a document/record identity, not an organization identity; current hashes alone cannot establish which entity a quote supports",
+      "candidate_lesson": "Require each claim's own current organization and typed relationship when binding canonical company identity, and validate both creation and older-link reads",
+      "lesson_status": "CANDIDATE",
+      "metric": "Cross-company contact leakage in shared-source regression; direction decrease to0 without losing supported owner or named employee contacts",
+      "reversibility": "Keep raw rejected review and collision/retraction/version regressions; replace the binding implementation only with equally strict source-relationship proof"
+    },
+    {
+      "state": "Frozen ff66a6d full backend gate failed1test while3009passed; GitHub CI independently reproduced the same browse-maintenance status assertion",
+      "decision": "Reject full-gate acceptance, inspect the actual maintenance contract, and issue a bounded test-only repair",
+      "action": "Luna preserved strict initiating published/sanitized-error/dirty503 assertions and deterministically exercised both published and prepared recovery; controller reran focused database tests; independent source review found no blocker",
+      "outcome": "10focusedtests pass, Ruff and format pass; runtime and real20 benchmark source unchanged; complete exact-candidate rerun and final acceptance remain required",
+      "deterministic_evaluation": "maintain_once refreshes current then can prepare its next interval; both branches must recover the current input revision and need row without exposing future data",
+      "attribution": "The old assertion depended on wall-clock proximity to the canonical interval boundary; matching one maintenance status did not fully describe the current-view recovery contract",
+      "candidate_lesson": "Force each documented clock branch and assert recovered current state instead of loosening a status assertion to an unchecked set",
+      "lesson_status": "CANDIDATE",
+      "metric": "Clock-dependent false failures with preserved dirty-state and recovery assertions; direction decrease to0",
+      "reversibility": "Retain failed full-suite receipts, both parameterized outcomes and separate early-prepared-exposure regressions; runtime behavior is unchanged"
+    },
+    {
+      "state": "Owner approved Firecrawl within the proposed160existing-plan-credit trial; nativeproof had14manualURLhints",
+      "decision": "Same20canonicalcompanies on fresh original-snapshot restore, no URL hints,20maximumsearchcalls and finite ledger budgets",
+      "action": "Correct rejected operator-only preflight assumptions without app changes; prove actualresolvedcaps, pilot1 then resume19 through original CLI/worker",
+      "outcome": "20completed paid searches,40observedcredits (2614to2574),0unknown,1/20usable with2phones/1relevantrole,0email/directbuyer methods; all protectedoriginalrows preserved",
+      "deterministic_evaluation": "Providerintegration/retention proved; commercial recall FAIL relative to assisted3/20. Full4searchqueue never follows official contact navigation; Citation first parsed contact URL remained unfetched",
+      "attribution": "Fetch bound was implemented as append admission, starving first-party navigation at full result count; leadership query also favored unusable social pages",
+      "candidate_lesson": "Within fixed fetch bounds, replace lower-priority unvisited hints with verified first-party contact navigation; validate no-hint discovery separately from assisted extraction",
+      "lesson_status": "CANDIDATE",
+      "metric": "Usable source-verified companies in matched no-hint cohort; direction increase while fetches<=4,searches<=1 and cross-company leakage0",
+      "reversibility": "Retain actualpaidv9 result/source/credit/ledger receipts and negative navigation regressions; promote only after exactcandidate rerun and independent review"
+    },
+    {
+      "state": "Frozen f1311d2 v10 live20 reported10usable, but source inspection found six third-party directory profiles carrying the publisher email",
+      "decision": "REJECT apparent50% coverage; stop unfinished exactcandidate gates before source repair",
+      "action": "Preserve paid trial/checkpoints/source hashes and original-row proof; dispatch C10 strict publisher identity integration; create fresh original-snapshot v11 restore",
+      "outcome": "20completed paid searches,40additionalcredits, cumulative80/160;0unknown; no production write; original protected rows intact. Full pytest intentionally interrupted, not passed.",
+      "deterministic_evaluation": "Actual buckheadenergy.com subject Organization plus root publisher data passes permissive same-host profile gate; land@buckheadenergy.com wrongly assigned to six operators",
+      "attribution": "An Organization describing a directory subject is not proof of site publisher identity; whole-page contacts cannot inherit the subject identity",
+      "candidate_lesson": "Require site-level publisher identity and reject conflicting root organization before official-site extraction or navigation",
+      "lesson_status": "CANDIDATE",
+      "metric": "Third-party publisher contact leakage into company projection; direction decrease to0, independently of coverage",
+      "reversibility": "Retain real failed20 report and mixed-publisher regression; never sanitize failed coverage into accepted result"
+    },
+    {
+      "state": "Policyv11 actual20-company nohint discovery validated4usable but freshcheckpoint replay queued4redundantjobs and strict payload binding failed",
+      "decision": "Reject resumability acceptance; preserve exact failed DB and stop incomplete broad gates before repair",
+      "action": "C12 keeps caller URL inputs stable and resolves derived URLs only during worker execution; prepare clean v12 restore for last<=40credits",
+      "outcome": "Source contacts/claim/evidence hashes remain identical;0newpaidcalls on failed replay. Original20dispatches/40credits stand; cumulative120/160.",
+      "deterministic_evaluation": "discover_company_contacts substitutes learned _known_contact_urls into fingerprint/payload; empty caller manifest no longer matches after successful discovery",
+      "attribution": "Assisted URL manifests masked output-derived request identity; the earlier named-claim fingerprint repair did not cover empty URL inputs",
+      "candidate_lesson": "Validate autonomous first-success->fresh-checkpoint replay before starting costly full repository gates; keep derived navigation outside request identity",
+      "lesson_status": "CANDIDATE",
+      "metric": "Redundant jobs from nohint replay and intentionally interrupted broad-gate seconds; direction decrease to0 while strict manifest binding remains enforced",
+      "reversibility": "Retain failed v11 data/replay receipt and explicit-vs-nohint/new-epoch regressions; do not relax binding checks"
+    },
+    {
+      "state": "Policyv12 fresh actual20 on original snapshot completed with4usable; same/fresh checkpoint replays stable; actual UI revealed stale claim date in method summary",
+      "decision": "Accept functional checkpoint proof, correct UI-only date, then freeze integrated evidence for independent review",
+      "action": "C13 displays latest valid actual method timestamp, preserves methodless sourcecheck/unknown; controller repeats actual authenticated desktop/mobile/reload and two EOG need routes; complete full local gates",
+      "outcome": "Final20:6phones/7publishedemails,3relevant professionals,0directbuyer methods;16withoutmethod/allResearchRequired. Original9table rows preserved, exactjobs/counts/hashes replayed,0newpaidcalls. Local3017pass/3skip/7subtests,201browserpass/1skip; othergates pass.",
+      "deterministic_evaluation": "190backend/runtime files and backendtests identical to measuredba0e52c; UI-only d3c4d5f frozen14:55:12 before all frontendgates14:58:12 onward. Whole initial manifest changed only2webfiles, explicitly retained rather than labeledunchanged. Final-head CI/review required separately.",
+      "attribution": "Learned navigation belongs to execution, not caller request identity. Method verification dates differ from older organization claim dates; they need distinct UI semantics.",
+      "candidate_lesson": "Complete autonomous freshcheckpoint roundtrip before broad tests; bind concurrent disjoint backend/frontend scopes by exact file hashes and final CI rather than transferring an old whole-tree claim",
+      "lesson_status": "CANDIDATE",
+      "metric": "Duplicate replay jobs0; publisher contact leakage0; stale method date summaries0; final local gates failures0. No comparative speedup claimed.",
+      "reversibility": "Keep failedv10/v11 trials, raw gates, source manifests, old-date screenshot, updateddate regression and separate final review. Production and commercial authority unchanged."
+    }
+  ],
+  "timing": {
+    "started_utc": null,
+    "first_observed_utc": "2026-10-25T03:09:52Z",
+    "finished_utc": null,
+    "planning_seconds": null,
+    "build_seconds": null,
+    "validation_seconds": null,
+    "audit_seconds": null,
+    "elapsed_to_accepted_seconds": null,
+    "lane": "full",
+    "roles": [
+      "Luna builder/utility",
+      "Terra bounded integration",
+      "Sol architecture and hard integration",
+      "fresh independent reviewer pending"
+    ],
+    "model_config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "repair_count": null,
+    "next_direction": "VALIDATE frozen finalcandidate with independentSol; authorizedPRupdate and exactfinalCI; paidcap160exhausted, productionHOLD/commercialP0OPEN",
+    "repair_count_notes": "Two pre-reconstruction attempts were counted. Later policy revisions and corrections are retained by episode; aggregate repair count is UNKNOWN."
+  }
+}

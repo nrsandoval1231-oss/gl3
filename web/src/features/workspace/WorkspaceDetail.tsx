@@ -1,3 +1,4 @@
+import { CompanyContacts } from "./CompanyContacts"
 import { IntelligenceCard } from "./IntelligenceCard"
 import type { Opportunity, WorkspaceNeed } from '../../api/client'
 import { client, type Brief, type BuyingChainResult, type PowerNeedTitle } from '../../api/client'
@@ -283,6 +284,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
 
       </div>
       {item.associated_account && <p className="wh-group-context"><strong>Current account association:</strong> {item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p>}
+      {item.associated_account && <CompanyContacts companyId={item.associated_account.company_identity_id}/>}
       {associationNotice && <p role="status" className="wh-integrity">{associationNotice}</p>}
       {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
       {item.signal_evidence_state === 'planning_status_unknown' && <p className="wh-integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}

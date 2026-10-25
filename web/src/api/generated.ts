@@ -380,6 +380,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/customer-accounts/{company_identity_id}/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Customer Account Contacts */
+        get: operations["customer_account_contacts_api_customer_accounts__company_identity_id__contacts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/customer-accounts/{company_identity_id}/projects": {
         parameters: {
             query?: never;
@@ -2174,6 +2191,74 @@ export interface components {
             source_url: string | null;
             /** Evidence Id */
             evidence_id: string | null;
+        };
+        /** CompanyContact */
+        CompanyContact: {
+            /** Claim Id */
+            claim_id: string;
+            /** Company */
+            company: string;
+            /** Name */
+            name?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Responsibility
+             * @enum {string}
+             */
+            responsibility: "Verified project responsibility" | "Verified organizational responsibility" | "Inferred likely role" | "General company contact path";
+            /**
+             * Purchasing Authority
+             * @default Requires confirmation for this power package
+             */
+            purchasing_authority: string;
+            /** Methods */
+            methods?: {
+                [key: string]: string;
+            }[];
+            /** Sources */
+            sources?: components["schemas"]["IntelligenceSource"][];
+            /** Verified At */
+            verified_at?: string | null;
+            /**
+             * Company Id
+             * Format: uuid
+             */
+            company_id: string;
+            /** Project Ids */
+            project_ids?: string[];
+            /**
+             * Verification Status
+             * @default Source verified; reachability and authority unconfirmed
+             */
+            verification_status: string;
+            /**
+             * Confidence
+             * @default High: literal contact method in current retained evidence
+             */
+            confidence: string;
+            /**
+             * Phone Type
+             * @default unknown
+             */
+            phone_type: string;
+        };
+        /** CompanyContacts */
+        CompanyContacts: {
+            /**
+             * Company Id
+             * Format: uuid
+             */
+            company_id: string;
+            /** Contacts */
+            contacts?: components["schemas"]["CompanyContact"][];
+            /**
+             * Research Required
+             * @default true
+             */
+            research_required: boolean;
         };
         /** CustomerAccountNeedOut */
         CustomerAccountNeedOut: {
@@ -5384,6 +5469,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnresolvedCustomerProjectsPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    customer_account_contacts_api_customer_accounts__company_identity_id__contacts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_identity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyContacts"];
                 };
             };
             /** @description Validation Error */

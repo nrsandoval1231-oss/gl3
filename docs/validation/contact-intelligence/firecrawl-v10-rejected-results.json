@@ -1,0 +1,2230 @@
+{
+  "schema_version": 1,
+  "candidate_sha": "f1311d28a0d736dcbd632d45aef8a864279dfe0f",
+  "candidate_tree": "c31af1893e8db09eae15116292de9ead31cb3428",
+  "candidate_policy": "company-contact-discovery-v10",
+  "owner_approved_credit_cap": 160,
+  "experiment_credit_ceiling": 40,
+  "selection": "All4 data_center;4 oil companies with most associated projects;12 evenly spaced by name from remaining227 oil companies. All235 current companies areSignal, other tier denominators0. URLs are search hints, never source-verified facts.",
+  "source_snapshot_sha256": "6e0d699e4065acb9caf1a1fd61a25a4a75d7ff2f3bf4509d89df2c887fb86e65",
+  "database": "ISOLATED_PRODUCTION_RESTORE",
+  "started_utc": "2026-10-25T14:12:29.582342+00:00",
+  "finished_utc": "2026-10-25T14:16:00.698190+00:00",
+  "operator_elapsed_seconds_including_review_pause": 211.116,
+  "discovery_mode": "Existing queued worker; live Firecrawl URL search then bounded native public HTTPS; no manual URL hints or synthetic contact values.",
+  "source_files_unchanged": true,
+  "source_hashes": {
+    "backend/src/gridlens/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "backend/src/gridlens/api/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "backend/src/gridlens/api/app.py": "916e683538c173144af940c7719c620e1a098d1c8152b2dc85ac0f044048fde8",
+    "backend/src/gridlens/api/intelligence.py": "850b79a4b438b52bd5c03ccf740431671661905342062ce7a9828ad3e1aadf9e",
+    "backend/src/gridlens/api/verticals.py": "638fa1ca07284002805ccd7cf04a75d06d714aa457e047747d1e633237d80d3c",
+    "backend/src/gridlens/domain/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "backend/src/gridlens/domain/air_permit_hours.py": "501447502b2d119022376c160e2ce154e8dfb05043083b34caf8759c48ce84f3",
+    "backend/src/gridlens/domain/buying_chain.py": "35f12de6a018fc4af658f25136e0e1ce5b118abe1f04b224917d740d745ab1d0",
+    "backend/src/gridlens/domain/call_facts.py": "dcadf2a8feeaedbb0145faf8b763f6febb2933103a76754719f3cf3780c901da",
+    "backend/src/gridlens/domain/commercial_presentation.py": "272e93499f1346c23674d4e0c78ccc503480a813b269823767b7d09fa26c19a2",
+    "backend/src/gridlens/domain/commercial_triage.py": "aafc32e4a13844c1c29eca00e88070defa7b6a66e721ef161f1f52f084b5f84c",
+    "backend/src/gridlens/domain/ercot_impact_rfi.py": "d9ead083580278be37afa8186c114fa73e315864bca24ff1a2716747b0c52001",
+    "backend/src/gridlens/domain/evaluation_clock.py": "16bcfadc98fc2f72b88d57f1073191896269271c3e195ec22e529787a97d542a",
+    "backend/src/gridlens/domain/jurisdiction_policy.py": "77338ce9d896cbbe99593f5bad6b2fdebdfcadc4b2b6e0532ae3ebbae7242eae",
+    "backend/src/gridlens/domain/large_load_interconnection.py": "db93c697c05d76f7ae91f4d591548d6a37f09b50594320267ea1c9ed110f0a3d",
+    "backend/src/gridlens/domain/lifecycle.py": "b0987b7cc1cee7de03c2f2c48ae0d9d4844a1800ff8f0b62e8b38a12f16411c1",
+    "backend/src/gridlens/domain/news_interpretation.py": "21fcd4256be691d50cac5af54ab051381d28cf4cd2dd99f32d1290410a629a29",
+    "backend/src/gridlens/domain/opportunity_intelligence.py": "7895dddd8ee2c1829a12d77106de4e23e97f1ccd0e73d2f90443413057322eeb",
+    "backend/src/gridlens/domain/permit_interpretation.py": "7b769c0565df4a5839443c525ca10eabcf273f1f3fb921aa95087eef71ac39b6",
+    "backend/src/gridlens/domain/power_qualification.py": "1da0f0b55e3a78829af5540d994c481a091272f61697b18fad8ce3b0cbf88d20",
+    "backend/src/gridlens/domain/power_schedule.py": "c98cce716c424feccff959667206ba1089e573fbf7e79ad13d7e5a88423a96c1",
+    "backend/src/gridlens/domain/project_research.py": "484724107917362bf197c3986ff9bc603469199b922898166a6829bf4172ca55",
+    "backend/src/gridlens/domain/pursuit_research.py": "1e490bbec204e94bdbf23167793dbc86ce170de7d9a06155fc31608b9b21a13b",
+    "backend/src/gridlens/domain/pursuit_screening.py": "d6c2ed43ea577ef1c3513964603a031964ee760441e4ead0535019dab12a366b",
+    "backend/src/gridlens/domain/pursuits.py": "403da41732aff499bd2662f132b24280fe1575f11c114416e67eebabe6124ac6",
+    "backend/src/gridlens/domain/qualification.py": "90bb0fba179f079719786da12d2b6e3dddd7668e3cf13b7921ba40e7e3c0788e",
+    "backend/src/gridlens/domain/ranking.py": "24aff8d5287996260390ad76128b434c67bffa65c63dab8f0a9ab555d90027d2",
+    "backend/src/gridlens/domain/regional_scope.py": "7669b27e54bf59a9d7886f3f4b8262e9047589b15aae4889263e6c5e560320f5",
+    "backend/src/gridlens/domain/signal_admission.py": "5ac333220f1e981bf20c8b6957ac6bd8b6b27696dcfbcfbc00d86e1293f2cf6f",
+    "backend/src/gridlens/domain/taylor_planning.py": "66b68ca92e152677837cd6b3c5c8b36a5c954f1cb7229ffac77afd12eaeb506a",
+    "backend/src/gridlens/domain/texas_permitting.py": "f0eb5855028048f70e6ff282fe55bd3b399d0d7a46ff12695ba8f8e975b8a2a5",
+    "backend/src/gridlens/domain/utility_tariff_proposals.py": "bac29ad8038236d4fdfafb4275d2552fb2571fdf10473cb4f4580ec51e3c1eaa",
+    "backend/src/gridlens/domain/workflow_status.py": "d8dfe934e10c14ef034020379fd1f0dd498743aa10bf2f9485460980166c7177",
+    "backend/src/gridlens/ingestion/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "backend/src/gridlens/ingestion/adapters/__init__.py": "ee8b9edfe3b918f902b88005fd879bad06b80cfa4054e481baed1e3d22b9bd0e",
+    "backend/src/gridlens/ingestion/adapters/acquisition_runtime.py": "e5237bfaf82c7cd059390fc9abc6d9fe8820e98d3a34fb34a2b22bf74f5a5de1",
+    "backend/src/gridlens/ingestion/adapters/boston_permits.py": "b9c73d712117acac565192773db4d10e10de8174eef1989c0dd55f603fdb7956",
+    "backend/src/gridlens/ingestion/adapters/bounded_http.py": "6d90832bd29908c113f4a3500a4b06a25a070ebe29d2252c095ea0b6de760df3",
+    "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "3a14269291140433cb0547d236cc6eec87a06f0b31046b6f83ef521a9d83f151",
+    "backend/src/gridlens/ingestion/adapters/cabq_building_permits.py": "b71fdf314e46058de36c999cf508f3a1e6e2907383f54a6c28dfda28a622e2a4",
+    "backend/src/gridlens/ingestion/adapters/ceqanet.py": "6c3dfb5044faa372c87ad1137194fa2944be73679b7f4801d543ef45075ea07c",
+    "backend/src/gridlens/ingestion/adapters/dallas_permits.py": "8b54aa0f732179bbf28fee07c449afaecabca6aa50cdc872bc71754070ff8c55",
+    "backend/src/gridlens/ingestion/adapters/diagnostics.py": "28bdcba585b54348cb6bd4f337a91a3d7d0fbc61d27d38d77e41c67858d292a2",
+    "backend/src/gridlens/ingestion/adapters/el_paso_permits.py": "72077321e601a9e3919b32b86bbb46697175ab1355ffc81b080e15417dca554b",
+    "backend/src/gridlens/ingestion/adapters/ercot_large_load_status.py": "706e1b8f6379338595c57101f4e25a6251355a6691d79a6baedacb9dfef6adef",
+    "backend/src/gridlens/ingestion/adapters/federal_register.py": "49690f616d9698f38c7a71c974050d84115f94b2d425b6d8e3fea38594b06851",
+    "backend/src/gridlens/ingestion/adapters/fort_worth_permits.py": "7119768fee69ed938e5633f4c696d50dda978135ace2622287133993408b7403",
+    "backend/src/gridlens/ingestion/adapters/georgia_air_permits.py": "7965506b185c42095b5d76f67df2073e5719013ac1eb6e3d3d473dfa311046c3",
+    "backend/src/gridlens/ingestion/adapters/govinfo_pdf.py": "10bd8ffce884b3ef36c960e43097baeb251a4d00953bd5a31e13f62c5fa808de",
+    "backend/src/gridlens/ingestion/adapters/govinfo_scan.py": "c54f85595fef3a955d5c154c83f0577bbaad0cdb996b58b2cdc3dc2caf9fa52a",
+    "backend/src/gridlens/ingestion/adapters/houston_permit_details.py": "9fe226a70440dee9715aab1e184d3a30fb1863a0e3283b8d88d8f4d4f8ce8dab",
+    "backend/src/gridlens/ingestion/adapters/houston_permits.py": "7b789073df8e44dc458221cd4ace64fe9681b83efde132c0b2ffe0ad48152be0",
+    "backend/src/gridlens/ingestion/adapters/jeti_agreements.py": "c0b3b4f024433227798aaf9ccaac5668329a7f3dc507978c4cb5e36ba6a6b351",
+    "backend/src/gridlens/ingestion/adapters/jeti_applications.py": "254c1178cb85826f41b20c859cfac6bcad9a7c050ae0b3ed9aa39103df528446",
+    "backend/src/gridlens/ingestion/adapters/ma_cultivation.py": "0533a419fe433ac1d9d693991c81098553aacb77c078c77cb28a8af693a846e5",
+    "backend/src/gridlens/ingestion/adapters/nc_commerce.py": "bad55f023f1e2291d0c15bedae0045c012ea6439e47fec2cacf26a6dd6ce5765",
+    "backend/src/gridlens/ingestion/adapters/ok_deq_public_review.py": "273b9580073dd00ce44de6349f7deddae952e1d8e01ec7a87bc2a2002e20d2a3",
+    "backend/src/gridlens/ingestion/adapters/power_signals.py": "33fb2cf54cafc6e8e1e98eb2dd2a873e85c943e4568ebbffda8f04c16c1fa4d7",
+    "backend/src/gridlens/ingestion/adapters/project_asset_classification.py": "6a05c6a0300978011ba99779322dd9761b6183e04b859e2c93ab11e7d8571aab",
+    "backend/src/gridlens/ingestion/adapters/public_source_http.py": "ad8a34aa6430e25973fda63e07d4b72c8c05f4ec9a5de87f4fe458085974bb1d",
+    "backend/src/gridlens/ingestion/adapters/publisher_rss.py": "5da710a2c9e9e2436ace81e9df3ba30ecf6181673d2c22178b0fee5032ba7f0a",
+    "backend/src/gridlens/ingestion/adapters/puct_docket_index.py": "973f3986d3256a9efacfc20199da619cc824618699ede2a045301b93812eab04",
+    "backend/src/gridlens/ingestion/adapters/puct_large_load.py": "253963bb7615b549afb569e53661824012b86d60fa632b9d6fb130a0009778a2",
+    "backend/src/gridlens/ingestion/adapters/pursuit_acquisition.py": "4e992b6582251a6c6751f509f33e9a5245cb2f0cdd79e71cdd48ce41899c2172",
+    "backend/src/gridlens/ingestion/adapters/pursuit_public.py": "2336acc35ea656c8a9249db49ce440d13cf495c223de3428397fd062c4f3030d",
+    "backend/src/gridlens/ingestion/adapters/retained_document.py": "958920e5a6244a39cbfa4a6c8774a7d0d51582eef743152c70416d4bdfb9f0e7",
+    "backend/src/gridlens/ingestion/adapters/retained_permits.py": "db200b5b9041a7a6c2fc275e7870dd4d05d0b5916291c5b6715cd1d816dff321",
+    "backend/src/gridlens/ingestion/adapters/rrc_customer_identity.py": "52aff5f1605c5fa9731278457aabd9a023330dbcd0d961930aac6bbafd8db2fc",
+    "backend/src/gridlens/ingestion/adapters/rrc_drilling.py": "c181607d906965d21270bf9aed7b727911ee32fe288367fa784e3b9fd13bc991",
+    "backend/src/gridlens/ingestion/adapters/rrc_flare_exceptions.py": "b7e24595275b2d03526713a7ce28776156002d885ce3dc8ca1d01917814a3b5f",
+    "backend/src/gridlens/ingestion/adapters/san_antonio_permits.py": "c3de7cf88ccd2e6e3125ac1b808c5e029d2ba85965010205df00cc44432c3f7b",
+    "backend/src/gridlens/ingestion/adapters/socrata_permits.py": "1fea85a077a8d9579e77b32b98882ffbeb57dd878c1ab4bdd7963e8edd3d9009",
+    "backend/src/gridlens/ingestion/adapters/spp_interconnection.py": "2ea03e8e67a83e80e63fcda1fbc137dd2f2cd50691ab07118fc4f30c891a2270",
+    "backend/src/gridlens/ingestion/adapters/taylor_newsflash.py": "4906480addff5c8ef1c9de9d8d90867e2570f58037c8e7cc68c4d1adfcafdccb",
+    "backend/src/gridlens/ingestion/adapters/tceq_construction_noi.py": "807866b1418132924ba7b068790a75e0c2312ba14bed898f6d6c6d5a1e4b3667",
+    "backend/src/gridlens/ingestion/adapters/tceq_egu_search.py": "2c0625b4ffecaa1ce20271622b62d06ae69533d077a6f72d3eba1f4b30f2d0bd",
+    "backend/src/gridlens/ingestion/adapters/tceq_http.py": "9504bf55c75cc1778d83a4772f50b5cf3f4365131e67dd5d8702c0436c2992d6",
+    "backend/src/gridlens/ingestion/adapters/tceq_nsr_pending.py": "2092029bd4a5198112a729b3a851dc30adf7cf1467e28cebc9b16d11cd9c71fc",
+    "backend/src/gridlens/ingestion/adapters/tceq_temporary_batch.py": "c644ec54e7a226d4e6b88e7bb18c52746d7d443116827ee07e3beeac0fa143e1",
+    "backend/src/gridlens/ingestion/adapters/tdlr_tabs.py": "4b27495cec28303b54bcced28dce15ae22a988358bcf8b6f66892a7f27e8b53c",
+    "backend/src/gridlens/ingestion/compare_acquisition.py": "aab971722cbd41cb23ab63048faec6925a3b48632f27e1908d2e82b1f1458252",
+    "backend/src/gridlens/ingestion/parsers/generator_schedule.py": "b2522e9c25ca2fe987798a90a6fd220b36d2f3b4c419909b5b57102e22656ed5",
+    "backend/src/gridlens/ingestion/registry.py": "ecf0d3e87c0eb3c91fb2dc55858e3132e0f185984688129b2084c7cc684c44d7",
+    "backend/src/gridlens/ingestion/service.py": "92b31f07384f8757fb933c54b197c420492833dfbd325aafdcf0959155d7f0d7",
+    "backend/src/gridlens/ingestion/structured_collection.py": "1d1f67eca002ab0ffd6b2630e576ab9b2bd7042f69a0df1eb7a2701f970d29ac",
+    "backend/src/gridlens/integrations/intelligence_provider.py": "77650d1d588ec96a250abeaf76ca31cf1dbaf2c76251df2379a949b0e2b26e82",
+    "backend/src/gridlens/integrations/legacy_calls.py": "21e88a35c5d32e25c79d3c1e91fa3b9ab5f32469e9f90bc2c4ea82085df8c140",
+    "backend/src/gridlens/integrations/logical_calls.py": "90d75ebd1dd94cad40024c08e69aee4d052d768074c2c2edf56decaa48d6bdaa",
+    "backend/src/gridlens/integrations/typesafe_evidence_judge.py": "2c57533f51b47052feacec24aee2ec9e29bed81cc76e8780824ec5ee0ad009ac",
+    "backend/src/gridlens/intelligence/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "backend/src/gridlens/intelligence/autonomous_research.py": "a1f56604c84c04f974edecbd991a121cc50d7b1c7e5ec9a294b89e6b1745d1ce",
+    "backend/src/gridlens/intelligence/briefs.py": "e9dc34be98f60f10f385c63a84e4ddfdeffb96fbae513b11e8cdb44d95e6e2fb",
+    "backend/src/gridlens/intelligence/buying_chain.py": "a4b629f716319f3a5e482e0de98fbc8dffd8c920faac0a4ee80f737c6c966ceb",
+    "backend/src/gridlens/intelligence/buying_chain_corrections.py": "8b48f39521b8c3484200bdcc528666f0e90e05b388c61952ff8115c8aed0f18f",
+    "backend/src/gridlens/intelligence/buying_chain_extraction.py": "8528ab7557f0d9892b7d57f369e0132590b55c73d7ab6d5c99af1c07dee26e68",
+    "backend/src/gridlens/intelligence/change_detection.py": "b884374143b75522042e7bdc64379afb651c7b2518b14d5265a30294e7389454",
+    "backend/src/gridlens/intelligence/commercial_assessment.py": "f33a5c9b7f382bec92d4b07cb0fb2f6e180c20268c723e8e8da4ff7ef2388cdf",
+    "backend/src/gridlens/intelligence/commercial_evaluation.py": "5de1c371546b79ca837e09c2a4a171de2d8e744325b7effcd56c06374bcbee86",
+    "backend/src/gridlens/intelligence/company_contact_discovery.py": "e922c5c2817343485887c963b182d59f17b00b91f3a2ba6451bf5ee6f6c2cae3",
+    "backend/src/gridlens/intelligence/company_contacts.py": "8773687caa2fcfe90940f9109a73f99c3e072c0e8880bfcd7f639701490a5508",
+    "backend/src/gridlens/intelligence/customer_accounts.py": "c31b34318944393ed5ee3051cb7621ff10acdd70e7b68da0bbac636135d99a8d",
+    "backend/src/gridlens/intelligence/customer_accounts_backfill.py": "01db984ba244bd6c9e3a0eb1414d737302d41e6452fa19b82eae05b00ba56e0d",
+    "backend/src/gridlens/intelligence/ercot_impact_rfi.py": "4676f17679d0e908b20c96ac65355e9f0e37fb9f4851984f5d48e5afe0450220",
+    "backend/src/gridlens/intelligence/evidence_evaluation.py": "3442fe24e7afcaab98c0fa76872fb8fac4743b504fa37d447618d0a6ef863f9b",
+    "backend/src/gridlens/intelligence/evidence_judge.py": "9df7c78cc64076b1fc7c889bc820c98030506f47983373249b99af11d58b2990",
+    "backend/src/gridlens/intelligence/evidence_packages.py": "41e20d056ed4fa0001681d7e4814eeeb97361ec76a43643128e7007e626c8b6d",
+    "backend/src/gridlens/intelligence/evidence_shadow.py": "5512610193d82b6ad6f93a911c326f5666c11481fd988f1d3fab68ca28e9a249",
+    "backend/src/gridlens/intelligence/grounded_candidates.py": "eb04097aee8fefbc13ec6b7fc0ced6a6ca5a85a6a07635b562d8bdadfd8f7582",
+    "backend/src/gridlens/intelligence/identity_reconciliation.py": "cfe071f65a28a8ebf6c157d7c03e9404c94f3841e20fd2416419c2cc33aff773",
+    "backend/src/gridlens/intelligence/integration_evaluation.py": "8bd0e449281ee0ced9beff2bce87d09b249282fee7ce9c8dd23f8379a2707c19",
+    "backend/src/gridlens/intelligence/intelligence_jobs.py": "8fba614dd9f4873fdb6c91a55fdb63299a766c1470fda0c3d4f90782925d7fb9",
+    "backend/src/gridlens/intelligence/intelligence_operations.py": "07256a5989d647823555df344aa5500b868cabd83c6cfd7e32bfaa1b6dd869fe",
+    "backend/src/gridlens/intelligence/interconnection.py": "c0bd9a33667792e5c433b3cbd52e4b8e4a10afbd30fdc0737b5ffeca036bbfa3",
+    "backend/src/gridlens/intelligence/jev_contracts.py": "70ea6a7aa9635785681c4e88ceba8dd935fe5421b351694a038657aa086027e4",
+    "backend/src/gridlens/intelligence/jev_health.py": "8c18529ae0e695b31d12b47de7de5684c038b3480460fd5d6c86bf2b53daa88d",
+    "backend/src/gridlens/intelligence/jev_task_context.py": "982e4a7acefec9e8e1dc3f780b5b738f263650276b05db56dea6b29f5e710f7a",
+    "backend/src/gridlens/intelligence/lifecycle_replay.py": "206b1490031e6951f01e80403a973f251f5586b58c97900f6db21780781a27e0",
+    "backend/src/gridlens/intelligence/lifecycle_service.py": "30001b981fae0f61e44d93625bf177aafd243fd6ecce34da21dbfd45d5be42f2",
+    "backend/src/gridlens/intelligence/matching.py": "a109076f4a0edbb5b6ac571157027d58f79beff05cb67092650e6114b065e292",
+    "backend/src/gridlens/intelligence/monitoring.py": "b2953343655a505a011d611af4789afcc08f1e785185f43f1b67b6b4e45e8640",
+    "backend/src/gridlens/intelligence/ocr_transcript.py": "38ee1578af8d57f5634301d4f7bf7d4c83bd4cf23f1a3d12b9ef3a50792608cc",
+    "backend/src/gridlens/intelligence/operational_receipts.py": "08cdb12ef9e4e8425c547edc9d84e9a007c60b52c42e6bf55eeb65d1eaa552cf",
+    "backend/src/gridlens/intelligence/opportunity_browse.py": "4992ff159de6a01d093c01b409dc99531de15fdbb9f4346b68f71e0e5f0d6550",
+    "backend/src/gridlens/intelligence/opportunity_intelligence.py": "689cb77f4e1d11b4cf487557ddf13700390960c8ef47fac05d22bf2ef1b2b7bd",
+    "backend/src/gridlens/intelligence/project_identity.py": "d6febd36d0d36a67e8be9027ba13758adce2981293c6ddbc8b0f6127cab33137",
+    "backend/src/gridlens/intelligence/project_state.py": "45111fa4ee7a78290115df5d7a790784b96c005d2ecf14716d8a458bb0129da3",
+    "backend/src/gridlens/intelligence/pursuit_questions.py": "c9da4f8f2a3a74193b3b7ff27bbc60a7ad49950ab467602e5412c4ade28a9a50",
+    "backend/src/gridlens/intelligence/pursuit_workspace.py": "5703b530a6d0b774e67fb329837b5e026cf1d17b9ca2dbb1a218a02a725a7409",
+    "backend/src/gridlens/intelligence/pursuits.py": "dba2f84bd7bae9aa7a8514de91ce2c07a93bdfd1e35c7b868a059225dcae2133",
+    "backend/src/gridlens/intelligence/question_contracts.py": "cd51f41fe283d577556a13e860ab25d26686620ebff399d88be358800b54cec0",
+    "backend/src/gridlens/intelligence/research_evidence.py": "636656fdaae59fd67da8b38095904d1ca859eb6dce17169962424ec2db189815",
+    "backend/src/gridlens/intelligence/research_metrics.py": "a9ddbfd3a7f9f12111295dca7bff5adb5550167ed6a9a1ed78284d41f73eeed9",
+    "backend/src/gridlens/intelligence/research_recommendation.py": "2903b9a88130086c9f5177f776608dbf5f30eaf44284f649cfc4f6c2e2b3597d",
+    "backend/src/gridlens/intelligence/research_routing.py": "3fcc1852aded13ac602bdd64c3c93c4164c805e4c471a32da178347ef83a0fc0",
+    "backend/src/gridlens/intelligence/reviewed_identity_batch.py": "40550bbe583512bf8bf1b36ffe0e07b96a9c5077fd1c7bad363825e6983d8987",
+    "backend/src/gridlens/intelligence/saved_browse.py": "ac228c34ea5361fed594fcad0f35cf4aaf2a7afeec42cf5364c2438bac1d1bc5",
+    "backend/src/gridlens/intelligence/scanned_pdf_ocr.py": "ca80e1eb36e241afa92496eae98beaeac8440bdece87d9fb385456b4ae42e93e",
+    "backend/src/gridlens/intelligence/signal_adjudication.py": "04265f0e14082c67b45c72ab117c3717eeeb8d0761a9394ec1bfd1ac05854640",
+    "backend/src/gridlens/intelligence/snapshot_compare.py": "7fbe0ea70ec559cbac9debab352bad06bca55ad9755e53fd78c7eeb945994c63",
+    "backend/src/gridlens/intelligence/snapshot_presence.py": "2561c01b8e7fc4f3db8f6ebb82402b379599e90e1b9ee6e5f3fd75981962b628",
+    "backend/src/gridlens/intelligence/titles.py": "b11a0c48dbeb1feda84306faa21685a6d360c164ff71618b1a7d1eb17257b224",
+    "backend/src/gridlens/intelligence/worker_browse.py": "a31d4da2fa91b8c2e20022ed6a960cfcb65593a64fa5be6a948d786f4b990ee4",
+    "backend/src/gridlens/intelligence/workspace_changes.py": "1b7aee5ea2b3743291b88bc4901a79dddcf71d05efcf97ee8f5bb16f9d1300c0",
+    "backend/src/gridlens/jobs/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "backend/src/gridlens/jobs/alerts.py": "c244e71343387ea6160dfce9aa2b92481b13f09080e98260380a7dd967b7534a",
+    "backend/src/gridlens/jobs/browse.py": "e35cda4cb32b31f5f77953bafa094b61cac3de2a8df10cbb26885a17c301cb63",
+    "backend/src/gridlens/jobs/queue.py": "7b9c5497a86cf04ebb2cd8f3d9514c499b4ca0a292b4d938ab1aa5336f73c09b",
+    "backend/src/gridlens/jobs/refresh_sources.py": "b5ca4fdb3b72990be07a41381fd2647b3ef1019dcb68557fd681a8edcda02de2",
+    "backend/src/gridlens/jobs/retry.py": "54f7d94593739ce0b5d6a2f4d268d1f53ef0e158f16eaaff3d8e01dddd4dc80c",
+    "backend/src/gridlens/jobs/runtime.py": "48a3a976488da76b4e2318d2ce6b4cf7d2bda190a6882e47502e1711f3f77d46",
+    "backend/src/gridlens/jobs/source_schedule_proof.py": "84689770dae954e30098515c39a01f19edb061197701ded16e72450fb7969281",
+    "backend/src/gridlens/jobs/worker.py": "c1de917cb7f7f0bf57f02c5b60a297e848dc216a37a9273d9abf87ab927e227c",
+    "backend/src/gridlens/persistence/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "backend/src/gridlens/persistence/browse_invalidation.py": "6ef78936e160b4ea556780ae3de86864900af354d281110b9d44c5c37b22494b",
+    "backend/src/gridlens/persistence/database.py": "f2ec0b6b4ea0a9596d5d0962c19ced16423234ddb3f07f3b0f7b8a54a464d44e",
+    "backend/src/gridlens/persistence/models.py": "17985772ce78fc5349282131ef2ca35a1e358fbcd7c36cccc35cfc030e0fe71f",
+    "backend/src/gridlens/persistence/watch_models.py": "7718fb508b1e5c98fbaf9dc8ffe5439ce9b540902ce8020339f6e9b57723a155",
+    "backend/src/gridlens/security.py": "e1bd75ad939d0b3e752561a4b85f5e5c680f87252858ba701e4280b1dda32ae6",
+    "backend/src/gridlens/settings.py": "a3986dad5c85b301b23f376897e0ab8088b9fd9cedf0d20d09160c4b7b272364",
+    "scripts/backfill_retained_buying_chain.py": "e3329ee13075d0d09bd7a5b0f9d61d5193122d3f8f40c17839b8577215d25680",
+    "scripts/benchmark_ui_workspace.py": "d113a5a77b427f8a60fcc423a27b8f0554c44a18ed27f08688a267966bf4fec8",
+    "scripts/check_docs.py": "62c64b3839dcd1d59d4cd178499aa37c8c11b278e855b1990fe662033f345fe7",
+    "scripts/commercial_triage.py": "7899c9e7bf6a898effeb1af296ddd3b721a710d419a89eb79490e401db1d40cc",
+    "scripts/company_contact_enrichment.py": "0752a278712eefba2160a43f95324d4a9368eb8e81752feb76fd3485631ce1b8",
+    "scripts/company_contact_recovery.py": "9c4762ae0898711d5f058e65ee367787d91604b76cd264d266c17e235e02e120",
+    "scripts/compare_acquisition.py": "5980a65fff1b7098ef42730079c9d4ab77ff23eca85a34585f6bbf603da3b118",
+    "scripts/diagnose_publication.py": "9153688d8921a277f5130f122ebe281204cf16e1ea700e5cc615cee215a8da4e",
+    "scripts/evidence_judge_shadow.py": "35dc5ef1c8342e9738abace92c2566eb1686ebbe73e9dcf759929daaa88bad11",
+    "scripts/export_openapi.py": "f99852894bcdd5501051d5ed4a126cef3210df677e569bc5021486fda4ea31de",
+    "scripts/export_review_sample.py": "4ac10ed4b6b1e8c2c5ddfc9de1f6be53f57974ca161f19a2284c06e87f35c761",
+    "scripts/ingestion_performance.py": "bec2cfe5e2e8b806a70517e1758df382bb7c1d0307e2307340b879e34b118c55",
+    "scripts/intelligence_evaluation.py": "2afa044b120af988c25b55ed49c164e1a6a739419730c5f0f088a68b9daeba08",
+    "scripts/local_pipeline_check.py": "32a0e25036df398066f26379ae029fee4f3e92ec954927e90e474f6bb64585a0",
+    "scripts/materialize_evidence_package.py": "eb3a7109d49f23732113a435268ca6528734c2588c1e4a938a50f50176805fa8",
+    "scripts/prove_ingestion_interruption.py": "64d7d5105c04a658f75967bad85917565348a03ff80cbda2db41505648fd6021",
+    "scripts/pursuit_research_metrics.py": "7ec6295378746560ea291a1063f35d2ad45d901cd9354c23fe89e4b0f43f4f26",
+    "scripts/reconcile_lifecycle_inventory.py": "bab122559b3dc74a1169fe8d22663fa422e582f0f2c9ef90966ea2aa53b65ef3",
+    "scripts/regenerate_pursuit_corpus.py": "b86cc1a523d1e6cfff2a95a67517b1c4c44cd74e4626d20c30d2edcc83f7f22a",
+    "scripts/regional_preservation.py": "923e6f3265716a8a594c65fa56798c896be8e74c0236b2706ccd8f3c5771986b",
+    "scripts/rehearse_release.py": "b1a97426fa0369a12c569c5c0e22fd1ca7a2e732f5de62bff23c1d13dd0e5120",
+    "scripts/reinterpret_news.py": "d7a95773c26981e9d40af46871ca5f66b865e11fca26620fa53ab01a41d2ef1b",
+    "scripts/replay_lifecycle_history.py": "02b9f33d5363df48d1ed07248ee5bcc3c94a09d4767cc09ba5e00f4963c61aa1",
+    "scripts/run_commercial_assessment.py": "24044ec0c1fedab989ca9b936210653852e9df9e0b946f04a4143df99cfe3ebd",
+    "scripts/seeded_browser_acceptance.py": "0e1277bf6e918df448e72ea04a78dc907e0c16784aa1aa7298a500f6f81a3fa0",
+    "scripts/setup_compose.py": "8710f5c0021cccd60b22b7b505c2ae27b5d70022a1ce2f3c5aa89c3a70b62aa7",
+    "scripts/setup_local.py": "34cec9bdc4ee66417d275af680881767acb6cae24b6e1a45ff41071ded2ceaca",
+    "scripts/stage_release_wrapper.py": "242cd056583ff7cf1629c5b8667517a7c33990e405916745aa7ed31129bee2c6",
+    "scripts/validate_buying_chain_captures.py": "3fe8dd22006f7305b481a4f41811631c73f32e8410c9e5303df567601294bd3b",
+    "scripts/validate_pursuit_research.py": "8fe7f7371875c573c589b8b33dab69ba6406f5e496c6e4ff231e485343b619dd",
+    "scripts/verify_ingestion_recovery.py": "d7aeb6b17d47eaaae7d2c4f77c69c77a232c46d2b67d150ae482577ce0cccf65"
+  },
+  "summary": {
+    "companies_processed": 20,
+    "companies_with_usable_method": 10,
+    "coverage_percent": 50.0,
+    "companies_without_usable_contacts": 10,
+    "companies_with_phone": 7,
+    "companies_with_email": 10,
+    "verified_phone_methods": 11,
+    "verified_email_methods": 13,
+    "named_relevant_professionals": 3,
+    "companies_with_named_relevant_professional": 2,
+    "direct_buyer_methods": 0,
+    "companies_with_direct_buyer_method": 0,
+    "companies_with_generic_method": 10,
+    "research_required_companies": 20,
+    "worker_elapsed_seconds_sum": 133.127,
+    "by_tier": {
+      "Lead": {
+        "companies": 0,
+        "usable_companies": 0,
+        "coverage_percent": null
+      },
+      "Prospect": {
+        "companies": 0,
+        "usable_companies": 0,
+        "coverage_percent": null
+      },
+      "Signal": {
+        "companies": 20,
+        "usable_companies": 10,
+        "coverage_percent": 50.0
+      }
+    },
+    "by_industry": {
+      "data_center": {
+        "companies": 4,
+        "usable_companies": 1,
+        "coverage_percent": 25.0
+      },
+      "upstream_well": {
+        "companies": 16,
+        "usable_companies": 9,
+        "coverage_percent": 56.25
+      }
+    },
+    "new_paid_dispatches": 20,
+    "provider_credits_balance_before": 2574,
+    "provider_credits_balance_after": 2534,
+    "observed_account_credit_delta": 40,
+    "published_tariff_credit_exposure_max": 40,
+    "estimated_replacement_reservation_usd_max": 0.2,
+    "actual_provider_cash_cost_usd": null
+  },
+  "companies": [
+    {
+      "company_identity_id": "40bb49fc-6ca7-4f7a-8b44-ebb0fdc53ed0",
+      "name": "AMAZON DATA SERVICES, INC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "data_center"
+      ],
+      "project_count": 3,
+      "candidate_urls": [],
+      "job_id": "4e9ec3d1-62e6-4cc3-bbca-6b550f419d49",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 6.297,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "official_identity_unverified",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "network_error",
+          "reason": "AcquisitionFailure",
+          "url": "https://efis.psc.mo.gov/Company/Display/8595?isDetailId=true"
+        },
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.manta.com/c/mkhzy23/amazon-data-services-inc"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "27835b46-daae-4363-8cdb-e71b74bd3681"
+    },
+    {
+      "company_identity_id": "4e70489d-ab9e-4762-9279-7cb35cf28302",
+      "name": "Beacon Point DC LLC aka Lon Hill Infrastructure LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "data_center"
+      ],
+      "project_count": 1,
+      "candidate_urls": [],
+      "job_id": "606e3de8-57c8-4918-8079-fcec7ce559da",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 5.75,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "no_literal_company_method",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "47033369-4796-452b-bde1-9b4d14de175b"
+    },
+    {
+      "company_identity_id": "316c60cb-37d5-4196-991a-6a6bf4cdb62f",
+      "name": "Circle T Owner LP",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "data_center"
+      ],
+      "project_count": 1,
+      "candidate_urls": [],
+      "job_id": "28792431-8f40-4fe0-b41d-8f2be0ce7cf1",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 9.625,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "official_identity_unverified",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "0416251f-7a80-4b84-ae68-b3e356629022"
+    },
+    {
+      "company_identity_id": "668881b9-b2d6-4e0c-af52-cd87353025b2",
+      "name": "EG AI CORP",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "data_center"
+      ],
+      "project_count": 1,
+      "candidate_urls": [],
+      "job_id": "3a04bb7d-a5db-4d5d-92c8-e07cc9bf3e6f",
+      "job_status": "succeeded",
+      "discovery_status": "complete",
+      "elapsed_seconds": 8.531,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 1,
+      "named_relevant_professionals": 2,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 1,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [],
+          "name": "Danny Cruz",
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "Inferred likely role",
+          "role": "owner construction",
+          "sources": [
+            {
+              "assessed_at": "2026-10-24T12:21:46.804648+00:00",
+              "content_hash": "fb9e7d9098b8422d0a3644709e272ffb1258925ae65cce7bbedde7c7a2212b6f",
+              "extraction_method": "TDLR TABS project details page",
+              "passage": "Owner: EG AI CORP",
+              "reference": "buying-chain:b642db50-5218-4fcc-8d3b-dcacdcc75d58",
+              "retained_evidence_id": "3e0b0424-7aa3-4ea7-8c29-73fd813e7951",
+              "source_date": null,
+              "source_id": "texas-tdlr-tabs-data-centers",
+              "title": "Buying-chain source",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:13:47.219474+00:00",
+              "content_hash": "a7c60395eaac05dd47d29d639701d9f16ce0f91aa06cdf047f9caf9b454500da",
+              "extraction_method": "public page text",
+              "passage": "Danny Cruz\nCOO",
+              "reference": "buying-chain:b6e9fcd5-4cf2-4d79-b3c5-808dee755646",
+              "retained_evidence_id": null,
+              "source_date": "2026-02-05",
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://egai.us/about/",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": "COO",
+          "verified_at": null
+        },
+        {
+          "methods": [],
+          "name": "Merritt Eaton",
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "Inferred likely role",
+          "role": "owner construction",
+          "sources": [
+            {
+              "assessed_at": "2026-10-24T12:21:46.804648+00:00",
+              "content_hash": "fb9e7d9098b8422d0a3644709e272ffb1258925ae65cce7bbedde7c7a2212b6f",
+              "extraction_method": "TDLR TABS project details page",
+              "passage": "Owner: EG AI CORP",
+              "reference": "buying-chain:b642db50-5218-4fcc-8d3b-dcacdcc75d58",
+              "retained_evidence_id": "3e0b0424-7aa3-4ea7-8c29-73fd813e7951",
+              "source_date": null,
+              "source_id": "texas-tdlr-tabs-data-centers",
+              "title": "Buying-chain source",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:13:47.219474+00:00",
+              "content_hash": "a7c60395eaac05dd47d29d639701d9f16ce0f91aa06cdf047f9caf9b454500da",
+              "extraction_method": "public page text",
+              "passage": "Merritt Eaton\nCOO",
+              "reference": "buying-chain:b6e9fcd5-4cf2-4d79-b3c5-808dee755646",
+              "retained_evidence_id": null,
+              "source_date": "2026-02-05",
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://egai.us/about/",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": "COO",
+          "verified_at": null
+        },
+        {
+          "methods": [
+            {
+              "href": "mailto:info@egai.us",
+              "kind": "email",
+              "source_url": "https://egai.us/contact/",
+              "value": "info@egai.us",
+              "verified_at": "2026-10-25T14:13:43.448377+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "owner developer",
+          "sources": [
+            {
+              "assessed_at": "2026-10-24T12:21:46.804648+00:00",
+              "content_hash": "fb9e7d9098b8422d0a3644709e272ffb1258925ae65cce7bbedde7c7a2212b6f",
+              "extraction_method": "TDLR TABS project details page",
+              "passage": "Owner: EG AI CORP",
+              "reference": "buying-chain:b642db50-5218-4fcc-8d3b-dcacdcc75d58",
+              "retained_evidence_id": "3e0b0424-7aa3-4ea7-8c29-73fd813e7951",
+              "source_date": null,
+              "source_id": "texas-tdlr-tabs-data-centers",
+              "title": "Buying-chain source",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:13:46.391249+00:00",
+              "content_hash": "881b7a26025bbd3c4ce6e5570cf8e806de4cd6adf40a23540878507cd49f1cab",
+              "extraction_method": "public page text",
+              "passage": "info@egai.us",
+              "reference": "buying-chain:3aa083ea-60f4-4b39-b985-5105b91cc318",
+              "retained_evidence_id": null,
+              "source_date": "2026-02-06",
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://egai.us/contact/",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-24T12:49:28.039532+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 1,
+          "named_professionals": 2,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "d7249c1f-a045-4f7f-9870-bf919b066ca1"
+    },
+    {
+      "company_identity_id": "21bef126-7254-49a4-b69b-a45f9c4a2949",
+      "name": "PIONEER NATURAL RES. USA, INC.",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 131,
+      "candidate_urls": [],
+      "job_id": "c48e12de-c4f2-44ec-9a6e-d05beb5c94a1",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 7.125,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "official_identity_unverified",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.mineralanswers.com/texas/producers/pioneer-natural-res-usa-inc/50314"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "51a2934b-cbbc-437e-bf6f-70008d7599dd"
+    },
+    {
+      "company_identity_id": "7f34d001-e20a-4d1c-b4cd-97ab3388bbb9",
+      "name": "DIAMONDBACK E&P LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 123,
+      "candidate_urls": [],
+      "job_id": "b391e884-2070-4016-a58b-66e38103830b",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 6.125,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "discovery_limit": "Verified official page retrieval failed",
+          "reason": "all_candidate_fetches_failed",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.diamondbackenergy.com/node/10546/html"
+        },
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://ir.diamondbackenergy.com/static-files/49f4b4c5-83da-418c-af7d-5a18364e543f"
+        },
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.diamondbackenergy.com/static-files/6a660419-e9ea-4b42-91de-322184afa573"
+        },
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.diamondbackenergy.com/node/14031/html"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "5c9ff2ba-d0e0-4db0-913d-e0a95f6551a1"
+    },
+    {
+      "company_identity_id": "e5fcebcd-d5fb-40df-b8f3-3108eec1e80c",
+      "name": "DE CENTRAL OPERATING, LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 45,
+      "candidate_urls": [],
+      "job_id": "d11546d0-ce03-40ae-98d1-9472ecd48601",
+      "job_status": "succeeded",
+      "discovery_status": "partial",
+      "elapsed_seconds": 6.641,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 1,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 1,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [
+            {
+              "href": "mailto:land@buckheadenergy.com",
+              "kind": "email",
+              "source_url": "https://www.buckheadenergy.com/operators/de-central-operating-llc",
+              "value": "land@buckheadenergy.com",
+              "verified_at": "2026-10-25T14:14:09.956334+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-14T18:12:17.059216+00:00",
+              "content_hash": "2cfc5dee63a91a1132ee4434814f234eecdaeb6d0d73d594d34269442cb02f5f",
+              "extraction_method": "OGA049M root/master; permit 0917095; sequence 98",
+              "passage": "status: Approved",
+              "reference": "buying-chain:a51c70e3-87fc-41e2-a80c-66812f298a33",
+              "retained_evidence_id": "8be45e43-fec9-4e11-96b9-3abdd6aa065d",
+              "source_date": "2026-09-18",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:16.414417+00:00",
+              "content_hash": "b7672d2915008126fb8f8afe72a6eabb7af0fd8a133d1aeb9d3f43bc5e32a4bb",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"Fort Worth\", \"addressRegion\": \"TX\", \"postalCode\": \"76116\", \"streetAddress\": \"6300 Ridglea Place, Suite 950\"}, \"areaServed\": [\"United States\", \"Texas\", \"North Dakota\", \"Oklahoma\", \"New Mexico\", \"Ohio\"], \"correctionsPolicy\": \"https://www.buckheadenergy.com/corrections\", \"description\": \"Buckhead Energy specializes in mineral rights acquisition across major oil and gas regions including the Permian Basin, Eagle Ford, and Bakken.\", \"email\"\u2026",
+              "reference": "buying-chain:8f5a997f-45f0-43f2-adba-de83ac8d23da",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/de-central-operating-llc",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:14:09.956334+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 1,
+          "named_professionals": 0,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "network_error",
+          "reason": "AcquisitionFailure",
+          "url": "https://apps.rrc.texas.gov/portal/s/account/001cs00000Y31yeAAB/de-central-operating-llc"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "d0612e57-c7f6-47e9-8b0a-e1bd100cecba"
+    },
+    {
+      "company_identity_id": "2eeafc8f-cf4b-443e-9e80-733fea261e72",
+      "name": "EOG RESOURCES, INC.",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 38,
+      "candidate_urls": [],
+      "job_id": "745a9a85-74f9-4692-a683-a9ce74bd4b07",
+      "job_status": "succeeded",
+      "discovery_status": "complete",
+      "elapsed_seconds": 8.563,
+      "verified_phone_methods": 2,
+      "verified_email_methods": 3,
+      "named_relevant_professionals": 1,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 5,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [],
+          "name": "Gregory T. Miller",
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "Inferred likely role",
+          "role": "procurement",
+          "sources": [
+            {
+              "assessed_at": "2026-10-14T18:12:40.483816+00:00",
+              "content_hash": "6482c3ee353cd4cb62339a91d2e6d7bb4d22c2d5b2ec69ecb6e68c3ce1c81536",
+              "extraction_method": "OGA049M root/master; permit 0918189; sequence 99",
+              "passage": "status: Approved",
+              "reference": "buying-chain:dcbf4061-4193-430d-b66c-f8016cce706f",
+              "retained_evidence_id": "a0a0ca33-fef7-4a21-9a69-74fe9f5999ee",
+              "source_date": "2026-09-01",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:22.498814+00:00",
+              "content_hash": "a5ea5da09cfcf9f818d1d4216a2600d0be7017b64f6ad8a3d433d7a17e275db3",
+              "extraction_method": "public page text",
+              "passage": "Gregory T. Miller\nVP, Supply Chain",
+              "reference": "buying-chain:aae96714-7423-43e4-9574-1ef0b0e63911",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.eogresources.com/company/leadership/",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": "VP, Supply Chain",
+          "verified_at": null
+        },
+        {
+          "methods": [
+            {
+              "href": "tel:7136517000",
+              "kind": "phone",
+              "source_url": "https://www.eogresources.com/company/contacts/",
+              "value": "(713) 651-7000",
+              "verified_at": "2026-10-25T14:14:18.072677+00:00"
+            },
+            {
+              "href": "tel:8773633647",
+              "kind": "phone",
+              "source_url": "https://www.eogresources.com/company/contacts/",
+              "value": "(877) 363-3647",
+              "verified_at": "2026-10-25T14:14:18.072677+00:00"
+            },
+            {
+              "href": "mailto:info@eogresources.com",
+              "kind": "email",
+              "source_url": "https://www.eogresources.com/company/owners/",
+              "value": "info@eogresources.com",
+              "verified_at": "2026-10-25T14:14:18.072677+00:00"
+            },
+            {
+              "href": "mailto:jibinquiry@eogresources.com",
+              "kind": "email",
+              "source_url": "https://www.eogresources.com/company/owners/",
+              "value": "jibinquiry@eogresources.com",
+              "verified_at": "2026-10-25T14:14:18.072677+00:00"
+            },
+            {
+              "href": "mailto:EOGR1099@eogresources.com",
+              "kind": "email",
+              "source_url": "https://www.eogresources.com/company/owners/",
+              "value": "EOGR1099@eogresources.com",
+              "verified_at": "2026-10-25T14:14:18.072677+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-14T18:12:40.483816+00:00",
+              "content_hash": "6482c3ee353cd4cb62339a91d2e6d7bb4d22c2d5b2ec69ecb6e68c3ce1c81536",
+              "extraction_method": "OGA049M root/master; permit 0918189; sequence 99",
+              "passage": "status: Approved",
+              "reference": "buying-chain:dcbf4061-4193-430d-b66c-f8016cce706f",
+              "retained_evidence_id": "a0a0ca33-fef7-4a21-9a69-74fe9f5999ee",
+              "source_date": "2026-09-01",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:21.276698+00:00",
+              "content_hash": "063b429849a9599573861f8ef27ac1e97b7709de0ba73cbcc1daee0ac749188e",
+              "extraction_method": "public page text",
+              "passage": "Phone:\u00a0(713) 651-7000",
+              "reference": "buying-chain:f42e9edc-25bc-4805-be6f-69bfa90cd380",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.eogresources.com/company/contacts/",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:21.276698+00:00",
+              "content_hash": "063b429849a9599573861f8ef27ac1e97b7709de0ba73cbcc1daee0ac749188e",
+              "extraction_method": "public page text",
+              "passage": "Toll Free:\u00a0(877) 363-3647",
+              "reference": "buying-chain:f42e9edc-25bc-4805-be6f-69bfa90cd380",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.eogresources.com/company/contacts/",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:24.162299+00:00",
+              "content_hash": "d8c702887f7264af93c0fd7fbcd4a0d119270a315cd74a404fd97fa5038b1b32",
+              "extraction_method": "public page text",
+              "passage": "info@eogresources.com",
+              "reference": "buying-chain:f126d42a-2894-4ebf-a384-7612e7df8b5e",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.eogresources.com/company/owners/",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:24.162299+00:00",
+              "content_hash": "d8c702887f7264af93c0fd7fbcd4a0d119270a315cd74a404fd97fa5038b1b32",
+              "extraction_method": "public page text",
+              "passage": "jibinquiry@eogresources.com",
+              "reference": "buying-chain:f126d42a-2894-4ebf-a384-7612e7df8b5e",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.eogresources.com/company/owners/",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:24.162299+00:00",
+              "content_hash": "d8c702887f7264af93c0fd7fbcd4a0d119270a315cd74a404fd97fa5038b1b32",
+              "extraction_method": "public page text",
+              "passage": "EOGR1099@eogresources.com",
+              "reference": "buying-chain:f126d42a-2894-4ebf-a384-7612e7df8b5e",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.eogresources.com/company/owners/",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:14:18.072677+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 5,
+          "named_professionals": 1,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "991462cd-4ee7-414d-b099-384b16374cdd"
+    },
+    {
+      "company_identity_id": "34639ed3-e2cb-44c4-85d5-c70b64250318",
+      "name": "ACTIVE IRON ENERGY, LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 2,
+      "candidate_urls": [],
+      "job_id": "0c0eb72b-9c48-4a88-a071-ee11d03f798d",
+      "job_status": "succeeded",
+      "discovery_status": "partial",
+      "elapsed_seconds": 6.047,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 2,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 2,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [
+            {
+              "href": "mailto:TMurray@ActiveIronEnergy.com",
+              "kind": "email",
+              "source_url": "https://www.activeironenergy.com/contact-us",
+              "value": "TMurray@ActiveIronEnergy.com",
+              "verified_at": "2026-10-25T14:14:28.118499+00:00"
+            },
+            {
+              "href": "mailto:KMcMillan@ActiveIronEnergy.com",
+              "kind": "email",
+              "source_url": "https://www.activeironenergy.com/contact-us",
+              "value": "KMcMillan@ActiveIronEnergy.com",
+              "verified_at": "2026-10-25T14:14:28.118499+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-22T12:20:23.236945+00:00",
+              "content_hash": "b54985f39b367147318277f69aea1ad513c1f87bbb7c0def383c935d0725c6b2",
+              "extraction_method": "OGA049M root/master; permit 0918244; sequence 99",
+              "passage": "status: Approved",
+              "reference": "buying-chain:703f7fdc-8f34-4680-934f-5ff35b332701",
+              "retained_evidence_id": "ff524b39-2504-4486-aed8-049b357fe2dc",
+              "source_date": "2026-10-20",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:30.947483+00:00",
+              "content_hash": "adaa4bac9d9a813d43f4367cbc8e26bd4b518adcd907d91ff70126699aefc070",
+              "extraction_method": "public page text",
+              "passage": "Tim Murray                                                                  TMurray@ActiveIronEnergy.com                                                                               (832) 942-1071",
+              "reference": "buying-chain:8389e493-c69f-423c-a0b8-1eb55fcf5820",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.activeironenergy.com/contact-us",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:30.947483+00:00",
+              "content_hash": "adaa4bac9d9a813d43f4367cbc8e26bd4b518adcd907d91ff70126699aefc070",
+              "extraction_method": "public page text",
+              "passage": "Kevin McMillan                                                                  KMcMillan@ActiveIronEnergy.com                                                                               (832) 410-1477",
+              "reference": "buying-chain:8389e493-c69f-423c-a0b8-1eb55fcf5820",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.activeironenergy.com/contact-us",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:14:28.118499+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 2,
+          "named_professionals": 0,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "Acquisition response exceeded its configured byte bound",
+          "reason": "ResponseTooLarge",
+          "url": "https://www.activeironenergy.com/owner"
+        },
+        {
+          "detail": "Acquisition response exceeded its configured byte bound",
+          "reason": "ResponseTooLarge",
+          "url": "https://www.activeironenergy.com/"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "1e9e5a1b-ecd3-4e70-a8dc-e53e017f47db"
+    },
+    {
+      "company_identity_id": "fe401e1b-6fc3-4a3f-9ffd-344296cb9a5b",
+      "name": "BKV BARNETT, LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 7,
+      "candidate_urls": [],
+      "job_id": "f81e92ee-8d53-4660-888b-cef38955be45",
+      "job_status": "succeeded",
+      "discovery_status": "complete",
+      "elapsed_seconds": 6.078,
+      "verified_phone_methods": 1,
+      "verified_email_methods": 1,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 2,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [
+            {
+              "href": "tel:8334258677",
+              "kind": "phone",
+              "source_url": "https://www.buckheadenergy.com/operators/bkv-barnett-llc",
+              "value": "8334258677",
+              "verified_at": "2026-10-25T14:14:38.666248+00:00"
+            },
+            {
+              "href": "mailto:land@buckheadenergy.com",
+              "kind": "email",
+              "source_url": "https://www.buckheadenergy.com/operators/bkv-barnett-llc",
+              "value": "land@buckheadenergy.com",
+              "verified_at": "2026-10-25T14:14:35.767113+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-14T18:12:30.314693+00:00",
+              "content_hash": "c6f7fe96d798157d1b692d30658a1c5dba27cf17d34ebd264fab6b19547a01b6",
+              "extraction_method": "OGA049M root/master; permit 0918003; sequence 99",
+              "passage": "status: Approved",
+              "reference": "buying-chain:019cdcf5-bb7e-458c-97ad-0c8f2979e12e",
+              "retained_evidence_id": "a51752e0-6d67-425b-bcc9-de1d9145b3ad",
+              "source_date": "2026-09-24",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:38.666248+00:00",
+              "content_hash": "93d4a7a29ffac7375ccc94f5e512d7e08b1bededbf2a6040aef7bb22c9f77976",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/operators/bkv-barnett-llc#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"Fort Worth\", \"addressRegion\": \"TX\", \"postalCode\": \"76106\", \"streetAddress\": \"4800 BLUE MOUND ROAD\"}, \"areaServed\": \"Texas\", \"description\": \"BKV BARNETT, LLC is an oil and gas operator registered with the Texas Railroad Commission.\", \"industry\": \"Oil and Gas\", \"knowsAbout\": [\"Oil and Gas Operations\", \"Mineral Rights\", \"Energy Production\", \"Texas Energy\"], \"name\": \"BKV BARNETT, LLC\", \"sameAs\"\u2026",
+              "reference": "buying-chain:265ae595-de14-44a3-953c-d2c34334dd71",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/bkv-barnett-llc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:38.666248+00:00",
+              "content_hash": "93d4a7a29ffac7375ccc94f5e512d7e08b1bededbf2a6040aef7bb22c9f77976",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"Fort Worth\", \"addressRegion\": \"TX\", \"postalCode\": \"76116\", \"streetAddress\": \"6300 Ridglea Place, Suite 950\"}, \"areaServed\": [\"United States\", \"Texas\", \"North Dakota\", \"Oklahoma\", \"New Mexico\", \"Ohio\"], \"correctionsPolicy\": \"https://www.buckheadenergy.com/corrections\", \"description\": \"Buckhead Energy specializes in mineral rights acquisition across major oil and gas regions including the Permian Basin, Eagle Ford, and Bakken.\", \"email\"\u2026",
+              "reference": "buying-chain:265ae595-de14-44a3-953c-d2c34334dd71",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/bkv-barnett-llc",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:14:35.767113+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 2,
+          "named_professionals": 0,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "84392948-4ec2-4b36-8410-e96b4cc3834c"
+    },
+    {
+      "company_identity_id": "56443384-5668-4bc2-bf96-72b7d0561a9b",
+      "name": "CITATION OIL & GAS CORP.",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": [],
+      "job_id": "41a3f8ec-4f66-44be-a4d1-0e2f6008d270",
+      "job_status": "succeeded",
+      "discovery_status": "complete",
+      "elapsed_seconds": 6.719,
+      "verified_phone_methods": 4,
+      "verified_email_methods": 1,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 5,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [
+            {
+              "href": "tel:2818911000",
+              "kind": "phone",
+              "source_url": "https://www.cogc.com/contact-us/",
+              "value": "281.891.1000",
+              "verified_at": "2026-10-25T14:14:43.508096+00:00"
+            },
+            {
+              "href": "tel:4056819400",
+              "kind": "phone",
+              "source_url": "https://www.cogc.com/contact-us/",
+              "value": "405.681.9400",
+              "verified_at": "2026-10-25T14:14:43.508096+00:00"
+            },
+            {
+              "href": "tel:4322627600",
+              "kind": "phone",
+              "source_url": "https://www.cogc.com/contact-us/",
+              "value": "432.262.7600",
+              "verified_at": "2026-10-25T14:14:43.508096+00:00"
+            },
+            {
+              "href": "tel:3076824853",
+              "kind": "phone",
+              "source_url": "https://www.cogc.com/contact-us/",
+              "value": "307.682.4853",
+              "verified_at": "2026-10-25T14:14:43.508096+00:00"
+            },
+            {
+              "href": "mailto:ownersrelations@cogc.com",
+              "kind": "email",
+              "source_url": "https://www.cogc.com/owner-relations/",
+              "value": "ownersrelations@cogc.com",
+              "verified_at": "2026-10-25T14:14:43.508096+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-14T18:13:13.061042+00:00",
+              "content_hash": "add04c3af1223423d6d593dd770e6108ff4a712e5214c165b7076c31eeb6514e",
+              "extraction_method": "OGA049M root/master; permit 0918480; sequence 99",
+              "passage": "status: Approved",
+              "reference": "buying-chain:e69f93a3-02d4-4318-a7d7-bb84bac9773a",
+              "retained_evidence_id": "3a386ee5-7aa1-4840-aad1-556e3bc4a22d",
+              "source_date": "2026-09-15",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:47.062887+00:00",
+              "content_hash": "2116e77e92a6f0600380737f9340faee13062ce33dc9a0de1b26ae2a14354842",
+              "extraction_method": "public page text",
+              "passage": "Phone: 281.891.1000",
+              "reference": "buying-chain:46009769-d96f-4db7-aa56-be889ad1aa88",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.cogc.com/contact-us/",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:47.062887+00:00",
+              "content_hash": "2116e77e92a6f0600380737f9340faee13062ce33dc9a0de1b26ae2a14354842",
+              "extraction_method": "public page text",
+              "passage": "Phone: 405.681.9400",
+              "reference": "buying-chain:46009769-d96f-4db7-aa56-be889ad1aa88",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.cogc.com/contact-us/",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:47.062887+00:00",
+              "content_hash": "2116e77e92a6f0600380737f9340faee13062ce33dc9a0de1b26ae2a14354842",
+              "extraction_method": "public page text",
+              "passage": "Phone: 432.262.7600",
+              "reference": "buying-chain:46009769-d96f-4db7-aa56-be889ad1aa88",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.cogc.com/contact-us/",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:47.062887+00:00",
+              "content_hash": "2116e77e92a6f0600380737f9340faee13062ce33dc9a0de1b26ae2a14354842",
+              "extraction_method": "public page text",
+              "passage": "Phone: 307.682.4853",
+              "reference": "buying-chain:46009769-d96f-4db7-aa56-be889ad1aa88",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.cogc.com/contact-us/",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:48.057250+00:00",
+              "content_hash": "7c96fc60762ab5e81d8cb8680a2ee83a4135d8d45ed341652f9ea7f4cff0a8c9",
+              "extraction_method": "public page text",
+              "passage": "ownersrelations@cogc.com",
+              "reference": "buying-chain:b9495d2f-652e-4041-8fd8-d5ccd296b084",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.cogc.com/owner-relations/",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:14:43.508096+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 5,
+          "named_professionals": 0,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "a47bd181-1b7a-4db3-8219-b1be70f47f9d"
+    },
+    {
+      "company_identity_id": "7e63930b-c573-4a73-aae1-78dd01c92f9d",
+      "name": "DIMOCK OPERATING COMPANY",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": [],
+      "job_id": "85d54747-b309-41d3-b546-b2c9e7c50641",
+      "job_status": "succeeded",
+      "discovery_status": "complete",
+      "elapsed_seconds": 6.453,
+      "verified_phone_methods": 1,
+      "verified_email_methods": 1,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 2,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [
+            {
+              "href": "tel:9402358991",
+              "kind": "phone",
+              "source_url": "https://www.buckheadenergy.com/operators/dimock-operating-company",
+              "value": "9402358991",
+              "verified_at": "2026-10-25T14:14:55.386392+00:00"
+            },
+            {
+              "href": "mailto:land@buckheadenergy.com",
+              "kind": "email",
+              "source_url": "https://www.buckheadenergy.com/operators/dimock-operating-company",
+              "value": "land@buckheadenergy.com",
+              "verified_at": "2026-10-25T14:14:52.158080+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-21T12:45:50.859672+00:00",
+              "content_hash": "4ecdce9782aac529864d4de23e7b736227e9856c495f8451ea89ce442635170f",
+              "extraction_method": "OGA049M root/master; permit 0918525; sequence 99",
+              "passage": "status: Approved",
+              "reference": "buying-chain:8d02c60b-022a-43f3-9601-c5bfd7bcc3a0",
+              "retained_evidence_id": "88262862-d0c1-476e-b592-8f602c72bc4b",
+              "source_date": "2026-10-12",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:55.386392+00:00",
+              "content_hash": "24874cc83b4224ebc002b3672512eb5a10f7a2bb7307e76c5d701c9b7c79cd1f",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/operators/dimock-operating-company#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"Iowa Park\", \"addressRegion\": \"TX\", \"postalCode\": \"76367\", \"streetAddress\": \"C/O CALLIE MAXWELL\"}, \"areaServed\": \"Texas\", \"description\": \"DIMOCK OPERATING COMPANY is an oil and gas operator registered with the Texas Railroad Commission.\", \"industry\": \"Oil and Gas\", \"knowsAbout\": [\"Oil and Gas Operations\", \"Mineral Rights\", \"Energy Production\", \"Texas Energy\"], \"name\": \"DIMOCK OPERATING COMPANY\", \"sameAs\"\u2026",
+              "reference": "buying-chain:95365fc2-17d1-4adb-b9c8-95c7145d1ac5",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/dimock-operating-company",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:14:55.386392+00:00",
+              "content_hash": "24874cc83b4224ebc002b3672512eb5a10f7a2bb7307e76c5d701c9b7c79cd1f",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"Fort Worth\", \"addressRegion\": \"TX\", \"postalCode\": \"76116\", \"streetAddress\": \"6300 Ridglea Place, Suite 950\"}, \"areaServed\": [\"United States\", \"Texas\", \"North Dakota\", \"Oklahoma\", \"New Mexico\", \"Ohio\"], \"correctionsPolicy\": \"https://www.buckheadenergy.com/corrections\", \"description\": \"Buckhead Energy specializes in mineral rights acquisition across major oil and gas regions including the Permian Basin, Eagle Ford, and Bakken.\", \"email\"\u2026",
+              "reference": "buying-chain:95365fc2-17d1-4adb-b9c8-95c7145d1ac5",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/dimock-operating-company",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:14:52.158080+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 2,
+          "named_professionals": 0,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "b320aaa0-377e-4aa5-ab82-9e7d4ce4808a"
+    },
+    {
+      "company_identity_id": "76ad6a2c-6ec1-477e-bede-9e33a8f14e0b",
+      "name": "FLAT LAND OIL & GAS, LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 4,
+      "candidate_urls": [],
+      "job_id": "552d9187-838e-4a8c-9759-265aa01d1200",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 6.156,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "no_literal_company_method",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "http_status_404",
+          "reason": "AcquisitionFailure",
+          "url": "https://flatlandoilandgas.com/cdn-cgi/l/email-protection"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "89f45764-3124-4000-bb97-84dea5d2915e"
+    },
+    {
+      "company_identity_id": "cda88962-ce9b-445d-b69b-7ddcb3bbd1ae",
+      "name": "JAVELIN ENERGY PARTNERS MGMT LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 5,
+      "candidate_urls": [],
+      "job_id": "0e07aae7-ef1e-4471-901b-0c519fcc0da7",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 7.079,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "official_identity_unverified",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "network_error",
+          "reason": "AcquisitionFailure",
+          "url": "https://webapps2.rrc.texas.gov/EWA/leaseDetailAction.do;jsessionid=oLVlTmDLn40p0FV97_3W1GI3u7V7gii_V0eN_nySqqnXNcmUUx9E!-315310270?selTab=1024&methodToCall=displayLeaseDetail&rrcActionMan=H4sIAAAAAAAAALVSy07DMBD8mnKxiLx2Hu1hD6GkFSh9kEYtqOJgWqtECiRyUh5SPp51EBTaIiQkTp6d9Tqzk2mAc5QNcEBxYswqXNVZ8ZiszHrJb7Hln_WdKstKONR2av2iKmdTPHVk6Lp2UGBHDKJFSFBaWGT51BRXW21e3x9z1gX1XHzQ9X2xTou-ynMiPDS63prHtJhpZVb3RHWRH2hYVm03NJvKKZVRD3OVb7WVJnGaNOAiB7k3Bf-tvPpQ7GOpNtp8UXZ0Dbhd7t-zEtGHRiDwRiL0SJKLPueNR4XX-MQfvvIHM8TfzMi1qvS5rlWW_2LGOqvKXL3Gu4GfjYEDccsvH7LU3l4cuN1Jel1P2IqcCtyghZRY6n6WAs8mi1E4ZotollrCmkEnbabKbGzFU9QD6AUWAdkr3O9t6BHJpWenwMOBBJ8xi32c2KO7awuOl-E8ii_GLBpHyfCGTcMkJTRjo-EoZXHct7cAr-0hUAQgvYB-LlXyW-ViFA7jaH4RxxHriG5bscEkOT-Fjugd-nU0SLscUYjaCLUBegMI0ehi3gMAAA"
+        },
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.mineralanswers.com/texas/producers/javelin-energy-partners-mgmt-llc/73942"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "f499b0fa-726b-486a-9fe2-a2207d587705"
+    },
+    {
+      "company_identity_id": "4956e659-b9ef-4119-9517-d0770c04c2e5",
+      "name": "MCA PETROLEUM CORPORATION",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": [],
+      "job_id": "04b466d7-1331-44db-b178-734c1ab45c8c",
+      "job_status": "succeeded",
+      "discovery_status": "complete",
+      "elapsed_seconds": 6.657,
+      "verified_phone_methods": 1,
+      "verified_email_methods": 1,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 2,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [
+            {
+              "href": "tel:3612581743",
+              "kind": "phone",
+              "source_url": "https://www.buckheadenergy.com/operators/mca-petroleum-corporation",
+              "value": "3612581743",
+              "verified_at": "2026-10-25T14:15:20.098768+00:00"
+            },
+            {
+              "href": "mailto:land@buckheadenergy.com",
+              "kind": "email",
+              "source_url": "https://www.buckheadenergy.com/operators/mca-petroleum-corporation",
+              "value": "land@buckheadenergy.com",
+              "verified_at": "2026-10-25T14:15:16.626552+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-21T13:20:27.316476+00:00",
+              "content_hash": "a91f4f4eb57ad985c2fa1aec55de4a28960e1ee318c6083885c2308705a09f66",
+              "extraction_method": "OGA049M root/master; permit 0919187; sequence 99",
+              "passage": "status: Approved",
+              "reference": "buying-chain:73d603fb-1c5b-4f99-9609-93596555c30e",
+              "retained_evidence_id": "c9094933-2ad2-465f-b6c4-731c7a395dab",
+              "source_date": "2026-10-16",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:15:20.098768+00:00",
+              "content_hash": "09b9a4ca147f3afc8001f8fee78080dacb2807c2510144cc5951ca7aa7eeca62",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/operators/mca-petroleum-corporation#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"FLATONIA\", \"addressRegion\": \"TX\", \"postalCode\": \"78941\", \"streetAddress\": \"6731 BROWN RD\"}, \"areaServed\": \"Texas\", \"description\": \"MCA PETROLEUM CORPORATION is an oil and gas operator registered with the Texas Railroad Commission.\", \"industry\": \"Oil and Gas\", \"knowsAbout\": [\"Oil and Gas Operations\", \"Mineral Rights\", \"Energy Production\", \"Texas Energy\"], \"name\": \"MCA PETROLEUM CORPORATION\", \"sameAs\"\u2026",
+              "reference": "buying-chain:b7ebe65c-01c8-4ebb-8123-8a4f1dd47eb7",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/mca-petroleum-corporation",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:15:20.098768+00:00",
+              "content_hash": "09b9a4ca147f3afc8001f8fee78080dacb2807c2510144cc5951ca7aa7eeca62",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"Fort Worth\", \"addressRegion\": \"TX\", \"postalCode\": \"76116\", \"streetAddress\": \"6300 Ridglea Place, Suite 950\"}, \"areaServed\": [\"United States\", \"Texas\", \"North Dakota\", \"Oklahoma\", \"New Mexico\", \"Ohio\"], \"correctionsPolicy\": \"https://www.buckheadenergy.com/corrections\", \"description\": \"Buckhead Energy specializes in mineral rights acquisition across major oil and gas regions including the Permian Basin, Eagle Ford, and Bakken.\", \"email\"\u2026",
+              "reference": "buying-chain:b7ebe65c-01c8-4ebb-8123-8a4f1dd47eb7",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/mca-petroleum-corporation",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:15:16.626552+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 2,
+          "named_professionals": 0,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "b81833c1-dab7-4fc5-922e-6a93e38a877e"
+    },
+    {
+      "company_identity_id": "eddfef52-f9c0-44ac-b5b1-f411f6ea5539",
+      "name": "PER OPERATING LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": [],
+      "job_id": "f75c6637-baa3-41e9-90a7-57b7d4293808",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 5.375,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "official_identity_unverified",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "88dcd057-296c-448a-8f12-7a337d7e2138"
+    },
+    {
+      "company_identity_id": "e9c57910-d61b-41ad-9ff9-eee27b8c9dcc",
+      "name": "RING ENERGY, INC.",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 10,
+      "candidate_urls": [],
+      "job_id": "c007b9f6-4b68-47dd-973d-71389c22d953",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 6.281,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "official_identity_unverified",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [],
+      "discovery_reason": null,
+      "search_logical_call_id": "5d0d6bce-ca57-48bb-a262-a1849a93b715"
+    },
+    {
+      "company_identity_id": "6603348f-341f-4712-9072-d4833ff396bc",
+      "name": "SOUTHWEST OPERATING, INC.-TYLER",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 2,
+      "candidate_urls": [],
+      "job_id": "132bd3b8-9805-4239-a116-dc8d82e3787e",
+      "job_status": "succeeded",
+      "discovery_status": "partial",
+      "elapsed_seconds": 5.797,
+      "verified_phone_methods": 1,
+      "verified_email_methods": 1,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 2,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [
+            {
+              "href": "tel:9035301563",
+              "kind": "phone",
+              "source_url": "https://www.buckheadenergy.com/operators/southwest-operating-inc-tyler",
+              "value": "9035301563",
+              "verified_at": "2026-10-25T14:15:43.439380+00:00"
+            },
+            {
+              "href": "mailto:land@buckheadenergy.com",
+              "kind": "email",
+              "source_url": "https://www.buckheadenergy.com/operators/southwest-operating-inc-tyler",
+              "value": "land@buckheadenergy.com",
+              "verified_at": "2026-10-25T14:15:39.558848+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-14T18:14:05.706449+00:00",
+              "content_hash": "fe8352b9fd26b3bf9312fb4b96514b823f0db938b0c079eed282ac5b0fe286f4",
+              "extraction_method": "OGA049M root/master; permit 0918904; sequence 99",
+              "passage": "status: Approved",
+              "reference": "buying-chain:775f07b0-f2db-4168-b0aa-a20312fa6d36",
+              "retained_evidence_id": "bfe2abe7-bad0-43ac-afca-d7a4f7bdb536",
+              "source_date": "2026-09-24",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:15:43.439380+00:00",
+              "content_hash": "1eb5da6b33f1a3026342eeceaf9b6a6bf2ccdb7dca7d7f19bf17d644dac99a87",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/operators/southwest-operating-inc-tyler#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"TYLER\", \"addressRegion\": \"TX\", \"postalCode\": \"75701\", \"streetAddress\": \"727 S CHILTON\"}, \"areaServed\": \"Texas\", \"description\": \"SOUTHWEST OPERATING, INC.-TYLER is an oil and gas operator registered with the Texas Railroad Commission.\", \"industry\": \"Oil and Gas\", \"knowsAbout\": [\"Oil and Gas Operations\", \"Mineral Rights\", \"Energy Production\", \"Texas Energy\"], \"name\": \"SOUTHWEST OPERATING, INC.-TYLER\"\u2026",
+              "reference": "buying-chain:93c56bb7-6abc-4e92-8763-7f78ece486e6",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/southwest-operating-inc-tyler",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:15:43.439380+00:00",
+              "content_hash": "1eb5da6b33f1a3026342eeceaf9b6a6bf2ccdb7dca7d7f19bf17d644dac99a87",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"Fort Worth\", \"addressRegion\": \"TX\", \"postalCode\": \"76116\", \"streetAddress\": \"6300 Ridglea Place, Suite 950\"}, \"areaServed\": [\"United States\", \"Texas\", \"North Dakota\", \"Oklahoma\", \"New Mexico\", \"Ohio\"], \"correctionsPolicy\": \"https://www.buckheadenergy.com/corrections\", \"description\": \"Buckhead Energy specializes in mineral rights acquisition across major oil and gas regions including the Permian Basin, Eagle Ford, and Bakken.\", \"email\"\u2026",
+              "reference": "buying-chain:93c56bb7-6abc-4e92-8763-7f78ece486e6",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/southwest-operating-inc-tyler",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:15:39.558848+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 2,
+          "named_professionals": 0,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.mineralanswers.com/texas/producers/southwest-operating-inc-tyler/60497"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "d24bc8d4-0084-4c0d-8652-c19036d5f0fb"
+    },
+    {
+      "company_identity_id": "17dec6ca-5c3a-49e6-a03a-1aa355cd53f1",
+      "name": "TRINITY OPERATING (USG), LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": [],
+      "job_id": "f9d76b31-68e8-4cad-96b4-bdbfc1d42166",
+      "job_status": "succeeded",
+      "discovery_status": "unresolved",
+      "elapsed_seconds": 5.656,
+      "verified_phone_methods": 0,
+      "verified_email_methods": 0,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 0,
+      "usable_email_or_phone": false,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [],
+      "results": [
+        {
+          "reason": "official_identity_unverified",
+          "status": "unresolved"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.mineralanswers.com/texas/producers/trinity-operating-usg-llc/66849"
+        },
+        {
+          "detail": "network_error",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.trinityoperating.com/content/dam/trinityoperating/us/en/pdf/Direct_Deposit_Form_Trinity_120616.pdf"
+        },
+        {
+          "detail": "network_error",
+          "reason": "AcquisitionFailure",
+          "url": "https://www.trinityoperating.com/content/dam/trinityoperating/us/en/pdf/Change_of_Address_Form_Trinity_040617.pdf"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "403bcc3b-5922-4d18-a881-89ec26d17cdc"
+    },
+    {
+      "company_identity_id": "97cc4686-fe3a-4090-8480-793ddeeb93bf",
+      "name": "ZARVONA ENERGY LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 2,
+      "candidate_urls": [],
+      "job_id": "2bae09a6-5dba-488f-a2dc-afb613c5a969",
+      "job_status": "succeeded",
+      "discovery_status": "partial",
+      "elapsed_seconds": 6.172,
+      "verified_phone_methods": 1,
+      "verified_email_methods": 1,
+      "named_relevant_professionals": 0,
+      "direct_buyer_methods": 0,
+      "generic_company_methods": 2,
+      "usable_email_or_phone": true,
+      "research_required": true,
+      "purchasing_authority": "unconfirmed",
+      "contacts": [
+        {
+          "methods": [
+            {
+              "href": "tel:7136000600",
+              "kind": "phone",
+              "source_url": "https://www.buckheadenergy.com/operators/zarvona-energy-llc",
+              "value": "7136000600",
+              "verified_at": "2026-10-25T14:15:59.223269+00:00"
+            },
+            {
+              "href": "mailto:land@buckheadenergy.com",
+              "kind": "email",
+              "source_url": "https://www.buckheadenergy.com/operators/zarvona-energy-llc",
+              "value": "land@buckheadenergy.com",
+              "verified_at": "2026-10-25T14:15:54.122379+00:00"
+            }
+          ],
+          "name": null,
+          "purchasing_authority": "Requires confirmation for this power package",
+          "responsibility": "General company contact path",
+          "role": "asset operator",
+          "sources": [
+            {
+              "assessed_at": "2026-10-14T18:12:19.426825+00:00",
+              "content_hash": "8fbccf206ee6c7300606d1511af15efbcb52cd208a7290a3e54a9778646c50c6",
+              "extraction_method": "OGA049M root/master; permit 0917480; sequence 97",
+              "passage": "status: Approved",
+              "reference": "buying-chain:4fc4fdb6-66f4-448f-aa57-9944139c3166",
+              "retained_evidence_id": "45105ad7-7f83-478a-b370-c9da2946abdd",
+              "source_date": "2026-10-13",
+              "source_id": "texas-rrc-drilling-permits",
+              "title": "Buying-chain source",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:15:59.223269+00:00",
+              "content_hash": "b547d60071204d9409797b8c7564eaa74bd0e89ca40f3147759180cad3c132f0",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/operators/zarvona-energy-llc#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"HOUSTON\", \"addressRegion\": \"TX\", \"postalCode\": \"77002-6334\", \"streetAddress\": \"1001 MCKINNEY ST SUITE 1800\"}, \"areaServed\": \"Texas\", \"description\": \"ZARVONA ENERGY LLC is an oil and gas operator registered with the Texas Railroad Commission.\", \"industry\": \"Oil and Gas\", \"knowsAbout\": [\"Oil and Gas Operations\", \"Mineral Rights\", \"Energy Production\", \"Texas Energy\"], \"name\": \"ZARVONA ENERGY LLC\", \"sameAs\"\u2026",
+              "reference": "buying-chain:646e0e50-d5fb-410e-b33d-3d112a7d9d22",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/zarvona-energy-llc",
+              "verification_status": "Current retained support"
+            },
+            {
+              "assessed_at": "2026-10-25T14:15:59.223269+00:00",
+              "content_hash": "b547d60071204d9409797b8c7564eaa74bd0e89ca40f3147759180cad3c132f0",
+              "extraction_method": "public page text",
+              "passage": "{\"@context\": \"https://schema.org\", \"@id\": \"https://www.buckheadenergy.com/#organization\", \"@type\": \"Organization\", \"address\": {\"@type\": \"PostalAddress\", \"addressCountry\": \"US\", \"addressLocality\": \"Fort Worth\", \"addressRegion\": \"TX\", \"postalCode\": \"76116\", \"streetAddress\": \"6300 Ridglea Place, Suite 950\"}, \"areaServed\": [\"United States\", \"Texas\", \"North Dakota\", \"Oklahoma\", \"New Mexico\", \"Ohio\"], \"correctionsPolicy\": \"https://www.buckheadenergy.com/corrections\", \"description\": \"Buckhead Energy specializes in mineral rights acquisition across major oil and gas regions including the Permian Basin, Eagle Ford, and Bakken.\", \"email\"\u2026",
+              "reference": "buying-chain:646e0e50-d5fb-410e-b33d-3d112a7d9d22",
+              "retained_evidence_id": null,
+              "source_date": null,
+              "source_id": null,
+              "title": "Buying-chain source",
+              "url": "https://www.buckheadenergy.com/operators/zarvona-energy-llc",
+              "verification_status": "Current retained support"
+            }
+          ],
+          "title": null,
+          "verified_at": "2026-10-25T14:15:54.122379+00:00"
+        }
+      ],
+      "results": [
+        {
+          "contacts": 2,
+          "named_professionals": 0,
+          "source_class": "official_company_site",
+          "status": "complete"
+        }
+      ],
+      "failures": [
+        {
+          "detail": "http_status_403",
+          "reason": "AcquisitionFailure",
+          "url": "https://rocketreach.co/zarvona-energy-llc-profile_b45f726dfc696c9b"
+        }
+      ],
+      "discovery_reason": null,
+      "search_logical_call_id": "e71cb9dd-3407-4b62-b90c-b701a6a3d16e"
+    }
+  ],
+  "new_logical_calls": [
+    {
+      "id": "27835b46-daae-4363-8cdb-e71b74bd3681",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:40bb49fc-6ca7-4f7a-8b44-ebb0fdc53ed0:search:a13ae81e05c259f1898edbc89d354889f01e18e294705ef2c0d2da28476cab61",
+      "job_id": "4e9ec3d1-62e6-4cc3-bbca-6b550f419d49",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:12:35.805975+00:00",
+      "dispatched_at": "2026-10-25 14:12:35.899399+00:00"
+    },
+    {
+      "id": "47033369-4796-452b-bde1-9b4d14de175b",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:4e70489d-ab9e-4762-9279-7cb35cf28302:search:a4f0429f3225fa30e046da164bf52f9394e72d0827ca2fac715739a19cfb9b34",
+      "job_id": "606e3de8-57c8-4918-8079-fcec7ce559da",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:13:25.202064+00:00",
+      "dispatched_at": "2026-10-25 14:13:25.292873+00:00"
+    },
+    {
+      "id": "0416251f-7a80-4b84-ae68-b3e356629022",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:316c60cb-37d5-4196-991a-6a6bf4cdb62f:search:6d58b6ac27c74a2d4e6b27b7437a07d6cf04afec40389e0de56c7d552b6ea4a1",
+      "job_id": "28792431-8f40-4fe0-b41d-8f2be0ce7cf1",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:13:32.443876+00:00",
+      "dispatched_at": "2026-10-25 14:13:32.542150+00:00"
+    },
+    {
+      "id": "d7249c1f-a045-4f7f-9870-bf919b066ca1",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:668881b9-b2d6-4e0c-af52-cd87353025b2:search:16ac2680647d26a08912a2afa118cbb2f00904d32fe170653bf485c553ae0c6f",
+      "job_id": "3a04bb7d-a5db-4d5d-92c8-e07cc9bf3e6f",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:13:43.700816+00:00",
+      "dispatched_at": "2026-10-25 14:13:43.812423+00:00"
+    },
+    {
+      "id": "51a2934b-cbbc-437e-bf6f-70008d7599dd",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:21bef126-7254-49a4-b69b-a45f9c4a2949:search:1b1b067e03bba7feea871c5f9ff92eb4731cbcc61223f63edab64d45a70358c9",
+      "job_id": "c48e12de-c4f2-44ec-9a6e-d05beb5c94a1",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:13:53.649842+00:00",
+      "dispatched_at": "2026-10-25 14:13:53.710119+00:00"
+    },
+    {
+      "id": "5c9ff2ba-d0e0-4db0-913d-e0a95f6551a1",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:7f34d001-e20a-4d1c-b4cd-97ab3388bbb9:search:4cf61f09fc44bcbd493ab81f03ededa3a1b2056d9b2c70a118259304241f909d",
+      "job_id": "b391e884-2070-4016-a58b-66e38103830b",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:14:02.468033+00:00",
+      "dispatched_at": "2026-10-25 14:14:02.532849+00:00"
+    },
+    {
+      "id": "d0612e57-c7f6-47e9-8b0a-e1bd100cecba",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:e5fcebcd-d5fb-40df-b8f3-3108eec1e80c:search:4711273e4f73d72f1e821da1bcbf3054a83411de25c3dc6ffd22c7ac272ad38e",
+      "job_id": "d11546d0-ce03-40ae-98d1-9472ecd48601",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:14:10.059284+00:00",
+      "dispatched_at": "2026-10-25 14:14:10.115028+00:00"
+    },
+    {
+      "id": "991462cd-4ee7-414d-b099-384b16374cdd",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:2eeafc8f-cf4b-443e-9e80-733fea261e72:search:5bf4fd971e9d8762561e06de924923b4eeef5a71984605617f9d67f01c5ec0f2",
+      "job_id": "745a9a85-74f9-4692-a683-a9ce74bd4b07",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:14:18.190427+00:00",
+      "dispatched_at": "2026-10-25 14:14:18.246941+00:00"
+    },
+    {
+      "id": "1e9e5a1b-ecd3-4e70-a8dc-e53e017f47db",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:34639ed3-e2cb-44c4-85d5-c70b64250318:search:1971ca747511b8c84d6c553d936212ae0a412fa50687621261f2c1ca30435857",
+      "job_id": "0c0eb72b-9c48-4a88-a071-ee11d03f798d",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:14:28.226223+00:00",
+      "dispatched_at": "2026-10-25 14:14:28.318580+00:00"
+    },
+    {
+      "id": "84392948-4ec2-4b36-8410-e96b4cc3834c",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:fe401e1b-6fc3-4a3f-9ffd-344296cb9a5b:search:9c5090e99d740b1480bc9ac096c4d24c0c42a33fa3ce83446de84743ebdc21d7",
+      "job_id": "f81e92ee-8d53-4660-888b-cef38955be45",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:14:35.891605+00:00",
+      "dispatched_at": "2026-10-25 14:14:35.958392+00:00"
+    },
+    {
+      "id": "a47bd181-1b7a-4db3-8219-b1be70f47f9d",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:56443384-5668-4bc2-bf96-72b7d0561a9b:search:9b3780af326a90aabc3bf329e4df9bc8291dd5ab80ffa64a381b969a4f63b025",
+      "job_id": "41a3f8ec-4f66-44be-a4d1-0e2f6008d270",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:14:43.624816+00:00",
+      "dispatched_at": "2026-10-25 14:14:43.687319+00:00"
+    },
+    {
+      "id": "b320aaa0-377e-4aa5-ab82-9e7d4ce4808a",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:7e63930b-c573-4a73-aae1-78dd01c92f9d:search:261933733d28271d06ec61cdc671333609c931d6e36c059cd3facc8debe6f6d0",
+      "job_id": "85d54747-b309-41d3-b546-b2c9e7c50641",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:14:52.278119+00:00",
+      "dispatched_at": "2026-10-25 14:14:52.360570+00:00"
+    },
+    {
+      "id": "89f45764-3124-4000-bb97-84dea5d2915e",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:76ad6a2c-6ec1-477e-bede-9e33a8f14e0b:search:3918f3a6a1a5d402620defb79f3d6a40004c135bd6ce5ef7dd2e01fb941209ed",
+      "job_id": "552d9187-838e-4a8c-9759-265aa01d1200",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:15:00.192598+00:00",
+      "dispatched_at": "2026-10-25 14:15:00.261699+00:00"
+    },
+    {
+      "id": "f499b0fa-726b-486a-9fe2-a2207d587705",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:cda88962-ce9b-445d-b69b-7ddcb3bbd1ae:search:fe1a376c72689d054ee711dd5cc32bdcd1b15f5676d22bab8bd6ceb250b9ee3f",
+      "job_id": "0e07aae7-ef1e-4471-901b-0c519fcc0da7",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:15:08.095400+00:00",
+      "dispatched_at": "2026-10-25 14:15:08.168715+00:00"
+    },
+    {
+      "id": "b81833c1-dab7-4fc5-922e-6a93e38a877e",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:4956e659-b9ef-4119-9517-d0770c04c2e5:search:3d2daed0e4608d90a4eda9d7620b4fabd29e43ad2fe083f85db573854bfd85d0",
+      "job_id": "04b466d7-1331-44db-b178-734c1ab45c8c",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:15:16.758476+00:00",
+      "dispatched_at": "2026-10-25 14:15:16.830489+00:00"
+    },
+    {
+      "id": "88dcd057-296c-448a-8f12-7a337d7e2138",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:eddfef52-f9c0-44ac-b5b1-f411f6ea5539:search:7758c1e729c338a0090af5e35d3ff2c56fc1e0db242a895dfe25ebc2b5818a6b",
+      "job_id": "f75c6637-baa3-41e9-90a7-57b7d4293808",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:15:24.851117+00:00",
+      "dispatched_at": "2026-10-25 14:15:24.909615+00:00"
+    },
+    {
+      "id": "5d0d6bce-ca57-48bb-a262-a1849a93b715",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:e9c57910-d61b-41ad-9ff9-eee27b8c9dcc:search:89eaf597869e56ef4ca836407b6da23e1248e5d1a827bc2cd263c53266fbf77e",
+      "job_id": "c007b9f6-4b68-47dd-973d-71389c22d953",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:15:31.813378+00:00",
+      "dispatched_at": "2026-10-25 14:15:31.875856+00:00"
+    },
+    {
+      "id": "d24bc8d4-0084-4c0d-8652-c19036d5f0fb",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:6603348f-341f-4712-9072-d4833ff396bc:search:8b7d08bfc767bfc8c30406d117b131af7cfe5fcd01137daf89aa544a7b6de4b6",
+      "job_id": "132bd3b8-9805-4239-a116-dc8d82e3787e",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:15:39.675181+00:00",
+      "dispatched_at": "2026-10-25 14:15:39.732641+00:00"
+    },
+    {
+      "id": "403bcc3b-5922-4d18-a881-89ec26d17cdc",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:17dec6ca-5c3a-49e6-a03a-1aa355cd53f1:search:ad741264ab02d844b7b882f0925c9888afef450e820c7144df11c196cb5c4e06",
+      "job_id": "f9d76b31-68e8-4cad-96b4-bdbfc1d42166",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:15:46.930521+00:00",
+      "dispatched_at": "2026-10-25 14:15:46.988473+00:00"
+    },
+    {
+      "id": "e71cb9dd-3407-4b62-b90c-b701a6a3d16e",
+      "provider": "firecrawl",
+      "task_type": "FIRECRAWL_SEARCH_V2",
+      "task_key": "company-contact:97cc4686-fe3a-4090-8480-793ddeeb93bf:search:2e46e38c3e2c7237b957e30b7112c8cd8e03736a999e5a28737e1b0f570c2602",
+      "job_id": "2bae09a6-5dba-488f-a2dc-afb613c5a969",
+      "status": "COMPLETED",
+      "estimated_cost_usd": "0.010000",
+      "max_cost_usd": "0.010000",
+      "actual_cost_usd": null,
+      "created_at": "2026-10-25 14:15:54.246185+00:00",
+      "dispatched_at": "2026-10-25 14:15:54.311765+00:00"
+    }
+  ],
+  "all_original_rows_preserved": true,
+  "production_mutation": false,
+  "synthetic_contacts_used": false,
+  "cost_basis": "Observed account balance delta is reported separately from local dispatched logical calls; shared-account concurrent usage cannot be independently excluded. $.01/search is a conservative public replacement-cost reservation, not measured cash billing. No new plan or recharge was activated.",
+  "independent_review": "PENDING",
+  "production_recommendation": "HOLD",
+  "commercial_p0": "OPEN",
+  "acceptance": {
+    "verdict": "REJECTED",
+    "coverage_accepted": false,
+    "reported_summary_untrusted": true,
+    "reason": "Third-party directory subject Organization accepted as official site. Buckhead publisher email and listed phones attributed to directory subjects. No production mutation; preserve this failed trial rather than count apparent 50% coverage.",
+    "affected_companies": [
+      {
+        "company_identity_id": "e5fcebcd-d5fb-40df-b8f3-3108eec1e80c",
+        "name": "DE CENTRAL OPERATING, LLC",
+        "reported_phones": 0,
+        "reported_emails": 1
+      },
+      {
+        "company_identity_id": "fe401e1b-6fc3-4a3f-9ffd-344296cb9a5b",
+        "name": "BKV BARNETT, LLC",
+        "reported_phones": 1,
+        "reported_emails": 1
+      },
+      {
+        "company_identity_id": "7e63930b-c573-4a73-aae1-78dd01c92f9d",
+        "name": "DIMOCK OPERATING COMPANY",
+        "reported_phones": 1,
+        "reported_emails": 1
+      },
+      {
+        "company_identity_id": "4956e659-b9ef-4119-9517-d0770c04c2e5",
+        "name": "MCA PETROLEUM CORPORATION",
+        "reported_phones": 1,
+        "reported_emails": 1
+      },
+      {
+        "company_identity_id": "6603348f-341f-4712-9072-d4833ff396bc",
+        "name": "SOUTHWEST OPERATING, INC.-TYLER",
+        "reported_phones": 1,
+        "reported_emails": 1
+      },
+      {
+        "company_identity_id": "97cc4686-fe3a-4090-8480-793ddeeb93bf",
+        "name": "ZARVONA ENERGY LLC",
+        "reported_phones": 1,
+        "reported_emails": 1
+      }
+    ],
+    "next_direction": "CORRECT C10 site publisher verification; clean original-snapshot rerun with no URL hints.",
+    "paid_credits_cumulative_observed": 80
+  }
+}

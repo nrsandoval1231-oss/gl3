@@ -1,0 +1,111 @@
+{
+  "finished_utc": "2026-10-25T04:46:09.976035+00:00",
+  "database": "contact_p0_reviewed",
+  "original_rows": {
+    "projects": {
+      "original": 1817,
+      "current": 1817,
+      "missing_ids": [],
+      "changed_ids": []
+    },
+    "power_needs": {
+      "original": 1817,
+      "current": 1817,
+      "missing_ids": [],
+      "changed_ids": []
+    },
+    "company_identities": {
+      "original": 532,
+      "current": 532,
+      "missing_ids": [],
+      "changed_ids": []
+    },
+    "company_project_memberships": {
+      "original": 1642,
+      "current": 1642,
+      "missing_ids": [],
+      "changed_ids": []
+    },
+    "company_project_membership_corrections": {
+      "original": 0,
+      "current": 0,
+      "missing_ids": [],
+      "changed_ids": []
+    },
+    "buying_chain_claims": {
+      "original": 467,
+      "current": 489,
+      "missing_ids": [],
+      "changed_ids": []
+    },
+    "buying_chain_corrections": {
+      "original": 0,
+      "current": 0,
+      "missing_ids": [],
+      "changed_ids": []
+    },
+    "buying_chain_evidence": {
+      "original": 415,
+      "current": 434,
+      "missing_ids": [],
+      "changed_ids": []
+    },
+    "buying_chain_identity_links": {
+      "original": 291,
+      "current": 313,
+      "missing_ids": [],
+      "changed_ids": []
+    }
+  },
+  "all_original_rows_preserved": true,
+  "counts_before": {
+    "jobs": 2502,
+    "buying_chain_runs": 437,
+    "buying_chain_claims": 489,
+    "buying_chain_evidence": 434,
+    "company_identities": 532,
+    "buying_chain_identity_links": 313,
+    "logical_calls": 12
+  },
+  "counts_after": {
+    "jobs": 2502,
+    "buying_chain_runs": 437,
+    "buying_chain_claims": 489,
+    "buying_chain_evidence": 434,
+    "company_identities": 532,
+    "buying_chain_identity_links": 313,
+    "logical_calls": 12
+  },
+  "replay_row_counts_identical": true,
+  "replay_hashes_identical": true,
+  "replay_same_job_ids": true,
+  "commands": [
+    {
+      "checkpoint": "benchmark-v9-checkpoint.json",
+      "mode": "--apply",
+      "exit": 0,
+      "elapsed_seconds": 0.906
+    },
+    {
+      "checkpoint": "benchmark-v9-checkpoint.json",
+      "mode": "--run-jobs",
+      "exit": 0,
+      "elapsed_seconds": 1.89
+    },
+    {
+      "checkpoint": "benchmark-v9-replay-checkpoint.json",
+      "mode": "--apply",
+      "exit": 0,
+      "elapsed_seconds": 2.094
+    },
+    {
+      "checkpoint": "benchmark-v9-replay-checkpoint.json",
+      "mode": "--run-jobs",
+      "exit": 0,
+      "elapsed_seconds": 1.844
+    }
+  ],
+  "new_paid_logical_calls": [],
+  "paid_dispatch_count": 0,
+  "provider_cost_usd": 0
+}

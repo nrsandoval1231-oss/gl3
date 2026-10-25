@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "selection": "All4 data_center;4 oil companies with most associated projects;12 evenly spaced by name from remaining227 oil companies. All235 current companies areSignal, other tier denominators0. URLs are search hints, never source-verified facts.",
+  "source_snapshot_sha256": "6e0d699e4065acb9caf1a1fd61a25a4a75d7ff2f3bf4509d89df2c887fb86e65",
+  "companies": [
+    {
+      "company_identity_id": "40bb49fc-6ca7-4f7a-8b44-ebb0fdc53ed0",
+      "name": "AMAZON DATA SERVICES, INC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "data_center"
+      ],
+      "project_count": 3,
+      "candidate_urls": [
+        "https://www.efis.psc.mo.gov/Company/Display/8595?isDetailId=true"
+      ]
+    },
+    {
+      "company_identity_id": "4e70489d-ab9e-4762-9279-7cb35cf28302",
+      "name": "Beacon Point DC LLC aka Lon Hill Infrastructure LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "data_center"
+      ],
+      "project_count": 1,
+      "candidate_urls": [
+        "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2027000611"
+      ]
+    },
+    {
+      "company_identity_id": "316c60cb-37d5-4196-991a-6a6bf4cdb62f",
+      "name": "Circle T Owner LP",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "data_center"
+      ],
+      "project_count": 1,
+      "candidate_urls": []
+    },
+    {
+      "company_identity_id": "668881b9-b2d6-4e0c-af52-cd87353025b2",
+      "name": "EG AI CORP",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "data_center"
+      ],
+      "project_count": 1,
+      "candidate_urls": [
+        "https://egai.us/contact/",
+        "https://egai.us/about/"
+      ]
+    },
+    {
+      "company_identity_id": "21bef126-7254-49a4-b69b-a45f9c4a2949",
+      "name": "PIONEER NATURAL RES. USA, INC.",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 131,
+      "candidate_urls": [
+        "https://records.tceq.texas.gov/cs/idcplg?IdcService=GET_FILE&allowInterrupt=1&dDocName=7091151&dID=7929664"
+      ]
+    },
+    {
+      "company_identity_id": "7f34d001-e20a-4d1c-b4cd-97ab3388bbb9",
+      "name": "DIAMONDBACK E&P LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 123,
+      "candidate_urls": [
+        "https://www.diamondbackenergy.com/contact-us/overview"
+      ]
+    },
+    {
+      "company_identity_id": "e5fcebcd-d5fb-40df-b8f3-3108eec1e80c",
+      "name": "DE CENTRAL OPERATING, LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 45,
+      "candidate_urls": []
+    },
+    {
+      "company_identity_id": "2eeafc8f-cf4b-443e-9e80-733fea261e72",
+      "name": "EOG RESOURCES, INC.",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 38,
+      "candidate_urls": [
+        "https://www.eogresources.com/company/contacts/",
+        "https://www.eogresources.com/company/leadership/"
+      ]
+    },
+    {
+      "company_identity_id": "34639ed3-e2cb-44c4-85d5-c70b64250318",
+      "name": "ACTIVE IRON ENERGY, LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 2,
+      "candidate_urls": [
+        "https://www.activeironenergy.com/"
+      ]
+    },
+    {
+      "company_identity_id": "fe401e1b-6fc3-4a3f-9ffd-344296cb9a5b",
+      "name": "BKV BARNETT, LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 7,
+      "candidate_urls": [
+        "https://www.bkv.com/contact"
+      ]
+    },
+    {
+      "company_identity_id": "56443384-5668-4bc2-bf96-72b7d0561a9b",
+      "name": "CITATION OIL & GAS CORP.",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": [
+        "https://www.cogc.com/contact-us/"
+      ]
+    },
+    {
+      "company_identity_id": "7e63930b-c573-4a73-aae1-78dd01c92f9d",
+      "name": "DIMOCK OPERATING COMPANY",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": []
+    },
+    {
+      "company_identity_id": "76ad6a2c-6ec1-477e-bede-9e33a8f14e0b",
+      "name": "FLAT LAND OIL & GAS, LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 4,
+      "candidate_urls": [
+        "https://flatlandoilandgas.com/"
+      ]
+    },
+    {
+      "company_identity_id": "cda88962-ce9b-445d-b69b-7ddcb3bbd1ae",
+      "name": "JAVELIN ENERGY PARTNERS MGMT LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 5,
+      "candidate_urls": [
+        "https://www.javelinep.com/"
+      ]
+    },
+    {
+      "company_identity_id": "4956e659-b9ef-4119-9517-d0770c04c2e5",
+      "name": "MCA PETROLEUM CORPORATION",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": []
+    },
+    {
+      "company_identity_id": "eddfef52-f9c0-44ac-b5b1-f411f6ea5539",
+      "name": "PER OPERATING LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": []
+    },
+    {
+      "company_identity_id": "e9c57910-d61b-41ad-9ff9-eee27b8c9dcc",
+      "name": "RING ENERGY, INC.",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 10,
+      "candidate_urls": [
+        "https://www.ringenergy.com/contact"
+      ]
+    },
+    {
+      "company_identity_id": "6603348f-341f-4712-9072-d4833ff396bc",
+      "name": "SOUTHWEST OPERATING, INC.-TYLER",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 2,
+      "candidate_urls": []
+    },
+    {
+      "company_identity_id": "17dec6ca-5c3a-49e6-a03a-1aa355cd53f1",
+      "name": "TRINITY OPERATING (USG), LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 1,
+      "candidate_urls": [
+        "https://www.trinityoperating.com/contact.html"
+      ]
+    },
+    {
+      "company_identity_id": "97cc4686-fe3a-4090-8480-793ddeeb93bf",
+      "name": "ZARVONA ENERGY LLC",
+      "tiers": [
+        "Signal"
+      ],
+      "industries": [
+        "upstream_well"
+      ],
+      "project_count": 2,
+      "candidate_urls": [
+        "https://zarvonaenergy.com/"
+      ]
+    }
+  ],
+  "candidate_discovery": "Controller public web search of company names; URL hints only. Worker must fetch/verify/extract/persist, no manual contact values. Firecrawl search not authorized/configured."
+}

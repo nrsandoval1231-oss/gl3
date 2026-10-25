@@ -195,7 +195,7 @@ def discover_urls(
             json={
                 "query": query,
                 "limit": limit,
-                "sources": ["web"],
+                "sources": [{"type": "web"}],
                 "timeout": max(1, int(min(20, remaining) * 1000)),
             },
             timeout=min(20, remaining),

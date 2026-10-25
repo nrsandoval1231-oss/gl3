@@ -1481,6 +1481,46 @@
         }
       }
     },
+    "/api/customer-accounts/{company_identity_id}/contacts": {
+      "get": {
+        "summary": "Customer Account Contacts",
+        "operationId": "customer_account_contacts_api_customer_accounts__company_identity_id__contacts_get",
+        "parameters": [
+          {
+            "name": "company_identity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Company Identity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyContacts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/customer-accounts/{company_identity_id}/projects": {
       "get": {
         "summary": "Customer Account Projects",
@@ -7643,6 +7683,150 @@
           "evidence_id"
         ],
         "title": "CommercialTriageStage"
+      },
+      "CompanyContact": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "company": {
+            "type": "string",
+            "title": "Company"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "responsibility": {
+            "type": "string",
+            "enum": [
+              "Verified project responsibility",
+              "Verified organizational responsibility",
+              "Inferred likely role",
+              "General company contact path"
+            ],
+            "title": "Responsibility"
+          },
+          "purchasing_authority": {
+            "type": "string",
+            "title": "Purchasing Authority",
+            "default": "Requires confirmation for this power package"
+          },
+          "methods": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Methods"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id"
+          },
+          "project_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Project Ids"
+          },
+          "verification_status": {
+            "type": "string",
+            "title": "Verification Status",
+            "default": "Source verified; reachability and authority unconfirmed"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence",
+            "default": "High: literal contact method in current retained evidence"
+          },
+          "phone_type": {
+            "type": "string",
+            "title": "Phone Type",
+            "default": "unknown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "company",
+          "role",
+          "responsibility",
+          "company_id"
+        ],
+        "title": "CompanyContact"
+      },
+      "CompanyContacts": {
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyContact"
+            },
+            "type": "array",
+            "title": "Contacts"
+          },
+          "research_required": {
+            "type": "boolean",
+            "title": "Research Required",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "company_id"
+        ],
+        "title": "CompanyContacts"
       },
       "CustomerAccountNeedOut": {
         "properties": {

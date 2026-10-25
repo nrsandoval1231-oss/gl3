@@ -2410,6 +2410,22 @@ def unresolved_customer_projects(
         return unresolved_projects(session, search=search, limit=limit, offset=offset)
 
 
+from gridlens.intelligence.company_contacts import CompanyContacts  # noqa: E402
+
+
+@app.get(
+    "/api/customer-accounts/{company_identity_id}/contacts",
+    response_model=CompanyContacts,
+    dependencies=[Depends(require_session)],
+)
+def customer_account_contacts(company_identity_id: UUID):
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        return company_contacts(session, company_identity_id)
+
+
 @app.get(
     "/api/customer-accounts/{company_identity_id}/projects",
     response_model=CustomerProjectsPageOut,
