@@ -42,16 +42,29 @@ Builders share one isolated worktree with exclusive files; no overlapping writes
 
 ## Acceptance and next steps
 
-- [ ] Workbook/CSV preview: multisheet, mapping, mixed rows, errors, dedupe, bounds.
-- [ ] Staging history/reversal and explainable multi-signal matches; no weak overwrite.
-- [ ] Canonical graph and contact correction/suppression with verification distinctions.
-- [ ] Ranked incremental research using durable existing jobs and company reuse.
-- [ ] Evidence-backed power ranges; unknown supply never zero.
-- [ ] Existing UI integration and desktop/mobile verification.
-- [ ] Real four-workbook isolated import/report, 25 existing-project benchmark if a
+- [x] Workbook/CSV preview: multisheet, mapping, mixed rows, errors, dedupe, bounds.
+- [x] Staging history/reversal and explainable multi-signal matches; no weak overwrite.
+- [x] Canonical graph and contact correction/suppression with verification distinctions.
+- [x] Ranked incremental research using durable existing jobs and company reuse.
+- [x] Evidence-backed power ranges; unknown supply never zero.
+- [x] Existing UI integration and desktop/mobile verification.
+- [x] Real four-workbook isolated import/report, 25 existing-project benchmark if a
       safe retained local snapshot exists; unavailable measures explicitly UNKNOWN.
 - [ ] Focused then integrated gates, migration/drift, independent Astra review/repair.
 - [ ] Deployment/rollback instructions and reviewable draft PR; no deploy/merge.
 
 Runtime advertises gpt-6.1-sol/high, gpt-6-luna/low, gpt-6-astra/high; eight slots.
 Tokens and aggregate elapsed acceptance time UNKNOWN until measured.
+
+## Review repair checkpoint
+
+Initial source6132ce1 received independent Astra REQUEST_CHANGES for seven material
+findings. Repairs cover site/domain contradiction vetoes, canonical source validator
+reuse, source/identity relationship bindings and unverified manual relationship
+status, reversible retraction, supply estimate labels, globally unique positional
+raw columns, and direct-job digest/refresh preservation. Regression checks pass.
+Final full tests, independent re-review and PR/CI receipts remain separate gates.
+
+Commercial acceptance stays open: unmatched workbook reconciliation, accuracy
+labels, direct buyer methods/authority, independent mailbox verification, confirmed
+power assumptions and sales outcomes. No production release action authorized.
