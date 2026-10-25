@@ -57,7 +57,7 @@ TASK_TYPE = "company_contact_discovery"
 MAX_CANDIDATE_URLS = 4
 MAX_ANCHOR_PROJECTS = 16
 MAX_SECONDS = 35
-POLICY_VERSION = "company-contact-discovery-v11"
+POLICY_VERSION = "company-contact-discovery-v12"
 
 
 def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
@@ -164,8 +164,6 @@ def discover_company_contacts(
             "job_id": None,
         }
     session.scalar(select(func.pg_advisory_xact_lock(company_identity_id.int % (2**63 - 1))))
-    if not urls:
-        urls = _known_contact_urls(session, company_identity_id, projects)[:MAX_CANDIDATE_URLS]
     digest = fingerprint(
         {
             "company_identity_id": str(company_identity_id),
@@ -493,6 +491,8 @@ def process_company_contact_discovery(
         company_id = UUID(payload["company_identity_id"])
         urls = payload.get("candidate_urls", [])
         projects = _projects(session, company_id)
+        if not urls:
+            urls = _known_contact_urls(session, company_id, projects)[:MAX_CANDIDATE_URLS]
         anchor = _select_anchor_project(session, projects, company_id)
         anchor_id = anchor.id if anchor else None
         expected_digest = _anchor_digest(session, anchor, company_id) if anchor else None

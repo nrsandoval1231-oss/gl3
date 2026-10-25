@@ -318,6 +318,20 @@ def test_job_binding_refuses_wrong_kind_target_or_url_payload(updates):
         validate_job_binding(job, "company", ["https://acme.example"])
 
 
+def test_job_binding_keeps_no_hint_manifest_stable_after_discovery():
+    payload = {"company_identity_id": "company", "candidate_urls": []}
+    job = types.SimpleNamespace(
+        kind="company_contact_discovery",
+        target_id="company",
+        checkpoint=json.dumps({"task_type": "company_contact_discovery", "payload": payload}),
+    )
+    validate_job_binding(job, "company", [])
+    payload["candidate_urls"] = ["https://acme.example/contact"]
+    job.checkpoint = json.dumps({"task_type": "company_contact_discovery", "payload": payload})
+    with pytest.raises(ValueError, match="does not match"):
+        validate_job_binding(job, "company", [])
+
+
 def test_enqueue_resumes_completed_company_and_passes_only_url_hints(monkeypatch):
     company = str(uuid4())
     url = "https://acme.example/contact"

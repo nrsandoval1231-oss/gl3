@@ -1100,6 +1100,99 @@ def test_contact_search_uses_one_accounted_logical_call(db, monkeypatch, uncerta
     assert len(calls) == 1
 
 
+def test_no_hint_contact_job_identity_survives_discovery_and_refresh_epoch(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-no-hint-replay")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "contact-no-hint-replay")
+        )
+        assert evidence is not None
+        evidence.title, evidence.abstract = "Acme owner filing", "Acme is the project owner."
+        identity = CompanyIdentity()
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="owner_developer",
+                organization_name="Acme",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_source_v1",
+                operator_number="000000",
+                state="current",
+            )
+        )
+        queued = discovery.discover_company_contacts(session, identity.id, now=NOW)
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id, company_id = job.id, identity.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    search_calls = []
+    contact_url = "https://acme.example/contact"
+    monkeypatch.setattr(
+        discovery,
+        "_search_official_urls",
+        lambda *_args, **_kwargs: search_calls.append(True) or [contact_url],
+    )
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: PublicDocument(
+            url,
+            "Acme Contact",
+            "Acme company contact. Email: info@acme.example.\n© 2026 Acme. All rights reserved.",
+            observed_at=NOW,
+        ),
+    )
+    first = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert first["status"] == "complete"
+    with db.begin() as session:
+        first_job = session.get(Job, job_id)
+        first_checkpoint = json.loads(first_job.checkpoint)
+        assert first_checkpoint["payload"]["candidate_urls"] == []
+        assert first_checkpoint["checked_urls"] == [contact_url]
+        replay = discovery.discover_company_contacts(session, company_id, now=NOW)
+        assert replay["job_id"] == str(job_id)
+        assert replay["deduplicated"] is True
+        assert json.loads(session.get(Job, job_id).checkpoint)["payload"]["candidate_urls"] == []
+
+    next_epoch = NOW + timedelta(days=30)
+    with db.begin() as session:
+        fresh = discovery.discover_company_contacts(session, company_id, now=next_epoch)
+        assert fresh["job_id"] != str(job_id)
+        fresh_job = session.get(Job, UUID(fresh["job_id"]))
+        assert json.loads(fresh_job.checkpoint)["payload"]["candidate_urls"] == []
+        fresh_job.status, fresh_job.lease_owner, fresh_job.fence = "running", "contact-test", 1
+        fresh_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        fresh_id = fresh_job.id
+    second = discovery.process_company_contact_discovery(
+        fresh_id, "contact-test", 1, now=next_epoch
+    )
+    assert second["status"] == "complete"
+    assert len(search_calls) == 1  # The new epoch reused the verified checked URL.
+    with db.begin() as session:
+        assert json.loads(session.get(Job, fresh_id).checkpoint)["checked_urls"] == [contact_url]
+        assert any(
+            method["value"] == "info@acme.example"
+            for contact in company_contacts(session, company_id).contacts
+            for method in contact.methods
+        )
+
+
 def test_company_site_gate_rejects_government_and_third_party_mentions():
     from gridlens.intelligence.company_contact_discovery import _self_identified_company_site
 

@@ -160,10 +160,20 @@ The v11 repair requires site-level publisher identity and rejects conflicting
 root Organization/legal-footer identities before extraction or navigation. A
 profile URL remains a subject record even if its id uses a root fragment. Genuine
 root/footer and first-person homepage support remain; ambiguous sources fail
-closed. The affected database/API and pure-source suite has138passing tests. The final v11
-matched rerun and exact-candidate validation remain pending at this freeze. Its
-ceiling is forty additional credits, cumulative120/160. The failed trial and
-interrupted full test gate remain distinct from accepted evidence.
+closed. The affected database/API and pure-source suite has138passing tests. The clean v11 matched trial found4/20usable companies,6phones/7emails and
+3relevant named professionals, with0direct buyer methods and no directory
+publisher leakage. It consumed40credits, cumulative120/160. See [the partial
+v11 result](firecrawl-v11-partial-results.json). Original rows survived, but a
+fresh no-hint checkpoint created four redundant jobs: learned contact URLs had
+entered the request fingerprint/payload, and strict manifest binding rejected
+them. Resumability acceptance was withheld; replay made no new paid call.
+
+The v12 repair keeps caller inputs stable and resolves derived known URLs only
+in worker execution, preserving strict manifest checks and real source fences.
+Its140affected tests and static checks pass. The fresh matched trial remains
+pending at this freeze, capped at40morecredits,
+cumulative160/160. Functional replay precedes final full gates. Failed/partial
+trials and intentionally interrupted gates remain separate from final evidence.
 
 ## Firecrawl and cost
 

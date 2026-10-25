@@ -21,17 +21,18 @@ Existing recovery/extraction/API/UI and canonical PRD remain governing.
 | C7 PR122 handoff | C6 | DONE at300104f | Existing draft updated; no merge/deploy |
 | C8 authorized live Firecrawl | owner160creditapproval | MEASURED | No-hint20companies,40credits,1/20usable,0direct; alloriginals preserved; commercial recall insufficient |
 | C9 bounded recall repair | C8 actual failure evidence | TRIAL REJECTED | Navigation works;20searches/40morecredits; apparent10/20 includes6directory publisher false attributions; failed report retained, incomplete gates stopped |
-| C10 official publisher boundary | C9 real-source failure | IMPLEMENTED | Sol difficult identity integration;138affected tests/static pass; strict site-level identity, real mixed-publisher DB/API negative; freshv11 trial/gates/review pending |
+| C10 official publisher boundary | C9 real-source failure | SOURCE PASS / REPLAY FAIL | v11 actual20:4usable,6phones7emails,3roles,0direct,0directoryleaks; originals preserved; freshcheckpoint creates4redundantjobs |
+| C12 autonomous replay | C10 live roundtrip | IMPLEMENTED | Luna stable caller URLs; derived known URLs in worker only;140affected/static pass; final trial<=40credits,cumulative160/160; functional replay precedes broad gates |
 
 Firecrawl key availability and paid benchmark authorization are separate gates.
 Connector credit metadata is not proof of runtime integration. Missing contacts,
 domain ambiguity, access restriction, source staleness and uncertain provider
 effects remain explicit unresolved outcomes. Snapshot contacts are baseline only.
 
-Direction CORRECT C10, then fresh matched no-hint20company trial and final gates;
+Direction CORRECT C12, then fresh matched no-hint20company trial, replay/API/UI and final gates;
 then fresh independent Sol reviews the final exact candidate. Update existing
 draft PR122 after review. Full commercial P0 remains OPEN: native assisted3/20,
-autonomous paidv9 1/20, v10apparent10/20 REJECTED, direct buyer methods0, production authority absent. Cumulative80credits used; v11<=40additional, cumulative120/160.
+autonomous paidv9 1/20, v10apparent10/20 REJECTED, direct buyer methods0, production authority absent. Cumulative120credits used; v12<=40additional, cumulative160/160.
 No opening Tribunal: this extends the approved existing architecture.
 Post-freeze deterministic/audit receipts and graph transitions live in ignored
 `.agent/artifacts/CONTACT-P0/` and the PR handoff; this tracked graph records the

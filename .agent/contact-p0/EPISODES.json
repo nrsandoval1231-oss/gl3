@@ -109,6 +109,18 @@
       "lesson_status": "CANDIDATE",
       "metric": "Third-party publisher contact leakage into company projection; direction decrease to0, independently of coverage",
       "reversibility": "Retain real failed20 report and mixed-publisher regression; never sanitize failed coverage into accepted result"
+    },
+    {
+      "state": "Policyv11 actual20-company nohint discovery validated4usable but freshcheckpoint replay queued4redundantjobs and strict payload binding failed",
+      "decision": "Reject resumability acceptance; preserve exact failed DB and stop incomplete broad gates before repair",
+      "action": "C12 keeps caller URL inputs stable and resolves derived URLs only during worker execution; prepare clean v12 restore for last<=40credits",
+      "outcome": "Source contacts/claim/evidence hashes remain identical;0newpaidcalls on failed replay. Original20dispatches/40credits stand; cumulative120/160.",
+      "deterministic_evaluation": "discover_company_contacts substitutes learned _known_contact_urls into fingerprint/payload; empty caller manifest no longer matches after successful discovery",
+      "attribution": "Assisted URL manifests masked output-derived request identity; the earlier named-claim fingerprint repair did not cover empty URL inputs",
+      "candidate_lesson": "Validate autonomous first-success->fresh-checkpoint replay before starting costly full repository gates; keep derived navigation outside request identity",
+      "lesson_status": "CANDIDATE",
+      "metric": "Redundant jobs from nohint replay and intentionally interrupted broad-gate seconds; direction decrease to0 while strict manifest binding remains enforced",
+      "reversibility": "Retain failed v11 data/replay receipt and explicit-vs-nohint/new-epoch regressions; do not relax binding checks"
     }
   ],
   "timing": {
@@ -130,7 +142,7 @@
     "model_config_identity": "UNKNOWN",
     "tokens": "UNKNOWN",
     "repair_count": null,
-    "next_direction": "CORRECT C10 official publisher boundary; clean matched20 <=40newcredits cumulative120/160; finalvalidation/review, productionHOLD",
+    "next_direction": "CORRECT C12 stable caller inputs; freeze->fresh last20<=40credits/cumulative160->replay/API/UI->fullgates->freshreview; productionHOLD",
     "repair_count_notes": "Two pre-reconstruction attempts were counted. Later policy revisions and corrections are retained by episode; aggregate repair count is UNKNOWN."
   }
 }
