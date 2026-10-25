@@ -1,3 +1,4 @@
+import ipaddress
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
@@ -24,7 +25,19 @@ from gridlens.settings import settings
 def power_db():
     target = make_url(settings.test_database_url)
     application = make_url(settings.database_url)
-    assert target.database == "power_test", "Refusing database setup outside power_test"
+    assert target.database and target.database.endswith("_test"), (
+        "Refusing database setup without an explicit disposable *_test database"
+    )
+    assert "corpus" not in target.database.lower(), (
+        "Refusing destructive setup against a retained corpus database"
+    )
+    try:
+        target_is_loopback = target.host == "localhost" or (
+            target.host is not None and ipaddress.ip_address(target.host).is_loopback
+        )
+    except ValueError:
+        target_is_loopback = False
+    assert target_is_loopback, "Refusing database setup against a non-loopback PostgreSQL host"
     assert (target.host, target.port, target.database) != (
         application.host,
         application.port,

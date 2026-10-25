@@ -2679,6 +2679,13 @@ export interface components {
             /** Reason */
             reason: string | null;
             evidence: components["schemas"]["GraphEvidence"];
+            /**
+             * Support Status
+             * @constant
+             */
+            support_status: "operator_assertion_unverified";
+            /** Source Quote */
+            source_quote: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

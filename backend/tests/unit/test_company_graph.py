@@ -59,15 +59,22 @@ def graph_db():
     admin.dispose()
 
 
-def _seed_graph(session, *, with_membership=True):
+def _seed_graph(
+    session,
+    *,
+    with_membership=True,
+    with_claim_link=True,
+    legacy_public_source=False,
+):
+    source_id = "research-public-synthetic" if legacy_public_source else "dallas-monthly-permits"
     source = Source(
-        id="synthetic-graph-source",
+        id=source_id,
         publisher="Synthetic source",
         endpoint="https://example.test/graph",
-        family="manual",
+        family="news" if legacy_public_source else "construction-permits",
         geography="Texas",
         industries=[],
-        retrieval_method="fixture",
+        retrieval_method="publisher-rss" if legacy_public_source else "dallas-monthly-permits",
     )
     session.add(source)
     session.flush()
@@ -195,20 +202,21 @@ def _seed_graph(session, *, with_membership=True):
         )
     )
     session.flush()
-    session.add(
-        BuyingChainIdentityLink(
-            claim_id=claim.id,
-            entity_type="company",
-            company_identity_id=company.id,
-            person_identity_id=None,
-            reason="Current synthetic company identity link.",
-            basis="project_scoped",
-            source_evidence_id=linked.id,
-            source_version_hash=linked.content_hash,
-            state="current",
+    if with_claim_link:
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=claim.id,
+                entity_type="company",
+                company_identity_id=company.id,
+                person_identity_id=None,
+                reason="Current synthetic company identity link.",
+                basis="project_scoped",
+                source_evidence_id=linked.id,
+                source_version_hash=linked.content_hash,
+                state="current",
+            )
         )
-    )
-    session.flush()
+        session.flush()
     session.add(
         IdentityIdentifier(
             entity_type="company",
@@ -247,6 +255,20 @@ def test_company_graph_reads_only_current_regional_membership_evidence(graph_db)
         ]
         assert graph["projects"][0]["roles"][0]["evidence"]["id"] == str(evidence.id)
         assert graph["relationships"] == []
+
+
+def test_company_graph_excludes_legacy_research_public_evidence_without_capture_version(
+    graph_db,
+):
+    with graph_db() as session:
+        company, _, _, _, _ = _seed_graph(
+            session,
+            with_claim_link=False,
+            legacy_public_source=True,
+        )
+        graph = company_graph(session, company.id)
+        assert graph["projects"] == []
+        assert graph["evidence"] == []
 
 
 def test_company_graph_includes_claim_linked_companies_without_memberships(graph_db):
@@ -307,6 +329,18 @@ def test_company_relationship_is_versioned_and_reversible(graph_db):
     }
     with graph_db() as session:
         company, related, _, _, source = _seed_graph(session)
+        session.add(
+            IdentityIdentifier(
+                entity_type="company",
+                company_identity_id=related.id,
+                identifier_type="legal_name",
+                normalized_value="Synthetic Parent",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+                reason="Current source-bound parent name.",
+            )
+        )
+        session.flush()
         assertion = assert_company_relationship(
             session,
             source_company_id=company.id,
@@ -332,6 +366,8 @@ def test_company_relationship_is_versioned_and_reversible(graph_db):
         suppressed = company_graph(session, company.id)["relationships"][0]
         assert suppressed["status"] == "suppressed"
         assert suppressed["version"] == 2
+        assert suppressed["support_status"] == "operator_assertion_unverified"
+        assert suppressed["source_quote"] == source.excerpt
         correct_company_relationship(
             session,
             assertion.id,
@@ -344,3 +380,111 @@ def test_company_relationship_is_versioned_and_reversible(graph_db):
         reinstated = company_graph(session, company.id)["relationships"][0]
         assert reinstated["status"] == "current"
         assert reinstated["version"] == 3
+
+        retracted = correct_company_relationship(
+            session,
+            assertion.id,
+            expected_version=3,
+            action="retract",
+            reason="The relationship was withdrawn.",
+            actor="reviewer",
+            idempotency_key="graph-parent-retract",
+        )
+        assert retracted.version == 4
+        retracted_view = company_graph(session, company.id)["relationships"][0]
+        assert retracted_view["status"] == "retracted"
+        assert retracted_view["version"] == 4
+
+        with pytest.raises(RuntimeError, match="correction version is stale"):
+            correct_company_relationship(
+                session,
+                assertion.id,
+                expected_version=3,
+                action="reinstate",
+                reason="Stale retraction version.",
+                actor="reviewer",
+                idempotency_key="graph-parent-stale-reinstate",
+            )
+
+        reinstated_after_retract = correct_company_relationship(
+            session,
+            assertion.id,
+            expected_version=4,
+            action="reinstate",
+            reason="The source-backed relationship is restored.",
+            actor="reviewer",
+            idempotency_key="graph-parent-reinstate-after-retract",
+        )
+        replayed_reinstate = correct_company_relationship(
+            session,
+            assertion.id,
+            expected_version=4,
+            action="reinstate",
+            reason="The source-backed relationship is restored.",
+            actor="reviewer",
+            idempotency_key="graph-parent-reinstate-after-retract",
+        )
+        assert replayed_reinstate.id == reinstated_after_retract.id
+        current = company_graph(session, company.id)["relationships"][0]
+        assert current["status"] == "current"
+        assert current["version"] == 5
+
+
+def test_relationship_assertion_rejects_unbound_companies_or_missing_terms(graph_db):
+    with graph_db() as session:
+        company, related, _, _, source = _seed_graph(session)
+        common = {
+            "source_company_id": company.id,
+            "target_company_id": related.id,
+            "source_evidence_id": source.id,
+            "source_version_hash": source.content_hash,
+            "reason": "Manually attribute a relationship for validation.",
+            "actor": "reviewer",
+        }
+        with pytest.raises(ValueError, match="Both companies must have current source-bound names"):
+            assert_company_relationship(
+                session,
+                relationship_type="parent",
+                idempotency_key="unbound-target-relationship",
+                **common,
+            )
+
+        session.add(
+            IdentityIdentifier(
+                entity_type="company",
+                company_identity_id=related.id,
+                identifier_type="alias",
+                normalized_value="Unrelated Organization",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+                reason="Deliberately nonmatching identifier.",
+            )
+        )
+        session.flush()
+        with pytest.raises(ValueError, match="Both companies must have current source-bound names"):
+            assert_company_relationship(
+                session,
+                relationship_type="parent",
+                idempotency_key="unrelated-target-relationship",
+                **common,
+            )
+
+        session.add(
+            IdentityIdentifier(
+                entity_type="company",
+                company_identity_id=related.id,
+                identifier_type="legal_name",
+                normalized_value="Synthetic Parent",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+                reason="Source-bound parent name.",
+            )
+        )
+        session.flush()
+        with pytest.raises(ValueError, match="Both companies must have current source-bound names"):
+            assert_company_relationship(
+                session,
+                relationship_type="utility",
+                idempotency_key="missing-utility-term-relationship",
+                **common,
+            )

@@ -52,12 +52,15 @@ export function CompanyGraph({ companyId }: { companyId: string }) {
         </article>) : <p>No linked projects are established.</p>}
 
         <h5>Company relationships</h5>
+        {current.relationships.length > 0 && <p>Relationship assertions are operator supplied. Their ledger state does not independently verify the relationship as fact.</p>}
         {current.relationships.length ? current.relationships.map(relationship => <article key={relationship.id}>
-          <p>{relationship.relationship_type} · {relationship.status} · version {relationship.version}</p>
+          <p><strong>Unverified operator assertion</strong> · {relationship.relationship_type}</p>
+          <p>Ledger state: {relationship.status} · version {relationship.version}</p>
           <p>{relationship.source_company_id} → {relationship.target_company_id}</p>
           {relationship.reason && <p>{relationship.reason}</p>}
+          {relationship.source_quote && <details><summary>Source quote</summary><blockquote>{relationship.source_quote}</blockquote></details>}
           {evidenceLink(relationship.evidence)}
-        </article>) : <p>No evidence-backed company relationships are available.</p>}
+        </article>) : <p>No company relationship assertions are available.</p>}
 
         {current.evidence.length > 0 && <details><summary>Retained evidence ({current.evidence.length})</summary>
           <ul>{current.evidence.map((item, index) => {

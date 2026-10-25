@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -52,6 +54,8 @@ class GraphRelationship(BaseModel):
     correction_id: str | None = None
     reason: str | None
     evidence: GraphEvidence
+    support_status: Literal["operator_assertion_unverified"]
+    source_quote: str
 
 
 class CompanyGraphOut(BaseModel):

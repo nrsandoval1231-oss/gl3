@@ -264,6 +264,17 @@ def build_power_enrichment(
                 duration_days=duration_days,
                 rate=rental_rate,
             )
+            phase_assumptions = [
+                str(phase.get("coverage_reason") or "")
+                for fact in schedule_facts
+                for phase in fact.get("value", {}).get("phases", [])
+                if phase.get("phase_id") == segment.phase_id
+            ]
+            zero_supply_assumptions = [
+                str(fact.get("value", {}).get("zero_supply_basis") or "")
+                for fact in schedule_facts
+                if fact.get("value", {}).get("zero_supply_basis")
+            ]
             scenarios.append(
                 PowerScenario(
                     project_id=project_id,
@@ -278,6 +289,10 @@ def build_power_enrichment(
                         if is_hypothesis
                         else _evidence_status(
                             segment.demand_basis,
+                            *segment.supply_basis,
+                            *(phase_assumptions),
+                            *(zero_supply_assumptions),
+                            segment.unresolved_reason or "",
                             projected.basis,
                             *(ref.source_quote or "" for ref in projected.fact_refs),
                         )

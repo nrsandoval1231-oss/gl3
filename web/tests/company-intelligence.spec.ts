@@ -31,7 +31,7 @@ async function setup(page: import('@playwright/test').Page, options: { failGraph
       const payload = options.includeEvidence ? {
         company: { ...graph.company, identifiers: [{ identifier_type: 'domain', value: 'northstar.example', evidence: { id: 'ev-1', title: 'Company project page', url: 'https://sources.example/project', source_id: 'source-1', content_hash: 'hash-1', observed_at: null } }], aliases: [{ identifier_type: 'alias', value: 'Northstar HQ', evidence: { id: 'ev-1', title: 'Company project page', url: 'https://sources.example/project', source_id: 'source-1', content_hash: 'hash-1', observed_at: null } }] },
         projects: [{ id: 'project-1', name: 'Cedar Ridge campus', location: 'Austin, TX', roles: [{ role: 'developer', organization_name: null, state: 'current', evidence: { id: 'ev-1', title: 'Company project page', url: 'https://sources.example/project', source_id: 'source-1', content_hash: 'hash-1', observed_at: null } }] }],
-        relationships: [{ id: 'relationship-1', source_company_id: companyId, target_company_id: 'company-2', relationship_type: 'developer_of', status: 'current', version: 1, reason: null, evidence: { id: 'ev-1', title: 'Company project page', url: 'javascript:alert(1)', source_id: 'source-1', content_hash: 'hash-1', observed_at: null } }],
+        relationships: [{ id: 'relationship-1', source_company_id: companyId, target_company_id: 'company-2', relationship_type: 'developer_of', status: 'current', version: 1, support_status: 'operator_assertion_unverified', reason: null, source_quote: 'Northstar may develop this project.', evidence: { id: 'ev-1', title: 'Company project page', url: 'javascript:alert(1)', source_id: 'source-1', content_hash: 'hash-1', observed_at: null } }],
         evidence: [{ id: 'ev-1', title: 'Company project page', url: 'https://sources.example/project', source_id: 'source-1', content_hash: 'hash-1', observed_at: null }], limits: graph.limits,
       } : graph
       return route.fulfill({ json: { ...payload, company: { ...payload.company, id: companyId, display_name: companyId === 'company-2' ? 'Northstar Labs' : 'Northstar Compute' } } })
@@ -49,7 +49,7 @@ test('company graph shows explicit unknowns and only evidence-backed aliases and
   await expect(panel).toContainText('Identifiers not established.')
   await expect(panel).toContainText('Aliases not established by retained evidence.')
   await expect(panel).toContainText('No linked projects are established.')
-  await expect(panel).toContainText('No evidence-backed company relationships are available.')
+  await expect(panel).toContainText('No company relationship assertions are available.')
   await expect(panel.getByText('Northstar', { exact: true })).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
@@ -82,6 +82,12 @@ test('company graph displays nested evidence and permits only safe source URLs',
   const panel = page.getByRole('region', { name: 'Company graph' })
   await expect(panel.getByText('Northstar HQ')).toBeVisible()
   await expect(panel).toContainText('domain: northstar.example')
+  await expect(panel).toContainText('Unverified operator assertion')
+  await expect(panel).toContainText('Ledger state: current')
+  await expect(panel).toContainText('Source quote')
+  await expect(panel).toContainText('Their ledger state does not independently verify the relationship as fact.')
+  await expect(panel).toContainText('Northstar may develop this project.')
+  await expect(panel).not.toContainText('Verified relationship')
   await expect(panel.getByRole('link', { name: 'Open source' }).first()).toHaveAttribute('href', 'https://sources.example/project')
   await expect(panel.locator('a[href^="javascript:"]')).toHaveCount(0)
 })

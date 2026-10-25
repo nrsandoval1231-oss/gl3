@@ -524,16 +524,39 @@ def read_workbook(
             else:
                 row_kind = "record"
                 recognized_dataset = "unclassified"
+        base_headers = [
+            str(header) if header is not None and str(header).strip() else f"column_{index + 1}"
+            for index, header in enumerate(headers)
+        ]
+        reserved_headers = set(base_headers)
+        actual_headers = {
+            str(header) for header in headers if header is not None and str(header).strip()
+        }
+        used_headers: set[str] = set()
         duplicate_header_counts: dict[str, int] = defaultdict(int)
         raw_headers = []
-        for index, header in enumerate(headers):
-            key = str(header if header is not None else f"column_{index + 1}")
-            duplicate_header_counts[key] += 1
-            raw_headers.append(
-                key
-                if duplicate_header_counts[key] == 1
-                else f"{key}#{duplicate_header_counts[key]}"
-            )
+        for index, base in enumerate(base_headers):
+            is_actual_header = headers[index] is not None and bool(str(headers[index]).strip())
+            if is_actual_header:
+                duplicate_header_counts[base] += 1
+                if duplicate_header_counts[base] == 1:
+                    key = base
+                else:
+                    suffix = duplicate_header_counts[base]
+                    key = f"{base}#{suffix}"
+                    while key in reserved_headers or key in used_headers:
+                        suffix += 1
+                        key = f"{base}#{suffix}"
+            else:
+                key = base
+                if key in actual_headers or key in used_headers:
+                    suffix = 2
+                    key = f"{base}#{suffix}"
+                    while key in reserved_headers or key in used_headers:
+                        suffix += 1
+                        key = f"{base}#{suffix}"
+            used_headers.add(key)
+            raw_headers.append(key)
         start_count = len(rows)
         sheets.append(
             {
@@ -556,7 +579,14 @@ def read_workbook(
                 for i in range(len(headers))
             }
             for index in range(len(headers), len(values)):
-                raw[f"_extra_column_{index + 1}"] = _json_value(values[index])
+                base = f"_extra_column_{index + 1}"
+                key = base
+                suffix = 2
+                while key in reserved_headers or key in used_headers:
+                    key = f"{base}#{suffix}"
+                    suffix += 1
+                used_headers.add(key)
+                raw[key] = _json_value(values[index])
             if not any(value is not None and value != "" for value in raw.values()):
                 continue
             normalized: dict[str, Any] = {}

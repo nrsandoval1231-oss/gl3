@@ -247,6 +247,9 @@ def discover_company_contacts(
             "anchor": _anchor_digest(session, anchor, company_identity_id),
             "research_digest": input_digest,
             "policy": POLICY_VERSION,
+            # Preserve direct/API refresh behavior. Planner scheduling uses its
+            # persisted completion interval and only passes this for due work.
+            "refresh_epoch": now.date().toordinal() // 30,
             "refresh_generation": refresh_generation,
         }
     )
@@ -288,6 +291,7 @@ def discover_company_contacts(
             {
                 "task_type": TASK_TYPE,
                 "request_digest": digest,
+                "research_digest": input_digest,
                 "payload": {
                     "company_identity_id": str(company_identity_id),
                     "candidate_urls": urls,

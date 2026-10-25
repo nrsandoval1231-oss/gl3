@@ -66,13 +66,13 @@ def _preview(rows: list[ImportRow], digest: str = "a" * 64) -> ImportPreview:
 
 def _seed_matchable(session):
     source = Source(
-        id="external-import-test",
+        id="dallas-monthly-permits",
         publisher="Synthetic",
         endpoint="https://example.test",
-        family="test",
+        family="construction-permits",
         geography="TX",
         industries=[],
-        retrieval_method="fixture",
+        retrieval_method="dallas-monthly-permits",
     )
     session.add(source)
     session.flush()
@@ -86,8 +86,10 @@ def _seed_matchable(session):
     observation = Observation(
         source_id=source.id,
         external_id="evidence-1",
-        title="Identity source",
-        abstract="Synthetic identity corroboration",
+        title="North Campus construction permit",
+        abstract=(
+            "North Campus project site location: Austin, TX. Synthetic identity corroboration."
+        ),
         url="https://example.test/1",
         content_hash="b" * 64,
     )
@@ -129,6 +131,10 @@ def _seed_matchable(session):
                     "decision": "accepted",
                     "evidence_hash": observation.content_hash,
                     "project_identity_key": project.identity_key,
+                    "subject": project.name,
+                    "location": project.location,
+                    "power_activity": "construction",
+                    "admission_status": "admitted",
                 },
                 status="accepted",
             ),
@@ -281,7 +287,7 @@ def test_name_only_and_conflicting_project_signals_remain_proposals(import_db):
             identity_key="test-site-2",
             name="North Campus",
             location="Austin, TX",
-            source_id="external-import-test",
+            source_id="dallas-monthly-permits",
             external_id="source-project-2",
         )
         session.add(conflicting)
@@ -343,6 +349,124 @@ def test_state_conflict_vetoes_company_membership_project_match(import_db):
         assert result["rows"][0]["company_match"]["status"] == "matched"
         assert result["rows"][0]["project_match"]["status"] == "unmatched"
         assert result["matched_count"] == 0
+
+
+def test_site_conflicts_veto_membership_and_unregistered_domain_fallback(import_db):
+    with import_db.begin() as session:
+        project, _identity = _seed_matchable(session)
+        project.location = "100 First Avenue, Austin, TX"
+        session.flush()
+        rows = [
+            ImportRow(
+                sheet="Sites",
+                row_number=2,
+                raw={},
+                normalized={
+                    "company_name": "Acme Energy",
+                    "domain": "acme.example",
+                    "project_name": "North Campus",
+                    "address": "999 Other Street",
+                    "city": "Austin",
+                    "state": "TX",
+                },
+                errors=[],
+            ),
+            ImportRow(
+                sheet="Sites",
+                row_number=3,
+                raw={},
+                normalized={
+                    "company_name": "Acme Energy",
+                    "domain": "acme.example",
+                    "project_name": "North Campus",
+                    "city": "Dallas",
+                },
+                errors=[],
+            ),
+            ImportRow(
+                sheet="Sites",
+                row_number=4,
+                raw={},
+                normalized={
+                    "company_name": "Acme Energy",
+                    "domain": "unrelated.example",
+                    "project_name": "North Campus",
+                    "address": "100 First Avenue",
+                    "city": "Austin",
+                    "state": "TX",
+                },
+                errors=[],
+            ),
+            ImportRow(
+                sheet="Sites",
+                row_number=5,
+                raw={},
+                normalized={
+                    "company_name": "Acme Energy",
+                    "project_name": "North Campus",
+                    "address": "10 First Avenue",
+                    "city": "Austin",
+                    "state": "TX",
+                },
+                errors=[],
+            ),
+            ImportRow(
+                sheet="Sites",
+                row_number=6,
+                raw={},
+                normalized={
+                    "company_name": "Acme Energy",
+                    "domain": "acme.example",
+                    "project_name": "North Campus",
+                    "address": "100 First Avenue, Dallas, TX",
+                },
+                errors=[],
+            ),
+        ]
+        result = stage_import(session, _preview(rows, "8" * 64), actor="reviewer")
+        assert [row["project_match"]["status"] for row in result["rows"]] == [
+            "unmatched",
+            "unmatched",
+            "matched",
+            "unmatched",
+            "unmatched",
+        ]
+        assert all(row["active"] is False for row in result["rows"])
+        assert all(row["status"] == "unmatched" for row in result["rows"])
+        assert result["active_count"] == 0
+
+
+def test_company_matched_contact_only_row_is_active_and_unverified(import_db):
+    with import_db.begin() as session:
+        _seed_matchable(session)
+        result = stage_import(
+            session,
+            _preview(
+                [
+                    ImportRow(
+                        sheet="Contacts",
+                        row_number=2,
+                        row_kind="contact",
+                        raw={"Company": "Acme Energy", "Email": "person@acme.example"},
+                        normalized={
+                            "company_name": "Acme Energy",
+                            "email": "person@acme.example",
+                            "contact_name": "Imported Person",
+                        },
+                        errors=[],
+                    ),
+                ],
+                "e" * 64,
+            ),
+            actor="reviewer",
+        )
+        assert result["rows"][0]["company_match"]["status"] == "matched"
+        assert result["rows"][0]["project_match"]["status"] == "not_applicable"
+        assert result["rows"][0]["status"] == "matched"
+        assert result["rows"][0]["active"] is True
+        source_row = session.scalar(select(ExternalImportRow))
+        assert source_row.normalized["contact_name"] == "Imported Person"
+        assert source_row.normalized["email"] == "person@acme.example"
 
 
 def test_summary_rows_are_retained_but_never_activated(import_db):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -26,7 +27,6 @@ from gridlens.persistence.models import (
     CompanyProjectMembership,
     Evidence,
     IdentityIdentifier,
-    Interpretation,
     Observation,
     PowerNeed,
     Project,
@@ -46,6 +46,16 @@ RELATIONSHIP_TYPES = frozenset(
 )
 GRAPH_PROJECT_LIMIT = 100
 GRAPH_ASSERTION_LIMIT = 100
+IDENTITY_NAME_TYPES = {"alias", "dba", "legal_name", "brand"}
+RELATIONSHIP_TERMS = {
+    "parent": re.compile(r"\b(parent|subsidiar(?:y|ies)|owns|owned by|ownership)\b", re.I),
+    "subsidiary": re.compile(r"\b(parent|subsidiar(?:y|ies)|owns|owned by|ownership)\b", re.I),
+    "developer": re.compile(r"\b(developer|develops|developed|development)\b", re.I),
+    "operator": re.compile(r"\b(operator|operates|operated|operation)\b", re.I),
+    "epc": re.compile(r"\b(epc|engineering procurement construction)\b", re.I),
+    "gc": re.compile(r"\b(gc|general contractor|general contracting)\b", re.I),
+    "utility": re.compile(r"\b(utility|utilities|electric provider|power provider)\b", re.I),
+}
 CLAIM_ROLE_LABELS = {
     "asset_operator": "operator",
     "field_operations": "operator",
@@ -59,21 +69,7 @@ def _iso(value: Any) -> str | None:
 
 
 def _retained_current(session: Session, evidence: Evidence, project: Project) -> bool:
-    observation = session.get(Observation, evidence.observation_id)
-    if observation is None or observation.content_hash != evidence.content_hash:
-        return False
-    interpretation = session.scalar(
-        select(Interpretation).where(Interpretation.observation_id == observation.id)
-    )
-    assessment = interpretation.assessment if interpretation else None
-    return bool(
-        interpretation
-        and interpretation.status == "accepted"
-        and assessment
-        and assessment.get("decision") == "accepted"
-        and assessment.get("evidence_hash") == evidence.content_hash
-        and assessment.get("project_identity_key") == project.identity_key
-    )
+    return _retained_evidence_current_for_project(session, project, evidence)
 
 
 def _canonical_evidence(session: Session, evidence: Evidence) -> dict[str, Any]:
@@ -140,6 +136,80 @@ def _buying_evidence_current(session: Session, source: BuyingChainEvidence) -> b
     return True
 
 
+def _identity_names_for_source(
+    session: Session,
+    company_id: UUID,
+    source: BuyingChainEvidence,
+    current_view: dict[str, Any],
+) -> set[str]:
+    """Names explicitly bound to this company by current evidence for this source."""
+    names: set[str] = set()
+    for candidate in current_view.get("candidates", []):
+        if str(candidate.get("company_identity_id")) != str(company_id):
+            continue
+        has_source_support = any(
+            str(item.get("id")) == str(source.id)
+            and str(item.get("current_source_version_id")) == str(source.id)
+            and item.get("content_hash") == source.content_hash
+            and item.get("current_support")
+            for item in candidate.get("evidence", [])
+        )
+        organization = candidate.get("organization")
+        if has_source_support and isinstance(organization, str) and organization.strip():
+            names.add(organization.strip())
+
+    identifiers = session.scalars(
+        select(IdentityIdentifier).where(
+            IdentityIdentifier.entity_type == "company",
+            IdentityIdentifier.company_identity_id == company_id,
+            IdentityIdentifier.source_evidence_id == source.id,
+            IdentityIdentifier.identifier_type.in_(IDENTITY_NAME_TYPES),
+            IdentityIdentifier.source_version_hash == source.content_hash,
+        )
+    ).all()
+    names.update(
+        identifier.normalized_value.strip()
+        for identifier in identifiers
+        if identifier.normalized_value.strip()
+    )
+    return names
+
+
+def _relationship_source_binding(
+    session: Session,
+    source_company_id: UUID,
+    target_company_id: UUID,
+    relationship_type: str,
+    source: BuyingChainEvidence,
+    current_view: dict[str, Any] | None = None,
+) -> tuple[str, str] | None:
+    """Require two distinct, current identity names literally named with a role term."""
+    excerpt_folded = source.excerpt.casefold()
+    view = current_view or buying_chain_views(session, {source.project_id}).get(
+        str(source.project_id), {}
+    )
+    source_names = _identity_names_for_source(session, source_company_id, source, view)
+    target_names = _identity_names_for_source(session, target_company_id, source, view)
+    term = RELATIONSHIP_TERMS[relationship_type]
+    for source_name in sorted(source_names, key=str.casefold):
+        source_folded = source_name.casefold()
+        if source_folded not in excerpt_folded:
+            continue
+        for target_name in sorted(target_names, key=str.casefold):
+            target_folded = target_name.casefold()
+            if target_folded == source_folded or target_folded not in excerpt_folded:
+                continue
+            relationship_context = re.sub(
+                re.escape(target_name),
+                " ",
+                re.sub(re.escape(source_name), " ", source.excerpt, flags=re.IGNORECASE),
+                flags=re.IGNORECASE,
+            )
+            if term.search(relationship_context):
+                return source_name, target_name
+    return None
+
+
 def _relationship_state(
     session: Session, assertion: CompanyRelationshipAssertion
 ) -> tuple[str, int, str | None]:
@@ -156,6 +226,7 @@ def _relationship_state(
     normalized = {
         "reinstate": "current",
         "suppress": "suppressed",
+        "retract": "retracted",
     }.get(state, state)
     return normalized, version, latest_id
 
@@ -348,12 +419,31 @@ def company_graph(session: Session, company_id: UUID) -> dict[str, Any]:
         .limit(GRAPH_ASSERTION_LIMIT)
     ).all()
     relationships: list[dict[str, Any]] = []
+    relationship_views: dict[UUID, dict[str, Any]] = {}
     for assertion in assertions:
         source = session.get(BuyingChainEvidence, assertion.source_evidence_id)
         if (
             source is None
             or source.content_hash != assertion.source_version_hash
             or not _buying_evidence_current(session, source)
+        ):
+            continue
+        current_view = relationship_views.get(source.project_id)
+        if current_view is None:
+            current_view = buying_chain_views(session, {source.project_id}).get(
+                str(source.project_id), {}
+            )
+            relationship_views[source.project_id] = current_view
+        if (
+            _relationship_source_binding(
+                session,
+                assertion.source_company_id,
+                assertion.target_company_id,
+                assertion.relationship_type,
+                source,
+                current_view,
+            )
+            is None
         ):
             continue
         state, version, correction_id = _relationship_state(session, assertion)
@@ -367,6 +457,8 @@ def company_graph(session: Session, company_id: UUID) -> dict[str, Any]:
                 "version": version,
                 "correction_id": correction_id,
                 "reason": assertion.reason,
+                "support_status": "operator_assertion_unverified",
+                "source_quote": source.excerpt,
                 "evidence": _buying_evidence(session, source),
             }
         )
@@ -419,6 +511,22 @@ def assert_company_relationship(
         or not _buying_evidence_current(session, source)
     ):
         raise ValueError("Relationship evidence hash must match the retained source version")
+    current_view = buying_chain_views(session, {source.project_id}).get(str(source.project_id), {})
+    if (
+        _relationship_source_binding(
+            session,
+            source_company_id,
+            target_company_id,
+            relationship_type,
+            source,
+            current_view,
+        )
+        is None
+    ):
+        raise ValueError(
+            "Both companies must have current source-bound names in the excerpt, "
+            "with an explicit relationship term"
+        )
     existing = session.scalar(
         select(CompanyRelationshipAssertion).where(
             CompanyRelationshipAssertion.idempotency_key == idempotency_key

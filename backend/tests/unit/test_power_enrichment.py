@@ -121,6 +121,60 @@ def test_estimated_demand_basis_remains_labeled_as_estimate():
     assert result.scenarios[0].evidence_status == "estimate"
 
 
+def test_estimated_supply_capacity_and_dates_label_derived_residual_as_estimate():
+    value = _schedule()
+    value["phases"][0].update(
+        supply_coverage="confirmed_complete",
+        coverage_reason="Operator confirms full supply listing",
+    )
+    value["supplies"] = [
+        {
+            "supply_id": "utility",
+            "start_date": "2027-01-01",
+            "end_date": "2027-02-01",
+            "mw_min": "3",
+            "mw_max": "5",
+            "state": "operating",
+            "suitability": "suitable",
+            "date_basis": "Estimated availability dates",
+            "basis": "Estimated available MW range",
+        }
+    ]
+    result = _build([_fact(validate_fact("power_schedule", value))])
+    assert result.scenarios[0].supply_mw_min == "3"
+    assert result.scenarios[0].evidence_status == "estimate"
+
+
+@pytest.mark.parametrize(
+    "basis_field,basis_value,expected",
+    [
+        ("coverage_reason", "Hypothetical full-supply coverage", "hypothesis"),
+        ("zero_supply_basis", "Illustrative zero supply assumption", "hypothesis"),
+        ("coverage_reason", "Estimated supply coverage", "estimate"),
+    ],
+)
+def test_coverage_and_zero_supply_assumptions_are_not_labeled_as_facts(
+    basis_field, basis_value, expected
+):
+    value = _schedule()
+    if basis_field == "coverage_reason":
+        value["phases"][0].update(
+            supply_coverage="confirmed_complete",
+            coverage_reason=basis_value,
+        )
+        if "zero_supply_basis" in value:
+            value.pop("zero_supply_basis")
+        value["zero_supply_basis"] = "Operator states no supply is available"
+    else:
+        value["phases"][0].update(
+            supply_coverage="confirmed_complete",
+            coverage_reason="Operator confirms full supply listing",
+        )
+        value["zero_supply_basis"] = basis_value
+    result = _build([_fact(validate_fact("power_schedule", value))])
+    assert result.scenarios[0].evidence_status == expected
+
+
 @pytest.mark.parametrize(
     "activity_key,expected_kind",
     [

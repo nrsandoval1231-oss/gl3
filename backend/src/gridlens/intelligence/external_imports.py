@@ -108,12 +108,21 @@ def _company_match(
     email = str(normalized.get("email") or "").strip().lower()
     email_domain = email.rsplit("@", 1)[1] if "@" in email else ""
     email_domain = _domain(email_domain)
+    supplied_domain = bool(str(normalized.get("domain") or "").strip()) or bool(
+        email_domain and email_domain not in _FREE_EMAIL_DOMAINS
+    )
     given_domain = domain or (email_domain if email_domain not in _FREE_EMAIL_DOMAINS else "")
     if not company_name:
         return {
             "status": "unmatched",
             "candidate_id": None,
             "reasons": ["missing company name"],
+        }
+    if supplied_domain and not given_domain:
+        return {
+            "status": "unmatched",
+            "candidate_id": None,
+            "reasons": ["supplied company domain could not be normalized"],
         }
     candidate_ids = (
         catalog["companies_by_domain"].get(given_domain, set()) if given_domain else set()
@@ -145,6 +154,16 @@ def _company_match(
             ],
         }
 
+    if given_domain:
+        return {
+            "status": "unmatched",
+            "candidate_id": None,
+            "reasons": [
+                "supplied company domain has no current registered identity",
+                "site evidence cannot override a conflicting or unknown domain",
+            ],
+        }
+
     site_project_ids = {project.id for project, _reasons in site_candidates}
     membership_ids = {
         membership.company_identity_id
@@ -167,26 +186,56 @@ def _company_match(
             "candidate_ids": sorted(map(str, membership_ids)),
             "reasons": ["company name and site corroborate multiple current memberships"],
         }
-    if not given_domain:
-        missing = [
-            name
-            for name, present in (("company_name", company_name), ("domain", given_domain))
-            if not present
-        ]
-        return {
-            "status": "unmatched",
-            "candidate_id": None,
-            "reasons": [
-                "missing corroborating company signals",
-                *[f"missing {field}" for field in missing],
-            ],
-        }
-
     return {
         "status": "unmatched",
         "candidate_id": None,
         "reasons": ["company name alone is insufficient", "no corroborated current membership"],
     }
+
+
+def _state_code(value: Any) -> str:
+    normalized = " ".join(str(value or "").strip().upper().split())
+    return {"TEXAS": "TX", "OKLAHOMA": "OK", "NEW MEXICO": "NM"}.get(normalized, normalized)
+
+
+def _site_evidence(normalized: dict[str, Any], project: Project) -> tuple[bool, list[str]]:
+    """Return whether all supplied site facts agree and which facts independently match."""
+    supplied_address = str(normalized.get("address") or "").strip()
+    supplied_city = _normal_name(normalized.get("city"))
+    supplied_state = _state_code(normalized.get("state"))
+    location = str(project.location or "").strip()
+    location_parts = [_normal_name(part) for part in location.split(",") if _normal_name(part)]
+    reasons: list[str] = []
+
+    if supplied_state and project.region_state and project.region_state != supplied_state:
+        return False, []
+    if supplied_state and not project.region_state:
+        return False, []
+
+    if supplied_city:
+        canonical_city = ""
+        if project.region_state and len(location_parts) >= 2:
+            if location_parts[-1] == _normal_name(project.region_state):
+                canonical_city = location_parts[-2]
+        if not canonical_city or canonical_city != supplied_city:
+            return False, []
+        reasons.append("project name and city agree")
+
+    if supplied_address:
+        address_parts = [
+            _normal_name(part) for part in supplied_address.split(",") if _normal_name(part)
+        ]
+        # Address is a whole street segment. Substring matches let a house
+        # number or partial street name link unrelated physical sites.
+        if (
+            not address_parts
+            or not location_parts
+            or address_parts != location_parts[: len(address_parts)]
+        ):
+            return False, []
+        reasons.append("project name and exact street-address segment agree")
+
+    return True, reasons
 
 
 def _site_project_candidates(
@@ -195,25 +244,11 @@ def _site_project_candidates(
     project_name = _project_key(normalized.get("project_name"))
     if not project_name:
         return []
-    address = _normal_name(normalized.get("address"))
-    city = str(normalized.get("city") or "").strip()
-    state = str(normalized.get("state") or "").strip().upper()
-    city_state = _normal_name(f"{city} {state}") if city and state else ""
     candidates: list[tuple[Project, list[str]]] = []
     for project in catalog["projects_by_name"].get(project_name, []):
-        if state and project.region_state and project.region_state != state:
+        compatible, reasons = _site_evidence(normalized, project)
+        if not compatible:
             continue
-        location = _normal_name(project.location)
-        reasons = []
-        if (
-            address
-            and len(address) >= 12
-            and location
-            and (address in location or location in address)
-        ):
-            reasons.append("project name and address/location agree")
-        if city_state and location and city_state in location:
-            reasons.append("project name and city/state agree")
         if reasons:
             candidates.append((project, reasons))
     return candidates
@@ -223,7 +258,6 @@ def _project_match(
     normalized: dict[str, Any],
     company_match: dict[str, Any],
     catalog: dict[str, Any],
-    site_candidates: list[tuple[Project, list[str]]],
 ) -> dict[str, Any]:
     project_name = _project_key(normalized.get("project_name"))
     if not project_name:
@@ -234,19 +268,11 @@ def _project_match(
     company_project_ids: set[UUID] = set()
     if matched_company:
         company_project_ids = catalog["projects_by_company"].get(UUID(matched_company), set())
-    city = str(normalized.get("city") or "").strip()
-    state = str(normalized.get("state") or "").strip().upper()
-    city_state = _normal_name(f"{city} {state}") if city and state else ""
     candidates: list[tuple[Project, list[str]]] = []
     name_candidates = catalog["projects_by_name"].get(project_name, [])
     for project in name_candidates:
-        corroborating = next(
-            (reasons.copy() for site, reasons in site_candidates if site.id == project.id), []
-        )
-        if state and project.region_state and project.region_state != state:
-            continue
-        location = _normal_name(project.location)
-        if city_state and city_state not in location:
+        compatible, corroborating = _site_evidence(normalized, project)
+        if not compatible:
             continue
         if project.id in company_project_ids:
             corroborating.append("project name and current company membership agree")
@@ -551,8 +577,24 @@ def stage_import(session: Session, preview: Any, *, actor: str) -> dict[str, Any
                 }
             else:
                 company = _company_match(normalized, catalog, site_candidates)
-                project = _project_match(normalized, company, catalog, site_candidates)
+                project = _project_match(normalized, company, catalog)
             errors = list(source_row.errors)
+            is_company_only_contact = (
+                not is_metadata
+                and source_row.row_kind == "contact"
+                and bool(
+                    normalized.get("contact_name")
+                    or normalized.get("email")
+                    or normalized.get("phone")
+                )
+                and not normalized.get("project_name")
+            )
+            if is_company_only_contact:
+                project = {
+                    "status": "not_applicable",
+                    "candidate_id": None,
+                    "reasons": ["contact-only row has no supplied project relationship"],
+                }
             status = (
                 "ignored"
                 if is_metadata
@@ -561,7 +603,8 @@ def stage_import(session: Session, preview: Any, *, actor: str) -> dict[str, Any
                 else "ambiguous"
                 if "ambiguous" in (company["status"], project["status"])
                 else "matched"
-                if company["status"] == "matched" and project["status"] == "matched"
+                if company["status"] == "matched"
+                and (project["status"] == "matched" or project["status"] == "not_applicable")
                 else "unmatched"
             )
             row_id = uuid4()
@@ -583,7 +626,7 @@ def stage_import(session: Session, preview: Any, *, actor: str) -> dict[str, Any
             activation_records.append(
                 {
                     "row_id": row_id,
-                    "active": not errors and not is_metadata,
+                    "active": not errors and not is_metadata and status == "matched",
                     "changed_by": actor,
                 }
             )

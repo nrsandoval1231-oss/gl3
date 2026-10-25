@@ -113,8 +113,8 @@ def test_repeated_headers_are_preserved_and_ambiguous_columns_reported(tmp_path)
     workbook = Workbook()
     sheet = workbook.active
     sheet.append(["Report export", None, None])
-    sheet.append(["Developer", "Company", "Notes", "Notes", "Facility Power (MW)"])
-    sheet.append(["Acme", "Acme LLC", "one", "two", 20])
+    sheet.append(["Developer", "Company", "Notes", "Notes#2", "Notes", "Facility Power (MW)"])
+    sheet.append(["Acme", "Acme LLC", "first", "literal suffix", "third", 20])
     workbook.save(path)
     preview = read_workbook(path)
     row = preview.rows[0]
@@ -125,10 +125,52 @@ def test_repeated_headers_are_preserved_and_ambiguous_columns_reported(tmp_path)
         "facility_demand_mw_unit_source": "header",
     }
     assert "Developer" in row.raw and "Company" in row.raw
-    assert row.raw["Notes"] == "one" and row.raw["Notes#2"] == "two"
+    assert row.raw["Notes"] == "first"
+    assert row.raw["Notes#2"] == "literal suffix"
+    assert row.raw["Notes#3"] == "third"
     assert "ambiguous company_name columns" in row.errors[0]
     assert preview.report["worksheets"][0]["header_row_number"] == 2
     assert preview.report["worksheets"][0]["preamble_rows"] == 1
+
+
+def test_raw_header_suffix_collision_preserves_every_csv_cell(tmp_path):
+    path = tmp_path / "suffix-collision.csv"
+    path.write_text(
+        "Company,Notes,Notes#2,Notes\nAcme,first,literal-header-value,third\n",
+        encoding="utf-8",
+    )
+    row = read_workbook(path).rows[0]
+    assert row.raw == {
+        "Company": "Acme",
+        "Notes": "first",
+        "Notes#2": "literal-header-value",
+        "Notes#3": "third",
+    }
+
+
+def test_generated_blank_header_key_does_not_consume_literal_header(tmp_path):
+    path = tmp_path / "blank-header-collision.csv"
+    path.write_text("Company,,column_2\nAcme,blank-cell,literal-header\n", encoding="utf-8")
+    row = read_workbook(path).rows[0]
+    assert row.raw == {
+        "Company": "Acme",
+        "column_2#2": "blank-cell",
+        "column_2": "literal-header",
+    }
+
+
+def test_extra_cell_key_does_not_overwrite_literal_header(tmp_path):
+    path = tmp_path / "extra-column-collision.csv"
+    path.write_text(
+        "Company,_extra_column_3\nAcme,literal-header,overflow-cell\n",
+        encoding="utf-8",
+    )
+    row = read_workbook(path).rows[0]
+    assert row.raw == {
+        "Company": "Acme",
+        "_extra_column_3": "literal-header",
+        "_extra_column_3#2": "overflow-cell",
+    }
 
 
 def test_conservative_capacity_date_domain_email_and_negative_values(tmp_path):

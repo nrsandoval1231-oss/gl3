@@ -9042,6 +9042,15 @@
           },
           "evidence": {
             "$ref": "#/components/schemas/GraphEvidence"
+          },
+          "support_status": {
+            "type": "string",
+            "const": "operator_assertion_unverified",
+            "title": "Support Status"
+          },
+          "source_quote": {
+            "type": "string",
+            "title": "Source Quote"
           }
         },
         "type": "object",
@@ -9053,7 +9062,9 @@
           "status",
           "version",
           "reason",
-          "evidence"
+          "evidence",
+          "support_status",
+          "source_quote"
         ],
         "title": "GraphRelationship"
       },
