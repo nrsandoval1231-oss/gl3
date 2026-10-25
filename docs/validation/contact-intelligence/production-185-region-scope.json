@@ -1,0 +1,13 @@
+{
+  "scope": "Exact 185-company production plan relationships in the unmodified quiescent production clone",
+  "database_target": "owned local loopback only",
+  "source_dump_sha256": "dd584c22ab6c4839e453d9e01b3211baec44c946f8885f22a222701f7c112031",
+  "company_relationship_states": [
+    {
+      "state": "TX",
+      "companies": 185,
+      "projects": 1584
+    }
+  ],
+  "read_only": true
+}

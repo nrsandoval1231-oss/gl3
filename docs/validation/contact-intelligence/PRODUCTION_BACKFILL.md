@@ -1,8 +1,6 @@
 # Contact intelligence release and backfill procedure
 
-This is a reviewable procedure. No production backfill, merge or deployment is
-authorized by it. The owner requested an isolated benchmark and production
-preparation; production changes require separate explicit authorization.
+This document preserves the operating procedure and historical safeguards. A bounded production release and backfill were completed for the reviewed v12 candidate. See the [current production release report](PRODUCTION_RELEASE.md) and its linked evidence before interpreting the historical pre-release hold language below. The procedure does not authorize additional provider spend or another production run.
 
 ## Established production identity and baseline
 
@@ -52,10 +50,7 @@ each company/job checkpoint. Re-run the same manifest and checkpoint after an
 interruption; inspect running, failed and uncertain jobs before any retry. Enqueue
 success alone does not establish successful discovery or contact coverage.
 
-The current operator tool restricts apply/run to an explicitly named loopback
-database. Use it on an isolated snapshot. A future production execution mechanism
-must be separately authorized and retain exact-target guards; do not remove the
-loopback check as an operational workaround.
+The current staging operator restricts apply/run to an explicitly named loopback database. Use it on an isolated snapshot; never remove the loopback guard as an operational workaround. The completed production run used a separately reviewed production path documented in the [release report](PRODUCTION_RELEASE.md).
 
 After each batch inspect terminal outcome/reason, actual verified method count,
 named professional roles, direct versus generic methods, source URLs/dates and
@@ -127,10 +122,6 @@ retry it blindly. Restore the prior reviewed application image/flags using the
 owner-approved release procedure. Retain appended contact/evidence history; do not
 delete companies, contacts or the entire database to roll back a UI or worker.
 Use a full database restore only after separate authorization and exact recovery
-target verification. Production rollback remains a plan until it is rehearsed.
+target verification. The exact-image and fresh-dump restore rehearsal passed; production rollback is configuration/image-only and was not itself executed. See the [release report](PRODUCTION_RELEASE.md) before any future rollback.
 
-The final isolated benchmark, replay, API/UI, local tests and schema checks pass.
-Release remains HOLD pending final-head independent/CI acceptance, a fresh
-production image/schema/key/price/budget check, old-image compatibility/rollback
-rehearsal, and explicit release/backfill authorization. No direct buyer method is
-verified; commercial P0 remains open despite measurable company-route coverage.
+Historical hold note: the final isolated benchmark, replay, API/UI, local tests and schema checks passed before the later production release. The prior hold statements were superseded by the bounded v12 production result. See the [production release report](PRODUCTION_RELEASE.md) for current status and evidence. Commercial P0 remains OPEN; no direct buyer method or authenticated production contact UI is verified.

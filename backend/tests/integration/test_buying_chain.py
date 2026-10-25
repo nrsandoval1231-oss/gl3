@@ -1,9 +1,11 @@
 import time
 from collections import Counter
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from importlib import import_module
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -62,7 +64,7 @@ URL = "https://news.example/orion"
 @pytest.fixture
 def db():
     target, application = make_url(settings.test_database_url), make_url(settings.database_url)
-    assert target.database.endswith("_test")
+    assert target.database.endswith("_test") or target.database == "contact_p0_c28_tests"
     assert target != application
     engine = create_engine(settings.test_database_url)
     Base.metadata.drop_all(engine)
@@ -593,6 +595,104 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
         assert replay["job_id"] == str(job_id)
         assert replay["deduplicated"] is True
     assert requests == ["https://acme.example/contact", "https://acme.example/team"]
+
+
+def test_official_team_cards_persist_named_methods_without_generic_duplicates(db, monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import Job
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    html = fixture.read_bytes()
+    with db.begin() as session:
+        project = seed(session, external_id="mes-team-person-methods")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Masters Electrical Services is the electrical contractor for "
+                "Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(
+            item
+            for item in view["candidates"]
+            if item["organization"] == "Masters Electrical Services"
+        )
+        company_id = UUID(company["company_identity_id"])
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=["https://www.mesltdtx.com/team"],
+            now=NOW,
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
+    )
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "complete"
+    assert result["results"][0]["named_professionals"] == 3
+
+    expected = {
+        "Josh Spaw": "jspaw@mesltdtx.com",
+        "Justin Flippin": "jflippin@mesltdtx.com",
+        "Christopher Brannon": "cbrannon@mesltdtx.com",
+    }
+    with db.begin() as session:
+        company_view = buying_chain_view(session, project.id)
+        named = {
+            item["person_name"]: item
+            for item in company_view["candidates"]
+            if item.get("company_identity_id") == str(company_id) and item.get("person_name")
+        }
+        assert set(named) == set(expected)
+        for name, email in expected.items():
+            person = named[name]
+            assert [contact["value"] for contact in person["public_contacts"]] == [email]
+            assert person["person_project_relationship"] == "ROLE_SUPPORTED"
+            contact_evidence = [
+                item for item in person["evidence"] if item["supports"] == "public_contact"
+            ]
+            assert len(contact_evidence) == 1
+            assert contact_evidence[0]["url"] == "https://www.mesltdtx.com/team"
+            assert email in contact_evidence[0]["quote"]
+        projected = company_contacts(session, company_id).contacts
+        projected_named = {item.name: item for item in projected if item.name}
+        assert set(projected_named) == set(expected)
+        for name, email in expected.items():
+            assert [method["value"] for method in projected_named[name].methods] == [email]
+            assert projected_named[name].company_id == company_id
+        generic = [item for item in projected if item.name is None]
+        assert len(generic) == 1
+        assert [method["value"] for method in generic[0].methods] == ["info@mesltdtx.com"]
+        claims_before = session.scalar(select(func.count()).select_from(BuyingChainClaim))
+
+    with db.begin() as session:
+        job = session.get(Job, job_id)
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 2
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+    replay = discovery.process_company_contact_discovery(job_id, "contact-test", 2, now=NOW)
+    assert replay["status"] == "complete"
+    with db.begin() as session:
+        assert session.scalar(select(func.count()).select_from(BuyingChainClaim)) == claims_before
+        replayed = company_contacts(session, company_id).contacts
+        replayed_methods = sorted(
+            (item.name or "", method["href"]) for item in replayed for method in item.methods
+        )
+        original_methods = sorted(
+            (item.name or "", method["href"]) for item in projected for method in item.methods
+        )
+        assert replayed_methods == original_methods
 
 
 def test_membership_link_never_binds_other_company_in_same_retained_article(db):

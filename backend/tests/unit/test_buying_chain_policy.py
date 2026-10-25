@@ -1,7 +1,8 @@
 import hashlib
 import json
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -9,6 +10,7 @@ import pytest
 from gridlens.domain.buying_chain import current_role, person_project_relationship
 from gridlens.ingestion.adapters.buying_chain_public import (
     PublicDocument,
+    PublicPersonCard,
     _public_ip,
     parse_document,
     validate_public_url,
@@ -136,6 +138,211 @@ def test_document_identity_matches_retained_hash_and_tracks_metadata():
     assert document_key(replace(source, title="Changed title")) != document_key(source)
     assert document_key(replace(source, published_at=None)) != document_key(source)
     assert document_key(replace(source, url="https://acme.com/about")) != document_key(source)
+
+
+def test_official_mes_person_cards_bind_literal_methods_and_keep_company_identity_separate():
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    source = parse_document(
+        "https://www.mesltdtx.com/team",
+        fixture.read_bytes(),
+        "text/html",
+    )
+    source = replace(source, observed_at=NOW)
+    assert len(source.person_cards) == 3
+    assert [(card.name, card.title) for card in source.person_cards] == [
+        ("Josh Spaw", "Project Manager"),
+        ("Justin Flippin", "Project Manager"),
+        ("Christopher Brannon", "Purchasing Manager"),
+    ]
+
+    from gridlens.intelligence.company_contact_discovery import _self_identified_company_site
+
+    organization = Extracted(
+        "Masters Electrical Services",
+        "electrical_contractor",
+        organization_relationship="DIRECT",
+    )
+    assert _self_identified_company_site(source, organization.organization)
+    result = extract_people(
+        source,
+        [organization],
+        project(),
+        project_scoped=False,
+        today=NOW.date(),
+        verified_official_roster=True,
+    )
+    by_name = {item.person_name: item for item in result}
+    expected = {
+        "Josh Spaw": "jspaw@mesltdtx.com",
+        "Justin Flippin": "jflippin@mesltdtx.com",
+        "Christopher Brannon": "cbrannon@mesltdtx.com",
+    }
+    assert set(by_name) == set(expected)
+    for name, email in expected.items():
+        person = by_name[name]
+        assert person.public_contacts == [
+            {
+                "kind": "email",
+                "value": email,
+                "source_url": source.url,
+                "quote": next(
+                    card.contact_text for card in source.person_cards if card.name == name
+                ),
+                "observed_at": NOW.isoformat(),
+            }
+        ]
+        assert person.person_organization_relationship == "CURRENT"
+        assert person.person_project_relationship == "ROLE_SUPPORTED"
+        assert person.citations[-1]["quote"] == person.public_contacts[0]["quote"]
+        assert person.public_contacts[0]["quote"] in source.text
+    assert by_name["Christopher Brannon"].category == "procurement"
+    assert all(person.person_project_relationship != "DIRECT" for person in by_name.values())
+    assert "info@mesltdtx.com" not in {
+        contact["value"] for person in by_name.values() for contact in person.public_contacts
+    }
+
+
+def _one_person_card_html(
+    *, href="mailto:jane@example.com", label="Contact Jane by Email", title="Project Manager"
+):
+    return f"""<!doctype html><html><head><title>Example Corp Team</title></head><body>
+    <main><h1>Example Corp Team</h1><div><h3>Jane Doe, {title}</h3>
+    <p><a href="{href}">{label}</a></p></div>
+    <footer>© 2026 Example Corp. All rights reserved.</footer></main></body></html>"""
+
+
+@pytest.mark.parametrize(
+    ("href", "label"),
+    [
+        ("mailto:jane@example.com?cc=other@example.com", "Contact Jane by Email"),
+        ("mailto:jane@example.com%0d%0abcc:other@example.com", "Contact Jane by Email"),
+        ("mailto:jane@example.com,other@example.com", "Contact Jane by Email"),
+        ("mailto:jane@example.com", "Contact Alice by Email"),
+        ("tel:+15550101010?ext=2", "Contact Jane by Phone"),
+    ],
+)
+def test_person_card_rejects_unsafe_or_conflicting_literal_links(href, label):
+    source = parse_document(
+        "https://example.com/team",
+        _one_person_card_html(href=href, label=label).encode(),
+        "text/html",
+    )
+    assert source.person_cards == ()
+
+
+def test_person_card_rejects_ambiguous_partial_stale_negated_and_wrong_publisher_cases():
+    from gridlens.intelligence.company_contact_discovery import _self_identified_company_site
+
+    base = parse_document(
+        "https://example.com/team",
+        _one_person_card_html().encode(),
+        "text/html",
+    )
+    organization = Extracted("Example Corp", "electrical_contractor")
+    selected_project = project()
+
+    multiple_headings = _one_person_card_html().replace(
+        "<h3>Jane Doe, Project Manager</h3>",
+        "<h3>Jane Doe, Project Manager</h3><h4>More Staff</h4>",
+    )
+    multiple_methods = _one_person_card_html().replace(
+        "</p></div>",
+        '<a href="mailto:alt@example.com">Contact Jane by Email</a></p></div>',
+    )
+    partial = _one_person_card_html().replace(
+        '<a href="mailto:jane@example.com">Contact Jane by Email</a>', "Jane Doe"
+    )
+    for html in (multiple_headings, multiple_methods, partial):
+        assert (
+            parse_document("https://example.com/team", html.encode(), "text/html").person_cards
+            == ()
+        )
+
+    negated = parse_document(
+        "https://example.com/team",
+        _one_person_card_html(title="Former Project Manager").encode(),
+        "text/html",
+    )
+    assert negated.person_cards
+    negated_roles = extract_people(
+        negated,
+        [organization],
+        selected_project,
+        project_scoped=False,
+        today=NOW.date(),
+        verified_official_roster=True,
+    )
+    assert negated_roles == []
+
+    stale_observation = replace(base, observed_at=NOW - timedelta(days=366))
+    stale_publication = replace(base, published_at=date(2024, 1, 1))
+    for stale in (stale_observation, stale_publication):
+        people = extract_people(
+            stale,
+            [organization],
+            selected_project,
+            project_scoped=False,
+            today=NOW.date(),
+            verified_official_roster=True,
+        )
+        assert not any(person.public_contacts for person in people)
+
+    unrelated = replace(
+        base,
+        url="https://directory.example/team",
+        title="Directory Services Team",
+        text=base.text.replace("© 2026 Example Corp", "© 2026 Directory Services"),
+    )
+    assert not _self_identified_company_site(unrelated, organization.organization)
+    assert (
+        extract_people(
+            unrelated,
+            [organization],
+            selected_project,
+            project_scoped=False,
+            today=NOW.date(),
+        )
+        == []
+    )
+
+
+def test_person_card_association_is_in_semantic_hash_and_reconstructible_from_marker():
+    source = replace(
+        parse_document(
+            "https://example.com/team",
+            _one_person_card_html().encode(),
+            "text/html",
+        ),
+        observed_at=NOW,
+    )
+    card = source.person_cards[0]
+    persisted = PublicDocument(
+        source.url,
+        source.title,
+        source.text,
+        source.published_at,
+        source.observed_at,
+        source.extraction_location,
+    )
+    assert document_content_hash(source) == document_content_hash(persisted)
+    reassigned = replace(
+        source,
+        person_cards=(
+            PublicPersonCard(
+                card.heading_text,
+                card.contact_text,
+                "mailto:other@example.com",
+                card.name,
+                card.title,
+            ),
+        ),
+    )
+    assert reassigned.text == source.text
+    assert document_content_hash(reassigned) != document_content_hash(source)
+    assert document_content_hash(replace(source, person_cards=())) == document_content_hash(source)
+    assert document_content_hash(
+        replace(source, person_cards=(), extraction_location="public page text")
+    ) != document_content_hash(source)
 
 
 def test_wrong_project_same_document_and_same_sentence_do_not_assign_organization():

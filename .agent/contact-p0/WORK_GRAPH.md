@@ -1,3 +1,30 @@
+# Current frontier after release
+
+Owner approve-all supersedes historical no-transport holds below. C14 source559
+independent PASS/CI40206125623 PASS. C15 inventory/recovery -> C16 exact-image
+restore/rollback -> C17 merge/canary/ordinary-worker resume -> C18 pilot -> C19
+185-company backfill -> C20 protection -> C21 finite automatic activation ->
+C22 diagnosis -> C23 report -> C24/C25 independent bounded runtime PASS.
+
+C26 released-v12 report DONE. Primary185:14usable/34emails/8phones/0direct;
+first separate automatic25 jobs complete. Later18:12/18:14 readback235searches/
+470credits/1984remainingcredits/15calls under unchanged250call envelope. No
+new coverage census inferred. Production UI UNKNOWN; commercial P0 OPEN.
+
+C27 narrow person-card architecture DONE -> C28R1 backend/fullgates PASS ->
+C29 actual retained/native-source PostgreSQL/API/replay PASS -> C30 Cua normal-
+auth desktop/mobile/reload PASS -> C31 method-date display correction PASS
+(root typecheck/build and Cua; browser regressions await remote CI) -> C32
+exact integrated independent Sol review READY -> C33 follow-on PR/CI after
+independent acceptance. PR122 already merged, requiring follow-on continuation.
+New source is not deployed. Preserve frozen backend/frontend scope hashes,
+original corpora, failed harness attempts and known-source/no-hint distinction.
+No new schema/store/provider/identity merge/design or paid C27-C31 calls.
+New production cutover needs its own accepted readiness/recovery boundary;
+do not reuse old C17 pins blindly. See ignored bounded packets/handoffs.
+
+Historical graph and original freeze:
+
 # P0 company contact intelligence continuation
 
 Owner mission: continue PR122; automatic discovery, sourced actionable contacts,

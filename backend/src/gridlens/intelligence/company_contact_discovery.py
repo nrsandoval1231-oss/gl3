@@ -744,6 +744,18 @@ def _normal(value: str) -> str:
     return "".join(ch for ch in value.casefold() if ch.isalnum())
 
 
+def _method_key(source_url: str, kind: str, value: str) -> tuple[str, str, str]:
+    normalized_kind = "phone" if kind.casefold() in {"phone", "telephone", "tel"} else "email"
+    normalized_value = (
+        "+" + re.sub(r"\D", "", value)
+        if normalized_kind == "phone" and value.strip().startswith("+")
+        else re.sub(r"\D", "", value)
+        if normalized_kind == "phone"
+        else value.strip().casefold()
+    )
+    return source_url, normalized_kind, normalized_value
+
+
 def _brand_key(value: str) -> str:
     """Allow a legal suffix in the registry but not on the company's own masthead."""
     return re.sub(r"(?:inc|incorporated|llc|corp|corporation|ltd)$", "", _normal(value))
@@ -1078,11 +1090,28 @@ def _discover_anchor(
         )
         evidence_ids.append(str(source.id))
         sources_by_url[doc.url] = source
+
+    # Persist eligible named people first, then suppress only their exact
+    # source/kind/value tuples from the generic company-method scan below.
+    named_count, named_method_keys = _store_named_professionals(
+        session, project, company_id, old, documents, sources_by_url, now
+    )
+    for doc in documents:
+        source = sources_by_url[doc.url]
         found = extract_company_contacts(
             doc, [Extracted(org, old.category, organization_relationship="DIRECT")]
         )
         for item in found:
             for contact in item.public_contacts:
+                if (
+                    _method_key(
+                        contact.get("source_url", doc.url),
+                        str(contact.get("kind") or ""),
+                        str(contact.get("value") or ""),
+                    )
+                    in named_method_keys
+                ):
+                    continue
                 if contact.get("kind") == "phone" and any(
                     word in str(contact.get("quote", "")).casefold()
                     for word in ("fax", "emergency", "human resources", "investor relations")
@@ -1105,6 +1134,9 @@ def _discover_anchor(
             doc.text,
         ):
             value = match.group(0)
+            method_kind = "email" if "@" in value else "phone"
+            if _method_key(doc.url, method_kind, value) in named_method_keys:
+                continue
             if any(row.get("value") == value for row in contacts):
                 continue
             line_start = doc.text.rfind("\n", 0, match.start()) + 1
@@ -1151,9 +1183,6 @@ def _discover_anchor(
                 "supports": "public_contact",
             }
         )
-    named_count = _store_named_professionals(
-        session, project, company_id, old, documents, sources_by_url, now
-    )
     if not contacts:
         if named_count:
             return {
@@ -1167,7 +1196,13 @@ def _discover_anchor(
     current_methods = [
         method
         for method in old.public_contacts
-        if any(
+        if _method_key(
+            str(method.get("source_url") or ""),
+            str(method.get("kind") or ""),
+            str(method.get("value") or ""),
+        )
+        not in named_method_keys
+        and any(
             c.get("url") == method.get("source_url") and c.get("quote") == method.get("quote")
             for c in citations
         )
@@ -1272,7 +1307,7 @@ def _store_named_professionals(
     documents: list[PublicDocument],
     sources: dict[str, BuyingChainEvidence],
     now: datetime,
-) -> int:
+) -> tuple[int, set[tuple[str, str, str]]]:
     """Keep sourced professional roles distinct from generic company methods."""
     project_citations = [
         item
@@ -1286,6 +1321,7 @@ def _store_named_professionals(
         citations=project_citations,
     )
     count = 0
+    method_keys: set[tuple[str, str, str]] = set()
     for doc in documents:
         path = urlsplit(doc.url).path.strip("/").casefold().split("/")[-1]
         if path not in {"about", "about-us", "team", "leadership", "management", "our-team"}:
@@ -1318,6 +1354,15 @@ def _store_named_professionals(
                 )
             if not any(c["supports"] == "organization_person_role" for c in person_citations):
                 continue
+            for contact in item.public_contacts:
+                if (
+                    contact.get("source_url") == doc.url
+                    and contact.get("kind")
+                    and contact.get("value")
+                ):
+                    method_keys.add(
+                        _method_key(doc.url, str(contact["kind"]), str(contact["value"]))
+                    )
             state = dict(
                 policy_version=POLICY_VERSION,
                 organization=item.organization,
@@ -1392,4 +1437,4 @@ def _store_named_professionals(
                 raise ValueError("Named contact conflicts with canonical company identity")
             _append_run_claim(session, project, claim, [str(source.id)], now)
             count += 1
-    return count
+    return count, method_keys
