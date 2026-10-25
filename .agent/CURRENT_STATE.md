@@ -1,45 +1,39 @@
-# Current: published person-method candidate ready for independent review
+# Current: C35 repaired candidate awaiting independent review
 
-Owner approved Firecrawl and then "I approve all!"; prior authority holds below
-are historical. PR122 merged3ce9e8a68a6b988d1d8bfd8597e150f19ae36498 and
-reviewed source559b325ea3c3c982a4cdee7af52fb703e2622f13 is deployed. Ordinary
-ingestion/browse/contact planner run under finite C21 Firecrawl-only worker
-settings, one active call. No outreach, recharge or additional provider.
+PR122 merged3ce9e8a68a6b988d1d8bfd8597e150f19ae36498; reviewed source559b325
+remains deployed. Owner Firecrawl/controlled release approval and finite C21
+ceilings remain unchanged. No new provider/subscription/recharge/outreach.
+Frozen production185:14usable/34emails/8phones/0direct; allSignal/TX and all
+ResearchRequired. Separate20benchmark and automatic25 cohort remain separate.
+Production authenticatedUI UNKNOWN; commercialP0 OPEN. Existing recovery and
+protected11table/1154originalcompany-ID evidence is retained.
 
-Frozen primary185-company census:14usable,34emails/8phones,4methodless people,
-0direct methods,171withoutmethods, allSignal/TX/allResearchRequired,370credits.
-Separate first automatic25jobs finished. Later18:12/18:14 read-only snapshots:
-235completed searches,234succeeded jobs/1running,470production credits,
-1984remaining credits and15calls left under unchanged250call envelope. No new
-contact-coverage census inferred. Original protected11tables/1154company IDs
-preserved at recorded C20 checks. C24/C25 bounded independent PASS retained.
-Production authenticated contact UI UNKNOWN: accessible Chrome remains Sign in;
-owner clarification pending. Commercial P0 OPEN. Historical20benchmark intact.
+C32 independent FIX on1f17d21 is retained, not accepted. C28R2 corrected named-only
+checkpoint counts/reasons. C35 corrected refresh supersession so former generic
+copies become history when exact methods are promoted to named staff; separately
+sourced company methods survive. Nonvacuous persistence/replay regressions pass.
+C35 six-file source freeze14bff7b0923305713aebe1d6ee16628ba35540e5897060951ff987a428b76963.
+The two C31 web hashes are unchanged. No schema/API/provider/identity/design change.
 
-VALIDATE C32: C27 architecture approved; C28R1 backend and C31 frontend frozen.
-Exact bounded HTML-card association now preserves three real published MES
-Project/Purchasing Manager emails through existing worker, evidence/claim,
-canonical company API and opportunity buying-chain UI. Existing owner/developer
-assignment unchanged. Branch fix/published-person-contact-methods from3ce9...
-is not deployed. No new schema/store/provider/identity merge or design.
+Root final backend: 3029 passed, 3 skipped, 11 warnings, 7 subtests passed in 800.71s (0:13:20)
+Gate finish 2026-10-25T19:03:40.433859+00:00; Ruff/format/fullMypy159/API generation and
+web typecheck/build pass. Initial R1 gates and interrupted R2 are historical;
+overlapping local test failures and corrected ordering assertion are retained.
+C34 fresh original-dump retained/replay and native-HTTPS proofs pass:3literal MES
+staff emails,25methodcheckpoint,0paidcalls, no new company IDs, all originals
+preserved. Retained phase intentionally partial at blocked contact navigation;
+native phase complete on two officialURLs. Known-source proof, not a new no-hint
+benchmark or production-census improvement. Buyer/package authority UNKNOWN.
+C36 normal-login desktop1280/mobile390/reload/method/source/date checks pass;
+post-UI read-only preservation passes all11original tables/1154IDs. Derived
+browse rebuild used existing maintenance; no ingestion/provider call.
 
-Root backend3026pass/7subtests/3skip; Ruff/format/Mypy/API-contracts pass; web
-typecheck/build pass. Retained-source PostgreSQL/API/exact replay and fresh
-native-HTTPS clone proof pass,0paid calls, all original protected rows and1154
-company IDs preserved. Initial native-after-retained attempt correctly reused
-fresh stored contacts; another fresh original-dump clone exercised native HTTP
-without disabling Level1 or rewriting times. Cua normal-login desktop1280/
-mobile390/reload/method/source/date/unknown-authority proof passes. Derived
-browse rebuilt using existing retained-data maintenance. C31 shows latest valid
-method dates in existing opportunity card; Graphite&Sage layout unchanged.
-
-This isolated known-source proof is not a new20company no-hint benchmark or
-production-census improvement. Public evidence in docs/validation/contact-
-intelligence/PUBLISHED_PERSON_METHODS.md and PRODUCTION_RELEASE.md. Distinct Sol
-reviews final integrated candidate next; remote CI/PR are separate gates.
-Preserve original corpora, frozen backend/frontend scope hashes and failed
-harness attempts. Production source cutover requires separately reviewed
-readiness/recovery pins. Older authority/freeze content below is historical.
+Branch fix/published-person-contact-methods is not deployed. Public isolated
+proof and historical production report are prepared before candidate freeze.
+Next VALIDATE: distinct Sol review exact new SHA/tree; only after acceptance
+publish follow-on PR (PR122 already merged) and verify exact-head remote CI.
+No automatic new source cutover; preserve reviewed readiness/recovery boundary.
+Older content below is historical and does not certify this repaired candidate.
 
 
 ---

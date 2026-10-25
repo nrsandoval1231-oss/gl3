@@ -1,128 +1,369 @@
 {
-  "recorded_at_utc": "2026-10-25T18:16:42.806131+00:00",
-  "candidate_base": "3ce9e8a68a6b988d1d8bfd8597e150f19ae36498",
-  "scope": "Frozen C28 backend, separately frozen C31 frontend, actual restored-company Cua proof; independent review and remote CI recorded separately at final commit",
-  "backend": {
-    "passed": 3026,
-    "subtests_passed": 7,
-    "skipped": 3,
-    "exit_code": 0,
-    "start_utc": "2026-10-25T17:54:57.527847+00:00",
-    "finish_utc": "2026-10-25T18:06:35.807754+00:00",
-    "source_unchanged": true,
-    "source_test_sha256": {
-      "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "496905e34e5162529b2493e57314b2d1c3f1410ae6ffb2dc043cdbf561a3ac2a",
-      "backend/src/gridlens/intelligence/buying_chain_extraction.py": "ad75758859b568aa65e27e7bd7b45f5bc531a31d5f86cb7ffcd95091edb95ef4",
-      "backend/src/gridlens/intelligence/company_contact_discovery.py": "c1cc893c150e1899daf9d25fe13b29b410b6ef3233b46a43a1c9b5e98ba2860a",
-      "backend/tests/unit/test_buying_chain_policy.py": "854e22c36427fbbd4d4127e7bf47e3b1740fe0652d5c2756c614938f2fd0c70f",
-      "backend/tests/integration/test_buying_chain.py": "3df454424fcacd3c8daabf775e79b7384dd882d64a6c8c4a6a0bfa91cee71f5d",
-      "backend/tests/fixtures/mes_team_person_cards.html": "c14708f3ca96bf534d7bbbc75a5ba8d46d40415df689401a5332d78b59b047fa"
+  "recorded_at_utc": "2026-10-25T19:08:24.541688+00:00",
+  "status": "PASS",
+  "source_freeze_sha256": "e539afa8cc4499d70694cd8051cb6b0632bee7b9e01bc99f4ca2f2b450953fe4",
+  "source_manifest_sha256": "14bff7b0923305713aebe1d6ee16628ba35540e5897060951ff987a428b76963",
+  "backend_source_test_sha256": {
+    "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "496905e34e5162529b2493e57314b2d1c3f1410ae6ffb2dc043cdbf561a3ac2a",
+    "backend/src/gridlens/intelligence/buying_chain_extraction.py": "ad75758859b568aa65e27e7bd7b45f5bc531a31d5f86cb7ffcd95091edb95ef4",
+    "backend/src/gridlens/intelligence/company_contact_discovery.py": "5cbf84562915c280cf2374164dbe7fd46479b87f93e73913fe04744202f112dc",
+    "backend/tests/fixtures/mes_team_person_cards.html": "c14708f3ca96bf534d7bbbc75a5ba8d46d40415df689401a5332d78b59b047fa",
+    "backend/tests/integration/test_buying_chain.py": "92b5425c3684fcc4caaddb5eb2e9287aefdbac3978311555d739342ddecfbcfb",
+    "backend/tests/unit/test_buying_chain_policy.py": "854e22c36427fbbd4d4127e7bf47e3b1740fe0652d5c2756c614938f2fd0c70f"
+  },
+  "web_source_test_sha256": {
+    "web/src/features/workspace/IntelligenceCard.tsx": "e6641513ae5a78b86012c5b8a024088268a4d8a5c8f4db53c3e0c5fc83d2c124",
+    "web/tests/workspace.spec.ts": "d900465dfa967d572d0a4def882bfae1c074046e8daaeafe1dfd6e7732c66b24"
+  },
+  "backend_pytest": {
+    "summary": "3029 passed, 3 skipped, 11 warnings, 7 subtests passed in 800.71s (0:13:20)",
+    "counts": {
+      "passed": 3029,
+      "skipped": 3,
+      "warnings": 11,
+      "subtests_passed": 7
+    },
+    "start_utc": "2026-10-25T18:50:11.980605+00:00",
+    "finish_utc": "2026-10-25T19:03:40.433859+00:00",
+    "receipt_sha256": "a23f7228edbdef80efaf4265266a0b02c6dcb2025308334994a204dd4236bce6"
+  },
+  "static_gates": [
+    {
+      "status": "PASS",
+      "label": "final-mypy-c35",
+      "receipt_sha256": "182a01c8c9f4ee4ff1cee8b72b0be0295d5a5d6bd4c13118d7bafbbb29819aa6"
+    },
+    {
+      "status": "PASS",
+      "label": "final-ruff-c35",
+      "receipt_sha256": "09f6488ba44edda20f3f58c7f9bfd7a8fa526cd8b1791f92bb3b8e53d36d2ec5"
+    },
+    {
+      "status": "PASS",
+      "label": "final-format-c35",
+      "receipt_sha256": "2f136455d27875f752a97a3d69e5f187ae964ceb523a2f6566c5567f8502333a"
+    },
+    {
+      "status": "PASS",
+      "label": "final-openapi-c35",
+      "receipt_sha256": "1d0c078017bb4c4595fc451d277b56adab72144fe2a8fe9fd1d68f9b4c9716fd"
+    },
+    {
+      "status": "PASS",
+      "label": "final-api-types-c35",
+      "receipt_sha256": "d240968693a9de42243c3a14dfd864ee5643102f98f162f2388f2a7f4f88c1ad"
+    },
+    {
+      "status": "PASS",
+      "label": "final-web-typecheck-c35",
+      "receipt_sha256": "8bfc0673e45582b5e6d7afb9d7b1726db2c70d4f53c1849066c96a17e9efd820"
+    },
+    {
+      "status": "PASS",
+      "label": "final-web-build-c35",
+      "receipt_sha256": "db985d820f8418ae61f1981c5f5a4b1457e31f8d3b941e2d5648d3fa7892e6bf"
     }
-  },
-  "backend_static": {
-    "final-mypy": {
-      "exit_code": 0,
-      "start_utc": "2026-10-25T17:50:58.478172+00:00",
-      "finish_utc": "2026-10-25T17:51:52.757822+00:00",
-      "output_summary": [
-        "Success: no issues found in 159 source files"
-      ]
-    },
-    "final-format": {
-      "exit_code": 0,
-      "start_utc": "2026-10-25T17:51:33.446463+00:00",
-      "finish_utc": "2026-10-25T17:51:33.866580+00:00",
-      "output_summary": [
-        "343 files already formatted"
-      ]
-    },
-    "final-ruff-backend": {
-      "exit_code": 0,
-      "start_utc": "2026-10-25T17:52:18.753136+00:00",
-      "finish_utc": "2026-10-25T17:52:18.857428+00:00",
-      "output_summary": [
-        "All checks passed!"
-      ]
-    },
-    "final-openapi": {
-      "exit_code": 0,
-      "start_utc": "2026-10-25T17:52:18.753136+00:00",
-      "finish_utc": "2026-10-25T17:52:20.644885+00:00",
-      "output_summary": []
-    }
-  },
-  "frontend": {
-    "source_test_sha256": {
-      "web/src/features/workspace/IntelligenceCard.tsx": "e6641513ae5a78b86012c5b8a024088268a4d8a5c8f4db53c3e0c5fc83d2c124",
-      "web/tests/workspace.spec.ts": "d900465dfa967d572d0a4def882bfae1c074046e8daaeafe1dfd6e7732c66b24"
-    },
-    "root_typecheck_exit": 0,
-    "root_build_exit": 0,
-    "build_modules": 60,
-    "generated_api_contracts_unchanged": true,
-    "browser_regression_execution": "Separate final-head remote CI gate; not claimed by this receipt"
-  },
-  "real_source_proof": {
-    "retained_report_sha256": "1900a5949061f79753daa2cf9a560fc4f6d09191453d8531620e3f779574ad0a",
-    "native_report_sha256": "86b135fcf4409c90e2adf7730cdbb8dbc181be417bdf71617b65494802b98e65",
-    "paid_provider_calls": 0,
-    "synthetic_contacts_counted": 0,
-    "no_hint_benchmark_claimed": false
-  },
-  "browser": {
-    "environment": "isolated production snapshot restore with actual existing MES company/project",
-    "normal_password_authentication": true,
-    "unauthenticated_api_status": 401,
-    "authenticated_api_status": 200,
-    "desktop_viewport": {
-      "height": 900,
-      "scrollWidth": 1280,
-      "width": 1280
-    },
-    "mobile_viewport": {
-      "height": 844,
-      "scrollWidth": 375,
-      "width": 390
-    },
-    "named_contacts": [
-      {
-        "authorityUnconfirmed": true,
-        "hasVerifiedDate": true,
-        "methods": [
-          "mailto:jspaw@mesltdtx.com"
-        ],
-        "name": "Josh Spaw"
-      },
-      {
-        "authorityUnconfirmed": true,
-        "hasVerifiedDate": true,
-        "methods": [
-          "mailto:jflippin@mesltdtx.com"
-        ],
-        "name": "Justin Flippin"
-      },
-      {
-        "authorityUnconfirmed": true,
-        "hasVerifiedDate": true,
-        "methods": [
-          "mailto:cbrannon@mesltdtx.com"
-        ],
-        "name": "Christopher Brannon"
-      }
-    ],
-    "source_links": "Exact official team source links verified in rendered DOM",
-    "reload_verified": true,
-    "existing_associated_account_unchanged": true,
-    "production_authenticated_ui": "UNKNOWN",
-    "screenshots": {
-      "person-method-desktop.png": "7c3f5a5d751fd42db171710c48b209bc79a497a38fa059bb89b05749c8a2e759",
-      "person-method-mobile.png": "0fca1de419daa191b4859797f7fc5ac84a48f56e8368d82ccf5570ceba444ac1"
-    }
-  },
-  "failed_attempts_retained": [
-    "Initial full gate refused test DB suffix _tests; corrected owned harness used separate migrated application and _test DBs.",
-    "Initial root Ruff command used repository cwd; canonical backend-cwd Ruff passed without source changes.",
-    "Initial native proof correctly reused fresh stored contact; fresh-clone native proof exercised HTTPS without disabling Level1."
   ],
-  "commercial_p0": "OPEN; isolated person-method proof does not change production census, prove buyer authority, or establish production UI acceptance"
+  "static_gate_times_utc": {
+    "mypy": {
+      "start_utc": "2026-10-25T18:50:11.941488+00:00",
+      "finish_utc": "2026-10-25T18:51:13.509755+00:00"
+    },
+    "ruff": {
+      "start_utc": "2026-10-25T18:50:50.011846+00:00",
+      "finish_utc": "2026-10-25T18:50:50.478511+00:00"
+    },
+    "format": {
+      "start_utc": "2026-10-25T18:50:50.010274+00:00",
+      "finish_utc": "2026-10-25T18:50:50.474795+00:00"
+    },
+    "openapi": {
+      "start_utc": "2026-10-25T18:50:50.028866+00:00",
+      "finish_utc": "2026-10-25T18:50:52.293829+00:00"
+    },
+    "api-types": {
+      "start_utc": "2026-10-25T18:51:06.277138+00:00",
+      "finish_utc": "2026-10-25T18:51:11.816163+00:00"
+    },
+    "web-typecheck": {
+      "start_utc": "2026-10-25T18:52:43.533605+00:00",
+      "finish_utc": "2026-10-25T18:52:47.219803+00:00"
+    },
+    "web-build": {
+      "start_utc": "2026-10-25T18:53:07.623851+00:00",
+      "finish_utc": "2026-10-25T18:53:13.883594+00:00"
+    }
+  },
+  "c34_report_hashes": {
+    "c34-retained-report.json": "16fd322027f12f82928e5b9ecc18e8d2eedaf8c3a7f3d93bb5904d3c33903416",
+    "c34-native-report.json": "d975a5fb8fd569ca8d914ee2552fece282d4d474ed9021730775d6cf03d6226a"
+  },
+  "c36_receipt_hashes": {
+    "c36-desktop-dom.json": "8a90d1cc3c65f1a6279063cfa7a4eb21c6086235697a5b90a0bf816268ec59b9",
+    "c36-mobile-dom.json": "d975ec1e8cf5f546bc9940f85aec660227bbf7b827104c88beacbb6ea9ada5a0",
+    "c36-mobile-reload.json": "2b9831ffd8c5b0d8c1b9ddd9c00a08b08dc47dfe34095465da1b9c380739df39",
+    "c36-derived-browse-rebuild.json": "8164b3a46976ca178f662eb7d27b71ce210ed6b99e968ca1435a347456364cc5",
+    "c36-post-ui-preservation.json": "56b77f074db6cf35f9114bba53b04b63c74e0eb092285f6450ff9cedf1538c3a",
+    "c36-desktop.png": "de9a00d13d673a142468017b1a6cd1cd80bcb272b02b9484b91ebf6abb85966f",
+    "c36-mobile.png": "aa32a474a3fba5df3c84dda5a6be230a89f3d0d4e3d95290e35e1998a2451e7f"
+  },
+  "protected_table_aggregates": {
+    "retained_phase": {
+      "buying_chain_claims": {
+        "original_rows": 1165,
+        "current_rows": 1170,
+        "new_rows": 5,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_corrections": {
+        "original_rows": 0,
+        "current_rows": 0,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_evidence": {
+        "original_rows": 1115,
+        "current_rows": 1116,
+        "new_rows": 1,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_identity_links": {
+        "original_rows": 909,
+        "current_rows": 914,
+        "new_rows": 5,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_identities": {
+        "original_rows": 1154,
+        "current_rows": 1154,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_project_membership_corrections": {
+        "original_rows": 0,
+        "current_rows": 0,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_project_memberships": {
+        "original_rows": 2257,
+        "current_rows": 2257,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "evidence": {
+        "original_rows": 25153,
+        "current_rows": 25153,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "observations": {
+        "original_rows": 20700,
+        "current_rows": 20700,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "power_needs": {
+        "original_rows": 1903,
+        "current_rows": 1903,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "projects": {
+        "original_rows": 1903,
+        "current_rows": 1903,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      }
+    },
+    "native_phase": {
+      "buying_chain_claims": {
+        "original_rows": 1165,
+        "current_rows": 1170,
+        "new_rows": 5,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_corrections": {
+        "original_rows": 0,
+        "current_rows": 0,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_evidence": {
+        "original_rows": 1115,
+        "current_rows": 1117,
+        "new_rows": 2,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_identity_links": {
+        "original_rows": 909,
+        "current_rows": 914,
+        "new_rows": 5,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_identities": {
+        "original_rows": 1154,
+        "current_rows": 1154,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_project_membership_corrections": {
+        "original_rows": 0,
+        "current_rows": 0,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_project_memberships": {
+        "original_rows": 2257,
+        "current_rows": 2257,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "evidence": {
+        "original_rows": 25153,
+        "current_rows": 25153,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "observations": {
+        "original_rows": 20700,
+        "current_rows": 20700,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "power_needs": {
+        "original_rows": 1903,
+        "current_rows": 1903,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "projects": {
+        "original_rows": 1903,
+        "current_rows": 1903,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      }
+    },
+    "post_ui_readback": {
+      "buying_chain_claims": {
+        "original_rows": 1165,
+        "current_rows": 1170,
+        "new_rows": 5,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_corrections": {
+        "original_rows": 0,
+        "current_rows": 0,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_evidence": {
+        "original_rows": 1115,
+        "current_rows": 1116,
+        "new_rows": 1,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "buying_chain_identity_links": {
+        "original_rows": 909,
+        "current_rows": 914,
+        "new_rows": 5,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_identities": {
+        "original_rows": 1154,
+        "current_rows": 1154,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_project_membership_corrections": {
+        "original_rows": 0,
+        "current_rows": 0,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "company_project_memberships": {
+        "original_rows": 2257,
+        "current_rows": 2257,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "evidence": {
+        "original_rows": 25153,
+        "current_rows": 25153,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "observations": {
+        "original_rows": 20700,
+        "current_rows": 20700,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "power_needs": {
+        "original_rows": 1903,
+        "current_rows": 1903,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      },
+      "projects": {
+        "original_rows": 1903,
+        "current_rows": 1903,
+        "new_rows": 0,
+        "original_rows_changed": 0,
+        "original_rows_missing": 0
+      }
+    }
+  },
+  "company_identities": 1154,
+  "screenshots": {
+    "desktop": {
+      "media_type": "image/jpeg",
+      "width": 1280,
+      "height": 900,
+      "sha256": "de9a00d13d673a142468017b1a6cd1cd80bcb272b02b9484b91ebf6abb85966f"
+    },
+    "mobile": {
+      "media_type": "image/jpeg",
+      "width": 375,
+      "height": 812,
+      "sha256": "aa32a474a3fba5df3c84dda5a6be230a89f3d0d4e3d95290e35e1998a2451e7f"
+    }
+  },
+  "mobile_reload_matches": true,
+  "viewport_overflow": false,
+  "remote_ci": "UNKNOWN/pending",
+  "independent_review": "UNKNOWN/pending",
+  "production_authenticated_ui": "UNKNOWN"
 }

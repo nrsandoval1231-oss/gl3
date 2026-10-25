@@ -1,223 +1,320 @@
 {
-  "proof_id": "c29-person-method-isolated-r1",
-  "status": "PASS for isolated retained-data projection and fresh-clone native retrieval evidence only",
-  "evidence_boundary": "Not production evidence, not part of the production 185-company census, not a no-hint autonomous benchmark, and not an authenticated production UI proof.",
-  "candidate_base": "3ce9e8a68a6b988d1d8bfd8597e150f19ae36498",
-  "company": {
-    "canonical_name": "Masters Electrical Services, Ltd",
+  "title": "Published person methods: isolated validation",
+  "scope": "isolated known-source validation; not a 20-company no-hint benchmark or production census",
+  "result": {
+    "recorded_at_utc": "2026-10-25T19:08:24.541688+00:00",
+    "status": "PASS",
+    "classification": "isolated known-source validation; not a 20-company no-hint benchmark or production census",
+    "candidate_base": "3ce9e8a68a6b988d1d8bfd8597e150f19ae36498",
+    "company": "Masters Electrical Services, Ltd",
     "company_identity_id": "080d8642-719f-4451-94aa-d88c17158bd7",
     "associated_project_id": "79162cd1-4ac4-4dc1-8ff5-6f3e12aec653",
-    "native_job_id": "e3dfe7d7-411b-4ecf-acda-df9c364dd53a"
-  },
-  "retained_phase": {
-    "report_sha256": "1900a5949061f79753daa2cf9a560fc4f6d09191453d8531620e3f779574ad0a",
-    "phase": "retained",
-    "paid_provider_calls": 0,
-    "provider_cost_usd": 0,
-    "logical_call_ledger_unchanged": true,
-    "new_company_identity": false,
-    "replay": {
-      "same_job_id": true,
-      "job_count_stable_after_replay": true,
-      "full_contact_and_claim_projection_stable": true,
-      "row_counts_stable": true,
-      "associated_account_unchanged_from_baseline": true,
-      "second_worker_run_returned": false,
-      "contact_discovery_job_count_after_replay": 1,
-      "method_digest_stable_after_replay": true
-    },
-    "api_projection": {
-      "account_contacts_api_status": 200,
-      "named_professionals": 3,
-      "published_person_methods": 3,
-      "direct_buyer_authority": "UNKNOWN"
-    }
-  },
-  "native_phase": {
-    "report_sha256": "86b135fcf4409c90e2adf7730cdbb8dbc181be417bdf71617b65494802b98e65",
-    "observed_at_utc": "2026-10-25T18:04:01.014457+00:00",
-    "elapsed_seconds": 5.922,
-    "native_https_observations": 2,
-    "retrieved_sources": [
+    "named_contact_count": 3,
+    "named_emails": 3,
+    "named_phones": 0,
+    "authority": "UNKNOWN for all named contacts",
+    "generic_company_routes": 22,
+    "distinct_company_methods": 25,
+    "retained_phase": "partial: contact-page navigation was deliberately blocked; deterministic replay remained stable",
+    "native_phase": "complete",
+    "native_source_observations": [
       {
-        "title": "Meet the Masters Electrical Services Team",
         "url": "https://www.mesltdtx.com/team",
-        "observed_at_utc": "2026-10-25T18:04:02.308507+00:00",
-        "published_at_utc": null
+        "observed_at": "2026-10-25T18:51:11.877187+00:00",
+        "extracted_text_sha256": "b6c1d61ded43ef83b3763068b74adf3270d8653228de711189564837a88f4a3d",
+        "title": "Meet the Masters Electrical Services Team",
+        "observation_mode": "native-https-observation"
       },
       {
-        "title": "Contact Masters Electrical Services, LTD.",
         "url": "https://www.mesltdtx.com/contact",
-        "observed_at_utc": "2026-10-25T18:04:03.065223+00:00",
-        "published_at_utc": null
+        "observed_at": "2026-10-25T18:51:12.635788+00:00",
+        "extracted_text_sha256": "4e86343613ec795dc4e7cb1e2462c1505f720641ea9060bf40a54b9268505398",
+        "title": "Contact Masters Electrical Services, LTD.",
+        "observation_mode": "native-https-observation"
       }
     ],
-    "contact_discovery_jobs_added": 1,
-    "job_status": "succeeded",
     "paid_provider_calls": 0,
     "provider_cost_usd": 0,
-    "logical_call_ledger_unchanged": true,
-    "new_company_identity": false,
-    "account_contacts_api_status": 200,
-    "unauthenticated_api_status": 401,
-    "direct_buyer_authority": "UNKNOWN",
-    "qualification_or_buyer_authority_claimed": false
-  },
-  "methods": [
-    {
-      "name": "Josh Spaw",
-      "title": "Project Manager",
-      "role": "electrical contractor",
-      "responsibility": "Inferred likely role",
-      "email": "jspaw@mesltdtx.com",
-      "phone": null,
-      "phone_status": "No phone method observed in these source pages",
-      "source_url": "https://www.mesltdtx.com/team",
-      "source_observed_at_utc": "2026-10-25T18:04:02.308507+00:00",
-      "method_verified_at_utc": "2026-10-25T18:04:02.308507+00:00",
-      "source_published_at_utc": null,
-      "purchasing_authority": "UNKNOWN; requires confirmation for this power package"
+    "new_company_identities": 0,
+    "protected_table_aggregates": {
+      "retained_phase": {
+        "buying_chain_claims": {
+          "original_rows": 1165,
+          "current_rows": 1170,
+          "new_rows": 5,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_corrections": {
+          "original_rows": 0,
+          "current_rows": 0,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_evidence": {
+          "original_rows": 1115,
+          "current_rows": 1116,
+          "new_rows": 1,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_identity_links": {
+          "original_rows": 909,
+          "current_rows": 914,
+          "new_rows": 5,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_identities": {
+          "original_rows": 1154,
+          "current_rows": 1154,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_project_membership_corrections": {
+          "original_rows": 0,
+          "current_rows": 0,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_project_memberships": {
+          "original_rows": 2257,
+          "current_rows": 2257,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "evidence": {
+          "original_rows": 25153,
+          "current_rows": 25153,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "observations": {
+          "original_rows": 20700,
+          "current_rows": 20700,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "power_needs": {
+          "original_rows": 1903,
+          "current_rows": 1903,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "projects": {
+          "original_rows": 1903,
+          "current_rows": 1903,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        }
+      },
+      "native_phase": {
+        "buying_chain_claims": {
+          "original_rows": 1165,
+          "current_rows": 1170,
+          "new_rows": 5,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_corrections": {
+          "original_rows": 0,
+          "current_rows": 0,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_evidence": {
+          "original_rows": 1115,
+          "current_rows": 1117,
+          "new_rows": 2,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_identity_links": {
+          "original_rows": 909,
+          "current_rows": 914,
+          "new_rows": 5,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_identities": {
+          "original_rows": 1154,
+          "current_rows": 1154,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_project_membership_corrections": {
+          "original_rows": 0,
+          "current_rows": 0,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_project_memberships": {
+          "original_rows": 2257,
+          "current_rows": 2257,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "evidence": {
+          "original_rows": 25153,
+          "current_rows": 25153,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "observations": {
+          "original_rows": 20700,
+          "current_rows": 20700,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "power_needs": {
+          "original_rows": 1903,
+          "current_rows": 1903,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "projects": {
+          "original_rows": 1903,
+          "current_rows": 1903,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        }
+      },
+      "post_ui_readback": {
+        "buying_chain_claims": {
+          "original_rows": 1165,
+          "current_rows": 1170,
+          "new_rows": 5,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_corrections": {
+          "original_rows": 0,
+          "current_rows": 0,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_evidence": {
+          "original_rows": 1115,
+          "current_rows": 1116,
+          "new_rows": 1,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "buying_chain_identity_links": {
+          "original_rows": 909,
+          "current_rows": 914,
+          "new_rows": 5,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_identities": {
+          "original_rows": 1154,
+          "current_rows": 1154,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_project_membership_corrections": {
+          "original_rows": 0,
+          "current_rows": 0,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "company_project_memberships": {
+          "original_rows": 2257,
+          "current_rows": 2257,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "evidence": {
+          "original_rows": 25153,
+          "current_rows": 25153,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "observations": {
+          "original_rows": 20700,
+          "current_rows": 20700,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "power_needs": {
+          "original_rows": 1903,
+          "current_rows": 1903,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        },
+        "projects": {
+          "original_rows": 1903,
+          "current_rows": 1903,
+          "new_rows": 0,
+          "original_rows_changed": 0,
+          "original_rows_missing": 0
+        }
+      }
     },
-    {
-      "name": "Justin Flippin",
-      "title": "Project Manager",
-      "role": "electrical contractor",
-      "responsibility": "Inferred likely role",
-      "email": "jflippin@mesltdtx.com",
-      "phone": null,
-      "phone_status": "No phone method observed in these source pages",
-      "source_url": "https://www.mesltdtx.com/team",
-      "source_observed_at_utc": "2026-10-25T18:04:02.308507+00:00",
-      "method_verified_at_utc": "2026-10-25T18:04:02.308507+00:00",
-      "source_published_at_utc": null,
-      "purchasing_authority": "UNKNOWN; requires confirmation for this power package"
-    },
-    {
-      "name": "Christopher Brannon",
-      "title": "Purchasing Manager",
-      "role": "procurement",
-      "responsibility": "Inferred likely role",
-      "email": "cbrannon@mesltdtx.com",
-      "phone": null,
-      "phone_status": "No phone method observed in these source pages",
-      "source_url": "https://www.mesltdtx.com/team",
-      "source_observed_at_utc": "2026-10-25T18:04:02.308507+00:00",
-      "method_verified_at_utc": "2026-10-25T18:04:02.308507+00:00",
-      "source_published_at_utc": null,
-      "purchasing_authority": "UNKNOWN; requires confirmation for this power package"
+    "implementation_history": [
+      "C32 review identified a named-card source checkpoint reason/count defect.",
+      "The source fix makes named-only accepted methods advance organization revision/supersession while preserving historical generic methods and unrelated current methods.",
+      "Two overlapping local test-harness runs caused DDL deadlocks/missing tables; both were retained and neither was used as final evidence.",
+      "A later exclusive run exposed a test-ordering assumption; the test was corrected without changing source behavior.",
+      "The exclusive 182-affected-test run and the root C35 full gate passed on the frozen candidate; the root gate reports 3,029 passed, 3 skipped, 11 warnings, and 7 subtests passed."
+    ],
+    "source_artifacts_sha256": {
+      "c34-retained-report.json": "16fd322027f12f82928e5b9ecc18e8d2eedaf8c3a7f3d93bb5904d3c33903416",
+      "c34-native-report.json": "d975a5fb8fd569ca8d914ee2552fece282d4d474ed9021730775d6cf03d6226a",
+      "c34-restore-intent.json": "25c626a96cdf2ba1045ea6f4a60bbd67309dff10c26011ffc321104b372674fd",
+      "c34-restore-receipt.json": "642e25f79d33bf3740d2de62a773557ef73eb59a185f4157fa5a4c95ac51a94c",
+      "c34-replay-baseline.json": "431a132c4d8dc9b5c09ce44f192f3215afbde3111f89c9eec13b7885c5f81b47",
+      "c34-native-baseline.json": "35b3c8ced6946fee5acab2cc8a85b52f037417cfece2e812cd9b77d12d15e225",
+      "c36-desktop-dom.json": "8a90d1cc3c65f1a6279063cfa7a4eb21c6086235697a5b90a0bf816268ec59b9",
+      "c36-mobile-dom.json": "d975ec1e8cf5f546bc9940f85aec660227bbf7b827104c88beacbb6ea9ada5a0",
+      "c36-mobile-reload.json": "2b9831ffd8c5b0d8c1b9ddd9c00a08b08dc47dfe34095465da1b9c380739df39",
+      "c36-derived-browse-rebuild.json": "8164b3a46976ca178f662eb7d27b71ce210ed6b99e968ca1435a347456364cc5",
+      "c36-post-ui-preservation.json": "56b77f074db6cf35f9114bba53b04b63c74e0eb092285f6450ff9cedf1538c3a",
+      "c36-desktop.png": "de9a00d13d673a142468017b1a6cd1cd80bcb272b02b9484b91ebf6abb85966f",
+      "c36-mobile.png": "aa32a474a3fba5df3c84dda5a6be230a89f3d0d4e3d95290e35e1998a2451e7f",
+      "c35-source-freeze.json": "e539afa8cc4499d70694cd8051cb6b0632bee7b9e01bc99f4ca2f2b450953fe4",
+      "c35-source-manifest.json": "14bff7b0923305713aebe1d6ee16628ba35540e5897060951ff987a428b76963",
+      "c28-final-mypy-c35-receipt.json": "182a01c8c9f4ee4ff1cee8b72b0be0295d5a5d6bd4c13118d7bafbbb29819aa6",
+      "c28-final-ruff-c35-receipt.json": "09f6488ba44edda20f3f58c7f9bfd7a8fa526cd8b1791f92bb3b8e53d36d2ec5",
+      "c28-final-format-c35-receipt.json": "2f136455d27875f752a97a3d69e5f187ae964ceb523a2f6566c5567f8502333a",
+      "c28-final-openapi-c35-receipt.json": "1d0c078017bb4c4595fc451d277b56adab72144fe2a8fe9fd1d68f9b4c9716fd",
+      "c28-final-api-types-c35-receipt.json": "d240968693a9de42243c3a14dfd864ee5643102f98f162f2388f2a7f4f88c1ad",
+      "c28-final-web-typecheck-c35-receipt.json": "8bfc0673e45582b5e6d7afb9d7b1726db2c70d4f53c1849066c96a17e9efd820",
+      "c28-final-web-build-c35-receipt.json": "db985d820f8418ae61f1981c5f5a4b1457e31f8d3b941e2d5648d3fa7892e6bf"
     }
-  ],
-  "counts": {
-    "named_professionals": 3,
-    "distinct_published_emails": 3,
-    "published_phone_methods": 0,
-    "direct_buyer_methods": 0,
-    "company_identity_count_before_and_after": 1154,
-    "new_company_identity_ids": 0,
-    "protected_table_count": 11
   },
-  "protected_rows_aggregate_only": {
-    "buying_chain_claims": {
-      "before_count": 1165,
-      "after_count": 1170,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 5
-    },
-    "buying_chain_corrections": {
-      "before_count": 0,
-      "after_count": 0,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 0
-    },
-    "buying_chain_evidence": {
-      "before_count": 1115,
-      "after_count": 1117,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 2
-    },
-    "buying_chain_identity_links": {
-      "before_count": 909,
-      "after_count": 914,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 5
-    },
-    "company_identities": {
-      "before_count": 1154,
-      "after_count": 1154,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 0
-    },
-    "company_project_membership_corrections": {
-      "before_count": 0,
-      "after_count": 0,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 0
-    },
-    "company_project_memberships": {
-      "before_count": 2257,
-      "after_count": 2257,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 0
-    },
-    "evidence": {
-      "before_count": 25153,
-      "after_count": 25153,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 0
-    },
-    "observations": {
-      "before_count": 20700,
-      "after_count": 20700,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 0
-    },
-    "power_needs": {
-      "before_count": 1903,
-      "after_count": 1903,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 0
-    },
-    "projects": {
-      "before_count": 1903,
-      "after_count": 1903,
-      "original_missing_count": 0,
-      "original_changed_count": 0,
-      "new_row_count": 0
-    }
-  },
-  "frozen_c28_source_file_sha256": {
-    "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "496905e34e5162529b2493e57314b2d1c3f1410ae6ffb2dc043cdbf561a3ac2a",
-    "backend/src/gridlens/intelligence/buying_chain_extraction.py": "ad75758859b568aa65e27e7bd7b45f5bc531a31d5f86cb7ffcd95091edb95ef4",
-    "backend/src/gridlens/intelligence/company_contact_discovery.py": "c1cc893c150e1899daf9d25fe13b29b410b6ef3233b46a43a1c9b5e98ba2860a",
-    "backend/tests/fixtures/mes_team_person_cards.html": "c14708f3ca96bf534d7bbbc75a5ba8d46d40415df689401a5332d78b59b047fa",
-    "backend/tests/integration/test_buying_chain.py": "3df454424fcacd3c8daabf775e79b7384dd882d64a6c8c4a6a0bfa91cee71f5d",
-    "backend/tests/unit/test_buying_chain_policy.py": "854e22c36427fbbd4d4127e7bf47e3b1740fe0652d5c2756c614938f2fd0c70f"
-  },
-  "related_handoffs": {
-    "c29_r1_handoff_sha256": "60f5902fee968cd6dae91ae2cb41f46917ace307010a0d9b8180238b929fa019",
-    "c28_r1_handoff_sha256": "bce48ecdb54ff6847473818529494aaf57f61655988089f68d50e1769fbea521"
+  "contacts_csv": "person-method-contacts.csv",
+  "screenshots": {
+    "desktop": "person-method-desktop.png",
+    "mobile": "person-method-mobile.png"
   },
   "limitations": [
-    "Three literal emails were observed on the official team page; no phone methods were observed in the two retrieved pages.",
-    "Purchasing authority and project decision-maker status remain UNKNOWN.",
-    "The initial native attempt correctly reused an existing named contact and halted at the fresh-fetch assertion before HTTP retrieval or provider calls. A separate fresh original-dump clone was used for this R1 native proof without bypassing the production waterfall.",
-    "No no-hint claim is made: this bounded validation explicitly retrieved two official MES URLs.",
-    "This proof does not change or update the 185-company production census.",
-    "Authenticated production UI remains UNKNOWN. C31 date-fix integration, full backend gate, and final combined independent review remain pending."
-  ],
-  "restore_boundary": {
-    "separate_isolated_database_restores": true,
-    "same_verified_original_dump_source": true,
-    "database_names_and_dump_details_omitted": true
-  }
+    "Purchasing authority remains unknown and requires confirmation.",
+    "The production authenticated contact UI remains unverified.",
+    "This proof does not revise the production census or historical no-hint benchmark."
+  ]
 }

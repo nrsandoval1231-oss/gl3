@@ -1183,15 +1183,6 @@ def _discover_anchor(
                 "supports": "public_contact",
             }
         )
-    if not contacts:
-        if named_count:
-            return {
-                "status": "complete",
-                "contacts": 0,
-                "named_professionals": named_count,
-                "reason": "official_role_without_public_method",
-            }
-        return {"status": "unresolved", "reason": "no_literal_company_method"}
     # A refreshed contact page cannot erase a separately sourced current method.
     current_methods = [
         method
@@ -1207,6 +1198,25 @@ def _discover_anchor(
             for c in citations
         )
     ]
+    generic_method_keys = {
+        _method_key(
+            str(method.get("source_url") or ""),
+            str(method.get("kind") or ""),
+            str(method.get("value") or ""),
+        )
+        for method in [*current_methods, *contacts]
+        if method.get("source_url") and method.get("kind") and method.get("value")
+    }
+    accepted_method_keys = named_method_keys | generic_method_keys
+    if not accepted_method_keys:
+        if named_count:
+            return {
+                "status": "complete",
+                "contacts": 0,
+                "named_professionals": named_count,
+                "reason": "official_role_without_public_method",
+            }
+        return {"status": "unresolved", "reason": "no_literal_company_method"}
     contacts = list(
         {
             (method["kind"], method["value"], method["source_url"]): method
@@ -1293,8 +1303,15 @@ def _discover_anchor(
     _append_run_claim(session, project, copy, evidence_ids, now, replaces=old.id)
     return {
         "status": "complete",
-        "contacts": len(contacts),
+        "contacts": len(accepted_method_keys),
         "named_professionals": named_count,
+        "reason": (
+            "named_and_generic_public_methods_persisted"
+            if named_method_keys and generic_method_keys
+            else "named_public_methods_persisted"
+            if named_method_keys
+            else "generic_public_methods_persisted"
+        ),
         "source_class": "official_company_site" if documents else "public_registry",
     }
 

@@ -1,27 +1,26 @@
-# Current frontier after release
+# Current frontier: repaired source validation
 
-Owner approve-all supersedes historical no-transport holds below. C14 source559
-independent PASS/CI40206125623 PASS. C15 inventory/recovery -> C16 exact-image
-restore/rollback -> C17 merge/canary/ordinary-worker resume -> C18 pilot -> C19
-185-company backfill -> C20 protection -> C21 finite automatic activation ->
-C22 diagnosis -> C23 report -> C24/C25 independent bounded runtime PASS.
+C14 source559 PASS/CI40206125623 PASS -> mergedPR122/controlled release ->
+C19 primary185backfill/C20preservation/C21finiteactivation -> C24/C25boundedPASS.
+These production snapshots remain distinct from source changes below.
 
-C26 released-v12 report DONE. Primary185:14usable/34emails/8phones/0direct;
-first separate automatic25 jobs complete. Later18:12/18:14 readback235searches/
-470credits/1984remainingcredits/15calls under unchanged250call envelope. No
-new coverage census inferred. Production UI UNKNOWN; commercial P0 OPEN.
+C27 strict person-card architecture DONE -> C28R1/C29/C30/C31 historicalPASS ->
+C32 exact1f17d21 independent FIX -> C28R2 truthful counts/reasons -> C35 refresh
+supersession and deterministic replay correction DONE. Failed/interrupted local
+attempts retained; no unreviewed architecture expansion. Frozen backend14bff7...
+and unchanged two C31 web files: root full gate 3029 passed, 3 skipped, 11 warnings, 7 subtests passed in 800.71s (0:13:20); static/API/web gatesPASS.
+C34 fresh retained/native proof and C36 Cua desktop/mobile/reload plus post-UI
+original11tables/1154IDs PASS. Three literal actual-company emails,0paidcalls;
+official-known-URL proof, not another20/185coverage result. AuthorityUNKNOWN.
+C37 public evidence prepared before integrated freeze. C38 distinctSol independent
+review READY on new exactcandidate; C39 follow-onPR/remoteCI depends on acceptance.
+PR122merged, so a follow-on continuation is necessary. New source not deployed.
 
-C27 narrow person-card architecture DONE -> C28R1 backend/fullgates PASS ->
-C29 actual retained/native-source PostgreSQL/API/replay PASS -> C30 Cua normal-
-auth desktop/mobile/reload PASS -> C31 method-date display correction PASS
-(root typecheck/build and Cua; browser regressions await remote CI) -> C32
-exact integrated independent Sol review READY -> C33 follow-on PR/CI after
-independent acceptance. PR122 already merged, requiring follow-on continuation.
-New source is not deployed. Preserve frozen backend/frontend scope hashes,
-original corpora, failed harness attempts and known-source/no-hint distinction.
-No new schema/store/provider/identity merge/design or paid C27-C31 calls.
-New production cutover needs its own accepted readiness/recovery boundary;
-do not reuse old C17 pins blindly. See ignored bounded packets/handoffs.
+Production559 finite250call/$2.50 ceiling unchanged,1activecall. Frozenprimary185
+coverage14/185; firstautomatic25 separate. Later18:12/18:14 operationalsnapshot
+235searches/470credits is historical, no later coverage inferred. Lead/Prospect
+N/A, TXonly. ProductionUIUNKNOWN/commercialP0OPEN. No newprovider/recharge/outreach.
+New source cutover requires a separately reviewed recovery/readiness boundary.
 
 Historical graph and original freeze:
 
