@@ -57,7 +57,7 @@ TASK_TYPE = "company_contact_discovery"
 MAX_CANDIDATE_URLS = 4
 MAX_ANCHOR_PROJECTS = 16
 MAX_SECONDS = 35
-POLICY_VERSION = "company-contact-discovery-v10"
+POLICY_VERSION = "company-contact-discovery-v11"
 
 
 def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
@@ -750,29 +750,40 @@ def _brand_key(value: str) -> str:
 
 
 def _self_identified_company_site(doc: PublicDocument, organization: str) -> bool:
-    """Require a first-party self-identification, not an article mentioning a company."""
-    host = validate_public_url(doc.url).split("/", 3)[2].casefold()
+    """Require the site's publisher identity, not a directory subject profile."""
+    host = (urlsplit(validate_public_url(doc.url)).hostname or "").casefold().removeprefix("www.")
     if host.endswith((".gov", ".mil")):
         return False
+    publisher_names: list[str] = []
     for row in doc.structured:
         if not isinstance(row, dict) or row.get("@type") != "Organization":
             continue
         declared = row.get("name")
-        official_url = row.get("url")
+        if not isinstance(declared, str) or not declared.strip():
+            continue
+        # A declared profile URL makes this a subject record even if its @id
+        # happens to use a root fragment. Use @id only when no URL is declared.
+        official_url = row.get("url") or row.get("@id")
+        if not isinstance(official_url, str):
+            continue
+        try:
+            root = urlsplit(validate_public_url(official_url))
+        except ValueError:
+            continue
         if (
-            isinstance(declared, str)
-            and isinstance(official_url, str)
-            and _normal(declared) == _normal(organization)
+            (root.hostname or "").casefold().removeprefix("www.") == host
+            and root.path == "/"
+            and not root.query
         ):
-            try:
-                if validate_public_url(official_url).split("/", 3)[2].casefold() == host:
-                    return True
-            except ValueError:
-                pass
+            publisher_names.append(declared)
     # Native HTML extraction can replace the copyright glyph with U+FFFD.
     # Match a terminal legal footer, including punctuation/case variations in
     # the registered company name, without accepting article mentions.
-    footer_lines = doc.text.splitlines()[-12:]
+    footer_lines = [
+        line
+        for line in doc.text.splitlines()
+        if not (line.lstrip().startswith("{") and '"@type": "Organization"' in line)
+    ][-12:]
     for line in footer_lines:
         match = re.fullmatch(
             r"\s*(?:(?:©|\ufffd|copyright)\s*\d{4}(?:\s*[-–]\s*\d{4})?\s+"
@@ -782,10 +793,14 @@ def _self_identified_company_site(doc: PublicDocument, organization: str) -> boo
             line,
             re.I,
         )
-        if match and _brand_key(match.group("name") or match.group("name_first")) == _brand_key(
-            organization
-        ):
-            return True
+        if match:
+            publisher_names.append(match.group("name") or match.group("name_first"))
+    publisher_keys = {_brand_key(name) for name in publisher_names}
+    # Conflicting root Organization or legal-footer declarations are ambiguous.
+    # A profile Organization whose URL is merely on this host never proves
+    # ownership of the site or its page-wide contact methods.
+    if publisher_keys:
+        return publisher_keys == {_brand_key(organization)}
     # Some small official sites use the registered name as the home-page title
     # and an explicit first-person self-description, with no legal footer.
     if urlsplit(doc.url).path in {"", "/"} and _brand_key(doc.title) == _brand_key(organization):

@@ -71,7 +71,10 @@ UNKNOWN. The owner approved up to160existing-plan Firecrawl credits for isolated
 validation. The first no-hint20company trial completed20searches and consumed
 40observed credits (2614to2574); actual cash billing remains UNKNOWN. Its1/20usable
 coverage is retained in [the v9 report](firecrawl-v9-results.json). A matched
-policyv10 rerun is limited to40additional credits, cumulative80/160. The bounded
+policyv10 rerun consumed40additional credits, cumulative80/160. Its apparent
+50% coverage was rejected for directory publisher misattribution; see the
+[failed result](firecrawl-v10-rejected-results.json). The corrected v11 rerun is
+limited to40additional credits, cumulative120/160. The bounded
 sample is not a coverage or cost forecast for all235companies. This isolated-use
 approval does not authorize production enrichment, recharge or a new subscription.
 

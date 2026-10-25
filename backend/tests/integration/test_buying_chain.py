@@ -419,6 +419,98 @@ def test_unverified_company_page_links_are_never_followed(db, monkeypatch):
     assert len(checkpoint["checked_urls"]) <= 4
 
 
+def test_directory_profile_never_persists_publisher_method_for_listed_company(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+
+    target = "DE Central Operating LLC"
+    url = "https://www.buckheadenergy.com/operators/de-central-operating-llc"
+    html = """<html><head><title>DE Central Operating LLC | Buckhead Energy</title>
+    <script type="application/ld+json">{"@graph":[
+      {"@context":"https://schema.org","@type":"Organization",
+       "@id":"https://www.buckheadenergy.com/#organization",
+       "name":"Buckhead Energy","url":"https://www.buckheadenergy.com/",
+       "email":"land@buckheadenergy.com"},
+      {"@context":"https://schema.org","@type":"Organization",
+       "name":"DE Central Operating LLC",
+       "url":"https://www.buckheadenergy.com/operators/de-central-operating-llc"}
+    ]}</script></head><body><main><h1>DE Central Operating LLC</h1>
+    <p>Listed operator profile. Email: land@buckheadenergy.com.</p>
+    <p>Phone: (817) 555-0144</p><a href="/contact/">Contact</a></main>
+    <footer>© 2026 Buckhead Energy</footer></body></html>"""
+    with db.begin() as session:
+        project = seed(session, external_id="directory-profile-publisher")
+        project.region_status = "ELIGIBLE"
+        retained = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "directory-profile-publisher")
+        )
+        assert retained is not None
+        retained.title = f"RRC permit for {target}"
+        retained.abstract = f"{target} is the asset operator on this physical project."
+        identity = CompanyIdentity()
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="asset_operator",
+                organization_name=target,
+                source_id="test",
+                source_evidence_id=retained.id,
+                source_version_hash=retained.content_hash,
+                decision_basis="typed_source_v1",
+                operator_number="000000",
+                state="current",
+            )
+        )
+        queued = discovery.discover_company_contacts(session, identity.id, candidate_urls=[url])
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "directory-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id, company_id = job.id, identity.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    fetched = []
+
+    def public_page(address, **_kwargs):
+        fetched.append(address)
+        assert address == url  # A directory cannot authorize same-host navigation.
+        return parse_document(address, html.encode(), "text/html")
+
+    monkeypatch.setattr(discovery, "retrieve", public_page)
+    result = discovery.process_company_contact_discovery(job_id, "directory-test", 1, now=NOW)
+    assert result["status"] == "unresolved"
+    assert fetched == [url]
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert checkpoint["results"][0]["reason"] == "official_identity_unverified"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BuyingChainEvidence)
+                .where(
+                    BuyingChainEvidence.project_id == project.id,
+                    BuyingChainEvidence.url == url,
+                )
+            )
+            == 0
+        )
+
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get(f"/api/customer-accounts/{company_id}/contacts")
+    assert response.status_code == 200
+    assert response.json()["contacts"] == []
+    assert response.json()["research_required"] is True
+
+
 def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.intelligence.company_contacts import company_contacts

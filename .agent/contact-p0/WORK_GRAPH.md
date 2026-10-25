@@ -20,17 +20,18 @@ Existing recovery/extraction/API/UI and canonical PRD remain governing.
 | C6 independent review | frozen C5 | PASS at300104f | Independent Sol; bounded implementation only; commercialP0/production OPEN/HOLD |
 | C7 PR122 handoff | C6 | DONE at300104f | Existing draft updated; no merge/deploy |
 | C8 authorized live Firecrawl | owner160creditapproval | MEASURED | No-hint20companies,40credits,1/20usable,0direct; alloriginals preserved; commercial recall insufficient |
-| C9 bounded recall repair | C8 actual failure evidence | IMPLEMENTED | Luna; verified first-party contact navigation within4fetch/35s/1search limits; policyv10;113integration/22unit plus static pass on exclusiveDB; final matched trial/gates/review pending |
+| C9 bounded recall repair | C8 actual failure evidence | TRIAL REJECTED | Navigation works;20searches/40morecredits; apparent10/20 includes6directory publisher false attributions; failed report retained, incomplete gates stopped |
+| C10 official publisher boundary | C9 real-source failure | IMPLEMENTED | Sol difficult identity integration;138affected tests/static pass; strict site-level identity, real mixed-publisher DB/API negative; freshv11 trial/gates/review pending |
 
 Firecrawl key availability and paid benchmark authorization are separate gates.
 Connector credit metadata is not proof of runtime integration. Missing contacts,
 domain ambiguity, access restriction, source staleness and uncertain provider
 effects remain explicit unresolved outcomes. Snapshot contacts are baseline only.
 
-Direction VALIDATE C9 with a fresh matched no-hint20company trial and final gates;
+Direction CORRECT C10, then fresh matched no-hint20company trial and final gates;
 then fresh independent Sol reviews the final exact candidate. Update existing
 draft PR122 after review. Full commercial P0 remains OPEN: native assisted3/20,
-autonomous paidv9 1/20, direct buyer methods0, production authority absent.
+autonomous paidv9 1/20, v10apparent10/20 REJECTED, direct buyer methods0, production authority absent. Cumulative80credits used; v11<=40additional, cumulative120/160.
 No opening Tribunal: this extends the approved existing architecture.
 Post-freeze deterministic/audit receipts and graph transitions live in ignored
 `.agent/artifacts/CONTACT-P0/` and the PR handoff; this tracked graph records the

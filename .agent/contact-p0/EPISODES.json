@@ -97,6 +97,18 @@
       "lesson_status": "CANDIDATE",
       "metric": "Usable source-verified companies in matched no-hint cohort; direction increase while fetches<=4,searches<=1 and cross-company leakage0",
       "reversibility": "Retain actualpaidv9 result/source/credit/ledger receipts and negative navigation regressions; promote only after exactcandidate rerun and independent review"
+    },
+    {
+      "state": "Frozen f1311d2 v10 live20 reported10usable, but source inspection found six third-party directory profiles carrying the publisher email",
+      "decision": "REJECT apparent50% coverage; stop unfinished exactcandidate gates before source repair",
+      "action": "Preserve paid trial/checkpoints/source hashes and original-row proof; dispatch C10 strict publisher identity integration; create fresh original-snapshot v11 restore",
+      "outcome": "20completed paid searches,40additionalcredits, cumulative80/160;0unknown; no production write; original protected rows intact. Full pytest intentionally interrupted, not passed.",
+      "deterministic_evaluation": "Actual buckheadenergy.com subject Organization plus root publisher data passes permissive same-host profile gate; land@buckheadenergy.com wrongly assigned to six operators",
+      "attribution": "An Organization describing a directory subject is not proof of site publisher identity; whole-page contacts cannot inherit the subject identity",
+      "candidate_lesson": "Require site-level publisher identity and reject conflicting root organization before official-site extraction or navigation",
+      "lesson_status": "CANDIDATE",
+      "metric": "Third-party publisher contact leakage into company projection; direction decrease to0, independently of coverage",
+      "reversibility": "Retain real failed20 report and mixed-publisher regression; never sanitize failed coverage into accepted result"
     }
   ],
   "timing": {
@@ -118,7 +130,7 @@
     "model_config_identity": "UNKNOWN",
     "tokens": "UNKNOWN",
     "repair_count": null,
-    "next_direction": "CORRECT C9 contact navigation/query after paid no-hintv9 coverage1/20; matched20rerun within remaining160credit authority, finalvalidation/review; productionHOLD",
+    "next_direction": "CORRECT C10 official publisher boundary; clean matched20 <=40newcredits cumulative120/160; finalvalidation/review, productionHOLD",
     "repair_count_notes": "Two pre-reconstruction attempts were counted. Later policy revisions and corrections are retained by episode; aggregate repair count is UNKNOWN."
   }
 }

@@ -72,6 +72,102 @@ def test_official_roster_requires_a_real_adjacent_occupational_title():
     assert all("Go Live" not in citation["quote"] for row in people for citation in row.citations)
 
 
+def test_directory_subject_jsonld_does_not_establish_site_publisher():
+    from gridlens.ingestion.adapters.buying_chain_public import parse_document
+    from gridlens.intelligence.company_contact_discovery import _self_identified_company_site
+
+    url = "https://www.buckheadenergy.com/operators/de-central-operating-llc"
+    html = """<html><head><title>DE Central Operating LLC | Operator Profile</title>
+    <script type="application/ld+json">{"@graph":[
+      {"@context":"https://schema.org","@type":"Organization",
+       "@id":"https://www.buckheadenergy.com/#organization",
+       "name":"Buckhead Energy","url":"https://www.buckheadenergy.com/",
+       "email":"land@buckheadenergy.com"},
+      {"@context":"https://schema.org","@type":"Organization",
+       "name":"DE Central Operating LLC",
+       "url":"https://www.buckheadenergy.com/operators/de-central-operating-llc"}
+    ]}</script></head><body><main>
+      <h1>DE Central Operating LLC</h1><p>Listed operator profile.</p>
+      <p>Email: land@buckheadenergy.com</p>
+      <a href="/contact/">Contact</a></main>
+      <footer>© 2026 Buckhead Energy</footer></body></html>"""
+    document = parse_document(url, html.encode(), "text/html")
+    assert len(document.structured) == 2
+    assert document.links == ("https://www.buckheadenergy.com/contact/",)
+    assert not _self_identified_company_site(document, "DE Central Operating LLC")
+    assert _self_identified_company_site(document, "Buckhead Energy")
+
+
+def test_official_jsonld_requires_unambiguous_root_publisher():
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument, parse_document
+    from gridlens.intelligence.company_contact_discovery import _self_identified_company_site
+
+    url = "https://acme.example/team"
+    root = {
+        "@type": "Organization",
+        "name": "Acme Corp",
+        "@id": "https://acme.example/#organization",
+    }
+    other = {"@type": "Organization", "name": "Other LLC", "url": "https://acme.example/"}
+    profile = {"@type": "Organization", "name": "Acme Corp", "url": url}
+    assert _self_identified_company_site(
+        PublicDocument(url, "Acme Team", "Acme team contact details.", structured=(root,)),
+        "Acme Corp",
+    )
+    assert _self_identified_company_site(
+        PublicDocument(
+            url,
+            "Acme Team",
+            "Acme team contact details.",
+            structured=({**root, "url": "https://acme.example"},),
+        ),
+        "Acme Corp",
+    )
+    assert not _self_identified_company_site(
+        PublicDocument(url, "Acme Team", "Acme team contact details.", structured=(profile,)),
+        "Acme Corp",
+    )
+    assert not _self_identified_company_site(
+        PublicDocument(
+            url,
+            "Acme Team",
+            "Acme team contact details.",
+            structured=({**profile, "@id": "https://acme.example/#organization"},),
+        ),
+        "Acme Corp",
+    )
+    first_party_html = """<html><head><title>Acme Corp | Contact</title>
+    <script type="application/ld+json">{"@type":"Organization","name":"Acme Corp",
+    "@id":"https://acme.example/#organization","url":"https://acme.example/"}</script>
+    </head><body><main>Acme Corp corporate contact. Email: info@acme.example.</main>
+    <footer>© 2026 Acme Corp. All rights reserved.</footer></body></html>"""
+    assert _self_identified_company_site(
+        parse_document("https://acme.example/contact", first_party_html.encode(), "text/html"),
+        "Acme Corp",
+    )
+    assert _self_identified_company_site(
+        PublicDocument(
+            "https://activeironenergy.com/contact-us",
+            "Active Iron Energy Contact",
+            "Contact Active Iron Energy.\n© 2026 Active Iron Energy LLC. All rights reserved.",
+        ),
+        "ACTIVE IRON ENERGY LLC",
+    )
+    assert not _self_identified_company_site(
+        PublicDocument(url, "Acme Team", "Acme team contact details.", structured=(root, other)),
+        "Acme Corp",
+    )
+    assert not _self_identified_company_site(
+        PublicDocument(
+            url,
+            "Acme Team",
+            "Acme team contact details.\n© 2026 Other LLC",
+            structured=(root,),
+        ),
+        "Acme Corp",
+    )
+
+
 def test_actual_benchmark_manifest_is_reduced_to_ids_and_url_hints(tmp_path: Path):
     company = str(uuid4())
     path = tmp_path / "manifest.json"

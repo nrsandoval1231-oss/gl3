@@ -148,9 +148,22 @@ provenance, deadline and UNKNOWN checks. Its search emphasizes contact methods
 and excludes unusable social-result hosts. No shared HTML parser, schema or UI
 change is needed.
 
-A matched twenty-company v10 rerun and final exact-candidate acceptance remain
-pending at this source freeze. It is limited to at most forty additional credits,
-for at most eighty credits across both live runs, within the owner's160 cap.
+The matched v10 trial completed twenty searches for forty additional credits,
+balance2,574to2,534, cumulative80/160. Its apparent10/20 coverage is **rejected**: six
+third-party operator-directory profiles inherited the directory publisher's email
+and listed phones. A matching profile Organization JSON-LD row with a same-host
+URL is not proof that the target company publishes the website. See [the rejected
+trial and affected companies](firecrawl-v10-rejected-results.json). All original
+protected rows survived, but retention does not make attribution correct.
+
+The v11 repair requires site-level publisher identity and rejects conflicting
+root Organization/legal-footer identities before extraction or navigation. A
+profile URL remains a subject record even if its id uses a root fragment. Genuine
+root/footer and first-person homepage support remain; ambiguous sources fail
+closed. The affected database/API and pure-source suite has138passing tests. The final v11
+matched rerun and exact-candidate validation remain pending at this freeze. Its
+ceiling is forty additional credits, cumulative120/160. The failed trial and
+interrupted full test gate remain distinct from accepted evidence.
 
 ## Firecrawl and cost
 
