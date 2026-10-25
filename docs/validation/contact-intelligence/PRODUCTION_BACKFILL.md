@@ -63,6 +63,25 @@ remaining research. Inspect company API and selected-company panel after reload.
 Confirm company-ID and contact-method deduplication across related projects and
 that a refresh never erases a still-supported contact or operator correction.
 
+For a new, securely configured loopback staging restore named
+`gridlens_contact_staging`, the supported operator sequence is:
+
+```text
+python scripts/company_contact_enrichment.py --inventory --expected-database-name gridlens_contact_staging
+python scripts/company_contact_enrichment.py --plan-output contact-plan.json --limit 20 --expected-database-name gridlens_contact_staging
+python scripts/company_contact_enrichment.py --manifest contact-plan.json
+python scripts/company_contact_enrichment.py --manifest contact-plan.json --checkpoint contact-checkpoint.json --expected-database-name gridlens_contact_staging --apply
+python scripts/company_contact_enrichment.py --manifest contact-plan.json --checkpoint contact-checkpoint.json --expected-database-name gridlens_contact_staging --run-jobs
+```
+
+The first three operations are read only. Apply/run require the separately
+authorized target and finite provider budget. Resume with the original manifest
+and checkpoint; do not edit them to hide an uncertain effect. Plan subsequent
+pages with the returned cursor and snapshot digest; a changed inventory requires
+a reviewed new plan. Do not bypass the loopback guard for production. After a
+separately approved release, use the existing fenced production job/planner path
+with reviewed flags and budgets or a separately reviewed guarded operator path.
+
 ## Cost and rollback
 
 Native public HTTP does not consume a paid enrichment provider. Attribute cost0
@@ -75,10 +94,15 @@ policyv10 rerun consumed40additional credits, cumulative80/160. Its apparent
 50% coverage was rejected for directory publisher misattribution; see the
 [failed result](firecrawl-v10-rejected-results.json). The corrected v11 rerun
 consumed40additional credits, cumulative120/160. Its discovery4/20 is valid,
-but fresh-checkpoint replay failed; the final v12 trial after input-identity
-repair is limited to40morecredits, cumulative160/160. The bounded
+but fresh-checkpoint replay failed. The final v12 trial after input-identity
+repair consumed40morecredits, cumulative160/160, and passed same/fresh replay
+without new jobs, contacts or paid calls. It found4/20usable companies,
+6phones/7emails and3relevant named professionals, with0direct buyer methods.
+All20still require research;16lack usable methods. The bounded
 sample is not a coverage or cost forecast for all235companies. This isolated-use
 approval does not authorize production enrichment, recharge or a new subscription.
+The isolated paid cap is exhausted. Further paid validation or a production
+backfill needs new explicit spend authorization.
 
 For a future authorized production first pass, the current implementation makes at most one
 Firecrawl URL search per company, requesting four web results, followed by native
@@ -94,6 +118,8 @@ call caps. This is a conservative replacement reservation using the published
 the account's cash bill. Reconfirm the actual account price, remaining credits,
 caps and production authorization before dispatching in production; never
 silently substitute unlimited spend. No additional paid provider was activated.
+At the trial's replacement reservation,235searches reserve at most$2.35; that
+amount is not an account bill or an estimate of usable company coverage.
 
 Pause the contact planner and let fenced in-flight work reach an inspected state.
 An interrupted paid request is UNKNOWN until its logical call is reconciled; never
@@ -103,5 +129,8 @@ delete companies, contacts or the entire database to roll back a UI or worker.
 Use a full database restore only after separate authorization and exact recovery
 target verification. Production rollback remains a plan until it is rehearsed.
 
-Release recommendation remains HOLD until the final benchmark, exact-candidate
-tests, independent review and requested runtime/provider gates are satisfied.
+The final isolated benchmark, replay, API/UI, local tests and schema checks pass.
+Release remains HOLD pending final-head independent/CI acceptance, a fresh
+production image/schema/key/price/budget check, old-image compatibility/rollback
+rehearsal, and explicit release/backfill authorization. No direct buyer method is
+verified; commercial P0 remains open despite measurable company-route coverage.

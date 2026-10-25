@@ -6,6 +6,60 @@ they do not establish purchasing authority, email deliverability or a direct
 buyer relationship. No outreach, production backfill, merge or deployment was
 performed.
 
+## Final isolated live result
+
+The final no-hint20company trial uses policyv12 at backend commit
+`ba0e52cc6c5069dc42a9080606f1474e9a8c516f`, followed by a UI-only date correction
+at `d3c4d5ffb1fbf205a00e48dd87f575e9b35f3ad7`. All190backend/runtime source hashes
+and backend test bytes remain identical. Independent acceptance and remote CI are
+recorded separately against the final PR122 head; this packet does not self-certify.
+
+| Measure | Actual result |
+|---|---|
+| Companies processed | 20real existing canonical companies |
+| Published methods | 4/20companies (20%);6phones and7business emails |
+| Relevant named professionals | 3at2companies; authority unconfirmed |
+| Direct buyer methods | 0 |
+| Without email/phone | 16 |
+| Research Required | All20 |
+| Qualification coverage | Signal4/20; Lead/Prospect N/A (zero denominators) |
+| Industry coverage | Data center1/4; upstream3/16 |
+| Worker elapsed sum | 102.844seconds |
+| Operator time | 169.109seconds including pilot review pause |
+| Final trial usage | 20completed searches,40credits;0uncertain calls |
+
+The four companies are EG AI, EOG Resources, Active Iron Energy and Citation
+Oil & Gas. EOG tax/JIB addresses and Citation's owner-relations inbox are published
+business routes, not verified procurement channels. Published methods remain
+company routes unless a relevant person's relationship and method are separately
+verified. Publication is distinct from deliverability, reachability and authority.
+
+Use the [twenty-company contact sheet](benchmark-v12-company-contacts.csv),
+[complete results and failure reasons](firecrawl-v12-results.json),
+[preservation/replay proof](firecrawl-v12-data-preservation.json),
+[authenticated browser proof](firecrawl-v12-browser-proof.json), and
+[local validation/source binding](firecrawl-v12-validation.json).
+Same and fresh checkpoints reuse the exact20job IDs; company/contact/evidence/job
+counts and hashes are unchanged, with0additional paid calls. All original protected
+rows also survive API/UI readback. Rejected directory-publisher methods are absent.
+
+The [region check](firecrawl-v12-region-scope.json) shows all20sampled companies
+have Texas memberships. The snapshot has1eligible NM project with no current
+company relationship and no eligible OK project. OK/NM company coverage is not
+proven. No qualification or company was invented to broaden this sample.
+
+Four live trials used80accounted searches and160observed credits (2614to2454),
+exactly the approved isolated cap. See [usage](firecrawl-authorization-usage.json).
+No further paid dispatch is authorized within that cap. Actual cash billing is
+UNKNOWN; no plan, recharge or new enrichment service was activated.
+
+Full local gates passed3017backend tests and7subtests (3skips),201browser tests
+(1skip), Ruff/format/Mypy, fresh/repeated/restored migrations and drift, API
+OpenAPI/types generation, frontend types/build, dependency audits and brand checks.
+The UI-only correction was frozen before all frontend gates started; exactly two
+web files changed during the backend run, whose bytes stayed identical. Final CI
+must independently verify the exact final PR head.
+
 ## Existing repair and remaining root causes
 
 The PR122 base (`93437131a6b0fa84300732426a5698c0bb99100b`) already repaired
@@ -33,6 +87,13 @@ shared retained record could attach a contractor to the owner identity. The
 repair requires the claim's own typed relationship at both write and read time.
 These failures are retained as failed attempts, rather than counted as commercial
 success.
+
+Live validation also exposed a starved official navigation queue, directory-subject
+JSON-LD mistaken for site publisher identity, and learned URLs changing empty-input
+request identity. These are fixed without a shared-parser/schema/contact-store
+change. Actual visual inspection caught an older organization-claim date overriding
+the method summary; it now uses the latest valid method verification and retains
+separate role/source checks for methodless professionals.
 
 ## Automatic pipeline
 
@@ -82,7 +143,7 @@ concurrency limits also apply. Checkpoints retain inputs, source context, checke
 URLs, provider call identity, outcomes and reasons. Interrupted paid effects remain
 UNKNOWN and prohibit blind redispatch.
 
-## Real company benchmark
+## Earlier native benchmark
 
 The original production database was read only. A custom-format dump was restored
 into a new local loopback PostgreSQL18.6 cluster. The final benchmark uses a clean
@@ -170,10 +231,10 @@ them. Resumability acceptance was withheld; replay made no new paid call.
 
 The v12 repair keeps caller inputs stable and resolves derived known URLs only
 in worker execution, preserving strict manifest checks and real source fences.
-Its140affected tests and static checks pass. The fresh matched trial remains
-pending at this freeze, capped at40morecredits,
-cumulative160/160. Functional replay precedes final full gates. Failed/partial
-trials and intentionally interrupted gates remain separate from final evidence.
+Its140affected tests and static checks pass. The final matched trial and functional
+replay now pass as reported above, using40morecredits, cumulative160/160. Failed
+and partial trials and intentionally interrupted gates remain separate; the v10
+apparent50% is never counted as accepted coverage.
 
 ## Firecrawl and cost
 
@@ -181,13 +242,14 @@ The existing Firecrawl v2 integration is reused behind its existing enabled
 contract, finite cost/request budgets, secret, job fence and durable logical-call
 ledger. Its search request uses the documented
 `sources: [{"type":"web"}]` shape. The local runtime key was verified with a free
-credit-metadata request; production had no runtime key. Key availability is not
+credit-metadata request; the03:14production inventory had no runtime key. Recheck
+production configuration before release. Key availability is not
 spend authorization. No commercial people-data provider was introduced.
 
 The original native run used public retrieval with provider keys cleared;
 ledger inspection measured zero paid dispatches and $0 provider cost for that
-run. The subsequent authorized live v9 trial measured twenty dispatches and
-forty account credits. Actual cash billing is UNKNOWN. The isolated ledger uses
+run. Four authorized live trials measured eighty dispatches and160credits; the
+final trial used forty. Actual cash billing is UNKNOWN. The isolated ledger uses
 $0.01/search as a conservative replacement-cost reservation based on the
 [published Hobby overage price](https://www.firecrawl.dev/pricing), not a claim
 about this account's billing rate. Finite daily/monthly limits include the
@@ -216,14 +278,15 @@ maintenance test: after publishing the recovered current view, maintenance may
 also prepare its next interval and return `prepared`. The test-only correction
 forces both documented outcomes, preserves strict initiating-publication,
 sanitized-error and dirty-503 checks, and verifies recovered current revision
-and row presence. Focused controller tests pass; the corrected exact candidate
-still requires its complete final gates and independent acceptance.
+and row presence. Subsequent v9 and current v12 full local gates pass; the failed
+clock assertion remains historical evidence. Independent acceptance is separately
+bound to the final PR head.
 
 Release recommendation: **HOLD production activation**. The measurable native
-benchmark is a useful bounded implementation proof. Live Firecrawl execution is
-now proven, but initial no-hint commercial coverage is only5%; the corrected
-matched rerun/final acceptance, protected production configuration, old-image
-rollback rehearsal and production write approval remain open. Live
+benchmark and final20%no-hint coverage are bounded implementation proofs.
+Sixteen companies lack usable methods and no direct buyer method is verified.
+Production configuration/price/budget checks, old-image compatibility and rollback
+rehearsal, and production write approval remain open. Live
 RRC operator-detail access failed from this environment. A supplementary read-only
 check of the [official bulk directory](https://www.rrc.texas.gov/media/mz2knwg5/oil-and-gas-directory-7-20-26-txt.txt)
 matched ten unresolved operator numbers/names, but all ten organization-phone

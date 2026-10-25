@@ -121,6 +121,18 @@
       "lesson_status": "CANDIDATE",
       "metric": "Redundant jobs from nohint replay and intentionally interrupted broad-gate seconds; direction decrease to0 while strict manifest binding remains enforced",
       "reversibility": "Retain failed v11 data/replay receipt and explicit-vs-nohint/new-epoch regressions; do not relax binding checks"
+    },
+    {
+      "state": "Policyv12 fresh actual20 on original snapshot completed with4usable; same/fresh checkpoint replays stable; actual UI revealed stale claim date in method summary",
+      "decision": "Accept functional checkpoint proof, correct UI-only date, then freeze integrated evidence for independent review",
+      "action": "C13 displays latest valid actual method timestamp, preserves methodless sourcecheck/unknown; controller repeats actual authenticated desktop/mobile/reload and two EOG need routes; complete full local gates",
+      "outcome": "Final20:6phones/7publishedemails,3relevant professionals,0directbuyer methods;16withoutmethod/allResearchRequired. Original9table rows preserved, exactjobs/counts/hashes replayed,0newpaidcalls. Local3017pass/3skip/7subtests,201browserpass/1skip; othergates pass.",
+      "deterministic_evaluation": "190backend/runtime files and backendtests identical to measuredba0e52c; UI-only d3c4d5f frozen14:55:12 before all frontendgates14:58:12 onward. Whole initial manifest changed only2webfiles, explicitly retained rather than labeledunchanged. Final-head CI/review required separately.",
+      "attribution": "Learned navigation belongs to execution, not caller request identity. Method verification dates differ from older organization claim dates; they need distinct UI semantics.",
+      "candidate_lesson": "Complete autonomous freshcheckpoint roundtrip before broad tests; bind concurrent disjoint backend/frontend scopes by exact file hashes and final CI rather than transferring an old whole-tree claim",
+      "lesson_status": "CANDIDATE",
+      "metric": "Duplicate replay jobs0; publisher contact leakage0; stale method date summaries0; final local gates failures0. No comparative speedup claimed.",
+      "reversibility": "Keep failedv10/v11 trials, raw gates, source manifests, old-date screenshot, updateddate regression and separate final review. Production and commercial authority unchanged."
     }
   ],
   "timing": {
@@ -142,7 +154,7 @@
     "model_config_identity": "UNKNOWN",
     "tokens": "UNKNOWN",
     "repair_count": null,
-    "next_direction": "CORRECT C12 stable caller inputs; freeze->fresh last20<=40credits/cumulative160->replay/API/UI->fullgates->freshreview; productionHOLD",
+    "next_direction": "VALIDATE frozen finalcandidate with independentSol; authorizedPRupdate and exactfinalCI; paidcap160exhausted, productionHOLD/commercialP0OPEN",
     "repair_count_notes": "Two pre-reconstruction attempts were counted. Later policy revisions and corrections are retained by episode; aggregate repair count is UNKNOWN."
   }
 }

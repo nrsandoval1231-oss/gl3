@@ -1,0 +1,393 @@
+{
+  "observed_utc": "2026-10-25T15:05:55.324993+00:00",
+  "code_candidate_sha": "d3c4d5ffb1fbf205a00e48dd87f575e9b35f3ad7",
+  "backend_measurement_sha": "ba0e52cc6c5069dc42a9080606f1474e9a8c516f",
+  "runtime_source_files_identical": 190,
+  "backend_test_files_identical_during_full_gate": true,
+  "whole_initial_manifest_unchanged": false,
+  "changed_during_backend_gate": [
+    "web/src/features/workspace/CompanyContacts.tsx",
+    "web/tests/customer-accounts.spec.ts"
+  ],
+  "ui_only_fix_frozen_utc": "2026-10-25T14:55:12.138167+00:00",
+  "all_frontend_gates_started_after_ui_freeze": true,
+  "backend_result": {
+    "passed": 3017,
+    "skipped": 3,
+    "subtests_passed": 7
+  },
+  "browser_result": {
+    "passed": 201,
+    "skipped": 1
+  },
+  "repository_gates": [
+    {
+      "label": "p12-ruff",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "src",
+        "tests"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:45:08.786870+00:00",
+      "finished_utc": "2026-10-25T14:45:08.914322+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.14
+    },
+    {
+      "label": "p12-ruff-format",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "src",
+        "tests"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:45:08.915318+00:00",
+      "finished_utc": "2026-10-25T14:45:09.021235+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.094
+    },
+    {
+      "label": "p12-mypy",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "mypy",
+        "src"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:45:09.022241+00:00",
+      "finished_utc": "2026-10-25T14:45:35.758604+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 26.75
+    },
+    {
+      "label": "p12-migrations-fresh",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:45:35.758604+00:00",
+      "finished_utc": "2026-10-25T14:45:37.206333+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.438
+    },
+    {
+      "label": "p12-migrations-repeat",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:45:37.207333+00:00",
+      "finished_utc": "2026-10-25T14:45:38.281820+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.078
+    },
+    {
+      "label": "p12-migrations-drift",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "alembic",
+        "check"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:45:38.282820+00:00",
+      "finished_utc": "2026-10-25T14:45:40.084225+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.797
+    },
+    {
+      "label": "p12-pytest-all",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "tests",
+        "-q"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:45:40.084225+00:00",
+      "finished_utc": "2026-10-25T14:58:12.255935+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 752.172
+    },
+    {
+      "label": "p12-web-typecheck",
+      "args": [
+        "npm.cmd",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "web",
+      "started_utc": "2026-10-25T14:58:12.256935+00:00",
+      "finished_utc": "2026-10-25T14:58:15.230085+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 2.984
+    },
+    {
+      "label": "p12-web-build",
+      "args": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "cwd": "web",
+      "started_utc": "2026-10-25T14:58:15.230085+00:00",
+      "finished_utc": "2026-10-25T14:58:19.684256+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 4.453
+    },
+    {
+      "label": "p12-web-browser",
+      "args": [
+        "npm.cmd",
+        "run",
+        "test:ci"
+      ],
+      "cwd": "web",
+      "started_utc": "2026-10-25T14:58:19.684256+00:00",
+      "finished_utc": "2026-10-25T15:00:04.521681+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 104.828
+    },
+    {
+      "label": "p12-web-dependency-audit",
+      "args": [
+        "npm.cmd",
+        "audit",
+        "--audit-level=high"
+      ],
+      "cwd": "web",
+      "started_utc": "2026-10-25T15:00:04.521681+00:00",
+      "finished_utc": "2026-10-25T15:00:05.339110+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.828
+    }
+  ],
+  "auxiliary_gates": [
+    {
+      "label": "p12-export-lock",
+      "args": [
+        "uv",
+        "export",
+        "--locked",
+        "--extra",
+        "dev",
+        "--no-emit-project",
+        "--format",
+        "requirements-txt",
+        "--output-file",
+        "$REPO\\.artifacts\\contact-p0\\p12-backend-requirements.txt"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:40:25.538524+00:00",
+      "finished_utc": "2026-10-25T14:40:25.574527+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.032
+    },
+    {
+      "label": "p12-backend-dependency-audit",
+      "args": [
+        "uv",
+        "tool",
+        "run",
+        "--python",
+        "3.11",
+        "--from",
+        "pip-audit==2.10.1",
+        "pip-audit",
+        "-r",
+        "$REPO\\.artifacts\\contact-p0\\p12-backend-requirements.txt",
+        "--disable-pip",
+        "--no-deps",
+        "--format",
+        "json"
+      ],
+      "cwd": ".",
+      "started_utc": "2026-10-25T14:40:25.574527+00:00",
+      "finished_utc": "2026-10-25T14:40:27.468753+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.89
+    },
+    {
+      "label": "p12-brand-dependency-audit",
+      "args": [
+        "uv",
+        "tool",
+        "run",
+        "--python",
+        "3.11",
+        "--from",
+        "pip-audit==2.10.1",
+        "pip-audit",
+        "-r",
+        "tools/brand/requirements.txt",
+        "--format",
+        "json"
+      ],
+      "cwd": ".",
+      "started_utc": "2026-10-25T14:40:25.538524+00:00",
+      "finished_utc": "2026-10-25T14:40:45.819641+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 20.282
+    },
+    {
+      "label": "p12-brand-validation",
+      "args": [
+        "uv",
+        "run",
+        "--no-project",
+        "--python",
+        "3.11",
+        "--with",
+        "pillow==13.0.0",
+        "python",
+        "tools/brand/validate.py"
+      ],
+      "cwd": ".",
+      "started_utc": "2026-10-25T14:40:45.819641+00:00",
+      "finished_utc": "2026-10-25T14:40:47.225799+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.406
+    },
+    {
+      "label": "p12-script-ruff",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "scripts/company_contact_enrichment.py"
+      ],
+      "cwd": ".",
+      "started_utc": "2026-10-25T14:40:25.539522+00:00",
+      "finished_utc": "2026-10-25T14:40:25.661247+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.11
+    },
+    {
+      "label": "p12-script-format",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--config",
+        "backend/pyproject.toml",
+        "--check",
+        "scripts/company_contact_enrichment.py"
+      ],
+      "cwd": ".",
+      "started_utc": "2026-10-25T14:40:25.661247+00:00",
+      "finished_utc": "2026-10-25T14:40:25.765061+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.109
+    }
+  ],
+  "restored_migration_gates": [
+    {
+      "label": "p12-restored-upgrade",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:43:30.640917+00:00",
+      "finished_utc": "2026-10-25T14:43:31.687554+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.047
+    },
+    {
+      "label": "p12-restored-repeat",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:43:31.687554+00:00",
+      "finished_utc": "2026-10-25T14:43:32.723027+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.031
+    },
+    {
+      "label": "p12-restored-drift",
+      "args": [
+        "$REPO\\backend\\.venv\\Scripts\\python.exe",
+        "-m",
+        "alembic",
+        "check"
+      ],
+      "cwd": "backend",
+      "started_utc": "2026-10-25T14:43:32.723673+00:00",
+      "finished_utc": "2026-10-25T14:43:34.304377+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.594
+    }
+  ],
+  "api_contract": {
+    "commands": [
+      {
+        "label": "p12-api-openapi",
+        "args": [
+          "$REPO\\backend\\.venv\\Scripts\\python.exe",
+          "$REPO\\scripts\\export_openapi.py"
+        ],
+        "cwd": ".",
+        "started_utc": "2026-10-25T14:40:25.523450+00:00",
+        "finished_utc": "2026-10-25T14:40:27.927458+00:00",
+        "exit_code": 0,
+        "elapsed_seconds": 2.39
+      },
+      {
+        "label": "p12-api-types",
+        "args": [
+          "npm.cmd",
+          "run",
+          "generate:api"
+        ],
+        "cwd": "web",
+        "started_utc": "2026-10-25T14:40:27.927458+00:00",
+        "finished_utc": "2026-10-25T14:40:32.826662+00:00",
+        "exit_code": 0,
+        "elapsed_seconds": 4.907
+      }
+    ],
+    "generated_contracts_unchanged": true
+  },
+  "independent_review": "Recorded separately against final PR122 SHA/tree; this frozen packet does not self-certify",
+  "github_ci": "Final-head remote CI must be verified separately after authorized PR branch update",
+  "failed_attempts": [
+    "v10 actual source misattribution: reported50% rejected; source boundary repaired",
+    "v11 fresh checkpoint:4redundant jobs, strict payload failure; no new paid dispatch; stable caller-input repair",
+    "p10/p11 incomplete full gates intentionally stopped before source repairs; not test passes",
+    "C9 first shared test DB:105pass/1fail/8errors, DDL/deadlock cause UNKNOWN; raw initial output not captured; exclusive final suite passed",
+    "C13 rendered fixture locator/timezone issues corrected; focused and final full browsers passed",
+    "Disposable local DB credential exposed in tool output, rotated; oldauth rejects/newauth passes; no production credential involved",
+    "Native public probe initially run through stdin failed Windows multiprocessing spawn; corrected file main guard succeeded without paid calls"
+  ],
+  "production_mutation": false,
+  "commercial_p0": "OPEN",
+  "production_recommendation": "HOLD"
+}

@@ -1,0 +1,50 @@
+{
+  "owner_approved_existing_plan_credit_cap": 160,
+  "attempts": [
+    {
+      "attempt": "live",
+      "sha": "300104f11ad34699f62d7eb0e7a32ba62e8e640b",
+      "search_dispatches": 20,
+      "credit_balance_before": 2614,
+      "credit_balance_after": 2574,
+      "credit_delta": 40,
+      "verdict": "Measured v9 1/20; recall correction required"
+    },
+    {
+      "attempt": "v10",
+      "sha": "f1311d28a0d736dcbd632d45aef8a864279dfe0f",
+      "search_dispatches": 20,
+      "credit_balance_before": 2574,
+      "credit_balance_after": 2534,
+      "credit_delta": 40,
+      "verdict": "REJECTED publisher misattribution; apparent 50% not accepted"
+    },
+    {
+      "attempt": "v11",
+      "sha": "6216d8f9b8f54683d2757af07ebc826fff88467d",
+      "search_dispatches": 20,
+      "credit_balance_before": 2534,
+      "credit_balance_after": 2494,
+      "credit_delta": 40,
+      "verdict": "Source coverage4/20 valid; resumability failed"
+    },
+    {
+      "attempt": "v12",
+      "sha": "ba0e52cc6c5069dc42a9080606f1474e9a8c516f",
+      "search_dispatches": 20,
+      "credit_balance_before": 2494,
+      "credit_balance_after": 2454,
+      "credit_delta": 40,
+      "verdict": "Final source/persistence/replay/API/browser proof"
+    }
+  ],
+  "total_search_dispatches": 80,
+  "observed_account_credit_delta": 160,
+  "remaining_authorized_paid_credit_exposure": 0,
+  "actual_cash_billing_usd": null,
+  "new_subscription_or_recharge_activated": false,
+  "source": "Actual existing ledger calls and free provider credit metadata; shared-account concurrent usage cannot independently be excluded",
+  "reservation_per_search_usd": "0.01",
+  "reservation_basis": "Conservative public replacement reservation; not measured account billing",
+  "production_write_authorized": false
+}

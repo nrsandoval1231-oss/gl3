@@ -1,0 +1,21 @@
+﻿company,qualification_tiers,industries,published_phones,published_business_emails,relevant_named_professionals,direct_buyer_methods,source_urls,method_last_verified_utc,research_required,discovery_reason,worker_seconds
+"AMAZON DATA SERVICES, INC",Signal,data_center,,,,0,,UNKNOWN,True,official_identity_unverified,4.656
+Beacon Point DC LLC aka Lon Hill Infrastructure LLC,Signal,data_center,,,,0,,UNKNOWN,True,official_identity_unverified,4.953
+Circle T Owner LP,Signal,data_center,,,,0,,UNKNOWN,True,official_identity_unverified,7.641
+EG AI CORP,Signal,data_center,,info@egai.us,Danny Cruz (COO; authority unconfirmed); Merritt Eaton (COO; authority unconfirmed),0,https://egai.us/contact/,2026-10-25T14:41:02.666334+00:00,True,complete,5.547
+"PIONEER NATURAL RES. USA, INC.",Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,5.687
+DIAMONDBACK E&P LLC,Signal,upstream_well,,,,0,,UNKNOWN,True,all_candidate_fetches_failed,4.547
+"DE CENTRAL OPERATING, LLC",Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,5.25
+"EOG RESOURCES, INC.",Signal,upstream_well,(713) 651-7000; (877) 363-3647,info@eogresources.com; jibinquiry@eogresources.com; EOGR1099@eogresources.com,"Gregory T. Miller (VP, Supply Chain; authority unconfirmed)",0,https://www.eogresources.com/company/contacts/; https://www.eogresources.com/company/owners/,2026-10-25T14:41:29.126431+00:00,True,complete,6.141
+"ACTIVE IRON ENERGY, LLC",Signal,upstream_well,,TMurray@ActiveIronEnergy.com; KMcMillan@ActiveIronEnergy.com,,0,https://www.activeironenergy.com/contact-us,2026-10-25T14:41:36.665198+00:00,True,complete,4.468
+"BKV BARNETT, LLC",Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,5.079
+CITATION OIL & GAS CORP.,Signal,upstream_well,281.891.1000; 405.681.9400; 432.262.7600; 307.682.4853,ownersrelations@cogc.com,,0,https://www.cogc.com/contact-us/; https://www.cogc.com/owner-relations/,2026-10-25T14:41:49.054360+00:00,True,complete,4.812
+DIMOCK OPERATING COMPANY,Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,4.734
+"FLAT LAND OIL & GAS, LLC",Signal,upstream_well,,,,0,,UNKNOWN,True,no_literal_company_method,5.218
+JAVELIN ENERGY PARTNERS MGMT LLC,Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,5.047
+MCA PETROLEUM CORPORATION,Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,4.782
+PER OPERATING LLC,Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,5.141
+"RING ENERGY, INC.",Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,4.797
+"SOUTHWEST OPERATING, INC.-TYLER",Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,4.562
+"TRINITY OPERATING (USG), LLC",Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,4.5
+ZARVONA ENERGY LLC,Signal,upstream_well,,,,0,,UNKNOWN,True,official_identity_unverified,5.282

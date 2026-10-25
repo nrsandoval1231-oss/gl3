@@ -1,0 +1,21 @@
+{
+  "scope": "Read-only retained production snapshot; same v12 original-data clone",
+  "eligible_active_projects_by_state": [
+    {
+      "region_state": "NM",
+      "projects": 1
+    },
+    {
+      "region_state": "TX",
+      "projects": 1748
+    }
+  ],
+  "benchmark_company_membership_states": [
+    {
+      "region_state": "TX",
+      "companies": 20,
+      "projects": 409
+    }
+  ],
+  "nm_current_company_relationships": []
+}
