@@ -73,6 +73,18 @@
       "lesson_status": "CANDIDATE",
       "metric": "Cross-company contact leakage in shared-source regression; direction decrease to0 without losing supported owner or named employee contacts",
       "reversibility": "Keep raw rejected review and collision/retraction/version regressions; replace the binding implementation only with equally strict source-relationship proof"
+    },
+    {
+      "state": "Frozen ff66a6d full backend gate failed1test while3009passed; GitHub CI independently reproduced the same browse-maintenance status assertion",
+      "decision": "Reject full-gate acceptance, inspect the actual maintenance contract, and issue a bounded test-only repair",
+      "action": "Luna preserved strict initiating published/sanitized-error/dirty503 assertions and deterministically exercised both published and prepared recovery; controller reran focused database tests; independent source review found no blocker",
+      "outcome": "10focusedtests pass, Ruff and format pass; runtime and real20 benchmark source unchanged; complete exact-candidate rerun and final acceptance remain required",
+      "deterministic_evaluation": "maintain_once refreshes current then can prepare its next interval; both branches must recover the current input revision and need row without exposing future data",
+      "attribution": "The old assertion depended on wall-clock proximity to the canonical interval boundary; matching one maintenance status did not fully describe the current-view recovery contract",
+      "candidate_lesson": "Force each documented clock branch and assert recovered current state instead of loosening a status assertion to an unchecked set",
+      "lesson_status": "CANDIDATE",
+      "metric": "Clock-dependent false failures with preserved dirty-state and recovery assertions; direction decrease to0",
+      "reversibility": "Retain failed full-suite receipts, both parameterized outcomes and separate early-prepared-exposure regressions; runtime behavior is unchanged"
     }
   ],
   "timing": {
@@ -94,7 +106,7 @@
     "model_config_identity": "UNKNOWN",
     "tokens": "UNKNOWN",
     "repair_count": null,
-    "next_direction": "VALIDATE frozen v9 candidate; independent exact-candidate review after final gates; parent commercialP0 and production HOLD remainOPEN",
+    "next_direction": "VALIDATE corrected exact candidate after ff66a6d test-only publication repair; fresh independent review after full gates; commercialP0 and production HOLD remainOPEN",
     "repair_count_notes": "Two pre-reconstruction attempts were counted. Later policy revisions and corrections are retained by episode; aggregate repair count is UNKNOWN."
   }
 }

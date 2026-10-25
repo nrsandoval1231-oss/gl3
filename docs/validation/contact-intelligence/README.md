@@ -156,12 +156,24 @@ dispatch, interrupted jobs, ambiguity and ingestion isolation. PR122's final
 candidate receipts and fresh independent review carry the exact gate outcomes;
 builder handoffs alone are not acceptance.
 
+The first v9 full gate (`ff66a6d`) was rejected for one clock-sensitive browse
+maintenance test: after publishing the recovered current view, maintenance may
+also prepare its next interval and return `prepared`. The test-only correction
+forces both documented outcomes, preserves strict initiating-publication,
+sanitized-error and dirty-503 checks, and verifies recovered current revision
+and row presence. Focused controller tests pass; the corrected exact candidate
+still requires its complete final gates and independent acceptance.
+
 Release recommendation: **HOLD production activation**. The measurable native
 benchmark is a useful bounded implementation proof, while autonomous domain
 discovery, a live authorized Firecrawl run, protected production configuration,
 old-image rollback rehearsal and production write approval remain open. Live
-RRC access failed from this environment; blocked/oversize/ambiguous pages remain
-unresolved. No direct buyer method or actual purchasing authority is invented to
+RRC operator-detail access failed from this environment. A supplementary read-only
+check of the [official bulk directory](https://www.rrc.texas.gov/media/mz2knwg5/oil-and-gas-directory-7-20-26-txt.txt)
+matched ten unresolved operator numbers/names, but all ten organization-phone
+fields were blank. Incomplete emergency strings were excluded. This did not
+increase coverage; blocked/oversize/ambiguous pages remain unresolved. No direct
+buyer method or actual purchasing authority is invented to
 close that gap. Follow [the backfill and rollback procedure](PRODUCTION_BACKFILL.md)
 only after its release and owner-authority gates are satisfied. The repository's
 parent launch Finish Contract is also still open.

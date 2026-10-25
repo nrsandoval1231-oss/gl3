@@ -15,7 +15,7 @@ Existing recovery/extraction/API/UI and canonical PRD remain governing.
 | C2 discovery pipeline | C0 | IMPLEMENTED | Luna/Terra attempt, Sol hard integration; policyv9; BUILD.md and C2-HANDOFF.md |
 | C3 benchmark/backfill tools | C1, C2 API contract | IMPLEMENTED | Luna; loopback manifest/cursor/checkpoint runner |
 | C4 company panel | C2 API contract | IMPLEMENTED | Luna; existing panel only; no navigation/layout redesign |
-| C5 integrated validation | C2,C3,C4 | RUNNING | Clean real20-company benchmark/replay PASS; final repository/API/browser gates required |
+| C5 integrated validation | C2,C3,C4 | RUNNING | Real20 replay/API/browser proof PASS; ff66a6d fullgate failed clock-sensitive assertion; test-only repair focused10PASS; rerun exact corrected candidate |
 | C6 independent review | frozen C5 | WAITING | Fresh Sol, no implementation |
 | C7 PR122 handoff | C6 | WAITING | Controller; PR update allowed; no merge/deploy |
 
