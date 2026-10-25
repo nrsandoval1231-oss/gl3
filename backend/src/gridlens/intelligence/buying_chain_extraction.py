@@ -828,6 +828,68 @@ def _public_contacts(doc: PublicDocument, person_name: str) -> list[dict]:
     return contacts
 
 
+def extract_company_contacts(
+    doc: PublicDocument, organizations: list[Extracted]
+) -> list[Extracted]:
+    """Require explicit company attribution, never assign a page's arbitrary addresses.
+
+    A published company method is a generic route, not a named buyer. Retain the
+    original project relationship citations together with each literal method.
+    """
+    results = []
+    for org in organizations:
+        if org.person_name or org.organization_relationship != "DIRECT":
+            continue
+        contacts = _public_contacts(doc, org.organization)
+        for row in doc.structured:
+            # Explicit self-published organization schema; not fuzzy domain inference.
+            if (
+                not isinstance(row, dict)
+                or row.get("@type") != "Organization"
+                or row.get("name") != org.organization
+                or not isinstance(row.get("url"), str)
+                or urlsplit(row["url"]).hostname != urlsplit(doc.url).hostname
+            ):
+                continue
+            quote = json.dumps(row, sort_keys=True, ensure_ascii=False)
+            if quote not in doc.text:
+                continue
+            points = row.get("contactPoint", [])
+            points = points if isinstance(points, list) else [points]
+            for point in [row, *points]:
+                if not isinstance(point, dict):
+                    continue
+                for field_name, kind in (("email", "email"), ("telephone", "phone")):
+                    value = point.get(field_name)
+                    if not isinstance(value, str):
+                        continue
+                    # Syntax/action validation is shared with the API projection.
+                    contacts.append(
+                        {
+                            "kind": kind,
+                            "value": value,
+                            "source_url": doc.url,
+                            "quote": quote,
+                            "observed_at": doc.observed_at.isoformat(),
+                        }
+                    )
+        if not contacts:
+            continue
+        results.append(
+            Extracted(
+                organization=org.organization,
+                category=org.category,
+                reason="Published company method; purchasing authority requires confirmation.",
+                citations=[
+                    *org.citations,
+                    *[_citation(doc, c["quote"], "public_contact") for c in contacts],
+                ],
+                public_contacts=contacts,
+            )
+        )
+    return results
+
+
 def extract_people(
     doc: PublicDocument,
     organizations: list[Extracted],

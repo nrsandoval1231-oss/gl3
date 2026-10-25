@@ -1,0 +1,145 @@
+{
+  "scanned": 0,
+  "limit": 25,
+  "outcomes": [],
+  "next_cursor": null,
+  "provider_requests": 0,
+  "provider_cost_usd": "0.00",
+  "failure_rate": null,
+  "failure_rate_denominator": 0,
+  "failure_rate_note": "This command plans/enqueues; job completion is not asserted.",
+  "coverage": {
+    "scope": "Active region-eligible company identities with current customer claims; not the saved visible browse cohort",
+    "unresolved_project_count": 0,
+    "overall": {
+      "eligible_companies": 0,
+      "metrics": {
+        "verified_work_email": {
+          "count": 0,
+          "denominator": 0,
+          "percent": null
+        },
+        "verified_business_phone": {
+          "count": 0,
+          "denominator": 0,
+          "percent": null
+        },
+        "named_relevant_buyer": {
+          "count": 0,
+          "denominator": 0,
+          "percent": null
+        },
+        "generic_only": {
+          "count": 0,
+          "denominator": 0,
+          "percent": null
+        },
+        "research_required": {
+          "count": 0,
+          "denominator": 0,
+          "percent": null
+        }
+      }
+    },
+    "by_tier": {
+      "Lead": {
+        "eligible_companies": 0,
+        "metrics": {
+          "verified_work_email": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "verified_business_phone": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "named_relevant_buyer": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "generic_only": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "research_required": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          }
+        }
+      },
+      "Prospect": {
+        "eligible_companies": 0,
+        "metrics": {
+          "verified_work_email": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "verified_business_phone": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "named_relevant_buyer": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "generic_only": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "research_required": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          }
+        }
+      },
+      "Signal": {
+        "eligible_companies": 0,
+        "metrics": {
+          "verified_work_email": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "verified_business_phone": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "named_relevant_buyer": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "generic_only": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          },
+          "research_required": {
+            "count": 0,
+            "denominator": 0,
+            "percent": null
+          }
+        }
+      }
+    },
+    "notes": [
+      "Source verified does not mean deliverability or call reachability tested.",
+      "Named relevant buyer means sourced role; purchasing authority unconfirmed.",
+      "Companies can occur in multiple tiers; tier denominators are distinct companies.",
+      "Zero denominator percentages are null, never 0%."
+    ],
+    "companies": []
+  },
+  "mode": "read-only"
+}

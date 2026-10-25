@@ -4949,3 +4949,156 @@ def test_tdlr_retained_job_links_each_pecos_project_without_name_merging(db):
         )
         rejected = enrich_buying_chain(session, wrong_project.id, retained_only=True, now=NOW)
         assert rejected["candidates"] == []
+
+
+def test_company_contact_survives_retained_refresh_commit_and_api(db, monkeypatch):
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    contact_url = "https://acme.example/contact"
+    organization = "Acme is the owner for Orion Data Center in Austin, TX."
+    with db.begin() as session:
+        project = seed(session)
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(select(Evidence))
+        evidence.abstract = organization
+        session.add(
+            NeedObservation(
+                need_id=session.scalar(select(PowerNeed.id)), observation_id=evidence.observation_id
+            )
+        )
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            source_urls=[contact_url],
+            now=NOW,
+            fetcher=lambda url: source(
+                "Acme email: office@acme.example" if url == contact_url else organization, url=url
+            ),
+        )
+        candidate = next(c for c in result["candidates"] if c["public_contacts"])
+        company_id = UUID(str(candidate["company_identity_id"]))
+        project_id = project.id
+        assert (
+            company_contacts(session, company_id).contacts[0].methods[0]["value"]
+            == "office@acme.example"
+        )
+        replay = enrich_buying_chain(
+            session, project.id, retained_only=True, now=NOW + timedelta(minutes=1)
+        )
+        assert str(replay["candidates"][0]["company_identity_id"]) == str(company_id)
+        assert (
+            company_contacts(session, company_id).contacts[0].methods[0]["value"]
+            == "office@acme.example"
+        )
+    with db() as session:
+        result = company_contacts(session, company_id)
+        assert result.research_required  # a generic inbox never counts as a buyer
+        assert result.contacts[0].project_ids == [project_id]
+    app_module = import_module("gridlens.api.app")
+    monkeypatch.setattr(app_module, "SessionLocal", db)
+    client = TestClient(app_module.app)
+    assert client.get(f"/api/customer-accounts/{company_id}/contacts").status_code == 401
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get(f"/api/customer-accounts/{company_id}/contacts")
+    assert response.status_code == 200
+    assert response.json()["contacts"][0]["methods"][0]["href"] == "mailto:office@acme.example"
+
+
+def test_contact_recovery_cannot_revive_operator_retraction(db):
+    with db.begin() as session:
+        project = seed(session)
+        phrase = "Acme is the owner for Orion Data Center in Austin, TX."
+
+        def fetch(url):
+            return source(phrase + "\nAcme email: office@acme.example", url=url)
+
+        first = enrich_buying_chain(session, project.id, fetcher=fetch, now=NOW)
+        candidate = first["candidates"][0]
+        correct_buying_chain_claim(
+            session,
+            project_id=project.id,
+            claim_id=candidate["id"],
+            source_evidence_id=None,
+            source_hash=None,
+            actor="test operator",
+            expected_version=candidate["fingerprint"],
+            idempotency_key="contact-recovery-retraction",
+            action="retract",
+            values={},
+            reason="Operator confirmed this is the wrong buying organization.",
+        )
+        again = enrich_buying_chain(
+            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=1)
+        )
+        assert not again["candidates"]
+        assert not contact_projection(again)
+
+
+def test_contact_recovery_requeues_legacy_success_once(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.buying_chain as service
+
+    with db.begin() as session:
+        project = seed(session)
+        evidence = session.scalar(select(Evidence))
+        session.add(
+            NeedObservation(
+                need_id=session.scalar(select(PowerNeed.id)), observation_id=evidence.observation_id
+            )
+        )
+        interpretation = session.scalar(select(Interpretation))
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "admission_policy_version": "test-policy",
+        }
+        original_hash = service._hash
+
+        def legacy_hash(value):
+            return original_hash(
+                {k: v for k, v in value.items() if k != "contact_extraction_policy"}
+            )
+
+        monkeypatch.setattr(service, "_hash", legacy_hash)
+        legacy = service.enqueue_retained_buying_chain_research(
+            session, project.id, evidence.id, evidence.content_hash
+        )
+        assert legacy is not None
+        legacy.status = "succeeded"
+        session.flush()
+        monkeypatch.setattr(service, "_hash", original_hash)
+        new = service.enqueue_retained_buying_chain_research(
+            session, project.id, evidence.id, evidence.content_hash
+        )
+        assert new is not None and new.id != legacy.id
+        assert (
+            json.loads(new.checkpoint)["request_digest"]
+            != json.loads(legacy.checkpoint)["request_digest"]
+        )
+        repeat = service.enqueue_retained_buying_chain_research(
+            session, project.id, evidence.id, evidence.content_hash
+        )
+        assert repeat.id == new.id
+
+
+def test_contact_recovery_plan_prioritizes_tiers_and_resumes_without_writes(db, monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[3] / "scripts"))
+    from company_contact_recovery import recover
+
+    from gridlens.persistence.models import Job
+
+    with db.begin() as session:
+        for index, tier in enumerate(("Signal", "Lead", "Prospect")):
+            project = seed(session, external_id=str(index), identity_key=f"company-{index}")
+            project.region_status = "ELIGIBLE"
+            need = session.scalar(select(PowerNeed).where(PowerNeed.project_id == project.id))
+            need.tier = tier
+        first = recover(session, limit=1)
+        assert first["outcomes"][0]["priority"] == 0
+        second = recover(session, limit=1, cursor=first["next_cursor"])
+        assert second["outcomes"][0]["priority"] == 1
+        third = recover(session, limit=1, cursor=second["next_cursor"])
+        assert third["outcomes"][0]["priority"] == 2
+        assert session.scalar(select(func.count()).select_from(Job)) == 0

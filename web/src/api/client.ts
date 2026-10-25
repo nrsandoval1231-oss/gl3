@@ -248,6 +248,12 @@ export const client = {
     if (!response.ok) throw new Error(response.status === 503 ? 'The workspace cohort is unavailable. Retry to reload current opportunities.' : `GridLens could not complete this request (${response.status}).`)
     return response.json() as Promise<WorkspacePage>
   },
+  companyContacts: async (companyIdentityId: string, signal?: AbortSignal): Promise<components['schemas']['CompanyContacts']> => {
+    const response = await fetch(`/api/customer-accounts/${encodeURIComponent(companyIdentityId)}/contacts`, { credentials: 'same-origin', signal })
+    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    if (!response.ok) throw new Error(`Could not load contacts (${response.status}).`)
+    return response.json()
+  },
   customerAccountProjects: async (companyIdentityId: string, offset = 0, needOffset = 0, signal?: AbortSignal): Promise<CustomerProjectsPage> => {
     const params = new URLSearchParams({ limit: '25', offset: String(offset), need_limit: '25', need_offset: String(needOffset) })
     const response = await fetch(`/api/customer-accounts/${encodeURIComponent(companyIdentityId)}/projects?${params}`, { credentials: 'same-origin', signal })

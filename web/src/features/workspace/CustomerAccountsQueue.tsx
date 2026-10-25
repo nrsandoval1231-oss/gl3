@@ -1,3 +1,4 @@
+import { CompanyContacts } from "./CompanyContacts"
 import { OpportunityTable } from './OpportunityTable'
 import { useEffect, useRef, useState } from 'react'
 import { client, type WorkspaceNeed, type WorkspacePage, type WorkspaceFilters, type CustomerProjectsPage, type CustomerAccount, type UnresolvedCustomerProjectsPage } from '../../api/client'
@@ -101,6 +102,7 @@ export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAva
       <p className="ci-account-action">{bestNeed?.commercial_next_action ?? 'Research needed'}</p>
       {error && <p role="alert">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></p>}
       {!projects && !error && <p role="status">Loading account projects…</p>}
+      {account && <CompanyContacts companyId={account.company_identity_id}/>}
       {projects?.items.map(project => <article className={`ci-project ${projectId === project.id ? 'selected' : ''}`} key={project.id}>
         <h3><button type="button" aria-pressed={projectId === project.id} onClick={() => openProject(project.id)}>{project.name}</button></h3><p>{project.location ?? 'Location not established'} · {project.customer_role}</p>
         {project.id === projectId && <>

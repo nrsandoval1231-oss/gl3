@@ -47,6 +47,7 @@ from gridlens.intelligence.buying_chain_extraction import (
     Extracted,
     document_content_hash,
     document_key,
+    extract_company_contacts,
     extract_organizations,
     extract_people,
     extract_retained_permit_organizations,
@@ -352,6 +353,7 @@ def enqueue_retained_buying_chain_research(
     request_digest = _hash(
         {
             "task_type": RETAINED_BUYING_CHAIN_TASK_TYPE,
+            "contact_extraction_policy": "company-contacts-v1",
             "project_id": str(project.id),
             "evidence_id": str(evidence.id),
             "evidence_hash": evidence_hash,
@@ -1104,6 +1106,57 @@ def _deduplicate(items: list[Extracted]) -> list[Extracted]:
     )
 
 
+def _retain_unchecked_contacts(session, project_id, candidates, saved, retrieved_urls, now):
+    """A bounded or failed refresh is not evidence that an existing method vanished."""
+    prior_view = buying_chain_view(session, project_id, now=now)
+    for previous in prior_view["candidates"]:
+        if previous.get("stale") or previous.get("retracted"):
+            continue
+        prior = session.get(BuyingChainClaim, previous["id"])
+        if prior is None:
+            continue
+        for item in candidates:
+            if (
+                _entity_key(item) != prior.entity_key
+                or item.organization != previous["organization"]
+                or item.person_name != previous.get("person_name")
+                or item.title != previous.get("title")
+                or item.organization_relationship != "DIRECT"
+            ):
+                continue
+            for contact in previous.get("public_contacts", []):
+                if contact["source_url"] in retrieved_urls:
+                    continue
+                support = next(
+                    (
+                        e
+                        for e in previous["evidence"]
+                        if e.get("current_support")
+                        and e.get("supports") == "public_contact"
+                        and e["url"] == contact["source_url"]
+                        and e["quote"] == contact["quote"]
+                    ),
+                    None,
+                )
+                if support is None:
+                    continue
+                evidence = session.get(BuyingChainEvidence, UUID(str(support["id"])))
+                if evidence is None:
+                    continue
+                key = evidence.url + ":" + evidence.content_hash
+                saved[key] = evidence
+                citation = {
+                    "url": evidence.url,
+                    "quote": contact["quote"],
+                    "supports": "public_contact",
+                    "document_key": key,
+                }
+                if citation not in item.citations:
+                    item.citations.append(citation)
+                if contact not in item.public_contacts:
+                    item.public_contacts.append(contact)
+
+
 def _retain_unchecked_assignments(
     session: Session,
     project_id: UUID,
@@ -1439,6 +1492,7 @@ def enrich_buying_chain(
                 doc, organizations, project, project_scoped=matched, today=now.date()
             )
         )
+        results.extend(extract_company_contacts(doc, organizations))
         if results:
             row = _store_document(
                 session,
@@ -1477,10 +1531,42 @@ def enrich_buying_chain(
                 f"No supported project or relevant role relationship extracted from {doc.url}."
             )
     candidates = _deduplicate([*organizations, *people])
+    if previous_run:
+        _retain_unchecked_contacts(
+            session, project.id, candidates, saved, set(retrieved_by_url), now
+        )
     if previous_run and research_incomplete:
         _retain_unchecked_assignments(
             session, project.id, candidates, saved, set(retrieved_by_url), now
         )
+    if retained_only:
+        # Retained abstracts must not downgrade a still-current full-page identity
+        # citation for the exact same relationship statement.
+        for item in candidates:
+            for previous in buying_chain_baseline["candidates"]:
+                prior = session.get(BuyingChainClaim, previous["id"])
+                if prior is None or prior.entity_key != _entity_key(item):
+                    continue
+                for citation in item.citations:
+                    retained_support = next(
+                        (
+                            e
+                            for e in previous["evidence"]
+                            if e.get("current_support")
+                            and e.get("id") == e.get("current_source_version_id")
+                            and e["url"] == citation["url"]
+                            and e["quote"] == citation["quote"]
+                            and e["supports"] == citation["supports"]
+                        ),
+                        None,
+                    )
+                    if retained_support:
+                        retained_source = session.get(BuyingChainEvidence, retained_support["id"])
+                        if retained_source is None:
+                            continue
+                        key = retained_source.url + ":" + retained_source.content_hash
+                        saved[key] = retained_source
+                        citation["document_key"] = key
     if len(candidates) > MAX_CANDIDATES:
         unresolved.append(
             "Eight-candidate result limit reached; lower-priority relationships were not added."
@@ -1489,6 +1575,26 @@ def enrich_buying_chain(
     added = 0
     current_claim_ids = []
     for item in candidates:
+        # Operator decisions remain authoritative across automated rediscovery.
+        # Keep their claim/version chain; the view still revalidates its sources.
+        corrected_prior = (
+            session.scalar(
+                select(BuyingChainClaim)
+                .join(BuyingChainCorrection, BuyingChainCorrection.claim_id == BuyingChainClaim.id)
+                .where(
+                    BuyingChainClaim.project_id == project.id,
+                    BuyingChainClaim.entity_key == _entity_key(item),
+                    BuyingChainClaim.id.in_([UUID(v) for v in previous_run.claim_ids]),
+                )
+                .order_by(BuyingChainClaim.observed_at.desc())
+                .limit(1)
+            )
+            if previous_run
+            else None
+        )
+        if corrected_prior is not None:
+            current_claim_ids.append(str(corrected_prior.id))
+            continue
         citations = []
         for citation in item.citations:
             source = saved[citation["document_key"]]
@@ -1545,6 +1651,61 @@ def enrich_buying_chain(
         )
         session.add(new_claim)
         session.flush()
+        # A contact-only revision must not split the canonical company account.
+        # Carry an identity only across the same project/entity and an identical
+        # supporting relationship quote on the same source URL.
+        for previous in buying_chain_baseline["candidates"]:
+            prior = session.get(BuyingChainClaim, previous["id"])
+            if prior is None or prior.entity_key != new_claim.entity_key:
+                continue
+            for link in session.scalars(
+                select(BuyingChainIdentityLink).where(
+                    BuyingChainIdentityLink.claim_id == prior.id,
+                    BuyingChainIdentityLink.state == "current",
+                )
+            ):
+                identity_field = f"{link.entity_type}_identity_id"
+                if str(previous.get(identity_field)) != str(getattr(link, identity_field)):
+                    continue
+                old_support = [
+                    e
+                    for e in previous["evidence"]
+                    if e.get("current_support") and str(e["id"]) == str(link.source_evidence_id)
+                ]
+                replacement = next(
+                    (
+                        c
+                        for c in citations
+                        if any(
+                            c["url"] == e["url"]
+                            and c["quote"] == e["quote"]
+                            and c["supports"] == e["supports"]
+                            for e in old_support
+                        )
+                    ),
+                    None,
+                )
+                if replacement is None:
+                    continue
+                replacement_source = session.get(
+                    BuyingChainEvidence, UUID(replacement["evidence_id"])
+                )
+                if replacement_source is None:
+                    continue
+                session.add(
+                    BuyingChainIdentityLink(
+                        claim_id=new_claim.id,
+                        entity_type=link.entity_type,
+                        company_identity_id=link.company_identity_id,
+                        person_identity_id=link.person_identity_id,
+                        basis=link.basis,
+                        reason="Unchanged source-cited relationship across contact revision.",
+                        reviewed_by=link.reviewed_by,
+                        source_evidence_id=replacement_source.id,
+                        source_version_hash=replacement_source.content_hash,
+                        state="current",
+                    )
+                )
         current_claim_ids.append(str(new_claim.id))
         added += 1
     if not candidates:

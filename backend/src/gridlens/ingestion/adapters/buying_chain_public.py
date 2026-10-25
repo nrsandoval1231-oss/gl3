@@ -20,7 +20,7 @@ from io import BytesIO
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import httpx
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 from gridlens.ingestion.adapters.bounded_http import (
     ResponseTooLarge,
@@ -205,14 +205,49 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
                 links.append(validate_public_url(link))
             except ValueError:
                 pass
+    # Retain explicit Organization directory data before removing script bodies.
+    directory: list[dict] = []
+    for script in soup.select('script[type="application/ld+json"]'):
+        try:
+            value = json.loads(script.get_text())
+        except (ValueError, TypeError):
+            continue
+        entries = value if isinstance(value, list) else [value]
+        for entry in entries:
+            if isinstance(entry, dict):
+                entries_graph = entry.get("@graph", [entry])
+                if isinstance(entries_graph, list):
+                    directory.extend(
+                        row
+                        for row in entries_graph
+                        if isinstance(row, dict) and row.get("@type") == "Organization"
+                    )
+    directory = directory[:20]
     # Container selection is not evidence admission. A sibling update or footer
     # correction must not disappear merely because a positive claim is in main.
     for excluded in soup(["script", "style"]):
         excluded.decompose()
+    # Preserve literal business contact targets even when link text is "Email".
+    # Never infer a person/company association from an anchor or its label.
+    for anchor in soup.find_all("a", href=True):
+        if not isinstance(anchor, Tag):
+            continue
+        href = str(anchor["href"])
+        if href.lower().startswith(("mailto:", "tel:")):
+            value = href.split(":", 1)[1].split("?", 1)[0]
+            if value and not any(c in value for c in "\r\n"):
+                label = anchor.get_text(" ", strip=True)
+                anchor.replace_with(
+                    NavigableString(label if value in label else f"{label} {value}".strip())
+                )
     main = soup.body or soup
     text = "\n".join(
         line.strip() for line in main.get_text("\n", strip=True).splitlines() if line.strip()
     )
+    if directory:
+        text += "\n" + "\n".join(
+            json.dumps(row, sort_keys=True, ensure_ascii=False) for row in directory
+        )
     body_restricted = bool(
         re.search(
             r"access denied|access forbidden|captcha|verify (?:you are|that you are) human|"
@@ -248,6 +283,7 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
         _bounded_text(text),
         published,
         links=tuple(dict.fromkeys(links))[:2],
+        structured=tuple(directory),
     )
 
 
