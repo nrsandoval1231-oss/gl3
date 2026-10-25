@@ -25,6 +25,13 @@ function latestSourceCheck(sources: NonNullable<Contact['sources']>) {
   return assessed[0] ?? null
 }
 
+function latestMethodCheck(methods: ContactMethod[]) {
+  return methods
+    .map(method => method.verified_at)
+    .filter((value): value is string => Boolean(value) && !Number.isNaN(new Date(value as string).getTime()))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null
+}
+
 function orderedMethods(methods: ContactMethod[]) {
   return [...methods].sort((left, right) => {
     const sourceOrder = Number(!left.source_url) - Number(!right.source_url)
@@ -83,8 +90,8 @@ export function CompanyContacts({ companyId }: { companyId: string }) {
         <p>{contact.methods?.length ? contact.purchasing_authority : 'No usable email or phone is verified.'} Purchasing authority remains unconfirmed.</p>
         {(contact.methods ?? []).length > 0 && orderedMethods(contact.methods ?? []).map(method => <p key={`${method.kind}-${method.href}`}><a href={method.href}>{method.value}</a>{method.source_url && <> · <a href={method.source_url} target="_blank" rel="noreferrer">Verify source</a>{isContactPage(method.source_url) && <> · <a href={method.source_url} target="_blank" rel="noreferrer">Open contact page</a></>}</>}{displayDate(method.verified_at) && <> · Verified {displayDate(method.verified_at)}</>}</p>)}
         {(contact.sources ?? []).map((source, index) => <p key={JSON.stringify([source.reference, source.url, source.passage, index])}>{source.url && <a href={source.url} target="_blank" rel="noreferrer">Contact evidence</a>}{source.source_date && <> · Source date {displayDate(source.source_date) ?? source.source_date}</>}</p>)}
-        {displayDate(contact.verified_at) && <p>Last verified {displayDate(contact.verified_at)}</p>}
-        {!contact.verified_at && displayDate(latestSourceCheck(contact.sources ?? [])) && <p>Role/source checked {displayDate(latestSourceCheck(contact.sources ?? []))}</p>}
+        {(contact.methods ?? []).length > 0 && displayDate(latestMethodCheck(contact.methods ?? [])) && <p>Last verified {displayDate(latestMethodCheck(contact.methods ?? []))}</p>}
+        {!(contact.methods ?? []).length && displayDate(latestSourceCheck(contact.sources ?? [])) && <p>Role/source checked {displayDate(latestSourceCheck(contact.sources ?? []))}</p>}
         <small>{contact.verification_status}</small>
       </div>)}
     </>}
