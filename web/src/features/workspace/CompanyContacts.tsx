@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { client } from '../../api/client'
+import { CompanyGraph } from './CompanyGraph'
 import type { components } from '../../api/generated'
 
 type Contacts = components['schemas']['CompanyContacts']
@@ -81,6 +82,7 @@ export function CompanyContacts({ companyId }: { companyId: string }) {
   const current = result?.company_id === companyId ? result : null
   return <section aria-label="Contacts & Buying Chain">
     <h3>Contacts &amp; Buying Chain</h3>
+    <CompanyGraph companyId={companyId}/>
     {error ? <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Retry contacts</button></p> : !current ? <p role="status">Checking retained contacts…</p> : <>
       {current.research_required && <p><strong>Research Required</strong> · {current.contacts?.length ? 'Review the verified people and company routes below; decision-maker status and purchasing authority are unconfirmed.' : 'No current verified company contact method is available.'}</p>}
       {orderedContacts(current.contacts ?? []).map(contact => <div key={contact.claim_id}>
@@ -92,8 +94,16 @@ export function CompanyContacts({ companyId }: { companyId: string }) {
         {(contact.sources ?? []).map((source, index) => <p key={JSON.stringify([source.reference, source.url, source.passage, index])}>{source.url && <a href={source.url} target="_blank" rel="noreferrer">Contact evidence</a>}{source.source_date && <> · Source date {displayDate(source.source_date) ?? source.source_date}</>}</p>)}
         {(contact.methods ?? []).length > 0 && displayDate(latestMethodCheck(contact.methods ?? [])) && <p>Last verified {displayDate(latestMethodCheck(contact.methods ?? []))}</p>}
         {!(contact.methods ?? []).length && displayDate(latestSourceCheck(contact.sources ?? [])) && <p>Role/source checked {displayDate(latestSourceCheck(contact.sources ?? []))}</p>}
-        <small>{contact.verification_status}</small>
+        <small>{contact.assertion_status ?? contact.verification_status}{contact.mailbox_verified ? ' · Mailbox independently verified' : ' · Mailbox not independently verified'}{contact.verification_basis ? ` · ${contact.verification_basis}` : ''}</small>
       </div>)}
+      {(current.imported_unverified ?? []).length > 0 && <section aria-label="Imported unverified contacts"><h4>Imported contacts · unverified</h4><p>Imported assertions have not been verified. Treat all details below as reference data, not outreach routes.</p>{current.imported_unverified?.map(contact => <article key={contact.import_row_id}>
+        <strong>{contact.name ?? 'Name not provided'}</strong>{contact.title && <> · {contact.title}</>}
+        {contact.company && <p>Company: {contact.company}</p>}
+        {contact.email && <p>Email (unverified): <span>{contact.email}</span></p>}
+        {contact.phone && <p>Phone (unverified): <span>{contact.phone}</span></p>}
+        {contact.profile_url && <p>Profile URL (unverified): <span>{contact.profile_url}</span></p>}
+        <small>{contact.assertion_status} · {contact.sheet}, row {contact.row_number} · Import {contact.batch_id}</small>
+      </article>)}</section>}
     </>}
   </section>
 }

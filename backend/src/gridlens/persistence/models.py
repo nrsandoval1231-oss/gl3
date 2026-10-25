@@ -156,6 +156,7 @@ class PlannerState(Base):
 
     __tablename__ = "planner_states"
     planner_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    cursor: Mapped[str | None] = mapped_column(String(120), nullable=True)
     last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     consecutive_failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
@@ -913,6 +914,81 @@ class IdentityIdentifier(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ExternalImportBatch(Base):
+    """Immutable workbook manifest. Lifecycle changes are recorded as events."""
+
+    __tablename__ = "external_import_batches"
+    __table_args__ = (UniqueConstraint("content_hash", name="uq_external_import_content_hash"),)
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    filename: Mapped[str] = mapped_column(String(300))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    report: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    actor: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ExternalImportRow(Base):
+    """Immutable original row and explainable, non-authoritative match proposal."""
+
+    __tablename__ = "external_import_rows"
+    __table_args__ = (
+        UniqueConstraint("batch_id", "sheet", "row_number", name="uq_external_import_row"),
+        Index("ix_external_import_rows_batch", "batch_id", "sheet", "row_number"),
+        CheckConstraint(
+            "match_status IN ('matched', 'ambiguous', 'unmatched', 'invalid', 'ignored')",
+            name="ck_external_import_match_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    batch_id: Mapped[UUID] = mapped_column(
+        ForeignKey("external_import_batches.id", ondelete="CASCADE"), nullable=False
+    )
+    sheet: Mapped[str] = mapped_column(String(120))
+    row_number: Mapped[int] = mapped_column(Integer)
+    row_kind: Mapped[str] = mapped_column(String(20))
+    raw: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    normalized: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    errors: Mapped[list[str]] = mapped_column(JSONB)
+    match_status: Mapped[str] = mapped_column(String(16))
+    company_match: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    project_match: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ExternalImportActivation(Base):
+    """Reversible visibility of an imported row; never promotes canonical claims."""
+
+    __tablename__ = "external_import_activations"
+    row_id: Mapped[UUID] = mapped_column(
+        ForeignKey("external_import_rows.id", ondelete="CASCADE"), primary_key=True
+    )
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
+    changed_by: Mapped[str] = mapped_column(String(120))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ExternalImportEvent(Base):
+    """Append-only audit event for batch staging and rollback."""
+
+    __tablename__ = "external_import_events"
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('staged', 'rolled_back')", name="ck_external_import_event_action"
+        ),
+        UniqueConstraint("batch_id", "action", name="uq_external_import_event_batch_action"),
+        Index("ix_external_import_events_batch", "batch_id", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    batch_id: Mapped[UUID] = mapped_column(
+        ForeignKey("external_import_batches.id", ondelete="CASCADE"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(String(20))
+    actor: Mapped[str] = mapped_column(String(120))
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class BuyingChainIdentityLink(Base):
     """Historical link from a project-scoped claim to a global identity."""
 
@@ -1292,4 +1368,5 @@ class LogicalCallSettlement(Base):
 
 
 # Register the bounded monitoring tables with the same declarative metadata.
+from gridlens.persistence import contact_models as contact_models  # noqa: E402,F401
 from gridlens.persistence import watch_models as watch_models  # noqa: E402,F401

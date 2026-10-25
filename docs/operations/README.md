@@ -18,6 +18,7 @@ Take a fresh on-host checkpoint through the established mechanism before cutover
 
 ## Guides and historical evidence
 
+- [Intelligence Sprint 1 import/enrichment operator guide](INTELLIGENCE_SPRINT1.md) and [staging/benchmark evidence](../validation/intelligence-sprint1/REPORT.md): isolated implementation only; no new production or provider authority.
 - [Runtime configuration](runtime-configuration.md), [local runtime](local-runtime.md), [local recovery](runtime-recovery.md), and [local restore drill](local-restore-drill.md).
 - [Delivery gates](../delivery/milestones.md), [production intelligence record](production-pipeline-20261023.md), and [prior readiness audit](readiness-audit-20261024.md).
 - [October 20 observation](observations/2026-10-20-production-readonly.md) and [archived former operations index](../../.agent/archive/COMPLETION-20261024/operations-README.md) preserve dated evidence and superseded unknowns.

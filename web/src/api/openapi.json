@@ -544,6 +544,192 @@
         }
       }
     },
+    "/api/companies/{company_id}/graph": {
+      "get": {
+        "tags": [
+          "enrichment"
+        ],
+        "summary": "Company Graph",
+        "operationId": "company_graph_api_companies__company_id__graph_get",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Company Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyGraphOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/companies/{company_id}/contact-assertions": {
+      "get": {
+        "tags": [
+          "enrichment"
+        ],
+        "summary": "Contact Assertions",
+        "operationId": "contact_assertions_api_companies__company_id__contact_assertions_get",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Company Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Contact Assertions Api Companies  Company Id  Contact Assertions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contact-assertions/{claim_id}/corrections": {
+      "post": {
+        "tags": [
+          "enrichment"
+        ],
+        "summary": "Correct Contact",
+        "operationId": "correct_contact_api_contact_assertions__claim_id__corrections_post",
+        "parameters": [
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Claim Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCorrectionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Correct Contact Api Contact Assertions  Claim Id  Corrections Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/power-enrichment": {
+      "get": {
+        "tags": [
+          "enrichment"
+        ],
+        "summary": "Project Power Enrichment",
+        "operationId": "project_power_enrichment_api_projects__project_id__power_enrichment_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerEnrichment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/login": {
       "post": {
         "summary": "Login",
@@ -7790,6 +7976,32 @@
             "type": "string",
             "title": "Phone Type",
             "default": "unknown"
+          },
+          "assertion_status": {
+            "type": "string",
+            "title": "Assertion Status",
+            "default": "published"
+          },
+          "mailbox_verified": {
+            "type": "boolean",
+            "title": "Mailbox Verified",
+            "default": false
+          },
+          "verification_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Basis"
+          },
+          "independent_verification": {
+            "type": "string",
+            "title": "Independent Verification",
+            "default": "UNKNOWN_UNSUPPORTED"
           }
         },
         "type": "object",
@@ -7820,6 +8032,13 @@
             "type": "boolean",
             "title": "Research Required",
             "default": true
+          },
+          "imported_unverified": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedCompanyContact"
+            },
+            "type": "array",
+            "title": "Imported Unverified"
           }
         },
         "type": "object",
@@ -7827,6 +8046,145 @@
           "company_id"
         ],
         "title": "CompanyContacts"
+      },
+      "CompanyGraphOut": {
+        "properties": {
+          "company": {
+            "$ref": "#/components/schemas/GraphCompany"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/GraphProject"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/GraphRelationship"
+            },
+            "type": "array",
+            "title": "Relationships"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/GraphEvidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Limits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "company",
+          "projects",
+          "relationships",
+          "evidence",
+          "limits"
+        ],
+        "title": "CompanyGraphOut"
+      },
+      "ContactCorrectionBody": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "expected_version": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Idempotency Key"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "suppress",
+              "replace",
+              "retract"
+            ],
+            "title": "Action"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "email",
+              "phone",
+              "profile",
+              "website",
+              "general"
+            ],
+            "title": "Kind",
+            "default": "email"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "source_evidence_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Evidence Id"
+          },
+          "source_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "expected_version",
+          "idempotency_key",
+          "action",
+          "reason"
+        ],
+        "title": "ContactCorrectionBody"
       },
       "CustomerAccountNeedOut": {
         "properties": {
@@ -8421,6 +8779,294 @@
           "document_number"
         ],
         "title": "EvidenceOut"
+      },
+      "GraphCompany": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "identifiers": {
+            "items": {
+              "$ref": "#/components/schemas/GraphIdentifier"
+            },
+            "type": "array",
+            "title": "Identifiers"
+          },
+          "aliases": {
+            "items": {
+              "$ref": "#/components/schemas/GraphIdentifier"
+            },
+            "type": "array",
+            "title": "Aliases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "identifiers",
+          "aliases"
+        ],
+        "title": "GraphCompany"
+      },
+      "GraphEvidence": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "url",
+          "content_hash",
+          "source_id",
+          "observed_at"
+        ],
+        "title": "GraphEvidence"
+      },
+      "GraphIdentifier": {
+        "properties": {
+          "identifier_type": {
+            "type": "string",
+            "title": "Identifier Type"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/GraphEvidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "identifier_type",
+          "value",
+          "evidence"
+        ],
+        "title": "GraphIdentifier"
+      },
+      "GraphProject": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/GraphProjectRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "location",
+          "roles"
+        ],
+        "title": "GraphProject"
+      },
+      "GraphProjectRole": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "organization_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Name"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/GraphEvidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "organization_name",
+          "state",
+          "evidence"
+        ],
+        "title": "GraphProjectRole"
+      },
+      "GraphRelationship": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source_company_id": {
+            "type": "string",
+            "title": "Source Company Id"
+          },
+          "target_company_id": {
+            "type": "string",
+            "title": "Target Company Id"
+          },
+          "relationship_type": {
+            "type": "string",
+            "title": "Relationship Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "correction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correction Id"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/GraphEvidence"
+          },
+          "support_status": {
+            "type": "string",
+            "const": "operator_assertion_unverified",
+            "title": "Support Status"
+          },
+          "source_quote": {
+            "type": "string",
+            "title": "Source Quote"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_company_id",
+          "target_company_id",
+          "relationship_type",
+          "status",
+          "version",
+          "reason",
+          "evidence",
+          "support_status",
+          "source_quote"
+        ],
+        "title": "GraphRelationship"
       },
       "HTTPValidationError": {
         "properties": {
@@ -9070,6 +9716,116 @@
           "geography"
         ],
         "title": "HealthSourceOut"
+      },
+      "ImportedCompanyContact": {
+        "properties": {
+          "import_row_id": {
+            "type": "string",
+            "title": "Import Row Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "sheet": {
+            "type": "string",
+            "title": "Sheet"
+          },
+          "row_number": {
+            "type": "integer",
+            "title": "Row Number"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "profile_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Url"
+          },
+          "assertion_status": {
+            "type": "string",
+            "title": "Assertion Status",
+            "default": "imported_unverified"
+          },
+          "mailbox_verified": {
+            "type": "boolean",
+            "title": "Mailbox Verified",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "import_row_id",
+          "batch_id",
+          "sheet",
+          "row_number",
+          "company",
+          "name",
+          "title",
+          "email",
+          "phone",
+          "profile_url"
+        ],
+        "title": "ImportedCompanyContact"
       },
       "IngestionItemOut": {
         "properties": {
@@ -11608,6 +12364,157 @@
         ],
         "title": "PermitSummaryOut"
       },
+      "PowerEnrichment": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUPPORTED",
+              "UNRESOLVED",
+              "CONFLICT",
+              "NO_EVIDENCE"
+            ],
+            "title": "Status"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/PowerScenario"
+            },
+            "type": "array",
+            "title": "Scenarios"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "basis"
+        ],
+        "title": "PowerEnrichment",
+        "description": "Read-only evidence projection; this model does not assign qualification."
+      },
+      "PowerEnrichmentSource": {
+        "properties": {
+          "fact_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fact Version Id"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "authority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority"
+          },
+          "source_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
+          },
+          "source_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Date"
+          },
+          "source_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Quote"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "reporter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter Name"
+          },
+          "reporter_organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter Organization"
+          },
+          "reporter_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter Role"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PowerEnrichmentSource",
+        "description": "A dated reference to a fact used in a scenario."
+      },
       "PowerNeedTitleOut": {
         "properties": {
           "status": {
@@ -11685,6 +12592,202 @@
           "status"
         ],
         "title": "PowerNeedTitleOut"
+      },
+      "PowerScenario": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "need_id": {
+            "type": "string",
+            "title": "Need Id"
+          },
+          "activity_key": {
+            "type": "string",
+            "title": "Activity Key"
+          },
+          "activity_kind": {
+            "type": "string",
+            "enum": [
+              "facility_demand",
+              "construction",
+              "commissioning",
+              "bridge",
+              "backup",
+              "other"
+            ],
+            "title": "Activity Kind"
+          },
+          "facility_scope": {
+            "type": "string",
+            "title": "Facility Scope"
+          },
+          "phase_id": {
+            "type": "string",
+            "title": "Phase Id"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "base",
+              "alternative"
+            ],
+            "title": "Scenario"
+          },
+          "evidence_status": {
+            "type": "string",
+            "enum": [
+              "fact",
+              "estimate",
+              "hypothesis",
+              "conflict"
+            ],
+            "title": "Evidence Status"
+          },
+          "start_date": {
+            "type": "string",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "title": "End Date"
+          },
+          "duration_days_min": {
+            "type": "integer",
+            "title": "Duration Days Min"
+          },
+          "duration_days_max": {
+            "type": "integer",
+            "title": "Duration Days Max"
+          },
+          "demand_mw_min": {
+            "type": "string",
+            "title": "Demand Mw Min"
+          },
+          "demand_mw_max": {
+            "type": "string",
+            "title": "Demand Mw Max"
+          },
+          "supply_mw_min": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Mw Min"
+          },
+          "supply_mw_max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Mw Max"
+          },
+          "residual_mw_min": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residual Mw Min"
+          },
+          "residual_mw_max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residual Mw Max"
+          },
+          "supply_status": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "unknown",
+              "conflict"
+            ],
+            "title": "Supply Status"
+          },
+          "fuel_status": {
+            "type": "string",
+            "const": "unknown",
+            "title": "Fuel Status",
+            "default": "unknown"
+          },
+          "demand_basis": {
+            "type": "string",
+            "title": "Demand Basis"
+          },
+          "supply_basis": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supply Basis"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PowerEnrichmentSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "rental_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RentalValueEstimate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "need_id",
+          "activity_key",
+          "activity_kind",
+          "facility_scope",
+          "phase_id",
+          "scenario",
+          "evidence_status",
+          "start_date",
+          "end_date",
+          "duration_days_min",
+          "duration_days_max",
+          "demand_mw_min",
+          "demand_mw_max",
+          "supply_mw_min",
+          "supply_mw_max",
+          "residual_mw_min",
+          "residual_mw_max",
+          "supply_status",
+          "demand_basis",
+          "basis"
+        ],
+        "title": "PowerScenario",
+        "description": "One independently scoped phase and one base or alternative schedule."
       },
       "PowerScheduleFactReference": {
         "properties": {
@@ -13618,6 +14721,68 @@
           "queued"
         ],
         "title": "RefreshOut"
+      },
+      "RentalValueEstimate": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "const": "USD",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "minimum": {
+            "type": "string",
+            "title": "Minimum"
+          },
+          "maximum": {
+            "type": "string",
+            "title": "Maximum"
+          },
+          "rate_min_usd_per_mw_day": {
+            "type": "string",
+            "title": "Rate Min Usd Per Mw Day"
+          },
+          "rate_max_usd_per_mw_day": {
+            "type": "string",
+            "title": "Rate Max Usd Per Mw Day"
+          },
+          "rate_source_reference": {
+            "type": "string",
+            "title": "Rate Source Reference"
+          },
+          "rate_source_date": {
+            "type": "string",
+            "title": "Rate Source Date"
+          },
+          "duration_days": {
+            "type": "integer",
+            "title": "Duration Days"
+          },
+          "formula": {
+            "type": "string",
+            "title": "Formula",
+            "default": "residual MW \u00d7 duration days \u00d7 sourced USD/MW/day rate"
+          },
+          "status": {
+            "type": "string",
+            "const": "estimate",
+            "title": "Status",
+            "default": "estimate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "minimum",
+          "maximum",
+          "rate_min_usd_per_mw_day",
+          "rate_max_usd_per_mw_day",
+          "rate_source_reference",
+          "rate_source_date",
+          "duration_days"
+        ],
+        "title": "RentalValueEstimate",
+        "description": "Transparent arithmetic from an explicit, sourced rental rate."
       },
       "ResearchChangeOut": {
         "properties": {
