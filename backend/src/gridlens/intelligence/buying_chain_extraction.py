@@ -754,8 +754,10 @@ def _role_category(title: str, organization_category: str) -> str | None:
             "construction",
             "project manager",
             "project director",
+            "project executive",
             "preconstruction",
             "superintendent",
+            "infrastructure development",
         )
     ):
         return (
@@ -769,7 +771,9 @@ def _role_category(title: str, organization_category: str) -> str | None:
             }
             else Category.OWNER_CONSTRUCTION.value
         )
-    if any(term in lower for term in ("energy", "power", "electrical")):
+    if any(term in lower for term in ("procurement", "purchasing", "supply chain")):
+        return Category.PROCUREMENT.value
+    if any(term in lower for term in ("energy", "power", "electrical", "distributed generation")):
         return (
             Category.OWNER_ENERGY.value
             if organization_category == Category.OWNER
@@ -785,11 +789,17 @@ def _role_category(title: str, organization_category: str) -> str | None:
             "drilling",
             "completions",
             "facilities engineer",
+            "facilities engineering",
         )
     ):
         return Category.FIELD_OPERATIONS.value
-    if any(term in lower for term in ("procurement", "purchasing", "supply chain")):
-        return Category.PROCUREMENT.value
+    if lower == "operations manager" and organization_category == Category.OPERATOR:
+        return Category.FIELD_OPERATIONS.value
+    if lower in {"coo", "chief operating officer"} and organization_category in {
+        Category.OWNER,
+        Category.OPERATOR,
+    }:
+        return Category.OWNER_CONSTRUCTION.value
     if organization_category in {
         Category.ELECTRICAL,
         Category.GC,
@@ -798,6 +808,24 @@ def _role_category(title: str, organization_category: str) -> str | None:
     } and re.fullmatch(r"(?:president|ceo|chief executive officer|vice president|svp)", lower):
         return organization_category
     return None
+
+
+def _published_roster_title(title: str) -> bool:
+    """Require an occupational title, not adjacent marketing/action copy."""
+    return bool(
+        re.match(
+            r"^(?:CEO|COO|CFO|CTO|EVP|SVP|VP|Vice President|President|"
+            r"Chief\s+\w+|Director|Manager|Head|Superintendent|"
+            r"Facilities\s+Engineer(?:ing)?|Electrical\s+Construction|"
+            r"Power\s+Procurement|Distributed\s+Generation|"
+            r"Infrastructure\s+Development|Operations\s+Manager|"
+            r"Field\s+Operations|"
+            r"Procurement|Supply\s+Chain|Construction\s+(?:Manager|Director)|"
+            r"Project\s+(?:Manager|Director|Executive))\b",
+            title.strip(),
+            re.I,
+        )
+    )
 
 
 def _public_contacts(doc: PublicDocument, person_name: str) -> list[dict]:
@@ -897,25 +925,34 @@ def extract_people(
     *,
     project_scoped: bool,
     today: date,
+    verified_official_roster: bool = False,
 ) -> list[Extracted]:
     found = []
     # Text nodes are often split around heading tags. Join only adjacent lines;
     # the exact original source remains the citation (no generated quote).
-    for sentence in _sentences(doc.text):
+    lines = doc.text.splitlines()
+    adjacent_roster = [
+        f"{name}\n{title}"
+        for name, title in zip(lines, lines[1:], strict=False)
+        if verified_official_roster and re.fullmatch(_NAME, name)
+    ]
+    for sentence in [*_sentences(doc.text), *adjacent_roster]:
         for org in organizations:
             if org.person_name is not None:
                 continue  # Permit-listed people cannot lend citations to another person.
             normalized_sentence = organization_key(sentence)
             org_name = organization_key(org.organization)
             official = (
-                _official_profile(doc, org.organization)
-                and 0 <= (today - doc.observed_at.date()).days <= 365
+                _official_profile(doc, org.organization) or verified_official_roster
+            ) and 0 <= (today - doc.observed_at.date()).days <= 365
+            roster = re.fullmatch(
+                rf"(?P<name>{_NAME})(?:,\s*|\n)(?P<title>[^;\n]{{3,80}})",
+                sentence,
             )
-            roster = re.fullmatch(rf"(?P<name>{_NAME}),\s*(?P<title>[^,;]{{3,80}})", sentence)
             if official and roster:
                 title = roster.group("title").strip()
                 category = _role_category(title, org.category)
-                if category and not _AMBIGUOUS.search(sentence):
+                if category and _published_roster_title(title) and not _AMBIGUOUS.search(sentence):
                     contacts = _public_contacts(doc, roster.group("name"))
                     found.append(
                         Extracted(

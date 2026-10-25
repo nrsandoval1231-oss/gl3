@@ -20,6 +20,8 @@ from gridlens.persistence.models import (
     BuyingChainEvidence,
     BuyingChainIdentityLink,
     CompanyIdentity,
+    CompanyProjectMembership,
+    Evidence,
     IdentityIdentifier,
     PersonIdentity,
 )
@@ -301,6 +303,9 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
         for item in view["candidates"]
         if not item["stale"]
     }
+    # Membership identity wins before local fallback allocation so a source-bound
+    # account never leaves an orphan project-scoped company identity behind.
+    _ensure_current_membership_links(session, list(claims.values()), current_by_claim)
     for claim_id, claim in claims.items():
         candidate = current_by_claim.get(claim_id)
         if candidate is None:
@@ -398,6 +403,87 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
             session.flush()
 
 
+def _ensure_current_membership_links(
+    session: Session,
+    claims: list[BuyingChainClaim],
+    current_by_claim: dict[UUID, dict[str, Any]],
+) -> None:
+    """Bridge a claim only to its exact accepted project membership evidence.
+
+    This deliberately does not use organization names.  The membership Evidence
+    and the BuyingChainEvidence live in different hash domains, so both are
+    verified independently before a projection is created.
+    """
+    for claim in claims:
+        candidate = current_by_claim.get(claim.id)
+        if candidate is None or candidate.get("stale"):
+            continue
+        memberships = session.scalars(
+            select(CompanyProjectMembership).where(
+                CompanyProjectMembership.project_id == claim.project_id,
+                CompanyProjectMembership.state == "current",
+            )
+        ).all()
+        matches: list[tuple[CompanyProjectMembership, BuyingChainEvidence]] = []
+        for membership in memberships:
+            # Membership's source hash is in the retained Evidence domain.
+            retained = session.get(Evidence, membership.source_evidence_id)
+            if retained is None or retained.content_hash != membership.source_version_hash:
+                continue
+            for citation in candidate.get("evidence", []):
+                if citation.get("supports") != "project_organization" or not citation.get(
+                    "current_support"
+                ):
+                    continue
+                source = session.get(BuyingChainEvidence, citation.get("id"))
+                if (
+                    source is not None
+                    and source.project_id == claim.project_id
+                    and source.retained_evidence_id == membership.source_evidence_id
+                    and citation.get("current_source_version_id") == source.id
+                    and citation.get("content_hash") == source.content_hash
+                ):
+                    matches.append((membership, source))
+        # More than one accepted identity is ambiguity, never a name-merge tie break.
+        identity_ids = {membership.company_identity_id for membership, _source in matches}
+        if len(identity_ids) != 1:
+            continue
+        membership, source = matches[0]
+        existing = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == claim.id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        if existing and existing.basis == "attributed_review":
+            continue
+        if (
+            existing
+            and existing.basis == "current_membership"
+            and existing.company_identity_id == membership.company_identity_id
+            and existing.source_evidence_id == source.id
+            and existing.source_version_hash == source.content_hash
+        ):
+            continue
+        if existing:
+            existing.state = "superseded"
+            existing.superseded_at = datetime.now(UTC)
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=claim.id,
+                entity_type="company",
+                company_identity_id=membership.company_identity_id,
+                reason="Exact current CompanyProjectMembership evidence cited by this claim.",
+                basis="current_membership",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+                state="current",
+            )
+        )
+        session.flush()
+
+
 def current_claim_identity_links(
     session: Session, claim_ids: set[UUID]
 ) -> dict[UUID, dict[str, str]]:
@@ -436,6 +522,20 @@ def current_claim_identity_links(
             )
         ):
             continue
+        if link.basis == "current_membership":
+            link_source = session.get(BuyingChainEvidence, link.source_evidence_id)
+            if link_source is None:
+                continue
+            membership = session.scalar(
+                select(CompanyProjectMembership).where(
+                    CompanyProjectMembership.project_id == claims[link.claim_id].project_id,
+                    CompanyProjectMembership.company_identity_id == link.company_identity_id,
+                    CompanyProjectMembership.source_evidence_id == link_source.retained_evidence_id,
+                    CompanyProjectMembership.state == "current",
+                )
+            )
+            if membership is None:
+                continue
         result.setdefault(link.claim_id, {})[f"{link.entity_type}_identity_id"] = str(
             link.company_identity_id if link.entity_type == "company" else link.person_identity_id
         )

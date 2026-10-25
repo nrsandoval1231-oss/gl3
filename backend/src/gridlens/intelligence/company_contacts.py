@@ -9,7 +9,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, union
 from sqlalchemy.orm import Session
 
 from gridlens.domain.opportunity_intelligence import IntelligenceContact, contact_projection
@@ -17,6 +17,7 @@ from gridlens.intelligence.buying_chain import buying_chain_views
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainIdentityLink,
+    CompanyProjectMembership,
     PowerNeed,
     Project,
 )
@@ -31,9 +32,12 @@ class CompanyContact(IntelligenceContact):
 
 
 def relevant_named_contact(contact: IntelligenceContact) -> bool:
+    return bool(relevant_named_professional(contact) and contact.methods)
+
+
+def relevant_named_professional(contact: IntelligenceContact) -> bool:
     return bool(
         contact.name
-        and contact.methods
         and contact.responsibility
         in {
             "Verified project responsibility",
@@ -60,7 +64,7 @@ def project_contacts(company_id: UUID, views: dict) -> CompanyContacts:
             if str(c.get("company_identity_id")) == str(company_id)
         ]
         for contact in contact_projection({"candidates": candidates}):
-            if not contact.methods:
+            if not contact.methods and not relevant_named_professional(contact):
                 continue
             # Keep different people/roles separate even when sharing a switchboard.
             key = (
@@ -72,7 +76,14 @@ def project_contacts(company_id: UUID, views: dict) -> CompanyContacts:
             )
             if key not in grouped:
                 grouped[key] = CompanyContact(
-                    **contact.model_dump(), company_id=company_id, project_ids=[project_id]
+                    **contact.model_dump(),
+                    company_id=company_id,
+                    project_ids=[project_id],
+                    confidence=(
+                        "High: literal contact method in current retained evidence"
+                        if contact.methods
+                        else "Published role; no verified direct contact method"
+                    ),
                 )
             else:
                 previous = grouped[key]
@@ -100,20 +111,30 @@ def project_contacts(company_id: UUID, views: dict) -> CompanyContacts:
 
 
 def company_contacts(session: Session, company_id: UUID) -> CompanyContacts:
+    eligible = select(Project.id).where(
+        Project.region_status == "ELIGIBLE",
+        select(PowerNeed.id)
+        .where(PowerNeed.project_id == Project.id, PowerNeed.active.is_(True))
+        .exists(),
+    )
     project_ids = set(
         session.scalars(
-            select(BuyingChainClaim.project_id)
-            .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
-            .join(Project, Project.id == BuyingChainClaim.project_id)
-            .where(
-                BuyingChainIdentityLink.company_identity_id == company_id,
-                BuyingChainIdentityLink.state == "current",
-                Project.region_status == "ELIGIBLE",
-                select(PowerNeed.id)
-                .where(PowerNeed.project_id == Project.id, PowerNeed.active.is_(True))
-                .exists(),
+            union(
+                select(BuyingChainClaim.project_id)
+                .join(
+                    BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id
+                )
+                .where(
+                    BuyingChainIdentityLink.company_identity_id == company_id,
+                    BuyingChainIdentityLink.state == "current",
+                    BuyingChainClaim.project_id.in_(eligible),
+                ),
+                select(CompanyProjectMembership.project_id).where(
+                    CompanyProjectMembership.company_identity_id == company_id,
+                    CompanyProjectMembership.state == "current",
+                    CompanyProjectMembership.project_id.in_(eligible),
+                ),
             )
-            .distinct()
         )
     )
     return project_contacts(

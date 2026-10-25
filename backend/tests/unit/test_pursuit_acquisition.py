@@ -123,7 +123,7 @@ def test_search_retains_only_safe_deduplicated_urls_and_never_snippets():
         assert request.method == "POST"
         body = json.loads(request.content)
         assert body["limit"] == 5
-        assert body["sources"] == ["web"]
+        assert body["sources"] == [{"type": "web"}]
         assert "scrapeOptions" not in body
         return httpx.Response(
             200,

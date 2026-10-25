@@ -790,6 +790,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             "pursuit_question",
             "pursuit_research",
             "buying_chain_research",
+            "company_contact_discovery",
         }
         uses_public_acquisition = (
             kind in public_acquisition_kinds
@@ -800,6 +801,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     and settings.buying_chain_public_research_enabled
                 )
             )
+            and (kind != "company_contact_discovery" or settings.company_contact_discovery_enabled)
         ) or (kind == "intelligence_process" and intelligence_task_type == "OCR_EXTRACTION")
         if uses_public_acquisition:
             if source_id is None or lease_expiry is None or deadline is None:
@@ -858,6 +860,32 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 deadline=deadline,
                 lease_expiry=lease_expiry,
             )
+            return True
+        if kind == "company_contact_discovery":
+            from gridlens.intelligence.company_contact_discovery import (
+                process_company_contact_discovery,
+            )
+
+            if not settings.company_contact_discovery_enabled:
+                # An explicitly disabled provider/network policy is an unresolved
+                # outcome, not a failed ingestion and never removes prior claims.
+                with SessionLocal.begin() as session:
+                    disabled = assert_fence(session, job_id, WORKER_ID, fence)
+                    checkpoint = json.loads(disabled.checkpoint or "{}")
+                    checkpoint.update(
+                        status="unresolved",
+                        reason="discovery_disabled",
+                        completed_at=datetime.now(UTC).isoformat(),
+                    )
+                    disabled.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+                    disabled.status, disabled.error, disabled.lease_owner, disabled.lease_until = (
+                        "succeeded",
+                        None,
+                        None,
+                        None,
+                    )
+                return True
+            process_company_contact_discovery(job_id, WORKER_ID, fence, deadline=deadline)
             return True
         if kind == "pursuit_question":
             from gridlens.intelligence.autonomous_research import (
@@ -1517,6 +1545,14 @@ def _worker_lane_specs(
                     (stop_event, "pursuit_questions", plan_pursuit_questions),
                 )
             )
+        if settings.company_contact_discovery_enabled:
+            lanes.append(
+                (
+                    "gridlens-planner-company-contacts",
+                    _planner_lane,
+                    (stop_event, "company_contacts", plan_company_contact_jobs),
+                )
+            )
     if settings.monitoring_enabled:
         lanes.append(
             (
@@ -1641,6 +1677,15 @@ def plan_pursuit_questions() -> int:
     cards = planning_cards()
     with SessionLocal.begin() as session:
         return len(schedule_questions(session, cards, grouped=True))
+
+
+def plan_company_contact_jobs() -> int:
+    if not settings.company_contact_discovery_enabled:
+        return 0
+    from gridlens.intelligence.company_contact_discovery import plan_company_contact_jobs as plan
+
+    with SessionLocal.begin() as session:
+        return plan(session)
 
 
 def plan_monitoring_jobs() -> int:

@@ -63,6 +63,7 @@ from gridlens.persistence.models import (
     BuyingChainEvidence,
     BuyingChainIdentityLink,
     BuyingChainRun,
+    CompanyProjectMembership,
     Evidence,
     Interpretation,
     Job,
@@ -1776,6 +1777,31 @@ def enrich_buying_chain(
     from gridlens.intelligence.identity_reconciliation import ensure_project_scoped_identity_links
 
     ensure_project_scoped_identity_links(session, current_claim_ids)
+    # Queue bounded account research after identity reconciliation.  Queueing is
+    # best-effort: discovery must never make source ingestion fail.
+    if settings.company_contact_discovery_enabled:
+        try:
+            from gridlens.intelligence.company_contact_discovery import discover_company_contacts
+
+            with session.begin_nested():
+                company_ids = set(
+                    session.scalars(
+                        select(BuyingChainIdentityLink.company_identity_id).where(
+                            BuyingChainIdentityLink.claim_id.in_(
+                                [UUID(value) for value in current_claim_ids]
+                            ),
+                            BuyingChainIdentityLink.entity_type == "company",
+                            BuyingChainIdentityLink.state == "current",
+                        )
+                    )
+                )
+                for company_id in company_ids:
+                    if company_id is not None:
+                        discover_company_contacts(session, company_id)
+        except Exception:
+            # The primary evidence transaction remains authoritative; a future
+            # planner/replay can recover a missed discovery enqueue.
+            pass
     session.flush()
     retained_after = _retained(session, project)
     if retained_after:
@@ -2379,6 +2405,12 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
     if not claim_ids:
         return
     by_claim = {candidate["id"]: candidate for candidate in candidates}
+    project_by_claim = {
+        candidate["id"]: UUID(str(view["project_id"]))
+        for view in views
+        if "project_id" in view
+        for candidate in view["candidates"]
+    }
     links = session.scalars(
         select(BuyingChainIdentityLink)
         .where(
@@ -2465,6 +2497,32 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
             for item in candidate["evidence"]
         ):
             continue
+        if link.entity_type == "company" and getattr(link, "basis", None) == "current_membership":
+            if link.claim_id not in project_by_claim:
+                continue
+            source = session.get(BuyingChainEvidence, link.source_evidence_id)
+            retained_id = source.retained_evidence_id if source else None
+            membership = (
+                session.scalar(
+                    select(CompanyProjectMembership)
+                    .where(
+                        CompanyProjectMembership.project_id == project_by_claim[link.claim_id],
+                        CompanyProjectMembership.company_identity_id == link.company_identity_id,
+                        CompanyProjectMembership.source_evidence_id == retained_id,
+                        CompanyProjectMembership.state == "current",
+                    )
+                    .limit(1)
+                )
+                if retained_id
+                else None
+            )
+            retained = session.get(Evidence, retained_id) if retained_id else None
+            if (
+                membership is None
+                or retained is None
+                or membership.source_version_hash != retained.content_hash
+            ):
+                continue
         candidate[f"{link.entity_type}_identity_id"] = identity_id
 
 

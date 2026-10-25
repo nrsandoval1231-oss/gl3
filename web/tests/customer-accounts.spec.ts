@@ -380,7 +380,10 @@ test('company contacts remain actionable after refresh and generic routes requir
     if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
     if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams) })
     if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/contacts')) return route.fulfill({ json: { company_id: 'company-1', research_required: true, contacts: [{ claim_id: 'contact-1', company: 'Northstar Compute', role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', verification_status: 'Source verified; reachability and authority unconfirmed', methods: [{ kind: 'email', value: 'office@northstar.example', href: 'mailto:office@northstar.example', source_url: 'https://northstar.example/contact' }, { kind: 'phone', value: '+15125550123', href: 'tel:+15125550123', source_url: 'https://northstar.example/contact' }] }] } })
+    if (url.pathname.endsWith('/contacts')) return route.fulfill({ json: { company_id: 'company-1', research_required: true, contacts: [
+      { claim_id: 'contact-1', company: 'Northstar Compute', role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', verification_status: 'Source verified; reachability and authority unconfirmed', methods: [{ kind: 'phone', value: '+15125550123', href: 'tel:+15125550123', source_url: 'https://northstar.example/contact', verified_at: '2026-10-20T00:00:00Z' }, { kind: 'email', value: 'office@northstar.example', href: 'mailto:office@northstar.example', source_url: 'https://northstar.example/contact', verified_at: '2026-10-20T00:00:00Z' }] },
+      { claim_id: 'contact-2', company: 'Northstar Compute', name: 'Jordan Lee', title: 'Facilities Director', role: 'facilities', responsibility: 'Verified organizational responsibility', purchasing_authority: 'Requires confirmation for this power package', verification_status: 'Source verified; reachability and authority unconfirmed', methods: [], verified_at: null, sources: [{ reference: 'source-2', title: 'Facilities team', url: 'https://northstar.example/people/jordan', source_date: '2026-10-19', assessed_at: '2026-10-22T00:00:00Z', passage: 'Jordan Lee leads facilities.', extraction_method: 'public page', verification_status: 'Current source version' }] },
+    ] } })
     if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { account: { company_identity_id: 'company-1', name: 'Northstar Compute', project_count: 2, need_count: 3 }, items: [], total: 0, limit: 25, offset: 0 } })
     if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
     return route.fulfill({ json: { items: [], counts: {}, total: 0 } })
@@ -388,9 +391,16 @@ test('company contacts remain actionable after refresh and generic routes requir
   await page.goto('/?view=workspace&account=company-1&accountBrowse=1')
   const contacts = page.getByRole('region', { name: 'Contacts & Buying Chain' })
   await expect(contacts).toContainText('Research Required')
+  await expect(contacts.getByText('Affiliation: Northstar Compute')).toBeVisible()
+  await expect(contacts).toContainText('No usable email or phone is verified.')
+  await expect(contacts).toContainText('Purchasing authority remains unconfirmed.')
+  await expect(contacts.getByRole('link', { name: 'Contact evidence' })).toHaveAttribute('href', 'https://northstar.example/people/jordan')
+  await expect(contacts).toContainText('Role/source checked')
+  await expect(contacts.getByRole('link').first()).toHaveText('office@northstar.example')
   await expect(contacts.getByRole('link', { name: 'office@northstar.example' })).toHaveAttribute('href', 'mailto:office@northstar.example')
   await expect(contacts.getByRole('link', { name: '+15125550123' })).toHaveAttribute('href', 'tel:+15125550123')
   await expect(contacts.getByRole('link', { name: 'Verify source' }).first()).toHaveAttribute('href', 'https://northstar.example/contact')
+  await expect(contacts.getByRole('link', { name: 'Open contact page' }).first()).toHaveAttribute('href', 'https://northstar.example/contact')
   await page.reload()
   await expect(contacts.getByRole('link', { name: 'office@northstar.example' })).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })

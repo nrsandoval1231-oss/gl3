@@ -1,0 +1,88 @@
+{
+  "task": "CONTACT-P0",
+  "baseline_candidate": "93437131a6b0fa84300732426a5698c0bb99100b",
+  "episodes": [
+    {
+      "state": "PR122 extraction/preservation/API/UI implemented; automatic discovery and production coverage open",
+      "decision": "Extend existing jobs and append-only evidence, start with actual production inventory and an isolated restore",
+      "action": "Read-only live inventory and pg_dump; new local PostgreSQL cluster and original-row fingerprints",
+      "outcome": "235 current eligible companies, all Signal, four data_center and 231upstream_well; primary-company email/phone coverage0/235",
+      "deterministic_evaluation": "Read-only transaction and restored snapshot agree; existing63contractor contact claims remain separate from primary customers",
+      "attribution": "Typed membership-backed canonical accounts and claim-backed contact projection are distinct paths",
+      "candidate_lesson": "Prove a membership-only account through persistence before generalizing a company enrichment wrapper",
+      "lesson_status": "CANDIDATE",
+      "metric": "Real canonical company accounts with a verified contact method; direction increase without new duplicate company identities",
+      "reversibility": "Reject the routing policy if it adds unneeded complexity or weakens evidence/identity requirements"
+    },
+    {
+      "state": "First queue wrapper passed focused unit tests",
+      "decision": "Run two real companies via exact worker job IDs on isolated production restore",
+      "action": "Native EOG and EG AI official URL hints, no contact values or paid providers",
+      "outcome": "Pilot1: EOG incorrectly complete with0contacts; EG queued after InvalidRequestError",
+      "deterministic_evaluation": "FAIL; worker status was not commercial evidence",
+      "attribution": "Missing membership-only anchor, invalid persistence/run handling and inner unresolved result discarded",
+      "candidate_lesson": "Require real source to canonical company API readback, and reject complete when no method persisted",
+      "lesson_status": "CANDIDATE",
+      "metric": "False completion outcomes; direction decrease to0",
+      "reversibility": "Keep failed receipts and revert the rule only with contrary behavioral evidence"
+    },
+    {
+      "state": "Sol reconstructed PRD28/29 after bounded builders returned incomplete integration",
+      "decision": "Repair the material integration with an exact retained-membership bridge and retrieve outside write transactions",
+      "action": "PostgreSQL integration tests and real pilot2",
+      "outcome": "EG AI published email persisted under existing company ID; EOG correctly unresolved because broad neighboring fax context filtered legitimate phones",
+      "deterministic_evaluation": "PARTIAL; EG actual readback passed, EOG coverage remained0",
+      "attribution": "Canonical persistence repaired; source-specific line-label extraction still needed",
+      "candidate_lesson": "Classify a phone by its own published field label, not an unrelated nearby fax/navigation term",
+      "lesson_status": "CANDIDATE",
+      "metric": "Known published headquarters phones recovered while fax/hotline false positives stay0",
+      "reversibility": "Retain exact source layout regression and failed pilot receipts"
+    },
+    {
+      "state": "Real20-company v6 source verification found3usable companies but a marketing heading was counted as a named person",
+      "decision": "Reject v6 commercial metric; require occupational-title evidence and choose a valid current anchor",
+      "action": "Retained real roster negative regression, bounded current-anchor scan, fresh original-snapshot restore",
+      "outcome": "v7 has3usable companies and3real relevant named roles; no fabricated person",
+      "deterministic_evaluation": "Named false-positive count reduced from1to0; current later BKV anchor selected without accepting stale source",
+      "attribution": "Adjacent text is not automatically a name/title pair; lowest project ID is not an evidence-validity rule",
+      "candidate_lesson": "Require published occupational-title semantics and source/hash validity before network",
+      "lesson_status": "CANDIDATE",
+      "metric": "False named professionals and valid companies wrongly skipped; direction decrease",
+      "reversibility": "Retain actual-layout and stale-first-anchor regressions; no relaxation of canonical evidence"
+    },
+    {
+      "state": "Fresh same-manifest v7 replay preserved contact records but created1unnecessary EG AI job",
+      "decision": "Fence to original company relationship evidence rather than the jobs own appended person claims",
+      "action": "v8 stable-fingerprint regression, genuine SQL-error savepoint isolation and deadline propagation checks; clean20-company rerun",
+      "outcome": "20terminal in33.188s;3usable companies;6phones/1email;3named roles,0direct buyer methods;17no method; allResearchRequired",
+      "deterministic_evaluation": "All original rows preserved; same/fresh checkpoint replay identical jobIDs, rowcounts and original hashes; zero new paid dispatches",
+      "attribution": "Derived contact claims had entered the input fingerprint; swallowing SQL errors without a savepoint could poison primary ingestion",
+      "candidate_lesson": "Separate canonical source context from self-generated enrichment and prove queue isolation using a real database error",
+      "lesson_status": "CANDIDATE",
+      "metric": "Redundant replay jobs and primary ingestion failures caused by contact enqueue; direction decrease to0",
+      "reversibility": "Keep failed v7 receipt, exact canonical replay regression and SQL transaction test"
+    }
+  ],
+  "timing": {
+    "started_utc": null,
+    "first_observed_utc": "2026-10-25T03:09:52Z",
+    "finished_utc": null,
+    "planning_seconds": null,
+    "build_seconds": null,
+    "validation_seconds": null,
+    "audit_seconds": null,
+    "elapsed_to_accepted_seconds": null,
+    "lane": "full",
+    "roles": [
+      "Luna builder/utility",
+      "Terra bounded integration",
+      "Sol architecture and hard integration",
+      "fresh independent reviewer pending"
+    ],
+    "model_config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "repair_count": null,
+    "next_direction": "VALIDATE frozen v8 candidate; fresh independent Sol review follows final gates; production and full commercial P0 remain OPEN",
+    "repair_count_notes": "Two pre-reconstruction attempts were counted. Later policy revisions and corrections are retained by episode; aggregate repair count is UNKNOWN."
+  }
+}

@@ -1,3 +1,4 @@
+import time
 from collections import Counter
 from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
@@ -8,7 +9,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -151,6 +152,676 @@ def counts(session):
         session.scalar(select(func.count()).select_from(model))
         for model in (BuyingChainClaim, BuyingChainEvidence, BuyingChainRun, PowerNeed, Project)
     ]
+
+
+def test_membership_only_company_contact_job_persists_canonical_method(db, monkeypatch):
+    """The actual job, claim, run and account projection share one PostgreSQL transaction."""
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="operator-contact")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence).join(Observation).where(Observation.external_id == "operator-contact")
+        )
+        assert evidence is not None
+        evidence.abstract = "EOG Resources is the operator, RRC operator number 123456."
+        evidence.title = "EOG Resources drilling permit"
+        identity = CompanyIdentity(rrc_operator_number="123456")
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="asset_operator",
+                organization_name="EOG Resources",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_rrc_operator_number_v1",
+                operator_number="123456",
+                state="current",
+            )
+        )
+        queued = discovery.discover_company_contacts(
+            session,
+            identity.id,
+            candidate_urls=["https://www.eogresources.com/"],
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status = "running"
+        job.lease_owner = "contact-test"
+        job.fence = 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id, company_id = job.id, identity.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    inherited_deadline = time.monotonic() + 5
+    seen_deadlines = []
+
+    def public_page(url, **_kwargs):
+        seen_deadlines.append(_kwargs["deadline"])
+        if url.endswith("/leadership/"):
+            return PublicDocument(
+                url,
+                "Executive Leadership EOG Resources",
+                "EOG Resources executive leadership\nGregory T. Miller\nVP, Supply Chain\n"
+                "\ufffd 2018-2026 EOG Resources, Inc. All rights reserved.",
+                observed_at=NOW,
+            )
+        if url == "https://www.eogresources.com/":
+            return PublicDocument(
+                url,
+                "EOG Resources",
+                "EOG Resources\n\ufffd 2018-2026 EOG Resources, Inc. All rights reserved.",
+                observed_at=NOW,
+                links=(
+                    "https://www.eogresources.com/company/contacts/",
+                    "https://www.eogresources.com/company/leadership/",
+                ),
+            )
+        return PublicDocument(
+            url,
+            "EOG Resources Contact",
+            "EOG Resources corporate headquarters\n"
+            "Phone: (713) 651-7000\n"
+            "Toll Free: (877) 363-3647\n"
+            "Fax: (713) 651-6995\n"
+            "Email: info@eogresources.com.\n"
+            "\ufffd 2018-2026 EOG Resources, Inc. All rights reserved.",
+            observed_at=NOW,
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", public_page)
+    result = discovery.process_company_contact_discovery(
+        job_id, "contact-test", 1, now=NOW, deadline=inherited_deadline
+    )
+    assert result["status"] == "complete"
+    assert seen_deadlines and all(value == inherited_deadline for value in seen_deadlines)
+    with db.begin() as session:
+        projected = company_contacts(session, company_id)
+        assert projected.contacts
+        assert any(m["kind"] == "email" for c in projected.contacts for m in c.methods)
+        assert any(m["kind"] == "phone" for c in projected.contacts for m in c.methods)
+        values = {m["value"] for c in projected.contacts for m in c.methods}
+        assert "(713) 651-7000" in values
+        assert "(877) 363-3647" in values
+        assert "(713) 651-6995" not in values
+        assert any(c.name == "Gregory T. Miller" and not c.methods for c in projected.contacts)
+        assert any(
+            c.name == "Gregory T. Miller"
+            and c.confidence == "Published role; no verified direct contact method"
+            for c in projected.contacts
+        )
+        assert session.scalar(select(func.count()).select_from(CompanyIdentity)) == 1
+        current_run = session.scalar(
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project.id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+        )
+        assert current_run and current_run.claim_ids
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert len(checkpoint["checked_urls"]) == 3
+        assert checkpoint["research_required"] is True  # generic method is not a named buyer
+        before_counts = (
+            session.scalar(select(func.count()).select_from(BuyingChainClaim)),
+            session.scalar(select(func.count()).select_from(BuyingChainEvidence)),
+            session.scalar(select(func.count()).select_from(CompanyIdentity)),
+        )
+        assert before_counts == (
+            session.scalar(select(func.count()).select_from(BuyingChainClaim)),
+            session.scalar(select(func.count()).select_from(BuyingChainEvidence)),
+            session.scalar(select(func.count()).select_from(CompanyIdentity)),
+        )
+    # A new checkpoint opens a new transaction and must reuse the same job.
+    with db.begin() as session:
+        replay = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=["https://www.eogresources.com/"],
+        )
+        assert replay["job_id"] == str(job_id)
+        assert replay["deduplicated"] is True
+    with db.begin() as session:
+        membership = session.scalar(
+            select(CompanyProjectMembership).where(
+                CompanyProjectMembership.company_identity_id == company_id
+            )
+        )
+        membership.state = "retracted"
+        membership.version += 1
+    with db.begin() as session:
+        assert company_contacts(session, company_id).contacts == []
+
+
+def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="existing-contact")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX. "
+                "Beta is the electrical contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        acme = next(c for c in view["candidates"] if c["organization"] == "Acme")
+        before = {str(c["id"]) for c in view["candidates"]}
+        company_id = UUID(acme["company_identity_id"])
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=["https://acme.example/contact", "https://acme.example/team"],
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    requests = []
+
+    inherited_deadline = time.monotonic() + 1000
+    local_start = time.monotonic()
+    seen_deadlines = []
+
+    def public_page(url, **_kwargs):
+        seen_deadlines.append(_kwargs["deadline"])
+        requests.append(url)
+        if url.endswith("/team"):
+            return PublicDocument(
+                url,
+                "Acme Team",
+                "Alex Smith\nPower Procurement Manager\n© 2026 Acme. All rights reserved.",
+                observed_at=NOW,
+            )
+        return PublicDocument(
+            url,
+            "Acme Contact",
+            "Acme company contact. Email: office@acme.example.\n© 2026 Acme. All rights reserved.",
+            observed_at=NOW,
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", public_page)
+    result = discovery.process_company_contact_discovery(
+        job_id, "contact-test", 1, now=NOW, deadline=inherited_deadline
+    )
+    assert result["status"] == "complete"
+    assert seen_deadlines and all(
+        local_start < value <= local_start + 35.1 for value in seen_deadlines
+    )
+    with db.begin() as session:
+        after = buying_chain_view(session, project.id)
+        assert len(after["candidates"]) >= len(before)
+        assert any(c["organization"] == "Beta" for c in after["candidates"])
+        assert any(
+            m["value"] == "office@acme.example"
+            for c in company_contacts(session, company_id).contacts
+            for m in c.methods
+        )
+        assert session.scalar(select(func.count()).select_from(CompanyIdentity)) == 2
+        assert any(c["person_name"] == "Alex Smith" for c in after["candidates"])
+    with db.begin() as session:
+        replay = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=["https://acme.example/contact", "https://acme.example/team"],
+        )
+        assert replay["job_id"] == str(job_id)
+        assert replay["deduplicated"] is True
+    assert requests == ["https://acme.example/contact", "https://acme.example/team"]
+
+
+def test_failed_contact_enqueue_sql_does_not_abort_primary_enrichment(db, monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+
+    monkeypatch.setattr(settings, "company_contact_discovery_enabled", True)
+
+    def failed_enqueue(session, _company_id):
+        # PostgreSQL aborts the transaction on this real SQL error unless the
+        # best-effort hook has a savepoint around the entire enqueue.
+        session.execute(text("SELECT 1 / 0"))
+
+    monkeypatch.setattr(discovery, "discover_company_contacts", failed_enqueue)
+    with db.begin() as session:
+        project = seed(session, external_id="failed-contact-enqueue")
+        project.region_status = "ELIGIBLE"
+        project_id = project.id
+        result = enrich_buying_chain(
+            session,
+            project_id,
+            fetcher=lambda _url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        assert any(c["organization"] == "Acme" for c in result["candidates"])
+    with db.begin() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BuyingChainClaim)
+                .where(BuyingChainClaim.project_id == project_id)
+            )
+            >= 1
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BuyingChainRun)
+                .where(BuyingChainRun.project_id == project_id)
+            )
+            == 1
+        )
+
+
+@pytest.mark.parametrize(
+    ("title", "category", "expected"),
+    [
+        ("Operations Manager", "asset_operator", "field_operations"),
+        ("Project Executive", "general_contractor", "general_contractor"),
+        ("Distributed Generation Director", "owner_developer", "owner_energy"),
+        ("Infrastructure Development Manager", "owner_developer", "owner_construction"),
+        ("Facilities Engineering Manager", "asset_operator", "field_operations"),
+        ("Electrical Construction Manager", "electrical_contractor", "electrical_contractor"),
+        ("Power Procurement Manager", "owner_developer", "procurement"),
+        ("HR Operations Manager", "asset_operator", None),
+        ("Operations Manager", "unknown", None),
+    ],
+)
+def test_published_relevant_role_vocabulary(title, category, expected):
+    from gridlens.intelligence.buying_chain_extraction import (
+        _published_roster_title,
+        _role_category,
+    )
+
+    assert _role_category(title, category) == expected
+    if expected is not None:
+        assert _published_roster_title(title)
+
+
+def test_exact_rrc_registry_phone_is_company_scoped(db, monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="rrc-registry-contact")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "rrc-registry-contact")
+        )
+        assert evidence is not None
+        evidence.title = "RRC permit EOG Resources"
+        evidence.abstract = "EOG Resources is the operator, RRC operator number 123456."
+        identity = CompanyIdentity(rrc_operator_number="123456")
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="asset_operator",
+                organization_name="EOG Resources",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_rrc_operator_number_v1",
+                operator_number="123456",
+                state="current",
+            )
+        )
+        queued = discovery.discover_company_contacts(session, identity.id)
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id, company_id = job.id, identity.id
+
+    registry_url = discovery._rrc_url("123456")
+    assert registry_url is not None
+    registry_text = (
+        "Organization Operator Query Results\nOperator Number: 123456\n"
+        "Operator Name: EOG Resources\n"
+        "Organization Phone No: (713) 651-7000\n"
+        "Agency Phone: (512) 000-0000\nEmergency Phone: (713) 555-1212"
+    )
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: PublicDocument(
+            url,
+            "RRC Operator Registry",
+            registry_text,
+            observed_at=NOW,
+        ),
+    )
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "partial"  # paid search was policy-blocked
+    assert result["results"][0]["source_class"] == "public_registry"
+    with db.begin() as session:
+        contacts = company_contacts(session, company_id).contacts
+        values = {method["value"] for item in contacts for method in item.methods}
+        assert values == {"(713) 651-7000"}
+        assert session.scalar(select(func.count()).select_from(CompanyIdentity)) == 1
+
+    wrong = PublicDocument(
+        registry_url,
+        "RRC Operator Registry",
+        registry_text.replace("123456", "999999"),
+        observed_at=NOW,
+    )
+    assert discovery._rrc_public_method(wrong, "123456", "EOG Resources") is None
+    wrong_company = PublicDocument(
+        registry_url,
+        "RRC Operator Registry",
+        registry_text.replace("EOG Resources", "Other Energy"),
+        observed_at=NOW,
+    )
+    assert discovery._rrc_public_method(wrong_company, "123456", "EOG Resources") is None
+
+
+def test_contact_planner_pages_past_recent_companies(db):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-planner-page")
+        project.region_status = "ELIGIBLE"
+        enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX. "
+                "Beta is the electrical contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        assert discovery.plan_company_contact_jobs(session, limit=1) == 1
+        assert discovery.plan_company_contact_jobs(session, limit=1) == 1
+        assert discovery.plan_company_contact_jobs(session, limit=1) == 0
+        jobs = session.scalars(select(Job).where(Job.kind == discovery.JOB_KIND)).all()
+        assert len(jobs) == 2
+        assert len({job.target_id for job in jobs}) == 2
+
+
+def test_contact_anchor_skips_stale_member_project_for_current_later_source(db):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        projects = [
+            seed(session, external_id="anchor-first", identity_key="anchor-first"),
+            seed(session, external_id="anchor-second", identity_key="anchor-second"),
+        ]
+        identity = CompanyIdentity(rrc_operator_number="123456")
+        session.add(identity)
+        session.flush()
+        sorted_projects = sorted(projects, key=lambda item: item.id)
+        stale_project, fresh_project = sorted_projects
+        for project in sorted_projects:
+            project.region_status = "ELIGIBLE"
+            evidence = session.scalar(
+                select(Evidence)
+                .join(Observation)
+                .where(Observation.external_id == project.external_id)
+            )
+            interpretation = session.scalar(
+                select(Interpretation)
+                .join(Observation)
+                .where(Observation.external_id == project.external_id)
+            )
+            assert evidence is not None and interpretation is not None
+            evidence.title = "Acme operator filing"
+            evidence.abstract = "Acme is the operator, RRC operator number 123456."
+            assessment = dict(interpretation.assessment)
+            assessment["project_identity_key"] = project.identity_key
+            interpretation.assessment = assessment
+            if project.id == stale_project.id:
+                evidence.content_hash = "b"  # interpretation still accepted old hash a
+            session.add(
+                CompanyProjectMembership(
+                    company_identity_id=identity.id,
+                    project_id=project.id,
+                    role="asset_operator",
+                    organization_name="Acme",
+                    source_id="test",
+                    source_evidence_id=evidence.id,
+                    source_version_hash=evidence.content_hash,
+                    decision_basis="typed_rrc_operator_number_v1",
+                    operator_number="123456",
+                    state="current",
+                )
+            )
+        selected = discovery._select_anchor_project(
+            session, discovery._projects(session, identity.id), identity.id
+        )
+        assert selected is not None and selected.id == fresh_project.id
+        queued = discovery.discover_company_contacts(
+            session, identity.id, candidate_urls=["https://acme.example/contact"]
+        )
+        assert queued["status"] == "queued"
+        assert session.get(Job, UUID(queued["job_id"])).target_id == identity.id
+
+
+def test_contact_fetch_discarded_when_membership_changes(db, monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-source-fence")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "contact-source-fence")
+        )
+        assert evidence is not None
+        evidence.title = "Acme owner filing"
+        evidence.abstract = "Acme is the project owner."
+        identity = CompanyIdentity()
+        session.add(identity)
+        session.flush()
+        membership = CompanyProjectMembership(
+            company_identity_id=identity.id,
+            project_id=project.id,
+            role="owner_developer",
+            organization_name="Acme",
+            source_id="test",
+            source_evidence_id=evidence.id,
+            source_version_hash=evidence.content_hash,
+            decision_basis="typed_source_v1",
+            operator_number="000000",
+            state="current",
+        )
+        session.add(membership)
+        queued = discovery.discover_company_contacts(
+            session, identity.id, candidate_urls=["https://acme.example/contact"]
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id, company_id, membership_id = job.id, identity.id, membership.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+
+    def changed_source(url, **_kwargs):
+        with db.begin() as session:
+            row = session.get(CompanyProjectMembership, membership_id)
+            row.version += 1
+        return PublicDocument(
+            url,
+            "Acme Contact",
+            "Email: office@acme.example\n© 2026 Acme. All rights reserved.",
+            observed_at=NOW,
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", changed_source)
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "unresolved"
+    assert result["results"] == [{"status": "unresolved", "reason": "source_context_changed"}]
+    with db.begin() as session:
+        assert company_contacts(session, company_id).contacts == []
+        assert session.scalar(select(func.count()).select_from(BuyingChainClaim)) == 0
+
+
+@pytest.mark.parametrize("uncertain", [False, True])
+def test_contact_search_uses_one_accounted_logical_call(db, monkeypatch, uncertain):
+    import json
+    from decimal import Decimal
+
+    from pydantic import SecretStr
+
+    import gridlens.ingestion.adapters.pursuit_acquisition as acquisition
+    import gridlens.integrations.legacy_calls as legacy_calls
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import CompanyProjectMembership, Job, LogicalCall
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-accounted-search")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "contact-accounted-search")
+        )
+        assert evidence is not None
+        evidence.title, evidence.abstract = "Acme owner filing", "Acme is the project owner."
+        identity = CompanyIdentity()
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="owner_developer",
+                organization_name="Acme",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_source_v1",
+                operator_number="000000",
+                state="current",
+            )
+        )
+        queued = discovery.discover_company_contacts(session, identity.id)
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id, company_id = job.id, identity.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(legacy_calls, "SessionLocal", db)
+    for name, value in {
+        "intelligence_enabled": True,
+        "intelligence_mode": "evaluation",
+        "intelligence_enabled_contracts": "FIRECRAWL_SEARCH_V2",
+        "intelligence_research_enabled": True,
+        "intelligence_max_active_calls": 2,
+        "intelligence_max_call_usd": Decimal("0.1"),
+        "firecrawl_api_key": SecretStr("fixture-key"),
+        "firecrawl_search_cost_usd": Decimal("0.01"),
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    for scope in ("global", "provider", "model", "source", "project"):
+        for period in ("daily", "monthly"):
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_calls", 10)
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_usd", Decimal("1"))
+    calls = []
+
+    def search(_query, **_kwargs):
+        calls.append(1)
+        if uncertain:
+            raise TimeoutError("simulated transport interruption")
+        return []
+
+    monkeypatch.setattr(acquisition, "discover_urls", search)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail(
+            "An empty or uncertain search cannot fetch an invented URL"
+        ),
+    )
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "unresolved"
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        logical = session.scalar(select(LogicalCall))
+        assert logical is not None
+        assert checkpoint["search_logical_call_id"] == str(logical.id)
+        assert logical.status == ("SENT_OUTCOME_UNKNOWN" if uncertain else "COMPLETED")
+        replay = discovery.discover_company_contacts(session, company_id)
+        assert replay["job_id"] == str(job_id)
+        assert replay["deduplicated"] is True
+    assert len(calls) == 1
+
+
+def test_company_site_gate_rejects_government_and_third_party_mentions():
+    from gridlens.intelligence.company_contact_discovery import _self_identified_company_site
+
+    assert not _self_identified_company_site(
+        PublicDocument(
+            "https://state.example.gov/permits/egai",
+            "Permit applicant EG AI Corp",
+            "EG AI Corp. Agency phone: 555-555-0101. © 2026 State Agency.",
+        ),
+        "EG AI Corp",
+    )
+    assert not _self_identified_company_site(
+        PublicDocument(
+            "https://directory.example.com/egai",
+            "EG AI Corp listing",
+            "EG AI Corp. Contact 555-555-0101. © 2026 Directory Inc.",
+        ),
+        "EG AI Corp",
+    )
+    assert _self_identified_company_site(
+        PublicDocument(
+            "https://egai.us/contact/",
+            "Contact EG AI Corp",
+            "info@egai.us\n© 2026 EG AI Corp. All rights reserved.",
+        ),
+        "EG AI Corp",
+    )
+    assert _self_identified_company_site(
+        PublicDocument(
+            "https://www.cogc.com/contact-us/",
+            "Contact Citation",
+            "Phone: 432.262.7600\n© 2026 Citation Oil & Gas Corp.\nHome\nContact Us",
+        ),
+        "CITATION OIL & GAS CORP.",
+    )
+    assert _self_identified_company_site(
+        PublicDocument(
+            "https://flatlandoilandgas.com/",
+            "Flatland Oil & Gas, LLC",
+            "Flat Land Oil & Gas, LLC is focused on opportunities. We pursue oil and gas assets.",
+        ),
+        "FLAT LAND OIL & GAS, LLC",
+    )
+    assert not _self_identified_company_site(
+        PublicDocument(
+            "https://directory.example.com/eg-ai",
+            "EG AI Corp listing",
+            "© 2026 Directory Inc.\nEG AI Corp article.",
+        ),
+        "EG AI CORP",
+    )
 
 
 def test_replay_is_idempotent_and_never_changes_tier(db):

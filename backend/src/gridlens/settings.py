@@ -139,6 +139,7 @@ class Settings(BaseSettings):
     power_need_titles_enabled: bool = False
     autonomous_research_enabled: bool = True
     buying_chain_public_research_enabled: bool = False
+    company_contact_discovery_enabled: bool = False
     autonomous_research_daily_questions: int = Field(default=8, ge=0, le=100)
     autonomous_research_max_searches: int = Field(default=3, ge=0, le=5)
     autonomous_research_max_urls: int = Field(default=10, ge=1, le=15)

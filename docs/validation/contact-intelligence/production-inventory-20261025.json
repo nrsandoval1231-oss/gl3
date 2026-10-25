@@ -1,0 +1,55 @@
+{
+  "observed_utc": "2026-10-25T03:14:10Z",
+  "mode": "READ_ONLY_PRODUCTION_SNAPSHOT",
+  "source_database": "gridlens_restore_20261014",
+  "deployed_release": "release-6394de644591",
+  "schema": "0041_evidence_packages",
+  "snapshot_sha256": "6e0d699e4065acb9caf1a1fd61a25a4a75d7ff2f3bf4509d89df2c887fb86e65",
+  "isolated_restore_exit_code": 0,
+  "projects": 1817,
+  "power_needs": 1817,
+  "company_identities": 532,
+  "company_project_memberships": 1642,
+  "eligible_active_projects": 1749,
+  "eligible_current_customer_companies": 235,
+  "by_industry": {
+    "data_center": 4,
+    "upstream_well": 231
+  },
+  "by_tier": {
+    "Lead": {
+      "companies": 0,
+      "verified_email_companies": 0,
+      "verified_phone_companies": 0,
+      "coverage_percent": null
+    },
+    "Prospect": {
+      "companies": 0,
+      "verified_email_companies": 0,
+      "verified_phone_companies": 0,
+      "coverage_percent": null
+    },
+    "Signal": {
+      "companies": 235,
+      "verified_email_companies": 0,
+      "verified_phone_companies": 0,
+      "coverage_percent": 0.0
+    }
+  },
+  "raw_retained_contact_claims": 63,
+  "raw_contact_claim_roles": {
+    "general_contractor": 28,
+    "electrical_contractor": 35
+  },
+  "notes": [
+    "Customer denominator uses current correction-aware source-backed customer claims/memberships on active region-eligible physical projects, not all company identity rows.",
+    "All eligible customer companies are Signals at this snapshot. No qualification was changed to populate higher benchmark tiers.",
+    "Existing contractor methods are preserved as the associated buying chain; they are not counted as primary customer contacts.",
+    "Point-in-time production baseline only; later benchmark contacts exist in an isolated local restore, not production.",
+    "Native retrieval is permitted; paid Firecrawl use and production writes are not authorized. Production runtime Firecrawl key is absent; the separate local task key was verified via free metadata only."
+  ],
+  "deployed_revision": "6394de6445911054880b6ed4a4af20cbd45e660d",
+  "api_image_id": "sha256:7c3bd31841b239d518282fef0fb805bb71cf481644bdc1b2298888f6592d7b52",
+  "web_image_id": "sha256:f86f6cc570e205eaa7c6955f4720a403fbd8679ab3e14b0dfc8675b27acfa072",
+  "production_firecrawl_key_present": false
+}
