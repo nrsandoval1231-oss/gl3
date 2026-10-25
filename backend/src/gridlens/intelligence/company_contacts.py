@@ -29,6 +29,10 @@ class CompanyContact(IntelligenceContact):
     verification_status: str = "Source verified; reachability and authority unconfirmed"
     confidence: str = "High: literal contact method in current retained evidence"
     phone_type: str = "unknown"
+    assertion_status: str = "published"
+    mailbox_verified: bool = False
+    verification_basis: str | None = None
+    independent_verification: str = "UNKNOWN_UNSUPPORTED"
 
 
 def relevant_named_contact(contact: IntelligenceContact) -> bool:
@@ -48,10 +52,26 @@ def relevant_named_professional(contact: IntelligenceContact) -> bool:
     )
 
 
+class ImportedCompanyContact(BaseModel):
+    import_row_id: str
+    batch_id: str
+    sheet: str
+    row_number: int
+    company: str | None
+    name: str | None
+    title: str | None
+    email: str | None
+    phone: str | None
+    profile_url: str | None
+    assertion_status: str = "imported_unverified"
+    mailbox_verified: bool = False
+
+
 class CompanyContacts(BaseModel):
     company_id: UUID
     contacts: list[CompanyContact] = Field(default_factory=list)
     research_required: bool = True
+    imported_unverified: list[ImportedCompanyContact] = Field(default_factory=list)
 
 
 def project_contacts(company_id: UUID, views: dict) -> CompanyContacts:

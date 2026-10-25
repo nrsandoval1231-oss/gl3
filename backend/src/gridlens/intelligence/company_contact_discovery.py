@@ -35,6 +35,12 @@ from gridlens.intelligence.buying_chain_extraction import (
     extract_people,
 )
 from gridlens.intelligence.company_contacts import company_contacts, relevant_named_contact
+from gridlens.intelligence.enrichment_planner import (
+    ResearchCandidate,
+    rank_candidate,
+    research_digest,
+    should_schedule,
+)
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -45,8 +51,12 @@ from gridlens.persistence.models import (
     CompanyIdentity,
     CompanyProjectMembership,
     Evidence,
+    ExternalImportActivation,
+    ExternalImportBatch,
+    ExternalImportRow,
     Job,
     LogicalCall,
+    PlannerState,
     PowerNeed,
     Project,
 )
@@ -92,6 +102,42 @@ def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
             )
             .order_by(Project.id)
         ).all()
+    )
+
+
+def _active_import_rows(session: Session, company_id: UUID) -> list[tuple[ExternalImportRow, str]]:
+    """Bound active, matched imports used only as unverified research hints."""
+    rows = session.execute(
+        select(ExternalImportRow, ExternalImportBatch.content_hash)
+        .join(ExternalImportBatch, ExternalImportBatch.id == ExternalImportRow.batch_id)
+        .join(ExternalImportActivation, ExternalImportActivation.row_id == ExternalImportRow.id)
+        .where(
+            ExternalImportActivation.active.is_(True),
+            ExternalImportRow.match_status == "matched",
+            ExternalImportRow.company_match["status"].as_string() == "matched",
+            ExternalImportRow.company_match["candidate_id"].as_string() == str(company_id),
+        )
+        .order_by(ExternalImportRow.created_at.desc(), ExternalImportRow.id.desc())
+        .limit(100)
+    ).all()
+    return [(row, content_hash) for row, content_hash in rows]
+
+
+def _research_source_digest(session: Session, project: Project, company_id: UUID) -> str:
+    imports = _active_import_rows(session, company_id)
+    return fingerprint(
+        {
+            "anchor": _anchor_digest(session, project, company_id),
+            "imports": [
+                {
+                    "row_id": str(row.id),
+                    "batch_id": str(row.batch_id),
+                    "content_hash": content_hash,
+                    "normalized_hash": fingerprint(row.normalized or {}),
+                }
+                for row, content_hash in imports
+            ],
+        }
     )
 
 
@@ -147,6 +193,7 @@ def discover_company_contacts(
     *,
     candidate_urls: tuple[str, ...] | list[str] = (),
     now: datetime | None = None,
+    refresh_generation: str | None = None,
 ) -> dict:
     """Idempotently enqueue discovery; it intentionally performs no network I/O."""
     now = now or datetime.now(UTC)
@@ -164,13 +211,43 @@ def discover_company_contacts(
             "job_id": None,
         }
     session.scalar(select(func.pg_advisory_xact_lock(company_identity_id.int % (2**63 - 1))))
+    needs = list(
+        session.scalars(
+            select(PowerNeed).where(
+                PowerNeed.project_id.in_([project.id for project in projects]),
+                PowerNeed.active.is_(True),
+            )
+        ).all()
+    )
+    latest_evidence_at = session.scalar(
+        select(func.max(Evidence.observed_at)).where(
+            Evidence.id.in_(
+                select(CompanyProjectMembership.source_evidence_id).where(
+                    CompanyProjectMembership.company_identity_id == company_identity_id,
+                    CompanyProjectMembership.state == "current",
+                )
+            )
+        )
+    )
+    input_digest = research_digest(
+        ResearchCandidate(
+            company_identity_id,
+            tuple(projects),
+            tuple(needs),
+            latest_evidence_at,
+            None,
+            None,
+            _research_source_digest(session, anchor, company_identity_id),
+        )
+    )
     digest = fingerprint(
         {
             "company_identity_id": str(company_identity_id),
             "candidate_urls": urls,
             "anchor": _anchor_digest(session, anchor, company_identity_id),
-            "refresh_epoch": now.date().toordinal() // 30,
+            "research_digest": input_digest,
             "policy": POLICY_VERSION,
+            "refresh_generation": refresh_generation,
         }
     )
     existing = session.scalars(
@@ -197,6 +274,10 @@ def discover_company_contacts(
             }
         if checkpoint.get("request_digest") == digest and job.status == "failed":
             matching_failures += 1
+        if job.status == "running" and job.lease_until and job.lease_until <= now:
+            # A reclaimed job is safe to retry under its new fence; the stale
+            # worker cannot persist after the queue increments that fence.
+            continue
     if matching_failures >= 2:
         return {"status": "unresolved", "reason": "retries_exhausted", "job_id": None}
     job = Job(
@@ -213,6 +294,7 @@ def discover_company_contacts(
                 },
                 "status": "queued",
                 "queued_at": now.isoformat(),
+                "refresh_generation": refresh_generation,
             },
             separators=(",", ":"),
         ),
@@ -225,6 +307,18 @@ def discover_company_contacts(
 def _known_contact_urls(session: Session, company_id: UUID, projects: list[Project]) -> list[str]:
     """Reuse only source-cited contact URLs or earlier checked company pages."""
     urls: list[str] = []
+    for row, _content_hash in _active_import_rows(session, company_id):
+        imported_fields = row.normalized if isinstance(row.normalized, dict) else {}
+        domain = imported_fields.get("domain")
+        if not isinstance(domain, str) or not domain or len(domain) > 253:
+            continue
+        try:
+            hint = validate_public_url(f"https://{domain}/")
+        except (TypeError, ValueError):
+            continue
+        parsed = urlsplit(hint)
+        if parsed.hostname and parsed.scheme == "https" and parsed.path in {"", "/"}:
+            urls.append(hint)
     for project in projects[:4]:
         view = buying_chain_view(session, project.id)
         for item in view["candidates"]:
@@ -266,7 +360,7 @@ def _known_contact_urls(session: Session, company_id: UUID, projects: list[Proje
 
 
 def plan_company_contact_jobs(session: Session, *, limit: int = 25) -> int:
-    """Queue one bounded page; already planned companies cannot starve later IDs."""
+    """Queue highest-value due company research, reusing durable company identity."""
     if not 1 <= limit <= 100:
         raise ValueError("Contact planning limit must be 1..100")
     eligible_projects = select(Project.id).where(
@@ -290,27 +384,161 @@ def plan_company_contact_jobs(session: Session, *, limit: int = 25) -> int:
         )
     )
     candidates = union(membership_ids, claim_ids).subquery()
-    recent = (
-        select(Job.id)
-        .where(
-            Job.kind == JOB_KIND,
-            Job.target_id == candidates.c.company_id,
-            Job.created_at >= datetime.now(UTC) - timedelta(days=30),
-        )
-        .exists()
-    )
-    ids = session.scalars(
-        select(candidates.c.company_id)
-        .where(~recent)
-        .order_by(candidates.c.company_id)
-        .limit(limit * 4)
-    ).all()
-    queued = 0
+    now = datetime.now(UTC)
+    page_size = min(limit * 4, 400)
+    cursor_key = "company-contact-discovery-cursor"
+    session.scalar(select(func.pg_advisory_xact_lock(0x43434F4E54414354)))
+    cursor_state = session.get(PlannerState, cursor_key, with_for_update=True)
+    if cursor_state is None:
+        cursor_state = PlannerState(planner_key=cursor_key)
+        session.add(cursor_state)
+        session.flush()
+    cursor_id = None
+    if cursor_state.cursor:
+        try:
+            cursor_id = UUID(cursor_state.cursor)
+        except ValueError:
+            cursor_id = None
+    page_statement = select(candidates.c.company_id)
+    if cursor_id is not None:
+        page_statement = page_statement.where(candidates.c.company_id > cursor_id)
+    ids = session.scalars(page_statement.order_by(candidates.c.company_id).limit(page_size)).all()
+    if not ids and cursor_id is not None:
+        ids = session.scalars(
+            select(candidates.c.company_id).order_by(candidates.c.company_id).limit(page_size)
+        ).all()
+    if ids:
+        cursor_state.cursor = str(ids[-1])
+    ranked: list[tuple[int, str, UUID, ResearchCandidate, str, dict, str, str | None]] = []
     for company_id in ids:
-        result = discover_company_contacts(session, company_id)
-        queued += result.get("status") == "queued" and not result.get("deduplicated", False)
-        if queued >= limit:
-            break
+        projects = _projects(session, company_id)
+        anchor = _select_anchor_project(session, projects, company_id)
+        if anchor is None:
+            continue
+        needs = list(
+            session.scalars(
+                select(PowerNeed).where(
+                    PowerNeed.project_id.in_([p.id for p in projects]), PowerNeed.active.is_(True)
+                )
+            ).all()
+        )
+        if not needs:
+            continue
+        latest = session.scalar(
+            select(func.max(Evidence.observed_at)).where(
+                Evidence.id.in_(
+                    select(CompanyProjectMembership.source_evidence_id).where(
+                        CompanyProjectMembership.company_identity_id == company_id,
+                        CompanyProjectMembership.state == "current",
+                    )
+                )
+            )
+        )
+        source_digest = _research_source_digest(session, anchor, company_id)
+        candidate = ResearchCandidate(
+            company_id,
+            tuple(projects),
+            tuple(needs),
+            latest,
+            None,
+            None,
+            source_digest,
+        )
+        digest = research_digest(candidate)
+        matching_checkpoints = []
+        for existing_job in session.scalars(
+            select(Job)
+            .where(Job.kind == JOB_KIND, Job.target_id == company_id)
+            .order_by(Job.created_at.desc(), Job.id.desc())
+            .limit(30)
+        ):
+            try:
+                existing_checkpoint = json.loads(existing_job.checkpoint or "{}")
+            except (TypeError, ValueError):
+                continue
+            if existing_checkpoint.get("research_digest") == digest:
+                matching_checkpoints.append((existing_job, existing_checkpoint))
+        completed_values = []
+        failed_refreshes: list[tuple[datetime, str]] = []
+        for existing_job, existing_checkpoint in matching_checkpoints:
+            if existing_job.status == "failed" and isinstance(
+                existing_checkpoint.get("refresh_generation"), str
+            ):
+                try:
+                    queued_at = datetime.fromisoformat(existing_checkpoint["queued_at"])
+                    failed_refreshes.append((queued_at, existing_checkpoint["refresh_generation"]))
+                except (KeyError, TypeError, ValueError):
+                    pass
+            if existing_job.status != "succeeded" or not existing_checkpoint.get("completed_at"):
+                continue
+            try:
+                completed_values.append(datetime.fromisoformat(existing_checkpoint["completed_at"]))
+            except (TypeError, ValueError):
+                continue
+        completed_at = max(completed_values) if completed_values else None
+        candidate = ResearchCandidate(
+            company_id,
+            tuple(projects),
+            tuple(needs),
+            latest,
+            completed_at,
+            digest if matching_checkpoints else None,
+            source_digest,
+        )
+        due, due_reason = should_schedule(candidate, now=now, digest=digest)
+        latest_completed_at = max(completed_values) if completed_values else None
+        latest_failed_refresh = max(failed_refreshes) if failed_refreshes else None
+        retry_generation = (
+            latest_failed_refresh[1]
+            if latest_failed_refresh
+            and (latest_completed_at is None or latest_failed_refresh[0] > latest_completed_at)
+            else None
+        )
+        if retry_generation:
+            due_reason = "stale_refresh_due"
+        if not due:
+            continue
+        rank = rank_candidate(candidate, now=now)
+        ranked.append(
+            (
+                -rank["score"],
+                str(company_id),
+                company_id,
+                candidate,
+                digest,
+                rank,
+                due_reason,
+                retry_generation,
+            )
+        )
+    queued = 0
+    for (
+        _neg_score,
+        _key,
+        company_id,
+        _candidate,
+        digest,
+        rank,
+        due_reason,
+        retry_generation,
+    ) in sorted(ranked):
+        refresh_generation = retry_generation or (
+            str(now.date().toordinal() // 30) if due_reason == "stale_refresh_due" else None
+        )
+        result = discover_company_contacts(
+            session, company_id, now=now, refresh_generation=refresh_generation
+        )
+        if result.get("status") == "queued" and not result.get("deduplicated", False):
+            job_id = result.get("job_id")
+            job = session.get(Job, UUID(job_id)) if isinstance(job_id, str) else None
+            if job is None:
+                continue
+            checkpoint = json.loads(job.checkpoint or "{}")
+            checkpoint.update(research_digest=digest, research_rank=rank)
+            job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+            queued += 1
+            if queued >= limit:
+                break
     return queued
 
 

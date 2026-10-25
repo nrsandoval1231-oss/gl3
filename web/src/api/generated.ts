@@ -181,6 +181,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/companies/{company_id}/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Company Graph */
+        get: operations["company_graph_api_companies__company_id__graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/companies/{company_id}/contact-assertions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Contact Assertions */
+        get: operations["contact_assertions_api_companies__company_id__contact_assertions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/contact-assertions/{claim_id}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct Contact */
+        post: operations["correct_contact_api_contact_assertions__claim_id__corrections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/power-enrichment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Project Power Enrichment */
+        get: operations["project_power_enrichment_api_projects__project_id__power_enrichment_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -2244,6 +2312,23 @@ export interface components {
              * @default unknown
              */
             phone_type: string;
+            /**
+             * Assertion Status
+             * @default published
+             */
+            assertion_status: string;
+            /**
+             * Mailbox Verified
+             * @default false
+             */
+            mailbox_verified: boolean;
+            /** Verification Basis */
+            verification_basis?: string | null;
+            /**
+             * Independent Verification
+             * @default UNKNOWN_UNSUPPORTED
+             */
+            independent_verification: string;
         };
         /** CompanyContacts */
         CompanyContacts: {
@@ -2259,6 +2344,53 @@ export interface components {
              * @default true
              */
             research_required: boolean;
+            /** Imported Unverified */
+            imported_unverified?: components["schemas"]["ImportedCompanyContact"][];
+        };
+        /** CompanyGraphOut */
+        CompanyGraphOut: {
+            company: components["schemas"]["GraphCompany"];
+            /** Projects */
+            projects: components["schemas"]["GraphProject"][];
+            /** Relationships */
+            relationships: components["schemas"]["GraphRelationship"][];
+            /** Evidence */
+            evidence: components["schemas"]["GraphEvidence"][];
+            /** Limits */
+            limits: {
+                [key: string]: number;
+            };
+        };
+        /** ContactCorrectionBody */
+        ContactCorrectionBody: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Expected Version */
+            expected_version: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "suppress" | "replace" | "retract";
+            /**
+             * Kind
+             * @default email
+             * @enum {string}
+             */
+            kind: "email" | "phone" | "profile" | "website" | "general";
+            /** Value */
+            value?: string | null;
+            /** Reason */
+            reason: string;
+            /** Source Evidence Id */
+            source_evidence_id?: string | null;
+            /** Source Hash */
+            source_hash?: string | null;
         };
         /** CustomerAccountNeedOut */
         CustomerAccountNeedOut: {
@@ -2470,6 +2602,83 @@ export interface components {
             assessment_current: boolean;
             /** Permit Status */
             permit_status?: string | null;
+        };
+        /** GraphCompany */
+        GraphCompany: {
+            /** Id */
+            id: string;
+            /** Display Name */
+            display_name: string | null;
+            /** Identifiers */
+            identifiers: components["schemas"]["GraphIdentifier"][];
+            /** Aliases */
+            aliases: components["schemas"]["GraphIdentifier"][];
+        };
+        /** GraphEvidence */
+        GraphEvidence: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string | null;
+            /** Url */
+            url: string | null;
+            /** Content Hash */
+            content_hash: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Observed At */
+            observed_at: string | null;
+            /** Published At */
+            published_at?: string | null;
+        };
+        /** GraphIdentifier */
+        GraphIdentifier: {
+            /** Identifier Type */
+            identifier_type: string;
+            /** Value */
+            value: string;
+            evidence: components["schemas"]["GraphEvidence"];
+        };
+        /** GraphProject */
+        GraphProject: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            /** Roles */
+            roles: components["schemas"]["GraphProjectRole"][];
+        };
+        /** GraphProjectRole */
+        GraphProjectRole: {
+            /** Role */
+            role: string;
+            /** Organization Name */
+            organization_name: string | null;
+            /** State */
+            state: string;
+            evidence: components["schemas"]["GraphEvidence"];
+        };
+        /** GraphRelationship */
+        GraphRelationship: {
+            /** Id */
+            id: string;
+            /** Source Company Id */
+            source_company_id: string;
+            /** Target Company Id */
+            target_company_id: string;
+            /** Relationship Type */
+            relationship_type: string;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+            /** Correction Id */
+            correction_id?: string | null;
+            /** Reason */
+            reason: string | null;
+            evidence: components["schemas"]["GraphEvidence"];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2729,6 +2938,39 @@ export interface components {
             coverage_limitation?: string | null;
             /** Pending Collection Lanes */
             pending_collection_lanes?: string[] | null;
+        };
+        /** ImportedCompanyContact */
+        ImportedCompanyContact: {
+            /** Import Row Id */
+            import_row_id: string;
+            /** Batch Id */
+            batch_id: string;
+            /** Sheet */
+            sheet: string;
+            /** Row Number */
+            row_number: number;
+            /** Company */
+            company: string | null;
+            /** Name */
+            name: string | null;
+            /** Title */
+            title: string | null;
+            /** Email */
+            email: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Profile Url */
+            profile_url: string | null;
+            /**
+             * Assertion Status
+             * @default imported_unverified
+             */
+            assertion_status: string;
+            /**
+             * Mailbox Verified
+             * @default false
+             */
+            mailbox_verified: boolean;
         };
         /** IngestionItemOut */
         IngestionItemOut: {
@@ -3531,6 +3773,47 @@ export interface components {
             /** Facts */
             facts?: components["schemas"]["PermitFactOut"][];
         };
+        /**
+         * PowerEnrichment
+         * @description Read-only evidence projection; this model does not assign qualification.
+         */
+        PowerEnrichment: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "SUPPORTED" | "UNRESOLVED" | "CONFLICT" | "NO_EVIDENCE";
+            /** Scenarios */
+            scenarios?: components["schemas"]["PowerScenario"][];
+            /** Basis */
+            basis: string;
+        };
+        /**
+         * PowerEnrichmentSource
+         * @description A dated reference to a fact used in a scenario.
+         */
+        PowerEnrichmentSource: {
+            /** Fact Version Id */
+            fact_version_id?: string | null;
+            /** Content Hash */
+            content_hash?: string | null;
+            /** Authority */
+            authority?: string | null;
+            /** Source Reference */
+            source_reference?: string | null;
+            /** Source Date */
+            source_date?: string | null;
+            /** Source Quote */
+            source_quote?: string | null;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Reporter Name */
+            reporter_name?: string | null;
+            /** Reporter Organization */
+            reporter_organization?: string | null;
+            /** Reporter Role */
+            reporter_role?: string | null;
+        };
         /** PowerNeedTitleOut */
         PowerNeedTitleOut: {
             /** Status */
@@ -3551,6 +3834,77 @@ export interface components {
             error?: string | null;
             /** Job Id */
             job_id?: string | null;
+        };
+        /**
+         * PowerScenario
+         * @description One independently scoped phase and one base or alternative schedule.
+         */
+        PowerScenario: {
+            /** Project Id */
+            project_id: string;
+            /** Need Id */
+            need_id: string;
+            /** Activity Key */
+            activity_key: string;
+            /**
+             * Activity Kind
+             * @enum {string}
+             */
+            activity_kind: "facility_demand" | "construction" | "commissioning" | "bridge" | "backup" | "other";
+            /** Facility Scope */
+            facility_scope: string;
+            /** Phase Id */
+            phase_id: string;
+            /**
+             * Scenario
+             * @enum {string}
+             */
+            scenario: "base" | "alternative";
+            /**
+             * Evidence Status
+             * @enum {string}
+             */
+            evidence_status: "fact" | "estimate" | "hypothesis" | "conflict";
+            /** Start Date */
+            start_date: string;
+            /** End Date */
+            end_date: string;
+            /** Duration Days Min */
+            duration_days_min: number;
+            /** Duration Days Max */
+            duration_days_max: number;
+            /** Demand Mw Min */
+            demand_mw_min: string;
+            /** Demand Mw Max */
+            demand_mw_max: string;
+            /** Supply Mw Min */
+            supply_mw_min: string | null;
+            /** Supply Mw Max */
+            supply_mw_max: string | null;
+            /** Residual Mw Min */
+            residual_mw_min: string | null;
+            /** Residual Mw Max */
+            residual_mw_max: string | null;
+            /**
+             * Supply Status
+             * @enum {string}
+             */
+            supply_status: "supported" | "unknown" | "conflict";
+            /**
+             * Fuel Status
+             * @default unknown
+             * @constant
+             */
+            fuel_status: "unknown";
+            /** Demand Basis */
+            demand_basis: string;
+            /** Supply Basis */
+            supply_basis?: string[];
+            /** Sources */
+            sources?: components["schemas"]["PowerEnrichmentSource"][];
+            /** Basis */
+            basis: string;
+            rental_value?: components["schemas"]["RentalValueEstimate"] | null;
         };
         /** PowerScheduleFactReference */
         PowerScheduleFactReference: {
@@ -4161,6 +4515,43 @@ export interface components {
         RefreshOut: {
             /** Queued */
             queued: string[];
+        };
+        /**
+         * RentalValueEstimate
+         * @description Transparent arithmetic from an explicit, sourced rental rate.
+         */
+        RentalValueEstimate: {
+            /**
+             * Currency
+             * @default USD
+             * @constant
+             */
+            currency: "USD";
+            /** Minimum */
+            minimum: string;
+            /** Maximum */
+            maximum: string;
+            /** Rate Min Usd Per Mw Day */
+            rate_min_usd_per_mw_day: string;
+            /** Rate Max Usd Per Mw Day */
+            rate_max_usd_per_mw_day: string;
+            /** Rate Source Reference */
+            rate_source_reference: string;
+            /** Rate Source Date */
+            rate_source_date: string;
+            /** Duration Days */
+            duration_days: number;
+            /**
+             * Formula
+             * @default residual MW × duration days × sourced USD/MW/day rate
+             */
+            formula: string;
+            /**
+             * Status
+             * @default estimate
+             * @constant
+             */
+            status: "estimate";
         };
         /** ResearchChangeOut */
         ResearchChangeOut: {
@@ -5144,6 +5535,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OwnerFeedbackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    company_graph_api_companies__company_id__graph_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyGraphOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    contact_assertions_api_companies__company_id__contact_assertions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correct_contact_api_contact_assertions__claim_id__corrections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactCorrectionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_power_enrichment_api_projects__project_id__power_enrichment_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerEnrichment"];
                 };
             };
             /** @description Validation Error */
