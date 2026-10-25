@@ -247,9 +247,11 @@ def discover_company_contacts(
             "anchor": _anchor_digest(session, anchor, company_identity_id),
             "research_digest": input_digest,
             "policy": POLICY_VERSION,
-            # Preserve direct/API refresh behavior. Planner scheduling uses its
-            # persisted completion interval and only passes this for due work.
-            "refresh_epoch": now.date().toordinal() // 30,
+            # Preserve legacy direct/API refreshes. Explicit planner generations
+            # remain stable across calendar bucket boundaries for fenced retries.
+            "refresh_epoch": (
+                None if refresh_generation is not None else now.date().toordinal() // 30
+            ),
             "refresh_generation": refresh_generation,
         }
     )

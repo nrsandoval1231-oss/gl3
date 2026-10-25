@@ -162,15 +162,23 @@ def test_generated_blank_header_key_does_not_consume_literal_header(tmp_path):
 def test_extra_cell_key_does_not_overwrite_literal_header(tmp_path):
     path = tmp_path / "extra-column-collision.csv"
     path.write_text(
-        "Company,_extra_column_3\nAcme,literal-header,overflow-cell\n",
+        "Company,_extra_column_3\n"
+        "Acme,literal-header,overflow-cell\n"
+        "Acme,literal-header,overflow-cell\n",
         encoding="utf-8",
     )
-    row = read_workbook(path).rows[0]
+    preview = read_workbook(path)
+    row = preview.rows[0]
     assert row.raw == {
         "Company": "Acme",
         "_extra_column_3": "literal-header",
         "_extra_column_3#2": "overflow-cell",
     }
+    assert preview.rows[1].raw == row.raw
+    assert preview.report["exact_duplicates"][0]["rows"] == [
+        {"sheet": "CSV", "row_number": 2},
+        {"sheet": "CSV", "row_number": 3},
+    ]
 
 
 def test_conservative_capacity_date_domain_email_and_negative_values(tmp_path):

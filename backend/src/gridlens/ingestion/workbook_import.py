@@ -585,7 +585,6 @@ def read_workbook(
                 while key in reserved_headers or key in used_headers:
                     key = f"{base}#{suffix}"
                     suffix += 1
-                used_headers.add(key)
                 raw[key] = _json_value(values[index])
             if not any(value is not None and value != "" for value in raw.values()):
                 continue

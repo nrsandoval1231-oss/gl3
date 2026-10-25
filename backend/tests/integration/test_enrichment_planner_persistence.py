@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
 
 import pytest
@@ -241,6 +241,43 @@ def test_directly_enqueued_job_is_refreshable_after_30_days(db):
         refreshed_checkpoint = json.loads(refreshed.checkpoint)
         assert refreshed_checkpoint["research_digest"] == checkpoint["research_digest"]
         assert refreshed_checkpoint["refresh_generation"]
+
+
+def test_explicit_failed_refresh_generation_survives_epoch_boundary(db):
+    from gridlens.intelligence.company_contact_discovery import discover_company_contacts
+
+    with db.begin() as session:
+        company, _projects = _fixture_company(session)
+        boundary_day = date(2026, 1, 1)
+        while (
+            boundary_day.toordinal() // 30 == (boundary_day + timedelta(days=1)).toordinal() // 30
+        ):
+            boundary_day += timedelta(days=1)
+        before = datetime.combine(boundary_day, time(23, 59), UTC)
+        after = before + timedelta(minutes=2)
+        generation = "planner-refresh-23"
+
+        first = discover_company_contacts(
+            session, company.id, now=before, refresh_generation=generation
+        )
+        first_job = session.get(Job, first["job_id"])
+        first_job.status = "failed"
+
+        retry = discover_company_contacts(
+            session, company.id, now=after, refresh_generation=generation
+        )
+        retry_job = session.get(Job, retry["job_id"])
+        assert retry["status"] == "queued"
+        assert (
+            json.loads(retry_job.checkpoint)["request_digest"]
+            == json.loads(first_job.checkpoint)["request_digest"]
+        )
+        retry_job.status = "failed"
+
+        exhausted = discover_company_contacts(
+            session, company.id, now=after, refresh_generation=generation
+        )
+        assert exhausted["reason"] == "retries_exhausted"
 
 
 def test_planner_candidate_page_is_bounded_and_cursor_advances(db):
