@@ -28,8 +28,11 @@ complete, overbroad fax filtering, official-site footer variations, and a stale
 first project hiding a valid later company anchor. A retained real roster caught
 marketing copy being parsed as a person; that failed result was rejected and the
 benchmark restarted from the original snapshot. Repeated-manifest testing then
-exposed a self-changing discovery fingerprint. These failures are retained as
-failed attempts, rather than counted as commercial success.
+exposed a self-changing discovery fingerprint. Independent review additionally rejected the first frozen candidate because a
+shared retained record could attach a contractor to the owner identity. The
+repair requires the claim's own typed relationship at both write and read time.
+These failures are retained as failed attempts, rather than counted as commercial
+success.
 
 ## Automatic pipeline
 
@@ -55,8 +58,11 @@ The waterfall is:
    assignment is missing. Provider/access failures do not establish success.
 
 Discovery creates no new CompanyIdentity. A membership bridge requires the exact
-current project membership Evidence and independently checks the buying-chain
-evidence hash. It does not merge similar names. Source changes or membership
+current project membership Evidence, the claim's own organization/typed relationship
+quote, and independent hash checks. A shared source record containing both owner
+and contractor cannot assign the contractor the owner's identity. The same guard
+is applied when reading older links. Valid strong identifiers and attributed
+review retain precedence; similar names are not merged. Source changes or membership
 retractions invalidate the projection. Results append to retained claim/evidence
 history and the latest complete claim snapshot; refresh cannot replace the chain
 with a contact-only subset. Contact information is read by canonical company ID
@@ -105,7 +111,7 @@ even if a generic company method is available. Higher-tier percentages are N/A
 when their denominator is zero. The production baseline remains 0/235; the
 benchmark improvement exists only in the isolated restore.
 
-The final native run processed twenty companies in **33.188 seconds**, including
+The final native run processed twenty companies in **32.969 seconds**, including
 enqueue and worker execution. **Three companies (15%)** have usable methods:
 EOG has two company phones, Citation has four office phones, and EG AI has one
 published business email. Three relevant named professionals have no direct

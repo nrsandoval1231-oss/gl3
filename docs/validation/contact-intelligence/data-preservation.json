@@ -1,6 +1,6 @@
 {
-  "finished_utc": "2026-10-25T04:21:03.561882+00:00",
-  "database": "contact_p0_final",
+  "finished_utc": "2026-10-25T04:46:09.976035+00:00",
+  "database": "contact_p0_reviewed",
   "original_rows": {
     "projects": {
       "original": 1817,
@@ -81,25 +81,25 @@
   "replay_same_job_ids": true,
   "commands": [
     {
-      "checkpoint": "benchmark-v8-checkpoint.json",
+      "checkpoint": "benchmark-v9-checkpoint.json",
       "mode": "--apply",
       "exit": 0,
-      "elapsed_seconds": 0.984
+      "elapsed_seconds": 0.906
     },
     {
-      "checkpoint": "benchmark-v8-checkpoint.json",
+      "checkpoint": "benchmark-v9-checkpoint.json",
       "mode": "--run-jobs",
       "exit": 0,
-      "elapsed_seconds": 1.907
+      "elapsed_seconds": 1.89
     },
     {
-      "checkpoint": "benchmark-v8-replay-checkpoint.json",
+      "checkpoint": "benchmark-v9-replay-checkpoint.json",
       "mode": "--apply",
       "exit": 0,
-      "elapsed_seconds": 2.093
+      "elapsed_seconds": 2.094
     },
     {
-      "checkpoint": "benchmark-v8-replay-checkpoint.json",
+      "checkpoint": "benchmark-v9-replay-checkpoint.json",
       "mode": "--run-jobs",
       "exit": 0,
       "elapsed_seconds": 1.844

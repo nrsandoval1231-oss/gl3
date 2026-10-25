@@ -383,6 +383,123 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
     assert requests == ["https://acme.example/contact", "https://acme.example/team"]
 
 
+def test_membership_link_never_binds_other_company_in_same_retained_article(db):
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import CompanyProjectMembership
+
+    article = (
+        "Owner A is the developer for Orion Data Center in Austin, TX. "
+        "Contractor B is the general contractor for Orion Data Center in Austin, TX. "
+        "Morgan Lee is Project Manager at Owner A. "
+        "Contractor B email: bids@contractorb.example."
+    )
+    with db.begin() as session:
+        project = seed(session, external_id="mixed-membership-article")
+        project.region_status = "ELIGIBLE"
+        retained = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "mixed-membership-article")
+        )
+        assert retained is not None
+        retained.abstract = article
+        owner = CompanyIdentity()
+        session.add(owner)
+        session.flush()
+        membership = CompanyProjectMembership(
+            company_identity_id=owner.id,
+            project_id=project.id,
+            role="owner_developer",
+            organization_name="Owner A",
+            source_id="test",
+            source_evidence_id=retained.id,
+            source_version_hash=retained.content_hash,
+            decision_basis="typed_source_v1",
+            operator_number="000000",
+            state="current",
+        )
+        session.add(membership)
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(article),
+            now=NOW,
+            retained_only=True,
+        )
+        owner_claims = [c for c in view["candidates"] if c["organization"] == "Owner A"]
+        contractor_claims = [c for c in view["candidates"] if c["organization"] == "Contractor B"]
+        assert owner_claims and contractor_claims
+        assert all(c["company_identity_id"] == str(owner.id) for c in owner_claims)
+        assert all(c["company_identity_id"] != str(owner.id) for c in contractor_claims)
+        assert any(c["person_name"] == "Morgan Lee" for c in owner_claims)
+        owner_company = next(c for c in owner_claims if not c["person_name"])
+        protected_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == owner_company["id"],
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert protected_link is not None
+        protected_link.basis = "strong_identifier"
+        protected_id = protected_link.id
+        ensure_project_scoped_identity_links(session, [str(owner_company["id"])])
+        protected_link = session.get(BuyingChainIdentityLink, protected_id)
+        assert protected_link.state == "current" and protected_link.basis == "strong_identifier"
+        protected_link.basis = "current_membership"
+        assert all(
+            m["value"] != "bids@contractorb.example"
+            for contact in company_contacts(session, owner.id).contacts
+            for m in contact.methods
+        )
+        contractor = next(c for c in contractor_claims if not c["person_name"])
+        contractor_source = next(
+            c for c in contractor["evidence"] if c["supports"] == "project_organization"
+        )
+        old_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == contractor["id"],
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert old_link is not None
+        # Simulate an already persisted link from the rejected implementation.
+        # Read paths must fail closed without waiting for a new reconciliation.
+        old_link.company_identity_id = owner.id
+        old_link.basis = "current_membership"
+        old_link.source_evidence_id = contractor_source["id"]
+        old_link.source_version_hash = contractor_source["content_hash"]
+        session.flush()
+        assert all(
+            c.get("company_identity_id") != str(owner.id)
+            for c in buying_chain_view(session, project.id)["candidates"]
+            if c["organization"] == "Contractor B"
+        )
+        assert all(
+            m["value"] != "bids@contractorb.example"
+            for contact in company_contacts(session, owner.id).contacts
+            for m in contact.methods
+        )
+        owner_id, membership_id, project_id = owner.id, membership.id, project.id
+    with db.begin() as session:
+        membership = session.get(CompanyProjectMembership, membership_id)
+        membership.source_version_hash = "changed"
+        assert all(
+            c.get("company_identity_id") != str(owner_id)
+            for c in buying_chain_view(session, project_id)["candidates"]
+        )
+    with db.begin() as session:
+        membership = session.get(CompanyProjectMembership, membership_id)
+        membership.source_version_hash = "a"
+        membership.state = "retracted"
+        membership.version += 1
+        assert all(
+            c.get("company_identity_id") != str(owner_id)
+            for c in buying_chain_view(session, project_id)["candidates"]
+        )
+
+
 def test_failed_contact_enqueue_sql_does_not_abort_primary_enrichment(db, monkeypatch):
     import gridlens.intelligence.company_contact_discovery as discovery
 

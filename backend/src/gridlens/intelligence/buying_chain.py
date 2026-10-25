@@ -2498,6 +2498,8 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
         ):
             continue
         if link.entity_type == "company" and getattr(link, "basis", None) == "current_membership":
+            from gridlens.intelligence.identity_reconciliation import membership_supports_claim
+
             if link.claim_id not in project_by_claim:
                 continue
             source = session.get(BuyingChainEvidence, link.source_evidence_id)
@@ -2517,10 +2519,26 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
                 else None
             )
             retained = session.get(Evidence, retained_id) if retained_id else None
+            linked_claim = session.get(BuyingChainClaim, link.claim_id)
             if (
                 membership is None
                 or retained is None
+                or source is None
+                or linked_claim is None
                 or membership.source_version_hash != retained.content_hash
+                or not membership_supports_claim(
+                    linked_claim,
+                    candidate,
+                    membership,
+                    source.id,
+                    [
+                        peer
+                        for view in views
+                        if str(view.get("project_id")) == str(project_by_claim[link.claim_id])
+                        for peer in view["candidates"]
+                        if not peer.get("stale")
+                    ],
+                )
             ):
                 continue
         candidate[f"{link.entity_type}_identity_id"] = identity_id

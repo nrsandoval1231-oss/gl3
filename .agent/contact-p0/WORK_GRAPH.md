@@ -12,7 +12,7 @@ Existing recovery/extraction/API/UI and canonical PRD remain governing.
 |---|---|---|---|
 | C0 architecture | PR122 inspection | DONE | Sol read-only direction: existing jobs + buying-chain evidence; no parallel address store |
 | C1 production inventory | read-only access | DONE | Controller; actual production inventory and restored snapshot |
-| C2 discovery pipeline | C0 | IMPLEMENTED | Luna/Terra attempt, Sol hard integration; policyv8; BUILD.md and C2-HANDOFF.md |
+| C2 discovery pipeline | C0 | IMPLEMENTED | Luna/Terra attempt, Sol hard integration; policyv9; BUILD.md and C2-HANDOFF.md |
 | C3 benchmark/backfill tools | C1, C2 API contract | IMPLEMENTED | Luna; loopback manifest/cursor/checkpoint runner |
 | C4 company panel | C2 API contract | IMPLEMENTED | Luna; existing panel only; no navigation/layout redesign |
 | C5 integrated validation | C2,C3,C4 | RUNNING | Clean real20-company benchmark/replay PASS; final repository/API/browser gates required |

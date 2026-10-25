@@ -61,6 +61,18 @@
       "lesson_status": "CANDIDATE",
       "metric": "Redundant replay jobs and primary ingestion failures caused by contact enqueue; direction decrease to0",
       "reversibility": "Keep failed v7 receipt, exact canonical replay regression and SQL transaction test"
+    },
+    {
+      "state": "Independent frozen-candidate review rejected fdea291 despite valid native coverage/preservation receipts",
+      "decision": "FIX exact company relationship attribution before full regression acceptance or transport",
+      "action": "v9 own-organization/typed-role/current-quote write and read guards, same-source named-role company peer, strong/review precedence; genuine mixed OwnerA/ContractorB PostgreSQL test including old invalid link/sourcechange/retraction",
+      "outcome": "151affectedtests pass; fresh independent source review identifies no remaining blocker; clean20rerun32.969s repeats3usablecompanies,6phones/1email,3namedroles,0direct methods; all originals and exact replay IDs/counts preserved",
+      "deterministic_evaluation": "Source collision fixture excludes contractor method from owner API; fresh clone paid dispatches0; final fullgates and exact-candidate acceptance stillrequired",
+      "attribution": "Retained Evidence is a document/record identity, not an organization identity; current hashes alone cannot establish which entity a quote supports",
+      "candidate_lesson": "Require each claim's own current organization and typed relationship when binding canonical company identity, and validate both creation and older-link reads",
+      "lesson_status": "CANDIDATE",
+      "metric": "Cross-company contact leakage in shared-source regression; direction decrease to0 without losing supported owner or named employee contacts",
+      "reversibility": "Keep raw rejected review and collision/retraction/version regressions; replace the binding implementation only with equally strict source-relationship proof"
     }
   ],
   "timing": {
@@ -82,7 +94,7 @@
     "model_config_identity": "UNKNOWN",
     "tokens": "UNKNOWN",
     "repair_count": null,
-    "next_direction": "VALIDATE frozen v8 candidate; fresh independent Sol review follows final gates; production and full commercial P0 remain OPEN",
+    "next_direction": "VALIDATE frozen v9 candidate; independent exact-candidate review after final gates; parent commercialP0 and production HOLD remainOPEN",
     "repair_count_notes": "Two pre-reconstruction attempts were counted. Later policy revisions and corrections are retained by episode; aggregate repair count is UNKNOWN."
   }
 }

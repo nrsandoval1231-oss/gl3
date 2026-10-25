@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.intelligence.buying_chain import buying_chain_view, buying_chain_views
+from gridlens.intelligence.buying_chain_extraction import organization_key
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainEvidence,
@@ -403,6 +404,55 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
             session.flush()
 
 
+def membership_supports_claim(
+    claim: BuyingChainClaim,
+    candidate: dict[str, Any],
+    membership: CompanyProjectMembership,
+    source_id: UUID,
+    peers: list[dict[str, Any]],
+) -> bool:
+    """Bind a typed membership only to its own sourced organization and role.
+
+    A retained article may name several companies. Sharing its Evidence ID is
+    not an identity assertion. Named roles inherit the company's typed project
+    role only when a current company-only claim establishes it on this source.
+    """
+    member_key = organization_key(membership.organization_name)
+    if (
+        not member_key
+        or membership.project_id != claim.project_id
+        or organization_key(str(candidate.get("organization") or "")) != member_key
+        or candidate.get("organization_relationship") != "DIRECT"
+    ):
+        return False
+
+    def cited_project_relationship(item: dict[str, Any]) -> bool:
+        return any(
+            str(citation.get("id")) == str(source_id)
+            and str(citation.get("current_source_version_id")) == str(source_id)
+            and citation.get("current_support")
+            and citation.get("supports") == "project_organization"
+            and re.search(
+                rf"(?<![a-z0-9]){re.escape(member_key)}(?![a-z0-9])",
+                organization_key(str(citation.get("quote") or "")),
+            )
+            for citation in item.get("evidence", [])
+        )
+
+    if not cited_project_relationship(candidate):
+        return False
+    if not candidate.get("person_name"):
+        return candidate.get("category") == membership.role
+    return any(
+        not peer.get("person_name")
+        and organization_key(str(peer.get("organization") or "")) == member_key
+        and peer.get("organization_relationship") == "DIRECT"
+        and peer.get("category") == membership.role
+        and cited_project_relationship(peer)
+        for peer in peers
+    )
+
+
 def _ensure_current_membership_links(
     session: Session,
     claims: list[BuyingChainClaim],
@@ -410,9 +460,8 @@ def _ensure_current_membership_links(
 ) -> None:
     """Bridge a claim only to its exact accepted project membership evidence.
 
-    This deliberately does not use organization names.  The membership Evidence
-    and the BuyingChainEvidence live in different hash domains, so both are
-    verified independently before a projection is created.
+    The membership Evidence and BuyingChainEvidence live in different hash
+    domains. Verify both, then the claim's own organization and typed role.
     """
     for claim in claims:
         candidate = current_by_claim.get(claim.id)
@@ -442,6 +491,13 @@ def _ensure_current_membership_links(
                     and source.retained_evidence_id == membership.source_evidence_id
                     and citation.get("current_source_version_id") == source.id
                     and citation.get("content_hash") == source.content_hash
+                    and membership_supports_claim(
+                        claim,
+                        candidate,
+                        membership,
+                        source.id,
+                        list(current_by_claim.values()),
+                    )
                 ):
                     matches.append((membership, source))
         # More than one accepted identity is ambiguity, never a name-merge tie break.
@@ -456,8 +512,24 @@ def _ensure_current_membership_links(
                 BuyingChainIdentityLink.state == "current",
             )
         )
-        if existing and existing.basis == "attributed_review":
-            continue
+        if existing and existing.basis in {"attributed_review", "strong_identifier"}:
+            try:
+                protected_source = _validate_claim_evidence(
+                    session,
+                    claim,
+                    "company",
+                    existing.source_evidence_id,
+                    current_candidate=candidate,
+                )
+            except ValueError:
+                protected_source = None
+            if (
+                protected_source is not None
+                and protected_source.content_hash == existing.source_version_hash
+                and existing.company_identity_id is not None
+                and session.get(CompanyIdentity, existing.company_identity_id) is not None
+            ):
+                continue
         if (
             existing
             and existing.basis == "current_membership"
@@ -534,7 +606,23 @@ def current_claim_identity_links(
                     CompanyProjectMembership.state == "current",
                 )
             )
-            if membership is None:
+            retained = session.get(Evidence, membership.source_evidence_id) if membership else None
+            if (
+                membership is None
+                or retained is None
+                or retained.content_hash != membership.source_version_hash
+                or not membership_supports_claim(
+                    claims[link.claim_id],
+                    candidate,
+                    membership,
+                    link_source.id,
+                    [
+                        peer
+                        for peer in views[str(claims[link.claim_id].project_id)]["candidates"]
+                        if not peer.get("stale")
+                    ],
+                )
+            ):
                 continue
         result.setdefault(link.claim_id, {})[f"{link.entity_type}_identity_id"] = str(
             link.company_identity_id if link.entity_type == "company" else link.person_identity_id

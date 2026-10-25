@@ -57,7 +57,7 @@ TASK_TYPE = "company_contact_discovery"
 MAX_CANDIDATE_URLS = 4
 MAX_ANCHOR_PROJECTS = 16
 MAX_SECONDS = 35
-POLICY_VERSION = "company-contact-discovery-v8"
+POLICY_VERSION = "company-contact-discovery-v9"
 
 
 def _projects(session: Session, company_identity_id: UUID) -> list[Project]:

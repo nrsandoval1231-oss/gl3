@@ -68,12 +68,12 @@ routine controller implementation; a different fresh Sol must independently
 review the final candidate. C2 additionally owns existing
 `buying_chain_extraction.py`, `identity_reconciliation.py`,
 `ingestion/adapters/pursuit_acquisition.py` and their focused tests. The final
-policy is company-contact-discovery-v8. Its handoff records real-layout false
+policy is company-contact-discovery-v9. Its handoff records real-layout false
 positive correction, valid-anchor selection, stable replay fingerprints, a
 savepoint proving SQL queue failure isolation, and hard deadline propagation.
 
 The controller restored failed pilots separately and used a fresh
-contact_p0_final database for final coverage. It is separate from both the
+contact_p0_reviewed database for final coverage. It is separate from both the
 contact_p0_test destructive fixture database and contact_p0_app browser regression
 database. The twenty-company manifest has IDs and URL hints only. Source hashes,
 per-company terminal persistence and original-row fingerprints are required.

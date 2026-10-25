@@ -1,22 +1,22 @@
 {
   "schema_version": 1,
-  "candidate_policy": "company-contact-discovery-v8",
+  "candidate_policy": "company-contact-discovery-v9",
   "baseline_commit": "93437131a6b0fa84300732426a5698c0bb99100b",
   "source_snapshot_sha256": "6e0d699e4065acb9caf1a1fd61a25a4a75d7ff2f3bf4509d89df2c887fb86e65",
   "database": "ISOLATED_PRODUCTION_RESTORE",
-  "started_utc": "2026-10-25T04:19:53.421724+00:00",
-  "finished_utc": "2026-10-25T04:20:26.601523+00:00",
-  "elapsed_seconds": 33.188,
+  "started_utc": "2026-10-25T04:45:11.921808+00:00",
+  "finished_utc": "2026-10-25T04:45:44.897541+00:00",
+  "elapsed_seconds": 32.969,
   "execution_commands": [
     {
       "mode": "--apply",
       "exit": 0,
-      "elapsed_seconds": 2.0
+      "elapsed_seconds": 2.063
     },
     {
       "mode": "--run-jobs",
       "exit": 0,
-      "elapsed_seconds": 31.188
+      "elapsed_seconds": 30.906
     }
   ],
   "source_files_unchanged": true,
@@ -113,13 +113,13 @@
     "backend/src/gridlens/intelligence/__init__.py": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
     "backend/src/gridlens/intelligence/autonomous_research.py": "a1f56604c84c04f974edecbd991a121cc50d7b1c7e5ec9a294b89e6b1745d1ce",
     "backend/src/gridlens/intelligence/briefs.py": "e9dc34be98f60f10f385c63a84e4ddfdeffb96fbae513b11e8cdb44d95e6e2fb",
-    "backend/src/gridlens/intelligence/buying_chain.py": "95f209afd0d74073f5e3abbf52d957f299d7b59fe7d96eaf52e1c1ab0658bb27",
+    "backend/src/gridlens/intelligence/buying_chain.py": "a4b629f716319f3a5e482e0de98fbc8dffd8c920faac0a4ee80f737c6c966ceb",
     "backend/src/gridlens/intelligence/buying_chain_corrections.py": "8b48f39521b8c3484200bdcc528666f0e90e05b388c61952ff8115c8aed0f18f",
     "backend/src/gridlens/intelligence/buying_chain_extraction.py": "8528ab7557f0d9892b7d57f369e0132590b55c73d7ab6d5c99af1c07dee26e68",
     "backend/src/gridlens/intelligence/change_detection.py": "b884374143b75522042e7bdc64379afb651c7b2518b14d5265a30294e7389454",
     "backend/src/gridlens/intelligence/commercial_assessment.py": "f33a5c9b7f382bec92d4b07cb0fb2f6e180c20268c723e8e8da4ff7ef2388cdf",
     "backend/src/gridlens/intelligence/commercial_evaluation.py": "5de1c371546b79ca837e09c2a4a171de2d8e744325b7effcd56c06374bcbee86",
-    "backend/src/gridlens/intelligence/company_contact_discovery.py": "199b4ce35fe88a7bd937c954dafc6a81784b3064f64ac8da71533a74ee61b45f",
+    "backend/src/gridlens/intelligence/company_contact_discovery.py": "fc8f16951f66b767fd3dfaa8c56efe688479ce3e3cb87aca79ae055144cfc7f8",
     "backend/src/gridlens/intelligence/company_contacts.py": "8773687caa2fcfe90940f9109a73f99c3e072c0e8880bfcd7f639701490a5508",
     "backend/src/gridlens/intelligence/customer_accounts.py": "c31b34318944393ed5ee3051cb7621ff10acdd70e7b68da0bbac636135d99a8d",
     "backend/src/gridlens/intelligence/customer_accounts_backfill.py": "01db984ba244bd6c9e3a0eb1414d737302d41e6452fa19b82eae05b00ba56e0d",
@@ -129,7 +129,7 @@
     "backend/src/gridlens/intelligence/evidence_packages.py": "41e20d056ed4fa0001681d7e4814eeeb97361ec76a43643128e7007e626c8b6d",
     "backend/src/gridlens/intelligence/evidence_shadow.py": "5512610193d82b6ad6f93a911c326f5666c11481fd988f1d3fab68ca28e9a249",
     "backend/src/gridlens/intelligence/grounded_candidates.py": "eb04097aee8fefbc13ec6b7fc0ced6a6ca5a85a6a07635b562d8bdadfd8f7582",
-    "backend/src/gridlens/intelligence/identity_reconciliation.py": "d5f88e0f9e498b9a093b821b10be18f061f37dce2362cb20c2021f47cd1547e5",
+    "backend/src/gridlens/intelligence/identity_reconciliation.py": "cfe071f65a28a8ebf6c157d7c03e9404c94f3841e20fd2416419c2cc33aff773",
     "backend/src/gridlens/intelligence/integration_evaluation.py": "8bd0e449281ee0ced9beff2bce87d09b249282fee7ce9c8dd23f8379a2707c19",
     "backend/src/gridlens/intelligence/intelligence_jobs.py": "8fba614dd9f4873fdb6c91a55fdb63299a766c1470fda0c3d4f90782925d7fb9",
     "backend/src/gridlens/intelligence/intelligence_operations.py": "07256a5989d647823555df344aa5500b868cabd83c6cfd7e32bfaa1b6dd869fe",
@@ -285,10 +285,10 @@
       "candidate_urls": [
         "https://www.efis.psc.mo.gov/Company/Display/8595?isDetailId=true"
       ],
-      "job_id": "e7a52e10-429e-4b0b-993f-fc6650478a02",
+      "job_id": "c9ee4545-d43a-4ca8-a170-d66d49c715c3",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 1.031,
+      "elapsed_seconds": 1.047,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -327,10 +327,10 @@
       "candidate_urls": [
         "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2027000611"
       ],
-      "job_id": "9ec49831-072c-46c8-bf3f-ff73ae6a35db",
+      "job_id": "cb343b1d-c686-4203-85f1-7bec73928917",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 1.297,
+      "elapsed_seconds": 1.0,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -360,10 +360,10 @@
       ],
       "project_count": 1,
       "candidate_urls": [],
-      "job_id": "301216e9-9dfe-49e3-888f-9dd39ab2d644",
+      "job_id": "77dfd8a3-a04d-4539-aebb-4af286e36313",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 0.172,
+      "elapsed_seconds": 0.187,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -402,10 +402,10 @@
         "https://egai.us/contact/",
         "https://egai.us/about/"
       ],
-      "job_id": "58a3f7c3-25d9-4681-8519-edf0cec0df49",
+      "job_id": "d623ced2-9a63-4981-9903-acdda4d1b00d",
       "job_status": "succeeded",
       "discovery_status": "complete",
-      "elapsed_seconds": 1.797,
+      "elapsed_seconds": 1.812,
       "verified_phone_methods": 0,
       "verified_email_methods": 1,
       "named_relevant_professionals": 2,
@@ -436,11 +436,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:00.806525+00:00",
+              "assessed_at": "2026-10-25T04:45:19.034644+00:00",
               "content_hash": "a7c60395eaac05dd47d29d639701d9f16ce0f91aa06cdf047f9caf9b454500da",
               "extraction_method": "public page text",
               "passage": "Danny Cruz\nCOO",
-              "reference": "buying-chain:ff6a6c12-83b7-4912-9818-dd8995c5dd31",
+              "reference": "buying-chain:85838893-bfa5-44bc-ac58-d8065ee5c0f0",
               "retained_evidence_id": null,
               "source_date": "2026-02-05",
               "source_id": null,
@@ -473,11 +473,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:00.806525+00:00",
+              "assessed_at": "2026-10-25T04:45:19.034644+00:00",
               "content_hash": "a7c60395eaac05dd47d29d639701d9f16ce0f91aa06cdf047f9caf9b454500da",
               "extraction_method": "public page text",
               "passage": "Merritt Eaton\nCOO",
-              "reference": "buying-chain:ff6a6c12-83b7-4912-9818-dd8995c5dd31",
+              "reference": "buying-chain:85838893-bfa5-44bc-ac58-d8065ee5c0f0",
               "retained_evidence_id": null,
               "source_date": "2026-02-05",
               "source_id": null,
@@ -496,7 +496,7 @@
               "kind": "email",
               "source_url": "https://egai.us/contact/",
               "value": "info@egai.us",
-              "verified_at": "2026-10-25T04:19:59.152880+00:00"
+              "verified_at": "2026-10-25T04:45:17.365889+00:00"
             }
           ],
           "name": null,
@@ -518,11 +518,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:00.058209+00:00",
+              "assessed_at": "2026-10-25T04:45:18.291487+00:00",
               "content_hash": "881b7a26025bbd3c4ce6e5570cf8e806de4cd6adf40a23540878507cd49f1cab",
               "extraction_method": "public page text",
               "passage": "info@egai.us",
-              "reference": "buying-chain:dcbd2d1c-6aad-4e0c-8eac-bb25841c73ee",
+              "reference": "buying-chain:bfe4841d-8ae1-49b9-893a-e49cde5fb5fa",
               "retained_evidence_id": null,
               "source_date": "2026-02-06",
               "source_id": null,
@@ -559,10 +559,10 @@
       "candidate_urls": [
         "https://records.tceq.texas.gov/cs/idcplg?IdcService=GET_FILE&allowInterrupt=1&dDocName=7091151&dID=7929664"
       ],
-      "job_id": "c58ecc83-1ce5-4b64-ac01-6a4d92d866b5",
+      "job_id": "5deb574d-f566-4ade-b5c2-ca62d5be1ef3",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 1.75,
+      "elapsed_seconds": 1.813,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -606,10 +606,10 @@
       "candidate_urls": [
         "https://www.diamondbackenergy.com/contact-us/overview"
       ],
-      "job_id": "1c5d6b6a-734a-4ba5-8674-1d6fcad7ac8a",
+      "job_id": "a8cd7d89-34f9-40c3-823c-2f4eca29a1bc",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 1.719,
+      "elapsed_seconds": 1.672,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -651,7 +651,7 @@
       ],
       "project_count": 45,
       "candidate_urls": [],
-      "job_id": "27b6354e-c276-4b59-a5ed-b165ebed7e76",
+      "job_id": "60bbe8da-ff0a-4e50-a1bc-1df3a2badd35",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
       "elapsed_seconds": 0.875,
@@ -698,10 +698,10 @@
         "https://www.eogresources.com/company/contacts/",
         "https://www.eogresources.com/company/leadership/"
       ],
-      "job_id": "dc2fe5c6-cedc-4688-8f8e-629094160a94",
+      "job_id": "8446c248-e600-427c-8887-4635abfead3d",
       "job_status": "succeeded",
       "discovery_status": "complete",
-      "elapsed_seconds": 2.578,
+      "elapsed_seconds": 2.625,
       "verified_phone_methods": 2,
       "verified_email_methods": 0,
       "named_relevant_professionals": 1,
@@ -723,7 +723,7 @@
               "content_hash": "6482c3ee353cd4cb62339a91d2e6d7bb4d22c2d5b2ec69ecb6e68c3ce1c81536",
               "extraction_method": "OGA049M root/master; permit 0918189; sequence 99",
               "passage": "status: Approved",
-              "reference": "buying-chain:d151a552-4634-425b-875e-e6c556bb49ee",
+              "reference": "buying-chain:ff72cc3a-a6ae-46f3-9d60-d546ad4508d2",
               "retained_evidence_id": "a0a0ca33-fef7-4a21-9a69-74fe9f5999ee",
               "source_date": "2026-09-01",
               "source_id": "texas-rrc-drilling-permits",
@@ -732,11 +732,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:07.890053+00:00",
+              "assessed_at": "2026-10-25T04:45:26.217732+00:00",
               "content_hash": "a5ea5da09cfcf9f818d1d4216a2600d0be7017b64f6ad8a3d433d7a17e275db3",
               "extraction_method": "public page text",
               "passage": "Gregory T. Miller\nVP, Supply Chain",
-              "reference": "buying-chain:cd9dd18e-6840-43db-a7d4-3a920a5c4426",
+              "reference": "buying-chain:3f3d5426-cc88-4798-91a8-b487290a4a0c",
               "retained_evidence_id": null,
               "source_date": null,
               "source_id": null,
@@ -755,14 +755,14 @@
               "kind": "phone",
               "source_url": "https://www.eogresources.com/company/contacts/",
               "value": "(713) 651-7000",
-              "verified_at": "2026-10-25T04:20:05.453602+00:00"
+              "verified_at": "2026-10-25T04:45:23.728664+00:00"
             },
             {
               "href": "tel:8773633647",
               "kind": "phone",
               "source_url": "https://www.eogresources.com/company/contacts/",
               "value": "(877) 363-3647",
-              "verified_at": "2026-10-25T04:20:05.453602+00:00"
+              "verified_at": "2026-10-25T04:45:23.728664+00:00"
             }
           ],
           "name": null,
@@ -775,7 +775,7 @@
               "content_hash": "6482c3ee353cd4cb62339a91d2e6d7bb4d22c2d5b2ec69ecb6e68c3ce1c81536",
               "extraction_method": "OGA049M root/master; permit 0918189; sequence 99",
               "passage": "status: Approved",
-              "reference": "buying-chain:d151a552-4634-425b-875e-e6c556bb49ee",
+              "reference": "buying-chain:ff72cc3a-a6ae-46f3-9d60-d546ad4508d2",
               "retained_evidence_id": "a0a0ca33-fef7-4a21-9a69-74fe9f5999ee",
               "source_date": "2026-09-01",
               "source_id": "texas-rrc-drilling-permits",
@@ -784,11 +784,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:06.658783+00:00",
+              "assessed_at": "2026-10-25T04:45:25.104773+00:00",
               "content_hash": "063b429849a9599573861f8ef27ac1e97b7709de0ba73cbcc1daee0ac749188e",
               "extraction_method": "public page text",
               "passage": "Phone:\u00a0(713) 651-7000",
-              "reference": "buying-chain:92fa1381-c59b-43e4-9923-d17a741b840c",
+              "reference": "buying-chain:c4865b54-0aa1-4626-875b-c8c29831f728",
               "retained_evidence_id": null,
               "source_date": null,
               "source_id": null,
@@ -797,11 +797,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:06.658783+00:00",
+              "assessed_at": "2026-10-25T04:45:25.104773+00:00",
               "content_hash": "063b429849a9599573861f8ef27ac1e97b7709de0ba73cbcc1daee0ac749188e",
               "extraction_method": "public page text",
               "passage": "Toll Free:\u00a0(877) 363-3647",
-              "reference": "buying-chain:92fa1381-c59b-43e4-9923-d17a741b840c",
+              "reference": "buying-chain:c4865b54-0aa1-4626-875b-c8c29831f728",
               "retained_evidence_id": null,
               "source_date": null,
               "source_id": null,
@@ -811,7 +811,7 @@
             }
           ],
           "title": null,
-          "verified_at": "2026-10-25T04:20:05.453602+00:00"
+          "verified_at": "2026-10-25T04:45:23.728664+00:00"
         }
       ],
       "results": [
@@ -838,10 +838,10 @@
       "candidate_urls": [
         "https://www.activeironenergy.com/"
       ],
-      "job_id": "edbca4a7-6211-4b05-9cca-61c14b95ea39",
+      "job_id": "67eecc2a-2a88-4fd1-b766-03ecb52b8ed7",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 1.547,
+      "elapsed_seconds": 1.828,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -885,10 +885,10 @@
       "candidate_urls": [
         "https://www.bkv.com/contact"
       ],
-      "job_id": "52123910-40a3-45b2-b262-1e52098aa345",
+      "job_id": "a0dffe37-c1fd-484e-ac31-a25aee8de96f",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 1.547,
+      "elapsed_seconds": 1.578,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -932,10 +932,10 @@
       "candidate_urls": [
         "https://www.cogc.com/contact-us/"
       ],
-      "job_id": "bbebe2e1-8120-4b6a-8f66-ac2c8a25e569",
+      "job_id": "4122efd9-533d-4a8f-be68-5d7aa0628caa",
       "job_status": "succeeded",
       "discovery_status": "complete",
-      "elapsed_seconds": 0.922,
+      "elapsed_seconds": 0.953,
       "verified_phone_methods": 4,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -952,28 +952,28 @@
               "kind": "phone",
               "source_url": "https://www.cogc.com/contact-us/",
               "value": "281.891.1000",
-              "verified_at": "2026-10-25T04:20:11.222633+00:00"
+              "verified_at": "2026-10-25T04:45:29.841157+00:00"
             },
             {
               "href": "tel:4056819400",
               "kind": "phone",
               "source_url": "https://www.cogc.com/contact-us/",
               "value": "405.681.9400",
-              "verified_at": "2026-10-25T04:20:11.222633+00:00"
+              "verified_at": "2026-10-25T04:45:29.841157+00:00"
             },
             {
               "href": "tel:4322627600",
               "kind": "phone",
               "source_url": "https://www.cogc.com/contact-us/",
               "value": "432.262.7600",
-              "verified_at": "2026-10-25T04:20:11.222633+00:00"
+              "verified_at": "2026-10-25T04:45:29.841157+00:00"
             },
             {
               "href": "tel:3076824853",
               "kind": "phone",
               "source_url": "https://www.cogc.com/contact-us/",
               "value": "307.682.4853",
-              "verified_at": "2026-10-25T04:20:11.222633+00:00"
+              "verified_at": "2026-10-25T04:45:29.841157+00:00"
             }
           ],
           "name": null,
@@ -986,7 +986,7 @@
               "content_hash": "add04c3af1223423d6d593dd770e6108ff4a712e5214c165b7076c31eeb6514e",
               "extraction_method": "OGA049M root/master; permit 0918480; sequence 99",
               "passage": "status: Approved",
-              "reference": "buying-chain:20dac304-ab85-446b-8b8a-2e4f0a26458e",
+              "reference": "buying-chain:e9759690-1455-406f-871e-e1e9390a2450",
               "retained_evidence_id": "3a386ee5-7aa1-4840-aad1-556e3bc4a22d",
               "source_date": "2026-09-15",
               "source_id": "texas-rrc-drilling-permits",
@@ -995,11 +995,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:12.067559+00:00",
+              "assessed_at": "2026-10-25T04:45:30.698374+00:00",
               "content_hash": "2116e77e92a6f0600380737f9340faee13062ce33dc9a0de1b26ae2a14354842",
               "extraction_method": "public page text",
               "passage": "Phone: 281.891.1000",
-              "reference": "buying-chain:8e7b25dd-552d-437b-beba-0fa6cc2309cb",
+              "reference": "buying-chain:f378fab1-55ca-402e-9c2b-3ce01c66d3e4",
               "retained_evidence_id": null,
               "source_date": null,
               "source_id": null,
@@ -1008,11 +1008,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:12.067559+00:00",
+              "assessed_at": "2026-10-25T04:45:30.698374+00:00",
               "content_hash": "2116e77e92a6f0600380737f9340faee13062ce33dc9a0de1b26ae2a14354842",
               "extraction_method": "public page text",
               "passage": "Phone: 405.681.9400",
-              "reference": "buying-chain:8e7b25dd-552d-437b-beba-0fa6cc2309cb",
+              "reference": "buying-chain:f378fab1-55ca-402e-9c2b-3ce01c66d3e4",
               "retained_evidence_id": null,
               "source_date": null,
               "source_id": null,
@@ -1021,11 +1021,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:12.067559+00:00",
+              "assessed_at": "2026-10-25T04:45:30.698374+00:00",
               "content_hash": "2116e77e92a6f0600380737f9340faee13062ce33dc9a0de1b26ae2a14354842",
               "extraction_method": "public page text",
               "passage": "Phone: 432.262.7600",
-              "reference": "buying-chain:8e7b25dd-552d-437b-beba-0fa6cc2309cb",
+              "reference": "buying-chain:f378fab1-55ca-402e-9c2b-3ce01c66d3e4",
               "retained_evidence_id": null,
               "source_date": null,
               "source_id": null,
@@ -1034,11 +1034,11 @@
               "verification_status": "Current retained support"
             },
             {
-              "assessed_at": "2026-10-25T04:20:12.067559+00:00",
+              "assessed_at": "2026-10-25T04:45:30.698374+00:00",
               "content_hash": "2116e77e92a6f0600380737f9340faee13062ce33dc9a0de1b26ae2a14354842",
               "extraction_method": "public page text",
               "passage": "Phone: 307.682.4853",
-              "reference": "buying-chain:8e7b25dd-552d-437b-beba-0fa6cc2309cb",
+              "reference": "buying-chain:f378fab1-55ca-402e-9c2b-3ce01c66d3e4",
               "retained_evidence_id": null,
               "source_date": null,
               "source_id": null,
@@ -1048,7 +1048,7 @@
             }
           ],
           "title": null,
-          "verified_at": "2026-10-25T04:20:11.222633+00:00"
+          "verified_at": "2026-10-25T04:45:29.841157+00:00"
         }
       ],
       "results": [
@@ -1073,7 +1073,7 @@
       ],
       "project_count": 1,
       "candidate_urls": [],
-      "job_id": "c9b0ce56-3544-4647-a503-e810e484cfcb",
+      "job_id": "398dbc4d-83c9-489a-8b8c-eb4cc2763cb5",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
       "elapsed_seconds": 0.829,
@@ -1119,7 +1119,7 @@
       "candidate_urls": [
         "https://flatlandoilandgas.com/"
       ],
-      "job_id": "e753ff98-5dd5-4a44-888d-5e92e4fb39ff",
+      "job_id": "1350d95f-b921-47eb-b5e4-ddf2d1f1329f",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
       "elapsed_seconds": 2.5,
@@ -1165,10 +1165,10 @@
       "candidate_urls": [
         "https://www.javelinep.com/"
       ],
-      "job_id": "e71879f4-34cf-4271-8688-8736ebdc74c7",
+      "job_id": "80cdbcac-68bc-418e-8133-9a0cc033070c",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 2.125,
+      "elapsed_seconds": 1.813,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -1210,10 +1210,10 @@
       ],
       "project_count": 1,
       "candidate_urls": [],
-      "job_id": "0c3f2a57-efc8-4fd2-bff1-48ba58575d4d",
+      "job_id": "e8abf559-50b7-442d-9118-243a8db28a89",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 0.781,
+      "elapsed_seconds": 0.844,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -1254,10 +1254,10 @@
       ],
       "project_count": 1,
       "candidate_urls": [],
-      "job_id": "93d08b23-43ea-466c-9adb-cba5b99c0321",
+      "job_id": "05afb889-6bed-4eeb-8c6c-b7973e261448",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 0.781,
+      "elapsed_seconds": 0.813,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -1300,10 +1300,10 @@
       "candidate_urls": [
         "https://www.ringenergy.com/contact"
       ],
-      "job_id": "53d25640-aa90-44cb-b0c5-420b0ce8dd11",
+      "job_id": "282a9abb-fe24-4db4-83d8-166c4897e98d",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 1.672,
+      "elapsed_seconds": 1.766,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -1345,10 +1345,10 @@
       ],
       "project_count": 2,
       "candidate_urls": [],
-      "job_id": "bf530bdf-487a-4172-909b-1f5522f1dec5",
+      "job_id": "20222441-ae0c-4b67-b78e-e4980c07d14f",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 0.812,
+      "elapsed_seconds": 0.828,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -1391,10 +1391,10 @@
       "candidate_urls": [
         "https://www.trinityoperating.com/contact.html"
       ],
-      "job_id": "5d03fa08-025d-45c4-a9c8-f79e9e9b241a",
+      "job_id": "2a9f147e-aa57-465a-88c5-e4190bb6d835",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 1.5,
+      "elapsed_seconds": 1.453,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
@@ -1438,10 +1438,10 @@
       "candidate_urls": [
         "https://zarvonaenergy.com/"
       ],
-      "job_id": "520fbe5d-a690-4189-a519-fa975ed40124",
+      "job_id": "57e6e1fd-bc26-472e-8d5b-ef45bb4c229a",
       "job_status": "succeeded",
       "discovery_status": "unresolved",
-      "elapsed_seconds": 3.094,
+      "elapsed_seconds": 2.89,
       "verified_phone_methods": 0,
       "verified_email_methods": 0,
       "named_relevant_professionals": 0,
