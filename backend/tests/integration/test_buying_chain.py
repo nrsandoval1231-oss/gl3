@@ -191,7 +191,12 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         queued = discovery.discover_company_contacts(
             session,
             identity.id,
-            candidate_urls=["https://www.eogresources.com/"],
+            candidate_urls=[
+                "https://www.eogresources.com/",
+                "https://www.eogresources.com/news/",
+                "https://www.eogresources.com/investors/",
+                "https://www.eogresources.com/careers/",
+            ],
         )
         job = session.get(Job, UUID(queued["job_id"]))
         job.status = "running"
@@ -213,6 +218,18 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
                 "EOG Resources executive leadership\nGregory T. Miller\nVP, Supply Chain\n"
                 "\ufffd 2018-2026 EOG Resources, Inc. All rights reserved.",
                 observed_at=NOW,
+                links=(
+                    "https://www.eogresources.com/team/detail-one/",
+                    "https://www.eogresources.com/team/detail-two/",
+                ),
+            )
+        if url.endswith("/news/"):
+            return PublicDocument(
+                url,
+                "News article",
+                "A story that does not identify EOG Resources as its own organization.",
+                observed_at=NOW,
+                links=("https://www.eogresources.com/unverified-contact/",),
             )
         if url == "https://www.eogresources.com/":
             return PublicDocument(
@@ -221,8 +238,9 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
                 "EOG Resources\n\ufffd 2018-2026 EOG Resources, Inc. All rights reserved.",
                 observed_at=NOW,
                 links=(
-                    "https://www.eogresources.com/company/contacts/",
                     "https://www.eogresources.com/company/leadership/",
+                    "https://www.eogresources.com/company/contacts/",
+                    "https://other.example/contact/",
                 ),
             )
         return PublicDocument(
@@ -266,8 +284,19 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         )
         assert current_run and current_run.claim_ids
         checkpoint = json.loads(session.get(Job, job_id).checkpoint)
-        assert len(checkpoint["checked_urls"]) == 3
+        assert len(checkpoint["checked_urls"]) == 4
         assert checkpoint["research_required"] is True  # generic method is not a named buyer
+        assert "https://www.eogresources.com/company/contacts/" in checkpoint["checked_urls"]
+        assert checkpoint["checked_urls"].index(
+            "https://www.eogresources.com/company/contacts/"
+        ) < checkpoint["checked_urls"].index("https://www.eogresources.com/company/leadership/")
+        assert "https://other.example/contact/" not in checkpoint["checked_urls"]
+        assert "https://www.eogresources.com/unverified-contact/" not in checkpoint["checked_urls"]
+        assert not any(
+            path in url
+            for url in checkpoint["checked_urls"]
+            for path in ("/investors/", "/careers/")
+        )
         before_counts = (
             session.scalar(select(func.count()).select_from(BuyingChainClaim)),
             session.scalar(select(func.count()).select_from(BuyingChainEvidence)),
@@ -283,7 +312,12 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         replay = discovery.discover_company_contacts(
             session,
             company_id,
-            candidate_urls=["https://www.eogresources.com/"],
+            candidate_urls=[
+                "https://www.eogresources.com/",
+                "https://www.eogresources.com/news/",
+                "https://www.eogresources.com/investors/",
+                "https://www.eogresources.com/careers/",
+            ],
         )
         assert replay["job_id"] == str(job_id)
         assert replay["deduplicated"] is True
@@ -297,6 +331,92 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         membership.version += 1
     with db.begin() as session:
         assert company_contacts(session, company_id).contacts == []
+
+
+def test_unverified_company_page_links_are_never_followed(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+
+    urls = [
+        "https://www.eogresources.com/",
+        "https://www.eogresources.com/news/unverified/",
+        "https://www.eogresources.com/investors/",
+        "https://www.eogresources.com/careers/",
+    ]
+    with db.begin() as session:
+        project = seed(session, external_id="unverified-contact-navigation")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "unverified-contact-navigation")
+        )
+        assert evidence is not None
+        evidence.abstract = "EOG Resources is the operator, RRC operator number 123456."
+        identity = CompanyIdentity(rrc_operator_number="123456")
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="asset_operator",
+                organization_name="EOG Resources",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_rrc_operator_number_v1",
+                operator_number="123456",
+                state="current",
+            )
+        )
+        queued = discovery.discover_company_contacts(session, identity.id, candidate_urls=urls)
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    fetched = []
+
+    def public_page(url, **_kwargs):
+        fetched.append(url)
+        if url == urls[0]:
+            return PublicDocument(
+                url,
+                "EOG Resources",
+                "EOG Resources\n© EOG Resources, Inc.",
+                observed_at=NOW,
+                links=("https://other.example/contact/",),
+            )
+        if url == urls[1]:
+            return PublicDocument(
+                url,
+                "Unrelated news",
+                "A third-party article that does not identify its own organization "
+                "as EOG Resources.",
+                observed_at=NOW,
+                links=(
+                    "https://www.eogresources.com/unverified-contact/",
+                    "https://other.example/unverified-contact/",
+                ),
+            )
+        return PublicDocument(url, "EOG Resources", "EOG Resources", observed_at=NOW)
+
+    monkeypatch.setattr(discovery, "retrieve", public_page)
+    discovery.process_company_contact_discovery(
+        job_id, "contact-test", 1, now=NOW, deadline=time.monotonic() + 10
+    )
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+    assert urls[1] in fetched  # The negative navigation assertions are exercised.
+    assert len(fetched) <= 4
+    assert "https://www.eogresources.com/unverified-contact/" not in fetched
+    assert "https://other.example/unverified-contact/" not in fetched
+    assert "https://other.example/contact/" not in fetched
+    assert len(checkpoint["checked_urls"]) <= 4
 
 
 def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):

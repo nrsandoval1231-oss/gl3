@@ -122,6 +122,36 @@ coverage is N/A. Replaying both the original and a fresh checkpoint reuses the
 same twenty job IDs and leaves company, claim, evidence and job counts unchanged.
 All original row fingerprints survive; no duplicate company was created.
 
+## Authorized live discovery follow-up
+
+The owner subsequently approved the proposed **160 existing-plan Firecrawl
+credit** isolated trial. The first no-hint run used the same twenty companies on
+a fresh restore of the original production snapshot. All twenty searches
+completed, the observed balance fell from 2,614 to 2,574 (**40 credits**), and no
+uncertain provider call remained. Original protected rows survived unchanged.
+
+That v9 run produced only **1/20 usable companies (5%)**, with two EOG company
+phones and one relevant named role, zero emails and zero direct buyer methods.
+It proved live provider execution but failed the commercial recall comparison
+against the assisted native benchmark. See [the complete first live result](firecrawl-v9-results.json).
+The original assisted result is retained separately; its contacts are not carried
+into later benchmark restores.
+
+Real source evidence exposed a queue defect: four returned search URLs filled
+the entire four-fetch allowance, so a verified official site's contact link
+could never be added. Citation's management page exposed its contact page as
+the first parsed link, yet the live run never fetched it. The v10 candidate
+prioritizes verified same-host contact navigation, including contact URLs already
+queued, ahead of staff/detail pages and lower-priority unvisited search hints.
+It retains the four-attempt, 35-second and one-search limits and all identity,
+provenance, deadline and UNKNOWN checks. Its search emphasizes contact methods
+and excludes unusable social-result hosts. No shared HTML parser, schema or UI
+change is needed.
+
+A matched twenty-company v10 rerun and final exact-candidate acceptance remain
+pending at this source freeze. It is limited to at most forty additional credits,
+for at most eighty credits across both live runs, within the owner's160 cap.
+
 ## Firecrawl and cost
 
 The existing Firecrawl v2 integration is reused behind its existing enabled
@@ -131,13 +161,15 @@ ledger. Its search request uses the documented
 credit-metadata request; production had no runtime key. Key availability is not
 spend authorization. No commercial people-data provider was introduced.
 
-Paid Firecrawl use has not been authorized or dispatched for this benchmark.
-Public native retrieval was used with provider keys cleared in its subprocess.
-Ledger inspection measures zero new paid dispatches; provider cost for this
-native run is therefore $0. Unmeasured future Firecrawl dollar cost is UNKNOWN.
-The requested optional trial cap is 160 existing-plan credits, not permission to
-activate another service or change production. A paid search benchmark remains
-an open gate.
+The original native run used public retrieval with provider keys cleared;
+ledger inspection measured zero paid dispatches and $0 provider cost for that
+run. The subsequent authorized live v9 trial measured twenty dispatches and
+forty account credits. Actual cash billing is UNKNOWN. The isolated ledger uses
+$0.01/search as a conservative replacement-cost reservation based on the
+[published Hobby overage price](https://www.firecrawl.dev/pricing), not a claim
+about this account's billing rate. Finite daily/monthly limits include the
+snapshot's prior reservations plus only the authorized new exposure, and active
+concurrency is one. No owner-unlimited mode, new service or auto-recharge is used.
 
 ## UI, validation and release boundary
 
@@ -165,9 +197,10 @@ and row presence. Focused controller tests pass; the corrected exact candidate
 still requires its complete final gates and independent acceptance.
 
 Release recommendation: **HOLD production activation**. The measurable native
-benchmark is a useful bounded implementation proof, while autonomous domain
-discovery, a live authorized Firecrawl run, protected production configuration,
-old-image rollback rehearsal and production write approval remain open. Live
+benchmark is a useful bounded implementation proof. Live Firecrawl execution is
+now proven, but initial no-hint commercial coverage is only5%; the corrected
+matched rerun/final acceptance, protected production configuration, old-image
+rollback rehearsal and production write approval remain open. Live
 RRC operator-detail access failed from this environment. A supplementary read-only
 check of the [official bulk directory](https://www.rrc.texas.gov/media/mz2knwg5/oil-and-gas-directory-7-20-26-txt.txt)
 matched ten unresolved operator numbers/names, but all ten organization-phone

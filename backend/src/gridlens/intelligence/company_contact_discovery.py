@@ -57,7 +57,7 @@ TASK_TYPE = "company_contact_discovery"
 MAX_CANDIDATE_URLS = 4
 MAX_ANCHOR_PROJECTS = 16
 MAX_SECONDS = 35
-POLICY_VERSION = "company-contact-discovery-v9"
+POLICY_VERSION = "company-contact-discovery-v10"
 
 
 def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
@@ -399,7 +399,10 @@ def _search_official_urls(
     from gridlens.ingestion.adapters.pursuit_acquisition import discover_urls
     from gridlens.integrations.legacy_calls import LegacyCallBlocked, perform_legacy_call
 
-    query = f'"{organization}" official contact leadership'
+    query = (
+        f'"{organization}" contact email phone '
+        "-site:linkedin.com -site:facebook.com -site:instagram.com -site:x.com"
+    )
     if len(query) > 1000 or time.monotonic() >= deadline:
         raise LegacyCallBlocked("CONTACT_SEARCH_BOUNDS_EXCEEDED")
     with SessionLocal() as session:
@@ -552,14 +555,44 @@ def process_company_contact_discovery(
             fetched[url] = document
             if organization and _self_identified_company_site(document, organization):
                 origin = urlsplit(document.url).hostname
-                for link in document.links:
-                    if (
-                        urlsplit(link).hostname == origin
-                        and link not in checked
-                        and link not in to_check
-                        and len(checked) + len(to_check) < MAX_CANDIDATE_URLS
-                    ):
-                        to_check.append(link)
+                official_links = [
+                    link for link in document.links if urlsplit(link).hostname == origin
+                ]
+                pending_official = [link for link in to_check if urlsplit(link).hostname == origin]
+                pending_contact = [
+                    link
+                    for link in pending_official
+                    if re.search(r"(?:contact|reach|connect)", urlsplit(link).path, re.I)
+                ]
+
+                def link_priority(
+                    link: str,
+                    *,
+                    links: tuple[str, ...] = document.links,
+                    pending: list[str] = pending_contact,
+                    pending_urls: list[str] = to_check,
+                ) -> tuple[int, int]:
+                    path = urlsplit(link).path
+                    if re.search(r"(?:contact|reach|connect)", path, re.I):
+                        order = links.index(link) if link in links else 0
+                        return (0, order)
+                    if link in pending:
+                        return (1, pending_urls.index(link))
+                    if re.search(r"(?:team|leadership|management)", path, re.I):
+                        order = links.index(link) if link in links else 0
+                        return (2, order)
+                    order = links.index(link) if link in links else 0
+                    return (3, order)
+
+                # A verified official page can reveal a better same-host target
+                # than the remaining search results. Keep the global fetch cap.
+                prioritized = sorted(
+                    dict.fromkeys([*official_links, *pending_official, *to_check]),
+                    key=link_priority,
+                )
+                to_check = [link for link in prioritized if link not in checked][
+                    : MAX_CANDIDATE_URLS - len(checked)
+                ]
         except Exception as exc:
             failure = {"url": url, "reason": type(exc).__name__}
             detail = str(exc)

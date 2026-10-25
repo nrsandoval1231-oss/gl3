@@ -67,23 +67,28 @@ that a refresh never erases a still-supported contact or operator correction.
 
 Native public HTTP does not consume a paid enrichment provider. Attribute cost0
 only when instrumentation confirms no paid calls; unmeasured provider cost stays
-UNKNOWN. A future Firecrawl estimate needs remaining credits, configured unit
-costs, search/scrape ceilings and the existing logical-call accounting limits.
-The bounded sample is not a coverage or cost forecast for all235companies.
+UNKNOWN. The owner approved up to160existing-plan Firecrawl credits for isolated
+validation. The first no-hint20company trial completed20searches and consumed
+40observed credits (2614to2574); actual cash billing remains UNKNOWN. Its1/20usable
+coverage is retained in [the v9 report](firecrawl-v9-results.json). A matched
+policyv10 rerun is limited to40additional credits, cumulative80/160. The bounded
+sample is not a coverage or cost forecast for all235companies. This isolated-use
+approval does not authorize production enrichment, recharge or a new subscription.
 
-For a future authorized first pass, the current implementation makes at most one
+For a future authorized production first pass, the current implementation makes at most one
 Firecrawl URL search per company, requesting four web results, followed by native
 retrieval. Firecrawl's [published search tariff](https://docs.firecrawl.dev/features/search#cost-implications)
 is two credits for one to ten results, rounded up. Under that tariff and assuming
 every company needs one search, twenty companies require at most forty search
 credits and 235 companies require at most 470 search credits for one pass. These
-are estimates, not measured paid usage or approval. Paid scrape/map/JSON/PDF
+are estimates, not production usage or approval. Paid scrape/map/JSON/PDF
 features and retries are not included; they are not enabled in this pipeline.
-The existing dollar reservation setting must be supplied from the account's real
-price: an estimate is `company searches × FIRECRAWL_SEARCH_COST_USD`, with a
-finite authorized ledger cap. Its current unset value means dollar cost UNKNOWN
-and paid dispatch blocked. Do not invent a price or silently substitute unlimited
-spend. The optional 160-credit request is still awaiting owner authorization.
+The isolated trial reserves $0.01/search against finite logical-call dollar and
+call caps. This is a conservative replacement reservation using the published
+[$5/1000extra-credit price](https://www.firecrawl.dev/pricing), not a claim about
+the account's cash bill. Reconfirm the actual account price, remaining credits,
+caps and production authorization before dispatching in production; never
+silently substitute unlimited spend. No additional paid provider was activated.
 
 Pause the contact planner and let fenced in-flight work reach an inspected state.
 An interrupted paid request is UNKNOWN until its logical call is reconciled; never
