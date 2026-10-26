@@ -2,13 +2,21 @@
 
 Reviewer: Astra independent review agent. Date: 2026-10-26.
 
-Reviewed source: `7954e29d4e255a751fb831767a24b47f889a29c3`, against retained PR126 baseline `7e5179f`. This review follows the owner's exceptional-control clarification and the updated Autonomous Intelligence Canon. It does not supersede the separate deployment and commercial-evidence holds.
+Reviewed source: `993b6c7f1f3af6ca95865e3f3b1c52dbb9bb309a`, against retained PR126 baseline `7e5179f`; earlier review and focused test execution were at `7954e29`. This review follows the owner's exceptional-control clarification and the updated Autonomous Intelligence Canon. It does not supersede the separate deployment and commercial-evidence holds.
 
 ## Review result
 
-**No remaining blocking implementation finding was identified in the reviewed repair delta. Final regression acceptance remains pending the exact-candidate full backend and browser gates.** Earlier passes on other source revisions are not substituted for that gate.
+**Changes required: one P1 privacy finding remains at `993b6c7`. No implementation or regression acceptance is granted for this candidate.** This supersedes the earlier no-blocking-finding readback at `7954e29`. The coordinator interrupted the partial full-suite run at that earlier candidate; it is not passing acceptance evidence. Exact-source full backend/browser verification must follow the final correction.
 
 The review covered the integrated source, not only builder summaries: contact extraction and attribution, depth selection and refresh/retry identity, workbook reconciliation and power semantics, correction and suppression replay, public read exposure, internal membership retraction, migration 0045, and benchmark claims. The reviewer made no application-code changes, database writes, migrations, provider calls or deployment actions.
+
+## Follow-up at `993b6c7`
+
+The lead identified an additional P1 after the earlier review: a surviving phone method's shared quote could expose a suppressed email. `993b6c7` now scrubs nested public/reported methods as well as evidence, reason and correction history. The reviewer independently reproduced closure without a database: the email disappears from those fields, the phone value/href remain unchanged, and the surviving method quote equals its redacted evidence quote.
+
+**Open P1 — source-extracted title bypasses method suppression.** The same overlay does not scrub the candidate's top-level `title`. The reviewer used the actual HTML parser and people extractor with the heading `Avery Example, Procurement Manager hidden@example.test`; it produces the literal title `Procurement Manager hidden@example.test`. A separate no-database execution of `_apply_contact_privacy` with an active global email suppression removes the method and redacts the evidence, but returns that title unchanged. Normal cards and search can therefore expose the suppressed method. Apply the privacy policy to contact-bearing display strings as well as nested evidence/method fields, and cover this real extraction-to-projection path. This finding was sent immediately to the coordinator and lead.
+
+The earlier **91 passing focused tests remain evidence for `7954e29` only**; they were not rerun at `993b6c7`. New independent execution at `993b6c7` consists of the read-only parser/privacy reproductions described above. No database writes, provider calls or application-code edits were made.
 
 ## Findings and closure
 
