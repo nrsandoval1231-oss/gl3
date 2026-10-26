@@ -360,10 +360,181 @@ def test_read_only_reconciliation_reports_provenance_unknowns_and_no_promotion(i
         assert row["promotion"]["eligible"] is False
         assert any(item["field"] == "temporary_demand" for item in row["missing_data"])
         assert row["power_claims"]["facility_capacity_mw"] == 300
+        assert row["power_claims"]["committed_supply_mw"] is None
         assert row["power_claims"]["residual_gap_mw"] is None
+        assert any(item["field"] == "committed_supply" for item in row["missing_data"])
         assert session.scalar(select(func.count()).select_from(ExternalImportBatch)) == before
         assert session.scalar(select(func.count()).select_from(ExternalImportRow)) == 0
         assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+
+
+def test_duplicate_project_names_resolve_by_distinct_physical_site(import_db):
+    with import_db.begin() as session:
+        first_project, identity = _seed_matchable(session)
+        source = session.get(Source, "dallas-monthly-permits")
+        second_project = Project(
+            identity_key="test-site-houston",
+            name=first_project.name,
+            location="Houston, TX",
+            source_id=source.id,
+            external_id="source-project-houston",
+        )
+        observation = Observation(
+            source_id=source.id,
+            external_id="evidence-houston",
+            title="North Campus construction permit",
+            abstract="North Campus project site location: Houston, TX.",
+            url="https://example.test/houston",
+            content_hash="f" * 64,
+        )
+        session.add_all([second_project, observation])
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+            extraction_location="test excerpt",
+            provenance={},
+        )
+        session.add(evidence)
+        session.flush()
+        retained = BuyingChainEvidence(
+            project_id=second_project.id,
+            retained_evidence_id=None,
+            url=observation.url,
+            title=observation.title,
+            excerpt=observation.abstract,
+            content_hash=observation.content_hash,
+            extraction_location="test excerpt",
+            published_at=None,
+            observed_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+            project_match_reason="distinct physical site fixture",
+        )
+        session.add(retained)
+        session.flush()
+        session.add_all(
+            [
+                BuyingChainRun(
+                    project_id=second_project.id,
+                    input_hash="a" * 64,
+                    evidence_ids=[str(retained.id)],
+                    claim_ids=[],
+                    policy_version="test",
+                    status="complete",
+                    documents_checked=1,
+                    candidates_added=0,
+                    unresolved=[],
+                ),
+                CompanyProjectMembership(
+                    company_identity_id=identity.id,
+                    project_id=second_project.id,
+                    role="owner",
+                    organization_name="Acme Energy",
+                    source_id=source.id,
+                    source_evidence_id=evidence.id,
+                    source_version_hash=observation.content_hash,
+                    decision_basis="test fixture",
+                    operator_number="",
+                ),
+            ]
+        )
+        session.flush()
+        result = stage_import(
+            session,
+            _preview(
+                [
+                    ImportRow(
+                        sheet="Sites",
+                        row_number=2,
+                        raw={"Company": "Acme Energy", "Site": "North Campus"},
+                        normalized={
+                            "company_name": "Acme Energy",
+                            "domain": "acme.example",
+                            "project_name": "North Campus",
+                            "city": "Houston",
+                            "state": "TX",
+                        },
+                        errors=[],
+                    )
+                ],
+                "1" * 64,
+            ),
+            actor="reviewer",
+        )
+        assert result["rows"][0]["project_match"]["status"] == "matched"
+        assert result["rows"][0]["project_match"]["candidate_id"] == str(second_project.id)
+        assert result["rows"][0]["project_match"]["candidate_id"] != str(first_project.id)
+
+
+def test_reconciliation_surfaces_probable_project_without_auto_matching(import_db):
+    with import_db.begin() as session:
+        project, _identity = _seed_matchable(session)
+        preview = _preview(
+            [
+                ImportRow(
+                    sheet="Sites",
+                    row_number=2,
+                    raw={"Site": "Noth Campus", "City": "Austin"},
+                    normalized={
+                        "project_name": "Noth Campus",
+                        "city": "Austin",
+                        "state": "TX",
+                    },
+                    errors=[],
+                )
+            ],
+            "2" * 64,
+        )
+        result = reconcile_preview(session, preview)
+        row = result["rows"][0]
+        assert result["summary"]["probable"] == 1
+        assert row["status"] == "probable"
+        assert row["project_match"]["status"] == "probable"
+        assert row["project_match"]["candidate_id"] == str(project.id)
+        assert "project name and city agree" in row["project_match"]["reasons"]
+        assert row["promotion"]["eligible"] is False
+        assert session.scalar(select(func.count()).select_from(ExternalImportRow)) == 0
+        staged = stage_import(session, preview, actor="reviewer")
+        assert staged["unmatched_count"] == 1
+        assert staged["rows"][0]["project_match"]["status"] == "probable"
+        assert staged["rows"][0]["project_match"]["candidate_id"] == str(project.id)
+        assert staged["rows"][0]["active"] is False
+
+
+def test_read_only_reconciliation_keeps_contact_assertions_unverified(import_db):
+    with import_db.begin() as session:
+        _project, identity = _seed_matchable(session)
+        result = reconcile_preview(
+            session,
+            _preview(
+                [
+                    ImportRow(
+                        sheet="Contacts",
+                        row_number=9,
+                        row_kind="contact",
+                        raw={"Company": "Acme Energy", "Contact": "Jane Doe"},
+                        normalized={
+                            "company_name": "Acme Energy",
+                            "domain": "acme.example",
+                            "contact_name": "Jane Doe",
+                            "email": "jane@acme.example",
+                        },
+                        errors=[],
+                    )
+                ],
+                "3" * 64,
+            ),
+        )
+        row = result["rows"][0]
+        assert row["status"] == "exact_match"
+        assert row["company_match"]["candidate_id"] == str(identity.id)
+        assert row["project_match"]["status"] == "not_applicable"
+        assert row["verification"] == "unverified_source_assertions"
+        assert row["promotion"]["eligible"] is False
+        assert session.scalar(select(func.count()).select_from(ExternalImportRow)) == 0
 
 
 def test_state_conflict_vetoes_company_membership_project_match(import_db):

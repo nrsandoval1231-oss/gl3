@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from difflib import SequenceMatcher
 from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
@@ -291,6 +292,20 @@ def _project_match(
             "candidate_ids": sorted(str(p.id) for p, _ in candidates),
             "reasons": ["multiple existing projects have corroborating signals"],
         }
+    if not name_candidates:
+        probable, search_limited = _probable_project_match(normalized, company_match, catalog)
+        if probable is not None:
+            return probable
+        if search_limited:
+            return {
+                "status": "unmatched",
+                "candidate_id": None,
+                "search_limited": True,
+                "reasons": [
+                    "no exact project name",
+                    "probable comparison limit reached; no identity adopted",
+                ],
+            }
     if name_candidates:
         return {
             "status": "unmatched",
@@ -307,8 +322,74 @@ def _project_match(
     }
 
 
+def _probable_project_match(
+    normalized: dict[str, Any], company_match: dict[str, Any], catalog: dict[str, Any]
+) -> tuple[dict[str, Any] | None, bool]:
+    """Return a non-adopting near-name project suggestion with independent corroboration."""
+    source_name = _project_key(normalized.get("project_name"))
+    if not source_name:
+        return None, False
+    probable_names: dict[str, list[tuple[Project, float]]] = catalog["probable_names"]
+    limited = False
+    if source_name not in probable_names:
+        if len(probable_names) >= catalog["probable_name_limit"]:
+            limited = True
+        else:
+            probable_names[source_name] = [
+                (candidate, ratio)
+                for candidate in catalog["all_projects"]
+                if (candidate_name := _project_key(candidate.name)) != source_name
+                and (ratio := SequenceMatcher(None, source_name, candidate_name).ratio()) >= 0.88
+            ]
+    suggestions = []
+    matched_company = (
+        company_match.get("candidate_id") if company_match.get("status") == "matched" else None
+    )
+    company_projects = (
+        catalog["projects_by_company"].get(UUID(matched_company), set())
+        if matched_company
+        else set()
+    )
+    for candidate, ratio in probable_names.get(source_name, []):
+        compatible, site_reasons = _site_evidence(normalized, candidate)
+        company_reason = candidate.id in company_projects
+        if not compatible or not (site_reasons or company_reason):
+            continue
+        reasons = [f"similar normalized project name ({ratio:.3f})", *site_reasons]
+        if company_reason:
+            reasons.append("current company membership corroborates the project")
+        suggestions.append(
+            {
+                "candidate_id": str(candidate.id),
+                "name": candidate.name,
+                "location": candidate.location,
+                "similarity": round(ratio, 3),
+                "reasons": reasons,
+            }
+        )
+    suggestions.sort(key=lambda item: (-item["similarity"], item["candidate_id"]))
+    if len(suggestions) == 1:
+        return {
+            "status": "probable",
+            "candidate_id": suggestions[0]["candidate_id"],
+            "search_limited": limited,
+            "candidates": suggestions,
+            "reasons": [*suggestions[0]["reasons"], "suggestion only; exact identity not adopted"],
+        }, limited
+    if suggestions:
+        return {
+            "status": "ambiguous",
+            "candidate_id": None,
+            "search_limited": limited,
+            "candidate_ids": [item["candidate_id"] for item in suggestions],
+            "candidates": suggestions,
+            "reasons": ["multiple corroborated probable project candidates; no identity adopted"],
+        }, limited
+    return None, limited
+
+
 def _matching_catalog(session: Session, normalized_rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Load only company and project candidates referenced by this bounded workbook."""
+    """Load referenced companies plus projects needed for exact/probable matching."""
     domains: set[str] = set()
     project_names: set[str] = set()
     for normalized in normalized_rows:
@@ -349,14 +430,13 @@ def _matching_catalog(session: Session, normalized_rows: list[dict[str, Any]]) -
 
     projects_by_name: dict[str, list[Project]] = {}
     project_ids: set[UUID] = set()
-    name_key = func.btrim(func.regexp_replace(func.lower(Project.name), "[^a-z0-9]+", " ", "g"))
-    name_values = list(project_names)
-    for start in range(0, len(name_values), 5000):
-        candidates = session.scalars(
-            select(Project).where(name_key.in_(name_values[start : start + 5000]))
-        )
-        for project in candidates:
-            projects_by_name.setdefault(_project_key(project.name), []).append(project)
+    all_projects = (
+        list(session.scalars(select(Project).order_by(Project.id))) if project_names else []
+    )
+    for project in all_projects:
+        key = _project_key(project.name)
+        if key in project_names:
+            projects_by_name.setdefault(key, []).append(project)
             project_ids.add(project.id)
 
     memberships_by_company: dict[UUID, list[CompanyProjectMembership]] = {}
@@ -396,6 +476,9 @@ def _matching_catalog(session: Session, normalized_rows: list[dict[str, Any]]) -
         "memberships_by_project": memberships_by_project,
         "projects_by_company": projects_by_company,
         "projects_by_name": projects_by_name,
+        "all_projects": all_projects,
+        "probable_names": {},
+        "probable_name_limit": 1000,
     }
 
 
@@ -419,7 +502,10 @@ def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
                 duplicate_refs.setdefault(key, []).append({"kind": kind, "rows": refs})
 
     rows: list[dict[str, Any]] = []
-    counts = {key: 0 for key in ("exact_match", "ambiguous", "unmatched", "invalid", "ignored")}
+    counts = {
+        key: 0
+        for key in ("exact_match", "probable", "ambiguous", "unmatched", "invalid", "ignored")
+    }
     for source_row in preview.rows:
         normalized = dict(source_row.normalized)
         metadata = source_row.row_kind in {"summary", "metadata"} or not normalized
@@ -438,6 +524,7 @@ def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
         else:
             company = _company_match(normalized, catalog, site_candidates)
             project = _project_match(normalized, company, catalog)
+            search_limited = bool(project.get("search_limited"))
             if (
                 source_row.row_kind == "contact"
                 and not normalized.get("project_name")
@@ -457,6 +544,8 @@ def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
             if "ambiguous" in (company["status"], project["status"])
             else "exact_match"
             if company["status"] == "matched" and project["status"] in {"matched", "not_applicable"}
+            else "probable"
+            if project["status"] == "probable"
             else "unmatched"
         )
         counts[status] += 1
@@ -535,6 +624,7 @@ def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
                 "status": status,
                 "company_match": company,
                 "project_match": project,
+                "probable_search_limited": search_limited if not metadata else False,
                 "duplicate_hints": duplicate_refs.get(
                     (source_row.sheet, source_row.row_number), []
                 ),
