@@ -2050,6 +2050,7 @@ def process_job(
     acquisition = _retrieve_source_outside_transaction(
         session, job_id, worker_id, fence, source_definition, client, deadline=deadline
     )
+    fetch_receipt_at = datetime.now(UTC)
     if isinstance(acquisition, list):
         retrieved = acquisition
         acquisition_partial = False
@@ -2091,6 +2092,19 @@ def process_job(
         deadline=deadline,
         lease_expiry=lease_expiry,
     )
+    receipt_count = _record_tdlr_fetch_receipts(
+        session,
+        job_id,
+        worker_id,
+        fence,
+        source_definition,
+        records,
+        fetch_receipt_at,
+        deadline=deadline,
+        lease_expiry=lease_expiry,
+    )
+    if source_definition.get("id") == "texas-tdlr-tabs-data-centers":
+        counts["retained_source_refresh_receipts"] = receipt_count
     incomplete = acquisition_partial or any(record.get("presence_only") for record in retrieved)
     if source_definition.get("snapshot_complete") and not incomplete:
         remaining_seconds(deadline)
@@ -2479,6 +2493,109 @@ def _retrieve_source_outside_transaction(
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return _normalize_source_acquisition(source_definition, result)
+
+
+def _record_tdlr_fetch_receipts(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    records: list[dict[str, Any]],
+    fetched_at: datetime,
+    *,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
+) -> int:
+    """Refresh contact freshness only for exact TDLR rows fetched in this run.
+
+    Evidence rows remain immutable. BuyingChainEvidence.last_seen_at records the
+    successful record-specific refetch receipt used by contact freshness gates.
+    """
+    if (
+        source_definition.get("id") != "texas-tdlr-tabs-data-centers"
+        or source_definition.get("retrieval_method") != "tdlr-tabs"
+    ):
+        return 0
+
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.ingestion.adapters.tdlr_tabs import PROJECT_URL
+    from gridlens.intelligence.buying_chain import (
+        _retained_evidence_current_for_project,
+        _store_document,
+    )
+
+    source_id = source_definition["id"]
+    if not records:
+        return 0
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    receipt_count = 0
+    for record in records:
+        remaining_seconds(deadline)
+        job = assert_fence(session, job_id, worker_id, fence)
+        _advance_job_lease(job, lease_expiry)
+        external_id = record.get("document_number")
+        source_url = record.get("html_url")
+        expected_hash = record.get("source_hash")
+        number = external_id.removeprefix("TABS-") if isinstance(external_id, str) else ""
+        if (
+            not re.fullmatch(r"TABS\d{10}", number)
+            or not isinstance(source_url, str)
+            or source_url != PROJECT_URL.format(number=number)
+            or not isinstance(expected_hash, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", expected_hash)
+        ):
+            continue
+        observation = session.scalar(
+            select(Observation).where(
+                Observation.source_id == source_id,
+                Observation.external_id == external_id,
+            )
+        )
+        if observation is None or observation.content_hash != _hash(record):
+            continue
+        evidence = session.scalar(
+            select(Evidence).where(
+                Evidence.observation_id == observation.id,
+                Evidence.content_hash == expected_hash,
+                Evidence.url == source_url,
+            )
+        )
+        project = session.scalar(
+            select(Project).where(
+                Project.source_id == source_id,
+                Project.external_id == external_id,
+            )
+        )
+        if (
+            evidence is None
+            or project is None
+            or evidence.title != record.get("title")
+            or evidence.abstract != record.get("abstract")
+            or not _retained_evidence_current_for_project(session, project, evidence)
+        ):
+            continue
+        document = PublicDocument(
+            evidence.url,
+            evidence.title,
+            f"{evidence.title}\n{evidence.abstract or ''}",
+            evidence.published_at,
+            evidence.observed_at,
+            evidence.extraction_location,
+            retained_version=evidence.content_hash,
+        )
+        _store_document(
+            session,
+            project,
+            document,
+            "Exact TDLR project record fetched in the current native ingestion run.",
+            evidence.id,
+            seen_at=fetched_at,
+        )
+        receipt_count += 1
+    remaining_seconds(deadline)
+    assert_fence(session, job_id, worker_id, fence)
+    return receipt_count
 
 
 def _validate_adapter_rejection(value: object) -> dict[str, Any]:
