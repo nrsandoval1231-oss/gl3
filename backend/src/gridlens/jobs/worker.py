@@ -1635,7 +1635,12 @@ def _planner_lane(
     stop_event: threading.Event, planner_key: str, action: Callable[[], object]
 ) -> None:
     while not stop_event.is_set():
-        _run_planner(planner_key, action)
+        try:
+            _run_planner(planner_key, action)
+        except Exception:
+            # Last-resort containment: one unexpected planner or connection
+            # cleanup error must not retire this scheduler lane until restart.
+            logger.exception("planner lane %s cycle escaped its retry boundary", planner_key)
         if stop_event.wait(_PLANNER_POLL_SECONDS):
             return
 
@@ -1661,11 +1666,9 @@ def _run_planner(planner_key: str, action) -> bool:
     # release before returning a pooled connection.
     claim_connection = None
     claimed_lock = False
+    cleanup_ok = True
     try:
-        engine = SessionLocal.kw.get("bind")
-        if engine is None:
-            raise RuntimeError("Planner claim requires a bound database engine")
-        claim_connection = engine.connect()
+        claim_connection = _connect_planner_claim()
         claimed = claim_connection.scalar(
             text("SELECT pg_try_advisory_lock(hashtextextended(:planner_key, 0))"),
             {"planner_key": f"gridlens:planner:{planner_key}"},
@@ -1717,25 +1720,59 @@ def _run_planner(planner_key: str, action) -> bool:
             pass
         return False
     finally:
-        if claim_connection is not None:
-            if claim_connection.in_transaction():
-                claim_connection.rollback()
+        cleanup_ok = _release_planner_claim(claim_connection, planner_key, claimed_lock)
+    return cleanup_ok
+
+
+def _connect_planner_claim():
+    engine = SessionLocal.kw.get("bind")
+    if engine is None:
+        raise RuntimeError("Planner claim requires a bound database engine")
+    return engine.connect()
+
+
+def _release_planner_claim(connection, planner_key: str, claimed_lock: bool) -> bool:
+    """Release a planner lock without allowing cleanup faults to kill its lane."""
+    if connection is None:
+        return True
+    cleanup_ok = True
+    try:
+        if connection.in_transaction():
+            connection.rollback()
+    except Exception:
+        cleanup_ok = False
+        logger.exception("failed to roll back planner %s claim connection", planner_key)
+        try:
+            connection.invalidate()
+        except Exception:
+            logger.exception("failed to invalidate planner %s claim connection", planner_key)
+    if claimed_lock and cleanup_ok:
+        try:
+            released = connection.scalar(
+                text("SELECT pg_advisory_unlock(hashtextextended(:planner_key, 0))"),
+                {"planner_key": f"gridlens:planner:{planner_key}"},
+            )
+            connection.commit()
+            if not released:
+                cleanup_ok = False
+                logger.error("planner %s claim was not held at release", planner_key)
+        except Exception:
+            cleanup_ok = False
+            logger.exception("failed to release planner %s claim", planner_key)
             try:
-                if claimed_lock:
-                    released = claim_connection.scalar(
-                        text("SELECT pg_advisory_unlock(hashtextextended(:planner_key, 0))"),
-                        {"planner_key": f"gridlens:planner:{planner_key}"},
-                    )
-                    claim_connection.commit()
-                    if not released:
-                        logger.error("planner %s claim was not held at release", planner_key)
+                connection.invalidate()
             except Exception:
-                # Never return a possibly locked backend session to the pool.
-                logger.exception("failed to release planner %s claim", planner_key)
-                claim_connection.invalidate()
-            finally:
-                claim_connection.close()
-    return True
+                logger.exception("failed to invalidate planner %s claim connection", planner_key)
+    try:
+        connection.close()
+    except Exception:
+        cleanup_ok = False
+        logger.exception("failed to close planner %s claim connection", planner_key)
+        try:
+            connection.invalidate()
+        except Exception:
+            logger.exception("failed to invalidate planner %s claim connection", planner_key)
+    return cleanup_ok
 
 
 def plan_pursuit_questions() -> int:

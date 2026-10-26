@@ -1820,3 +1820,85 @@ def test_planner_connection_failure_recovers_on_later_poll(source_db, monkeypatc
     worker._PLANNER_RETRY_MONOTONIC.clear()
     assert worker._run_planner("connection_recovery", lambda: calls.append("recovered"))
     assert calls == ["recovered"]
+
+
+@pytest.mark.parametrize("cleanup_failure", ["rollback", "unlock", "close"])
+def test_planner_cleanup_failure_does_not_block_a_later_cycle(
+    source_db, monkeypatch, cleanup_failure
+):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    original_connect = worker._connect_planner_claim
+    calls = []
+
+    class FaultyConnection:
+        def __init__(self, connection):
+            self.connection = connection
+            self.failed = False
+
+        def scalar(self, statement, parameters=None):
+            if cleanup_failure == "unlock" and "pg_advisory_unlock" in str(statement):
+                self.failed = True
+                raise OSError("synthetic unlock failure")
+            return self.connection.scalar(statement, parameters)
+
+        def commit(self):
+            return self.connection.commit()
+
+        def rollback(self):
+            if cleanup_failure == "rollback" and not self.failed:
+                self.failed = True
+                raise OSError("synthetic rollback failure")
+            return self.connection.rollback()
+
+        def in_transaction(self):
+            if cleanup_failure == "rollback" and not self.failed:
+                return True
+            return self.connection.in_transaction()
+
+        def invalidate(self):
+            return self.connection.invalidate()
+
+        def close(self):
+            self.connection.close()
+            if cleanup_failure == "close" and not self.failed:
+                self.failed = True
+                raise OSError("synthetic close failure")
+
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(
+        worker,
+        "_connect_planner_claim",
+        lambda: FaultyConnection(original_connect()),
+    )
+    worker._PLANNER_RETRY_MONOTONIC.clear()
+    worker._PLANNER_FAILURES.clear()
+
+    assert not worker._run_planner("cleanup_recovery", lambda: calls.append("first"))
+    with factory.begin() as session:
+        state = session.get(PlannerState, "cleanup_recovery")
+        assert state and state.last_success_at and state.next_retry_at
+        state.next_retry_at = datetime.now(UTC) - timedelta(seconds=1)
+
+    monkeypatch.setattr(worker, "_connect_planner_claim", original_connect)
+    assert worker._run_planner("cleanup_recovery", lambda: calls.append("next_tick"))
+    assert calls == ["first", "next_tick"]
+
+
+def test_planner_lane_survives_unexpected_cycle_exception(monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    stop_event = Event()
+    cycles = []
+
+    def fail_once(_planner_key, _action):
+        cycles.append("attempt")
+        if len(cycles) == 1:
+            raise OSError("synthetic escaped cycle failure")
+        stop_event.set()
+
+    monkeypatch.setattr(worker, "_run_planner", fail_once)
+    monkeypatch.setattr(worker, "_PLANNER_POLL_SECONDS", 0)
+    worker._planner_lane(stop_event, "lane_recovery", lambda: None)
+    assert cycles == ["attempt", "attempt"]
