@@ -333,19 +333,23 @@ def test_read_only_reconciliation_reports_provenance_unknowns_and_no_promotion(i
                 ImportRow(
                     sheet="Workbook Sites",
                     row_number=17,
-                    raw={"Developer": "Acme Energy", "Site": "North Campus", "Need": "unknown"},
+                    raw={"Developer": "Acme Energy", "Site": "North Campus", "Demand MW": 4},
                     normalized={
                         "company_name": "Acme Energy",
                         "project_name": "North Campus",
                         "city": "Austin",
                         "state": "TX",
                         "facility_demand_mw": 300,
+                        "demand_mw": 4,
                     },
                     errors=[],
                 )
             ],
             "e" * 64,
         )
+        preview.report["worksheets"] = [
+            {"name": "Workbook Sites", "mapped_columns": {"Demand MW": "demand_mw"}}
+        ]
         before = session.scalar(select(func.count()).select_from(ExternalImportBatch))
         result = reconcile_preview(session, preview)
         row = result["rows"][0]
@@ -360,12 +364,82 @@ def test_read_only_reconciliation_reports_provenance_unknowns_and_no_promotion(i
         assert row["promotion"]["eligible"] is False
         assert any(item["field"] == "temporary_demand" for item in row["missing_data"])
         assert row["power_claims"]["facility_capacity_mw"] == 300
+        assert row["power_claims"]["reported_demand_mw"] == 4
+        assert row["power_claims"]["temporary_demand_mw"] is None
+        assert row["power_claims"]["temporary_demand_basis"].startswith("UNKNOWN")
         assert row["power_claims"]["committed_supply_mw"] is None
         assert row["power_claims"]["residual_gap_mw"] is None
         assert any(item["field"] == "committed_supply" for item in row["missing_data"])
         assert session.scalar(select(func.count()).select_from(ExternalImportBatch)) == before
         assert session.scalar(select(func.count()).select_from(ExternalImportRow)) == 0
         assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+
+
+def test_read_only_reconciliation_bounds_large_duplicate_groups_and_truncated_input(import_db):
+    with import_db.begin() as session:
+        row_count = 25_000
+        source_rows = [
+            ImportRow(
+                sheet="Projects",
+                row_number=index + 2,
+                raw={"Company": "Same Company"},
+                normalized={},
+                errors=[],
+                row_kind="metadata",
+            )
+            for index in range(row_count)
+        ]
+        refs = [{"sheet": "Projects", "row_number": index + 2} for index in range(row_count)]
+        preview = _preview(source_rows, "4" * 64)
+        preview.report.update(
+            {
+                "truncated": True,
+                "exact_duplicates": [{"key": "full_row_sha256", "rows": refs}],
+            }
+        )
+        report = reconcile_preview(session, preview)
+        assert report["complete"] is False
+        assert report["processed_all_preview_rows"] is True
+        assert report["row_details_truncated"] is True
+        assert report["summary"]["rows"] == row_count
+        assert report["summary"]["rows_included"] == 500
+        assert report["summary"]["rows_omitted"] == row_count - 500
+        assert report["summary"]["source_preview_truncated"] is True
+        assert report["summary"]["duplicate_groups"] == 1
+        assert len(report["duplicate_groups"][0]["sample_rows"]) == 10
+        assert report["duplicate_groups"][0]["row_count"] == row_count
+        assert len(report["rows"][0]["duplicate_hints"]) == 1
+        assert report["rows"][0]["duplicate_hints"][0]["row_count"] == row_count
+        assert "raw" not in report["rows"][0]["source"]
+
+
+def test_explicit_activity_demand_header_is_separate_and_unverified(import_db):
+    with import_db.begin() as session:
+        result = reconcile_preview(
+            session,
+            ImportPreview(
+                filename="temporary-demand.csv",
+                content_hash="5" * 64,
+                rows=[
+                    ImportRow(
+                        sheet="CSV",
+                        row_number=2,
+                        raw={"Temporary Demand MW": 7},
+                        normalized={"demand_mw": 7},
+                        errors=[],
+                    )
+                ],
+                report={
+                    "worksheets": [
+                        {"name": "CSV", "mapped_columns": {"Temporary Demand MW": "demand_mw"}}
+                    ]
+                },
+            ),
+        )
+        claims = result["rows"][0]["power_claims"]
+        assert claims["temporary_demand_mw"] == 7
+        assert claims["temporary_demand_basis"] == "unverified_activity_specific_source_assertion"
+        assert claims["residual_gap_mw"] is None
 
 
 def test_duplicate_project_names_resolve_by_distinct_physical_site(import_db):

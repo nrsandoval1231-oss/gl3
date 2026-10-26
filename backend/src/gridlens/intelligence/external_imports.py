@@ -26,6 +26,17 @@ from gridlens.persistence.models import (
     Project,
 )
 
+MAX_RECONCILIATION_OUTPUT_ROWS = 500
+MAX_RECONCILIATION_DUPLICATE_GROUPS = 200
+MAX_DUPLICATE_GROUP_SAMPLE_ROWS = 10
+MAX_DUPLICATE_HINTS_PER_ROW = 5
+
+_ACTIVITY_SPECIFIC_POWER_HEADER = re.compile(
+    r"(?:temporary|rental|construction|commissioning).*(?:demand|load|power)|"
+    r"(?:demand|load|power).*(?:temporary|rental|construction|commissioning)",
+    re.IGNORECASE,
+)
+
 
 def _assert_staging_session(session: Session) -> None:
     """Fail closed unless this session is bound to a clearly isolated staging/test DB."""
@@ -482,6 +493,17 @@ def _matching_catalog(session: Session, normalized_rows: list[dict[str, Any]]) -
     }
 
 
+def _has_activity_specific_demand_header(source_row: Any, worksheets: list[dict[str, Any]]) -> bool:
+    for sheet in worksheets:
+        if sheet.get("name") != source_row.sheet:
+            continue
+        return any(
+            field == "demand_mw" and _ACTIVITY_SPECIFIC_POWER_HEADER.search(str(header))
+            for header, field in sheet.get("mapped_columns", {}).items()
+        )
+    return False
+
+
 def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
     """Compare a parsed source with current canonical identities without writing anything.
 
@@ -491,15 +513,41 @@ def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
     normalized_rows = [dict(row.normalized) for row in preview.rows]
     catalog = _matching_catalog(session, normalized_rows)
     duplicate_refs: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    duplicate_group_reports: list[dict[str, Any]] = []
+    duplicate_group_count = 0
     for kind, groups in (
         ("exact", preview.report.get("exact_duplicates", [])),
         ("probable", preview.report.get("probable_duplicates", [])),
     ):
         for group in groups:
             refs = group.get("rows", []) if isinstance(group, dict) else []
+            if len(refs) < 2:
+                continue
+            duplicate_group_count += 1
+            group_id = f"{kind}-{duplicate_group_count}"
+            group_included = len(duplicate_group_reports) < MAX_RECONCILIATION_DUPLICATE_GROUPS
+            if group_included:
+                duplicate_group_reports.append(
+                    {
+                        "group_id": group_id,
+                        "kind": kind,
+                        "row_count": len(refs),
+                        "sample_rows": refs[:MAX_DUPLICATE_GROUP_SAMPLE_ROWS],
+                        "sample_truncated": len(refs) > MAX_DUPLICATE_GROUP_SAMPLE_ROWS,
+                    }
+                )
             for ref in refs:
                 key = (str(ref.get("sheet", "")), int(ref.get("row_number", 0)))
-                duplicate_refs.setdefault(key, []).append({"kind": kind, "rows": refs})
+                hints = duplicate_refs.setdefault(key, [])
+                if len(hints) < MAX_DUPLICATE_HINTS_PER_ROW:
+                    hints.append(
+                        {
+                            "group_id": group_id,
+                            "kind": kind,
+                            "row_count": len(refs),
+                            "group_summary_included": group_included,
+                        }
+                    )
 
     rows: list[dict[str, Any]] = []
     counts = {
@@ -509,6 +557,7 @@ def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
     for source_row in preview.rows:
         normalized = dict(source_row.normalized)
         metadata = source_row.row_kind in {"summary", "metadata"} or not normalized
+        search_limited = False
         site_candidates = [] if metadata else _site_project_candidates(normalized, catalog)
         if metadata:
             company = {
@@ -574,12 +623,21 @@ def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
                     "reason": "physical-site corroboration is absent",
                 }
             )
-        if normalized.get("demand_mw") is None:
+        activity_specific_demand = _has_activity_specific_demand_header(
+            source_row, preview.report.get("worksheets", [])
+        )
+        reported_demand_present = (
+            normalized.get("demand_mw") is not None or normalized.get("demand_mw_range") is not None
+        )
+        if not reported_demand_present or not activity_specific_demand:
             missing.append(
                 {
                     "field": "temporary_demand",
                     "priority": "high",
-                    "reason": "activity-specific demand is absent; capacity is not demand",
+                    "reason": (
+                        "activity-specific demand is absent; generic demand/capacity is not "
+                        "temporary demand"
+                    ),
                 }
             )
         if normalized.get("supply_mw") is None:
@@ -610,58 +668,92 @@ def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
                     "reason": "no independently stated required-power date",
                 }
             )
-        rows.append(
-            {
-                "source": {
-                    "filename": preview.filename,
-                    "content_sha256": preview.content_hash,
-                    "sheet": source_row.sheet,
-                    "row_number": source_row.row_number,
-                    "row_kind": source_row.row_kind,
-                    "original_fields": list(source_row.raw),
-                    "raw": source_row.raw,
-                },
-                "status": status,
-                "company_match": company,
-                "project_match": project,
-                "probable_search_limited": search_limited if not metadata else False,
-                "duplicate_hints": duplicate_refs.get(
-                    (source_row.sheet, source_row.row_number), []
+        row_report = {
+            "source": {
+                "filename": preview.filename,
+                "content_sha256": preview.content_hash,
+                "sheet": source_row.sheet,
+                "row_number": source_row.row_number,
+                "row_kind": source_row.row_kind,
+                "original_fields": list(source_row.raw),
+            },
+            "status": status,
+            "company_match": company,
+            "project_match": project,
+            "probable_search_limited": search_limited if not metadata else False,
+            "duplicate_hints": duplicate_refs.get((source_row.sheet, source_row.row_number), []),
+            "verification": "unverified_source_assertions",
+            "power_claims": {
+                "reported_demand_mw": normalized.get("demand_mw"),
+                "reported_demand_basis": "unverified_source_assertion",
+                "temporary_demand_mw": (
+                    normalized.get("demand_mw") if activity_specific_demand else None
                 ),
-                "verification": "unverified_source_assertions",
-                "power_claims": {
-                    "temporary_demand_mw": normalized.get("demand_mw"),
-                    "facility_capacity_mw": normalized.get("facility_demand_mw"),
-                    "it_capacity_mw": normalized.get("it_capacity_mw"),
-                    "committed_supply_mw": normalized.get("supply_mw"),
-                    "residual_gap_mw": None,
-                    "residual_gap_reason": (
-                        "UNKNOWN until demand and committed supply are independently verified"
-                    ),
-                },
-                "promotion": {
-                    "eligible": False,
-                    "reason": (
-                        "workbook assertions alone cannot verify identity, need, or qualification"
-                    ),
-                },
-                "missing_data": missing,
-                "errors": source_row.errors,
-            }
-        )
+                "reported_demand_range": normalized.get("demand_mw_range"),
+                "temporary_demand_range": (
+                    normalized.get("demand_mw_range") if activity_specific_demand else None
+                ),
+                "temporary_demand_basis": (
+                    "unverified_activity_specific_source_assertion"
+                    if activity_specific_demand
+                    else "UNKNOWN_no_explicit_activity_specific_source_field"
+                ),
+                "facility_capacity_mw": normalized.get("facility_demand_mw"),
+                "facility_capacity_range": normalized.get("facility_demand_mw_range"),
+                "it_capacity_mw": normalized.get("it_capacity_mw"),
+                "it_capacity_range": normalized.get("it_capacity_mw_range"),
+                "committed_supply_mw": normalized.get("supply_mw"),
+                "committed_supply_range": normalized.get("supply_mw_range"),
+                "residual_gap_mw": None,
+                "residual_gap_reason": (
+                    "UNKNOWN until demand and committed supply are independently verified"
+                ),
+            },
+            "promotion": {
+                "eligible": False,
+                "reason": (
+                    "workbook assertions alone cannot verify identity, need, or qualification"
+                ),
+            },
+            "missing_data": missing,
+            "errors": source_row.errors,
+        }
+        if len(rows) < MAX_RECONCILIATION_OUTPUT_ROWS:
+            rows.append(row_report)
+    worksheets = preview.report.get("worksheets", [])
+    source_preview_truncated = bool(
+        preview.report.get("truncated") or preview.report.get("limit_reached")
+    )
     return {
         "action": "reconcile",
         "read_only": True,
         "source": {
             "filename": preview.filename,
             "content_sha256": preview.content_hash,
-            "sheets": preview.report.get("worksheets", []),
+            "sheets": worksheets[:MAX_RECONCILIATION_DUPLICATE_GROUPS],
+            "sheets_omitted": max(0, len(worksheets) - MAX_RECONCILIATION_DUPLICATE_GROUPS),
             "field_mapping": {
                 sheet.get("name"): sheet.get("mapped_columns", {})
-                for sheet in preview.report.get("worksheets", [])
+                for sheet in worksheets[:MAX_RECONCILIATION_DUPLICATE_GROUPS]
             },
         },
-        "summary": {**counts, "rows": len(rows)},
+        "complete": not source_preview_truncated
+        and len(preview.rows) <= MAX_RECONCILIATION_OUTPUT_ROWS,
+        "processed_all_preview_rows": True,
+        "row_details_truncated": len(preview.rows) > len(rows),
+        "summary": {
+            **counts,
+            "rows": len(preview.rows),
+            "rows_included": len(rows),
+            "rows_omitted": max(0, len(preview.rows) - len(rows)),
+            "source_preview_truncated": source_preview_truncated,
+            "duplicate_groups": duplicate_group_count,
+            "duplicate_groups_included": len(duplicate_group_reports),
+            "duplicate_groups_omitted": max(
+                0, duplicate_group_count - len(duplicate_group_reports)
+            ),
+        },
+        "duplicate_groups": duplicate_group_reports,
         "rows": rows,
     }
 

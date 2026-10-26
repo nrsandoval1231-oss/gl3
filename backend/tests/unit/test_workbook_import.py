@@ -64,6 +64,21 @@ def test_csv_mapping_and_bad_numeric_are_preview_errors(tmp_path):
     assert "demand_mw must be a scalar" in row.errors[0]
 
 
+def test_activity_specific_demand_header_is_distinguished_from_generic_demand(tmp_path):
+    generic_path = tmp_path / "generic-demand.csv"
+    generic_path.write_text("Company,Demand MW\nAcme,4\n", encoding="utf-8")
+    temporary_path = tmp_path / "temporary-demand.csv"
+    temporary_path.write_text("Company,Temporary Demand MW\nAcme,7\n", encoding="utf-8")
+
+    generic = read_workbook(generic_path)
+    temporary = read_workbook(temporary_path)
+
+    assert generic.rows[0].normalized["demand_mw"] == 4
+    assert generic.report["worksheets"][0]["mapped_columns"]["Demand MW"] == "demand_mw"
+    assert temporary.report["worksheets"][0]["mapped_columns"]["Temporary Demand MW"] == "demand_mw"
+    assert temporary.rows[0].normalized["demand_mw"] == 7
+
+
 def test_formula_text_is_preserved_and_never_evaluated(tmp_path):
     path = tmp_path / "formula.xlsx"
     workbook = Workbook()
