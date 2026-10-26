@@ -39,6 +39,8 @@ The coordinator additionally requested a frozen 25-row diagnostic drawn from ret
 
 The restored staging inventory is coordinator evidence: four batches and 4,520 inactive rows survive, while original XLSX files are unavailable in the resumed filesystem. Retained display text `Link` is not a dereferenceable source URL. Whether the missing original cells contained hyperlink targets must not be invented from that display text. The six-project Austin acquisition and fixture databases do not supply the requested qualifying denominator. Candidate failure rates cannot be relabeled as verified-opportunity contact coverage or used to close the release gate.
 
+The subsequent native manifest in `20bd427` freezes **25 source-linked project records: 21 Texas upstream-well records and four Texas data-center records**, selected before the follow-up contact evaluation. This is a different diagnostic from the workbook sample. The reviewer inspected its selection and reporting code: selection is outcome-blind, and the manifest explicitly leaves physical-site distinctness unverified where source locations are county-level. Its `cohort_complete` flag means the requested record count was selected; it does not mean 25 distinct power-eligible commercial opportunities were established. Source-linked typed fields and retained historical citations still require current-source and claim-level adjudication before any commercial coverage numerator is accepted.
+
 ## Four real-corpus browser gates
 
 1. **Data center:** a genuine persisted project exposes owner, gap or its explicit limits, timing, buying organization and cited contacts.
