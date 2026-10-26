@@ -183,6 +183,7 @@ for (const item of cases) {
       await expect(companyArticle.locator('.ic-contact-identity strong')).toHaveText(expected.company_name)
       await expect(phoneLink).toHaveText(expected.company_action_label)
       await companyArticle.locator('details > summary').click()
+      await expect(companyArticle).toContainText('Published method source checked')
       await expect(companyArticle.getByRole('link', { name: expected.source_quote, exact: false })).toHaveAttribute('href', expected.source_url)
 
       const representativeArticle = contacts.locator('article').filter({ hasText: expected.representative_name })
