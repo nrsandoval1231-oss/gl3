@@ -24,6 +24,8 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 | `docs/operations/commercial-pursuits.md`, `docs/operations/intelligence-surfaces.md` | TRANSFORM | Superseded manual guide replaced by current autonomous/internal boundaries; original text preserved |
 | `docs/operations/README.md`: October 24 release authorization as current | TRANSFORM | Dated observation remains evidence; no inherited deployment/spending authorization for this candidate |
 | `.agent/archive/AUTONOMOUS-20261026/` | ARCHIVE | Lossless deterministic `.md.gz` snapshots of pre-edit active directions; decompress for exact original bytes |
+| `scripts/seeded_browser_acceptance.py` | TRANSFORM | Replace deleted pursuit-workflow test target with autonomous research/search checks; disclose synthetic-only UI proof and disabled external research |
+| `scripts/validate_pursuit_research.py`, `scripts/regenerate_pursuit_corpus.py`, `scripts/pursuit_research_metrics.py` | KEEP | Internal isolated scheduler/evidence replay and read-only metrics, not public manual workflow or current cloud acceptance |
 | `scripts/check_docs.py`, `scripts/README.md`, `scripts/README-pursuit-research-validation.md` | TRANSFORM | Maintained authority link checks include canon/agent files; internal isolated utilities cannot recreate retired user workflows |
 
 ## Removed user features and dependency chain

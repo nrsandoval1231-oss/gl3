@@ -204,3 +204,5 @@ host, port and username. Passwords may be omitted. Only scalar `sslmode`,
 `sslrootcert`, `sslcert` and `sslkey` query options are accepted; host overrides,
 service aliases and other query options are refused so SQLAlchemy snapshots and
 PostgreSQL command-line tools cannot silently select different servers.
+
+The seeded browser harness now targets `first_path.spec.ts` and `autonomous-research.spec.ts` by default. The removed manual-pursuit test is not an acceptance target. Fixture mode disables external autonomous research and clears provider keys; it verifies source/browse/research UI mechanics only, with no claim of real contacts, live collection, scheduler cadence or production readiness.
