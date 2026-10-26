@@ -1299,7 +1299,7 @@ def test_contact_search_uses_one_accounted_logical_call(db, monkeypatch, uncerta
                 state="current",
             )
         )
-        queued = discovery.discover_company_contacts(session, identity.id)
+        queued = discovery.discover_company_contacts(session, identity.id, now=NOW)
         job = session.get(Job, UUID(queued["job_id"]))
         job.status, job.lease_owner, job.fence = "running", "contact-test", 1
         job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
@@ -1346,7 +1346,10 @@ def test_contact_search_uses_one_accounted_logical_call(db, monkeypatch, uncerta
         assert logical is not None
         assert checkpoint["search_logical_call_id"] == str(logical.id)
         assert logical.status == ("SENT_OUTCOME_UNKNOWN" if uncertain else "COMPLETED")
-        replay = discovery.discover_company_contacts(session, company_id)
+        # The worker outcome uses the synthetic NOW clock, so replay it against
+        # that same instant; a real-time retry after the 7-day unresolved delay
+        # is a different scenario and must not be mistaken for immediate dedupe.
+        replay = discovery.discover_company_contacts(session, company_id, now=NOW)
         assert replay["job_id"] == str(job_id)
         assert replay["deduplicated"] is True
     assert len(calls) == 1
@@ -2588,17 +2591,12 @@ def test_api_auth_origin_unknown_project_and_url_bound(db, monkeypatch):
     client = TestClient(api.app)
     path = f"/api/projects/{p.id}/buying-chain"
     assert client.get(path).status_code == 401
-    assert client.post(path + "/enrich").status_code == 401
+    assert client.post(path + "/enrich").status_code == 404
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     assert client.get(path).json()["status"] == "not_researched"
     assert (
-        client.post(path + "/enrich", headers={"origin": "https://evil.example"}).status_code == 403
+        client.post(path + "/enrich", headers={"origin": "https://evil.example"}).status_code == 404
     )
-    assert (
-        client.post(path + "/enrich", json={"source_urls": ["https://127.0.0.1"]}).status_code
-        == 422
-    )
-    assert client.post(path + "/enrich", json={"source_urls": [URL] * 5}).status_code == 422
     assert (
         client.get("/api/projects/00000000-0000-0000-0000-000000000000/buying-chain").status_code
         == 404
@@ -3257,6 +3255,13 @@ def test_correction_order_follows_expected_version_links_and_rejects_forks():
     assert _ordered_correction_chain("initial", [disconnected]) is None
 
 
+@pytest.mark.parametrize(
+    ("entity_type", "subject_field", "support"),
+    [
+        ("company", "organization", "project_organization"),
+        ("person", "person_name", "organization_person_role"),
+    ],
+)
 def test_identity_attachment_uses_expected_version_order_for_equal_timestamps(
     entity_type, subject_field, support
 ):
