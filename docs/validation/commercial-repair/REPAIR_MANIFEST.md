@@ -26,3 +26,7 @@ At mission start no accessible production credentials/snapshot or the four named
 No paid API execution or activation, production data write, merge or deployment is authorized. New local fixture databases are disposable and separately named per lane. Preserve schemas, source evidence, historical corrections and account/project identities; any required migration is additive and separately checked for fresh/repeated/upgrade/drift behavior. Full integrated validation and independent review must cover the final exact candidate. This manifest makes no production readiness, contact coverage or deployment claim.
 
 Controller receipts: [system repair report](../system-repair-20261026/README.md), including actual workbook reconciliation, independent review, migration evidence and release holds.
+
+## Latest conditional release continuation
+
+The [prospective release protocol](../commercial-release-20261026/PROTOCOL.md) supersedes this dated repair phase's production-snapshot-only benchmark and no-release restrictions. The owner now permits isolated workbook activation, 25 genuine source-backed projects from the available corpus, and conditional PR126 merge/deployment after passed gates and root coordination. Preserve the earlier observations above as historical evidence, not current availability claims. No paid-provider activation is authorized.
