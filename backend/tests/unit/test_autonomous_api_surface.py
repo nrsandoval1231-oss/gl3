@@ -54,6 +54,30 @@ def test_autonomous_research_request_and_status_routes_remain_available():
     assert ("GET", "/api/search") in registered
 
 
+def test_operator_workflow_status_is_not_a_public_opportunity_filter():
+    paths = app.openapi()["paths"]
+    for path in (
+        "/api/opportunities",
+        "/api/opportunities/map-window",
+        "/api/opportunity-groups/{group_id}",
+        "/api/opportunities/needs/{need_id}",
+        "/api/opportunities/export.csv",
+    ):
+        for operation in paths[path].values():
+            assert "status" not in {
+                parameter["name"] for parameter in operation.get("parameters", [])
+            }
+
+    filters = {
+        "tier": None, "search": None, "decision": None, "geography": None,
+        "industry": None, "industry_group": None, "activity": None, "timing": None,
+        "mw_status": None, "mw_min": None, "mw_max": None, "priority_segment": None,
+    }
+    from gridlens.api.app import _normalized_browse_filters
+
+    assert "status" not in _normalized_browse_filters(**filters)
+
+
 def test_historical_operator_evidence_tables_remain_intact():
     from gridlens.persistence.models import Base
 

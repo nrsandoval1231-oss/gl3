@@ -41,7 +41,6 @@ from gridlens.domain.pursuits import (
 )
 from gridlens.domain.ranking import rank_opportunity
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
-from gridlens.domain.workflow_status import WORKFLOW_STATUSES
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import _need_has_current_support
 from gridlens.intelligence.briefs import (
@@ -112,11 +111,6 @@ from gridlens.settings import settings
 
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
 app.include_router(intelligence_router)
-WorkflowStatusFilter = Literal[
-    "UNKNOWN", "NEW", "INVESTIGATING", "CONTACTED", "QUALIFIED", "WON", "LOST", "CLOSED"
-]
-
-
 @app.exception_handler(CurrentOperatorInputBoundExceeded)
 async def current_operator_input_bound_error(
     _request: Request, exc: CurrentOperatorInputBoundExceeded
@@ -573,7 +567,6 @@ _BROWSE_FILTER_NAMES = {
     "mw_min",
     "mw_max",
     "priority_segment",
-    "status",
 }
 _BROWSE_QUERY_NAMES = _BROWSE_FILTER_NAMES | {
     "tier",
@@ -637,7 +630,6 @@ def _normalized_browse_filters(
     mw_min: str | None,
     mw_max: str | None,
     priority_segment: str | None,
-    status: str | None,
     search: str | None,
     industry_group: str | None = None,
 ) -> dict[str, Any]:
@@ -670,7 +662,6 @@ def _normalized_browse_filters(
         raise HTTPException(422, "Signal decisions can only filter Signal opportunities")
     timing = enum("timing", timing, {"KNOWN", "UNKNOWN"})
     mw_status = enum("mw_status", mw_status, {"KNOWN", "UNKNOWN"})
-    status = enum("status", status, {"UNKNOWN", *(value.upper() for value in WORKFLOW_STATUSES)})
     if industry_group is not None:
         industry_group = industry_group.strip().casefold()
         if industry_group != "industrial":
@@ -727,7 +718,6 @@ def _normalized_browse_filters(
         "mw_min": minimum,
         "mw_max": maximum,
         "priority_segment": priority,
-        "status": status,
     }
 
 
@@ -792,11 +782,6 @@ def _filter_opportunity_summaries(
             and item.get("_priority_segment") != filters["priority_segment"]
         ):
             continue
-        selected_status = filters.get("status")
-        if selected_status is not None:
-            actual_status = str(item.get("workflow_status", "UNKNOWN")).upper()
-            if actual_status != selected_status:
-                continue
         selected.append(item)
     return selected
 
@@ -1988,7 +1973,6 @@ def opportunities(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
     sort: Literal["updated", "rank"] = "updated",
 ):
     response = response or Response()
@@ -2003,7 +1987,6 @@ def opportunities(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
     )
     if offset > 0 and (cohort is None or not cohort.strip()):
@@ -2510,7 +2493,6 @@ def opportunity_map_window(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
 ):
     """Return the exact globally ranked, bounded map window in one authenticated read."""
     filters = _normalized_browse_filters(
@@ -2524,7 +2506,6 @@ def opportunity_map_window(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
     )
     tier = filters["tier"]
@@ -2942,7 +2923,6 @@ def opportunity_group_page(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -2955,7 +2935,6 @@ def opportunity_group_page(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
     )
     tier = filters["tier"]
@@ -3095,7 +3074,6 @@ def opportunity_need_detail(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -3108,7 +3086,6 @@ def opportunity_need_detail(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
     )
     tier = filters["tier"]
@@ -3298,7 +3275,6 @@ def export_opportunities_csv(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -3311,7 +3287,6 @@ def export_opportunities_csv(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
         industry_group=industry_group,
     )

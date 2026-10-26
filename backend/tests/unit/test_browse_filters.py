@@ -23,7 +23,6 @@ def _filters(**updates):
         "mw_min": None,
         "mw_max": None,
         "priority_segment": None,
-        "status": None,
         "search": None,
     }
     values.update(updates)
@@ -77,24 +76,15 @@ def test_timing_and_mw_filters_use_effective_summary_only_and_inclusive_overlap(
     assert _filter_opportunity_summaries(rows, _filters(mw_max="0.2999")) == []
 
 
-def test_priority_segment_and_workflow_status_are_exact_values():
+def test_priority_segment_is_exact_value_and_workflow_status_does_not_filter():
     rows = [_summary(_priority_segment=0), _summary(_priority_segment=8)]
     assert _filter_opportunity_summaries(rows, _filters(priority_segment="0")) == [rows[0]]
-    assert _filter_opportunity_summaries(rows, _filters(status="unknown")) == rows
-    for status in ("New", "Investigating", "Contacted", "Qualified", "Won", "Lost", "Closed"):
-        assert _filter_opportunity_summaries(
-            [rows[0] | {"workflow_status": status}, rows[1]], _filters(status=status)
-        ) == [rows[0] | {"workflow_status": status}]
-    assert _filter_opportunity_summaries(
-        [rows[0] | {"workflow_status": "Closed"}, rows[1]], _filters(status="UNKNOWN")
-    ) == [rows[1]]
+    statuses = [rows[0] | {"workflow_status": "Closed"}, rows[1] | {"workflow_status": "New"}]
+    assert _filter_opportunity_summaries(statuses, _filters()) == statuses
     for value in ("high", "9", "1.5", "-1"):
         with pytest.raises(HTTPException) as invalid:
             _filters(priority_segment=value)
         assert invalid.value.status_code == 422
-    with pytest.raises(HTTPException) as invalid:
-        _filters(status="ACTIVE")
-    assert invalid.value.status_code == 422
 
 
 def test_canonical_priority_filter_supports_each_existing_segment_without_new_bands():
@@ -138,7 +128,6 @@ def test_canonical_priority_filter_supports_each_existing_segment_without_new_ba
 @pytest.mark.parametrize(
     "updates",
     [
-        {"status": "ACTIVE"},
         {"timing": "NEXT_QUARTER"},
         {"mw_status": "UNKNOWN", "mw_min": "0"},
         {"mw_min": "2", "mw_max": "1"},
@@ -159,7 +148,7 @@ def test_unrecognized_query_keys_do_not_silently_bypass_filters():
         "path": "/api/opportunities",
         "root_path": "",
         "scheme": "http",
-        "query_string": b"state=TX",
+        "query_string": b"status=QUALIFIED",
         "headers": [],
         "server": ("test", 80),
         "client": ("test", 123),
@@ -167,4 +156,4 @@ def test_unrecognized_query_keys_do_not_silently_bypass_filters():
     with pytest.raises(HTTPException) as invalid:
         _validate_browse_query(Request(scope))
     assert invalid.value.status_code == 422
-    assert invalid.value.detail["unsupported"] == ["state"]
+    assert invalid.value.detail["unsupported"] == ["status"]

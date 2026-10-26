@@ -596,32 +596,6 @@
             }
           },
           {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -1462,32 +1436,6 @@
               ],
               "title": "Priority Segment"
             }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
           }
         ],
         "responses": {
@@ -1735,32 +1683,6 @@
               ],
               "title": "Priority Segment"
             }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
           }
         ],
         "responses": {
@@ -1992,32 +1914,6 @@
                 }
               ],
               "title": "Priority Segment"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
             }
           }
         ],
@@ -2333,32 +2229,6 @@
                 }
               ],
               "title": "Priority Segment"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
             }
           }
         ],

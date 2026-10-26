@@ -4171,7 +4171,6 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
                 sort?: "updated" | "rank";
             };
             header?: never;
@@ -4425,7 +4424,6 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
             };
             header?: never;
             path?: never;
@@ -4470,7 +4468,6 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
             };
             header?: never;
             path: {
@@ -4515,7 +4512,6 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
             };
             header?: never;
             path: {
@@ -4596,7 +4592,6 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
             };
             header?: never;
             path?: never;
