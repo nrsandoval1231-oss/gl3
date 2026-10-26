@@ -1,6 +1,6 @@
 {
   "status": "COMMERCIAL_RELEASE_GATES_NOT_MET",
-  "measured_at": "2026-10-26T14:03:46.200494+00:00",
+  "measured_at": "2026-10-26T14:28:02.204457+00:00",
   "dataset_kind": "fixed_actual_native_project_record_diagnostic",
   "database": "gridlens_release_contacts_pipeline",
   "input_manifest_sha256": "caf580c68b3ecb425e97ac44f0b53ae413e06f63baf6c5a2d00880ec9d9197ec",
@@ -16,10 +16,25 @@
     "projects": 25,
     "tdlr_data_center_records": 4,
     "rrc_upstream_permit_records": 21,
-    "unique_current_company_ids": 25,
+    "unique_current_company_ids": 21,
+    "raw_company_ids_across_all_candidate_roles_not_distinct_entities": 25,
     "unique_named_owner_representatives": 4,
     "unique_company_methods": 4,
     "person_bound_methods": 0
+  },
+  "review_corrections": [
+    {
+      "previous_artifact_commit": "ff85877",
+      "field": "denominators.unique_current_company_ids",
+      "previous_value": 25,
+      "corrected_value": 21,
+      "basis": "Independent review distinguished 25 primary project-route occurrences from 21 unique primary company IDs. The original aggregation also included four additional person-association identities. Source artifacts, frozen project selection and per-project values remain unchanged."
+    }
+  ],
+  "identity_consolidation_at_measurement": {
+    "status": "UNRESOLVED_IN_THIS_SNAPSHOT",
+    "affected_owner_representative_projects": 4,
+    "finding": "Each TDLR representative has a different company identity ID from its same-project organization route despite matching source organization text. Historical identities are not merged to improve metrics. A conservative source-bound linkage repair is being tested separately."
   },
   "observed_api": {
     "need_detail_http_200": 25,
