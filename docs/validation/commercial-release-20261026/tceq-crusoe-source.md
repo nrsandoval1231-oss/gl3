@@ -1,7 +1,9 @@
-# TCEQ primary permit check for the existing Crusoe bridge case
+# TCEQ primary permit check — Longhorn Data Center
 
 Retrieved one TCEQ permit review PDF from [the official record](https://records.tceq.texas.gov/cs/idcplg?IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&Rendition=Web&dID=8600163) on 2026-10-26 at 13:46:37.185216 UTC. The 82,043-byte PDF returned HTTP 200 (`application/pdf`), SHA-256 `13bd44e0d6070bd8d1c616d4832c162dd7ee13fbe2e509e32e853248b3957176`. Structured evidence and literal quotations are in [the JSON record](tceq-crusoe-source.json).
 
 The TCEQ technical review describes a proposed modification application by Abilene DC 1, LLC, doing business as Crusoe Energy Systems, LLC, for the Longhorn Data Center in Abilene, Taylor County. It says the equipment is for “power for onsite use only for data centers and computing.” The cited 38 MW and 34.1 MW figures are site-rated power per turbine for proposed onsite generation. They describe supply capacity. They are not evidence of temporary buyer demand, a utility supply gap, or a rental-generation requirement.
 
 The document was received January 11, 2025 and bears January 21–22, 2025 review signoffs. It calls the change a proposed modification application; it does not establish present permit disposition, commissioning status, interim power duration, or unresolved energization need. Reviewer/manager names are regulatory review metadata and do not establish a buyer procurement contact. No contact details or new canonical/cohort records were added.
+
+The exact physical-site relationship to the retained Crusoe/Stargate bridge case has not been established. Shared company and city names do not justify merging projects or assigning these supply figures to that canonical case. This document remains separate research evidence.
