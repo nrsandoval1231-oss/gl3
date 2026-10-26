@@ -2159,9 +2159,6 @@ def test_saved_commercial_page_avoids_population_projection(saved_db, monkeypatc
     assert actual == expected
 
 
-@pytest.mark.parametrize("boundary_kind", ["effective_from", "effective_until"])
-@pytest.mark.parametrize("boundary_kind", ["utc_midnight", "chicago_midnight", "host_midnight"])
-@pytest.mark.parametrize("fallback", ["missing", "stale_revision", "policy", "expired", "disabled"])
 def test_commercial_selection_matches_canonical_complete_group_priority(saved_db):
     """Tuple minima, Austin cross-project work, UUID ties and all page offsets."""
     from gridlens.domain.commercial_triage import (
