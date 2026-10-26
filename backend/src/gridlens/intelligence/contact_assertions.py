@@ -17,6 +17,7 @@ from gridlens.intelligence.company_contacts import company_contacts
 from gridlens.intelligence.contact_suppressions import (
     _ledger_state,
     company_suppression_key,
+    global_method_suppression_key,
     method_suppression_key,
     person_suppression_key,
 )
@@ -106,13 +107,30 @@ def project_contact_assertions(session: Session, company_id: UUID) -> dict[str, 
         visible_imported = []
         for item in imported:
             name = item.get("name")
-            if name and _ledger_state(session, "person", person_suppression_key(company_id, name))[0] == "suppress":
+            if (
+                name
+                and _ledger_state(session, "person", person_suppression_key(company_id, name))[0]
+                == "suppress"
+            ):
                 continue
+            # Imported rows have no stable person UUID; canonical globally
+            # keyed method suppressions still apply to every refresh/import.
             for kind, field in (("email", "email"), ("phone", "phone"), ("profile", "profile_url")):
                 value = item.get(field)
-                if value and _ledger_state(
-                    session, "method", method_suppression_key(company_id, name, kind, value)
-                )[0] == "suppress":
+                if (
+                    value
+                    and _ledger_state(
+                        session, "method", method_suppression_key(company_id, name, kind, value)
+                    )[0]
+                    == "suppress"
+                    or (
+                        value
+                        and _ledger_state(
+                            session, "method", global_method_suppression_key(kind, value)
+                        )[0]
+                        == "suppress"
+                    )
+                ):
                     item[field] = None
             if any(item.get(field) for field in ("email", "phone", "profile_url")) or not name:
                 visible_imported.append(item)

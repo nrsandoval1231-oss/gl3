@@ -2377,9 +2377,9 @@ def unified_search(
         contacts = []
         normalized_term = term.casefold()
         from gridlens.intelligence.contact_suppressions import (
+            _ledger_state,
             apply_contact_suppressions,
             company_suppression_key,
-            _ledger_state,
         )
 
         for project_id, view in contact_views.items():
@@ -2397,11 +2397,21 @@ def unified_search(
                     company_uuid = UUID(str(company_id))
                 except ValueError:
                     continue
-                if _ledger_state(session, "company", company_suppression_key(company_uuid))[0] == "suppress":
+                if (
+                    _ledger_state(session, "company", company_suppression_key(company_uuid))[0]
+                    == "suppress"
+                ):
                     continue
                 candidate_name = candidate.get("person_name")
                 from gridlens.intelligence.contact_suppressions import person_suppression_key
-                if candidate_name and _ledger_state(session, "person", person_suppression_key(company_uuid, candidate_name))[0] == "suppress":
+
+                if (
+                    candidate_name
+                    and _ledger_state(
+                        session, "person", person_suppression_key(company_uuid, candidate_name)
+                    )[0]
+                    == "suppress"
+                ):
                     continue
                 methods = candidate.get("public_contacts", [])
                 filtered_methods = apply_contact_suppressions(

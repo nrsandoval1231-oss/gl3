@@ -2370,10 +2370,10 @@ def buying_chain_view(
         from gridlens.intelligence.contact_suppressions import (
             _ledger_state,
             company_suppression_key,
+            global_method_suppression_key,
+            global_person_suppression_key,
             method_suppression_key,
             person_suppression_key,
-            global_person_suppression_key,
-            global_method_suppression_key,
         )
 
         claim_ids = [item["id"] for item in candidates]
@@ -2391,7 +2391,10 @@ def buying_chain_view(
             company_id = company_by_claim.get(item["id"])
             if company_id is None:
                 continue
-            if _ledger_state(session, "company", company_suppression_key(company_id))[0] == "suppress":
+            if (
+                _ledger_state(session, "company", company_suppression_key(company_id))[0]
+                == "suppress"
+            ):
                 item["public_contacts"] = []
                 item["suppressed"] = True
                 continue
@@ -2404,8 +2407,15 @@ def buying_chain_view(
                 )
             )
             if name and (
-                _ledger_state(session, "person", person_suppression_key(company_id, name))[0] == "suppress"
-                or (person_link and _ledger_state(session, "person", global_person_suppression_key(person_link))[0] == "suppress")
+                _ledger_state(session, "person", person_suppression_key(company_id, name))[0]
+                == "suppress"
+                or (
+                    person_link
+                    and _ledger_state(
+                        session, "person", global_person_suppression_key(person_link)
+                    )[0]
+                    == "suppress"
+                )
             ):
                 item["public_contacts"] = []
                 item["suppressed"] = True
@@ -2422,14 +2432,16 @@ def buying_chain_view(
                         str(contact.get("kind") or ""),
                         str(contact.get("value") or ""),
                     ),
-                )[0] != "suppress"
+                )[0]
+                != "suppress"
                 and _ledger_state(
                     session,
                     "method",
                     global_method_suppression_key(
                         str(contact.get("kind") or ""), str(contact.get("value") or "")
                     ),
-                )[0] != "suppress"
+                )[0]
+                != "suppress"
             ]
     candidates = [item for item in candidates if history or not item.get("retracted")]
     # Reuse the latest-run selection loaded above for bounded multi-project reads.

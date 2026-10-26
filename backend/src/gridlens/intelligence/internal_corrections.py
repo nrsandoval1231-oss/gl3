@@ -8,10 +8,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from gridlens.intelligence.company_graph import _relationship_state
+from gridlens.intelligence.buying_chain import buying_chain_view
 from gridlens.intelligence.buying_chain_corrections import _ordered_correction_chain
+from gridlens.intelligence.company_graph import _relationship_state
 from gridlens.intelligence.contact_suppressions import SuppressionConflict
-from gridlens.persistence.contact_models import CompanyRelationshipAssertion, CompanyRelationshipCorrection
+from gridlens.persistence.contact_models import (
+    CompanyRelationshipAssertion,
+    CompanyRelationshipCorrection,
+)
 from gridlens.persistence.models import BuyingChainClaim, BuyingChainCorrection
 
 
@@ -30,18 +34,38 @@ def correct_buying_chain_claim(
     source_version_hash: str | None = None,
 ) -> BuyingChainCorrection:
     """Append a project-scoped, idempotent correction after optimistic version check."""
-    prior = session.scalar(select(BuyingChainCorrection).where(
-        BuyingChainCorrection.claim_id == claim_id,
-        BuyingChainCorrection.idempotency_key == idempotency_key,
-    ))
+    prior = session.scalar(
+        select(BuyingChainCorrection).where(
+            BuyingChainCorrection.claim_id == claim_id,
+            BuyingChainCorrection.idempotency_key == idempotency_key,
+        )
+    )
     if prior:
+        if (
+            prior.expected_version,
+            prior.action,
+            prior.values,
+            prior.source_evidence_id,
+            prior.source_version_hash,
+            prior.reason,
+            prior.actor,
+        ) != (
+            expected_version,
+            action,
+            values,
+            source_evidence_id,
+            source_version_hash,
+            reason.strip(),
+            actor.strip(),
+        ):
+            raise SuppressionConflict("idempotency key was already used for a different correction")
         return prior
     claim = session.get(BuyingChainClaim, claim_id)
     if claim is None or claim.project_id != project_id:
         raise LookupError("Buying-chain claim not found for project")
-    rows = session.scalars(select(BuyingChainCorrection).where(
-        BuyingChainCorrection.claim_id == claim_id
-    )).all()
+    rows = session.scalars(
+        select(BuyingChainCorrection).where(BuyingChainCorrection.claim_id == claim_id)
+    ).all()
     chain = _ordered_correction_chain(str(claim.fingerprint), rows)
     if chain is None:
         raise SuppressionConflict("conflicted buying-chain correction history")
@@ -52,11 +76,37 @@ def correct_buying_chain_claim(
         raise ValueError("action must be correct or retract")
     if not reason.strip() or not actor.strip() or not idempotency_key.strip():
         raise ValueError("reason, actor, and idempotency_key are required")
+    if action == "correct":
+        if source_evidence_id is None or not source_version_hash:
+            raise ValueError("correct actions require a cited evidence ID and version hash")
+        current = buying_chain_view(session, project_id)
+        candidate = next(
+            (item for item in current.get("candidates", []) if item.get("id") == claim_id), None
+        )
+        support = next(
+            (
+                item
+                for item in (candidate or {}).get("evidence", [])
+                if str(item.get("id")) == str(source_evidence_id)
+                and item.get("content_hash") == source_version_hash
+                and item.get("current_support")
+                and item.get("current_source_version_id") == str(source_evidence_id)
+            ),
+            None,
+        )
+        if support is None:
+            raise ValueError("correction source must be current evidence supporting this claim")
     row = BuyingChainCorrection(
-        project_id=project_id, claim_id=claim_id, expected_version=expected_version,
-        idempotency_key=idempotency_key, action=action, values=values,
-        source_evidence_id=source_evidence_id, source_version_hash=source_version_hash,
-        reason=reason.strip(), actor=actor.strip(),
+        project_id=project_id,
+        claim_id=claim_id,
+        expected_version=expected_version,
+        idempotency_key=idempotency_key,
+        action=action,
+        values=values,
+        source_evidence_id=source_evidence_id,
+        source_version_hash=source_version_hash,
+        reason=reason.strip(),
+        actor=actor.strip(),
     )
     session.add(row)
     try:
@@ -76,10 +126,12 @@ def correct_company_relationship(
     actor: str,
     idempotency_key: str,
 ) -> CompanyRelationshipCorrection:
-    prior = session.scalar(select(CompanyRelationshipCorrection).where(
-        CompanyRelationshipCorrection.assertion_id == assertion_id,
-        CompanyRelationshipCorrection.idempotency_key == idempotency_key,
-    ))
+    prior = session.scalar(
+        select(CompanyRelationshipCorrection).where(
+            CompanyRelationshipCorrection.assertion_id == assertion_id,
+            CompanyRelationshipCorrection.idempotency_key == idempotency_key,
+        )
+    )
     if prior:
         return prior
     assertion = session.get(CompanyRelationshipAssertion, assertion_id)
@@ -97,9 +149,13 @@ def correct_company_relationship(
     if not reason.strip() or not actor.strip() or not idempotency_key.strip():
         raise ValueError("reason, actor, and idempotency_key are required")
     row = CompanyRelationshipCorrection(
-        assertion_id=assertion_id, expected_version=expected_version,
-        version=expected_version + 1, action=action, reason=reason.strip(),
-        actor=actor.strip(), idempotency_key=idempotency_key.strip(),
+        assertion_id=assertion_id,
+        expected_version=expected_version,
+        version=expected_version + 1,
+        action=action,
+        reason=reason.strip(),
+        actor=actor.strip(),
+        idempotency_key=idempotency_key.strip(),
     )
     session.add(row)
     try:

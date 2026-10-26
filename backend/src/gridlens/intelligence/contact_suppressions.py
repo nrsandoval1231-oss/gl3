@@ -92,7 +92,9 @@ def record_contact_suppression(
         return existing
     current, version = _ledger_state(session, scope, subject_key)
     if version != expected_version:
-        raise SuppressionConflict(f"expected version {expected_version}; current version is {version}")
+        raise SuppressionConflict(
+            f"expected version {expected_version}; current version is {version}"
+        )
     if (action == "suppress" and current == "suppress") or (
         action == "reinstate" and current != "suppress"
     ):
@@ -125,8 +127,13 @@ def apply_contact_suppressions(session: Session, company_id: UUID, contacts: lis
         name = getattr(contact, "name", None)
         person_id = getattr(contact, "person_identity_id", None)
         if name and (
-            _ledger_state(session, "person", person_suppression_key(company_id, name))[0] == "suppress"
-            or (person_id and _ledger_state(session, "person", global_person_suppression_key(person_id))[0] == "suppress")
+            _ledger_state(session, "person", person_suppression_key(company_id, name))[0]
+            == "suppress"
+            or (
+                person_id
+                and _ledger_state(session, "person", global_person_suppression_key(person_id))[0]
+                == "suppress"
+            )
         ):
             continue
         methods = []
@@ -135,7 +142,10 @@ def apply_contact_suppressions(session: Session, company_id: UUID, contacts: lis
             value = method.get("href") if isinstance(method, dict) else getattr(method, "href", "")
             key = method_suppression_key(company_id, name, str(kind or ""), str(value or ""))
             global_key = global_method_suppression_key(str(kind or ""), str(value or ""))
-            if _ledger_state(session, "method", key)[0] != "suppress" and _ledger_state(session, "method", global_key)[0] != "suppress":
+            if (
+                _ledger_state(session, "method", key)[0] != "suppress"
+                and _ledger_state(session, "method", global_key)[0] != "suppress"
+            ):
                 methods.append(method)
         if hasattr(contact, "model_copy"):
             contact = contact.model_copy(update={"methods": methods})

@@ -254,6 +254,76 @@ def test_published_contact_never_claims_independent_verification():
     assert published["independent_verification"] == "UNKNOWN_UNSUPPORTED"
 
 
+def test_contact_suppression_is_versioned_idempotent_and_reversible(contact_db):
+    from types import SimpleNamespace
+
+    from gridlens.intelligence.contact_suppressions import (
+        SuppressionConflict,
+        apply_contact_suppressions,
+        method_suppression_key,
+        record_contact_suppression,
+    )
+
+    with contact_db() as session:
+        company = CompanyIdentity()
+        session.add(company)
+        session.flush()
+        key = method_suppression_key(company.id, "Avery Example", "email", "Avery@Example.test")
+        event = record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=key,
+            action="suppress",
+            expected_version=0,
+            reason="privacy request",
+            actor="privacy-ops",
+            idempotency_key="privacy-req-1",
+        )
+        session.flush()
+        assert (
+            record_contact_suppression(
+                session,
+                scope="method",
+                subject_key=key,
+                action="suppress",
+                expected_version=0,
+                reason="privacy request",
+                actor="privacy-ops",
+                idempotency_key="privacy-req-1",
+            ).id
+            == event.id
+        )
+        contact = SimpleNamespace(
+            name="Avery Example", methods=[{"kind": "email", "href": "Avery@Example.test"}]
+        )
+        assert apply_contact_suppressions(session, company.id, [contact])[0].methods == []
+        with pytest.raises(SuppressionConflict):
+            record_contact_suppression(
+                session,
+                scope="method",
+                subject_key=key,
+                action="reinstate",
+                expected_version=0,
+                reason="stale",
+                actor="privacy-ops",
+                idempotency_key="privacy-req-2",
+            )
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=key,
+            action="reinstate",
+            expected_version=1,
+            reason="request withdrawn",
+            actor="privacy-ops",
+            idempotency_key="privacy-req-3",
+        )
+        refreshed_contact = SimpleNamespace(
+            name="Avery Example", methods=[{"kind": "email", "href": "Avery@Example.test"}]
+        )
+        assert apply_contact_suppressions(session, company.id, [refreshed_contact])[0].methods
+
+
 def test_imported_contacts_remain_separate_and_unverified(contact_db):
     with contact_db() as session:
         company = CompanyIdentity()

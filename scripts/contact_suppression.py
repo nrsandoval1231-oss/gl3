@@ -7,6 +7,8 @@ import argparse
 
 from gridlens.intelligence.contact_suppressions import (
     company_suppression_key,
+    global_method_suppression_key,
+    global_person_suppression_key,
     method_suppression_key,
     person_suppression_key,
     record_contact_suppression,
@@ -17,10 +19,18 @@ from gridlens.persistence.database import SessionLocal
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("scope", choices=("company", "person", "method"))
-    parser.add_argument("company_id")
+    parser.add_argument("company_id", nargs="?")
     parser.add_argument("--name", default="")
     parser.add_argument("--kind", default="")
     parser.add_argument("--value", default="")
+    parser.add_argument(
+        "--global-scope",
+        action="store_true",
+        help="Apply person or method rule across companies",
+    )
+    parser.add_argument(
+        "--person-id", help="Stable canonical person UUID for global person scope"
+    )
     parser.add_argument("--action", required=True, choices=("suppress", "reinstate"))
     parser.add_argument("--expected-version", required=True, type=int)
     parser.add_argument("--reason", required=True)
@@ -29,17 +39,37 @@ def main() -> None:
     args = parser.parse_args()
     from uuid import UUID
 
-    company_id = UUID(args.company_id)
+    company_id = UUID(args.company_id) if args.company_id else None
     if args.scope == "company":
+        if args.global_scope:
+            parser.error(
+                "company scope is already global to the canonical company identity"
+            )
+        if company_id is None:
+            parser.error("company scope requires company_id")
         key = company_suppression_key(company_id)
     elif args.scope == "person":
-        if not args.name:
-            parser.error("person scope requires --name")
-        key = person_suppression_key(company_id, args.name)
+        if args.global_scope:
+            if not args.person_id:
+                parser.error("global person scope requires --person-id")
+            key = global_person_suppression_key(UUID(args.person_id))
+        else:
+            if company_id is None or not args.name:
+                parser.error(
+                    "company-scoped person suppression requires company_id and --name"
+                )
+            key = person_suppression_key(company_id, args.name)
     else:
-        if not (args.name and args.kind and args.value):
-            parser.error("method scope requires --name, --kind, and --value")
-        key = method_suppression_key(company_id, args.name, args.kind, args.value)
+        if not (args.kind and args.value):
+            parser.error("method scope requires --kind and --value")
+        if args.global_scope:
+            key = global_method_suppression_key(args.kind, args.value)
+        else:
+            if company_id is None or not args.name:
+                parser.error(
+                    "company-scoped method suppression requires company_id and --name"
+                )
+            key = method_suppression_key(company_id, args.name, args.kind, args.value)
     with SessionLocal() as session:
         row = record_contact_suppression(
             session,
@@ -52,7 +82,9 @@ def main() -> None:
             idempotency_key=args.idempotency_key,
         )
         session.commit()
-        print(f"event={row.id} scope={row.scope} version={row.version} action={row.action}")
+        print(
+            f"event={row.id} scope={row.scope} version={row.version} action={row.action}"
+        )
 
 
 if __name__ == "__main__":
