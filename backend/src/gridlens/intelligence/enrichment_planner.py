@@ -22,6 +22,8 @@ class ResearchCandidate:
     completed_at: datetime | None
     prior_digest: str | None
     source_digest: str = ""
+    missing_buyer_relevant_method: bool = False
+    missing_contact_method: bool = False
 
 
 def _missing(need: Any) -> list[str]:
@@ -93,6 +95,13 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         if candidate.latest_evidence_at and now - candidate.latest_evidence_at <= timedelta(days=30)
         else 0
     )
+    contact_gap = (
+        12
+        if candidate.missing_buyer_relevant_method
+        else 6
+        if candidate.missing_contact_method
+        else 0
+    )
     score = (
         commercial
         + urgency
@@ -101,6 +110,7 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         + cost
         + freshness
         + min(8, len(missing) * 2)
+        + contact_gap
     )
     reasons = [
         f"commercial_value:{commercial}",
@@ -114,6 +124,10 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
     ]
     if missing:
         reasons.append("missing_facts:" + ",".join(missing))
+    if candidate.missing_buyer_relevant_method:
+        reasons.append("missing_buyer_relevant_contact_method:12")
+    elif candidate.missing_contact_method:
+        reasons.append("missing_contact_method:6")
     return {"score": score, "reasons": reasons, "missing_facts": missing}
 
 
@@ -129,6 +143,8 @@ def research_digest(candidate: ResearchCandidate) -> str:
             ),
             "evidence_at": candidate.latest_evidence_at,
             "source_digest": candidate.source_digest,
+            "missing_buyer_relevant_method": candidate.missing_buyer_relevant_method,
+            "missing_contact_method": candidate.missing_contact_method,
         }
     )
 

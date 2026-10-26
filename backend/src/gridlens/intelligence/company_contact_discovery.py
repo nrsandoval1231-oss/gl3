@@ -65,11 +65,12 @@ from gridlens.settings import settings
 JOB_KIND = "company_contact_discovery"
 TASK_TYPE = "company_contact_discovery"
 MAX_CANDIDATE_URLS = 4
+MAX_ADAPTIVE_FETCHES = 6
 MAX_ANCHOR_PROJECTS = 16
 MAX_SECONDS = 35
 CONTACT_PLANNER_RETRY_DAYS = 7
 CONTACT_PLANNER_REFRESH_DAYS = 30
-POLICY_VERSION = "company-contact-discovery-v12"
+POLICY_VERSION = "company-contact-discovery-v13-adaptive"
 
 
 def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
@@ -141,6 +142,48 @@ def _research_source_digest(session: Session, project: Project, company_id: UUID
             ],
         }
     )
+
+
+def _contact_research_gaps(session: Session, company_id: UUID) -> tuple[bool, bool]:
+    """Return missing buyer-relevant-role method and any named-method signals."""
+    contacts = company_contacts(session, company_id).contacts
+    has_method = any(relevant_named_contact(item) for item in contacts)
+    has_buyer_relevant_method = any(
+        relevant_named_contact(item)
+        and item.role in {"owner_developer", "asset_operator", "procurement"}
+        for item in contacts
+    )
+    return not has_buyer_relevant_method, not has_method
+
+
+def _adaptive_fetch_limit(priority_score: object, missing_buyer_relevant_method: bool) -> int:
+    """Escalate depth for high-priority missing methods on buyer-relevant roles."""
+    if (
+        missing_buyer_relevant_method
+        and isinstance(priority_score, int | float)
+        and not isinstance(priority_score, bool)
+        and priority_score >= 50
+    ):
+        return MAX_ADAPTIVE_FETCHES
+    return MAX_CANDIDATE_URLS
+
+
+def _contact_yield(
+    document: PublicDocument, organization: str, project: Project, now: datetime
+) -> bool:
+    """Count only an explicit organization route or supported official role as useful yield."""
+    org = Extracted(organization, "unknown", organization_relationship="DIRECT")
+    if any(item.public_contacts for item in extract_company_contacts(document, [org])):
+        return True
+    people = extract_people(
+        document,
+        [org],
+        project,
+        project_scoped=False,
+        today=now.date(),
+        verified_official_roster=True,
+    )
+    return any(item.person_name and item.title for item in people)
 
 
 def _select_anchor_project(
@@ -385,6 +428,7 @@ def discover_company_contacts(
             None,
             None,
             _research_source_digest(session, anchor, company_identity_id),
+            *_contact_research_gaps(session, company_identity_id),
         )
     )
     digest = fingerprint(
@@ -633,6 +677,9 @@ def plan_company_contact_jobs(
             )
         )
         source_digest = _research_source_digest(session, anchor, company_id)
+        missing_buyer_relevant_method, missing_contact_method = _contact_research_gaps(
+            session, company_id
+        )
         candidate = ResearchCandidate(
             company_id,
             tuple(projects),
@@ -641,6 +688,8 @@ def plan_company_contact_jobs(
             None,
             None,
             source_digest,
+            missing_buyer_relevant_method=missing_buyer_relevant_method,
+            missing_contact_method=missing_contact_method,
         )
         digest = research_digest(candidate)
         company_jobs = list(
@@ -692,6 +741,8 @@ def plan_company_contact_jobs(
             completed_at,
             digest if matching_checkpoints else None,
             source_digest,
+            missing_buyer_relevant_method=candidate.missing_buyer_relevant_method,
+            missing_contact_method=candidate.missing_contact_method,
         )
         due, due_reason = should_schedule(candidate, now=now, digest=digest)
         history_due = _contact_planner_due(company_jobs, now)
@@ -956,7 +1007,15 @@ def process_company_contact_discovery(
         expected_digest = _anchor_digest(session, anchor, company_id) if anchor else None
         current = company_contacts(session, company_id)
         already_named = any(relevant_named_contact(item) for item in current.contacts)
-        reuse_named_contact = already_named and not refresh_due
+        has_buyer_relevant_method = any(
+            relevant_named_contact(item)
+            and item.role in {"owner_developer", "asset_operator", "procurement"}
+            for item in current.contacts
+        )
+        missing_buyer_relevant_method = not has_buyer_relevant_method
+        reuse_named_contact = (
+            already_named and not refresh_due and not missing_buyer_relevant_method
+        )
         organization = _search_name(session, anchor, company_id) if anchor else None
         identity = session.get(CompanyIdentity, company_id)
         operator_number = identity.rrc_operator_number if identity else None
@@ -1000,8 +1059,13 @@ def process_company_contact_discovery(
                 discovery_reason = str(exc)
             failures.append({"url": "firecrawl:search", "reason": type(exc).__name__})
     to_check = [] if reuse_named_contact else list(urls[:MAX_CANDIDATE_URLS])
+    research_rank = checkpoint.get("research_rank", {})
+    priority_score = research_rank.get("score", 0) if isinstance(research_rank, dict) else 0
+    fetch_limit = _adaptive_fetch_limit(priority_score, missing_buyer_relevant_method)
     checked: set[str] = set()
-    while to_check and len(checked) < MAX_CANDIDATE_URLS:
+    consecutive_low_yield = 0
+    depth_stop_reason: str | None = None
+    while to_check and len(checked) < fetch_limit:
         url = to_check.pop(0)
         if url in checked:
             continue
@@ -1013,6 +1077,15 @@ def process_company_contact_discovery(
             document = retrieve(url, deadline=deadline)
             fetched[url] = document
             if organization and _self_identified_company_site(document, organization):
+                path = urlsplit(document.url).path.casefold()
+                if re.search(r"(?:contact|team|leadership|management|about)", path):
+                    if _contact_yield(document, organization, anchor, now):
+                        consecutive_low_yield = 0
+                    else:
+                        consecutive_low_yield += 1
+                    if consecutive_low_yield >= 2:
+                        depth_stop_reason = "two_official_pages_without_contact_yield"
+                        break
                 origin = urlsplit(document.url).hostname
                 official_links = [
                     link for link in document.links if urlsplit(link).hostname == origin
@@ -1050,7 +1123,7 @@ def process_company_contact_discovery(
                     key=link_priority,
                 )
                 to_check = [link for link in prioritized if link not in checked][
-                    : MAX_CANDIDATE_URLS - len(checked)
+                    : fetch_limit - len(checked)
                 ]
         except Exception as exc:
             failure = {"url": url, "reason": type(exc).__name__}
@@ -1077,7 +1150,7 @@ def process_company_contact_discovery(
         not reuse_named_contact
         and not official_method_found
         and registry_url
-        and len(checked) < MAX_CANDIDATE_URLS
+        and len(checked) < fetch_limit
         and time.monotonic() < deadline
     ):
         checked.add(registry_url)
@@ -1141,6 +1214,19 @@ def process_company_contact_discovery(
             failures=failures,
             projects_checked=[str(anchor_id)] if anchor_id else [],
             research_required=current.research_required,
+            contact_gaps={
+                "missing_named_contact_method": not any(
+                    relevant_named_contact(item) for item in current.contacts
+                ),
+                "missing_buyer_relevant_contact_method": not any(
+                    relevant_named_contact(item)
+                    and item.role in {"owner_developer", "asset_operator", "procurement"}
+                    for item in current.contacts
+                ),
+            },
+            fetch_budget=fetch_limit,
+            fetched_count=len(fetched),
+            depth_stop_reason=depth_stop_reason,
             results=results,
             discovery_reason=discovery_reason,
         )
@@ -1204,6 +1290,18 @@ def _anchor_digest(session: Session, project: Project, company_id: UUID) -> str:
 
 def _normal(value: str) -> str:
     return "".join(ch for ch in value.casefold() if ch.isalnum())
+
+
+def _method_key(source_url: str, kind: str, value: str) -> tuple[str, str, str]:
+    normalized_kind = "phone" if kind.casefold() in {"phone", "telephone", "tel"} else "email"
+    normalized_value = (
+        "+" + re.sub(r"\D", "", value)
+        if normalized_kind == "phone" and value.strip().startswith("+")
+        else re.sub(r"\D", "", value)
+        if normalized_kind == "phone"
+        else value.strip().casefold()
+    )
+    return source_url, normalized_kind, normalized_value
 
 
 def _brand_key(value: str) -> str:
@@ -1540,11 +1638,22 @@ def _discover_anchor(
         )
         evidence_ids.append(str(source.id))
         sources_by_url[doc.url] = source
+    named_count, named_method_keys = _store_named_professionals(
+        session, project, company_id, old, documents, sources_by_url, now
+    )
+    for doc in documents:
+        source = sources_by_url[doc.url]
         found = extract_company_contacts(
             doc, [Extracted(org, old.category, organization_relationship="DIRECT")]
         )
         for item in found:
             for contact in item.public_contacts:
+                if _method_key(
+                    contact.get("source_url", doc.url),
+                    str(contact.get("kind") or ""),
+                    str(contact.get("value") or ""),
+                ) in named_method_keys:
+                    continue
                 if contact.get("kind") == "phone" and any(
                     word in str(contact.get("quote", "")).casefold()
                     for word in ("fax", "emergency", "human resources", "investor relations")
@@ -1567,6 +1676,9 @@ def _discover_anchor(
             doc.text,
         ):
             value = match.group(0)
+            method_kind = "email" if "@" in value else "phone"
+            if _method_key(doc.url, method_kind, value) in named_method_keys:
+                continue
             if any(row.get("value") == value for row in contacts):
                 continue
             line_start = doc.text.rfind("\n", 0, match.start()) + 1
@@ -1613,10 +1725,7 @@ def _discover_anchor(
                 "supports": "public_contact",
             }
         )
-    named_count = _store_named_professionals(
-        session, project, company_id, old, documents, sources_by_url, now
-    )
-    if not contacts:
+    if not contacts and not named_method_keys:
         if named_count:
             return {
                 "status": "complete",
@@ -1629,11 +1738,26 @@ def _discover_anchor(
     current_methods = [
         method
         for method in old.public_contacts
-        if any(
+        if _method_key(
+            str(method.get("source_url") or ""),
+            str(method.get("kind") or ""),
+            str(method.get("value") or ""),
+        ) not in named_method_keys
+        and any(
             c.get("url") == method.get("source_url") and c.get("quote") == method.get("quote")
             for c in citations
         )
     ]
+    generic_method_keys = {
+        _method_key(
+            str(method.get("source_url") or ""),
+            str(method.get("kind") or ""),
+            str(method.get("value") or ""),
+        )
+        for method in [*current_methods, *contacts]
+        if method.get("source_url") and method.get("kind") and method.get("value")
+    }
+    accepted_method_keys = named_method_keys | generic_method_keys
     contacts = list(
         {
             (method["kind"], method["value"], method["source_url"]): method
@@ -1720,8 +1844,15 @@ def _discover_anchor(
     _append_run_claim(session, project, copy, evidence_ids, now, replaces=old.id)
     return {
         "status": "complete",
-        "contacts": len(contacts),
+        "contacts": len(accepted_method_keys),
         "named_professionals": named_count,
+        "reason": (
+            "named_and_generic_public_methods_persisted"
+            if named_method_keys and generic_method_keys
+            else "named_public_methods_persisted"
+            if named_method_keys
+            else "generic_public_methods_persisted"
+        ),
         "source_class": "official_company_site" if documents else "public_registry",
     }
 
@@ -1734,7 +1865,7 @@ def _store_named_professionals(
     documents: list[PublicDocument],
     sources: dict[str, BuyingChainEvidence],
     now: datetime,
-) -> int:
+) -> tuple[int, set[tuple[str, str, str]]]:
     """Keep sourced professional roles distinct from generic company methods."""
     project_citations = [
         item
@@ -1748,6 +1879,7 @@ def _store_named_professionals(
         citations=project_citations,
     )
     count = 0
+    method_keys: set[tuple[str, str, str]] = set()
     for doc in documents:
         path = urlsplit(doc.url).path.strip("/").casefold().split("/")[-1]
         if path not in {"about", "about-us", "team", "leadership", "management", "our-team"}:
@@ -1780,6 +1912,15 @@ def _store_named_professionals(
                 )
             if not any(c["supports"] == "organization_person_role" for c in person_citations):
                 continue
+            for contact in item.public_contacts:
+                if (
+                    contact.get("source_url") == doc.url
+                    and contact.get("kind")
+                    and contact.get("value")
+                ):
+                    method_keys.add(
+                        _method_key(doc.url, str(contact["kind"]), str(contact["value"]))
+                    )
             state = dict(
                 policy_version=POLICY_VERSION,
                 organization=item.organization,
@@ -1854,4 +1995,4 @@ def _store_named_professionals(
                 raise ValueError("Named contact conflicts with canonical company identity")
             _append_run_claim(session, project, claim, [str(source.id)], now)
             count += 1
-    return count
+    return count, method_keys

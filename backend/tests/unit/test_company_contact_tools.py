@@ -332,6 +332,20 @@ def test_job_binding_keeps_no_hint_manifest_stable_after_discovery():
         validate_job_binding(job, "company", [])
 
 
+def test_adaptive_contact_fetch_budget_is_bounded_and_gap_driven():
+    from gridlens.intelligence.company_contact_discovery import (
+        MAX_ADAPTIVE_FETCHES,
+        MAX_CANDIDATE_URLS,
+        _adaptive_fetch_limit,
+    )
+
+    assert _adaptive_fetch_limit(50, True) == MAX_ADAPTIVE_FETCHES
+    assert _adaptive_fetch_limit(1000, True) == MAX_ADAPTIVE_FETCHES
+    assert _adaptive_fetch_limit(80, False) == MAX_CANDIDATE_URLS
+    assert _adaptive_fetch_limit(49, True) == MAX_CANDIDATE_URLS
+    assert _adaptive_fetch_limit(True, True) == MAX_CANDIDATE_URLS
+
+
 def test_enqueue_resumes_completed_company_and_passes_only_url_hints(monkeypatch):
     company = str(uuid4())
     url = "https://acme.example/contact"

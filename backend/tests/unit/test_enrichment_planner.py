@@ -46,6 +46,28 @@ def test_rank_explains_commercial_urgency_missingness_and_cost():
     assert rank["missing_facts"] == ["duration", "required_mw", "supply"]
 
 
+def test_contact_gaps_increase_priority_and_are_part_of_research_digest():
+    from dataclasses import replace
+
+    ordinary = _candidate()
+    buyer_gap = replace(ordinary, missing_buyer_relevant_method=True)
+    method_gap = replace(ordinary, missing_contact_method=True)
+    assert rank_candidate(buyer_gap, now=NOW)["score"] == rank_candidate(
+        ordinary, now=NOW
+    )["score"] + 12
+    assert rank_candidate(method_gap, now=NOW)["score"] == rank_candidate(
+        ordinary, now=NOW
+    )["score"] + 6
+    assert research_digest(buyer_gap) != research_digest(ordinary)
+
+
+def test_contact_priority_uses_observable_power_opportunity_values():
+    large = rank_candidate(_candidate(mw="80 MW"), now=NOW)
+    small = rank_candidate(_candidate(mw="5 MW"), now=NOW)
+    assert large["score"] > small["score"]
+    assert "known_demand_mw:80" in large["reasons"]
+
+
 def test_negative_and_empty_needs_are_not_ranked_as_opportunities():
     candidate = ResearchCandidate(uuid4(), (), (), None, None, None)
     assert rank_candidate(candidate, now=NOW) == {

@@ -94,6 +94,23 @@ def _employer_pattern(organization: str) -> str:
 def document_content_hash(doc: PublicDocument) -> str:
     """Canonical retained version identity, including role-freshness metadata."""
     content = {"text": doc.text, "title": doc.title, "published": doc.published_at}
+    if doc.person_cards:
+        cards = [
+            {
+                "heading_text": card.heading_text,
+                "contact_text": card.contact_text,
+                "href": card.href,
+                "name": card.name,
+                "title": card.title,
+            }
+            for card in doc.person_cards
+        ]
+        content["person_cards_sha256"] = fingerprint(cards)
+    else:
+        # Persisted evidence stores the excerpt and extraction location, not DOM.
+        marker = re.search(r"(?:^|; )pcards:([0-9a-f]{64})(?:$|; )", doc.extraction_location)
+        if marker:
+            content["person_cards_sha256"] = marker.group(1)
     if doc.retained_version is not None:
         # Identical excerpt text can belong to a different accepted observation
         # version (e.g. changed PDF hash or extraction metadata). Keep its binding.
@@ -815,7 +832,7 @@ def _published_roster_title(title: str) -> bool:
     return bool(
         re.match(
             r"^(?:CEO|COO|CFO|CTO|EVP|SVP|VP|Vice President|President|"
-            r"Chief\s+\w+|Director|Manager|Head|Superintendent|"
+            r"Chief\s+\w+|Director|Purchasing\s+Manager|Manager|Head|Superintendent|"
             r"Facilities\s+Engineer(?:ing)?|Electrical\s+Construction|"
             r"Power\s+Procurement|Distributed\s+Generation|"
             r"Infrastructure\s+Development|Operations\s+Manager|"
@@ -853,6 +870,59 @@ def _public_contacts(doc: PublicDocument, person_name: str) -> list[dict]:
                     }
                     if contact not in contacts:
                         contacts.append(contact)
+    normalized_name = " ".join(person_name.casefold().split())
+    for card in doc.person_cards:
+        heading = re.fullmatch(
+            rf"(?P<name>{_NAME}),[ \t]*(?P<title>[^,\n]{{3,80}})",
+            card.heading_text,
+        )
+        if (
+            " ".join(card.name.casefold().split()) != normalized_name
+            or not heading
+            or heading.group("name") != card.name
+            or heading.group("title").strip() != card.title
+            or card.heading_text not in doc.text
+            or card.contact_text not in doc.text
+            or not _published_roster_title(card.title)
+            or _AMBIGUOUS.search(card.heading_text)
+        ):
+            continue
+        href_match = re.fullmatch(
+            r"mailto:([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63})"
+            r"|tel:(\+?[0-9(). -]{7,30})",
+            card.href,
+            re.I,
+        )
+        if not href_match or any(char in card.href for char in "\r\n?#"):
+            continue
+        value = href_match.group(1) or href_match.group(2)
+        if not value or value not in card.contact_text:
+            continue
+        label = card.contact_text.removesuffix(value).strip()
+        label_match = re.fullmatch(
+            r"Contact[ \t]+(?P<name>[A-Za-z'-]+)[ \t]+by[ \t]+(?P<kind>Email|Phone)",
+            label,
+            re.I,
+        )
+        first_name = card.name.split()[0].casefold()
+        accepted_names = {first_name}
+        if first_name == "christopher":
+            accepted_names.add("chris")
+        if (
+            not label_match
+            or label_match.group("name").casefold() not in accepted_names
+            or (label_match.group("kind").casefold() == "email") != bool(href_match.group(1))
+        ):
+            continue
+        contact = {
+            "kind": "email" if href_match.group(1) else "phone",
+            "value": value,
+            "source_url": doc.url,
+            "quote": card.contact_text,
+            "observed_at": doc.observed_at.isoformat(),
+        }
+        if contact not in contacts:
+            contacts.append(contact)
     return contacts
 
 
@@ -943,8 +1013,10 @@ def extract_people(
             normalized_sentence = organization_key(sentence)
             org_name = organization_key(org.organization)
             official = (
-                _official_profile(doc, org.organization) or verified_official_roster
-            ) and 0 <= (today - doc.observed_at.date()).days <= 365
+                (_official_profile(doc, org.organization) or verified_official_roster)
+                and 0 <= (today - doc.observed_at.date()).days <= 365
+                and (doc.published_at is None or current_role(doc.published_at, today))
+            )
             roster = re.fullmatch(
                 rf"(?P<name>{_NAME})(?:,\s*|\n)(?P<title>[^;\n]{{3,80}})",
                 sentence,
