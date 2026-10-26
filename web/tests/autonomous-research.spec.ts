@@ -26,6 +26,21 @@ async function install(page: import('@playwright/test').Page) {
 test('Research shows source-backed contacts, separate priority and confidence, explicit unknowns, and read-only history on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await install(page)
+  const longCompany = `Northstar${'Compute'.repeat(14)}`
+  const longEmail = `morgan.${'construction'.repeat(9)}@${'northstar-energy-'.repeat(7)}example.com`
+  const longNeed = {
+    ...need,
+    commercial_organization: longCompany,
+    intelligence_card: {
+      ...need.intelligence_card,
+      fields: need.intelligence_card.fields.map(field => field.key === 'customer' ? { ...field, value: longCompany } : field),
+      contacts: need.intelligence_card.contacts.map(contact => ({
+        ...contact, company: longCompany,
+        methods: contact.methods.map(method => ({ ...method, value: longEmail, href: `mailto:${longEmail}` })),
+      })),
+    },
+  }
+  await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: { ...workspace, items: [longNeed] } }))
   const writes: string[] = []
   await page.route('**/api/**', async route => {
     if (route.request().method() !== 'GET' && !route.request().url().includes('/api/auth/session')) writes.push(`${route.request().method()} ${route.request().url()}`)
@@ -33,13 +48,15 @@ test('Research shows source-backed contacts, separate priority and confidence, e
   })
   await page.goto('/?view=pursuits')
   await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  await page.getByRole('button', { name: /Northstar/ }).click()
   await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
-  await expect(page.getByText('morgan@example.test')).toBeVisible()
+  await expect(page.getByRole('link', { name: longEmail })).toHaveAttribute('href', `mailto:${longEmail}`)
+  await expect(page.locator('.research-detail-heading').getByText(longCompany)).toBeVisible()
   await expect(page.getByText('Purchasing authority requires confirmation')).toBeVisible()
   await expect(page.getByText('Confidence', { exact: true })).toBeVisible()
   await expect(page.locator('.research-detail-heading dd').filter({ hasText: 'Not provided' })).toBeVisible()
   await expect(page.getByText(/Temporary demand: Unknown/)).toBeVisible()
+  await expect(page.locator('.research-gaps li').filter({ hasText: /^Temporary demand$/ })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Automated research' })).toBeVisible()
   await expect(page.getByRole('button', { name: /call|fact|workflow|enrich|correct|retract|research this question|save/i })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -82,16 +99,21 @@ test('Back to opportunities clears the selected research URL across reloads', as
 })
 
 test('global search groups projects, companies and verified contacts and opens a matching need', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   await install(page)
+  const longCompany = `Ridgeview${'Energy'.repeat(16)}`
+  const longEmail = `morgan.${'project-buyer'.repeat(8)}@${'ridgeview-power-'.repeat(7)}example.com`
   await page.route('**/api/search?**', route => route.fulfill({ json: {
     query: 'Morgan', projects: [{ project_id: 'project-demo', need_id: 'need-demo', name: 'Ridgeview commissioning', location: 'Austin, TX', region_state: 'TX', tier: 'Prospect', updated_at: '2026-10-25T00:00:00Z' }],
-    companies: [{ company_identity_id: 'company-demo', name: 'Ridgeview Energy', project_count: 1 }],
-    contacts: [{ company_identity_id: 'company-demo', project_id: 'project-demo', need_id: 'need-demo', name: 'Morgan Lee', title: 'Director, Construction', organization: 'Ridgeview Energy', methods: [{ kind: 'email', value: 'morgan@example.test' }], sources: [], verification_status: 'verified' }], opportunities: [],
+    companies: [{ company_identity_id: 'company-demo', name: longCompany, project_count: 1 }],
+    contacts: [{ company_identity_id: 'company-demo', project_id: 'project-demo', need_id: 'need-demo', name: 'Morgan Lee', title: 'Director, Construction', organization: longCompany, methods: [{ kind: 'email', value: longEmail }], sources: [], verification_status: 'verified' }], opportunities: [],
   } }))
   await page.goto('/?view=workspace')
   const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
   await search.fill('Morgan')
   await expect(page.getByRole('heading', { name: 'Contacts' })).toBeVisible()
+  await expect(page.locator('.global-search-results')).toContainText(longCompany)
+  await expect(page.locator('.global-search-results')).toContainText(longEmail)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: test.info().outputPath('mobile-search.png'), fullPage: true })
   await page.getByRole('button', { name: /Morgan Lee/ }).click()
