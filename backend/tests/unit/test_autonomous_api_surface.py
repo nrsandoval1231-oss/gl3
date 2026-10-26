@@ -69,9 +69,18 @@ def test_operator_workflow_status_is_not_a_public_opportunity_filter():
             }
 
     filters = {
-        "tier": None, "search": None, "decision": None, "geography": None,
-        "industry": None, "industry_group": None, "activity": None, "timing": None,
-        "mw_status": None, "mw_min": None, "mw_max": None, "priority_segment": None,
+        "tier": None,
+        "search": None,
+        "decision": None,
+        "geography": None,
+        "industry": None,
+        "industry_group": None,
+        "activity": None,
+        "timing": None,
+        "mw_status": None,
+        "mw_min": None,
+        "mw_max": None,
+        "priority_segment": None,
     }
     from gridlens.api.app import _normalized_browse_filters
 

@@ -111,6 +111,8 @@ from gridlens.settings import settings
 
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
 app.include_router(intelligence_router)
+
+
 @app.exception_handler(CurrentOperatorInputBoundExceeded)
 async def current_operator_input_bound_error(
     _request: Request, exc: CurrentOperatorInputBoundExceeded

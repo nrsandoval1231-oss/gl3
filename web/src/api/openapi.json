@@ -3674,7 +3674,8 @@
           "owner",
           "created_at"
         ],
-        "title": "CallNoteOut"
+        "title": "CallNoteOut",
+        "description": "Read-only historical note; no corresponding mutation contract exists."
       },
       "ChangeOut": {
         "properties": {

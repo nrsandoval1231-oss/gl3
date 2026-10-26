@@ -969,7 +969,10 @@ export interface components {
              */
             created_at: string;
         };
-        /** CallNoteOut */
+        /**
+         * CallNoteOut
+         * @description Read-only historical note; no corresponding mutation contract exists.
+         */
         CallNoteOut: {
             /**
              * Client Id
