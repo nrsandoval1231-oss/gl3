@@ -994,7 +994,7 @@ class ExternalImportEvent(Base):
             "details ->> 'target_count' <= '100000'), false)"
             "))",
             name="ck_external_import_event_action",
-        ),
+        ).ddl_if(dialect="postgresql"),
         Index("ix_external_import_events_batch", "batch_id", "created_at"),
         Index(
             "uq_external_import_event_batch_lifecycle",
