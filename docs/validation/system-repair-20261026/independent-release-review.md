@@ -46,6 +46,8 @@ The restored staging inventory is coordinator evidence: four batches and 4,520 i
 3. **Bridge power:** genuine evidence establishes delayed energization, temporary supply or a utility constraint; the product must not infer bridge demand solely from facility capacity.
 4. **Contact to action:** a source-backed relevant contact has a usable outreach action with correct attribution, freshness and verification limits.
 
+Prospective clarification recorded **2026-10-26 12:55 UTC**, before case D browser evaluation: a literal published owner/company phone can demonstrate case D when the interface explicitly labels it as an organization route, retains its citation, keeps any separately named project representative distinct, and uses the exact published outreach target. This does not establish a direct personal line, purchasing authority or sales readiness. Case D measures truthful outreach behavior; a generic company route **does not count toward the 15 named-professional-method or 10 directly project-connected-person-method coverage minimums**, nor does it establish any of the ten commercially actionable projects without their other required evidence. The commercial thresholds are unchanged.
+
 Use native Chrome where available and record the candidate revision, dataset manifest, URLs, viewport, screenshots/traces and observed result. A fixture, mocked response or preexisting generic browser regression does not substitute for these four persisted-corpus cases. The scenarios may share legitimate cohort members, but each requirement must be independently demonstrated.
 
 ## Production readiness and final review
