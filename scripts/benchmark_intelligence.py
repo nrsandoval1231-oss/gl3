@@ -164,7 +164,7 @@ def benchmark(
         "company_match_accuracy": "UNKNOWN: requires independent labels",
         "project_match_accuracy": "UNKNOWN: requires independent labels",
         "false_positive_contact_matches": "UNKNOWN: requires independent adjudication",
-        "commercial_actionability": "Recommended actions supplied; sales outcome unmeasured",
+        "commercial_actionability": "NOT_TESTED: requires independent review of actual opportunities",
         "new_live_research_executed": False,
         "additional_provider_calls": 0,
         "additional_api_cost_usd": 0,
