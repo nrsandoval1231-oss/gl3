@@ -578,6 +578,66 @@ def test_reconciliation_surfaces_probable_project_without_auto_matching(import_d
         assert staged["rows"][0]["active"] is False
 
 
+def test_project_candidate_catalog_and_ambiguity_output_are_bounded(import_db):
+    with import_db.begin() as session:
+        source = Source(
+            id="bounded-site-source",
+            publisher="Synthetic",
+            endpoint="https://bounded.example",
+            family="construction-permits",
+            geography="TX",
+            industries=[],
+            retrieval_method="bounded-test",
+        )
+        session.add(source)
+        session.flush()
+        projects = [
+            Project(
+                identity_key=f"bounded-site-{index}",
+                name="North Campus",
+                location="Austin, TX",
+                region_state="TX",
+                source_id=source.id,
+                external_id=f"bounded-site-{index}",
+            )
+            for index in range(201)
+        ]
+        session.add_all(projects)
+        session.flush()
+        preview = _preview(
+            [
+                ImportRow(
+                    sheet="Sites",
+                    row_number=2,
+                    raw={"Project": "North Campus"},
+                    normalized={"project_name": "North Campus", "city": "Austin", "state": "TX"},
+                    errors=[],
+                ),
+                ImportRow(
+                    sheet="Sites",
+                    row_number=3,
+                    raw={"Project": "Noth Campus"},
+                    normalized={"project_name": "Noth Campus", "city": "Austin", "state": "TX"},
+                    errors=[],
+                ),
+            ],
+            "6" * 64,
+        )
+        result = stage_import(session, preview, actor="reviewer")
+        exact = result["rows"][0]["project_match"]
+        probable = result["rows"][1]["project_match"]
+        assert result["ambiguous_count"] == 2
+        assert exact["status"] == "ambiguous"
+        assert exact["candidate_count"] == 201
+        assert len(exact["candidate_ids"]) <= 20
+        assert probable["status"] == "ambiguous"
+        assert probable["search_limited"] is True
+        assert probable["candidate_count_lower_bound"] == 200
+        assert len(probable["candidates"]) == 20
+        assert probable["candidates_truncated"] is True
+        assert all(not row["active"] for row in result["rows"])
+
+
 def test_read_only_reconciliation_keeps_contact_assertions_unverified(import_db):
     with import_db.begin() as session:
         _project, identity = _seed_matchable(session)

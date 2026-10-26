@@ -79,6 +79,28 @@ def test_activity_specific_demand_header_is_distinguished_from_generic_demand(tm
     assert temporary.rows[0].normalized["demand_mw"] == 7
 
 
+def test_repeated_header_inside_project_sheet_is_retained_as_metadata(tmp_path):
+    path = tmp_path / "repeated-header.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    headers = ["Project Name", "Developer", "Facility Power (MW)", "IT Capacity (MW)", "State"]
+    sheet.append(headers)
+    sheet.append(["North Site", "Example Developer", 25, 20, "TX"])
+    sheet.append(headers)
+    workbook.save(path)
+
+    preview = read_workbook(path)
+
+    assert len(preview.rows) == 2
+    assert preview.rows[0].row_kind == "project"
+    assert preview.rows[0].normalized["facility_demand_mw"] == 25
+    assert preview.rows[1].row_number == 3
+    assert preview.rows[1].row_kind == "metadata"
+    assert preview.rows[1].normalized == {}
+    assert preview.rows[1].errors == []
+    assert preview.rows[1].raw == dict(zip(headers, headers, strict=True))
+
+
 def test_formula_text_is_preserved_and_never_evaluated(tmp_path):
     path = tmp_path / "formula.xlsx"
     workbook = Workbook()

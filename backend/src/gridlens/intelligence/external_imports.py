@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from difflib import SequenceMatcher
-from typing import Any
+from typing import Any, TypedDict
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
@@ -30,12 +30,29 @@ MAX_RECONCILIATION_OUTPUT_ROWS = 500
 MAX_RECONCILIATION_DUPLICATE_GROUPS = 200
 MAX_DUPLICATE_GROUP_SAMPLE_ROWS = 10
 MAX_DUPLICATE_HINTS_PER_ROW = 5
+MAX_EXACT_PROJECT_CANDIDATES_PER_NAME = 20
+MAX_EXACT_SOURCE_PROJECT_NAMES = 5000
+MAX_PROBABLE_STATES = 50
+MAX_PROBABLE_PROJECTS_PER_STATE = 200
+MAX_PROBABLE_COMPANIES = 100
+MAX_PROBABLE_PROJECTS_PER_COMPANY = 100
+MAX_PROBABLE_COMPANY_PROJECTS = 500
+MAX_PROBABLE_NAME_SCANS = 1000
+MAX_PROJECT_CANDIDATE_DETAILS = 20
 
 _ACTIVITY_SPECIFIC_POWER_HEADER = re.compile(
     r"(?:temporary|rental|construction|commissioning).*(?:demand|load|power)|"
     r"(?:demand|load|power).*(?:temporary|rental|construction|commissioning)",
     re.IGNORECASE,
 )
+
+
+class _ProbableProjectCandidate(TypedDict):
+    candidate_id: str
+    name: str
+    location: str | None
+    similarity: float
+    reasons: list[str]
 
 
 def _assert_staging_session(session: Session) -> None:
@@ -282,6 +299,25 @@ def _project_match(
         company_project_ids = catalog["projects_by_company"].get(UUID(matched_company), set())
     candidates: list[tuple[Project, list[str]]] = []
     name_candidates = catalog["projects_by_name"].get(project_name, [])
+    exact_candidate_count = catalog["project_name_counts"].get(project_name, len(name_candidates))
+    if project_name in catalog["exact_name_search_skipped"]:
+        return {
+            "status": "unmatched",
+            "candidate_id": None,
+            "search_limited": True,
+            "reasons": ["exact project-name search budget reached; no identity adopted"],
+        }
+    if catalog["project_name_search_truncated"].get(project_name, False):
+        return {
+            "status": "ambiguous",
+            "candidate_id": None,
+            "candidate_ids": [
+                str(project.id) for project in name_candidates[:MAX_PROJECT_CANDIDATE_DETAILS]
+            ],
+            "candidate_count": exact_candidate_count,
+            "candidates_truncated": True,
+            "reasons": ["exact project-name candidate set exceeded its safe comparison bound"],
+        }
     for project in name_candidates:
         compatible, corroborating = _site_evidence(normalized, project)
         if not compatible:
@@ -298,9 +334,12 @@ def _project_match(
             "reasons": ["exact normalized project name", *why],
         }
     if len(candidates) > 1:
+        candidate_ids = sorted(str(p.id) for p, _ in candidates)
         return {
             "status": "ambiguous",
-            "candidate_ids": sorted(str(p.id) for p, _ in candidates),
+            "candidate_ids": candidate_ids[:MAX_PROJECT_CANDIDATE_DETAILS],
+            "candidate_count": len(candidate_ids),
+            "candidates_truncated": len(candidate_ids) > MAX_PROJECT_CANDIDATE_DETAILS,
             "reasons": ["multiple existing projects have corroborating signals"],
         }
     if not name_candidates:
@@ -314,14 +353,16 @@ def _project_match(
                 "search_limited": True,
                 "reasons": [
                     "no exact project name",
-                    "probable comparison limit reached; no identity adopted",
+                    "probable project candidate search was bounded; no identity adopted",
                 ],
             }
     if name_candidates:
         return {
             "status": "unmatched",
             "candidate_id": None,
-            "candidate_ids": [str(p.id) for p in name_candidates],
+            "candidate_ids": [str(p.id) for p in name_candidates[:MAX_PROJECT_CANDIDATE_DETAILS]],
+            "candidate_count": exact_candidate_count,
+            "candidates_truncated": exact_candidate_count > MAX_PROJECT_CANDIDATE_DETAILS,
             "reasons": [
                 "project name matches but no independent site/company signal corroborates it"
             ],
@@ -340,28 +381,55 @@ def _probable_project_match(
     source_name = _project_key(normalized.get("project_name"))
     if not source_name:
         return None, False
-    probable_names: dict[str, list[tuple[Project, float]]] = catalog["probable_names"]
+    state = _state_code(normalized.get("state"))
+    matched_company = (
+        UUID(str(company_match["candidate_id"]))
+        if company_match.get("status") == "matched" and company_match.get("candidate_id")
+        else None
+    )
+    cache_key = (source_name, state, matched_company)
+    probable_names: dict[tuple[str, str, UUID | None], tuple[list[tuple[Project, float]], bool]] = (
+        catalog["probable_names"]
+    )
     limited = False
-    if source_name not in probable_names:
-        if len(probable_names) >= catalog["probable_name_limit"]:
+    if cache_key not in probable_names:
+        if len(probable_names) >= MAX_PROBABLE_NAME_SCANS:
             limited = True
+            near_names: list[tuple[Project, float]] = []
         else:
-            probable_names[source_name] = [
+            state_pool = catalog["probable_projects_by_state"].get(state, []) if state else []
+            company_pool = (
+                catalog["probable_projects_by_company"].get(matched_company, [])
+                if matched_company
+                else []
+            )
+            candidate_pool = {project.id: project for project in (*state_pool, *company_pool)}
+            if state:
+                limited = catalog["probable_state_pool_truncated"].get(state, False) or (
+                    state in catalog["probable_state_pool_skipped"]
+                )
+            elif not matched_company:
+                limited = True
+            if matched_company:
+                limited = (
+                    limited
+                    or catalog["probable_company_pool_truncated"].get(matched_company, False)
+                    or matched_company in catalog["probable_company_pool_skipped"]
+                )
+            near_names = [
                 (candidate, ratio)
-                for candidate in catalog["all_projects"]
+                for candidate in candidate_pool.values()
                 if (candidate_name := _project_key(candidate.name)) != source_name
                 and (ratio := SequenceMatcher(None, source_name, candidate_name).ratio()) >= 0.88
             ]
-    suggestions = []
-    matched_company = (
-        company_match.get("candidate_id") if company_match.get("status") == "matched" else None
-    )
+            probable_names[cache_key] = (near_names, limited)
+    else:
+        near_names, limited = probable_names[cache_key]
+    suggestions: list[_ProbableProjectCandidate] = []
     company_projects = (
-        catalog["projects_by_company"].get(UUID(matched_company), set())
-        if matched_company
-        else set()
+        catalog["projects_by_company"].get(matched_company, set()) if matched_company else set()
     )
-    for candidate, ratio in probable_names.get(source_name, []):
+    for candidate, ratio in near_names:
         compatible, site_reasons = _site_evidence(normalized, candidate)
         company_reason = candidate.id in company_projects
         if not compatible or not (site_reasons or company_reason):
@@ -379,22 +447,30 @@ def _probable_project_match(
             }
         )
     suggestions.sort(key=lambda item: (-item["similarity"], item["candidate_id"]))
-    if len(suggestions) == 1:
+    candidates = suggestions[:MAX_PROJECT_CANDIDATE_DETAILS]
+    candidates_truncated = len(suggestions) > MAX_PROJECT_CANDIDATE_DETAILS
+    if len(suggestions) == 1 and not limited:
         return {
             "status": "probable",
             "candidate_id": suggestions[0]["candidate_id"],
             "search_limited": limited,
-            "candidates": suggestions,
-            "reasons": [*suggestions[0]["reasons"], "suggestion only; exact identity not adopted"],
+            "candidates": candidates,
+            "candidate_count": 1,
+            "reasons": [
+                *suggestions[0]["reasons"],
+                "suggestion only; exact identity not adopted",
+            ],
         }, limited
     if suggestions:
         return {
             "status": "ambiguous",
             "candidate_id": None,
             "search_limited": limited,
-            "candidate_ids": [item["candidate_id"] for item in suggestions],
-            "candidates": suggestions,
-            "reasons": ["multiple corroborated probable project candidates; no identity adopted"],
+            "candidate_ids": [item["candidate_id"] for item in candidates],
+            "candidate_count_lower_bound": len(suggestions),
+            "candidates_truncated": candidates_truncated,
+            "candidates": candidates,
+            "reasons": ["probable candidate pool is non-unique or truncated; no identity adopted"],
         }, limited
     return None, limited
 
@@ -440,14 +516,40 @@ def _matching_catalog(session: Session, normalized_rows: list[dict[str, Any]]) -
                 company_ids.add(identifier.company_identity_id)
 
     projects_by_name: dict[str, list[Project]] = {}
+    project_name_counts: dict[str, int] = {}
+    project_name_search_truncated: dict[str, bool] = {}
     project_ids: set[UUID] = set()
-    all_projects = (
-        list(session.scalars(select(Project).order_by(Project.id))) if project_names else []
-    )
-    for project in all_projects:
-        key = _project_key(project.name)
-        if key in project_names:
-            projects_by_name.setdefault(key, []).append(project)
+    exact_name_search_skipped = set(sorted(project_names)[MAX_EXACT_SOURCE_PROJECT_NAMES:])
+    searchable_names = sorted(project_names)[:MAX_EXACT_SOURCE_PROJECT_NAMES]
+    name_key = func.btrim(func.regexp_replace(func.lower(Project.name), "[^a-z0-9]+", " ", "g"))
+    rows_per_name = MAX_EXACT_PROJECT_CANDIDATES_PER_NAME + 1
+    for start in range(0, len(searchable_names), 5000):
+        name_batch = searchable_names[start : start + 5000]
+        if not name_batch:
+            continue
+        ranked = (
+            select(
+                Project.id.label("project_id"),
+                name_key.label("project_key"),
+                func.count().over(partition_by=name_key).label("candidate_count"),
+                func.row_number()
+                .over(partition_by=name_key, order_by=Project.id)
+                .label("candidate_rank"),
+            )
+            .where(name_key.in_(name_batch))
+            .subquery()
+        )
+        candidates = session.execute(
+            select(Project, ranked.c.project_key, ranked.c.candidate_count)
+            .join(ranked, ranked.c.project_id == Project.id)
+            .where(ranked.c.candidate_rank <= rows_per_name)
+            .order_by(ranked.c.project_key, Project.id)
+        )
+        for project, key, candidate_count in candidates:
+            project_key = str(key)
+            projects_by_name.setdefault(project_key, []).append(project)
+            project_name_counts[project_key] = int(candidate_count)
+            project_name_search_truncated[project_key] = int(candidate_count) > rows_per_name
             project_ids.add(project.id)
 
     memberships_by_company: dict[UUID, list[CompanyProjectMembership]] = {}
@@ -481,15 +583,63 @@ def _matching_catalog(session: Session, normalized_rows: list[dict[str, Any]]) -
         projects_by_company.setdefault(membership.company_identity_id, set()).add(
             membership.project_id
         )
+
+    requested_states = sorted(
+        {_state_code(row.get("state")) for row in normalized_rows if _state_code(row.get("state"))}
+    )
+    probable_state_pool_skipped = set(requested_states[MAX_PROBABLE_STATES:])
+    probable_projects_by_state: dict[str, list[Project]] = {}
+    probable_state_pool_truncated: dict[str, bool] = {}
+    for state in requested_states[:MAX_PROBABLE_STATES]:
+        state_projects = list(
+            session.scalars(
+                select(Project)
+                .where(Project.region_state == state)
+                .order_by(Project.id)
+                .limit(MAX_PROBABLE_PROJECTS_PER_STATE + 1)
+            )
+        )
+        probable_state_pool_truncated[state] = len(state_projects) > MAX_PROBABLE_PROJECTS_PER_STATE
+        probable_projects_by_state[state] = state_projects[:MAX_PROBABLE_PROJECTS_PER_STATE]
+
+    probable_company_pool_skipped = set(
+        sorted(projects_by_company, key=str)[MAX_PROBABLE_COMPANIES:]
+    )
+    probable_projects_by_company: dict[UUID, list[Project]] = {}
+    probable_company_pool_truncated: dict[UUID, bool] = {}
+    for company_id in sorted(projects_by_company, key=str)[:MAX_PROBABLE_COMPANIES]:
+        project_ids_for_company = sorted(projects_by_company[company_id], key=str)
+        selected_ids = project_ids_for_company[:MAX_PROBABLE_PROJECTS_PER_COMPANY]
+        company_projects = (
+            list(
+                session.scalars(
+                    select(Project).where(Project.id.in_(selected_ids)).order_by(Project.id)
+                )
+            )
+            if selected_ids
+            else []
+        )
+        probable_projects_by_company[company_id] = company_projects
+        probable_company_pool_truncated[company_id] = (
+            len(project_ids_for_company) > MAX_PROBABLE_PROJECTS_PER_COMPANY
+        )
     return {
         "companies_by_domain": companies_by_domain,
         "memberships_by_company": memberships_by_company,
         "memberships_by_project": memberships_by_project,
         "projects_by_company": projects_by_company,
         "projects_by_name": projects_by_name,
-        "all_projects": all_projects,
+        "project_name_counts": project_name_counts,
+        "project_name_search_truncated": project_name_search_truncated,
+        "exact_name_search_skipped": exact_name_search_skipped,
+        "probable_projects_by_state": probable_projects_by_state,
+        "probable_state_pool_truncated": probable_state_pool_truncated,
+        "probable_state_pool_skipped": probable_state_pool_skipped,
+        "probable_projects_by_company": probable_projects_by_company,
+        "probable_company_pool_truncated": probable_company_pool_truncated,
+        "probable_company_pool_skipped": probable_company_pool_skipped,
         "probable_names": {},
-        "probable_name_limit": 1000,
+        "probable_name_limit": MAX_PROBABLE_NAME_SCANS,
     }
 
 

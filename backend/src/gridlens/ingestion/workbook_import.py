@@ -439,6 +439,21 @@ def _header_score(values: tuple[Any, ...], column_mapping: dict[str, str] | None
     return sum(_header_key(value) in known_headers for value in values if value is not None)
 
 
+def _is_repeated_header_row(values: tuple[Any, ...], headers: list[Any]) -> bool:
+    """Identify an echoed header row within a data range without interpreting it as a record."""
+    if not headers or not any(header is not None and str(header).strip() for header in headers):
+        return False
+    for index, header in enumerate(headers):
+        value = values[index] if index < len(values) else None
+        if header is None or not str(header).strip():
+            if value is not None and str(value).strip():
+                return False
+            continue
+        if _header_key(value) != _header_key(header):
+            return False
+    return not any(value is not None and str(value).strip() for value in values[len(headers) :])
+
+
 def _iter_sources(path: Path):
     suffix = path.suffix.casefold()
     if suffix == ".csv":
@@ -598,9 +613,12 @@ def read_workbook(
                 raw[key] = _json_value(values[index])
             if not any(value is not None and value != "" for value in raw.values()):
                 continue
+            item_row_kind = "metadata" if _is_repeated_header_row(values, headers) else row_kind
             normalized: dict[str, Any] = {}
             errors: list[str] = []
-            for index, field in mapping.items() if row_kind not in {"summary", "metadata"} else ():
+            for index, field in (
+                mapping.items() if item_row_kind not in {"summary", "metadata"} else ()
+            ):
                 value = values[index] if index < len(values) else None
                 try:
                     if field in _POWER_FIELDS:
@@ -627,7 +645,7 @@ def read_workbook(
                 raw=raw,
                 normalized=normalized,
                 errors=errors,
-                row_kind=row_kind,
+                row_kind=item_row_kind,
             )
             rows.append(item)
             if mapping_diagnostics:
