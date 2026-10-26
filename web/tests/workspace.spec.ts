@@ -680,12 +680,15 @@ test('utility service status stays distinct from an energization date and facili
 for (const width of [1280, 390]) {
   test(`unified intelligence card preserves evidence, verified actions and research at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 })
-    const source = { reference: 'evidence:test', title: 'Official project notice', url: 'https://example.test/project', source_date: '2026-10-20', retained_evidence_id: 'test', content_hash: 'a'.repeat(64), passage: 'Example Owner is developing the site.', extraction_method: 'Official notice', verification_status: 'Current retained support' }
+    const source = { reference: 'evidence:test', title: 'Official project notice', url: 'https://example.test/project', source_date: '2026-10-20', assessed_at: '2026-10-22T10:00:00Z', retained_evidence_id: 'test', content_hash: 'a'.repeat(64), passage: 'Example Owner is developing the site.', extraction_method: 'Official notice', verification_status: 'Current retained support' }
     const card = {
       policy_version: 'opportunity-intelligence-v1', need_id: need.id, project_id: need.project_id,
       input_fingerprint: 'a'.repeat(64), qualification: 'Signal', disposition: 'RESEARCH',
-      fields: [{ key: 'customer', label: 'Customer / end user', section: 'identity', value: 'Example Owner', status: 'Verified', basis: 'Current owner relationship.', sources: [source] }],
-      contacts: [{ claim_id: 'party', company: 'Example Owner', name: null, title: null, role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url }], sources: [source] }],
+      fields: [{ key: 'customer', label: 'Customer / end user', section: 'identity', value: 'Example Owner', status: 'Evidence-supported', basis: 'Current owner relationship.', sources: [source] }],
+      contacts: [
+        { claim_id: 'party', company: 'Example Owner', name: null, title: null, role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url, verified_at: '2026-10-20T10:00:00Z' }, { kind: 'phone', value: '+1 512 555 0101', href: 'tel:+15125550101', source_url: source.url, verified_at: '2026-10-25T10:00:00Z' }], sources: [source] },
+        { claim_id: 'party-source-only', company: 'Example Owner', name: null, title: null, role: 'procurement', responsibility: 'Inferred likely role', purchasing_authority: 'Requires confirmation for this power package', methods: [], sources: [source] },
+      ],
       next_contact_path: 'Confirm power procurement with the company office.', next_action: 'Verify the activity-specific power window.',
       research_gaps: [{ key: 'start', label: 'Power needed', section: 'power', value: null, status: 'Research in progress', basis: 'No supported date yet.', research_category: 'timing', research_status: 'NOT_SCHEDULED', sources: [] }],
       completeness: { supported: 1, total: 2, percent: 50, basis: 'Independent of qualification' },
@@ -724,6 +727,16 @@ for (const width of [1280, 390]) {
     const panel = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
     await expect(panel).toBeVisible()
     await page.getByRole('button', { name: 'Overview', exact: true }).click()
+    await panel.locator('.ic-supported-fields > summary').click()
+    await expect(panel.locator('.ic-supported-fields')).toContainText('Evidence-supported')
+    const contactDetails = panel.locator('.ic-contact details').first()
+    await contactDetails.locator('summary').click()
+    const latestMethodDate = new Date('2026-10-25T10:00:00Z').toLocaleDateString()
+    await expect(contactDetails).toContainText(`Verified ${latestMethodDate}`)
+    const sourceOnlyDetails = panel.locator('.ic-contact details').nth(1)
+    await sourceOnlyDetails.locator('summary').click()
+    const latestSourceDate = new Date('2026-10-22T10:00:00Z').toLocaleDateString()
+    await expect(sourceOnlyDetails).toContainText(`Role/source checked ${latestSourceDate}`)
     await page.locator('.wh-provenance-disclosure summary').click()
     await expect(page.locator('.wh-provenance-disclosure')).toContainText('Integrity inspection')
     await expect(page.locator('.wh-provenance-disclosure')).toContainText('Confirm the power package owner')

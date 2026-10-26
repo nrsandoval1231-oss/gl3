@@ -368,7 +368,7 @@ def test_research_promotes_only_complete_official_qualification_gates(
                 ("start", assessment["start_quote"]),
                 ("duration", assessment["duration_quote"]),
             ):
-                assert fields[key]["status"] == "Source-reported"
+                assert fields[key]["status"] == "Evidence-supported"
                 assert any(source["passage"] == quote for source in fields[key]["sources"])
             assert assessment["qualified_remaining_gap"]["remaining_mw_min"] == (
                 "0.6" if nonzero_supply else "1"
