@@ -124,6 +124,27 @@ def test_formula_text_is_preserved_and_never_evaluated(tmp_path):
     assert preview.report["formulas_evaluated"] is False
 
 
+def test_excel_hyperlink_target_is_retained_separately_from_display_value(tmp_path):
+    path = tmp_path / "source-links.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "State", "Source 1", "Source 2"])
+    sheet.append(["North Site", "TX", "Link", "formula link"])
+    sheet["C2"].hyperlink = "https://example.gov/projects/north-site"
+    sheet["D2"] = '=HYPERLINK("https://untrusted.invalid/project","formula link")'
+    workbook.save(path)
+
+    preview = read_workbook(path)
+
+    row = preview.rows[0]
+    assert row.raw["Source 1"] == "Link"
+    assert row.raw["__workbook_hyperlinks__"] == {
+        "Source 1": "https://example.gov/projects/north-site"
+    }
+    assert row.raw["Source 2"] == '=HYPERLINK("https://untrusted.invalid/project","formula link")'
+    assert "Source 2" not in row.raw["__workbook_hyperlinks__"]
+
+
 def test_large_contact_csv_stays_bounded_and_keeps_all_rows(tmp_path):
     path = tmp_path / "contacts.csv"
     with path.open("w", newline="", encoding="utf-8") as handle:

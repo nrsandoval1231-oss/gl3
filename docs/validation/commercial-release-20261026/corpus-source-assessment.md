@@ -17,6 +17,16 @@ The retained [GL3-016 JEV source corpus](../gl3-016-jev-corpus.json) contains 81
 
 The six-project Austin verifier cited in prior validation is not available as a database artifact in this release checkout. Historical Austin permit references include multiple permits at the same address and routine/maintenance scopes; they cannot be counted as distinct qualifying projects without fresh evidence and site-level adjudication. No database connection was attempted: the only discovered local connection file points to database `gridlens`, not the isolated verifier database.
 
+## Frozen workbook candidate sample
+
+Before contact research, a deterministic 25-row workbook sample was frozen in [frozen-workbook-candidates.json](frozen-workbook-candidates.json). It contains 13 TX, 6 OK, and 6 NM source-row assertions. Selection required a non-empty normalized project name, territory state, valid coordinate pair, no parser errors, and a project row; candidates were deduplicated by normalized project name/state and duplicate coordinates rounded to five decimal places. A stable SHA-256 ranking selected within each state stratum. The algorithm did not inspect contact or commercial outcomes. Each row includes workbook content hash, batch ID, sheet, row, and staged row ID.
+
+All 25 remain `UNVERIFIED_WORKBOOK_SOURCE_ROW_CANDIDATE`, with qualification `NOT_ESTABLISHED`. The staged source cells contain hyperlink display text but no retained target. The four attachments are unavailable for reparsing in this checkout, so no citation target is reconstructed. The facility-power values remain unverified workbook assertions and do not establish the 300 kW qualification floor for temporary-power opportunity scoring. Timing, temporary-power relevance, committed supply, gap, buyer organization, contacts, and authority remain unknown.
+
+A parser defect explains the missing targets: openpyxl's streaming `read_only=True` cells do not expose hyperlink relationship targets, while the importer retained only cell values. The parser now extracts external OOXML hyperlink relationships without visiting their URLs and stores targets in a separate raw metadata object while preserving the displayed cell value. A focused workbook reproduction verifies this behavior and confirms `HYPERLINK()` formulas remain unevaluated. The retained workbook rows were staged before this fix; original attachments are needed to recover their targets.
+
+The native importer activates a row only when it has a canonical company/project match; the staged rows are unmatched because the clone has no canonical project records. There is no separate activation service that promotes imported rows to canonical project, need, or evidence claims. The frozen candidates therefore remain inactive, and no activation guard was bypassed.
+
 ## Benchmark and activation status
 
 No candidate selection was frozen for scoring because the eligible cohort is empty. The existing retained-evidence benchmark script requires a current published generation and a deliberately identified loopback database; neither the reported Austin verifier database nor the four workbooks is available in this executor for a valid run. No contacts, power, scenario coverage, or commercial-actionability rates are inferred from historical reports. Missing values remain unknown.
@@ -26,7 +36,9 @@ No candidate selection was frozen for scoring because the eligible cohort is emp
 | Requested distinct eligible projects | 25 |
 | Accessible retained source records examined | 81 |
 | TX/OK/NM data-center candidates retained | 2 (1 withdrawn; 1 lacks supported power floor and timing) |
-| Frozen eligible cohort | 0 |
+| Frozen workbook source-row candidate sample | 25 (unverified; 13 TX, 6 OK, 6 NM) |
+| Frozen eligible genuine-opportunity cohort | 0 |
+| Staged territory rows | 518 rows / 517 normalized project-name/state groups; all inactive, no retained source URL targets |
 | Scored projects | 0 |
 | DC / midstream / utility-bridge / contact-to-action scenarios | Not benchmarked |
 | Contact discovery, independent verification, buyer relevance | Unknown / not measured |

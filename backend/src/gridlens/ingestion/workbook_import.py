@@ -6,7 +6,9 @@ import csv
 import hashlib
 import json
 import math
+import posixpath
 import re
+import xml.etree.ElementTree as ET
 import zipfile
 from collections import defaultdict
 from collections.abc import Iterator
@@ -18,7 +20,13 @@ from typing import Any
 from urllib.parse import urlparse
 
 from openpyxl import load_workbook  # type: ignore[import-untyped]
+from openpyxl.utils.cell import get_column_letter
 from pydantic import BaseModel, ConfigDict
+
+_OOXML_MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+_OOXML_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_OOXML_PACKAGE_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+_HYPERLINK_METADATA_KEY = "__workbook_hyperlinks__"
 
 CANONICAL_FIELDS = (
     "company_name",
@@ -475,16 +483,31 @@ def _iter_sources(path: Path):
     if suffix == ".csv":
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.reader(handle)
-            yield "CSV", enumerate(reader, start=1)
+            yield "CSV", (
+                (index, tuple(row), {}) for index, row in enumerate(reader, start=1)
+            )
     elif suffix in {".xlsx", ".xlsm"}:
         workbook = load_workbook(path, read_only=True, data_only=False)
         try:
+            hyperlinks = _xlsx_hyperlink_targets(path)
             for sheet in workbook.worksheets:
                 iterator = sheet.iter_rows(values_only=False)
                 yield (
                     sheet.title,
                     (
-                        (index, tuple(cell.value for cell in row))
+                        (
+                            index,
+                            tuple(cell.value for cell in row),
+                            {
+                                cell_index: hyperlinks.get(sheet.title, {}).get(
+                                    f"{get_column_letter(cell_index + 1)}{index}"
+                                )
+                                for cell_index, cell in enumerate(row)
+                                if hyperlinks.get(sheet.title, {}).get(
+                                    f"{get_column_letter(cell_index + 1)}{index}"
+                                )
+                            },
+                        )
                         for index, row in enumerate(iterator, start=1)
                     ),
                 )
@@ -492,6 +515,65 @@ def _iter_sources(path: Path):
             workbook.close()
     else:
         raise ValueError("Supported file types are .csv, .xlsx, and .xlsm")
+
+
+def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
+    """Read external OOXML hyperlink targets omitted by openpyxl read-only cells.
+
+    Cell values remain on openpyxl's streaming, non-formula path. This reads
+    relationship metadata only and never visits the hyperlink targets.
+    """
+    result: dict[str, dict[str, str]] = {}
+    with zipfile.ZipFile(path) as archive:
+        workbook_root = ET.fromstring(archive.read("xl/workbook.xml"))
+        workbook_rels = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+        workbook_targets = {
+            relation.attrib["Id"]: relation.attrib["Target"]
+            for relation in workbook_rels.findall(f"{{{_OOXML_PACKAGE_REL_NS}}}Relationship")
+            if "Id" in relation.attrib and "Target" in relation.attrib
+        }
+        members = set(archive.namelist())
+        for sheet in workbook_root.findall(f".//{{{_OOXML_MAIN_NS}}}sheet"):
+            name = sheet.attrib.get("name")
+            relation_id = sheet.attrib.get(f"{{{_OOXML_REL_NS}}}id")
+            target = workbook_targets.get(relation_id or "")
+            if not name or not target:
+                continue
+            sheet_path = (
+                target.lstrip("/")
+                if target.startswith("/")
+                else posixpath.normpath(posixpath.join("xl", target))
+            )
+            if sheet_path.startswith("../") or sheet_path not in members:
+                continue
+            rels_path = posixpath.join(
+                posixpath.dirname(sheet_path),
+                "_rels",
+                posixpath.basename(sheet_path) + ".rels",
+            )
+            if rels_path not in members:
+                continue
+            sheet_rels = ET.fromstring(archive.read(rels_path))
+            external_targets = {
+                relation.attrib["Id"]: relation.attrib["Target"]
+                for relation in sheet_rels.findall(f"{{{_OOXML_PACKAGE_REL_NS}}}Relationship")
+                if relation.attrib.get("TargetMode") == "External"
+                and "Id" in relation.attrib
+                and "Target" in relation.attrib
+            }
+            sheet_hyperlinks: dict[str, str] = {}
+            with archive.open(sheet_path) as stream:
+                for _event, element in ET.iterparse(stream, events=("end",)):
+                    if element.tag == f"{{{_OOXML_MAIN_NS}}}hyperlink":
+                        ref = element.attrib.get("ref")
+                        rel_id = element.attrib.get(f"{{{_OOXML_REL_NS}}}id")
+                        target_url = external_targets.get(rel_id or "")
+                        if ref and target_url:
+                            sheet_hyperlinks[ref] = target_url
+                    element.clear()
+            if sheet_hyperlinks:
+                result[name] = sheet_hyperlinks
+    return result
 
 
 def read_workbook(
@@ -525,13 +607,16 @@ def read_workbook(
                 buffered.append(next(numbered_rows))
             except StopIteration:
                 break
-        source_rows: Iterator[tuple[int, tuple[Any, ...]]]
+        source_rows: Iterator[tuple[int, tuple[Any, ...], dict[int, str]]]
         if buffered:
             header_position = max(
                 range(len(buffered)),
                 key=lambda index: (_header_score(buffered[index][1], column_mapping), -index),
             )
-            header_row_number, header_values = buffered[header_position]
+            header_row_number, header_values = (
+                buffered[header_position][0],
+                buffered[header_position][1],
+            )
             headers = list(header_values)
             source_rows = iter(chain(buffered[header_position + 1 :], numbered_rows))
             preamble_count = header_position
@@ -611,7 +696,7 @@ def read_workbook(
                 "row_kind": row_kind,
             }
         )
-        for row_number, values in source_rows:
+        for row_number, values, cell_hyperlinks in source_rows:
             if len(rows) >= MAX_ROWS:
                 truncated = True
                 break
@@ -627,6 +712,18 @@ def read_workbook(
                     key = f"{base}#{suffix}"
                     suffix += 1
                 raw[key] = _json_value(values[index])
+            if cell_hyperlinks:
+                hyperlink_key = _HYPERLINK_METADATA_KEY
+                suffix = 2
+                while hyperlink_key in raw:
+                    hyperlink_key = f"{_HYPERLINK_METADATA_KEY}#{suffix}"
+                    suffix += 1
+                raw[hyperlink_key] = {
+                    raw_headers[index]
+                    if index < len(raw_headers)
+                    else f"_extra_column_{index + 1}": target
+                    for index, target in cell_hyperlinks.items()
+                }
             if not any(value is not None and value != "" for value in raw.values()):
                 continue
             project_name_headers = {
