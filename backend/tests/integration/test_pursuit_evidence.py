@@ -94,7 +94,9 @@ def official_record(source, status="Active"):
     )
 
 
-def test_buying_chain_enrich_api_only_enqueues_and_reuses_job(research_db, monkeypatch):
+def test_buying_chain_research_service_reuses_job_and_result_reader_is_authenticated(
+    research_db, monkeypatch
+):
     from fastapi.testclient import TestClient
 
     from gridlens.intelligence import buying_chain
@@ -122,16 +124,15 @@ def test_buying_chain_enrich_api_only_enqueues_and_reuses_job(research_db, monke
 
     client = TestClient(api.app, base_url="https://testserver")
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    headers = {"origin": "https://testserver"}
-    path = f"/api/projects/{project_id}/buying-chain/enrich"
-    first = client.post(path, json={"source_urls": []}, headers=headers)
-    second = client.post(path, json={"source_urls": []}, headers=headers)
-    assert first.status_code == second.status_code == 200
-    assert first.json()["research_job"]["status"] == "queued"
-    assert first.json()["research_job"]["id"] == second.json()["research_job"]["id"]
+    with factory.begin() as session:
+        first = buying_chain.enqueue_buying_chain_research(session, project_id, [])
+    with factory.begin() as session:
+        second = buying_chain.enqueue_buying_chain_research(session, project_id, [])
+    assert first.status == second.status == "queued"
+    assert first.id == second.id
     fetched = client.get(f"/api/projects/{project_id}/buying-chain")
     assert fetched.status_code == 200
-    assert fetched.json()["research_job"]["id"] == first.json()["research_job"]["id"]
+    assert fetched.json()["research_job"]["id"] == str(first.id)
     assert fetched.json()["candidates"] == []
 
 

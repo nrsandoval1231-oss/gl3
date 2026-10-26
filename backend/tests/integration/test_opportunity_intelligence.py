@@ -266,35 +266,6 @@ def test_old_retained_boston_voltage_is_excluded_but_keeps_historical_hash_bindi
         )
 
 
-def test_explicit_refresh_evaluates_exact_target_not_shortlist(saved_db, monkeypatch):
-    from test_saved_browse import seed
-
-    from gridlens.api import app as api
-    from gridlens.intelligence import pursuit_questions
-    from gridlens.settings import settings
-
-    ids = seed(saved_db, count=2, histories=1)
-    monkeypatch.setattr(settings, "autonomous_research_enabled", True)
-
-    def fail_shortlist(*args, **kwargs):
-        raise AssertionError("Exact target must not use the top-50 shortlist")
-
-    monkeypatch.setattr(api, "_commercial_triage_cards", fail_shortlist)
-    received = []
-
-    def schedule(session, cards, **kwargs):
-        received.extend(cards)
-        assert kwargs["enrich"] is True
-        return []
-
-    monkeypatch.setattr(pursuit_questions, "schedule_questions", schedule)
-    response = authenticated(api).post(
-        f"/api/commercial/triage/{ids[1]}/autonomous-research",
-        json={"force": False, "complete_intelligence": True},
-        headers={"Origin": "https://testserver"},
-    )
-    assert response.status_code == 200, response.text
-    assert received[0]["id"] == str(ids[1])
 
 
 def test_optional_projection_does_not_churn_or_erase_saved_snapshot(saved_db):

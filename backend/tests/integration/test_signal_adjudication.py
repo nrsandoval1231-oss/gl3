@@ -1,8 +1,6 @@
-from datetime import UTC, date, datetime
-from importlib import import_module
+from datetime import date
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -19,7 +17,6 @@ from gridlens.persistence.models import (
     SignalDecision,
     Source,
 )
-from gridlens.security import token_for
 from gridlens.settings import settings
 
 
@@ -275,26 +272,3 @@ def test_backfill_uses_source_evidence_hash_not_material_digest(db):
         counts = adjudicate_current_signals(session, limit=20)
         assert counts["processed"] == 1
         assert counts["review"] == 1
-
-
-def test_adjudication_api_does_not_accept_caller_policy_version(db, monkeypatch):
-    api = import_module("gridlens.api.app")
-    monkeypatch.setattr(api, "SessionLocal", db)
-    calls = []
-
-    def backfill(_session, *, limit):
-        calls.append(limit)
-        return {"processed": 0, "show": 0, "review": 0, "hold": 0}
-
-    monkeypatch.setattr(api, "adjudicate_current_signals", backfill)
-    client = TestClient(api.app)
-    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    response = client.post(
-        "/api/signals/decisions/adjudicate?limit=1&policy_version=untrusted-repeat"
-    )
-    assert response.status_code == 200
-    assert calls == [1]
-    parameters = api.app.openapi()["paths"]["/api/signals/decisions/adjudicate"]["post"][
-        "parameters"
-    ]
-    assert {parameter["name"] for parameter in parameters} == {"limit"}
