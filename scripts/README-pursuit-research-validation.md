@@ -1,4 +1,6 @@
-# Bounded pursuit research validation tools
+# Bounded autonomous research validation tools
+
+These are internal isolated validation utilities. The [Autonomous Intelligence Canon](../docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes historical manually submitted research and evaluation workflows. Historical call notes remain protected evidence; this guide does not authorize their user-facing creation or public mutation routes.
 
 `pursuit_research_metrics.py` is read-only. It counts commercial and tier changes
 from consecutive immutable Pursuit evaluation versions. Two questions observing

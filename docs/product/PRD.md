@@ -1,15 +1,15 @@
-# GridLens — Clean-Sheet Product Requirements Document
+# GridLens — Product Requirements Document
 
-**Version:** 1.0  
-**Date:** September 24, 2026  
-**Product owner:** Nick Sandoval  
-**Status:** Initial specification for the new build  
+**Version:** 1.1 · autonomous amendment 2026-10-26
+**Date:** September 24, 2026
+**Product owner:** Nick Sandoval
+**Status:** Supporting requirements; subordinate to the owner-approved [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md)
 **Scope:** Texas, Oklahoma and New Mexico power-need discovery, daily ingestion, and evidence-based qualification
 **Numbered requirements:** 42
 
 ## Executive summary
 
-GridLens finds projects physically located in Texas, Oklahoma and New Mexico that may need temporary or supplemental power, investigates the requirement, and helps a commercial user pursue the opportunity.
+GridLens autonomously discovers projects physically located in Texas, Oklahoma and New Mexico, resolves their identity, investigates temporary or supplemental power needs, enriches verified business contacts, and publishes ranked commercial intelligence.
 
 The system collects broadly every day, maintains one evolving record per project, and organizes individual power needs into **Signals, Prospects, and Leads**. Data center construction and commissioning receive default priority. All industries remain eligible, including manufacturing, mining, oil and gas, EV charging, utilities, commercial construction, and remote infrastructure.
 
@@ -17,21 +17,21 @@ Users can work every tier. A Signal offers a reason to make a discovery call. A 
 
 The product's core loop is:
 
-**Discover → preserve evidence → match project → investigate power need → qualify → prioritize → act → update.**
+**Discover → resolve → research → enrich → analyze → score → publish → refresh.**
 
-This is a new implementation in a new repository and database. Existing GridLens code, schemas, pipelines, tests, and architecture are excluded. Decisions agreed in the current product discussion define this specification.
+This is an existing implementation. Preserve useful adapters, algorithms, immutable evidence, audit history and data. The [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes conflicting older workflow, presentation and engineering directions, including this document. The original pre-amendment requirements are retained in the [governance archive](../../.agent/archive/AUTONOMOUS-20261026/README.md).
 
 ## Vertical lifecycle intelligence
 
 The canonical vertical/asset lifecycle doctrine is [Vertical Lifecycle Intelligence Strategy](VERTICAL_LIFECYCLE_STRATEGY.md). GridLens optimizes for earliest actionable awareness of a future power requirement, not permit collection. Source events must be interpreted relative to asset lifecycle. Data centers prioritize pre-permit discovery and construction/commissioning monitoring. Upstream O&G uses drilling and subsequent milestones to estimate the future production/electrification window. Fixed O&G infrastructure retains project-formation → regulatory/permitting → construction → commissioning/startup lifecycle intelligence. Commercial tier remains separate from lifecycle state, and deterministic qualification gates remain authoritative.
 
-## Frozen application UI
+## Autonomous application experience
 
-The owner-approved October 20, 2026 visual direction is specified by [the UI canon](../design/UI_CANON.md) and [Pursuit Workspace contract](../design/PURSUIT_WORKSPACE.md). Pursuits is the execution-first workspace with horizontal navigation, compact Daily Briefing, prioritized queue, persistent contextual brief, and explicit next actions. This supersedes prior map/cinematic and October 18 Opportunities/Research/Signals/Operations presentation requirements, including only the navigation/layout portion of requirement 31. The three qualification tiers remain independently searchable and filterable as required below; qualification, evidence, workflow, and all other PRD requirements remain unchanged except the superseding October 22 regional amendment below. Fictional prototype records are never production data or acceptance evidence.
+The [UI canon](../design/UI_CANON.md) and [workspace contract](../design/PURSUIT_WORKSPACE.md) retain the seven-color G/L brand, compact horizontal navigation, dense table and detail composition. Primary user surfaces are Opportunities, automated Research, emerging Signals and unified search. Source administration and diagnostics are internal. No call logging, manual fact drafting, operator statuses, qualification controls, correction forms, notes or administrative pursuit logging belong in the user-facing application or its public mutation API. Evidence tiers remain independently searchable; backend attribution and immutable audit history survive retirement of manual workflows.
 
 ## October 22, 2026 regional operating mandate
 
-This owner directive supersedes every prior nationwide geographic eligibility or California acquisition priority in this PRD and subordinate documents. Historical decisions remain as dated history. This document remains the sole canonical PRD.
+This owner directive supersedes every prior nationwide geographic eligibility or California acquisition priority in this PRD and subordinate documents. Historical decisions remain as dated history. The territory and deterministic qualification constraints below remain in force under the Autonomous Intelligence Canon.
 
 Only physical projects in **TX → OK → NM**, in that priority order, may enter active commercial pursuits, customer opportunity metrics, qualification results or direct opportunity APIs. A Texas company building in Georgia is excluded; a California company building in New Mexico is eligible. Unknown physical location and conflicting project-location evidence require review; source geography, national mentions and headquarters addresses cannot resolve the physical site. National/multistate regulatory evidence and cross-border infrastructure directly connected to an eligible project may support it without creating an out-of-region pursuit. Preserve existing historical projects, immutable evidence versions, conflicts, audit records and source epochs.
 
@@ -39,7 +39,7 @@ The intelligence questions remain: who needs power, how much, when, why conventi
 
 Enforce geography in backend ingestion/admission, qualification and indexed opportunity queries, including saved projections, accounts, metrics, detail and exports. Disable out-of-region scheduling and direct refresh. National retrieval remains permitted upstream; out-of-region records remain evidence rather than active opportunities. Source health distinguishes intentional disablement, valid no-new-data, stale publication, degraded partial batches and failed processing. Future expansion uses a versioned territory configuration with unchanged qualification and source validation gates, and requires explicit owner direction.
 
-This assignment adds no geographic integrations, UI redesign or orchestration framework and authorizes no merge/deployment. Report dedicated OK/NM coverage gaps honestly. Real local official-source execution is distinct from production operation and launch acceptance.
+Preserve territory and existing infrastructure while implementing autonomous intelligence and the current experience. This document itself does not authorize deployment. Report dedicated OK/NM coverage gaps honestly. Real local official-source execution is distinct from production operation and launch acceptance.
 
 ## Product outcomes
 
@@ -70,7 +70,7 @@ Include official **flare-gas permits and flaring/venting exceptions** in oil-and
 
 Nick is the initial user. The first release supports an authenticated private workspace; public subscriptions and multi-customer administration are later product decisions.
 
-Nick opens GridLens and sees important overnight changes and ranked power needs. He can browse Signals, Prospects, or Leads, filter by location and activity, open evidence, identify the likely owner or contractor, and record what he learns on a call. That information updates the same opportunity and can change its tier or priority.
+Nick opens GridLens and sees important overnight changes, ranked power opportunities and verified business contacts where available. He can browse Signals, Prospects or Leads, search companies/projects/contacts/intelligence, filter by location and activity, and inspect the evidence, gaps, timing, buying chain and freshness. The pipeline updates intelligence and qualification automatically when accepted evidence changes; using the product requires no data entry.
 
 The short morning list is a convenience. All active records remain searchable and available in their tiers.
 
@@ -87,7 +87,7 @@ The short morning list is a convenience. All active records remain searchable an
 | Prospect | A power requirement is established and evidence suggests suitable supply may be insufficient when required. |
 | Lead | Evidence supports an unresolved power need with MW, start, and duration ranges. |
 | Priority | How urgently and usefully the user can pursue the opportunity. Independent of tier. |
-| Pursuit status | User workflow state: New, Investigating, Contacted, Qualified, Won, Lost, or Closed. Independent of tier. |
+| Commercial disposition | Evidence-derived actionability such as research or watch, separate from tier, numerical priority and evidence confidence. It is not a human-maintained workflow status. |
 
 **Illustration only:** A campus with an eventual 200 MW operating load might have a 2–4 MW construction need and a separate commissioning requirement. Campus capacity is never automatically treated as either requirement. Different needs on the same project can occupy different tiers.
 
@@ -95,11 +95,11 @@ The short morning list is a convenience. All active records remain searchable an
 
 ### Foundation and scope
 
-1. **Fresh implementation.** Create a new repository and new database. Author the implementation and tests from this specification. Do not import old GridLens application code, schemas, migrations, pipeline configuration, or architecture. Leave existing repositories untouched.
+1. **Preserve and improve the existing implementation.** Retain supported adapters, deterministic rules, database identity and evidence history. Remove obsolete manual product behavior through its dependencies without deleting historical records. Use additive, reversible schema changes only when necessary.
 
 2. **Regional, cross-industry scope.** Only physical projects in Texas (TX, highest priority), Oklahoma (OK, second) and New Mexico (NM, third) are eligible for active commercial opportunities. This applies to all current and future verticals and activities. National sources remain permitted upstream evidence with physical-project filtering; fixed out-of-region sources are intentionally disabled for acquisition and scheduling. Unknown/conflicting locations require review. Headquarters never determines project eligibility. Preserve all historical evidence. Future expansion requires an explicit versioned territory configuration change and source/qualification validation.
 
-3. **Private, usable first release.** Provide an authenticated web application and automated cloud execution that continue when Nick's computer is off. Keep read access, edits, source administration, and private notes protected by server-side authorization.
+3. **Private, usable first release.** Provide an authenticated web application and automated cloud execution that continue when Nick's computer is off. Protect all reads and internal administration with server-side authorization; autonomous jobs run independently of the user’s session.
 
 4. **Simple application structure.** Use one backend codebase with an API process and a worker process, a web frontend, PostgreSQL, and object storage for source artifacts where permitted. Implement collection and research jobs through a durable PostgreSQL job table and a managed scheduler. Add infrastructure only when a measured limitation requires it.
 
@@ -161,11 +161,11 @@ The short morning list is a convenience. All active records remain searchable an
 
 29. **Contacts and next action.** Surface sourced business contact information when available, including when and where it was found. Never fabricate an email, phone number, named buyer, or verified responsibility. Every visible opportunity provides a specific next question or action based on its missing facts and timing.
 
-30. **User feedback.** Allow notes, attributed factual corrections, source attachments/links, pursuit status, and follow-up dates. Store who supplied a fact and when it was confirmed. Recalculate from accepted corrections. User workflow status does not automatically promote evidence tier; confidential notes remain private.
+30. **Autonomous refresh and retained audit.** Automatically investigate missing facts and re-evaluate changed evidence through deterministic rules. Expose sources, freshness, conflicts and explicit unknowns. Retire user call logs, notes, fact drafts, corrections, status and manual qualification controls and their public mutation routes. Preserve prior attributed facts, decisions and audit records as backend evidence; their retention does not authorize new manual workflow.
 
 ### User experience
 
-31. **Three qualification tiers.** Keep Signals, Prospects, and Leads independently searchable and filterable, with search plus filters for geography, industry, power activity, timing, known MW, priority, and pursuit status. Retain unknown values as filterable values rather than treating them as zero. The navigation and visual layout are governed by the October 20 UI canon; this amendment does not remove or weaken the three-tier requirement.
+31. **Three qualification tiers.** Keep Signals, Prospects, and Leads independently searchable and filterable, with search plus filters for geography, industry, power activity, timing, known MW, priority, and evidence-derived commercial disposition. Retain unknown values as filterable values rather than treating them as zero. Navigation and visual layout follow the current UI canon and autonomous workspace contract; all three tiers remain searchable.
 
 32. **Morning changes.** Show a compact digest of newly discovered, promoted, materially changed, and closed opportunities, plus collection health. Repeated unchanged records must not masquerade as fresh discoveries. The digest links into the complete working lists.
 
@@ -211,7 +211,7 @@ These are implementation decisions for the initial build. Pin supported dependen
 
 | Component | Initial choice | Responsibility |
 |---|---|---|
-| Web UI | React + TypeScript | Lists, opportunity detail, notes, source health |
+| Web UI | React + TypeScript | Autonomous opportunities, research, Signals, unified search and evidence detail |
 | Backend | Python + FastAPI | Authenticated API and domain services |
 | Worker | Same Python package, separate process | Collection, extraction, matching, research, recalculation |
 | Database | PostgreSQL; SQLAlchemy + Alembic | Domain data, evidence metadata, history, durable jobs |
@@ -234,7 +234,7 @@ Choose the hosting provider during foundation setup based on cost, reliable sche
 | Evidence | Claim, value/unit, label, confidence basis, citation, effective interval | Supports or contradicts project/need fields |
 | Organization / Contact / Role | Name, sourced contact details, project-specific role | Linked to project and/or power need |
 | Assessment / Change | Inputs, rule version, outputs, previous state, reason | Versioned qualification and gap results |
-| Pursuit / Note | User status, action, follow-up, attributed feedback | Associated with a power need |
+| Retained Pursuit / Note | Historical workflow and attribution records; no new user data-entry surface | Preserve association with the original power need |
 | Job | Type, payload, lease, attempts, checkpoint, status | Durable execution and crash recovery |
 
 These are logical entities; use ordinary tables and small association tables. Supply inputs can be a simple child table or validated structure initially. Avoid a configurable ontology framework.
@@ -300,7 +300,7 @@ gl3/
 │   │   ├── api/
 │   │   │   ├── main.py               # API entry point
 │   │   │   ├── auth.py               # Authentication/authorization dependencies
-│   │   │   └── routes/               # opportunities, projects, notes, sources
+│   │   │   └── routes/               # opportunities, projects, search, evidence
 │   │   ├── domain/
 │   │   │   ├── schemas.py            # Shared validated domain contracts
 │   │   │   ├── qualification.py      # Signal/Prospect/Lead decisions
@@ -346,7 +346,7 @@ gl3/
 │   │   ├── features/
 │   │   │   ├── opportunities/        # Three tiers, filters, detail, next actions
 │   │   │   ├── morning/              # Important changes and daily digest
-│   │   │   ├── pursuits/             # Notes, statuses, follow-up
+│   │   │   ├── pursuits/             # Autonomous research and retained history
 │   │   │   └── sources/              # Health, freshness, coverage
 │   │   ├── components/               # Reusable UI primitives
 │   │   ├── api/                      # Generated API types and thin client
@@ -354,7 +354,7 @@ gl3/
 │   └── tests/                        # Critical browser journeys and accessibility
 │
 ├── scripts/
-│   ├── refresh.py                    # Enqueue a manual/daily refresh
+│   ├── refresh.py                    # Internal scheduled/daily refresh utility
 │   ├── check_sources.py              # Real source readiness checks
 │   ├── replay_observations.py        # Reprocess evidence without refetching
 │   └── export_review_sample.py       # Qualification review evidence
@@ -393,9 +393,9 @@ Raw source documents, runtime exports, logs, secrets, and production database fi
 | **B — Daily Signals** | Multiple source families, preserved evidence, basic matching, live Signal list, health screen | Real regional/cross-industry observations with national supporting evidence; replay creates no duplicate cards; parser and source failures are visible. Nick can start discovery calls here. |
 | **C — Prospects** | Power-need separation, missing-fact research, evidence labels, Prospect gate, contractor roles | Correct identity and activity on reviewed records; unsupported utility uncertainty cannot promote a record. |
 | **D — Leads** | MW/time scenarios, suitable supply assessment, Lead gate, history, demotion | An auditable real Lead when evidence permits; hypothetical tests establish calculations without masquerading as live findings. |
-| **E — Daily working release** | Morning changes, search/filter/export, notes, follow-up, recovery and alerts | Requirements 38–41 reviewed: source breadth, sample quality, seven daily cycles, commercial proof, and backup restore. |
+| **E — Daily working release** | Morning changes, unified search/filter/export, contacts, autonomous refresh, recovery and alerts | Requirements 38–41 reviewed: source breadth, sample quality, seven daily cycles, commercial proof, and backup restore. |
 
-Complete and deploy usable milestones sequentially. Source onboarding can continue alongside later milestones through the same adapter interface. Preserve daily collection while improving qualification.
+Implement usable milestones incrementally; deployment requires current candidate validation and applicable authorization. Source onboarding can continue alongside later milestones through the same adapter interface. Preserve daily collection while improving qualification.
 
 ## Critical acceptance scenarios
 
@@ -411,10 +411,10 @@ Complete and deploy usable milestones sequentially. Source onboarding can contin
 | A new air permit proposes onsite generation | Records proposed supply; does not automatically erase the gap | 24 |
 | A source changes its target date; another source disagrees | Both claims retained; uncertainty/conflict displayed | 17, 25, 26 |
 | Utility power or another solution is confirmed adequate for the activity | Affected need is closed/downgraded with its history preserved | 18, 26 |
-| Nick confirms dates and MW on a call | Attributed evidence updates the same need and recalculates its tier | 30 |
+| New current source evidence revises dates and MW | Immutable evidence is retained; autonomous reassessment updates the same need with reasons | 17, 26, 30 |
 | A valuable non-data-center opportunity appears | It remains visible and can outrank a distant data center need | 2, 27 |
 | Model API is unavailable | Ingestion persists evidence; research remains queued | 15, 36 |
-| An unauthenticated visitor accesses a detail API or export | Private opportunity records and notes are inaccessible | 3, 34 |
+| An unauthenticated visitor accesses a detail API or export | Private opportunity and evidence records are inaccessible | 3, 34 |
 
 ## Success measurement
 
@@ -427,13 +427,14 @@ Complete and deploy usable milestones sequentially. Source onboarding can contin
 | Evidence completeness of Leads | All required Lead fields supported; no invented values. |
 | Time from discovery to useful call or qualification | Measures practical commercial speed. |
 | Daily operating cost and research backlog | Keeps wide collection economically manageable. |
-| Calls made, needs confirmed, pursuits advanced | Tests whether GridLens helps actual business development. |
+| Verified actionable business contacts per eligible project | Measures useful contact coverage with source, freshness and buyer relevance; missing contacts remain explicit. |
+| Source-backed gap/timing coverage and commercially actionable discovery time | Measures the quality and speed of autonomous intelligence. |
 
 Source count, record count, and test count are supporting metrics. The release must satisfy both broad reliable ingestion and commercially useful output.
 
-## Decisions to resolve during implementation
+## Remaining runtime decisions
 
-The product direction is settled. Remaining implementation choices are the cloud provider, initial cost ceiling, alert destination, authentication provider, exact first source feeds, and visual design tokens. Record selections in `docs/decisions.md`. Validate source access during onboarding rather than making unverifiable commitments in the PRD.
+The product direction, existing stack and approved brand are settled. Provider availability/licensing, active source configuration, explicit cost ceilings, alerts, deployed cadence and operational acceptance require current environment evidence. Record selections in `docs/decisions.md`. Validate source access during onboarding rather than making unverifiable commitments in the PRD.
 
 The build can begin with local development and source validation before purchases or new external account permissions are needed. The source-readiness and operating-cost evidence should inform those choices.
 
@@ -453,14 +454,14 @@ These references informed product patterns. They are not dependencies, complete 
 ## October 4, 2026 amendment — bounded autonomous pursuit research
 
 Commercial RESEARCH may schedule at most two specific missing-fact questions per
-pursuit using existing Project/PowerNeed/evidence context. Research searches retained
+pursuit using existing Project/PowerNeed/evidence context. The bound applies to eligible scheduled work after freshness, retry and in-flight checks; deferred early categories must not starve later eligible missing facts. Research searches retained
 evidence first, then bounded public sources, admits findings through canonical
 evidence rules and invokes the existing deterministic commercial evaluator. It may
 produce a changed pursuit or an explicit unresolved outcome. Fact, inference,
 hypothesis, unknown, commercial status, evidence tier and project lifecycle remain
 separate. ACTION NOW never substitutes for Prospect/Lead qualification.
 
-Users must inspect prior context, the exact question, searched sources, accepted
+Research exposes prior context, the exact question, searched sources, accepted
 and rejected evidence, remaining unknowns, before/after status and next action.
 Request budgets, caching, freshness and at most one follow-up prevent unlimited
 research. Models remain advisory; research performs no external commercial outreach.

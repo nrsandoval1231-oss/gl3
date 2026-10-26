@@ -1,5 +1,8 @@
 # Autonomous pursuit research — implementation reconstruction
 
+> Historical implementation record. Its operator refresh, workflow contributions and manually submitted research instructions are superseded; use the autonomous architecture for current requirements. Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md).
+
+
 Inspection baseline: remote `main`, `6c8bdf3e3163adde078f8543d43c0256bc11eb82`,
 verified October 4, 2026. This document records the design before implementation;
 it is not a completion, deployment, or production-validation claim.

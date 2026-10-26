@@ -1,6 +1,6 @@
 # GridLens GL3
 
-GridLens is a clean-sheet, evidence-governed system for discovering nationwide power needs and qualifying commercial opportunities. Product scope and qualification rules are defined by [the PRD](docs/product/PRD.md); the owner-approved interaction design is [the UI canon](docs/design/UI_CANON.md).
+GridLens autonomously discovers, researches and ranks commercial power opportunities at physical projects in Texas, Oklahoma and New Mexico, with source-backed gaps, timing and business contacts. The owner-approved [Autonomous Intelligence Canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs the product; the [PRD](docs/product/PRD.md) supplies compatible evidence and qualification constraints, and the [UI canon](docs/design/UI_CANON.md) preserves the seven-color G/L brand and responsive table/detail composition.
 
 ## Current status
 
@@ -43,4 +43,4 @@ A successful local check does not prove production operation. Production remains
 
 ## Documentation authorities and history
 
-Use [docs/README.md](docs/README.md) as the topic map. The [PRD](docs/product/PRD.md) governs product and qualification; the [UI canon](docs/design/UI_CANON.md) governs presentation; [architecture overview](docs/architecture/overview.md), [source coverage](docs/sources/coverage.md), [operations status](docs/operations/README.md), and [delivery status](docs/delivery/milestones.md) summarize their respective implementation and evidence. Historical reports remain dated evidence and do not establish current deployment or acceptance.
+Use [docs/README.md](docs/README.md) as the topic map. The [Autonomous Intelligence Canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs product behavior, supported by compatible [PRD](docs/product/PRD.md) qualification rules; the [UI canon](docs/design/UI_CANON.md) governs presentation; [architecture overview](docs/architecture/overview.md), [source coverage](docs/sources/coverage.md), [operations status](docs/operations/README.md), and [delivery status](docs/delivery/milestones.md) summarize their respective implementation and evidence. Historical reports remain dated evidence and do not establish current deployment or acceptance.

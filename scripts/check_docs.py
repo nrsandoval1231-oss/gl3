@@ -11,6 +11,17 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 ENTRY_POINTS = (
     "README.md",
+    "AGENTS.md",
+    ".agent/OWNER_REQUEST.md",
+    ".agent/CURRENT_STATE.md",
+    ".agent/FINISH_CONTRACT.md",
+    ".agent/AGENT_RULES.md",
+    ".agent/WORK_GRAPH.md",
+    "docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md",
+    "docs/product/PRD.md",
+    "docs/design/UI_CANON.md",
+    "docs/design/PURSUIT_WORKSPACE.md",
+    "docs/architecture/autonomous-intelligence.md",
     "docs/README.md",
     "docs/architecture/README.md",
     "docs/architecture/overview.md",

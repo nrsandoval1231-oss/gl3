@@ -1,4 +1,7 @@
 # GRID LENS — MASTER BUILD DIRECTIVE
+
+> Supporting earlier directive. The autonomous canon wins where workflow, scope, harness or acceptance language conflicts; historical provider and release directions are not current authorization. Authority: [Autonomous Intelligence Canon](../docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md).
+
 ## Production Intelligence Pipeline: Firecrawl + Jev + GPT Sol
 
 **Repository:** `nrsandoval1231-oss/gl3`

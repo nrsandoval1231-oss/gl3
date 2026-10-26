@@ -1,3 +1,6 @@
+
+> Historical migration inventory. Manual fact, note, call and status workflows are now retired product behavior; historical test results apply only to that candidate. Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md).
+
 > Historical October 20 migration. The October 21 [UI canon](UI_CANON.md) supersedes its presentation decisions. Original dated content follows unchanged.
 
 # UI authority migration inventory — October 20, 2026
