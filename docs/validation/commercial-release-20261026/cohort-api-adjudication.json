@@ -1,0 +1,3934 @@
+{
+  "status": "COMMERCIAL_RELEASE_GATES_NOT_MET",
+  "measured_at": "2026-10-26T14:03:46.200494+00:00",
+  "dataset_kind": "fixed_actual_native_project_record_diagnostic",
+  "database": "gridlens_release_contacts_pipeline",
+  "input_manifest_sha256": "caf580c68b3ecb425e97ac44f0b53ae413e06f63baf6c5a2d00880ec9d9197ec",
+  "raw_api_artifact_sha256": "b086886de475517bce520ddf11abd0f8713232236e24fedb2f2c13fa295780f2",
+  "raw_company_job_artifact_sha256": "022670c9197edc809a1336fe82248afe276242ea5e3e0fe5fc82a8271fb1a447",
+  "raw_retained_job_artifact_sha256": "44a77172285808b33f3ffe3d4c1cdb65f758931a8937bd176c8b7d0231f2650f",
+  "contact_pipeline_source_commit": "db00c25f45875c0737914dc830310915000b273d",
+  "integrated_equivalent_contact_and_tdlr_code": "63a36b2",
+  "authentication_boundary": "Locally minted valid signed session cookie accepted by normal require_session. This is not a password-login test or production access proof.",
+  "selection": "Frozen before contact scoring; no record replaced after outcomes. Source-backed native records are not independently verified distinct eligible physical opportunities.",
+  "privacy": "Published company method values and representative names are hashed here; exact values remain in protected local API evidence and the cited official source. No workbook cell data exported.",
+  "denominators": {
+    "projects": 25,
+    "tdlr_data_center_records": 4,
+    "rrc_upstream_permit_records": 21,
+    "unique_current_company_ids": 25,
+    "unique_named_owner_representatives": 4,
+    "unique_company_methods": 4,
+    "person_bound_methods": 0
+  },
+  "observed_api": {
+    "need_detail_http_200": 25,
+    "project_buying_chain_http_200": 25,
+    "intelligence_batch_http_200": 2,
+    "projects_with_current_source_company_route": 25,
+    "projects_with_named_owner_representative": 4,
+    "projects_with_published_company_method": 4,
+    "projects_with_person_bound_method": 0,
+    "qualification_tiers": {
+      "Signal": 25
+    },
+    "dispositions": {
+      "WATCH": 21,
+      "ACTION NOW": 4
+    },
+    "unknown_required_mw": 25,
+    "unknown_power_need_timing": 25,
+    "unknown_supply_and_residual_gap": 25
+  },
+  "commercial_thresholds": {
+    "source_supported_company_attribution": {
+      "required": 20,
+      "observed": 25,
+      "status": "PASS_SOURCE_ATTRIBUTION_ONLY"
+    },
+    "relevant_named_published_person_method": {
+      "required": 15,
+      "observed": 0,
+      "status": "FAIL"
+    },
+    "direct_project_connected_person_method": {
+      "required": 10,
+      "observed": 0,
+      "status": "FAIL"
+    },
+    "genuine_temporary_power_actionability": {
+      "required": 10,
+      "observed": 0,
+      "unknown": 25,
+      "status": "FAIL"
+    },
+    "qualified_distinct_physical_projects": {
+      "required": 25,
+      "demonstrated_with_supported_power_floor": 0,
+      "unknown": 25,
+      "status": "NOT_ESTABLISHED"
+    },
+    "independent_identity_accuracy": "NOT_TESTED",
+    "independent_deliverability": "NOT_TESTED",
+    "unsupported_positive_claim_review": "PENDING_FINAL_INDEPENDENT_REVIEW"
+  },
+  "worker_outcomes": {
+    "retained_jobs_complete": 25,
+    "retained_worker_calls": 20,
+    "retained_elapsed_seconds": 38.54,
+    "company_discovery_job_statuses": {
+      "queued": 4,
+      "succeeded": 20,
+      "running": 1
+    },
+    "company_discovery_source_attempts_unresolved_timeout": 20,
+    "company_discovery_deferred_or_interrupted": 5,
+    "company_discovery_measurement_wall_cap_minutes": 15,
+    "successful_verified_url_checks": 0,
+    "paid_logical_calls_in_clone": 0,
+    "paid_call_settlements_in_clone": 0
+  },
+  "limits": [
+    "Authenticated local API calls are not production API or authentication proof.",
+    "The API company route reflects source-reported operator/owner attribution, not verified purchasing authority or independently adjudicated entity accuracy.",
+    "Twenty company-discovery outcomes were unresolved after bounded fetch timeout; five remained slot-deferred/interrupted. Missing is not a concluded absence of public contacts.",
+    "A source-published Owner Phone is a company route, never a named representative's personal method.",
+    "ACTION NOW is discovery-call priority; it supplies none of the strict commercial-actionability numerator.",
+    "Construction estimates and permit dates are not power-need dates. Unknown load/supply/gap remain null, not zero.",
+    "No paid-provider activation, production mutation, merge or deployment was performed by this measurement."
+  ],
+  "projects": [
+    {
+      "project_id": "b8a992fc-b136-4267-8b60-98431c6fa4bf",
+      "need_id": "cf5c53c9-3d9f-4acf-9443-6e8987a97b16",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919088",
+      "project_name": "Texas W-1 permit 0919088",
+      "source_location_assertion": "RRC county code 317, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "ae4dcc63-1af3-44eb-bc80-cbec7e5448b4",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "6f2a85d74b2b08192f24c618a6ce61b637c80c23c0c3c942e831e30fe037e633",
+          "observation_hash": "6f2a85d74b2b08192f24c618a6ce61b637c80c23c0c3c942e831e30fe037e633",
+          "observed_at": "2026-10-26T12:38:04.915935+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 58,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "65ccbb66-b67c-4698-8d80-a0b0502305b1",
+          "organization": "DE V OPERATING, LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "9ec2d0ee-8f26-46e0-877c-2599c626d894",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "7d278ea21e39e60fb78d4c8ed6068472a287aab6337362f0b7d5ef0528a5c246",
+              "observed_at": "2026-10-26T12:38:04.915935Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "b8a992fc-b136-4267-8b60-98431c6fa4bf",
+        "job_id": "691f0a9d-6aeb-498d-aee1-a9b2de73bd98",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "65ccbb66-b67c-4698-8d80-a0b0502305b1",
+          "job_id": "1c9916bc-6e6e-46ee-bf9c-ea07844c4290",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "d51110ed-37cf-471f-945c-42163b34b388",
+      "need_id": "367051e4-6c09-46a1-aded-e0412713da9e",
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027002808",
+      "project_name": "EG AI RICE CAMPUS DATA CENTER",
+      "source_location_assertion": "800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)",
+      "physical_site_accuracy_and_distinctness": "SOURCE_REPORTED_STREET_ADDRESS; NOT_INDEPENDENTLY_VERIFIED",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "33daa653-ca8d-4557-9796-74b9c0786a74",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+          "evidence_hash": "3c19074fffb37b5a13171b9e2808938bbe5cd5d3d601b585600bd6638905fc13",
+          "observation_hash": "3c19074fffb37b5a13171b9e2808938bbe5cd5d3d601b585600bd6638905fc13",
+          "observed_at": "2026-10-26T12:52:13.085074+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "ACTION NOW",
+      "disposition_interpretation": "Discovery-call priority only; power need and authority unconfirmed",
+      "heuristic_priority": {
+        "rank_score": 69,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 0,
+        "priority_label": "Data center project phase"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "589ea54f-6cb9-44cb-b47d-a8ae58885d45",
+          "organization": "EG AI CORP",
+          "source_role_category": "owner_developer",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "ad9e377e-8d84-4806-a55d-52624d55f537",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+              "content_hash": "10c8f01bed6994b94a38090827bcb9d76e60ad2d0ee030ef87e6767a72a59e7c",
+              "observed_at": "2026-10-26T13:34:12.379243Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [
+        {
+          "person_identity_id": "7de427fb-4a2f-492e-88a5-773c425adf3f",
+          "name_sha256": "fdfe5e55e2238de5afb17c8565a71fcbcd1119edb3b7f18d920de93fb1923dcd",
+          "company_identity_id": "49ec87a7-429f-4b62-ac3a-dd6db48d8eea",
+          "source_role": "OWNER-section registered project contact",
+          "person_project_relationship": "DIRECT",
+          "title": null,
+          "purchasing_authority": "UNKNOWN",
+          "method_count": 0
+        }
+      ],
+      "current_company_methods": [
+        {
+          "kind": "phone",
+          "value_sha256": "5f4bcb4575294b07efe4329f63505e46114b2a590f88bb61535140987161bb0b",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+          "published_field_label": "Owner phone",
+          "literal_value_in_source_quote": true,
+          "method_observed_at": "2026-10-26T13:34:12.379243Z",
+          "scope": "COMPANY",
+          "independent_deliverability_verification": "NOT_TESTED",
+          "purchasing_authority": "UNKNOWN",
+          "current_source_citations": [
+            {
+              "id": "ad9e377e-8d84-4806-a55d-52624d55f537",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+              "content_hash": "10c8f01bed6994b94a38090827bcb9d76e60ad2d0ee030ef87e6767a72a59e7c",
+              "observed_at": "2026-10-26T13:34:12.379243Z",
+              "supports": "public_contact"
+            }
+          ]
+        }
+      ],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "d51110ed-37cf-471f-945c-42163b34b388",
+        "job_id": "5c003e23-973e-4451-bd28-f84eb0e0b3b5",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "49ec87a7-429f-4b62-ac3a-dd6db48d8eea",
+          "job_id": "13d94860-00fb-49b5-881c-5253244b3fe6",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        },
+        {
+          "company_identity_id": "589ea54f-6cb9-44cb-b47d-a8ae58885d45",
+          "job_id": "ba32a3d7-39ad-4f0c-baee-250f59722134",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "73ef209c-771c-4a53-874f-4115dc5e2c4f",
+      "need_id": "23e93356-91e2-4278-bc86-e01f1b0e5db3",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919206",
+      "project_name": "Texas W-1 permit 0919206",
+      "source_location_assertion": "RRC county code 371, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "39b1638e-c546-4b7c-ab2f-14d5b1c3c3cf",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "4bfb11af8c4b60dc6a45c5eca5801126467c3263cc941c4ab8d011e149ef5f96",
+          "observation_hash": "4bfb11af8c4b60dc6a45c5eca5801126467c3263cc941c4ab8d011e149ef5f96",
+          "observed_at": "2026-10-26T12:41:09.699250+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 58,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "f9c16931-1180-403a-91eb-48dc4c67e4d6",
+          "organization": "HIGHMARK ENERGY OPERATING, LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "ad85b746-bb4e-4972-82aa-5de12b0d91a9",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "a4e349a510f6987f657b61f2b1ffdcfba6cffc292fcff2c3e0fc05068c777364",
+              "observed_at": "2026-10-26T12:41:09.699250Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "73ef209c-771c-4a53-874f-4115dc5e2c4f",
+        "job_id": "6b9dfaf6-902a-49b9-8752-2728591b6f88",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "f9c16931-1180-403a-91eb-48dc4c67e4d6",
+          "job_id": "23e698da-0a69-4eed-8c48-dc5465c340a7",
+          "status": "queued",
+          "attempts": 0,
+          "checkpoint_status": "queued",
+          "reason": "PUBLIC_ACQUISITION_SLOT_BUSY; deferred before request",
+          "checked_url_count": 0,
+          "failure_reasons": [],
+          "fetched_count": null,
+          "research_required": null
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "5796a14e-c301-4f3e-944e-9747ba613d15",
+      "need_id": "bd014849-c79f-442d-b861-81a23d438d5d",
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2026026954",
+      "project_name": "PECOS COUNTY DATA CENTER",
+      "source_location_assertion": "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+      "physical_site_accuracy_and_distinctness": "SOURCE_REPORTED_STREET_ADDRESS; NOT_INDEPENDENTLY_VERIFIED",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "dda4787a-c1d5-47c3-9e59-3df667bb11d0",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+          "evidence_hash": "040886932c8b66144a8131841b8a642fa2f6b5e9c41c8df12a5c78838c597e7b",
+          "observation_hash": "040886932c8b66144a8131841b8a642fa2f6b5e9c41c8df12a5c78838c597e7b",
+          "observed_at": "2026-10-26T12:52:09.433027+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "ACTION NOW",
+      "disposition_interpretation": "Discovery-call priority only; power need and authority unconfirmed",
+      "heuristic_priority": {
+        "rank_score": 61,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 0,
+        "priority_label": "Data center project phase"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "9d7eb4c6-f748-46ef-8245-a55847122664",
+          "organization": "AMAZON DATA SERVICES, INC",
+          "source_role_category": "owner_developer",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "76a3dd62-1d17-4d64-af86-83fdbdcc008e",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+              "content_hash": "053d200797da8a0517ef7a461b8a7265e58c46e8bc2e9bc6bf95750e216a0af9",
+              "observed_at": "2026-10-26T13:34:11.482566Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [
+        {
+          "person_identity_id": "b7e02f4e-0c94-4e02-b70c-969a47c6bd8a",
+          "name_sha256": "839f337e4f225e5fb3e018ba9fa49231f5c89f2c6f8464bc8b7bcd8542b9123a",
+          "company_identity_id": "741322cb-caef-4ee0-8688-55959332fe8a",
+          "source_role": "OWNER-section registered project contact",
+          "person_project_relationship": "DIRECT",
+          "title": null,
+          "purchasing_authority": "UNKNOWN",
+          "method_count": 0
+        }
+      ],
+      "current_company_methods": [
+        {
+          "kind": "phone",
+          "value_sha256": "67d8a9a6de95e702e1281d97aea058061a52bb8ffe8eb7be5883ac4ff8455cf0",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+          "published_field_label": "Owner phone",
+          "literal_value_in_source_quote": true,
+          "method_observed_at": "2026-10-26T13:34:11.482566Z",
+          "scope": "COMPANY",
+          "independent_deliverability_verification": "NOT_TESTED",
+          "purchasing_authority": "UNKNOWN",
+          "current_source_citations": [
+            {
+              "id": "76a3dd62-1d17-4d64-af86-83fdbdcc008e",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+              "content_hash": "053d200797da8a0517ef7a461b8a7265e58c46e8bc2e9bc6bf95750e216a0af9",
+              "observed_at": "2026-10-26T13:34:11.482566Z",
+              "supports": "public_contact"
+            }
+          ]
+        }
+      ],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "5796a14e-c301-4f3e-944e-9747ba613d15",
+        "job_id": "e736fb33-1a78-4809-b086-c0ab467ce933",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "741322cb-caef-4ee0-8688-55959332fe8a",
+          "job_id": "798e4f4c-657a-4642-b134-2615835b4c20",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        },
+        {
+          "company_identity_id": "9d7eb4c6-f748-46ef-8245-a55847122664",
+          "job_id": "e2709a43-c5de-4a03-bc94-b361f37a8db4",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "c4ce4c53-6492-4559-bef0-d169acb9809c",
+      "need_id": "16594e46-fd3d-448a-942a-285f6f3faf9c",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0909805",
+      "project_name": "Texas W-1 permit 0909805",
+      "source_location_assertion": "RRC county code 301, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "11c7a74f-1cbf-4421-804d-eb5a2feacaa2",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "f7f309b7821b7fe965f47a240a0e901e9e6fd50a3ba60120b30e685b0680462a",
+          "observation_hash": "f7f309b7821b7fe965f47a240a0e901e9e6fd50a3ba60120b30e685b0680462a",
+          "observed_at": "2026-10-26T12:28:39.540282+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 58,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "edee8997-37a7-486d-b775-5e1c6826ece4",
+          "organization": "ANADARKO E&P ONSHORE LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "89d59bda-0268-4513-8cfb-1cfa96b2aedd",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "0fd422086dbc20a9d853c1d68a39e281346085ce758e7d3cca19dc5a52930986",
+              "observed_at": "2026-10-26T12:28:39.540282Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "c4ce4c53-6492-4559-bef0-d169acb9809c",
+        "job_id": "471ce7d9-c1f8-4bed-8d13-a4394c4ec032",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "edee8997-37a7-486d-b775-5e1c6826ece4",
+          "job_id": "51964bb3-36ea-451c-93ab-9137ae4c988a",
+          "status": "queued",
+          "attempts": 0,
+          "checkpoint_status": "queued",
+          "reason": "PUBLIC_ACQUISITION_SLOT_BUSY; deferred before request",
+          "checked_url_count": 0,
+          "failure_reasons": [],
+          "fetched_count": null,
+          "research_required": null
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "99faf1be-7a8b-48d0-a5e3-28aba07fcaab",
+      "need_id": "84b4d1c1-aa9d-441e-a60e-984e8b7b3e6f",
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027000611",
+      "project_name": "Beacon Point Data Center Project",
+      "source_location_assertion": "4650 FM 1694, ROBSTOWN, TX 78380, Corpus Christi, TX 78380 (Nueces County)",
+      "physical_site_accuracy_and_distinctness": "SOURCE_REPORTED_STREET_ADDRESS; NOT_INDEPENDENTLY_VERIFIED",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "b648830a-ac7d-401b-aeeb-459d2a40ecf8",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611",
+          "evidence_hash": "598a609096d22b2def4206a96ed43389f9c892d2d7a3696280259a1a7ba214d5",
+          "observation_hash": "598a609096d22b2def4206a96ed43389f9c892d2d7a3696280259a1a7ba214d5",
+          "observed_at": "2026-10-26T12:52:11.888548+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "ACTION NOW",
+      "disposition_interpretation": "Discovery-call priority only; power need and authority unconfirmed",
+      "heuristic_priority": {
+        "rank_score": 61,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 0,
+        "priority_label": "Data center project phase"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "1e6916f1-4596-423c-a858-2ef2f10161da",
+          "organization": "Beacon Point DC LLC aka Lon Hill Infrastructure LLC",
+          "source_role_category": "owner_developer",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "d909a71f-1185-428f-a133-0d7ecf5eb13f",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611",
+              "content_hash": "fdc36f10d60200c02f049d12f47605f9f39c204029a2f0a50d3d9139e7895ff0",
+              "observed_at": "2026-10-26T13:34:11.904573Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [
+        {
+          "person_identity_id": "835ac310-4e85-40a9-bbc3-16b15857ac5d",
+          "name_sha256": "559f5da20c17fbb4db7cdc48b0f359829df39f891c0a20f125b4dd890c4fb6ad",
+          "company_identity_id": "a1187250-4c56-4a62-9d70-7823a9fdc105",
+          "source_role": "OWNER-section registered project contact",
+          "person_project_relationship": "DIRECT",
+          "title": null,
+          "purchasing_authority": "UNKNOWN",
+          "method_count": 0
+        }
+      ],
+      "current_company_methods": [
+        {
+          "kind": "phone",
+          "value_sha256": "3514026b281b1da255de42429adb75a03428f2f9695c534d52396082fc6a8a4c",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611",
+          "published_field_label": "Owner phone",
+          "literal_value_in_source_quote": true,
+          "method_observed_at": "2026-10-26T13:34:11.904573Z",
+          "scope": "COMPANY",
+          "independent_deliverability_verification": "NOT_TESTED",
+          "purchasing_authority": "UNKNOWN",
+          "current_source_citations": [
+            {
+              "id": "d909a71f-1185-428f-a133-0d7ecf5eb13f",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611",
+              "content_hash": "fdc36f10d60200c02f049d12f47605f9f39c204029a2f0a50d3d9139e7895ff0",
+              "observed_at": "2026-10-26T13:34:11.904573Z",
+              "supports": "public_contact"
+            }
+          ]
+        }
+      ],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "99faf1be-7a8b-48d0-a5e3-28aba07fcaab",
+        "job_id": "5fb8d0b8-3e0e-480a-ad1a-a4e075e2e806",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "1e6916f1-4596-423c-a858-2ef2f10161da",
+          "job_id": "f6b564ba-fddf-4e36-848c-77ba062dbff6",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        },
+        {
+          "company_identity_id": "a1187250-4c56-4a62-9d70-7823a9fdc105",
+          "job_id": "1e00b45c-1057-4208-b20e-a9851df3943a",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "0572fe0f-ccf1-48b7-8d8c-28968c9d4c02",
+      "need_id": "cd1a6703-6f1f-4374-a2ff-8618b240fa49",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918168",
+      "project_name": "Texas W-1 permit 0918168",
+      "source_location_assertion": "RRC county code 235, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "4dbf0701-7f8c-4ba1-acb3-068411055000",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "e7f7e4ba52d829b9bda69c97f3a237f209436c3737881c0e44260549ac4b69c8",
+          "observation_hash": "e7f7e4ba52d829b9bda69c97f3a237f209436c3737881c0e44260549ac4b69c8",
+          "observed_at": "2026-10-26T12:30:17.748502+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "b3ae8be3-52d3-4144-9978-333e4d3561f1",
+          "organization": "HIBERNIA RESOURCES IV, LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "fd428da6-ecdc-4d70-82e4-7e4245635309",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "834f7008c58375b34a18c0159b61f184fa9c0f6941bf1e0696fe87ea725ed182",
+              "observed_at": "2026-10-26T12:30:17.748502Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "0572fe0f-ccf1-48b7-8d8c-28968c9d4c02",
+        "job_id": "5c0aa59c-71ec-4117-a637-5f26a93086d2",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "b3ae8be3-52d3-4144-9978-333e4d3561f1",
+          "job_id": "2ce6435e-e25d-434e-b151-fec51014e055",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "d94e32ef-93fd-44ee-8f16-1347d8cd0dbf",
+      "need_id": "8160e7ee-2cf7-483f-9dc2-de29a2104fc2",
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027002672",
+      "project_name": "DAL130 - Data Center",
+      "source_location_assertion": "13572 N. Main Street, Westlake, TX 76262 (Tarrant County)",
+      "physical_site_accuracy_and_distinctness": "SOURCE_REPORTED_STREET_ADDRESS; NOT_INDEPENDENTLY_VERIFIED",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "60df52b8-35d9-4196-8e8e-5f8dd0f62b23",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+          "evidence_hash": "81883e1521ed12bb569743a29f387083cd7d65d025f569c6feeb73ecd786badf",
+          "observation_hash": "81883e1521ed12bb569743a29f387083cd7d65d025f569c6feeb73ecd786badf",
+          "observed_at": "2026-10-26T12:52:12.573722+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "ACTION NOW",
+      "disposition_interpretation": "Discovery-call priority only; power need and authority unconfirmed",
+      "heuristic_priority": {
+        "rank_score": 69,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 0,
+        "priority_label": "Data center project phase"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "9edc9d93-2409-447d-b6f8-cf1dd34cd6b4",
+          "organization": "Circle T Owner LP",
+          "source_role_category": "owner_developer",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "2c34bb7e-074b-4b74-91e1-69c512e01b88",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+              "content_hash": "58619897abf094da2a1315c7e7deb286ec32d62ea9da8208784998d7cf947543",
+              "observed_at": "2026-10-26T13:34:12.103552Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [
+        {
+          "person_identity_id": "8884ea5b-5340-48c6-8ef8-d80d171e3c38",
+          "name_sha256": "95c57238fe0ef030f97fef95eca70349929e5adc46923480a67d3342dd7244ac",
+          "company_identity_id": "5e973ff0-f0b4-42ab-81f0-8245552a6e23",
+          "source_role": "OWNER-section registered project contact",
+          "person_project_relationship": "DIRECT",
+          "title": null,
+          "purchasing_authority": "UNKNOWN",
+          "method_count": 0
+        }
+      ],
+      "current_company_methods": [
+        {
+          "kind": "phone",
+          "value_sha256": "ded8829e4725c7439ddc8ea575632c2b816de6058e055b0937ec0f0d41de4570",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+          "published_field_label": "Owner phone",
+          "literal_value_in_source_quote": true,
+          "method_observed_at": "2026-10-26T13:34:12.103552Z",
+          "scope": "COMPANY",
+          "independent_deliverability_verification": "NOT_TESTED",
+          "purchasing_authority": "UNKNOWN",
+          "current_source_citations": [
+            {
+              "id": "2c34bb7e-074b-4b74-91e1-69c512e01b88",
+              "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+              "content_hash": "58619897abf094da2a1315c7e7deb286ec32d62ea9da8208784998d7cf947543",
+              "observed_at": "2026-10-26T13:34:12.103552Z",
+              "supports": "public_contact"
+            }
+          ]
+        }
+      ],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "d94e32ef-93fd-44ee-8f16-1347d8cd0dbf",
+        "job_id": "f6b6e3c3-3409-45ad-90fa-8cb50ee21647",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "5e973ff0-f0b4-42ab-81f0-8245552a6e23",
+          "job_id": "83a7c896-2c1e-44c7-9bf9-fc05cbe1718a",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        },
+        {
+          "company_identity_id": "9edc9d93-2409-447d-b6f8-cf1dd34cd6b4",
+          "job_id": "376548ae-33fc-475a-961e-35d2d1f699bf",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "0cace1de-6940-419f-9f6b-681f79b53db4",
+      "need_id": "82bda680-8484-4371-ad1d-d29c5b991f6c",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918384",
+      "project_name": "Texas W-1 permit 0918384",
+      "source_location_assertion": "RRC county code 485, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "fee3270d-f98f-408c-8edc-a5eee024021c",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "63b9f6eeaf78a82bac6419d828965d0ba6bd0d7e09a38b74ba6ed4661116227a",
+          "observation_hash": "63b9f6eeaf78a82bac6419d828965d0ba6bd0d7e09a38b74ba6ed4661116227a",
+          "observed_at": "2026-10-26T12:31:41.341321+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "48f089c2-985d-4590-90c6-697f1cabc6e3",
+          "organization": "NEWPORT OPERATING, LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "5fa5df79-f8ab-4ef7-ba90-a5c543aeb283",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "c1ba5fa32a1a038b5b8a1f2e83a04259a1ec08db6728bb8bebd145fb4254ceb6",
+              "observed_at": "2026-10-26T12:31:41.341321Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "0cace1de-6940-419f-9f6b-681f79b53db4",
+        "job_id": "913b6897-1ac8-4495-bd4d-7c9e70580819",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "48f089c2-985d-4590-90c6-697f1cabc6e3",
+          "job_id": "666302fe-ae01-45c8-828e-1b2f64f7cd0a",
+          "status": "queued",
+          "attempts": 0,
+          "checkpoint_status": "queued",
+          "reason": "PUBLIC_ACQUISITION_SLOT_BUSY; deferred before request",
+          "checked_url_count": 0,
+          "failure_reasons": [],
+          "fetched_count": null,
+          "research_required": null
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "8aa5f54e-ca13-42f9-bf0e-6268d3c5eea6",
+      "need_id": "729cdb1d-c330-40ab-aeaa-47d2d550846c",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917768",
+      "project_name": "Texas W-1 permit 0917768",
+      "source_location_assertion": "RRC county code 419, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "e41beb87-5eb5-4363-b264-9cfd2eaa6cc1",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "921642c2bc2bc3e2855d5a257f55eeec80d8943ca50c5c00e5bcbe1c4e5b90ac",
+          "observation_hash": "921642c2bc2bc3e2855d5a257f55eeec80d8943ca50c5c00e5bcbe1c4e5b90ac",
+          "observed_at": "2026-10-26T12:29:42.308929+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "8ef73e28-3853-44d8-a709-aea91c7bdb0a",
+          "organization": "SILVER HILL ENERGY OPERATING LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "5df14be9-66f8-4a6f-91e5-16f633df6948",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "17915f748100d7d3e84348db7578ae0697fff75560203d40ad18b8ab72d50986",
+              "observed_at": "2026-10-26T12:29:42.308929Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "8aa5f54e-ca13-42f9-bf0e-6268d3c5eea6",
+        "job_id": "c478019b-beff-4127-b65b-285f4d970024",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "8ef73e28-3853-44d8-a709-aea91c7bdb0a",
+          "job_id": "f34dc77f-b376-48fb-ac88-50a970dcc081",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "75d8efeb-697b-47c4-8128-7ff34528c4b5",
+      "need_id": "fcccdf1d-a660-43a9-a287-7890f88840d1",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918542",
+      "project_name": "Texas W-1 permit 0918542",
+      "source_location_assertion": "RRC county code 127, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "8af9ad36-74ba-4ddd-9356-74e07f4905b2",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "4bb8756a66f60e7850d98bf0865265c389f048245ad07058c19ac98417c4ab1d",
+          "observation_hash": "4bb8756a66f60e7850d98bf0865265c389f048245ad07058c19ac98417c4ab1d",
+          "observed_at": "2026-10-26T12:33:31.072649+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "d8872d88-73e2-4a35-bd18-cb17ed5c7fb4",
+          "organization": "MURPHY EXPL. & PROD. CO. - USA",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "d966a77f-dfb4-4f36-b09f-a130dd322123",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "90b718e6311d43827ab149f28ce97ea1176da083bd75b55cc07fd4de58c87b25",
+              "observed_at": "2026-10-26T12:33:31.072649Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "75d8efeb-697b-47c4-8128-7ff34528c4b5",
+        "job_id": "d54bbbb6-0a60-46fb-8a61-1ada231db371",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "d8872d88-73e2-4a35-bd18-cb17ed5c7fb4",
+          "job_id": "92ee7773-cb03-4a70-be6a-ee9e624d5e95",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "e8bc4fa7-d197-4d26-8473-1810fe00f14b",
+      "need_id": "b0105035-dcd8-4155-8fb8-c8223ea72e67",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917670",
+      "project_name": "Texas W-1 permit 0917670",
+      "source_location_assertion": "RRC county code 329, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "deebbd37-1d15-4ce1-a024-a39104f0a910",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "4a74499a6ae9558b9cf9b656895de90fe955e87baf2c8b95766c25db28d3af81",
+          "observation_hash": "4a74499a6ae9558b9cf9b656895de90fe955e87baf2c8b95766c25db28d3af81",
+          "observed_at": "2026-10-26T12:29:35.199198+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "organization": "DIAMONDBACK E&P LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "fbdb7cde-20cf-4204-9817-efa1e15d8c6e",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "3d7ae41eb97b076be0193fffcd836d7008de870d222fdfe92049a68bfb180dbd",
+              "observed_at": "2026-10-26T12:29:35.199198Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "e8bc4fa7-d197-4d26-8473-1810fe00f14b",
+        "job_id": "37499721-8386-4d23-8f66-cb80ccee334d",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "job_id": "e055158f-4a9d-4662-8481-a6605f9a5bcd",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "091a69e2-96fe-4b2d-b589-97508151767b",
+      "need_id": "a89e2f58-f72f-4ffb-966f-7bad20115fc3",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918881",
+      "project_name": "Texas W-1 permit 0918881",
+      "source_location_assertion": "RRC county code 419, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "cdc539c8-3a35-4e86-a4e4-7c5fe4ae5a89",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "7f8ca001a2569385a150b9a12836d1752ace843555a04ecaaf21a31cc38f75c1",
+          "observation_hash": "7f8ca001a2569385a150b9a12836d1752ace843555a04ecaaf21a31cc38f75c1",
+          "observed_at": "2026-10-26T12:36:13.421556+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 58,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "d9db41a9-88e0-4bc1-a522-2f4dc8c24801",
+          "organization": "ROCKCLIFF ENERGY OPERATING III",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "dd06c8c4-ec9e-47ff-802b-22f45bebd84b",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "3bc939a4235b0cf3a8b0c57d286a7ee14dd8575f7df66adcdd7ed50482e245fc",
+              "observed_at": "2026-10-26T12:36:13.421556Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "091a69e2-96fe-4b2d-b589-97508151767b",
+        "job_id": "7d43ad25-2d26-4942-8b64-d6a45b31852d",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "d9db41a9-88e0-4bc1-a522-2f4dc8c24801",
+          "job_id": "60b14464-0200-4a8f-8b47-33d51c024dfe",
+          "status": "running",
+          "attempts": 1,
+          "checkpoint_status": "queued",
+          "reason": "PUBLIC_ACQUISITION_SLOT_BUSY; deferred before request",
+          "checked_url_count": 0,
+          "failure_reasons": [],
+          "fetched_count": null,
+          "research_required": null
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "27fea4ee-84f1-4aee-871e-a18368691db8",
+      "need_id": "70c1fae6-9741-4498-9c03-53c0b3b86063",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918265",
+      "project_name": "Texas W-1 permit 0918265",
+      "source_location_assertion": "RRC county code 135, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "1c65dad6-113f-4f3a-88a9-1e8e4fcb79c1",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "f63275aaf8e5cbba669daf2623b37c9f0c8a155201109142b3216cad8aa7ae59",
+          "observation_hash": "f63275aaf8e5cbba669daf2623b37c9f0c8a155201109142b3216cad8aa7ae59",
+          "observed_at": "2026-10-26T12:30:38.637946+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "organization": "DIAMONDBACK E&P LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "b5371197-5925-4976-9d9f-0a6b13c8d14f",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "b9d29e465f83a6814dfe2717ce7c0cd16ebc3a68a2f8d675e87a8336df02ed7a",
+              "observed_at": "2026-10-26T12:30:38.637946Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "27fea4ee-84f1-4aee-871e-a18368691db8",
+        "job_id": "3d496883-df20-4ba4-9030-6355a532793e",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "job_id": "e055158f-4a9d-4662-8481-a6605f9a5bcd",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "7789f456-e1dd-4bb1-96b4-ead89fd374ba",
+      "need_id": "0b654fc8-e56a-4b3e-99a2-a735495bdb07",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918684",
+      "project_name": "Texas W-1 permit 0918684",
+      "source_location_assertion": "RRC county code 301, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "759bbc81-6710-4978-a2fb-0c976866d611",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "91a4ef529860a85386ffa6f8a69e39824bf591b9bdc14bf1faac8cf7bf8ccff0",
+          "observation_hash": "91a4ef529860a85386ffa6f8a69e39824bf591b9bdc14bf1faac8cf7bf8ccff0",
+          "observed_at": "2026-10-26T12:34:47.551928+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "5e5c73ab-4cb4-467f-8f6f-101abe8ba594",
+          "organization": "PERMIAN RESOURCES OPERATING, LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "723c5d58-533c-4eab-9930-73ddda35b1ef",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "87830b07bbb223cf70610f560145b9599a556c2424899a24bf19f9f9868de28a",
+              "observed_at": "2026-10-26T12:34:47.551928Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "7789f456-e1dd-4bb1-96b4-ead89fd374ba",
+        "job_id": "8c1122cf-bcce-4cfc-b1e1-cccebc939fee",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "5e5c73ab-4cb4-467f-8f6f-101abe8ba594",
+          "job_id": "1b3785c8-db94-47fa-b9c3-138169de51bb",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "2b4d71c3-4c04-437e-8717-7477e40a6ba4",
+      "need_id": "0b1e24cd-fced-4da5-bd9a-47f042e6dbde",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918560",
+      "project_name": "Texas W-1 permit 0918560",
+      "source_location_assertion": "RRC county code 127, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "42ed5210-3d19-4713-9be5-cc33b1bc6d27",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "3d3dc44cf544b0ac468b84ab1cf0c1b0ce7c3214ec8e66875c3551e268eaff8f",
+          "observation_hash": "3d3dc44cf544b0ac468b84ab1cf0c1b0ce7c3214ec8e66875c3551e268eaff8f",
+          "observed_at": "2026-10-26T12:33:47.643777+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "0eb17229-ae47-4fef-822c-a18da91beaa1",
+          "organization": "INEOS USA OIL & GAS LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "9c8c40b8-4d1d-401b-a38e-9eee7e126259",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "4c397fb2c493668fe324474ecb5c8e40e15624aa5f38559ffd0a8e0e8bcd91e3",
+              "observed_at": "2026-10-26T12:33:47.643777Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "2b4d71c3-4c04-437e-8717-7477e40a6ba4",
+        "job_id": "407d4b6c-950a-4af1-896f-7a583a79de27",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "0eb17229-ae47-4fef-822c-a18da91beaa1",
+          "job_id": "add4e2f7-6ba0-4f48-8198-477f478170be",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "f188b62e-5df6-46e6-a521-f60bd21e536f",
+      "need_id": "32e8e02f-b658-4b86-906d-f952fbf39ea8",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0909522",
+      "project_name": "Texas W-1 permit 0909522",
+      "source_location_assertion": "RRC county code 301, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "902d22d3-204f-43be-9c0b-17502b5fee67",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "a4c33fc2edc7a144b079fcefbc66d68485bf2e0c1494fbb66f4d1d2d1b74ab23",
+          "observation_hash": "a4c33fc2edc7a144b079fcefbc66d68485bf2e0c1494fbb66f4d1d2d1b74ab23",
+          "observed_at": "2026-10-26T12:28:39.301823+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "a213df67-cb9c-4240-8ef4-3cc5538741dc",
+          "organization": "ADMIRAL PERMIAN OPERATING LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "60e0f10c-b9d9-456e-a6a1-ce778d867380",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "65bc2a0de7927b546a94a80df7a0c3ea1c0e2f42339acbdc55e85865a1e35031",
+              "observed_at": "2026-10-26T12:28:39.301823Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "f188b62e-5df6-46e6-a521-f60bd21e536f",
+        "job_id": "e359263f-f524-474d-9fde-486f058bc22b",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "a213df67-cb9c-4240-8ef4-3cc5538741dc",
+          "job_id": "0410d5b6-f86e-4b8b-a12c-dc0326e1b1dc",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "d5aaeaf1-fccd-4677-8022-035a49e494a6",
+      "need_id": "bc9ab1e4-e1a6-43df-b1b3-398bb7924afa",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919327",
+      "project_name": "Texas W-1 permit 0919327",
+      "source_location_assertion": "RRC county code 389, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "7baed45d-2699-4db8-a005-b2c0e321937b",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "6234d35463720e44ae8159d78cc601f766bb8db33d8da7b68b16ad491f2af4b1",
+          "observation_hash": "6234d35463720e44ae8159d78cc601f766bb8db33d8da7b68b16ad491f2af4b1",
+          "observed_at": "2026-10-26T12:42:01.287802+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 58,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "5fdede29-bc57-492e-80cd-98573de866ff",
+          "organization": "BLUE ARROW OPERATING, LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "e763b0d1-a996-48d4-8003-c185378180f6",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "e078e2706a842d711709660194b1af87ceb016ac72f62f969b2a4fa4bedee85b",
+              "observed_at": "2026-10-26T12:42:01.287802Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "d5aaeaf1-fccd-4677-8022-035a49e494a6",
+        "job_id": "2eb26533-4e8b-4eae-865f-5021ecb11521",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "5fdede29-bc57-492e-80cd-98573de866ff",
+          "job_id": "dc87e201-c693-4ca8-a05c-1dd3861f9626",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "b19efaea-1633-4ccc-92cf-c4618349cb76",
+      "need_id": "d8236b74-2c6b-4d9e-b5c2-7e343ab5ad10",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918882",
+      "project_name": "Texas W-1 permit 0918882",
+      "source_location_assertion": "RRC county code 405, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "5dc9820b-b9c8-432e-a67c-00e068c21725",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "27456d61b98518db4e28a4a9eb1678f57674f0bbad4839b2f7c8d134bc7b349a",
+          "observation_hash": "27456d61b98518db4e28a4a9eb1678f57674f0bbad4839b2f7c8d134bc7b349a",
+          "observed_at": "2026-10-26T12:36:13.747180+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 58,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "d9db41a9-88e0-4bc1-a522-2f4dc8c24801",
+          "organization": "ROCKCLIFF ENERGY OPERATING III",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "22969eb5-1378-4f2d-b7a6-b10cd74f4fe8",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "4096449a6461f9ad22d01e2d9cc211170f2a4f1a4f5d71858470ec593c015478",
+              "observed_at": "2026-10-26T12:36:13.747180Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "b19efaea-1633-4ccc-92cf-c4618349cb76",
+        "job_id": "cdc32366-5cf3-4eb4-a69a-17785e11d227",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "d9db41a9-88e0-4bc1-a522-2f4dc8c24801",
+          "job_id": "60b14464-0200-4a8f-8b47-33d51c024dfe",
+          "status": "running",
+          "attempts": 1,
+          "checkpoint_status": "queued",
+          "reason": "PUBLIC_ACQUISITION_SLOT_BUSY; deferred before request",
+          "checked_url_count": 0,
+          "failure_reasons": [],
+          "fetched_count": null,
+          "research_required": null
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "22540dc9-9e76-4a5c-91b1-527b1ed300e0",
+      "need_id": "8d920395-de61-45e2-9f49-e058ed761ea5",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0915570",
+      "project_name": "Texas W-1 permit 0915570",
+      "source_location_assertion": "RRC county code 329, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "6c70801c-15c0-4ba1-8eda-7c08e1bd1634",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "e8f1ff5a18d0101125f4301e6c763e910c51371fd1b95df54fcc97393b069a9e",
+          "observation_hash": "e8f1ff5a18d0101125f4301e6c763e910c51371fd1b95df54fcc97393b069a9e",
+          "observed_at": "2026-10-26T12:28:59.300015+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "e75e32ec-c079-4d70-a2ea-f2aa1aa088d0",
+          "organization": "COG OPERATING LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "35e95826-f5bd-44e2-9ea9-abd663604c93",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "752fd596d23f0b3e6a71de784aa8fd387ed20eb90aa9c8860a22f19c561903a2",
+              "observed_at": "2026-10-26T12:28:59.300015Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "22540dc9-9e76-4a5c-91b1-527b1ed300e0",
+        "job_id": "d7e26c5f-3131-4b94-8174-64828d26a454",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "e75e32ec-c079-4d70-a2ea-f2aa1aa088d0",
+          "job_id": "7725e317-1b55-49e5-8a4d-0159946b51f1",
+          "status": "queued",
+          "attempts": 0,
+          "checkpoint_status": "queued",
+          "reason": "PUBLIC_ACQUISITION_SLOT_BUSY; deferred before request",
+          "checked_url_count": 0,
+          "failure_reasons": [],
+          "fetched_count": null,
+          "research_required": null
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "5ddb20b5-e5f1-4c00-970f-8aec2b34b279",
+      "need_id": "da8dd406-81f3-4abd-84a0-c2797be71e5b",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918069",
+      "project_name": "Texas W-1 permit 0918069",
+      "source_location_assertion": "RRC county code 317, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "cb709e08-aade-48d2-bde0-6aa8eca62646",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "58b1132ffa8d97713e07588363f56d0ec86cfbaee9f11d8f12ee410ea3e6d60b",
+          "observation_hash": "58b1132ffa8d97713e07588363f56d0ec86cfbaee9f11d8f12ee410ea3e6d60b",
+          "observed_at": "2026-10-26T12:30:02.918046+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "a0627e40-3368-4749-9ade-41b3ff8a006d",
+          "organization": "PIONEER NATURAL RES. USA, INC.",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "145acb82-b0a2-40a2-b678-81db08966f3e",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "8744852be89542ccf65e2928233569e6ae4eb6bb39aa333fde39c59f4aa5871d",
+              "observed_at": "2026-10-26T12:30:02.918046Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "5ddb20b5-e5f1-4c00-970f-8aec2b34b279",
+        "job_id": "03b0e1da-4990-4970-95ba-de43218dad97",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "a0627e40-3368-4749-9ade-41b3ff8a006d",
+          "job_id": "5ac97d45-47f4-4988-aec0-2e0d7094586a",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "c8956043-159e-4c2d-8995-baed952c8170",
+      "need_id": "2f0a8d9c-198c-436e-9f4f-797548ffcfed",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917656",
+      "project_name": "Texas W-1 permit 0917656",
+      "source_location_assertion": "RRC county code 329, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "72883efb-6cc2-42c2-bc8b-479df66b31d0",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "eb3c3a4d93ae243d3c7c9cc8eaa32abce9202df7e57d99dcb0185c6d1472a630",
+          "observation_hash": "eb3c3a4d93ae243d3c7c9cc8eaa32abce9202df7e57d99dcb0185c6d1472a630",
+          "observed_at": "2026-10-26T12:29:34.244922+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "organization": "DIAMONDBACK E&P LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "d374dbdf-fb06-4ae6-8b1d-250dd0c165dc",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "a11aefd4da7d9446884d3bf969fa12b38a7b360f3eeb127b3c45745b383059bc",
+              "observed_at": "2026-10-26T12:29:34.244922Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "c8956043-159e-4c2d-8995-baed952c8170",
+        "job_id": "31e479f6-8b78-4be8-bfc4-519693c155d6",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "job_id": "e055158f-4a9d-4662-8481-a6605f9a5bcd",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "c0b23ecf-7e2b-4f33-a457-57d764ee1e9d",
+      "need_id": "b1b9d674-bee7-4ffa-954d-a8b2c35fab24",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919153",
+      "project_name": "Texas W-1 permit 0919153",
+      "source_location_assertion": "RRC county code 461, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "2edecc3f-b464-467c-b673-b587069d91d9",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "09cdd9b40aa53c10961e7f346c4e3baa8b3fddd9bdc36b98865e20372d85bb4a",
+          "observation_hash": "09cdd9b40aa53c10961e7f346c4e3baa8b3fddd9bdc36b98865e20372d85bb4a",
+          "observed_at": "2026-10-26T12:40:50.815134+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 58,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "297557ba-5260-4609-b9bc-c190059e16e3",
+          "organization": "MEWBOURNE OIL COMPANY",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "d7eb13ec-0a5c-4ec2-8ea6-43162821436e",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "30ee48d0f4cdfd2fac8fc09587881d620a8bae79b57eecaf73d7f00ae0cf1132",
+              "observed_at": "2026-10-26T12:40:50.815134Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "c0b23ecf-7e2b-4f33-a457-57d764ee1e9d",
+        "job_id": "f2d1dc88-ab9e-4fa7-a49e-33fb3664074d",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "297557ba-5260-4609-b9bc-c190059e16e3",
+          "job_id": "b3a3742f-02a0-4a21-8eb0-60a084496a72",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "3d03a65e-5607-4fa7-9eef-854d2c671ce2",
+      "need_id": "431d0388-db06-4b6e-be96-58460b5d3bdd",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919092",
+      "project_name": "Texas W-1 permit 0919092",
+      "source_location_assertion": "RRC county code 317, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "b59b73a2-36fa-4b40-a189-cef7c52518aa",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "1eeed91b8d1aed875adb0b046b57a405e58bd098c3bca4ff39b9a23e8c298f1d",
+          "observation_hash": "1eeed91b8d1aed875adb0b046b57a405e58bd098c3bca4ff39b9a23e8c298f1d",
+          "observed_at": "2026-10-26T12:38:07.629349+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 58,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "65ccbb66-b67c-4698-8d80-a0b0502305b1",
+          "organization": "DE V OPERATING, LLC",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "22febd8c-a14c-4a3d-8717-5f596884d52d",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "ce0863449ce0724b67976c368051f5718ce7e321534ed6ef7ce9d1805aa99e1a",
+              "observed_at": "2026-10-26T12:38:07.629349Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "3d03a65e-5607-4fa7-9eef-854d2c671ce2",
+        "job_id": "ce1548e7-6622-41cc-b872-b25f596bd8ec",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "65ccbb66-b67c-4698-8d80-a0b0502305b1",
+          "job_id": "1c9916bc-6e6e-46ee-bf9c-ea07844c4290",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    },
+    {
+      "project_id": "e6bb9662-31d0-48f1-b33d-9ca8e0a7397e",
+      "need_id": "bc98bfe2-897e-4ab7-b55a-698af6ed4c6b",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918254",
+      "project_name": "Texas W-1 permit 0918254",
+      "source_location_assertion": "RRC county code 329, Texas",
+      "physical_site_accuracy_and_distinctness": "NOT_INDEPENDENTLY_VERIFIED; county-only permit location",
+      "frozen_source_evidence": [
+        {
+          "evidence_id": "efcf7974-860d-4402-9f4c-a5355dd2f904",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "evidence_hash": "163d478ab422fdf6ec0b0d73ec8d0246cb1e33b8aaeda70352533e954c8a6ed3",
+          "observation_hash": "163d478ab422fdf6ec0b0d73ec8d0246cb1e33b8aaeda70352533e954c8a6ed3",
+          "observed_at": "2026-10-26T12:30:35.764030+00:00"
+        }
+      ],
+      "http": {
+        "need_detail": 200,
+        "project_buying_chain": 200,
+        "intelligence_batch": 200
+      },
+      "qualification_tier": "Signal",
+      "commercial_disposition": "WATCH",
+      "disposition_interpretation": "Watch for supported project/power evidence",
+      "heuristic_priority": {
+        "rank_score": 50,
+        "rank_version": "ranking-v2-regional-geography",
+        "priority_segment": 7,
+        "priority_label": "Oil and gas activity"
+      },
+      "priority_is_evidence_confidence_or_qualification": false,
+      "intelligence_fields": {
+        "required_mw": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_scale": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "facility_demand": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "start": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "duration": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "supply": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "gap": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "energization": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "procurement": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        },
+        "utility_obstacle": {
+          "value": null,
+          "status": "Research in progress",
+          "basis": "No supported value yet. Targeted research is available."
+        }
+      },
+      "power_gap": null,
+      "power_schedule": null,
+      "current_company_routes": [
+        {
+          "company_identity_id": "d748a7e0-0acb-4c16-b29a-316fc66db7aa",
+          "organization": "CHEVRON U. S. A. INC.",
+          "source_role_category": "asset_operator",
+          "relationship": "DIRECT",
+          "organization_literal_in_source_quote": true,
+          "source_citations": [
+            {
+              "id": "f587e0d3-05a0-4dfd-a933-f7fe6d095b15",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "content_hash": "95978f33e8ce488918fbf03c4f0e2a7116663c21805a3db06679efaf5b9db200",
+              "observed_at": "2026-10-26T12:30:35.764030Z",
+              "supports": "project_organization"
+            }
+          ],
+          "independently_verified_identity_accuracy": "NOT_TESTED"
+        }
+      ],
+      "current_named_representatives": [],
+      "current_company_methods": [],
+      "current_person_methods": [],
+      "current_project_support_check": "Nonstale direct projected company with project_organization citation; internal current_support flag is not exported by the public response schema.",
+      "native_retained_job": {
+        "project_id": "e6bb9662-31d0-48f1-b33d-9ca8e0a7397e",
+        "job_id": "42aa5a50-1f71-455e-923e-97d328046453",
+        "status": "succeeded",
+        "attempts": 1,
+        "checkpoint_status": "complete",
+        "reason": null
+      },
+      "native_company_discovery_jobs": [
+        {
+          "company_identity_id": "d748a7e0-0acb-4c16-b29a-316fc66db7aa",
+          "job_id": "48011edb-1df3-4933-8557-ef48955f844b",
+          "status": "succeeded",
+          "attempts": 1,
+          "checkpoint_status": "unresolved",
+          "reason": null,
+          "checked_url_count": 0,
+          "failure_reasons": [
+            "LegacyCallBlocked",
+            "TimeoutError"
+          ],
+          "fetched_count": 0,
+          "research_required": true
+        }
+      ],
+      "strict_source_supported_300kw_temporary_need": false,
+      "strict_source_supported_current_temporary_timing": false,
+      "strict_commercial_actionability": false,
+      "strict_direct_project_person_method": false,
+      "unknowns": [
+        "temporary/rental-power demand",
+        "power-need MW and 300 kW floor",
+        "need date/duration",
+        "suitable committed supply and residual gap",
+        "purchasing authority",
+        "independent mailbox/phone verification"
+      ]
+    }
+  ]
+}
