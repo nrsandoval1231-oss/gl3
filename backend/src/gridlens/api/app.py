@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import logging
 from collections import defaultdict
 from csv import DictWriter
 from datetime import UTC, date, datetime, timedelta
@@ -4946,6 +4947,53 @@ def _commercial_triage_page(
         raise HTTPException(
             413, "Commercial research history exceeds the triage overview row budget"
         )
+    return _commercial_current_triage_page(
+        session,
+        limit,
+        offset,
+        saved_selection=saved_selection,
+        selection_metadata=selection_metadata,
+        include_saved_history=True,
+    )
+
+
+def _exclude_commercial_planner_group(session, identity, need_ids, count, cap, resource):
+    """Retain an observable whole-group exclusion without admitting partial facts."""
+    detail = _commercial_bound_error(identity, count, cap, resource).detail
+    session.info.setdefault("commercial_planner_exclusions", {})[identity] = {
+        **detail,
+        "need_ids": list(need_ids),
+    }
+    logging.getLogger("gridlens.intelligence.autonomous_research").warning(
+        "Autonomous research group excluded: group=%s resource=%s count=%s max=%s",
+        detail["group_id"],
+        resource,
+        count,
+        cap,
+    )
+
+
+def _commercial_current_triage_page(
+    session,
+    limit: int,
+    offset: int = 0,
+    *,
+    saved_selection: bool = False,
+    selection_metadata: dict | None = None,
+    include_saved_history: bool = False,
+    isolate_resource_bounds: bool = False,
+    tier: str | None = "Signal",
+    include_below_floor: bool = False,
+    requested_need_ids: set[UUID] | None = None,
+) -> tuple[list[dict], int]:
+    """Project current cards with evidence bounds, independently of old receipts.
+
+    Machine callers consume no notes, research history or saved snapshots. Only
+    HTTP overviews attach those records, so their history preflight is separate
+    from the bounds on current group members, source evidence and output bytes.
+    """
+    if not 1 <= limit <= 50 or offset < 0:
+        raise ValueError("Commercial card selection requires limit 1..50 and offset >= 0")
     if saved_selection and settings.saved_browse_enabled:
         from gridlens.intelligence.saved_browse import commercial_selection
 
@@ -4957,15 +5005,30 @@ def _commercial_triage_page(
             selection_metadata=selection_metadata,
         )
     else:
-        summaries = opportunity_projection(session, tier="Signal", summary_only=True)
+        summaries = opportunity_projection(
+            session, tier=tier, summary_only=True, include_below_floor=include_below_floor
+        )
         all_keyed_groups = grouped_need_groups(summaries)
+        if requested_need_ids is not None:
+            requested = {str(need_id) for need_id in requested_need_ids}
+            all_keyed_groups = [
+                (identity, group)
+                for identity, group in all_keyed_groups
+                if requested.intersection(group)
+            ]
         selected_keyed_groups = all_keyed_groups[offset : offset + limit]
         grouped_total = len(all_keyed_groups)
         project_ids_by_need = {
             UUID(str(item["id"])): UUID(str(item["project_id"])) for item in summaries
         }
+    bounded_keyed_groups = []
     for identity, group in selected_keyed_groups:
         if len(group) > 50:
+            if isolate_resource_bounds:
+                _exclude_commercial_planner_group(
+                    session, identity, group, len(group), 50, "group_members"
+                )
+                continue
             raise HTTPException(
                 413,
                 {
@@ -4978,6 +5041,8 @@ def _commercial_triage_page(
                     ),
                 },
             )
+        bounded_keyed_groups.append((identity, group))
+    selected_keyed_groups = bounded_keyed_groups
     selected_groups = [need_ids for _identity, need_ids in selected_keyed_groups]
     selected_ids = {UUID(need_id) for group in selected_groups for need_id in group}
 
@@ -5013,76 +5078,94 @@ def _commercial_triage_page(
             .group_by(BuyingChainEvidence.project_id)
         ).all()
     )
-    workspace_ids_by_need = {
-        UUID(need_id): f"commercial-need:{need_id}"
-        for group in selected_groups
-        for need_id in group
-    }
-    selected_workspace_ids = set(workspace_ids_by_need.values())
-    workspace_sizes = dict(
-        session.execute(
-            select(Pursuit.identity_key, func.octet_length(cast(Pursuit.snapshot, Text))).where(
-                Pursuit.identity_key.in_(selected_workspace_ids)
-            )
-        ).all()
-    )
-    note_counts_by_workspace = dict(
-        session.execute(
-            select(Pursuit.identity_key, func.count(PursuitCallNote.id))
-            .join(Pursuit, Pursuit.id == PursuitCallNote.pursuit_id)
-            .where(Pursuit.identity_key.in_(selected_workspace_ids))
-            .group_by(Pursuit.identity_key)
-        ).all()
-    )
-
+    workspace_sizes = {}
+    note_counts_by_workspace = {}
+    workspace_ids_by_need = {}
+    if include_saved_history:
+        workspace_ids_by_need = {
+            UUID(need_id): f"commercial-need:{need_id}"
+            for group in selected_groups
+            for need_id in group
+        }
+        selected_workspace_ids = set(workspace_ids_by_need.values())
+        workspace_sizes = dict(
+            session.execute(
+                select(Pursuit.identity_key, func.octet_length(cast(Pursuit.snapshot, Text))).where(
+                    Pursuit.identity_key.in_(selected_workspace_ids)
+                )
+            ).all()
+        )
+        note_counts_by_workspace = dict(
+            session.execute(
+                select(Pursuit.identity_key, func.count(PursuitCallNote.id))
+                .join(Pursuit, Pursuit.id == PursuitCallNote.pursuit_id)
+                .where(Pursuit.identity_key.in_(selected_workspace_ids))
+                .group_by(Pursuit.identity_key)
+            ).all()
+        )
+    bounded_keyed_groups = []
     for identity, group in selected_keyed_groups:
         group_need_ids = {UUID(need_id) for need_id in group}
-        evidence_rows = sum(evidence_counts_by_need.get(need_id, 0) for need_id in group_need_ids)
-        if evidence_rows > _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS:
-            raise _commercial_bound_error(
-                identity, evidence_rows, _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS, "evidence_rows"
-            )
         project_ids_for_group = {project_ids_by_need[need_id] for need_id in group_need_ids}
-        lifecycle_rows = sum(
-            lifecycle_counts_by_project.get(project_id, 0) for project_id in project_ids_for_group
-        )
-        if lifecycle_rows > _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS:
-            raise _commercial_bound_error(
-                identity,
-                lifecycle_rows,
-                _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS,
+        resources = (
+            (
+                "evidence_rows",
+                sum(evidence_counts_by_need.get(need_id, 0) for need_id in group_need_ids),
+                _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS,
+            ),
+            (
                 "lifecycle_rows",
-            )
-        relationship_rows = sum(
-            relationship_counts_by_project.get(project_id, 0)
-            for project_id in project_ids_for_group
-        )
-        if relationship_rows > _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS:
-            raise _commercial_bound_error(
-                identity,
-                relationship_rows,
-                _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS,
+                sum(
+                    lifecycle_counts_by_project.get(project_id, 0)
+                    for project_id in project_ids_for_group
+                ),
+                _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS,
+            ),
+            (
                 "relationship_rows",
-            )
-        group_workspace_ids = [workspace_ids_by_need[need_id] for need_id in group_need_ids]
-        for workspace_id in group_workspace_ids:
-            snapshot_size = workspace_sizes.get(workspace_id)
-            if snapshot_size and snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
-                raise _commercial_bound_error(
-                    identity,
-                    snapshot_size,
-                    _MAX_SAVED_SNAPSHOT_BYTES,
-                    "saved_snapshot_bytes",
-                )
-        note_count = sum(
-            note_counts_by_workspace.get(workspace_id, 0) for workspace_id in group_workspace_ids
+                sum(
+                    relationship_counts_by_project.get(project_id, 0)
+                    for project_id in project_ids_for_group
+                ),
+                _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS,
+            ),
         )
-        if note_count > _MAX_COMMERCIAL_CARD_NOTES:
-            raise _commercial_bound_error(identity, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes")
+        exceeded = next(
+            ((resource, count, cap) for resource, count, cap in resources if count > cap), None
+        )
+        if exceeded:
+            resource, count, cap = exceeded
+            if isolate_resource_bounds:
+                _exclude_commercial_planner_group(session, identity, group, count, cap, resource)
+                continue
+            raise _commercial_bound_error(identity, count, cap, resource)
+        bounded_keyed_groups.append((identity, group))
+        if include_saved_history:
+            group_workspace_ids = [workspace_ids_by_need[need_id] for need_id in group_need_ids]
+            for workspace_id in group_workspace_ids:
+                snapshot_size = workspace_sizes.get(workspace_id)
+                if snapshot_size and snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
+                    raise _commercial_bound_error(
+                        identity,
+                        snapshot_size,
+                        _MAX_SAVED_SNAPSHOT_BYTES,
+                        "saved_snapshot_bytes",
+                    )
+            note_count = sum(
+                note_counts_by_workspace.get(workspace_id, 0)
+                for workspace_id in group_workspace_ids
+            )
+            if note_count > _MAX_COMMERCIAL_CARD_NOTES:
+                raise _commercial_bound_error(
+                    identity, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes"
+                )
+    selected_keyed_groups = bounded_keyed_groups
+    selected_ids = {UUID(need_id) for _, group in selected_keyed_groups for need_id in group}
     chains: dict[str, dict] = {}
     selected = opportunity_projection(
         session,
-        tier="Signal",
+        tier=tier,
+        include_below_floor=include_below_floor,
         selected_need_ids=selected_ids,
         include_operator_fact_refs=True,
         buying_chain_results=chains,
@@ -5093,6 +5176,34 @@ def _commercial_triage_page(
     if missing_chains:
         chains.update(buying_chain_views(session, missing_chains))
     cards = make_commercial_cards(selected, chains, chicago_today(), limit)
+    if isolate_resource_bounds:
+        bounded_cards: list[dict] = []
+        page_bytes = 2  # JSON array delimiters; keep each machine page bounded too.
+        for card in cards:
+            card_bytes = len(json.dumps(card, default=str, separators=(",", ":")).encode("utf-8"))
+            if card_bytes + 2 > _MAX_COMMERCIAL_CARD_BYTES:
+                identity, group = next(
+                    (identity, group)
+                    for identity, group in selected_keyed_groups
+                    if str(card["id"]) in group
+                )
+                _exclude_commercial_planner_group(
+                    session,
+                    identity,
+                    group,
+                    card_bytes + 2,
+                    _MAX_COMMERCIAL_CARD_BYTES,
+                    "card_bytes",
+                )
+                continue
+            separator_bytes = int(bool(bounded_cards))
+            if page_bytes + separator_bytes + card_bytes > _MAX_COMMERCIAL_CARD_BYTES:
+                # The next current group is eligible for the next bounded page;
+                # it is not a failed group and its facts are never truncated.
+                break
+            bounded_cards.append(card)
+            page_bytes += separator_bytes + card_bytes
+        return bounded_cards, grouped_total
     encoded_size = len(json.dumps(cards, default=str, separators=(",", ":")).encode("utf-8"))
     if encoded_size > _MAX_COMMERCIAL_CARD_BYTES:
         identity = selected_keyed_groups[0][0] if selected_keyed_groups else "empty"
@@ -5103,8 +5214,14 @@ def _commercial_triage_page(
 
 
 def _commercial_triage_cards(session, limit: int) -> list[dict]:
-    """Return the legacy complete shortlist shape used by research callers."""
-    cards, _grouped_total = _commercial_triage_page(session, limit)
+    """Return bounded current cards for machine research, without HTTP history.
+
+    Both discovery and grouped scheduler reevaluation use this entry point.
+    Archived receipts and notes must never impose a lifetime research limit.
+    """
+    cards, _grouped_total = _commercial_current_triage_page(
+        session, limit, isolate_resource_bounds=True
+    )
     return cards
 
 

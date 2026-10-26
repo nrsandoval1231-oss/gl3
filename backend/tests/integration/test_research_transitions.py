@@ -49,6 +49,9 @@ def canonical_runtime(monkeypatch):
     monkeypatch.setattr(api, "SessionLocal", factory)
     monkeypatch.setattr(settings, "firecrawl_api_key", None)
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 100)
+    # These source-transition cases target the original phase/power-need
+    # categories. Expanded default-on planning/fairness has separate coverage.
+    monkeypatch.setattr(settings, "opportunity_enrichment_enabled", False)
     with factory.begin() as session:
         if session.get(Source, source["id"]) is None:
             session.add(
@@ -1010,7 +1013,8 @@ def test_retained_relationships_precede_sibling_question_fingerprints(
         assert session.get(PowerNeed, need_id).tier == "Signal"
         current = evaluate_target(session, need_id)
         assert current is not None
-        assert schedule_questions(session, [current]) == []
+        next_questions = schedule_questions(session, [current])
+        assert {q.category for q in next_questions}.isdisjoint(row.category for row in rows)
         assert set(session.scalars(select(BuyingChainClaim.id))) == claim_ids
 
 
@@ -1126,7 +1130,12 @@ def test_retained_native_rrc_inspection_preserves_truth_and_replay(retained_rrc,
         assert need.required_mw is None and need.supply == "Unknown"
         card = evaluate_target(session, need_id)
         assert card["disposition"] == "WATCH"
-        assert schedule_questions(session, [card]) == []
+        next_questions = schedule_questions(session, [card])
+        checked_categories = {
+            session.get(PursuitResearchQuestion, question_id).category
+            for question_id in identifiers
+        }
+        assert {q.category for q in next_questions}.isdisjoint(checked_categories)
         assert {e.id: e.content_hash for e in session.scalars(select(Evidence))} == before
 
 

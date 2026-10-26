@@ -1406,7 +1406,18 @@ def test_scheduler_reaches_saved_targets_outside_current_shortlist(runtime, monk
                 _fresh_checked_result(session.get(PursuitResearchQuestion, question_id))
                 for question_id in ids
             )
-        assert schedule(factory, card) == []
+        next_ids = schedule(factory, card)
+        with factory() as session:
+            fresh_categories = {
+                session.get(PursuitResearchQuestion, question_id).category for question_id in ids
+            }
+            next_categories = {
+                session.get(PursuitResearchQuestion, question_id).category
+                for question_id in next_ids
+            }
+            # Fresh checked categories are reused; they must not prevent the
+            # planner from investigating other still-missing facts.
+            assert fresh_categories.isdisjoint(next_categories)
 
 
 def test_paid_search_cannot_spend_after_document_budget_exhaustion(runtime):

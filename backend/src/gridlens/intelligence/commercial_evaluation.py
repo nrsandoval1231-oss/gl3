@@ -21,14 +21,19 @@ def evaluate_targets(
     """Evaluate exact saved targets by default; group only for planner discovery."""
     from uuid import UUID
 
-    from gridlens.api.app import _commercial_triage_cards, opportunity_projection
-    from gridlens.domain.commercial_triage import build_card, group_cards
-    from gridlens.intelligence.buying_chain import buying_chain_view, buying_chain_views
+    from gridlens.api.app import (
+        _commercial_current_triage_page,
+        _commercial_triage_cards,
+        opportunity_projection,
+    )
+    from gridlens.domain.commercial_triage import build_card
+    from gridlens.intelligence.buying_chain import buying_chain_view
     from gridlens.persistence.models import PowerNeed, Project
 
     wanted = {str(need_id) for need_id in need_ids}
     today = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago")).date()
     found = {}
+    chains: dict = {}
     if grouped:
         cohort = _commercial_triage_cards(session, 50) if cohort is None else cohort
         for card in cohort:
@@ -39,7 +44,6 @@ def evaluate_targets(
         if not missing:
             return found
     else:
-        chains: dict = {}
         items = opportunity_projection(
             session,
             buying_chain_results=chains,
@@ -68,27 +72,41 @@ def evaluate_targets(
             return found
 
     if grouped:
-        items = opportunity_projection(
-            session, include_below_floor=True, include_operator_fact_refs=True
-        )
-        # Resolve exact work groups across the full projection before doing the more
-        # expensive buying-chain reads. Group identity depends on source/document/site
-        # evidence; final cards are rebuilt with current chain data for selected groups.
-        identity_groups = group_cards(items, {}, today)
-        requested_groups = [
-            card for card in identity_groups if missing.intersection(card["related_need_ids"])
-        ]
-        requested_ids = {
-            need_id for card in requested_groups for need_id in card["related_need_ids"]
-        }
-        selected_items = [item for item in items if str(item["id"]) in requested_ids]
-        selected_projects = sorted({item["project_id"] for item in selected_items}, key=str)
-        chains = buying_chain_views(session, set(selected_projects))
-        grouped_cards = group_cards(selected_items, chains, today)
-        for card in grouped_cards:
-            for related_id in card["related_need_ids"]:
-                if related_id in missing:
-                    found[related_id] = card
+        # Plan remaining complete work groups through the same current-evidence
+        # preflight as the shortlist. Never hydrate all evidence first or retry
+        # an excluded group through an unguarded projection fallback.
+        pending = set(missing)
+        while pending:
+            excluded = {
+                need_id
+                for diagnostic in session.info.get("commercial_planner_exclusions", {}).values()
+                for need_id in diagnostic["need_ids"]
+            }
+            pending -= excluded
+            if not pending:
+                break
+            grouped_cards, _total = _commercial_current_triage_page(
+                session,
+                50,
+                tier=None,
+                include_below_floor=True,
+                requested_need_ids={UUID(identity) for identity in pending},
+                isolate_resource_bounds=True,
+            )
+            before = len(pending)
+            for card in grouped_cards:
+                for related_id in card["related_need_ids"]:
+                    if related_id in missing:
+                        found[related_id] = card
+                        pending.discard(related_id)
+            newly_excluded = {
+                need_id
+                for diagnostic in session.info.get("commercial_planner_exclusions", {}).values()
+                for need_id in diagnostic["need_ids"]
+            }
+            pending -= newly_excluded
+            if len(pending) == before:
+                break
         missing = wanted - found.keys()
         if not missing:
             return found
