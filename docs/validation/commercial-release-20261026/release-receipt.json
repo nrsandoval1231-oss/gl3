@@ -9,7 +9,63 @@
   "deployed_sha": null,
   "production_data_mutations": [],
   "paid_provider_activations": [],
-  "final_engineering_validation": "PENDING_FINAL_SOURCE_FREEZE",
+  "final_engineering_validation": {
+    "status": "COMPONENT_CHECKS_PASS_FINAL_INDEPENDENT_CLOSEOUT_PENDING",
+    "ruff": "PASS: 376 source/test files formatted; lint passed",
+    "mypy": "PASS:173 source files",
+    "frontend_typecheck_and_build": "PASS on final web tree, recorded in browser-operations.md",
+    "brand_assets": "PASS in both backend899 CI workflows",
+    "full_backend_and_browser": {
+      "backend_passed": 3138,
+      "backend_skipped": 1,
+      "backend_warnings": 8,
+      "backend_seconds": 483.89,
+      "ci_browser_passed": 121,
+      "ci_browser_seconds": 48.0,
+      "ci_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346684189",
+      "backend_job": 121655360226,
+      "source": "899e2889b3a1b7dedbfb74c7addbfee484f545c0",
+      "backend_tree": "15d841cede446686d033b83b07d1e8a4a3ed2879",
+      "final_backend_tree_identical": true,
+      "final_ui_browser": {
+        "passed": 124,
+        "duration": "2.5m",
+        "web_tree": "7c3060721aeac7dfca90b50386d229e65843cd00",
+        "record": "browser-operations.md",
+        "evidence_limit": "Builder-observed terminal result; no raw full-regression file was retained. Fresh published-candidate CI will provide durable independent logs."
+      },
+      "second_run": {
+        "backend_job": 121655323153,
+        "backend_passed": 3138,
+        "backend_skipped": 1,
+        "backend_warnings": 8,
+        "backend_seconds": 820.09,
+        "ci_browser_passed": 121,
+        "ci_browser_duration": "1.3m"
+      }
+    },
+    "ci_runs": [
+      "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346684189",
+      "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346674353"
+    ],
+    "focused_ci_repairs": "6 contact source/priority checks; 4 SQLite/PostgreSQL constraint checks; 2 actual-constraint/new-job selection checks; 3 deterministic source-seed cases passed in their recorded runs. These are focused checks, not full-suite totals.",
+    "migrations": "PASS: fresh upgrade through 0046, repeated upgrade, and Alembic drift check in CI; retained-data preservation separately documented",
+    "actual_persisted_browser": {
+      "unique_cases": 4,
+      "selected_final_run_results": {
+        "A_B": "2 passed",
+        "C": "1 passed",
+        "A_D": "2 passed"
+      },
+      "interpretation": "Five test executions cover four distinct cases; A appears twice. Software display diagnostics pass, commercial scenario requirements remain partial/unmet.",
+      "backend_tree": "15d841cede446686d033b83b07d1e8a4a3ed2879",
+      "web_tree": "7c3060721aeac7dfca90b50386d229e65843cd00",
+      "saved_browse_policy": "2ffc4b9473c3c2d3f87e06a2",
+      "raw_logs": "browser-logs/",
+      "report": "browser-operations.md",
+      "browser": "Playwright1.63.0 Chromium headless shell; native Google Chrome was not used for these final runs."
+    }
+  },
   "commercial_evidence": "cohort-api-adjudication.json",
   "commercial_result": {
     "sampled_native_project_records": 25,
@@ -44,7 +100,7 @@
     "schema": "UNKNOWN",
     "retained_record_counts": "UNKNOWN",
     "logical_restore_rehearsal": "NOT_TESTED",
-    "post_deployment_checks": "NOT_RUN_NO_DEPLOYMENT",
+    "post_deployment_checks": "NOT_RUN: no deployment",
     "access_receipt": "../system-repair-20261026/release-access.json",
     "environment_readiness_recheck": "2026-10-26: current spec59, no configured secrets, runtime variables or outbound identities."
   },
@@ -53,8 +109,69 @@
   "deployment_and_rollback_plan": "deployment-and-rollback.md",
   "remaining_p0": [
     "Actual corpus does not demonstrate required eligible physical projects, temporary-power demand/timing/gaps, or named usable contact methods. This is a commercial evidence failure, not merely a credential blocker.",
-    "Public contact retrieval remains incomplete; measured unresolved timeouts/deferred work must not be counted as successful enrichment.",
-    "Production authenticated access, deployed revision/schema/count inventory, logical backup restoration and final live acceptance are unavailable.",
-    "Final exact-candidate regression and independent engineering review pending source freeze."
-  ]
+    "Contact retrieval remains incomplete. One official page proves local secure direct-IP transport is unavailable while proxy retrieval works; a pinned-proxy attempt fails original-host TLS verification. No security guard was weakened. This does not establish the cause of all 20 timeout outcomes or production egress behavior.",
+    "Production authenticated access, deployed revision/schema/count inventory, logical backup restoration and final live acceptance are unavailable."
+  ],
+  "reviewed_application_source": "da64f0613df3212db100b9c732b11bd1b9a6cecd",
+  "identity_alignment_limitation": "The optional exact-source person/company alignment fails closed if any method-suppression history exists, including unrelated or reinstated controls. Base identity resolution continues; duplicate automatic company links can remain in that situation.",
+  "superseded_validation": [
+    {
+      "source": "75724eb1d893e8a9a5be020b221c8d0dea808834",
+      "ci_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40342543230",
+      "backend_job": 121640805627,
+      "passed": 3133,
+      "failed": 4,
+      "skipped": 1,
+      "seconds": 716.29,
+      "failures": [
+        "Two source-hint planner assertions expect an empty queued URL list after intentional bounded source-hint scheduling.",
+        "Two SQLite metadata setup failures from PostgreSQL-specific import-event JSONB/regex constraint syntax."
+      ],
+      "browser_regression": "NOT_RUN_IN_THIS_CI_AFTER_BACKEND_FAILURE"
+    },
+    {
+      "kind": "local_partition_run",
+      "source": "75724eb1d893e8a9a5be020b221c8d0dea808834",
+      "status": "INVALID_HARNESS_CONFIGURATION",
+      "reason": "Shared browser setup changed gate .env to disable company contact discovery; six early contact failures are not counted as source verdicts. Logs retained; clean isolated affected-case verification required."
+    },
+    {
+      "source": "75724eb1d893e8a9a5be020b221c8d0dea808834",
+      "ci_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40342533899",
+      "backend_job": 121640772774,
+      "passed": 3133,
+      "failed": 4,
+      "skipped": 1,
+      "seconds": 854.84,
+      "failures": [
+        "One source-hint assertion selected a different job when transaction timestamps tied.",
+        "Metadata scheduling test likewise selected an old job by random UUID order.",
+        "Two SQLite metadata DDL failures."
+      ],
+      "resolution": "Both tests now select the newly queued job explicitly; PostgreSQL-only check DDL is omitted from SQLite while production enforcement remains."
+    },
+    {
+      "source": "768f449ec991cc9c93120c473187b3c0f5087623",
+      "ci_runs": [
+        40346184385,
+        40346175816
+      ],
+      "status": "CANCELLED_SUPERSEDED",
+      "reason": "Superseded by deterministic source-seed job selection before completion; not counted as passing or failing."
+    },
+    {
+      "kind": "pre_hydration_frontend",
+      "frontend_source": "fe9a9d2",
+      "full_regression_passed": 121,
+      "commercial_diagnostic_receipt": "a75b266",
+      "status": "SUPERSEDED_FOR_FINAL_RESEARCH_ACCEPTANCE",
+      "reason": "Independent screenshot review found Research falsely rendered absent contacts from a thin workspace row without fetching the known intelligence detail. Passing prior mocks did not exercise this real API shape. Selected-detail hydration and stronger loading/error/stale-selection/actual-Research assertions are being validated."
+    }
+  ],
+  "reviewed_backend_candidate": "899e2889b3a1b7dedbfb74c7addbfee484f545c0",
+  "identity_recheck": "identity-binding-recheck.json",
+  "contact_transport_evidence": "contact-transport-probe.json",
+  "local_validation": "local-validation.json",
+  "independent_engineering_acceptance": "PENDING_FINAL_RECEIPT",
+  "latest_published_candidate_ci": "PENDING_FINAL_SOURCE_PUBLICATION"
 }
