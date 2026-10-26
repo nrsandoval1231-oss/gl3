@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT / "backend" / "src"))
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["preview", "stage", "history", "rollback"])
+    parser.add_argument("action", choices=["preview", "reconcile", "stage", "history", "rollback"])
     parser.add_argument("files", type=Path, nargs="*")
     parser.add_argument(
         "--mapping", type=Path, help="JSON source-header to canonical-field mapping"
@@ -27,24 +27,47 @@ def main() -> int:
     parser.add_argument("--batch-id")
     parser.add_argument("--actor", default="local-operator")
     args = parser.parse_args()
-    if args.action in {"preview", "stage"} and not args.files:
-        parser.error("preview/stage require at least one source file")
+    if args.action in {"preview", "reconcile", "stage"} and not args.files:
+        parser.error("preview/reconcile/stage require at least one source file")
     mapping = json.loads(args.mapping.read_text(encoding="utf-8")) if args.mapping else None
     from gridlens.ingestion.workbook_import import read_workbook
 
     previews = [read_workbook(path, column_mapping=mapping) for path in args.files]
     if args.action == "preview":
         result = {"action": "preview", "files": [p.model_dump(mode="json") for p in previews]}
+    elif args.action == "reconcile":
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
+
+        from gridlens.intelligence.external_imports import reconcile_preview
+        from gridlens.settings import settings
+
+        # PostgreSQL enforces read-only transactions at the connection level.
+        # Reconciliation is allowed against the current canonical read model;
+        # it cannot invoke staging, activation, or rollback code paths.
+        engine = create_engine(
+            settings.database_url,
+            connect_args={"options": "-c default_transaction_read_only=on"},
+        )
+        try:
+            with Session(engine) as session, session.begin():
+                result = {
+                    "action": "reconcile",
+                    "files": [reconcile_preview(session, preview) for preview in previews],
+                }
+        finally:
+            engine.dispose()
     else:
+        from sqlalchemy import create_engine
+        from sqlalchemy.engine import make_url
+        from sqlalchemy.orm import Session
+
         from gridlens.intelligence.external_imports import (
             import_history,
             rollback_import,
             stage_import,
         )
         from gridlens.settings import settings
-        from sqlalchemy import create_engine
-        from sqlalchemy.engine import make_url
-        from sqlalchemy.orm import Session
 
         url = make_url(settings.database_url)
         if not args.expected_database_name or url.database != args.expected_database_name:

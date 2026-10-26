@@ -399,6 +399,183 @@ def _matching_catalog(session: Session, normalized_rows: list[dict[str, Any]]) -
     }
 
 
+def reconcile_preview(session: Session, preview: Any) -> dict[str, Any]:
+    """Compare a parsed source with current canonical identities without writing anything.
+
+    Every source row remains a proposal. A match reports identity evidence only; it
+    never verifies imported claims or promotes a project/need.
+    """
+    normalized_rows = [dict(row.normalized) for row in preview.rows]
+    catalog = _matching_catalog(session, normalized_rows)
+    duplicate_refs: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    for kind, groups in (
+        ("exact", preview.report.get("exact_duplicates", [])),
+        ("probable", preview.report.get("probable_duplicates", [])),
+    ):
+        for group in groups:
+            refs = group.get("rows", []) if isinstance(group, dict) else []
+            for ref in refs:
+                key = (str(ref.get("sheet", "")), int(ref.get("row_number", 0)))
+                duplicate_refs.setdefault(key, []).append({"kind": kind, "rows": refs})
+
+    rows: list[dict[str, Any]] = []
+    counts = {key: 0 for key in ("exact_match", "ambiguous", "unmatched", "invalid", "ignored")}
+    for source_row in preview.rows:
+        normalized = dict(source_row.normalized)
+        metadata = source_row.row_kind in {"summary", "metadata"} or not normalized
+        site_candidates = [] if metadata else _site_project_candidates(normalized, catalog)
+        if metadata:
+            company = {
+                "status": "unmatched",
+                "candidate_id": None,
+                "reasons": ["metadata rows are not canonical entities"],
+            }
+            project = {
+                "status": "unmatched",
+                "candidate_id": None,
+                "reasons": ["metadata rows are not canonical projects"],
+            }
+        else:
+            company = _company_match(normalized, catalog, site_candidates)
+            project = _project_match(normalized, company, catalog)
+            if (
+                source_row.row_kind == "contact"
+                and not normalized.get("project_name")
+                and any(normalized.get(key) for key in ("contact_name", "email", "phone"))
+            ):
+                project = {
+                    "status": "not_applicable",
+                    "candidate_id": None,
+                    "reasons": ["contact-only row supplies no project relationship"],
+                }
+        status = (
+            "ignored"
+            if metadata
+            else "invalid"
+            if source_row.errors
+            else "ambiguous"
+            if "ambiguous" in (company["status"], project["status"])
+            else "exact_match"
+            if company["status"] == "matched" and project["status"] in {"matched", "not_applicable"}
+            else "unmatched"
+        )
+        counts[status] += 1
+        missing = []
+        if not normalized.get("company_name"):
+            missing.append(
+                {
+                    "field": "company_identity",
+                    "priority": "high",
+                    "reason": "no source company name to resolve",
+                }
+            )
+        if not normalized.get("project_name"):
+            missing.append(
+                {
+                    "field": "physical_project",
+                    "priority": "high",
+                    "reason": "no physical project name to resolve",
+                }
+            )
+        if not normalized.get("address") and not normalized.get("city"):
+            missing.append(
+                {
+                    "field": "site_location",
+                    "priority": "high",
+                    "reason": "physical-site corroboration is absent",
+                }
+            )
+        if normalized.get("demand_mw") is None:
+            missing.append(
+                {
+                    "field": "temporary_demand",
+                    "priority": "high",
+                    "reason": "activity-specific demand is absent; capacity is not demand",
+                }
+            )
+        if normalized.get("supply_mw") is None:
+            missing.append(
+                {
+                    "field": "committed_supply",
+                    "priority": "high",
+                    "reason": "committed supply is absent; unknown is not zero",
+                }
+            )
+        if not any(normalized.get(key) for key in ("contact_name", "email", "phone")):
+            missing.append(
+                {
+                    "field": "buyer_contact",
+                    "priority": "medium",
+                    "reason": "no named business contact or contact method supplied",
+                }
+            )
+        if normalized.get("duration_months") is None:
+            missing.append(
+                {"field": "duration", "priority": "medium", "reason": "duration is absent"}
+            )
+        if not normalized.get("required_date"):
+            missing.append(
+                {
+                    "field": "need_date",
+                    "priority": "medium",
+                    "reason": "no independently stated required-power date",
+                }
+            )
+        rows.append(
+            {
+                "source": {
+                    "filename": preview.filename,
+                    "content_sha256": preview.content_hash,
+                    "sheet": source_row.sheet,
+                    "row_number": source_row.row_number,
+                    "row_kind": source_row.row_kind,
+                    "original_fields": list(source_row.raw),
+                    "raw": source_row.raw,
+                },
+                "status": status,
+                "company_match": company,
+                "project_match": project,
+                "duplicate_hints": duplicate_refs.get(
+                    (source_row.sheet, source_row.row_number), []
+                ),
+                "verification": "unverified_source_assertions",
+                "power_claims": {
+                    "temporary_demand_mw": normalized.get("demand_mw"),
+                    "facility_capacity_mw": normalized.get("facility_demand_mw"),
+                    "it_capacity_mw": normalized.get("it_capacity_mw"),
+                    "committed_supply_mw": normalized.get("supply_mw"),
+                    "residual_gap_mw": None,
+                    "residual_gap_reason": (
+                        "UNKNOWN until demand and committed supply are independently verified"
+                    ),
+                },
+                "promotion": {
+                    "eligible": False,
+                    "reason": (
+                        "workbook assertions alone cannot verify identity, need, or qualification"
+                    ),
+                },
+                "missing_data": missing,
+                "errors": source_row.errors,
+            }
+        )
+    return {
+        "action": "reconcile",
+        "read_only": True,
+        "source": {
+            "filename": preview.filename,
+            "content_sha256": preview.content_hash,
+            "sheets": preview.report.get("worksheets", []),
+            "field_mapping": {
+                sheet.get("name"): sheet.get("mapped_columns", {})
+                for sheet in preview.report.get("worksheets", [])
+            },
+        },
+        "summary": {**counts, "rows": len(rows)},
+        "rows": rows,
+    }
+
+
 def _result(
     session: Session, batch: ExternalImportBatch, *, include_rows: bool = False
 ) -> dict[str, Any]:

@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.ingestion.workbook_import import ImportPreview, ImportRow
 from gridlens.intelligence.external_imports import (
     import_history,
+    reconcile_preview,
     rollback_import,
     stage_import,
 )
@@ -322,6 +323,47 @@ def test_name_only_and_conflicting_project_signals_remain_proposals(import_db):
         assert result["rows"][1]["project_match"]["status"] == "unmatched"
         assert result["matched_count"] == 0
         assert session.scalar(select(func.count()).select_from(Project)) == 2
+
+
+def test_read_only_reconciliation_reports_provenance_unknowns_and_no_promotion(import_db):
+    with import_db.begin() as session:
+        project, identity = _seed_matchable(session)
+        preview = _preview(
+            [
+                ImportRow(
+                    sheet="Workbook Sites",
+                    row_number=17,
+                    raw={"Developer": "Acme Energy", "Site": "North Campus", "Need": "unknown"},
+                    normalized={
+                        "company_name": "Acme Energy",
+                        "project_name": "North Campus",
+                        "city": "Austin",
+                        "state": "TX",
+                        "facility_demand_mw": 300,
+                    },
+                    errors=[],
+                )
+            ],
+            "e" * 64,
+        )
+        before = session.scalar(select(func.count()).select_from(ExternalImportBatch))
+        result = reconcile_preview(session, preview)
+        row = result["rows"][0]
+        assert result["read_only"] is True
+        assert result["summary"]["exact_match"] == 1
+        assert row["source"]["content_sha256"] == "e" * 64
+        assert row["source"]["sheet"] == "Workbook Sites"
+        assert row["source"]["row_number"] == 17
+        assert row["company_match"]["candidate_id"] == str(identity.id)
+        assert row["project_match"]["candidate_id"] == str(project.id)
+        assert row["verification"] == "unverified_source_assertions"
+        assert row["promotion"]["eligible"] is False
+        assert any(item["field"] == "temporary_demand" for item in row["missing_data"])
+        assert row["power_claims"]["facility_capacity_mw"] == 300
+        assert row["power_claims"]["residual_gap_mw"] is None
+        assert session.scalar(select(func.count()).select_from(ExternalImportBatch)) == before
+        assert session.scalar(select(func.count()).select_from(ExternalImportRow)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
 
 
 def test_state_conflict_vetoes_company_membership_project_match(import_db):
