@@ -959,7 +959,6 @@ def test_ordinary_maintainer_publishes_first_generation_for_opportunities(saved_
         assert client.get("/api/opportunities").status_code == 200
 
 
-@pytest.mark.parametrize("count", [4, 101])
 def test_worker_startup_publishes_flushed_ingestion_before_each_commit(saved_db, monkeypatch):
     import gridlens.jobs.worker as worker
 
