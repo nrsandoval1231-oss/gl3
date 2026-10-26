@@ -92,6 +92,7 @@ test('retained permit fields are useful before enrichment and preserve source ro
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(result) })
   })
   await expect(page.getByRole('heading', { name: 'Retained permit facts' })).toBeVisible()
+  await expect(page.getByText('Evidence assessed 9/30/2026')).toBeVisible()
   await expect(page.getByText('Data center conversion with MEP upgrades', { exact: true })).toBeVisible()
   await expect(page.getByText('DOE, JANE', { exact: true })).toBeVisible()
   await page.getByText('Field evidence', { exact: true }).nth(1).click()
