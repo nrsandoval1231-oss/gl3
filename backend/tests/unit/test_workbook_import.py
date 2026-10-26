@@ -4,8 +4,10 @@ import csv
 import json
 from datetime import date
 
+import pytest
 from openpyxl import Workbook
 
+from gridlens.ingestion import workbook_import
 from gridlens.ingestion.workbook_import import read_workbook
 
 
@@ -128,21 +130,54 @@ def test_excel_hyperlink_target_is_retained_separately_from_display_value(tmp_pa
     path = tmp_path / "source-links.xlsx"
     workbook = Workbook()
     sheet = workbook.active
-    sheet.append(["Project Name", "State", "Source 1", "Source 2"])
-    sheet.append(["North Site", "TX", "Link", "formula link"])
+    sheet.append(["Project Name", "State", "Source", "Source", "Formula"])
+    sheet.append(["North Site", "TX", "Link", "Link", "formula link"])
     sheet["C2"].hyperlink = "https://example.gov/projects/north-site"
-    sheet["D2"] = '=HYPERLINK("https://untrusted.invalid/project","formula link")'
+    sheet["D2"].hyperlink = "https://example.gov/projects/north-site/permit"
+    sheet["E2"] = '=HYPERLINK("https://untrusted.invalid/project","formula link")'
     workbook.save(path)
 
     preview = read_workbook(path)
 
     row = preview.rows[0]
-    assert row.raw["Source 1"] == "Link"
+    assert row.raw["Source"] == "Link"
+    assert row.raw["Source#2"] == "Link"
     assert row.raw["__workbook_hyperlinks__"] == {
-        "Source 1": "https://example.gov/projects/north-site"
+        "Source": "https://example.gov/projects/north-site",
+        "Source#2": "https://example.gov/projects/north-site/permit",
     }
-    assert row.raw["Source 2"] == '=HYPERLINK("https://untrusted.invalid/project","formula link")'
-    assert "Source 2" not in row.raw["__workbook_hyperlinks__"]
+    assert row.raw["Formula"] == '=HYPERLINK("https://untrusted.invalid/project","formula link")'
+    assert "Formula" not in row.raw["__workbook_hyperlinks__"]
+
+
+def test_excel_hyperlink_target_budget_fails_visible_without_truncation(tmp_path, monkeypatch):
+    path = tmp_path / "too-many-source-links.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source 1", "Source 2"])
+    sheet.append(["North Site", "Link", "Link"])
+    sheet["B2"].hyperlink = "https://example.gov/source/one"
+    sheet["C2"].hyperlink = "https://example.gov/source/two"
+    workbook.save(path)
+    monkeypatch.setattr(workbook_import, "MAX_HYPERLINK_TARGETS", 1)
+
+    with pytest.raises(ValueError, match="configured target budget"):
+        read_workbook(path)
+
+
+def test_excel_hyperlink_metadata_budget_fails_visible(tmp_path, monkeypatch):
+    path = tmp_path / "metadata-limit.xlsx"
+    workbook = Workbook()
+    workbook.active.append(["Project Name", "Source"])
+    workbook.active.append(["North Site", "Link"])
+    workbook.active["B2"].hyperlink = "https://example.gov/source"
+    workbook.save(path)
+    monkeypatch.setattr(workbook_import, "MAX_HYPERLINK_METADATA_BYTES", 1)
+
+    with pytest.raises(
+        ValueError, match="relationship metadata exceeds its configured byte budget"
+    ):
+        read_workbook(path)
 
 
 def test_large_contact_csv_stays_bounded_and_keeps_all_rows(tmp_path):

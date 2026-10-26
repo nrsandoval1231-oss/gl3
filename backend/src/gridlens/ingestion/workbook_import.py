@@ -20,7 +20,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from openpyxl import load_workbook  # type: ignore[import-untyped]
-from openpyxl.utils.cell import get_column_letter
+from openpyxl.utils.cell import coordinate_to_tuple, get_column_letter
 from pydantic import BaseModel, ConfigDict
 
 _OOXML_MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -51,6 +51,9 @@ CANONICAL_FIELDS = (
 MAX_FILE_BYTES = 50 * 1024 * 1024
 MAX_ROWS = 100_000
 MAX_COLUMNS = 300
+MAX_HYPERLINK_METADATA_BYTES = 16 * 1024 * 1024
+MAX_HYPERLINK_SHEET_SCAN_BYTES = 256 * 1024 * 1024
+MAX_HYPERLINK_TARGETS = 100_000
 
 
 class ImportRow(BaseModel):
@@ -524,15 +527,29 @@ def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
     relationship metadata only and never visits the hyperlink targets.
     """
     result: dict[str, dict[str, str]] = {}
+    metadata_bytes = 0
+    scan_bytes = 0
+    target_count = 0
+
+    def read_metadata_xml(archive: zipfile.ZipFile, name: str) -> ET.Element:
+        nonlocal metadata_bytes
+        size = archive.getinfo(name).file_size
+        metadata_bytes += size
+        if metadata_bytes > MAX_HYPERLINK_METADATA_BYTES:
+            raise ValueError(
+                "Workbook hyperlink relationship metadata exceeds its configured byte budget"
+            )
+        return ET.fromstring(archive.read(name))
+
     with zipfile.ZipFile(path) as archive:
-        workbook_root = ET.fromstring(archive.read("xl/workbook.xml"))
-        workbook_rels = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+        workbook_root = read_metadata_xml(archive, "xl/workbook.xml")
+        workbook_rels = read_metadata_xml(archive, "xl/_rels/workbook.xml.rels")
         workbook_targets = {
             relation.attrib["Id"]: relation.attrib["Target"]
             for relation in workbook_rels.findall(f"{{{_OOXML_PACKAGE_REL_NS}}}Relationship")
             if "Id" in relation.attrib and "Target" in relation.attrib
         }
-        members = set(archive.namelist())
+        members = {info.filename for info in archive.infolist()}
         for sheet in workbook_root.findall(f".//{{{_OOXML_MAIN_NS}}}sheet"):
             name = sheet.attrib.get("name")
             relation_id = sheet.attrib.get(f"{{{_OOXML_REL_NS}}}id")
@@ -553,7 +570,7 @@ def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
             )
             if rels_path not in members:
                 continue
-            sheet_rels = ET.fromstring(archive.read(rels_path))
+            sheet_rels = read_metadata_xml(archive, rels_path)
             external_targets = {
                 relation.attrib["Id"]: relation.attrib["Target"]
                 for relation in sheet_rels.findall(f"{{{_OOXML_PACKAGE_REL_NS}}}Relationship")
@@ -562,15 +579,35 @@ def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
                 and "Target" in relation.attrib
             }
             sheet_hyperlinks: dict[str, str] = {}
+            sheet_xml_bytes = archive.getinfo(sheet_path).file_size
+            scan_bytes += sheet_xml_bytes
+            if scan_bytes > MAX_HYPERLINK_SHEET_SCAN_BYTES:
+                raise ValueError("Workbook worksheet XML exceeds its configured scan-byte budget")
             with archive.open(sheet_path) as stream:
-                for _event, element in ET.iterparse(stream, events=("end",)):
+                stack: list[ET.Element] = []
+                for event, element in ET.iterparse(stream, events=("start", "end")):
+                    if event == "start":
+                        stack.append(element)
+                        continue
                     if element.tag == f"{{{_OOXML_MAIN_NS}}}hyperlink":
                         ref = element.attrib.get("ref")
                         rel_id = element.attrib.get(f"{{{_OOXML_REL_NS}}}id")
                         target_url = external_targets.get(rel_id or "")
                         if ref and target_url:
-                            sheet_hyperlinks[ref] = target_url
+                            _row_number, column_number = coordinate_to_tuple(ref)
+                            if column_number <= MAX_COLUMNS:
+                                target_count += 1
+                                if target_count > MAX_HYPERLINK_TARGETS:
+                                    raise ValueError(
+                                        "Workbook contains more external hyperlinks than its "
+                                        "configured target budget"
+                                    )
+                                sheet_hyperlinks[ref] = target_url
                     element.clear()
+                    if len(stack) > 1:
+                        stack[-2].remove(element)
+                    if stack:
+                        stack.pop()
             if sheet_hyperlinks:
                 result[name] = sheet_hyperlinks
     return result
