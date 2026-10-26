@@ -25,7 +25,9 @@ This page summarizes defaults defined by `backend/src/gridlens/settings.py`. Tha
 | `BRIEFS_DAILY_REQUEST_LIMIT` | `8` | Daily brief request cap; this cap does not by itself authorize provider use. |
 | `PURSUITS_DAILY_FETCH_LIMIT` / `PURSUITS_DAILY_MODEL_LIMIT` | `160` / `8` | Pursuit research fetch and model caps; provider and research feature gates remain separate. |
 | `AUTONOMOUS_RESEARCH_ENABLED` | `true` | Research planner feature default; public buying-chain research separately defaults false and provider keys/cost configuration still matter. Verify all gates before starting a worker. |
-| `OPPORTUNITY_ENRICHMENT_ENABLED` | `false` | Opt-in expanded gap planning, including actionable opportunities. Existing research/provider/budget gates still apply; implementing this flag is not activation authority. |
+| `OPPORTUNITY_ENRICHMENT_ENABLED` | `true` | Autonomous expanded missing-fact planning, including actionable opportunities. Retained evidence and zero-cost routes remain bounded; provider/model contracts, credentials and explicit budgets still gate paid work. |
+| `COMPANY_CONTACT_DISCOVERY_ENABLED` | `true` | Bounded source-backed contact discovery/refresh is part of the autonomous worker loop. Retained/public retrieval may run; paid search still requires independent ledger authorization, configured pricing and budget. |
+| `AUTONOMOUS_RESEARCH_MAX_COST_USD` | `0` | No paid acquisition allowance by default. A configured provider key alone cannot authorize spend; independent provider/contract/ledger gates remain required. |
 | `BUYING_CHAIN_PUBLIC_RESEARCH_ENABLED` | `false` | Public buying-chain research disabled. |
 | `INTELLIGENCE_OCR_ENABLED` | `false` | OCR path disabled. |
 | `NTFY_URL` / `NTFY_TOKEN` | empty | No alert destination or token configured by default. |
@@ -39,3 +41,7 @@ The October 20 host snapshot reported different explicit runtime flags and budge
 - Production: the October 20 observation reported `/etc/gridlens/runtime.env`, with a secret-manager injection context. Its approved wrapper and exact environment assembly are UNKNOWN. Never copy production values into a repository file or print them.
 
 Current code defaults are not deployment instructions. The old `deploy/digitalocean/` secret/deploy material is preparation only; use the [operations authority](README.md) for production status and open command gaps.
+
+## Autonomous defaults and observed operation
+
+The default-on opportunity/contact planning paths implement the [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md); they do not enable model dispatch or paid discovery. Missing provider/contract/budget configuration must produce explicit unresolved diagnostics while preserving current accepted evidence. `BUYING_CHAIN_PUBLIC_RESEARCH_ENABLED`, model routing and intelligence contracts remain separately disabled by default. Environment overrides can change all these values, so this table does not certify deployed features, current provider availability, contact coverage, spending or scheduled PC-off operation.
