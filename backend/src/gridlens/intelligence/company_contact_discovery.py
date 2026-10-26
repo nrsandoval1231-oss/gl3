@@ -990,6 +990,37 @@ def _method_key(source_url: str, kind: str, value: str) -> tuple[str, str, str]:
     return source_url, normalized_kind, normalized_value
 
 
+def _person_card_method_keys(documents: list[PublicDocument]) -> set[tuple[str, str, str]]:
+    """Return every literal method attached to a parsed person card.
+
+    A card remains person-attributed evidence even when its role is stale,
+    unsupported, or outside the named-roster path allowlist. Such methods must
+    not fall back into the generic company-contact claim.
+    """
+    keys: set[tuple[str, str, str]] = set()
+    for doc in documents:
+        for card in doc.person_cards:
+            href = card.href
+            if href.lower().startswith("mailto:"):
+                value = href[len("mailto:") :]
+                if not re.fullmatch(
+                    r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}",
+                    value,
+                    re.I,
+                ):
+                    continue
+                kind = "email"
+            elif href.lower().startswith("tel:"):
+                value = href[len("tel:") :]
+                if not re.fullmatch(r"\+?[0-9(). -]{7,30}", value):
+                    continue
+                kind = "phone"
+            else:
+                continue
+            keys.add(_method_key(doc.url, kind, value))
+    return keys
+
+
 def _brand_key(value: str) -> str:
     """Allow a legal suffix in the registry but not on the company's own masthead."""
     return re.sub(r"(?:inc|incorporated|llc|corp|corporation|ltd)$", "", _normal(value))
@@ -1325,11 +1356,13 @@ def _discover_anchor(
         evidence_ids.append(str(source.id))
         sources_by_url[doc.url] = source
 
-    # Persist eligible named people first, then suppress only their exact
-    # source/kind/value tuples from the generic company-method scan below.
+    # Keep every explicit person-card method person-attributed, including cards
+    # whose role is too stale or unsupported to persist as a named claim.
+    person_card_method_keys = _person_card_method_keys(documents)
     named_count, named_method_keys = _store_named_professionals(
         session, project, company_id, old, documents, sources_by_url, now
     )
+    excluded_person_method_keys = person_card_method_keys | named_method_keys
     for doc in documents:
         source = sources_by_url[doc.url]
         found = extract_company_contacts(
@@ -1343,7 +1376,7 @@ def _discover_anchor(
                         str(contact.get("kind") or ""),
                         str(contact.get("value") or ""),
                     )
-                    in named_method_keys
+                    in excluded_person_method_keys
                 ):
                     continue
                 if contact.get("kind") == "phone" and any(
@@ -1369,7 +1402,7 @@ def _discover_anchor(
         ):
             value = match.group(0)
             method_kind = "email" if "@" in value else "phone"
-            if _method_key(doc.url, method_kind, value) in named_method_keys:
+            if _method_key(doc.url, method_kind, value) in excluded_person_method_keys:
                 continue
             if any(row.get("value") == value for row in contacts):
                 continue
@@ -1426,7 +1459,7 @@ def _discover_anchor(
             str(method.get("kind") or ""),
             str(method.get("value") or ""),
         )
-        not in named_method_keys
+        not in excluded_person_method_keys
         and any(
             c.get("url") == method.get("source_url") and c.get("quote") == method.get("quote")
             for c in citations

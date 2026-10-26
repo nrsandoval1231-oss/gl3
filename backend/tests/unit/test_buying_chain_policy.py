@@ -155,7 +155,10 @@ def test_official_mes_person_cards_bind_literal_methods_and_keep_company_identit
         ("Christopher Brannon", "Purchasing Manager"),
     ]
 
-    from gridlens.intelligence.company_contact_discovery import _self_identified_company_site
+    from gridlens.intelligence.company_contact_discovery import (
+        _person_card_method_keys,
+        _self_identified_company_site,
+    )
 
     organization = Extracted(
         "Masters Electrical Services",
@@ -163,6 +166,11 @@ def test_official_mes_person_cards_bind_literal_methods_and_keep_company_identit
         organization_relationship="DIRECT",
     )
     assert _self_identified_company_site(source, organization.organization)
+    assert _person_card_method_keys([source]) == {
+        (source.url, "email", "jspaw@mesltdtx.com"),
+        (source.url, "email", "jflippin@mesltdtx.com"),
+        (source.url, "email", "cbrannon@mesltdtx.com"),
+    }
     result = extract_people(
         source,
         [organization],

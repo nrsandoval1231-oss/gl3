@@ -743,6 +743,100 @@ def test_official_team_cards_persist_named_methods_without_generic_duplicates(
         assert replayed_methods == original_methods
 
 
+@pytest.mark.parametrize(
+    ("team_url", "published_at"),
+    [
+        ("https://www.mesltdtx.com/team", date(2020, 1, 1)),
+        ("https://www.mesltdtx.com/people", None),
+    ],
+    ids=("stale-publication", "non-roster-path"),
+)
+def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_routes(
+    db, team_url, published_at
+):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    html = fixture.read_bytes()
+    card_doc = replace(
+        parse_document(team_url, html, "text/html"),
+        observed_at=NOW,
+        published_at=published_at,
+    )
+    with db.begin() as session:
+        project = seed(session, external_id="mes-stale-person-methods")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(select(Evidence))
+        session.add(
+            NeedObservation(
+                need_id=session.scalar(select(PowerNeed.id)),
+                observation_id=evidence.observation_id,
+            )
+        )
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Masters Electrical Services is the electrical contractor for "
+                "Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == "Masters Electrical Services"
+        )
+        company_id = UUID(company["company_identity_id"])
+        old_claim = session.get(BuyingChainClaim, UUID(str(company["id"])))
+        old_methods = [
+            {
+                "kind": "email",
+                "value": card.href.removeprefix("mailto:"),
+                "source_url": team_url,
+                "quote": card.contact_text,
+                "observed_at": NOW.isoformat(),
+            }
+            for card in card_doc.person_cards
+        ]
+        company_method = {
+            "kind": "email",
+            "value": "info@mesltdtx.com",
+            "source_url": team_url,
+            "quote": "For general company assistance, use info@mesltdtx.com.",
+            "observed_at": NOW.isoformat(),
+        }
+        old_claim.public_contacts = [*old_methods, company_method]
+        old_claim.citations = [
+            *old_claim.citations,
+            *[
+                {
+                    "evidence_id": str(evidence.id),
+                    "url": method["source_url"],
+                    "quote": method["quote"],
+                    "supports": "public_contact",
+                }
+                for method in [*old_methods, company_method]
+            ],
+        ]
+        prior_methods = deepcopy(old_claim.public_contacts)
+
+        refreshed = discovery._discover_anchor(
+            session, project, company_id, {team_url: card_doc}, NOW + timedelta(days=1)
+        )
+
+        assert refreshed["status"] == "complete"
+        assert refreshed["named_professionals"] == 0
+        assert refreshed["contacts"] == 1
+        assert refreshed["reason"] == "generic_public_methods_persisted"
+        projection = company_contacts(session, company_id)
+        generic = [contact for contact in projection.contacts if contact.name is None]
+        assert len(generic) == 1
+        assert [method["value"] for method in generic[0].methods] == ["info@mesltdtx.com"]
+        assert old_claim.public_contacts == prior_methods
+
+
 def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_company_route(
     db, monkeypatch
 ):
