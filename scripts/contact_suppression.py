@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 
 from gridlens.intelligence.contact_suppressions import (
     company_suppression_key,
@@ -36,6 +37,15 @@ def main() -> None:
     parser.add_argument("--reason", required=True)
     parser.add_argument("--actor", required=True)
     parser.add_argument("--idempotency-key", required=True)
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="Append the event; default is review only",
+    )
+    parser.add_argument(
+        "--confirm-database",
+        help="Exact configured database name required with --execute",
+    )
     args = parser.parse_args()
     from uuid import UUID
 
@@ -70,6 +80,26 @@ def main() -> None:
                     "company-scoped method suppression requires company_id and --name"
                 )
             key = method_suppression_key(company_id, args.name, args.kind, args.value)
+    from sqlalchemy.engine import make_url
+    from gridlens.settings import settings
+
+    configured_database = make_url(settings.database_url).database
+    if not args.execute:
+        print(
+            f"DRY RUN database={configured_database} scope={args.scope} action={args.action} key={key} "
+            f"expected_version={args.expected_version} actor={args.actor!r}"
+        )
+        return
+    if not args.confirm_database or args.confirm_database != configured_database:
+        parser.error(
+            "--execute requires --confirm-database to exactly match configured DATABASE_URL"
+        )
+    if os.environ.get("GRIDLENS_DISABLE_PRIVACY_WRITES", "").casefold() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        parser.error("privacy ledger writes are disabled by runtime configuration")
     with SessionLocal() as session:
         row = record_contact_suppression(
             session,

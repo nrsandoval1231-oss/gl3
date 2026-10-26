@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -7,7 +7,15 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 import gridlens.intelligence.contact_assertions as contact_assertions
+from gridlens.domain.opportunity_intelligence import contact_projection
+from gridlens.intelligence.buying_chain import buying_chain_view
 from gridlens.intelligence.company_contacts import company_contacts
+from gridlens.intelligence.contact_suppressions import (
+    SuppressionConflict,
+    global_method_suppression_key,
+    method_suppression_key,
+    record_contact_suppression,
+)
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
@@ -26,6 +34,7 @@ from gridlens.persistence.models import (
     Project,
     Source,
 )
+from gridlens.persistence.suppression_models import ContactSuppression
 from gridlens.settings import settings
 
 
@@ -258,7 +267,6 @@ def test_contact_suppression_is_versioned_idempotent_and_reversible(contact_db):
     from types import SimpleNamespace
 
     from gridlens.intelligence.contact_suppressions import (
-        SuppressionConflict,
         apply_contact_suppressions,
         method_suppression_key,
         record_contact_suppression,
@@ -268,7 +276,9 @@ def test_contact_suppression_is_versioned_idempotent_and_reversible(contact_db):
         company = CompanyIdentity()
         session.add(company)
         session.flush()
-        key = method_suppression_key(company.id, "Avery Example", "email", "Avery@Example.test")
+        key = method_suppression_key(
+            company.id, "Avery Example", "email", "mailto:Avery@Example.test"
+        )
         event = record_contact_suppression(
             session,
             scope="method",
@@ -322,6 +332,238 @@ def test_contact_suppression_is_versioned_idempotent_and_reversible(contact_db):
             name="Avery Example", methods=[{"kind": "email", "href": "Avery@Example.test"}]
         )
         assert apply_contact_suppressions(session, company.id, [refreshed_contact])[0].methods
+
+
+def test_contact_suppression_keys_canonicalize_raw_values_and_hrefs():
+    company_id = uuid4()
+    assert method_suppression_key(
+        company_id, "Avery", "email", "Avery@Example.test"
+    ) == method_suppression_key(company_id, "Avery", "email", "mailto:avery@example.test")
+    assert method_suppression_key(
+        company_id, "Avery", "phone", "+1 (555) 123-4567"
+    ) == method_suppression_key(company_id, "Avery", "tel", "tel:+15551234567")
+
+
+def test_conflicted_suppression_history_fails_closed_and_cannot_be_reinstated(contact_db):
+    from types import SimpleNamespace
+
+    from gridlens.intelligence.contact_suppressions import (
+        apply_contact_suppressions,
+        method_suppression_key,
+        record_contact_suppression,
+    )
+
+    with contact_db() as session:
+        company = CompanyIdentity()
+        session.add(company)
+        session.flush()
+        key = method_suppression_key(company.id, "Avery", "email", "avery@example.test")
+        session.add(
+            ContactSuppression(
+                scope="method",
+                subject_key=key,
+                expected_version=8,
+                version=9,
+                action="reinstate",
+                reason="forked",
+                actor="reviewer",
+                idempotency_key="fork",
+            )
+        )
+        session.flush()
+        contact = SimpleNamespace(
+            name="Avery", methods=[{"kind": "email", "href": "mailto:avery@example.test"}]
+        )
+        assert apply_contact_suppressions(session, company.id, [contact])[0].methods == []
+        with pytest.raises(SuppressionConflict):
+            record_contact_suppression(
+                session,
+                scope="method",
+                subject_key=key,
+                action="reinstate",
+                expected_version=9,
+                reason="retry",
+                actor="reviewer",
+                idempotency_key="retry",
+            )
+
+
+def test_correction_writer_rejects_forged_role_and_wrong_project_replay(contact_db):
+    from gridlens.intelligence.internal_corrections import correct_buying_chain_claim
+
+    with contact_db() as session:
+        _company, project, claim, source = _seed_published_contact(session)
+        with pytest.raises(ValueError, match="current evidence"):
+            correct_buying_chain_claim(
+                session,
+                project_id=project.id,
+                claim_id=claim.id,
+                expected_version=claim.fingerprint,
+                action="correct",
+                values={"person_project_relationship": "DIRECT", "person_name": "Made Up Person"},
+                reason="bad input",
+                actor="privacy-ops",
+                idempotency_key="forged-direct",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+            )
+        with pytest.raises(ValueError, match="bounded string"):
+            correct_buying_chain_claim(
+                session,
+                project_id=project.id,
+                claim_id=claim.id,
+                expected_version=claim.fingerprint,
+                action="correct",
+                values={"public_contact_value": 12345},
+                reason="bad type",
+                actor="privacy-ops",
+                idempotency_key="numeric-method",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+            )
+        correction = correct_buying_chain_claim(
+            session,
+            project_id=project.id,
+            claim_id=claim.id,
+            expected_version=claim.fingerprint,
+            action="retract",
+            values={},
+            reason="incorrect link",
+            actor="privacy-ops",
+            idempotency_key="scoped-retract",
+        )
+        assert correction.project_id == project.id
+        with pytest.raises(LookupError):
+            correct_buying_chain_claim(
+                session,
+                project_id=uuid4(),
+                claim_id=claim.id,
+                expected_version=claim.fingerprint,
+                action="retract",
+                values={},
+                reason="incorrect link",
+                actor="privacy-ops",
+                idempotency_key="scoped-retract",
+            )
+
+
+def test_method_suppression_redacts_current_and_history_buying_chain_reads(contact_db):
+    with contact_db() as session:
+        company, project, claim, _source = _seed_published_contact(session)
+        refreshed_claim = BuyingChainClaim(
+            project_id=claim.project_id,
+            entity_key=claim.entity_key,
+            fingerprint=uuid4().hex,
+            policy_version=claim.policy_version,
+            organization=claim.organization,
+            person_name=claim.person_name,
+            title=claim.title,
+            category=claim.category,
+            organization_relationship=claim.organization_relationship,
+            person_organization_relationship=claim.person_organization_relationship,
+            person_project_relationship=claim.person_project_relationship,
+            evidence_strength=claim.evidence_strength,
+            reason=claim.reason,
+            citations=claim.citations,
+            public_contacts=claim.public_contacts,
+            observed_at=claim.observed_at + timedelta(minutes=2),
+        )
+        session.add(refreshed_claim)
+        session.flush()
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=refreshed_claim.id,
+                entity_type="company",
+                company_identity_id=company.id,
+                person_identity_id=None,
+                reason="Synthetic refreshed company link.",
+                basis="project_scoped",
+                source_evidence_id=_source.id,
+                source_version_hash=_source.content_hash,
+                state="current",
+            )
+        )
+        run = session.query(BuyingChainRun).filter_by(project_id=project.id).one()
+        run.claim_ids = [str(claim.id), str(refreshed_claim.id)]
+        key = method_suppression_key(
+            company.id, claim.person_name, "email", "mailto:avery@example.test"
+        )
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=key,
+            action="suppress",
+            expected_version=0,
+            reason="privacy request",
+            actor="privacy-ops",
+            idempotency_key="method-hide-current-history",
+        )
+        session.flush()
+        current = buying_chain_view(session, project.id)
+        historical = buying_chain_view(session, project.id, history=True)
+        assert any(row["id"] == refreshed_claim.id for row in current["candidates"])
+        for view in (current, historical):
+            item = next(
+                row for row in view["candidates"] if row["id"] in {claim.id, refreshed_claim.id}
+            )
+            assert item["public_contacts"] == []
+            assert not any(
+                "avery@example.test" in str(e.get("quote", "")) for e in item["evidence"]
+            )
+            assert all(not contact.methods for contact in contact_projection(view))
+
+
+def test_global_method_suppression_applies_without_company_identity_link(contact_db):
+    with contact_db() as session:
+        _company, project, claim, _source = _seed_published_contact(session)
+        link = (
+            session.query(BuyingChainIdentityLink)
+            .filter_by(claim_id=claim.id, entity_type="company")
+            .one()
+        )
+        session.delete(link)
+        key = global_method_suppression_key("email", "avery@example.test")
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=key,
+            action="suppress",
+            expected_version=0,
+            reason="global privacy request",
+            actor="privacy-ops",
+            idempotency_key="global-method-no-company-link",
+        )
+        session.flush()
+        view = buying_chain_view(session, project.id)
+        item = next(row for row in view["candidates"] if row["id"] == claim.id)
+        assert item["public_contacts"] == []
+
+
+def test_global_search_does_not_return_suppressed_contact_method(contact_db, monkeypatch):
+    from gridlens.api import app as api_app
+
+    with contact_db() as session:
+        company, project, claim, _source = _seed_published_contact(session)
+        project.region_status = "ELIGIBLE"
+        project.region_state = "TX"
+        session.flush()
+        key = global_method_suppression_key("email", "mailto:avery@example.test")
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=key,
+            action="suppress",
+            expected_version=0,
+            reason="global privacy request",
+            actor="privacy-ops",
+            idempotency_key="search-method-redaction",
+        )
+        session.commit()
+        project_id = project.id
+    monkeypatch.setattr(api_app, "SessionLocal", contact_db)
+    payload = api_app.unified_search("avery@example.test")
+    assert payload["contacts"] == []
+    assert project_id not in {item["project_id"] for item in payload["projects"]}
 
 
 def test_imported_contacts_remain_separate_and_unverified(contact_db):

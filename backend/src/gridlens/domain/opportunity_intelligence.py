@@ -215,7 +215,8 @@ def contact_projection(chain: dict) -> list[IntelligenceContact]:
     result = []
     for party in chain.get("candidates", []):
         if (
-            party.get("stale")
+            party.get("suppressed")
+            or party.get("stale")
             or party.get("retracted")
             or party.get("organization_relationship") != "DIRECT"
             or _is_rental_intermediary(

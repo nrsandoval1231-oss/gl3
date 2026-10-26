@@ -1892,6 +1892,130 @@ def enrich_buying_chain(
     return buying_chain_view(session, project.id, now=now)
 
 
+def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
+    """Apply one bounded privacy ledger snapshot to a read cohort."""
+    if not candidates:
+        return
+    from gridlens.intelligence.contact_suppressions import (
+        _ledger_states,
+        company_suppression_key,
+        global_method_suppression_key,
+        global_person_suppression_key,
+        method_suppression_key,
+        person_suppression_key,
+    )
+
+    claim_ids = [item["id"] for item in candidates]
+    links = session.scalars(
+        select(BuyingChainIdentityLink).where(
+            BuyingChainIdentityLink.claim_id.in_(claim_ids),
+            BuyingChainIdentityLink.state == "current",
+            BuyingChainIdentityLink.entity_type.in_(("company", "person")),
+        )
+    ).all()
+    company_by_claim = {
+        row.claim_id: row.company_identity_id
+        for row in links
+        if row.entity_type == "company" and row.company_identity_id is not None
+    }
+    person_by_claim = {
+        row.claim_id: row.person_identity_id
+        for row in links
+        if row.entity_type == "person" and row.person_identity_id is not None
+    }
+    candidate_scope: dict[UUID, tuple[UUID | None, str]] = {}
+    keys: set[tuple[str, str]] = set()
+    for item in candidates:
+        company_id = company_by_claim.get(item["id"])
+        name = item.get("person_name") or ""
+        person_id = person_by_claim.get(item["id"])
+        candidate_scope[item["id"]] = (company_id, name)
+        if company_id is not None:
+            keys.add(("company", company_suppression_key(company_id)))
+            if name:
+                keys.add(("person", person_suppression_key(company_id, name)))
+        if person_id is not None:
+            keys.add(("person", global_person_suppression_key(person_id)))
+        for contact_field in ("public_contacts", "reported_contacts"):
+            for contact in item.get(contact_field, []):
+                kind, value = str(contact.get("kind") or ""), str(contact.get("value") or "")
+                keys.add(("method", global_method_suppression_key(kind, value)))
+                if company_id is not None:
+                    keys.add(("method", method_suppression_key(company_id, name, kind, value)))
+    states = _ledger_states(session, keys)
+    for item in candidates:
+        company_id, name = candidate_scope[item["id"]]
+        person_id = person_by_claim.get(item["id"])
+        suppressed_subject = (
+            bool(
+                company_id is not None
+                and states.get(("company", company_suppression_key(company_id))) == "suppress"
+            )
+            or bool(
+                company_id is not None
+                and name
+                and states.get(("person", person_suppression_key(company_id, name))) == "suppress"
+            )
+            or bool(
+                person_id is not None
+                and states.get(("person", global_person_suppression_key(person_id))) == "suppress"
+            )
+        )
+        if suppressed_subject:
+            item["suppressed"] = True
+            item["person_name"] = None
+            item["title"] = None
+            item["reason"] = "Contact assertion suppressed by an internal privacy control."
+            item["public_contacts"] = []
+            item["reported_contacts"] = []
+            item["evidence"] = []
+            item["correction_history"] = []
+            continue
+        hidden_values: list[str] = []
+        for contact_field in ("public_contacts", "reported_contacts"):
+            visible = []
+            for contact in item.get(contact_field, []):
+                kind, value = str(contact.get("kind") or ""), str(contact.get("value") or "")
+                global_key = global_method_suppression_key(kind, value)
+                scoped_key = (
+                    method_suppression_key(company_id, name, kind, value) if company_id else None
+                )
+                hidden = states.get(("method", global_key)) == "suppress" or (
+                    scoped_key is not None and states.get(("method", scoped_key)) == "suppress"
+                )
+                if hidden:
+                    if value:
+                        hidden_values.append(value.casefold())
+                else:
+                    visible.append(contact)
+            item[contact_field] = visible
+        if hidden_values:
+
+            def scrub(value, hidden=tuple(hidden_values)):
+                if isinstance(value, str):
+                    return "" if any(term in value.casefold() for term in hidden) else value
+                if isinstance(value, list):
+                    return [scrub(part, hidden) for part in value]
+                if isinstance(value, dict):
+                    return {key: scrub(part, hidden) for key, part in value.items()}
+                return value
+
+            item["evidence"] = scrub(item.get("evidence", []))
+            item["reason"] = scrub(item.get("reason", ""))
+            item["correction_history"] = scrub(item.get("correction_history", []))
+            item["correction_history"] = [
+                {
+                    **row,
+                    "values": {
+                        key: value
+                        for key, value in row.get("values", {}).items()
+                        if key != "public_contact_value"
+                    },
+                }
+                for row in item.get("correction_history", [])
+            ]
+
+
 def buying_chain_views(
     session: Session, project_ids: set[UUID], *, now: datetime | None = None
 ) -> dict[str, dict]:
@@ -2049,11 +2173,20 @@ def buying_chain_views(
 
     views = {
         str(project_id): buying_chain_view(
-            session, project_id, now=now, preload=preload, include_identity_ids=False
+            session,
+            project_id,
+            now=now,
+            preload=preload,
+            include_identity_ids=False,
+            _apply_privacy=False,
         )
         for project_id in project_ids
         if project_id in projects
     }
+    _apply_contact_privacy(
+        session,
+        [candidate for view in views.values() for candidate in view.get("candidates", [])],
+    )
     _attach_identity_ids(session, list(views.values()))
     return views
 
@@ -2066,6 +2199,7 @@ def buying_chain_view(
     history: bool = False,
     preload: BuyingChainViewPreload | None = None,
     include_identity_ids: bool = True,
+    _apply_privacy: bool = True,
 ) -> dict:
     now = now or evaluation_now(datetime.now(UTC))
     project = session.get(Project, project_id)
@@ -2364,85 +2498,8 @@ def buying_chain_view(
         history,
         decisions=preload.corrections.get(project_id, []) if preload else None,
     )
-    # Privacy suppressions are stable across regenerated claim IDs. Apply them
-    # to the actionable projection after correction replay, preserving history.
-    if not history and candidates:
-        from gridlens.intelligence.contact_suppressions import (
-            _ledger_state,
-            company_suppression_key,
-            global_method_suppression_key,
-            global_person_suppression_key,
-            method_suppression_key,
-            person_suppression_key,
-        )
-
-        claim_ids = [item["id"] for item in candidates]
-        company_by_claim = {
-            row.claim_id: row.company_identity_id
-            for row in session.scalars(
-                select(BuyingChainIdentityLink).where(
-                    BuyingChainIdentityLink.claim_id.in_(claim_ids),
-                    BuyingChainIdentityLink.entity_type == "company",
-                    BuyingChainIdentityLink.state == "current",
-                )
-            )
-        }
-        for item in candidates:
-            company_id = company_by_claim.get(item["id"])
-            if company_id is None:
-                continue
-            if (
-                _ledger_state(session, "company", company_suppression_key(company_id))[0]
-                == "suppress"
-            ):
-                item["public_contacts"] = []
-                item["suppressed"] = True
-                continue
-            name = item.get("person_name") or ""
-            person_link = session.scalar(
-                select(BuyingChainIdentityLink.person_identity_id).where(
-                    BuyingChainIdentityLink.claim_id == item["id"],
-                    BuyingChainIdentityLink.entity_type == "person",
-                    BuyingChainIdentityLink.state == "current",
-                )
-            )
-            if name and (
-                _ledger_state(session, "person", person_suppression_key(company_id, name))[0]
-                == "suppress"
-                or (
-                    person_link
-                    and _ledger_state(
-                        session, "person", global_person_suppression_key(person_link)
-                    )[0]
-                    == "suppress"
-                )
-            ):
-                item["public_contacts"] = []
-                item["suppressed"] = True
-                continue
-            item["public_contacts"] = [
-                contact
-                for contact in item.get("public_contacts", [])
-                if _ledger_state(
-                    session,
-                    "method",
-                    method_suppression_key(
-                        company_id,
-                        name,
-                        str(contact.get("kind") or ""),
-                        str(contact.get("value") or ""),
-                    ),
-                )[0]
-                != "suppress"
-                and _ledger_state(
-                    session,
-                    "method",
-                    global_method_suppression_key(
-                        str(contact.get("kind") or ""), str(contact.get("value") or "")
-                    ),
-                )[0]
-                != "suppress"
-            ]
+    if _apply_privacy:
+        _apply_contact_privacy(session, candidates)
     candidates = [item for item in candidates if history or not item.get("retracted")]
     # Reuse the latest-run selection loaded above for bounded multi-project reads.
     unresolved = (

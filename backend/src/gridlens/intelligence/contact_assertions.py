@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from gridlens.intelligence.company_contacts import company_contacts
 from gridlens.intelligence.contact_suppressions import (
-    _ledger_state,
+    _ledger_states,
     company_suppression_key,
     global_method_suppression_key,
     method_suppression_key,
@@ -101,7 +101,20 @@ def project_contact_assertions(session: Session, company_id: UUID) -> dict[str, 
                 **contact_assertion_status(imported=True),
             }
         )
-    if _ledger_state(session, "company", company_suppression_key(company_id))[0] == "suppress":
+    suppression_keys = {("company", company_suppression_key(company_id))}
+    for item in imported:
+        name = item.get("name")
+        if name:
+            suppression_keys.add(("person", person_suppression_key(company_id, name)))
+        for kind, field in (("email", "email"), ("phone", "phone"), ("profile", "profile_url")):
+            value = item.get(field)
+            if value:
+                suppression_keys.add(
+                    ("method", method_suppression_key(company_id, name, kind, value))
+                )
+                suppression_keys.add(("method", global_method_suppression_key(kind, value)))
+    states = _ledger_states(session, suppression_keys)
+    if states.get(("company", company_suppression_key(company_id))) == "suppress":
         imported = []
     else:
         visible_imported = []
@@ -109,8 +122,7 @@ def project_contact_assertions(session: Session, company_id: UUID) -> dict[str, 
             name = item.get("name")
             if (
                 name
-                and _ledger_state(session, "person", person_suppression_key(company_id, name))[0]
-                == "suppress"
+                and states.get(("person", person_suppression_key(company_id, name))) == "suppress"
             ):
                 continue
             # Imported rows have no stable person UUID; canonical globally
@@ -119,15 +131,13 @@ def project_contact_assertions(session: Session, company_id: UUID) -> dict[str, 
                 value = item.get(field)
                 if (
                     value
-                    and _ledger_state(
-                        session, "method", method_suppression_key(company_id, name, kind, value)
-                    )[0]
+                    and states.get(
+                        ("method", method_suppression_key(company_id, name, kind, value))
+                    )
                     == "suppress"
                     or (
                         value
-                        and _ledger_state(
-                            session, "method", global_method_suppression_key(kind, value)
-                        )[0]
+                        and states.get(("method", global_method_suppression_key(kind, value)))
                         == "suppress"
                     )
                 ):
