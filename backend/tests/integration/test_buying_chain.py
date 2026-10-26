@@ -4880,6 +4880,82 @@ def test_tdlr_exact_company_identity_reuse_preserves_company_suppressions(
         assert len(contact_jobs) == 2
 
 
+def test_tdlr_company_alignment_preserves_scoped_method_suppression(db, monkeypatch):
+    from gridlens.intelligence import identity_reconciliation
+    from gridlens.intelligence.contact_suppressions import (
+        method_suppression_key,
+        record_contact_suppression,
+    )
+
+    real_reconcile = identity_reconciliation._reuse_exact_project_company_for_named_people
+    monkeypatch.setattr(
+        identity_reconciliation,
+        "_reuse_exact_project_company_for_named_people",
+        lambda *_args: None,
+    )
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += "\nOwner contact: Jordan Smith\nOwner contact phone: (713) 555-0100"
+    with db.begin() as session:
+        project, _retained, _owner = _seed_tdlr_retained_project(
+            session, (number, name, location, owner, excerpt)
+        )
+        result = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
+        organization = next(
+            candidate
+            for candidate in result["candidates"]
+            if candidate["organization"] == owner and not candidate["person_name"]
+        )
+        person = next(
+            candidate
+            for candidate in result["candidates"]
+            if candidate["person_name"] == "Jordan Smith"
+        )
+        old_company_id = UUID(str(person["company_identity_id"]))
+        assert person["company_identity_id"] != organization["company_identity_id"]
+        assert person["public_contacts"]
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=method_suppression_key(
+                old_company_id, "Jordan Smith", "phone", "(713) 555-0100"
+            ),
+            action="suppress",
+            expected_version=0,
+            reason="Keep a company-scoped method private across identity refresh.",
+            actor="test",
+            idempotency_key="tdlr-method-suppression-before-company-alignment",
+        )
+        person_claim_id = UUID(str(person["id"]))
+        monkeypatch.setattr(
+            identity_reconciliation,
+            "_reuse_exact_project_company_for_named_people",
+            real_reconcile,
+        )
+        identity_reconciliation.ensure_project_scoped_identity_links(
+            session, [str(organization["id"]), str(person["id"])]
+        )
+        current_person_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == person_claim_id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert current_person_link is not None
+        assert current_person_link.company_identity_id == old_company_id
+        for view in (
+            buying_chain_view(session, project.id),
+            buying_chain_view(session, project.id, history=True),
+            buying_chain_views(session, {project.id})[str(project.id)],
+        ):
+            person_view = next(
+                candidate
+                for candidate in view["candidates"]
+                if candidate.get("person_name") == "Jordan Smith"
+            )
+            assert not person_view["public_contacts"]
+
+
 def test_same_project_company_identity_alignment_rejects_other_project_source_or_name():
     from gridlens.intelligence.identity_reconciliation import (
         _same_current_project_organization_source,

@@ -26,6 +26,7 @@ from gridlens.persistence.models import (
     IdentityIdentifier,
     PersonIdentity,
 )
+from gridlens.persistence.suppression_models import ContactSuppression
 
 EntityType = Literal["company", "person"]
 COMPANY_IDENTIFIERS = {"lei", "ein"}
@@ -474,6 +475,18 @@ def _reuse_exact_project_company_for_named_people(
     superseded identity history intact.
     """
     project_by_claim = {claim.id: claim.project_id for claim in claims}
+    # Method suppression keys are one-way hashes. Once a company link changes,
+    # we cannot tell whether a method control belongs to the old or new company
+    # without recovering hidden method values. Fail closed while any method
+    # control exists; this also covers methods absent from the current source.
+    has_method_controls = (
+        session.scalar(
+            select(ContactSuppression.id).where(ContactSuppression.scope == "method").limit(1)
+        )
+        is not None
+    )
+    if has_method_controls:
+        return
     for person_claim in claims:
         person_candidate = current_by_claim.get(person_claim.id)
         if person_candidate is None or not person_claim.person_name:
