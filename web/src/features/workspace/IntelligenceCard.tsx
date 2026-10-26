@@ -1,22 +1,11 @@
-import { useState } from 'react'
-import { client, type Opportunity } from '../../api/client'
+import type { Opportunity } from '../../api/client'
 import './intelligence-card.css'
 
 type Card = NonNullable<Opportunity['intelligence_card']>
 
-export function IntelligenceCard({ card, opportunityName, customer, location, activity, tier, why, nextAction, onReadback, onReview }: {
-  card: Card; opportunityName: string; customer: string | null | undefined; location: string | null | undefined; activity: string; tier: string; why: string; nextAction: string; onReadback: () => void; onReview: () => void
+export function IntelligenceCard({ card, opportunityName, customer, location, activity, tier, why, nextAction, onResearch }: {
+  card: Card; opportunityName: string; customer: string | null | undefined; location: string | null | undefined; activity: string; tier: string; why: string; nextAction: string; onResearch: () => void
 }) {
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-  async function research() {
-    setBusy(true); setMessage('')
-    try {
-      const result = await client.refreshAutonomousResearch(card.need_id, false, undefined, true)
-      setMessage(result.items.length ? 'Targeted research queued. Results appear after the worker completes.' : 'No new work queued. Existing work, freshness and budget limits still apply.')
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Research request failed.') }
-    finally { setBusy(false) }
-  }
   const known = card.fields.filter(field => field.value !== null)
   const projectFields = known.filter(field => field.section === 'identity' || field.section === 'power')
   const commercialFields = known.filter(field => field.section === 'commercial')
@@ -40,7 +29,7 @@ export function IntelligenceCard({ card, opportunityName, customer, location, ac
         {card.research_gaps.length > 0 && <p className="ic-gap-summary">{card.research_gaps.length} research {card.research_gaps.length === 1 ? 'gap' : 'gaps'} remain.</p>}
         {commercialFields.length > 0 && <ul className="ic-commercial-list">{commercialFields.slice(0, 3).map(field => <li key={field.key}>{field.label}: {field.value}</li>)}</ul>}
       </section>
-      <section className="ic-next" aria-label="Recommended next action"><h3>Recommended next action</h3><p>{nextAction}</p><button onClick={onReview}>Review workflow and notes</button><div className="ic-research-action"><button disabled={busy || !card.research_enabled} onClick={() => void research()}>{busy ? 'Queuing research…' : 'Research missing information'}</button>{!card.research_enabled && <small>Research execution is disabled for this opportunity.</small>}</div>{message && <div className="ic-research-message"><p role="status">{message}</p><button onClick={onReadback}>Refresh research status</button></div>}</section>
+      <section className="ic-next" aria-label="Recommended next action"><h3>Recommended next action</h3><p>{nextAction}</p><button onClick={onResearch}>View automated research</button></section>
       </div>
     </div>
   </section>

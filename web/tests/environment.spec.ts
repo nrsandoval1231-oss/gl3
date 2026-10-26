@@ -60,19 +60,6 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
     if (route.request().method() === 'GET' && path === '/api/intelligence/tasks') return json({ items: [] })
     if (route.request().method() === 'GET' && /^\/api\/intelligence\/needs\/[^/]+\/history$/.test(path)) return json({ items: [] })
     if (path.endsWith('/buying-chain')) return json({ project_id: 'a', status: 'complete', policy_version: 'v1', unresolved: [], runs: [], candidates: [] })
-    if (path.endsWith('/facts')) {
-      return json({
-        items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: 0,
-        current_reported_timing_correction_target: {
-          available: false, unavailable_reason: 'no_current_admitted_lead', need_id: 'a',
-          project_id: null, project_identity_key: null, activity_key: null, facility_identity: null,
-          source_semantic_hash: null, source_evidence_hash: null, retained_evidence_id: null,
-          source_id: null, earliest_possible_start: null, latest_possible_start: null,
-          minimum_duration_days: null, maximum_duration_days: null, current_fact_version: 0,
-        },
-      })
-    }
-    if (path.endsWith('/workflow-status')) return json({ status: 'UNKNOWN', version: 0, events: [] })
     return json([])
   })
 }
@@ -137,84 +124,13 @@ test('canonical queue uses bounded server pagination instead of map-window data'
   expect(requests.some(url => url.pathname === '/api/opportunities/map-window')).toBe(false)
 })
 
-test('commercial pursuit investigation returns to its note and selected need without writes', async ({ page }) => {
-  await commercialEnvironment(page)
-  const writes: string[] = []
-  page.on('request', (request) => { if (request.method() === 'POST') writes.push(request.url()) })
-  await page.goto('/?view=pursuits')
-  await page.getByLabel('Search commercial pursuits on this page').fill('fixture')
-  await page.getByRole('button', { name: /Commercial fixture A/ }).click()
-  await page.getByLabel('Note', { exact: true }).fill('Unsaved commercial note')
-  await page.getByRole('button', { name: 'Investigate this need' }).click()
-  await expect(page.getByRole('heading', { name: 'Test project a', exact: true })).toBeVisible()
-  await page.goBack()
-  await expect(page.getByLabel('Search commercial pursuits on this page')).toHaveValue('fixture')
-  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unsaved commercial note')
-  await expect(page.getByRole('button', { name: 'Investigate this need' })).toBeFocused()
-  await page.reload()
-  await expect(page.getByLabel('Search commercial pursuits on this page')).toHaveValue('fixture')
-  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unsaved commercial note')
-  expect(writes).toEqual([])
-})
 
-test('commercial pending note save survives investigation without duplicate submission', async ({ page }) => {
-  await commercialEnvironment(page)
-  let release!: () => void
-  const gate = new Promise<void>((resolve) => { release = resolve })
-  let posts = 0
-  await page.route('**/api/pursuits/pursuit-a/notes', async (route) => {
-    posts += 1
-    await gate
-    await route.fulfill({ json: {} })
-  })
-  await page.goto('/environment?view=environment&mode=pursuits&pursuitNeed=a')
-  await page.getByLabel('Note', { exact: true }).fill('Save exactly once')
-  await page.getByRole('button', { name: 'Save note', exact: true }).click()
-  await expect.poll(() => posts).toBe(1)
-  await page.getByRole('button', { name: 'Investigate this need' }).click()
-  await page.goBack()
-  await expect(page.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled()
-  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Save exactly once')
-  release()
-  await expect(page.getByText('Note saved to this pursuit. Evidence tier unchanged.')).toBeVisible()
-  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('')
-  expect(posts).toBe(1)
-})
 
-test('pending targeted research stays disabled across investigation and returns its result', async ({ page }) => {
-  await commercialEnvironment(page)
-  let release!: () => void
-  const gate = new Promise<void>((resolve) => { release = resolve })
-  let posts = 0
-  await page.route('**/api/commercial/triage/a/research', async (route) => {
-    posts += 1
-    await gate
-    await route.fulfill({ json: { status: 'ready', job_id: null, stale: false, citations: [], result: { next_step: 'Fixture research result' } } })
-  })
-  await page.goto('/environment?view=environment&mode=pursuits&pursuitNeed=a')
-  await page.getByRole('button', { name: 'Research this question' }).click()
-  await expect.poll(() => posts).toBe(1)
-  await page.getByRole('button', { name: 'Investigate this need' }).click()
-  await page.goBack()
-  await expect(page.getByRole('button', { name: 'Queueing…' })).toBeDisabled()
-  await expect(page.getByLabel('Exact missing-fact question')).toBeDisabled()
-  release()
-  await expect(page.getByText('Next step: Fixture research result', { exact: true })).toBeVisible()
-  expect(posts).toBe(1)
-})
 
-test('authentication expiry clears private call drafts before another session', async ({ page }) => {
-  await mock(page, [opportunity('a', 'Austin, TX')])
-  await page.goto('/environment?view=environment&mode=action&need=a')
-  await page.getByLabel('Call note').fill('Private previous session note')
-  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: false } }))
-  await page.reload()
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
-  expect(await page.evaluate(() => Object.keys(sessionStorage).filter(key => key.startsWith('gl3-continuity:')))).toEqual([])
-  await page.unroute('**/api/auth/session')
-  await page.goto('/environment?view=environment&mode=action&need=a')
-  await expect(page.getByLabel('Call note')).toHaveValue('')
-})
+
+
+
+
 
 test('failed draft persistence invalidates the older snapshot instead of restoring stale input', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX')])
@@ -228,46 +144,9 @@ test('failed draft persistence invalidates the older snapshot instead of restori
   await expect(page.getByLabel('Call note')).not.toHaveValue('Old snapshot must not return')
 })
 
-test('first pursuit link preserves the unlinked note and question without transferring to another pursuit', async ({ page }) => {
-  const item = await commercialEnvironment(page, null)
-  let release!: () => void
-  const gate = new Promise<void>((resolve) => { release = resolve })
-  await page.route('**/api/commercial/triage/a/research', async (route) => {
-    await gate
-    await route.fulfill({ json: { status: 'ready', job_id: null, stale: false, citations: [], result: { next_step: 'Linked research result' } } })
-  })
-  const result = (id: string) => ({ evaluated_at: stamp, policy_version: 'fixture', total: 1, grouped_total: 1, offset: 0, limit: 50, next_offset: null, cohort_counts: { action_now: 1, research: 0, watch: 0, reject: 0 }, daily: { evaluated: 1, surfaced: 1, contacted: 0 }, items: [{ ...item, pursuit_id: id }] })
-  await page.route('**/api/commercial/triage/evaluate*', (route) => route.fulfill({ json: result('first-pursuit') }))
-  await page.goto('/environment?view=environment&mode=pursuits&pursuitNeed=a')
-  await page.getByLabel('Note', { exact: true }).fill('Unlinked note stays with first pursuit')
-  await page.getByLabel('Exact missing-fact question').fill('Which contractor owns this package?')
-  await page.getByRole('button', { name: 'Research this question' }).click()
-  await expect(page.getByRole('button', { name: 'Queueing…' })).toBeDisabled()
-  await page.getByText('Queue details and research updates', { exact: true }).click()
-  await page.getByRole('button', { name: 'Evaluate Signals' }).click()
-  await expect(page.getByRole('button', { name: 'Save note', exact: true })).toBeEnabled()
-  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unlinked note stays with first pursuit')
-  await expect(page.getByLabel('Exact missing-fact question')).toHaveValue('Which contractor owns this package?')
-  release()
-  await expect(page.getByText('Next step: Linked research result', { exact: true })).toBeVisible()
-  await page.route('**/api/commercial/triage?*', (route) => route.fulfill({ json: result('first-pursuit') }))
-  await page.reload()
-  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unlinked note stays with first pursuit')
-  await page.route('**/api/commercial/triage?*', (route) => route.fulfill({ json: result('different-pursuit') }))
-  await page.reload()
-  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('')
-})
 
-test('authentication rejection clears the currently mounted commercial note', async ({ page }) => {
-  await commercialEnvironment(page)
-  await page.route('**/api/commercial/triage/evaluate*', (route) => route.fulfill({ status: 401 }))
-  await page.goto('/environment?view=environment&mode=pursuits&pursuitNeed=a')
-  await page.getByLabel('Note', { exact: true }).fill('Private mounted note')
-  await page.getByText('Queue details and research updates', { exact: true }).click()
-  await page.getByRole('button', { name: 'Evaluate Signals' }).click()
-  await expect(page.getByText(/Your session ended/).first()).toBeVisible()
-  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('')
-})
+
+
 
 test('Back and Forward wait for the matching page before restoring each queue position', async ({ page }) => {
   const items = Array.from({ length: 60 }, (_, i) => opportunity(`history-${i}`, 'Austin, TX'))

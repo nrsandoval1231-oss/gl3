@@ -1,9 +1,3 @@
 # Project buying chain
 
-Merged with GL3-017 (PR #7). Compact evidence disclosure inside the existing opportunity detail. The component is
-keyed by the backend physical Project ID, not the displayed name or an exact-event
-card group. It loads retained findings, starts an explicit bounded enrichment, and
-keeps organization involvement, current employment, and personal project assignment
-separate. Navigation ignores results from an unmounted project; duplicate pending
-requests are disabled. Errors preserve the last displayed findings. No outreach or
-commercial qualification is performed here.
+Compact, read-only evidence disclosure inside the existing opportunity detail. The component is keyed by the backend physical Project ID, not the displayed name or an exact-event card group. It loads retained findings and displays organization involvement, current employment, and personal project assignment as separate claims. Autonomous research and enrichment scheduling run independently of this view. No outreach or commercial qualification is performed here.

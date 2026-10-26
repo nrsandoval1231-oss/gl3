@@ -1,3 +1,3 @@
 # App shell
 
-Own authenticated routing, navigation between three tiers, loading, error, and empty states. Keep the default morning experience focused on useful changes.
+Own authenticated routing, horizontal navigation between Opportunities, Research, Signals and Operations, global company/project/contact search, and shared loading, error and empty states.

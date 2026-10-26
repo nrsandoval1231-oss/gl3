@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 const apiPort = process.env.GRIDLENS_API_PORT ?? '8000'
 const webPort = process.env.GRIDLENS_WEB_PORT ?? '5173'
-const liveAcceptance = ['**/first_path.spec.ts', '**/pursuits.spec.ts']
+const liveAcceptance = ['**/first_path.spec.ts']
 
 export default defineConfig({
   testDir: './tests',

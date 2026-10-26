@@ -36,7 +36,7 @@ const needA = {
 }
 const needB = { ...needA, id: 'need-b', project_id: 'project-b', name: 'Second supported power need', browse_title: 'Second supported power need', required_mw: '', start_window: '', duration: '', intelligence_card: { ...card, need_id: 'need-b', project_id: 'project-b', power_gap: { remaining_mw: '', status: '' }, fields: card.fields.filter(field => !['facility_demand', 'energization'].includes(field.key)).map(field => field.key === 'customer' ? { ...field, value: 'Example Customer' } : field.key === 'project' ? { ...field, value: 'Second supported power need' } : field), contacts: [], evidence: [] }, evidence: needA.evidence }
 
-test('approved intelligence dashboard preserves evidence, verified actions, selection history, and mobile width', async ({ page }, testInfo) => {
+test('approved intelligence workspace preserves evidence, research status, selection history, and mobile width', async ({ page }, testInfo) => {
   let providerPosts = 0
   const workspace = (items: typeof needA[], total = items.length) => ({ items, total, counts: { action_now: 0, research: total, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'approved-cohort', count_unit: 'power needs', changes_available: false })
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
@@ -64,6 +64,8 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
     await page.keyboard.press('Enter')
     await expect(account).toHaveAttribute('open', '')
     await expect(signOut).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('button', { name: 'Technical diagnostics' })).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(signOut).toBeFocused()
     const contrast = await signOut.evaluate(button => {
@@ -213,12 +215,12 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   const wideActionLabels = await page.addStyleTag({ content: '.wh-record-actions button { letter-spacing: 3px; }' })
   const actionGeometry = await page.evaluate(() => {
     const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
-    return { actions: rect('.wh-record-actions').toJSON(), toolbar: rect('.wh-identity-toolbar').toJSON(), share: rect('.wh-share').toJSON(), workflow: rect('.wh-primary-action').toJSON(), metrics: rect('.wh-customer-metrics').toJSON() }
+    return { actions: rect('.wh-record-actions').toJSON(), toolbar: rect('.wh-identity-toolbar').toJSON(), share: rect('.wh-share').toJSON(), research: rect('.wh-primary-action').toJSON(), metrics: rect('.wh-customer-metrics').toJSON() }
   })
-  expect(actionGeometry.actions.width).toBeGreaterThan(225)
-  expect(actionGeometry.share.top).toBeCloseTo(actionGeometry.workflow.top, 0)
-  expect(actionGeometry.share.right).toBeLessThanOrEqual(actionGeometry.workflow.left)
-  expect(actionGeometry.workflow.right).toBeLessThanOrEqual(1648)
+  expect(actionGeometry.actions.width).toBeGreaterThan(180)
+  expect(actionGeometry.share.top).toBeCloseTo(actionGeometry.research.top, 0)
+  expect(actionGeometry.share.right).toBeLessThanOrEqual(actionGeometry.research.left)
+  expect(actionGeometry.research.right).toBeLessThanOrEqual(1648)
   expect(actionGeometry.metrics.top).toBeGreaterThan(geometry.header.bottom)
   expect(actionGeometry.metrics.bottom).toBeLessThanOrEqual(geometry.columns.top)
   await wideActionLabels.evaluate(element => (element as HTMLElement).remove())

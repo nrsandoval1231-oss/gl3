@@ -1,14 +1,6 @@
 import { clearContinuity } from '../state/sessionState'
 import type { components } from './generated'
 
-export type PursuitsResult = components['schemas']['PursuitsOut']
-export type Pursuit = components['schemas']['PursuitOut']
-export type CallNoteBody = components['schemas']['CallNoteBody']
-export const workflowStatuses = ['New', 'Investigating', 'Contacted', 'Qualified', 'Won', 'Lost', 'Closed'] as const
-export type WorkflowStatus = typeof workflowStatuses[number]
-export type WorkflowStatusFilter = Uppercase<WorkflowStatus> | 'UNKNOWN' | ''
-export type CallFact = components['schemas']['CallFactOut']
-export type CallFactPage = components['schemas']['CallFactPageOut']
 export type EvidenceContent = {
   evidence_id: string
   content_hash: string
@@ -18,11 +10,6 @@ export type EvidenceContent = {
   content: string
   next_offset: number | null
 }
-export type TimingCorrectionTarget = components['schemas']['TimingCorrectionTargetOut']
-export type CallFactDraftBody = components['schemas']['CallFactDraftBody']
-export type CallFactDecisionBody = components['schemas']['CallFactDecisionBody']
-export type NeedWorkflowStatus = components['schemas']['NeedWorkflowStatusOut']
-export type NeedWorkflowStatusBody = components['schemas']['NeedWorkflowStatusBody']
 
 export type IntelligenceHistoryItem = {
   job_id: string; task_type: string | null; need_id: string; status: string
@@ -47,11 +34,16 @@ export type IntelligenceOperations = {
   providers: { utc_day: { date: string; timezone: string; calls: number; known_cost_usd: number | null; reserved_cost_usd: number | null; reserved_known_subtotal_usd: number; unknown_cost_calls: number; daily_budget_status: string; daily_budget_rows: { scope: string; calls: number; reserved_usd: number }[]; daily_budget_limits_usd: Record<string, number>; daily_budget_limits_calls: Record<string, number> }; configured: Record<string, boolean>; enabled: Record<string, boolean>; by_provider: { provider: string; called: number; completed: number; accepted: number | null; models: Record<string, unknown>; actual_cost_usd: number | null; reserved_cost_usd: number | null; uncertain: number; failed: number; input_tokens: number; output_tokens: number; usage_known_calls: number; usage_unknown_calls: number; unknown_cost_calls: number; latency_p50_ms: number | null; latency_p95_ms: number | null }[]; reserved_cost_usd: number | null; reserved_known_subtotal_usd: number; known_cost_usd: number | null; known_cost_calls: number; unknown_cost_calls_all_time: number; total_cost_status: string; detail_rows_30d: number; detail_truncated: boolean; outstanding_uncertain_calls_all_time: number; uncertain_calls: number; accepted: number | null; accepted_reason: string }
   questions: { outcomes_30d: Record<string, number> }; material_changes_30d: number | null; reviewed_signals: number | null; independent_leads: number | null; backup: string; restore: string; last_verified_restore_at: string | null; last_reported_restore_at: string | null; operational_receipt: Record<string, unknown>; commercial_review_receipt: { status: string; reported_case_count: number | null; decision_counts: Record<string, number> | null; reviewer: string | null; reviewed_at: string | null; sample_sha256: string | null; context_sha256: string | null; cases: { case_id: string; need_id: string; decision: string; evidence_refs: { evidence_id: string; content_hash: string }[] }[]; independent_labels: string; quality_verification: string; acceptance: string }; owner_review_notes_30d: number
 }
-export type OwnerFeedbackBody = { client_id: string; job_id: string; logical_call_id: string; decision: 'SUPPORTED' | 'CONFLICT' | 'UNRESOLVED' | 'OTHER'; note: string; next_action?: string; follow_up?: string | null; candidate: { field: string; value: string; unit?: string | null; original_value?: string | null; original_unit?: string | null; precision?: number | null; date_precision?: string | null; speaker?: string | null; speaker_organization?: string | null; speaker_role?: string | null; evidence_id: string; evidence_hash: string; quote: string; section: string; page?: number | null; span_start: number; span_end: number; publisher: string; published_date?: string | null; support: string; status: string; source_url: string; source_id?: string | null }; evidence_refs: { evidence_id: string; content_hash: string; source_url: string }[] }
-
 export type BuyingChainResult = components['schemas']['BuyingChainOut']
-export type BuyingChainCorrectionBody = components['schemas']['BuyingChainCorrectionBody']
-export type BuyingChainCorrection = components['schemas']['BuyingChainCorrectionOut']
+export type GlobalSearchResult = {
+  query: string
+  companies_status?: 'current' | 'qualification_pending'
+  opportunities_status?: 'current' | 'qualification_pending'
+  projects: { project_id: string; need_id: string; name: string; location: string | null; region_state: string | null; tier?: string | null; updated_at: string | null }[]
+  companies: { company_identity_id: string; name: string; aliases?: string[]; project_count?: number; need_count?: number; supporting_evidence_count?: number; last_evidence_update?: string | null; qualification_tiers?: string[]; highest_priority_need?: Record<string, unknown> | null }[]
+  contacts: { company_identity_id: string | null; project_id: string; need_id?: string | null; name: string | null; title: string | null; organization: string; methods: { kind: string; value: string }[]; sources: Record<string, unknown>[]; verification_status: string }[]
+  opportunities: Record<string, unknown>[]
+}
 export type Opportunity = components['schemas']['OpportunityOut']
 export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
 export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
@@ -60,8 +52,6 @@ export type CustomerProjectsPage = components['schemas']['CustomerProjectsPageOu
 export type UnresolvedCustomerProjectsPage = components['schemas']['UnresolvedCustomerProjectsPageOut']
 export type WorkspaceChanges = components['schemas']['WorkspaceChangesOut']
 export type WorkspaceChangeNeed = components['schemas']['WorkspaceChangeNeedOut']
-export type WorkspaceChangesReviewBody = components['schemas']['WorkspaceChangesReviewBody']
-export type WorkspaceChangesReviewReceipt = components['schemas']['WorkspaceChangesReviewReceiptOut']
 export type WorkspaceHistoricalNeed = components['schemas']['WorkspaceHistoricalNeedOut']
 export type WorkspaceFilters = { search?: string; tier?: 'Signal' | 'Prospect' | 'Lead'; disposition?: string; geography?: string; industry?: string; industry_group?: 'industrial'; activity?: string; timing?: 'KNOWN' | 'UNKNOWN'; mw_min?: string; mw_max?: string; sort?: 'priority' | 'project' | 'mw' | 'start' | 'updated'; offset?: number; cohort_token?: string }
 export type OpportunityBrowseFilters = {
@@ -74,7 +64,6 @@ export type OpportunityBrowseFilters = {
   mwMin?: string
   mwMax?: string
   prioritySegment?: string
-  status?: WorkflowStatusFilter
 }
 export type OpportunityPage = {
   items: Opportunity[]
@@ -110,19 +99,10 @@ export type SourceHealth = components['schemas']['HealthSourceOut']
 export type Evidence = components['schemas']['EvidenceOut']
 export type IngestionItem = components['schemas']['IngestionItemOut']
 export type IngestionPage = components['schemas']['IngestionPageOut']
-export type Brief = components['schemas']['BriefOut']
-export type BriefRequest = components['schemas']['BriefRequestOut']
-export type PowerNeedTitle = { status: 'disabled' | 'unavailable' | 'pending' | 'ready' | 'stale' | 'failed'; result: { title: string; organization: string | null; role: string | null; activity: string | null } | null; citations: { evidence_id: string; title: string; url: string; publisher: string; quote: string; role?: string | null }[]; generated_at: string | null; model: string | null; error?: string | null; job_id?: string | null }
-export type CommercialTriage = components['schemas']['CommercialTriagePageOut']
-export type CommercialTriageCard = components['schemas']['CommercialTriageCard']
-export type CommercialTriageHistory = components['schemas']['CommercialTriageHistoryPageOut']
-export type CommercialTriageHistoryItem = components['schemas']['CommercialTriageHistoryItem']
-export type CommercialResearchBody = components['schemas']['CommercialResearchBody']
 export type AutonomousResearch = components['schemas']['AutonomousResearchOut']
 export type ResearchOverview = components['schemas']['ResearchOverviewOut']
 export type ResearchRoute = components['schemas']['ResearchRouteOut']
 export type ResearchQuestion = components['schemas']['ResearchQuestionOut']
-export type CommercialResearchStatus = components['schemas']['CommercialResearchStatusOut']
 
 async function api<T>(path: string, init?: RequestInit, includeSafeDetail = false): Promise<T> {
   const response = await fetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })
@@ -145,7 +125,7 @@ function addBrowseFilters(params: URLSearchParams, filters: OpportunityBrowseFil
   const entries: [string, string | undefined][] = [
     ['geography', filters.geography], ['industry', filters.industry], ['industry_group', filters.industryGroup], ['activity', filters.activity],
     ['timing', filters.timing], ['mw_status', filters.mwStatus], ['mw_min', filters.mwMin],
-    ['mw_max', filters.mwMax], ['priority_segment', filters.prioritySegment], ['status', filters.status],
+    ['mw_max', filters.mwMax], ['priority_segment', filters.prioritySegment],
   ]
   for (const [key, value] of entries) if (value) params.set(key, value)
 }
@@ -238,6 +218,7 @@ async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, sig
 }
 
 export const client = {
+  search: (query: string, signal?: AbortSignal) => api<GlobalSearchResult>(`/api/search?${new URLSearchParams({ q: query, limit: '20' })}`, { signal }),
   workspace: async (filters: WorkspaceFilters = {}, signal?: AbortSignal): Promise<WorkspacePage> => {
     const params = new URLSearchParams({ limit: '25' })
     params.set('group_by', 'account')
@@ -273,28 +254,10 @@ export const client = {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
     return api<WorkspaceChanges>(`/api/opportunities/workspace/changes?${params}`, { signal })
   },
-  reviewWorkspaceChanges: (body: WorkspaceChangesReviewBody) => api<WorkspaceChangesReviewReceipt>(
-    '/api/opportunities/workspace/changes/review', { method: 'POST', body: JSON.stringify(body) }, true,
-  ),
   workspaceHistoricalNeed: (needId: string, signal?: AbortSignal) => api<WorkspaceHistoricalNeed>(
     `/api/opportunities/needs/${encodeURIComponent(needId)}/history`, { signal },
   ),
-  pursuits: (signal?: AbortSignal, includeDropped = false, offset = 0) => api<PursuitsResult>(`/api/pursuits${includeDropped ? `?include_dropped=true&offset=${offset}` : ''}`, { signal }),
-  refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
-  savePursuitNote: (pursuitId: string, body: CallNoteBody) => api<components['schemas']['CallNoteOut']>(`/api/pursuits/${encodeURIComponent(pursuitId)}/notes`, { method: 'POST', body: JSON.stringify(body) }),
-  buyingChain: (projectId: string, signal?: AbortSignal, history = false) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain${history ? '?history=true' : ''}`, { signal }),
-  correctBuyingChain: (projectId: string, claimId: string, body: BuyingChainCorrectionBody) => api<BuyingChainCorrection>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/${encodeURIComponent(claimId)}/corrections`, { method: 'POST', body: JSON.stringify(body) }, true),
-  enrichBuyingChain: (projectId: string, sourceUrls: string[], signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }), signal }),
-  brief: (needId: string) => api<Brief>(`/api/power-needs/${encodeURIComponent(needId)}/brief`),
-  requestBrief: (needId: string) => api<BriefRequest>(`/api/power-needs/${encodeURIComponent(needId)}/brief`, { method: 'POST', body: '{}' }),
-  powerNeedTitle: (needId: string, signal?: AbortSignal) => api<PowerNeedTitle>(`/api/power-needs/${encodeURIComponent(needId)}/title`, { signal }),
-  requestPowerNeedTitle: (needId: string, signal?: AbortSignal) => api<PowerNeedTitle>(`/api/power-needs/${encodeURIComponent(needId)}/title`, { method: 'POST', body: '{}', signal }),
-  commercialTriage: (limit = 50, signal?: AbortSignal, offset = 0) => api<CommercialTriage>(`/api/commercial/triage?limit=${limit}${offset ? `&offset=${offset}` : ''}`, { signal }),
-  commercialTriageHistory: (signal?: AbortSignal, offset = 0, limit = 50) => api<CommercialTriageHistory>(`/api/commercial/triage/history${offset || limit !== 50 ? `?limit=${limit}&offset=${offset}` : ''}`, { signal }),
-  commercialTriageHistoryDetail: (pursuitId: string, signal?: AbortSignal) => api<CommercialTriageHistoryItem>(`/api/commercial/triage/history/${encodeURIComponent(pursuitId)}`, { signal }),
-  evaluateCommercialTriage: (limit = 50, offset = 0) => api<CommercialTriage>(`/api/commercial/triage/evaluate${limit === 50 && offset === 0 ? '' : `?limit=${limit}&offset=${offset}`}`, { method: 'POST', body: '{}' }),
-  researchCommercialNeed: (needId: string, body: CommercialResearchBody) => api<BriefRequest>(`/api/commercial/triage/${encodeURIComponent(needId)}/research`, { method: 'POST', body: JSON.stringify(body) }, true),
-  commercialResearchStatus: (needId: string, question: string, signal?: AbortSignal) => api<CommercialResearchStatus>(`/api/commercial/triage/${encodeURIComponent(needId)}/research?${new URLSearchParams({ question }).toString()}`, { signal }, true),
+  buyingChain: (projectId: string, signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain`, { signal }),
   autonomousResearch: (needId: string, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { signal }, true),
   intelligenceTasks: (signal?: AbortSignal) => api<IntelligenceTasks>('/api/intelligence/tasks', { signal }),
   intelligenceOperations: (signal?: AbortSignal) => api<IntelligenceOperations>('/api/intelligence/operations', { signal }),
@@ -303,13 +266,10 @@ export const client = {
     if (taskType) params.set('task_type', taskType)
     return api<{ items: IntelligenceHistoryItem[] }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/history?${params}`, { signal })
   },
-  requestIntelligence: (needId: string, taskType: string, questionId?: string) => api<IntelligenceHistoryItem>(`/api/intelligence/needs/${encodeURIComponent(needId)}/jobs`, { method: 'POST', body: JSON.stringify({ task_type: taskType, ...(questionId ? { question_id: questionId } : {}) }) }),
-  saveIntelligenceFeedback: (needId: string, body: OwnerFeedbackBody) => api<{ id: string; metadata: Record<string, unknown>; note: string }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
   evidenceContent: (evidenceId: string, offset = 0, limit = 4096, signal?: AbortSignal) => {
     const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
     return api<EvidenceContent>(`/api/evidence/${encodeURIComponent(evidenceId)}/content?${params}`, { signal }, true)
   },
-  refreshAutonomousResearch: (needId: string, force: boolean, signal?: AbortSignal, completeIntelligence = false) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { method: 'POST', body: JSON.stringify({ force, ...(completeIntelligence ? { complete_intelligence: true } : {}) }), signal }, true),
   session: () => api<{ authenticated: boolean }>('/api/auth/session').then((session) => {
     if (!session.authenticated) clearContinuity()
     return session
@@ -324,22 +284,6 @@ export const client = {
     return api<OpportunityGroupPage>(`/api/opportunity-groups/${encodeURIComponent(groupId)}?${params}`, { signal })
   },
   opportunityNeed,
-  callFacts: (needId: string, limit = 50, offset = 0, signal?: AbortSignal) => api<CallFactPage>(
-    `/api/needs/${encodeURIComponent(needId)}/facts?limit=${limit}&offset=${offset}`, { signal }, true,
-  ),
-  createCallFact: (needId: string, body: CallFactDraftBody) => api<CallFact>(
-    `/api/needs/${encodeURIComponent(needId)}/facts`, { method: 'POST', body: JSON.stringify(body) }, true,
-  ),
-  decideCallFact: (needId: string, factVersionId: string, body: CallFactDecisionBody) => api<components['schemas']['CallFactDecisionOut']>(
-    `/api/needs/${encodeURIComponent(needId)}/facts/${encodeURIComponent(factVersionId)}/decision`,
-    { method: 'POST', body: JSON.stringify(body) }, true,
-  ),
-  workflowStatus: (needId: string, signal?: AbortSignal) => api<NeedWorkflowStatus>(
-    `/api/needs/${encodeURIComponent(needId)}/workflow-status`, { signal }, true,
-  ),
-  setWorkflowStatus: (needId: string, body: NeedWorkflowStatusBody) => api<components['schemas']['NeedWorkflowEventOut']>(
-    `/api/needs/${encodeURIComponent(needId)}/workflow-status`, { method: 'POST', body: JSON.stringify(body) }, true,
-  ),
   opportunityExportUrl: (tier: string, search: string, decision: string, cohortToken?: string, filters: OpportunityBrowseFilters = {}) => {
     const params = new URLSearchParams({ tier, search, decision })
     if (cohortToken) params.set('cohort_token', cohortToken)

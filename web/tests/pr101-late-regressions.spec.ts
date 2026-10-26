@@ -38,9 +38,6 @@ test('active Opportunities navigation preserves its selected need and section af
     cohort_token: 'workspace-cohort', count_unit: 'power needs', changes_available: false,
   } }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
-  await page.route('**/api/needs/need-a/facts?*', route => route.fulfill({ json: {
-    items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: 0,
-  } }))
   await page.goto('/?view=workspace&need=need-a&section=evidence')
   await expect(page.locator('.wh-detail').getByRole('button', { name: 'Evidence', exact: true })).toHaveClass(/active/)
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
