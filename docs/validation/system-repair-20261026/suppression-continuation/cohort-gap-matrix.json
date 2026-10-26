@@ -1,0 +1,755 @@
+{
+  "created_at": "2026-10-26T16:56:34.657125+00:00",
+  "base_commit": "27f7400278e3c3054b3cb7dfdcb45dd4fb859af0",
+  "scope": "Read-only follow-up; frozen 25 unchanged; no canonical ingestion, activation, benchmark rescore or release claim",
+  "sources": [
+    {
+      "id": "rice-presentation",
+      "url": "https://ricetx.gov/images/images_mi/mi_81_EG_AI_Corp_Rice_TX_Community_1352902479_8919.pdf",
+      "retrieved_at": "2026-10-26T16:55:07.471207+00:00",
+      "status": 200,
+      "bytes": 795036,
+      "sha256": "c462e44a32172cccc297f74fcec8d77979bcbca484ccbf00237be836ad7250d2",
+      "raw_path": "/workspace/gl3-handoff-research/rice-presentation.pdf"
+    },
+    {
+      "id": "egai-team",
+      "url": "https://egai.us/about/",
+      "retrieved_at": "2026-10-26T16:55:07.472347+00:00",
+      "status": 200,
+      "bytes": 28167,
+      "sha256": "712dbe97b770e010335957c24462a6221cade3cc00e51c7f558391a0016e6702",
+      "raw_path": "/workspace/gl3-handoff-research/egai-team.html"
+    },
+    {
+      "id": "rice-tdlr",
+      "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+      "retrieved_at": "2026-10-26T16:55:07.473297+00:00",
+      "status": 200,
+      "bytes": 16285,
+      "sha256": "17b2ca4aa6e46f77a7c9cd4f6db3e13253152579ee76ced45f182128ef78c283",
+      "raw_path": "/workspace/gl3-handoff-research/rice-tdlr.html"
+    },
+    {
+      "id": "rice-oct-agenda",
+      "url": "https://ricetx.gov/documents/81/Agenda_10.08.2026.pdf",
+      "retrieved_at": "2026-10-26T16:55:07.874618+00:00",
+      "status": 200,
+      "bytes": 174623,
+      "sha256": "cb71493d4d3ac5ab9fec8124318e649b75824cc37ed9b3c7fdfc0b45d6faf8e9",
+      "raw_path": "/workspace/gl3-handoff-research/rice-oct-agenda.pdf"
+    },
+    {
+      "id": "rice-minutes",
+      "url": "https://ricetx.gov/documents/81/09.15.2026_Regular_Meeting.pdf",
+      "retrieved_at": "2026-10-26T16:55:08.501853+00:00",
+      "status": 200,
+      "bytes": 710609,
+      "sha256": "38d8d8c9bdc24420f390e28944d98ac5ab95c786e7b5f1615740b286f68da159",
+      "raw_path": "/workspace/gl3-handoff-research/rice-minutes.pdf"
+    },
+    {
+      "id": "beacon-project",
+      "url": "https://www.hut8.com/data-centers/beacon-point",
+      "retrieved_at": "2026-10-26T16:55:08.832377+00:00",
+      "status": 200,
+      "bytes": 215442,
+      "sha256": "fc32fcabe4cf938d7c64a4954f6459d6aee3db1b2587090d2b36515a448e87da",
+      "raw_path": "/workspace/gl3-handoff-research/beacon-project.html"
+    },
+    {
+      "id": "beacon-results",
+      "url": "https://www.hut8.com/news-insights/press-releases/hut-8-reports-second-quarter-2026-results",
+      "retrieved_at": "2026-10-26T16:55:08.879381+00:00",
+      "status": 200,
+      "bytes": 162746,
+      "sha256": "f88abe5ee8a456086cab350cfc735ad76d99f0383d50b7caaeaca6fcf0d733e0",
+      "raw_path": "/workspace/gl3-handoff-research/beacon-results.html"
+    },
+    {
+      "id": "beacon-epcm",
+      "url": "https://s205.q4cdn.com/384284279/files/doc_news/Jacobs-awarded-EPCM-contract-to-deliver-second-Hut-8-AI-data-center-in-Texas-2026.pdf",
+      "retrieved_at": "2026-10-26T16:55:08.904194+00:00",
+      "status": 200,
+      "bytes": 161608,
+      "sha256": "81950fcb892809b6dcee81c22c27cd5e6f5d621d45a4261f46700d92e433987a",
+      "raw_path": "/workspace/gl3-handoff-research/beacon-epcm.pdf"
+    },
+    {
+      "id": "amazon-pecos",
+      "url": "https://www.aboutamazon.com/news/company-news/amazon-pecos-county-texas-data-center-clean-energy-jobs",
+      "retrieved_at": "2026-10-26T16:55:09.425236+00:00",
+      "status": 200,
+      "bytes": 177340,
+      "sha256": "a4dcac8a4452ce5d394ace778e44c3e82b52ed3c21bc46112c9312ab660ffb6b",
+      "raw_path": "/workspace/gl3-handoff-research/amazon-pecos.html"
+    },
+    {
+      "id": "powerhouse-letter",
+      "url": "https://www.powerhousedata.com/news/powerhouse-data-centers-express-support-for-governor-abbott",
+      "retrieved_at": "2026-10-26T16:55:09.497845+00:00",
+      "status": 200,
+      "bytes": 23406,
+      "sha256": "c1d7b7608ff198020f66963e06e5bb15082b6028093d92ff5e7e6d8c4abc4ad1",
+      "raw_path": "/workspace/gl3-handoff-research/powerhouse-letter.html"
+    },
+    {
+      "id": "powerhouse-markets",
+      "url": "https://www.powerhousedata.com/",
+      "retrieved_at": "2026-10-26T16:55:09.602354+00:00",
+      "status": 200,
+      "bytes": 155831,
+      "sha256": "7c6e5c46895ea050be01f53b28f19861dc196da94a5ff22adfc9a0452189fe64",
+      "raw_path": "/workspace/gl3-handoff-research/powerhouse-markets.html"
+    }
+  ],
+  "rows": [
+    {
+      "project_id": "b8a992fc-b136-4267-8b60-98431c6fa4bf",
+      "external_id": "0919088",
+      "project": "Texas W-1 permit 0919088",
+      "companies": [
+        "DE V OPERATING, LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_EXACT_PERMIT_SEARCH_NO_SUPPORT",
+      "sources": [],
+      "improvement": null,
+      "stop": "Exact permit/operator web search produced no usable result in this pass; pause this lead rather than substituting corporate-level power or contacts. Native RRC permit detail remains the next source target.",
+      "search_query": "0919088 DE V OPERATING, LLC"
+    },
+    {
+      "project_id": "d51110ed-37cf-471f-945c-42163b34b388",
+      "external_id": "TABS-TABS2027002808",
+      "project": "EG AI RICE CAMPUS DATA CENTER",
+      "companies": [
+        "EG AI CORP"
+      ],
+      "baseline_company_methods": 1,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "SOURCE_SUPPORTED_CONTACT; CONFLICTING_PROJECT_SCHEDULE",
+      "sources": [
+        "rice-presentation",
+        "egai-team",
+        "rice-tdlr",
+        "rice-oct-agenda",
+        "rice-minutes"
+      ],
+      "improvement": "City-hosted EG AI Rice presentation publishes Dennis Finster and his business email. Current company site identifies him as CEO. TDLR separately names Luis Diaz as owner contact; do not merge people or assign owner phone to Dennis.",
+      "person": {
+        "name": "Dennis Finster",
+        "role": "CEO; Rice presentation community contact",
+        "email": "dennis.finster@egai.us",
+        "verification": "PUBLISHED_SOURCE_ASSOCIATION; mailbox deliverability NOT_TESTED; purchasing authority UNKNOWN",
+        "project_binding": "Rice project presentation; precise TABS building/phase binding still needs reconciliation"
+      },
+      "power": "2.5 MW company-described facility capacity, not temporary requirement. Presentation cover says 2025; no precise publication date. Company site has three Dallas warehouse candidates and H2 2026 go-live roadmap, while October 2026 TDLR filing describes new construction 2026-11-06 to 2028-04-30. Do not select a convenient date or claim schedule is confirmed.",
+      "quotes": [
+        {
+          "source": "rice-presentation",
+          "quote": "Dennis Finster \u2014 dennis.finster@egai.us",
+          "page": 8
+        },
+        {
+          "source": "egai-team",
+          "quote": "Dennis Finster",
+          "context": "CEO"
+        },
+        {
+          "source": "rice-tdlr",
+          "quote": "11/6/2026",
+          "context": "Construction Start Date"
+        }
+      ],
+      "stop": "Do not qualify as rental-power opportunity: temporary MW, suitable supply, power date, duration and residual gap absent. City October 8 agenda discusses tax abatement, not proof of approval. Earlier rejection reported by secondary source; downloaded image-only minutes require visual/OCR verification before counting rejection as independently confirmed."
+    },
+    {
+      "project_id": "73ef209c-771c-4a53-874f-4115dc5e2c4f",
+      "external_id": "0919206",
+      "project": "Texas W-1 permit 0919206",
+      "companies": [
+        "HIGHMARK ENERGY OPERATING, LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_EXACT_PERMIT_SEARCH_NO_SUPPORT",
+      "sources": [],
+      "improvement": null,
+      "stop": "Exact permit/operator web search produced no usable result in this pass; pause this lead rather than substituting corporate-level power or contacts. Native RRC permit detail remains the next source target.",
+      "search_query": "0919206 HIGHMARK ENERGY OPERATING, LLC"
+    },
+    {
+      "project_id": "5796a14e-c301-4f3e-944e-9747ba613d15",
+      "external_id": "TABS-TABS2026026954",
+      "project": "PECOS COUNTY DATA CENTER",
+      "companies": [
+        "AMAZON DATA SERVICES, INC"
+      ],
+      "baseline_company_methods": 1,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "SOURCE_SUPPORTED_CAMPUS_POWER_STRATEGY",
+      "sources": [
+        "amazon-pecos"
+      ],
+      "improvement": "Amazon primary statement confirms its planned Pecos campus and intended on-site generation with transition to grid service as interconnection allows.",
+      "person": null,
+      "power": "No MW, operational date, temporary duration, unmet requirement or residual gap disclosed. This is planned supply strategy, not confirmed rental demand. Exact TABS building binding remains unresolved.",
+      "quotes": [
+        {
+          "source": "amazon-pecos",
+          "quote": "designed to transition to grid-connected service as interconnection timelines allow"
+        }
+      ],
+      "stop": "Stop at source-backed campus strategy. No named power procurement contact or exact phase load/supply window."
+    },
+    {
+      "project_id": "c4ce4c53-6492-4559-bef0-d169acb9809c",
+      "external_id": "0909805",
+      "project": "Texas W-1 permit 0909805",
+      "companies": [
+        "ANADARKO E&P ONSHORE LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Official indexed lease result associates Anadarko with lease 57255; secondary listing suggests API 42-301-37511. Lease-level records and adjacent 22H/23H wells must not be merged with 21H.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "BEARTOOTH 54-1-34 UNIT 21H",
+      "candidate_source_url": "https://futurewellstexas.com/texas/wells/4230137511/horizontal-permit-filed-loving-anadarko-e-p-onshore-llc",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "99faf1be-7a8b-48d0-a5e3-28aba07fcaab",
+      "external_id": "TABS-TABS2027000611",
+      "project": "Beacon Point Data Center Project",
+      "companies": [
+        "Beacon Point DC LLC aka Lon Hill Infrastructure LLC"
+      ],
+      "baseline_company_methods": 1,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "SOURCE_SUPPORTED_DEVELOPER_EPCM_AND_TARGET_TIMING",
+      "sources": [
+        "beacon-project",
+        "beacon-results",
+        "beacon-epcm"
+      ],
+      "improvement": "Official Hut 8 campus page establishes developer organization and project inquiry email. Jacobs release establishes EPCM scope; neither identifies a reachable named procurement person.",
+      "company_email": "info@hut8.com",
+      "person": null,
+      "power": "1,000 MW utility capacity (company-reported interconnection), 352 MW IT per phase, not rental demand. August 4 results target initial energization Q1 2027 and initial data hall delivery Q3 2027. Targets are not achieved energization or a construction power shortfall.",
+      "quotes": [
+        {
+          "source": "beacon-project",
+          "quote": "Project Inquiries:",
+          "context": "info@hut8.com"
+        },
+        {
+          "source": "beacon-results",
+          "quote": "targeted for initial energization in the first quarter of 2027"
+        },
+        {
+          "source": "beacon-epcm",
+          "quote": "engineering, procurement and construction management (EPCM) contract",
+          "published_at": "2026-05-12"
+        }
+      ],
+      "stop": "Stop temporary-gap qualification without activity load and supply-over-time evidence. Campus-to-exact-TABS phase binding requires an address/permit linkage, not name-only assumption. Generic email is not a person method."
+    },
+    {
+      "project_id": "0572fe0f-ccf1-48b7-8d8c-28968c9d4c02",
+      "external_id": "0918168",
+      "project": "Texas W-1 permit 0918168",
+      "companies": [
+        "HIBERNIA RESOURCES IV, LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Opened secondary page binds permit 918168, Hibernia, well 4H and API 42-235-36785; reports coordinates 31.522239,-100.732886. Exact location remains unverified against primary plat.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "CAMRYN D 4H",
+      "candidate_source_url": "https://petrora.com/wells/23536785",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "d94e32ef-93fd-44ee-8f16-1347d8cd0dbf",
+      "external_id": "TABS-TABS2027002672",
+      "project": "DAL130 - Data Center",
+      "companies": [
+        "Circle T Owner LP"
+      ],
+      "baseline_company_methods": 1,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "SOURCE_SUPPORTED_CIRCLE_T_DEVELOPER_CONTEXT",
+      "sources": [
+        "powerhouse-letter",
+        "powerhouse-markets"
+      ],
+      "improvement": "PowerHouse CEO Douglas Fleit explicitly identifies Circle T in Westlake as a company project; marketing page lists PH Circle T 300 MW. Legal Circle T Owner LP relationship and exact DAL130 phase mapping still require primary binding.",
+      "person": {
+        "name": "Douglas Fleit",
+        "role": "Co-founder and CEO; company letter references project",
+        "email": null,
+        "verification": "ROLE_ONLY; no direct method; purchasing authority UNKNOWN"
+      },
+      "power": "300 MW marketed campus capacity; not temporary MW. Letter describes corporate Texas infrastructure funding, not exact Circle T energization date or secured supply schedule.",
+      "quotes": [
+        {
+          "source": "powerhouse-letter",
+          "quote": "Circle T in the town of Westlake",
+          "published_at": "2026-08-13"
+        },
+        {
+          "source": "powerhouse-markets",
+          "quote": "PH Circle T",
+          "context": "300 MW"
+        }
+      ],
+      "stop": "Do not count JSA media email/phone as buyer contacts. No direct named method, rental load or supply gap; stop qualification pending evidence."
+    },
+    {
+      "project_id": "0cace1de-6940-419f-9f6b-681f79b53db4",
+      "external_id": "0918384",
+      "project": "Texas W-1 permit 0918384",
+      "companies": [
+        "NEWPORT OPERATING, LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Secondary county page includes permit 918384 and lease; candidate API 42-485-46434 needs exact well-number/primary confirmation.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "GRAY, NOBLE MRS. 33",
+      "candidate_source_url": "https://petrora.com/counties/wichita",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "8aa5f54e-ca13-42f9-bf0e-6268d3c5eea6",
+      "external_id": "0917768",
+      "project": "Texas W-1 permit 0917768",
+      "companies": [
+        "SILVER HILL ENERGY OPERATING LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Secondary results identify 3H and candidate API 42-419-31950; prominent results are neighboring 4H/API31953 and excluded.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "BULLITT B 3H",
+      "candidate_source_url": "https://petrora.com/wells/41931950",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "75d8efeb-697b-47c4-8128-7ff34528c4b5",
+      "external_id": "0918542",
+      "project": "Texas W-1 permit 0918542",
+      "companies": [
+        "MURPHY EXPL. & PROD. CO. - USA"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Secondary operator result matches permit 918542, KONE105H and API42-127-39241. Primary well record not acquired.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "KONE 105H",
+      "candidate_source_url": "https://ezrrc.com/permits/operator/594675/",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "e8bc4fa7-d197-4d26-8473-1810fe00f14b",
+      "external_id": "0917670",
+      "project": "Texas W-1 permit 0917670",
+      "companies": [
+        "DIAMONDBACK E&P LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_EXACT_PERMIT_SEARCH_NO_SUPPORT",
+      "sources": [],
+      "improvement": null,
+      "stop": "Exact permit/operator public search returned no results. Pause qualification; native W-1 detail/API identity and physical-site evidence needed. Search absence is not evidence of no project or no contacts.",
+      "search_query": "0917670 DIAMONDBACK E&P LLC"
+    },
+    {
+      "project_id": "091a69e2-96fe-4b2d-b589-97508151767b",
+      "external_id": "0918881",
+      "project": "Texas W-1 permit 0918881",
+      "companies": [
+        "ROCKCLIFF ENERGY OPERATING III"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_EXACT_PERMIT_SEARCH_NO_SUPPORT",
+      "sources": [],
+      "improvement": null,
+      "stop": "Exact permit/operator public search returned no results. Pause qualification; native W-1 detail/API identity and physical-site evidence needed. Search absence is not evidence of no project or no contacts.",
+      "search_query": "0918881 ROCKCLIFF ENERGY OPERATING III"
+    },
+    {
+      "project_id": "27fea4ee-84f1-4aee-871e-a18368691db8",
+      "external_id": "0918265",
+      "project": "Texas W-1 permit 0918265",
+      "companies": [
+        "DIAMONDBACK E&P LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Opened third-party AI notice summary identifies permit918265 and spacing-exception deadline2026-10-26. Its section40 claim differs from news section4; approval/exception timing needs primary reconciliation. Gated contact fields not accessed. Candidate API42-135-44314.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "ROSE MARIE 4-40 B 2H",
+      "candidate_source_url": "https://www.noticeregistry.com/texas/notice/public-hearing-austin-960969",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "7789f456-e1dd-4bb1-96b4-ead89fd374ba",
+      "external_id": "0918684",
+      "project": "Texas W-1 permit 0918684",
+      "companies": [
+        "PERMIAN RESOURCES OPERATING, LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_EXACT_PERMIT_SEARCH_NO_SUPPORT",
+      "sources": [],
+      "improvement": null,
+      "stop": "Exact permit/operator public search returned no results. Pause qualification; native W-1 detail/API identity and physical-site evidence needed. Search absence is not evidence of no project or no contacts.",
+      "search_query": "0918684 PERMIAN RESOURCES OPERATING, LLC"
+    },
+    {
+      "project_id": "2b4d71c3-4c04-437e-8717-7477e40a6ba4",
+      "external_id": "0918560",
+      "project": "Texas W-1 permit 0918560",
+      "companies": [
+        "INEOS USA OIL & GAS LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "No usable exact lease/well support in this bounded pass. No candidate API or contacts accepted.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "ANDERSON-STONE DIM HC3 E 3H",
+      "candidate_source_url": null,
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "f188b62e-5df6-46e6-a521-f60bd21e536f",
+      "external_id": "0909522",
+      "project": "Texas W-1 permit 0909522",
+      "companies": [
+        "ADMIRAL PERMIAN OPERATING LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Results identify lease but predominantly adjacent202BS well. No exact301BC identification accepted.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "LATRELLE UNIT 301BC",
+      "candidate_source_url": "https://lmjlandservices.com/directory/texas/loving-county/",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "d5aaeaf1-fccd-4677-8022-035a49e494a6",
+      "external_id": "0919327",
+      "project": "Texas W-1 permit 0919327",
+      "companies": [
+        "BLUE ARROW OPERATING, LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Opened secondary daily report exactly associates permit919327, Blue Arrow,1SB and API42-389-42358. Older official UA/UB lease records with Diamondback are different suffixes and not conflicting identity evidence for D.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "STATE ROCK RIVER 30-19 D 1SB",
+      "candidate_source_url": "https://ezrrc.com/permits/2026-10-19/",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "b19efaea-1633-4ccc-92cf-c4618349cb76",
+      "external_id": "0918882",
+      "project": "Texas W-1 permit 0918882",
+      "companies": [
+        "ROCKCLIFF ENERGY OPERATING III"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Secondary results associate3HB with API42-405-30992 and reported2026-10-15 spud. Opened spud page returned older September content, so current spud claim is NOT independently verified.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "OLYMPIA FIELDS OS B 3HB",
+      "candidate_source_url": "https://petrora.com/reports/spuds?days=90",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "22540dc9-9e76-4a5c-91b1-527b1ed300e0",
+      "external_id": "0915570",
+      "project": "Texas W-1 permit 0915570",
+      "companies": [
+        "COG OPERATING LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Secondary page explicitly identifies permit915570 and API42-329-48367; directory reports May date while permit page reports September. Received/approved/amended dates require reconciliation.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "COUNTRY MAC A8 703LH",
+      "candidate_source_url": "https://petrora.com/wells/32948367",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "5ddb20b5-e5f1-4c00-970f-8aec2b34b279",
+      "external_id": "0918069",
+      "project": "Texas W-1 permit 0918069",
+      "companies": [
+        "PIONEER NATURAL RES. USA, INC."
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Secondary directory matches exact well and API42-317-47395; August/September dates may reflect amendments, not a drilling or power-start schedule.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "GLASSCOCK-DICKENSON 44C 3H",
+      "candidate_source_url": "https://lmjlandservices.com/directory/texas/martin-county/",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "c8956043-159e-4c2d-8995-baed952c8170",
+      "external_id": "0917656",
+      "project": "Texas W-1 permit 0917656",
+      "companies": [
+        "DIAMONDBACK E&P LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Opened secondary spud report gives2026-09-26 spud and API42-329-48551 for exact well. This is an activity-date claim, not electrical demand, rental duration or verified current drilling status.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "PEGGY 20 N U 2WB",
+      "candidate_source_url": "https://petrora.com/reports/spuds?days=90",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "c0b23ecf-7e2b-4f33-a457-57d764ee1e9d",
+      "external_id": "0919153",
+      "project": "Texas W-1 permit 0919153",
+      "companies": [
+        "MEWBOURNE OIL COMPANY"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_EXACT_PERMIT_SEARCH_NO_SUPPORT",
+      "sources": [],
+      "improvement": null,
+      "stop": "Exact permit/operator public search returned no results. Pause qualification; native W-1 detail/API identity and physical-site evidence needed. Search absence is not evidence of no project or no contacts.",
+      "search_query": "0919153 MEWBOURNE OIL COMPANY"
+    },
+    {
+      "project_id": "3d03a65e-5607-4fa7-9eef-854d2c671ce2",
+      "external_id": "0919092",
+      "project": "Texas W-1 permit 0919092",
+      "companies": [
+        "DE V OPERATING, LLC"
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "Secondary daily/operator results match permit919092 and API42-317-47560. Another frequent result2805H/API47562 is different and excluded. October1/9 dates need primary status reconciliation.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "JAGUAR WEST E 40-45 4205H",
+      "candidate_source_url": "https://ezrrc.com/permits/district/08/",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    },
+    {
+      "project_id": "e6bb9662-31d0-48f1-b33d-9ca8e0a7397e",
+      "external_id": "0918254",
+      "project": "Texas W-1 permit 0918254",
+      "companies": [
+        "CHEVRON U. S. A. INC."
+      ],
+      "baseline_company_methods": 0,
+      "baseline_person_methods": 0,
+      "temporary_mw": null,
+      "power_needed_date": null,
+      "duration": null,
+      "residual_gap_mw": null,
+      "release_qualified": false,
+      "status": "BOUNDED_RESEARCH_COMPLETE_UNQUALIFIED",
+      "sources": [],
+      "improvement": "News listing matches exact1744JM with API42-329-48587 and survey location. Adjacent1745JM/1746JM and old lease production are not this new well.",
+      "stop": "Stop commercial qualification: no project-bound person method, electrical MW, dated suitable supply, rental window or residual gap supported. Retain permit as Signal; do not infer power from drilling depth or activity dates.",
+      "lease_well": "CMC NIGHTSHADE 17/5 UNIT 1744JM",
+      "candidate_source_url": "https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22431874.php",
+      "candidate_source_status": "SECONDARY_OR_INDEXED; primary record reconciliation incomplete",
+      "search_receipt": "upstream-search-receipts.json"
+    }
+  ],
+  "counts": {
+    "frozen_rows": 25,
+    "focused_data_center_records": 4,
+    "exact_permit_searches_without_support": 21,
+    "remaining_not_researched_this_pass": 0,
+    "new_person_email_candidates": 1,
+    "new_company_project_email_candidates": 1,
+    "new_confirmed_temporary_mw": 0,
+    "new_confirmed_residual_gaps": 0,
+    "additional_upstream_rows_bounded_research_complete": 15,
+    "additional_upstream_search_queries": 30,
+    "additional_upstream_person_methods": 0,
+    "additional_upstream_confirmed_power_gaps": 0
+  },
+  "limits": [
+    "Public direct research is working; automated IP-pinned retrieval is a separate unresolved transport issue.",
+    "Current retrieval proves publication, not delivery or freshness of every underlying historical claim.",
+    "Existing benchmark acceptance results remain unchanged until canonical ingestion, exact project binding and independent adjudication.",
+    "No paid calls, outreach, production writes, workbook activation, branch writes or Actions."
+  ]
+}

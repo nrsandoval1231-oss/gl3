@@ -1,0 +1,7 @@
+{
+  "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&pager.offset=0&pager.pageSize=10",
+  "retrieved_at": "2026-10-26T16:57:30.063835+00:00",
+  "status": 200,
+  "bytes": 46037,
+  "response_classification": "HTTP 200 returned Railroad Commission of Texas Site Policies HTML, not the drilling permit query or requested permit detail. No permit result verified; no bypass attempted."
+}

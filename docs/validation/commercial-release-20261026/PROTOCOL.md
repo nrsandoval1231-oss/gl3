@@ -1,5 +1,7 @@
 # Conditional commercial release protocol — October 26
 
+**Release-authority update, October 26 at 17:55 UTC:** the owner explicitly waived the commercial numerical/scenario gates for PR126 and instructed merge/deploy as-is after code-safety checks. This protocol remains the predeclared commercial assessment record, not the current merge/deploy veto. See the [exact exception](../system-repair-20261026/suppression-continuation/release-gates.md).
+
 This is a prospective acceptance protocol, not a completion or deployment receipt. The retained baseline is `29c4fe0`, with application source equal to `b71306f`. Root separately verified its exact CI logs: 3,101 backend tests passed, one skipped; 120 browser tests passed; mypy checked 173 files. Prior reports remain dated evidence for their original environment and candidate.
 
 The latest owner direction permits isolated workbook activation and a benchmark of 25 genuine source-backed opportunities from the available corpus. A production snapshot is not mandatory. A workbook assertion, synthetic fixture, historical label or unreachable URL does not independently establish canonical identity, temporary demand, timing, a residual gap or a verified contact. PR126 release is conditional on the gates below and root coordination. No paid-provider activation is authorized.

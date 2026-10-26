@@ -340,7 +340,10 @@ def test_saved_history_page_and_detail_apply_suppressions_to_historical_group_me
             assert "person-hidden@example.test" not in str(card)
             assert "method-hidden@example.test" not in str(card)
             assert "visible@example.test" in str(card)
-            assert "external-scope@example.test" in str(card)
+            # This pointer belongs to project C, outside the authoritative A/B
+            # saved group. Fail closed instead of importing its identity or
+            # publishing an assertion whose project provenance cannot resolve.
+            assert "external-scope@example.test" not in str(card)
             # Redaction is read-time only and must preserve the recorded
             # qualification, disposition and input identity.
             assert card["tier"] == "Signal"

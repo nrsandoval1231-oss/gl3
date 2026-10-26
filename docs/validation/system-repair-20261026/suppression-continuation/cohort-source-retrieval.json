@@ -1,0 +1,101 @@
+[
+  {
+    "id": "rice-presentation",
+    "url": "https://ricetx.gov/images/images_mi/mi_81_EG_AI_Corp_Rice_TX_Community_1352902479_8919.pdf",
+    "retrieved_at": "2026-10-26T16:55:07.471207+00:00",
+    "status": 200,
+    "bytes": 795036,
+    "sha256": "c462e44a32172cccc297f74fcec8d77979bcbca484ccbf00237be836ad7250d2",
+    "raw_path": "/workspace/gl3-handoff-research/rice-presentation.pdf"
+  },
+  {
+    "id": "egai-team",
+    "url": "https://egai.us/about/",
+    "retrieved_at": "2026-10-26T16:55:07.472347+00:00",
+    "status": 200,
+    "bytes": 28167,
+    "sha256": "712dbe97b770e010335957c24462a6221cade3cc00e51c7f558391a0016e6702",
+    "raw_path": "/workspace/gl3-handoff-research/egai-team.html"
+  },
+  {
+    "id": "rice-tdlr",
+    "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+    "retrieved_at": "2026-10-26T16:55:07.473297+00:00",
+    "status": 200,
+    "bytes": 16285,
+    "sha256": "17b2ca4aa6e46f77a7c9cd4f6db3e13253152579ee76ced45f182128ef78c283",
+    "raw_path": "/workspace/gl3-handoff-research/rice-tdlr.html"
+  },
+  {
+    "id": "rice-oct-agenda",
+    "url": "https://ricetx.gov/documents/81/Agenda_10.08.2026.pdf",
+    "retrieved_at": "2026-10-26T16:55:07.874618+00:00",
+    "status": 200,
+    "bytes": 174623,
+    "sha256": "cb71493d4d3ac5ab9fec8124318e649b75824cc37ed9b3c7fdfc0b45d6faf8e9",
+    "raw_path": "/workspace/gl3-handoff-research/rice-oct-agenda.pdf"
+  },
+  {
+    "id": "rice-minutes",
+    "url": "https://ricetx.gov/documents/81/09.15.2026_Regular_Meeting.pdf",
+    "retrieved_at": "2026-10-26T16:55:08.501853+00:00",
+    "status": 200,
+    "bytes": 710609,
+    "sha256": "38d8d8c9bdc24420f390e28944d98ac5ab95c786e7b5f1615740b286f68da159",
+    "raw_path": "/workspace/gl3-handoff-research/rice-minutes.pdf"
+  },
+  {
+    "id": "beacon-project",
+    "url": "https://www.hut8.com/data-centers/beacon-point",
+    "retrieved_at": "2026-10-26T16:55:08.832377+00:00",
+    "status": 200,
+    "bytes": 215442,
+    "sha256": "fc32fcabe4cf938d7c64a4954f6459d6aee3db1b2587090d2b36515a448e87da",
+    "raw_path": "/workspace/gl3-handoff-research/beacon-project.html"
+  },
+  {
+    "id": "beacon-results",
+    "url": "https://www.hut8.com/news-insights/press-releases/hut-8-reports-second-quarter-2026-results",
+    "retrieved_at": "2026-10-26T16:55:08.879381+00:00",
+    "status": 200,
+    "bytes": 162746,
+    "sha256": "f88abe5ee8a456086cab350cfc735ad76d99f0383d50b7caaeaca6fcf0d733e0",
+    "raw_path": "/workspace/gl3-handoff-research/beacon-results.html"
+  },
+  {
+    "id": "beacon-epcm",
+    "url": "https://s205.q4cdn.com/384284279/files/doc_news/Jacobs-awarded-EPCM-contract-to-deliver-second-Hut-8-AI-data-center-in-Texas-2026.pdf",
+    "retrieved_at": "2026-10-26T16:55:08.904194+00:00",
+    "status": 200,
+    "bytes": 161608,
+    "sha256": "81950fcb892809b6dcee81c22c27cd5e6f5d621d45a4261f46700d92e433987a",
+    "raw_path": "/workspace/gl3-handoff-research/beacon-epcm.pdf"
+  },
+  {
+    "id": "amazon-pecos",
+    "url": "https://www.aboutamazon.com/news/company-news/amazon-pecos-county-texas-data-center-clean-energy-jobs",
+    "retrieved_at": "2026-10-26T16:55:09.425236+00:00",
+    "status": 200,
+    "bytes": 177340,
+    "sha256": "a4dcac8a4452ce5d394ace778e44c3e82b52ed3c21bc46112c9312ab660ffb6b",
+    "raw_path": "/workspace/gl3-handoff-research/amazon-pecos.html"
+  },
+  {
+    "id": "powerhouse-letter",
+    "url": "https://www.powerhousedata.com/news/powerhouse-data-centers-express-support-for-governor-abbott",
+    "retrieved_at": "2026-10-26T16:55:09.497845+00:00",
+    "status": 200,
+    "bytes": 23406,
+    "sha256": "c1d7b7608ff198020f66963e06e5bb15082b6028093d92ff5e7e6d8c4abc4ad1",
+    "raw_path": "/workspace/gl3-handoff-research/powerhouse-letter.html"
+  },
+  {
+    "id": "powerhouse-markets",
+    "url": "https://www.powerhousedata.com/",
+    "retrieved_at": "2026-10-26T16:55:09.602354+00:00",
+    "status": 200,
+    "bytes": 155831,
+    "sha256": "7c6e5c46895ea050be01f53b28f19861dc196da94a5ff22adfc9a0452189fe64",
+    "raw_path": "/workspace/gl3-handoff-research/powerhouse-markets.html"
+  }
+]
