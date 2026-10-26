@@ -195,7 +195,10 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
         or query.get("max_records") != MAX_RECORDS
     ):
         raise SourceParseError("JETI query bounds are invalid")
-    http = client or httpx.Client(timeout=60, follow_redirects=False, trust_env=False)
+    # Honor the runtime's configured proxy and certificate trust. The fixed API
+    # URL, exact host allowlist, redirect rejection and response bounds below
+    # still apply; no TLS verification is disabled.
+    http = client or httpx.Client(timeout=60, follow_redirects=False, trust_env=True)
     try:
         _, body = read_public_response(
             http,
