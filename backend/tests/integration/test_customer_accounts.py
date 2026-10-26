@@ -12,7 +12,6 @@ from gridlens.intelligence.customer_accounts import (
     account_queue,
     backfill_rrc_operator_memberships,
     record_rrc_operator_membership,
-    retract_customer_membership,
 )
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
@@ -22,6 +21,7 @@ from gridlens.persistence.models import (
     BrowseState,
     CompanyIdentity,
     CompanyProjectMembership,
+    CompanyProjectMembershipCorrection,
     Evidence,
     Interpretation,
     NeedObservation,
@@ -414,7 +414,7 @@ def test_account_workspace_groups_filtered_saved_rows_in_sql(customer_db):
         assert projects["account"]["aliases"] == ["DIAMONDBACK E&P LLC"]
 
 
-def test_customer_membership_retraction_is_attributed_idempotent_and_versioned(customer_db):
+def test_historical_membership_retraction_survives_automatic_source_refresh(customer_db):
     source_id = "texas-rrc-flare-vent-exceptions"
     with customer_db.begin() as session:
         session.add(
@@ -441,26 +441,22 @@ def test_customer_membership_retraction_is_attributed_idempotent_and_versioned(c
             record=record,
         )
         membership = session.scalar(select(CompanyProjectMembership))
-        event = retract_customer_membership(
-            session,
+        # Retained historical correction fixture: the public mutation and its
+        # manual-only writer are retired, but automatic evidence refresh must
+        # continue to honor pre-existing attributed decisions.
+        membership.state = "retracted"
+        membership.version = 1
+        event = CompanyProjectMembershipCorrection(
             membership_id=membership.id,
             expected_version=0,
-            idempotency_key="retract-217012-1",
-            reason="Operator attribution disputed",
-            actor="authenticated_operator",
+            idempotency_key="historical-retract-217012-1",
+            action="retracted",
+            reason="Historical operator attribution dispute",
+            actor="historical_authenticated_operator",
         )
-        assert event.action == "retracted"
-        retry = retract_customer_membership(
-            session,
-            membership_id=membership.id,
-            expected_version=0,
-            idempotency_key="retract-217012-1",
-            reason="Operator attribution disputed",
-            actor="authenticated_operator",
-        )
-        assert retry.id == event.id
-        assert membership.state == "retracted"
-        assert membership.version == 1
+        session.add(event)
+        session.flush()
+        event_id = event.id
         # A same-operator refresh with a new source hash cannot resurrect the
         # corrected association.
         refreshed_evidence = Evidence(
@@ -499,12 +495,9 @@ def test_customer_membership_retraction_is_attributed_idempotent_and_versioned(c
             )
             is None
         )
-        with pytest.raises(RuntimeError):
-            retract_customer_membership(
-                session,
-                membership_id=membership.id,
-                expected_version=0,
-                idempotency_key="retract-217012-2",
-                reason="Stale correction",
-                actor="authenticated_operator",
-            )
+        retained = session.scalars(select(CompanyProjectMembershipCorrection)).all()
+        assert len(retained) == 1
+        assert retained[0].id == event_id
+        assert retained[0].reason == "Historical operator attribution dispute"
+        assert retained[0].expected_version == 0
+        assert membership.version == 1

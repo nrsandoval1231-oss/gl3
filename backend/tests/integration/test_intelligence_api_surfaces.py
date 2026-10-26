@@ -213,45 +213,16 @@ def test_authenticated_bounded_intelligence_tasks_and_off_request(intelligence_a
     assert operations.json()["providers"]["utc_day"]["timezone"] == "UTC"
     assert client.get(f"/api/intelligence/needs/{need_id}/history?limit=51").status_code == 422
     assert client.get(f"/api/intelligence/needs/{uuid4()}/history").status_code == 404
-    assert (
-        client.post(
-            f"/api/intelligence/needs/{need_id}/jobs",
-            json={"task_type": "NOT_A_TASK"},
-            headers={"origin": "https://testserver"},
-        ).status_code
-        == 422
-    )
-    assert (
-        client.post(
-            f"/api/intelligence/needs/{need_id}/jobs",
-            json={"task_type": "GROUNDED_DOSSIER", "question_id": "TEMP_LOAD_MW"},
-            headers={"origin": "https://testserver"},
-        ).status_code
-        == 409
-    )
-    assert (
-        client.post(
-            f"/api/intelligence/needs/{need_id}/jobs",
-            json={"task_type": "GROUNDED_DOSSIER", "question_id": "TEMP_LOAD_MW"},
-            headers={"origin": "https://invalid.test"},
-        ).status_code
-        == 403
-    )
-    assert (
-        client.post(
-            f"/api/intelligence/needs/{need_id}/evidence/{ids[3]}/ocr",
-            headers={"origin": "https://testserver"},
-        ).status_code
-        == 409
-    )
-    assert (
-        client.post(
-            f"/api/intelligence/needs/{need_id}/evidence/{ids[3]}/ocr-followon",
-            json={"task_type": "OCR_GROUNDED_FOLLOWON", "question_id": "TEMP_LOAD_MW"},
-            headers={"origin": "https://testserver"},
-        ).status_code
-        == 409
-    )
+    # The autonomous product has no task-entry, OCR-trigger or watch-entry API.
+    # A provider flag/body/origin cannot make these retired mutations reachable.
+    for path, body in (
+        (f"/api/intelligence/needs/{need_id}/jobs", {"task_type": "GROUNDED_DOSSIER"}),
+        (f"/api/intelligence/needs/{need_id}/evidence/{ids[3]}/ocr", {}),
+        (f"/api/intelligence/needs/{need_id}/evidence/{ids[3]}/ocr-followon", {}),
+        (f"/api/intelligence/needs/{need_id}/watch", {}),
+    ):
+        response = client.post(path, json=body, headers={"origin": "https://testserver"})
+        assert response.status_code in {404, 405}, (path, response.text)
     with factory() as session:
         assert (
             session.scalar(
@@ -551,9 +522,9 @@ def test_m4_history_projects_actual_orm_evidence_and_current_or_saved_support(in
     assert citation["excerpt"] == "Permit application"
 
 
-def test_owner_feedback_replay_is_exact_attributed_and_pending_review(intelligence_api):
+def test_retired_owner_feedback_cannot_change_historical_attribution(intelligence_api):
     client, factory, ids = intelligence_api
-    need_id, job_id, call_id, evidence_id, _project_id, _pursuit_id = ids
+    need_id, job_id, call_id, evidence_id, _project_id, pursuit_id = ids
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     body = {
         "client_id": str(uuid4()),
@@ -589,45 +560,39 @@ def test_owner_feedback_replay_is_exact_attributed_and_pending_review(intelligen
         },
     }
     path = f"/api/intelligence/needs/{need_id}/feedback"
-    first = client.post(path, json=body, headers={"origin": "https://testserver"})
-    assert first.status_code == 200, first.text
-    replay = client.post(path, json=body, headers={"origin": "https://testserver"})
-    assert replay.status_code == 200
-    assert replay.json()["id"] == first.json()["id"]
-    assert replay.json()["metadata"]["review_state"] == "pending_independent_review"
-    assert replay.json()["metadata"]["need_id"] == str(need_id)
-    assert replay.json()["metadata"]["logical_call_id"] == str(call_id)
-    assert replay.json()["metadata"]["candidate"]["source_url"] == "https://example.test/records/1"
-    changed = {**body, "note": "Different text with the same idempotency key."}
-    assert (
-        client.post(path, json=changed, headers={"origin": "https://testserver"}).status_code == 409
-    )
-    tampered = {
+    historical_review = {
         **body,
-        "client_id": str(uuid4()),
-        "candidate": {**body["candidate"], "source_url": "https://attacker.test/"},
+        "need_id": str(need_id),
+        "review_state": "pending_independent_review",
     }
-    assert (
-        client.post(path, json=tampered, headers={"origin": "https://testserver"}).status_code
-        == 422
-    )
     with factory.begin() as session:
-        job = session.get(Job, job_id)
-        checkpoint = json.loads(job.checkpoint)
-        checkpoint.update(status="stale", result_status="stale_context")
-        job.checkpoint = json.dumps(checkpoint)
-    stale_feedback = {**body, "client_id": str(uuid4())}
-    rejected = client.post(path, json=stale_feedback, headers={"origin": "https://testserver"})
-    assert rejected.status_code == 409
-    assert "current completed candidate" in rejected.json()["detail"]
+        note = PursuitCallNote(
+            pursuit_id=pursuit_id,
+            client_id=UUID(body["client_id"]),
+            owner="Historical attributed reviewer",
+            note=body["note"],
+            outcome="Needs follow-up",
+            next_action=body["next_action"],
+            intelligence_review=historical_review,
+        )
+        session.add(note)
+        session.flush()
+        retained_id = note.id
+    for payload in (body, {**body, "note": "Attempt to overwrite historical review"}):
+        rejected = client.post(path, json=payload, headers={"origin": "https://testserver"})
+        assert rejected.status_code in {404, 405}
     with factory() as session:
         notes = session.scalars(select(PursuitCallNote)).all()
         assert len(notes) == 1
-        assert notes[0].intelligence_review["decision"] == "CONFLICT"
-        assert notes[0].intelligence_review["review_state"] == "pending_independent_review"
+        assert notes[0].id == retained_id
+        assert notes[0].owner == "Historical attributed reviewer"
+        assert notes[0].intelligence_review == historical_review
+    exported = client.get(f"/api/commercial/triage/history/{pursuit_id}")
+    assert exported.status_code == 200, exported.text
+    assert exported.json()["notes"][0]["intelligence_review"] == historical_review
 
 
-def test_offline_worker_candidate_to_owner_review_is_persisted_and_exported(
+def test_offline_machine_job_publishes_cited_candidate_without_owner_entry(
     intelligence_api, monkeypatch
 ):
     client, factory, ids = intelligence_api
@@ -718,13 +683,17 @@ def test_offline_worker_candidate_to_owner_review_is_persisted_and_exported(
             "latency_ms": 7,
         },
     )
-    queued = client.post(
-        f"/api/intelligence/needs/{need_id}/jobs",
-        json={"task_type": "GROUNDED_DOSSIER", "question_id": "TEMP_LOAD_MW"},
-        headers={"origin": "https://testserver"},
-    )
-    assert queued.status_code == 200, queued.text
-    queued_job = queued.json()
+    # Exercise the retained internal scheduler/worker boundary directly. The
+    # user-facing job trigger is retired; advisory output remains read-only.
+    with factory.begin() as session:
+        queued = intelligence_jobs.enqueue_intelligence(
+            session,
+            need_id=need_id,
+            task_type="GROUNDED_DOSSIER",
+            question_id="TEMP_LOAD_MW",
+            origin="autonomous_validation_fixture",
+        )
+        queued_job = {"job_id": str(queued.id), "status": queued.status}
     assert queued_job["status"] == "queued"
     with factory.begin() as session:
         leased, fence = lease_one(
@@ -752,30 +721,9 @@ def test_offline_worker_candidate_to_owner_review_is_persisted_and_exported(
     candidate = completed["result"]["candidates"][0]
     assert candidate["status"] == "candidate"
     assert candidate["source_url"] == "https://example.test/records/1"
-    feedback = client.post(
-        f"/api/intelligence/needs/{need_id}/feedback",
-        json={
-            "client_id": str(uuid4()),
-            "job_id": str(job_id),
-            "logical_call_id": completed["logical_call_id"],
-            "decision": "UNRESOLVED",
-            "note": "Offline owner review pending independent validation.",
-            "next_action": "Verify with the project owner.",
-            "candidate": candidate,
-            "evidence_refs": [
-                {
-                    "evidence_id": str(evidence_id),
-                    "content_hash": "a" * 64,
-                    "source_url": "https://example.test/records/1",
-                }
-            ],
-        },
-        headers={"origin": "https://testserver"},
-    )
-    assert feedback.status_code == 200, feedback.text
-    assert feedback.json()["metadata"]["review_state"] == "pending_independent_review"
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(PursuitCallNote)) == 0
+        assert session.get(PowerNeed, need_id).tier == "Signal"
     exported = client.get(f"/api/commercial/triage/history/{pursuit_id}")
-    assert exported.status_code == 200
-    assert exported.json()["notes"][0]["intelligence_review"]["review_state"] == (
-        "pending_independent_review"
-    )
+    assert exported.status_code == 200, exported.text
+    assert exported.json()["notes"] == []
