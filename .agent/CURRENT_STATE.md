@@ -17,3 +17,7 @@ The four requested workbooks have now been attached and read-only reconciliation
 ## Conditional release continuation
 
 The retained engineering baseline is `29c4fe0` (application source unchanged from `b71306f`). The latest owner direction permits a 25-project benchmark from an available genuine source-backed corpus and isolated workbook activation; it supersedes the earlier production-snapshot-only benchmark restriction. PR126 release is conditional on commercial and engineering gates, independent review and root coordination, with no paid-provider activation. In the resumed executor the four attachments are currently absent; prior reconciliation receipts remain historical. Check actual runtime/database/file availability anew. Current lane ownership and predeclared methodology are recorded in the [release protocol](../docs/validation/commercial-release-20261026/PROTOCOL.md).
+
+## Suppression repair integration
+
+PR123 merged into main at `6a6551d` and is being reconciled into PR126. The owner now requests local-only validation, no new GitHub Actions, no deployment or production changes. Current repairs cover refresh identity continuity, permit-summary privacy and saved history privacy across versions and grouped projects. Prior engineering acceptance does not cover these new edits. Commercial release remains rejected pending its existing evidence gates.

@@ -1,0 +1,136 @@
+{
+  "scope": "Bounded production v12 release evidence snapshot. Does not include later in-progress source edits or certify authenticated production contact UI.",
+  "source_revision": "559b325ea3c3c982a4cdee7af52fb703e2622f13",
+  "merge_revision": "3ce9e8a68a6b988d1d8bfd8597e150f19ae36498",
+  "source_tree": "4aafcebc8c1a97923b6e9444c98037b4d3600632",
+  "schema_revision": "0041_evidence_packages",
+  "production_images": {
+    "api_worker_browse": "sha256:e4db12435b6fdcecbc3a9dcdf31c794b8c9120976427ab69c5439e0aa3244366",
+    "web": "sha256:838c1c9bcdd56483b8a3b42828aa54eea9b72c370f96574cde9e14252cc4de4a"
+  },
+  "timeline_utc": {
+    "release_canary": "2026-10-25T16:21:51Z",
+    "normal_workers_resumed": "2026-10-25T17:03:22Z",
+    "automatic_worker_started": "2026-10-25T17:07:13Z",
+    "planner_last_success": "2026-10-25T17:07:16.791246Z",
+    "automatic_jobs_readback": "2026-10-25T17:12:18.438144Z",
+    "credits_metadata_readback": "2026-10-25T17:18:31.463560Z"
+  },
+  "worker_policy": {
+    "provider": "Firecrawl",
+    "contract": "FIRECRAWL_SEARCH_V2",
+    "max_active_calls": 1,
+    "finite_budget": true,
+    "auto_refresh_preserved": true,
+    "worker_secret_present": true,
+    "secret_values_or_paths_included": false,
+    "firecrawl_unlimited_budget_enabled": false
+  },
+  "usage": {
+    "firecrawl_monthly_allocation_calls": 250,
+    "calls_used_manual_census": 185,
+    "calls_used_automatic_followup": 25,
+    "calls_used_total_allocation": 210,
+    "calls_remaining_allocation_at_observation": 40,
+    "global_monthly_cap_calls": 262,
+    "prior_other_calls_in_global_cap": 12,
+    "observed_credit_balance_before_manual": 2454,
+    "after_manual": 2084,
+    "after_automatic": 2034,
+    "observed_credits_manual": 370,
+    "observed_credits_automatic": 50,
+    "observed_credits_total": 420,
+    "conservative_reservation_usd_total": 2.1,
+    "actual_cash_billing": "UNKNOWN",
+    "recharge_or_new_subscription": false,
+    "global_monthly_cap_usd": 2.534613,
+    "manual_automatic_allocation_reservation_ceiling_usd": 2.5,
+    "previous_other_reservations_usd": 0.034613,
+    "global_monthly_remaining_calls_at_observation": 40,
+    "global_monthly_remaining_reservation_usd_at_observation": 0.4
+  },
+  "production_census": {
+    "companies": 185,
+    "all_signal": true,
+    "texas": 185,
+    "data_center": 4,
+    "upstream": 181,
+    "usable_method_companies": 14,
+    "coverage_percent": 7.57,
+    "emails": 34,
+    "phones": 8,
+    "methodless_relevant_professionals": 4,
+    "direct_buyer_methods": 0,
+    "companies_without_usable_method": 171,
+    "research_required": 185,
+    "worker_seconds_sum": 1376.099,
+    "first_enqueue_to_last_complete_seconds": 1914.534,
+    "page_failures_retained": 177,
+    "baseline_usable_method_companies": 0
+  },
+  "validation": {
+    "remote_ci_run": "40206125623",
+    "backend_tests": 3019,
+    "backend_skips": 1,
+    "browser_tests": 201,
+    "browser_skips": 1,
+    "independent_reviews": [
+      "C14",
+      "C17-R2",
+      "C18-R1",
+      "C20",
+      "C21",
+      "C24",
+      "C25"
+    ],
+    "public_routing": "HTTP 200",
+    "protected_api_unauthenticated": "HTTP 401",
+    "isolated_authenticated_desktop_mobile_contact_view": "PASS",
+    "production_authenticated_contact_ui": "UNKNOWN"
+  },
+  "status": {
+    "bounded_capability": "released",
+    "commercial_p0": "OPEN",
+    "reason": "buyer coverage and authenticated production contact UI remain unverified"
+  },
+  "evidence_receipt_sha256": {
+    "production_185_results": "928ca76798635d4675b61de1cdb8851a96728c1411df850f0d2fc4b6b6e3fdd1",
+    "production_185_company_contacts": "e66b4234f7735f9d3827407f28efccfe642b21d3241eba77b25626833ab901f8",
+    "production_185_region_scope": "308a27b2d82366a39b6cfd7eb83681b48d6298a56a57df592760125a4a80a9e4",
+    "c20_preservation_before_activation": "556be6ce77698b1ed9b48711a7a7797e68926b2836f8131bc08cd8d7bdf41cad",
+    "c20_preservation_after_activation": "c81935c436bd8f6859f34ffc5ad19c24004c906ecc79e15217208190273a53f3",
+    "c21_automatic_jobs_final_readback": "cdfb9ba668004e57120e9a4ea90ac1bef5d1b330b56ca35162fc14df962f9ce4",
+    "c21_provider_credit_metadata_readback": "fad6c269244345d4cf5843d82adc1c6784462d7888a446172b2da956c5f907ab",
+    "c21_live_activation_readback": "57ce46a0385d543e5effbb4c84c1acd31e92cbd6f83f25cffb2ed15e9b11d5be",
+    "c24_independent_backfill_review": "7e34e98a1a2a881a630f9aaea208e5f0c4e00f1fef8e4bf8fa0b58d2fc63fc92",
+    "c25_independent_activation_review": "910da2311cb8442b452669fc664ace9a93425ef9e38d44ac60d451835878e4c7"
+  },
+  "absolute_monthly_scope_caps": {
+    "global": {
+      "calls": 262,
+      "usd": 2.534613
+    },
+    "source": {
+      "calls": 257,
+      "usd": 2.522389
+    },
+    "project": {
+      "calls": 252,
+      "usd": 2.510447
+    },
+    "provider": {
+      "calls": 250,
+      "usd": 2.5
+    },
+    "model": {
+      "calls": 250,
+      "usd": 2.5
+    }
+  },
+  "automatic_planner": {
+    "last_success_at_utc": "2026-10-25T17:07:16.791246Z",
+    "next_retry_at_utc": "2026-10-25T18:07:16.791246Z",
+    "consecutive_failures_at_readback": 0,
+    "readback_at_utc": "2026-10-25T17:12:18.438144Z"
+  }
+}

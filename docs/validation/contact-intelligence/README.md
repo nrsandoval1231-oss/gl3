@@ -2,11 +2,9 @@
 
 > This is the dated PR122 benchmark and implementation record. Its code defaults, 30-day blanket planner suppression and earlier browser workflows are superseded by the [Autonomous Intelligence Canon](../../product/AUTONOMOUS_INTELLIGENCE_CANON.md). Current default-on bounded unpaid planning and independent paid-provider gates are documented in [runtime configuration](../../operations/runtime-configuration.md). These historical benchmark methods are not a current verified contact feed or current-candidate coverage result.
 
-This continues [PR122](https://github.com/nrsandoval1231-oss/gl3/pull/122).
-The commercial P0 remains open. Source-published company methods are useful, but
-they do not establish purchasing authority, email deliverability or a direct
-buyer relationship. No outreach, production backfill, merge or deployment was
-performed.
+This continues [PR122](https://github.com/nrsandoval1231-oss/gl3/pull/122). PR #122 merged as `3ce9e8a68a6b988d1d8bfd8597e150f19ae36498`; the bounded v12 production census and automatic follow-up are summarized in the [production release report](PRODUCTION_RELEASE.md). The implementation guide and benchmark history below remain useful context for how the capability was built and validated.
+
+The commercial P0 remains OPEN. Source-published company methods are useful research routes, but do not establish purchasing authority, email deliverability, reachability, or a direct buyer relationship. No outreach was performed. Production authenticated contact UI remains UNKNOWN; this release does not claim full commercial acceptance.
 
 ## Final isolated live result
 
@@ -258,7 +256,7 @@ about this account's billing rate. Finite daily/monthly limits include the
 snapshot's prior reservations plus only the authorized new exposure, and active
 concurrency is one. No owner-unlimited mode, new service or auto-recharge is used.
 
-## UI, validation and release boundary
+## Historical UI, validation and release gate
 
 The existing Graphite & Sage company detail composition is retained. Contacts &
 Buying Chain puts a verified email/phone before methodless named roles, with
@@ -284,17 +282,5 @@ and row presence. Subsequent v9 and current v12 full local gates pass; the faile
 clock assertion remains historical evidence. Independent acceptance is separately
 bound to the final PR head.
 
-Release recommendation: **HOLD production activation**. The measurable native
-benchmark and final20%no-hint coverage are bounded implementation proofs.
-Sixteen companies lack usable methods and no direct buyer method is verified.
-Production configuration/price/budget checks, old-image compatibility and rollback
-rehearsal, and production write approval remain open. Live
-RRC operator-detail access failed from this environment. A supplementary read-only
-check of the [official bulk directory](https://www.rrc.texas.gov/media/mz2knwg5/oil-and-gas-directory-7-20-26-txt.txt)
-matched ten unresolved operator numbers/names, but all ten organization-phone
-fields were blank. Incomplete emergency strings were excluded. This did not
-increase coverage; blocked/oversize/ambiguous pages remain unresolved. No direct
-buyer method or actual purchasing authority is invented to
-close that gap. Follow [the backfill and rollback procedure](PRODUCTION_BACKFILL.md)
-only after its release and owner-authority gates are satisfied. The repository's
-parent launch Finish Contract is also still open.
+
+The release-hold statements in this historical implementation record predate the completed v12 production census and activation. For current source identity, production results, validation, and remaining acceptance gaps, use the [production release report](PRODUCTION_RELEASE.md). Commercial P0 remains OPEN because buyer coverage and the authenticated production contact UI are unverified.

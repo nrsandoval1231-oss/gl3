@@ -1,0 +1,30 @@
+{
+  "scope": "Later running v12 automatic-worker read-only snapshots; frozen185 census and first25 automatic coverage are unchanged",
+  "host_observed_at_utc": "2026-10-25T18:12:16.079624+00:00",
+  "credit_observed_at_utc": "2026-10-25T18:14:55.741698+00:00",
+  "schema_revision": "0041_evidence_packages",
+  "source_revision": "559b325ea3c3c982a4cdee7af52fb703e2622f13",
+  "all_services_running": true,
+  "firecrawl_completed_calls": 235,
+  "firecrawl_call_cap": 250,
+  "remaining_calls_at_observation": 15,
+  "replacement_reservation_usd": "2.35",
+  "actual_cash_cost": "UNKNOWN",
+  "remaining_credits": 1984,
+  "production_observed_credit_change": 470,
+  "contact_job_statuses_at_host_observation": [
+    {
+      "status": "running",
+      "count": 1
+    },
+    {
+      "status": "succeeded",
+      "count": 234
+    }
+  ],
+  "planner_last_success_at": "2026-10-25T18:07:20.656755+00:00",
+  "planner_consecutive_failures": 0,
+  "max_active_calls": 1,
+  "additional_coverage_recalculated": false,
+  "production_authenticated_ui": "UNKNOWN"
+}

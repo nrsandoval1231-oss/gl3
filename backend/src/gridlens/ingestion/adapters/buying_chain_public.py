@@ -242,7 +242,7 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
     for excluded in soup(["script", "style"]):
         excluded.decompose()
     # Preserve literal contact targets even when link text is "Email". Record a
-    # person association only when one immediate container has exactly one
+    # person association only when a single immediate container has exactly one
     # heading and one safe method anchor; page-wide proximity is not evidence.
     method_labels: dict[Tag, tuple[str, str]] = {}
     for anchor in soup.find_all("a", href=True):
@@ -270,6 +270,8 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
         ]
         if len(headings) != 1 or len(anchors) != 1:
             continue
+        # An outer card wrapper can include nested people. Do not treat it as
+        # an immediate card even if the flattened text happens to look adjacent.
         nested = [
             child
             for child in parent.find_all(["div", "section", "article"])

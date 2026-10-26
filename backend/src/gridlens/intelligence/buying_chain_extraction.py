@@ -107,7 +107,9 @@ def document_content_hash(doc: PublicDocument) -> str:
         ]
         content["person_cards_sha256"] = fingerprint(cards)
     else:
-        # Persisted evidence stores the excerpt and extraction location, not DOM.
+        # BuyingChainEvidence stores the bounded visible excerpt and extraction
+        # location, not DOM. Preserve the cards' semantic digest there so an
+        # offline provenance check can reproduce the same document hash.
         marker = re.search(r"(?:^|; )pcards:([0-9a-f]{64})(?:$|; )", doc.extraction_location)
         if marker:
             content["person_cards_sha256"] = marker.group(1)

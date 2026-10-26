@@ -1,0 +1,32 @@
+# C25 independent live activation evidence review
+
+**Verdict: PASS for the bounded observed C17 operational worker resume and C21 live automatic-contact activation.** The observed automatic planner actually ran and created jobs under the reviewed finite Firecrawl-only worker settings. This verdict does not certify outcomes of jobs still queued/running, future spend, production authenticated contact UI, or commercial P0 completion. Review start UTC **UNKNOWN** (not separately sampled); finish `2026-10-25 17:11:07 UTC`; elapsed time and tokens **UNKNOWN**. I made no host, provider, network, database, credential, production, browser or source changes.
+
+## Exact evidence
+
+| Artifact | SHA-256 |
+| --- | --- |
+| C17 operational acceptance gate | `00a9896756f43435a7ad6c4279590cf4adfcf8c7ee6ad962a98065c1a86c460a` |
+| C17 bounded browser receipt | `00b990c5a4fc6687ac8e48bed9eaebcc805ac90010d1ee970265784dbab52614` |
+| C17 worker-resume result | `5871e0fd28091e7640bb777d826e9c8c5bebf52b86ef8464162e3bcfdbaa48a2` |
+| C17 resumed-worker readback | `32bd7f1f529db2928d9135f2428ea91c5dd171c6e1e3da2d7cc308a01d45a15b` |
+| C21 stop-workers result | `74ac492b730416855a1e773496f81e02935148e133fe61093ad342ecb0eb5c36` |
+| C21 activation result | `747d4553ddbcc1121468bbc4a880114f92aeb770f16a858247e031706c270ef3` |
+| C21 canary result | `6f3ddd479e7f8c787e641b479d002c22c8f93b36a5c25005662983a226c01b46` |
+| C21 finite-settings preflight | `4f8837738ce478bcf4bd1447588889c7f181f3fb0d5903f379e97526e9de3fd3` |
+| C21 start-workers result | `7a34d52118fcc01e657d48c044076520fb3c0517a9ca76c4393999554ae2beae` |
+| C21 live activation readback | `57ce46a0385d543e5effbb4c84c1acd31e92cbd6f83f25cffb2ed15e9b11d5be` |
+| Automatic jobs proof | `708806b1abdd3ab487a6a9583510c75f45779d835d146dc17e0d955ef95cff51` |
+| Automatic read-only query source | `1d8a2e97048a8e7a22a13c7a69b4cded22898bb376b6d97c22ff9c50cc156284` |
+| Postactivation C20 preservation proof | `c81935c436bd8f6859f34ffc5ad19c24004c906ecc79e15217208190273a53f3` |
+| Reviewed C21 activation helper | `0720c5954bbf717755893ebfa8a3b137b7edc5a9d334d6580e634a81d16552da` |
+
+The C17 acceptance gate is hash-bound to the candidate revision `559b325ea3c3c982a4cdee7af52fb703e2622f13`, prior reviewed canary/retained receipts, the bounded browser receipt, and the C24 independent report (its hash matches `7e34e98a1a2a881a630f9aaea208e5f0c4e00f1fef8e4bf8fa0b58d2fc63fc92`). It explicitly scopes `PASS` to ordinary ingestion with the contact planner still disabled, and marks production authenticated contact UI `UNKNOWN` and commercial P0 `OPEN`. The 17:03:22 UTC C17 accept result reports workers started; 17:03:32 readback shows exact candidate API/worker/browse image `sha256:e4db12435b6fdcecbc3a9dcdf31c794b8c9120976427ab69c5439e0aa3244366` and web image `sha256:838c1c9bcdd56483b8a3b42828aa54eea9b72c370f96574cde9e14252cc4de4a`, contact flag off in the worker, no worker Firecrawl key, and prior ledger/auth configuration preserved. This is an honest operational resume, not an authenticated production contact-UI pass.
+
+The C21 transition first stopped workers with zero running jobs, active budget scopes, unresolved dispatched calls and active DB transactions in its receipt. The reviewed helper produced activated compose SHA-256 `fed744de3d299163c2ad9d576dd3a82bd5e0b259c7e6c8cc53902bc771550c1b` and a mode-0600 private env. Canary and worker-start receipts report exact candidate images. A network-none, no-DB/no-dispatch preflight verified normal auto-refresh and the unchanged absolute C18 finite ceilings: global monthly 262 calls/$2.534613, source 257/$2.522389, project 252/$2.510447, provider and model 250/$2.50, daily caps, one active call, and $0.01 max/search reservation. Actual container readback then shows the worker alone has a Firecrawl key and `COMPANY_CONTACT_DISCOVERY_ENABLED=true`, `WORKER_AUTO_REFRESH=true`, evaluation/finite mode, `FIRECRAWL_SEARCH_V2` only, max active 1, and OpenAI/Typesafe false. The API has the contact flag but no new key/private env. Browse and web retain their existing roles. The current API/worker/browse/web container IDs, image IDs and running state are in the hash-pinned readback; this is stronger than a local render-only claim.
+
+The read-only automatic-job query uses one `REPEATABLE READ READ ONLY` transaction, checks exact production database `gridlens_restore_20261014` and schema `0041_evidence_packages`, and reads planner state/jobs/logical calls/persisted contacts without writing or dispatching. At its 17:09:06 UTC observation, `company_contacts` planner last succeeded 17:07:16, next retry 18:07:16, consecutive failures 0. It observed 25 distinct new automatic jobs created after 17:07:13, none sharing an ID with the frozen 185 manual jobs; 8 succeeded, 1 was running and 16 queued. Nine distinct associated calls were all `firecrawl` / `FIRECRAWL_SEARCH_V2`, `COMPLETED`, each with $0.010000 reservation and no UNKNOWN/quarantined status in the observed set. Five persisted method records were present on succeeded jobs. These are genuine automatic-worker effects, not completed-plan replay or a second manual C18 batch. The query caps returned jobs at 100; 25 observed is below that cap, but this receipt alone cannot certify all later jobs or future budget behavior.
+
+At 17:09:15 UTC the postactivation C20 proof still reports zero missing or changed original rows in all 11 protected tables, all 1,154 original company IDs unchanged, and no new company IDs. Append-only additions since the quiescent baseline are 203 claims, 189 evidence rows and 203 links. The prior C20 name-hash limitation persists, but zero new company IDs makes the current no-new-identity claim independent of that broken name comparison.
+
+**Remaining gates:** Reconcile the 17 queued/running automatic jobs and later paid-call/credit deltas with read-only receipts; verify no UNKNOWN/quarantined dispatch, budget overrun, or unexpected provider/worker. Preserve later original-row proof after those effects. Stop/quiesce/reconcile active jobs before any configuration rollback; C21 rollback is config-only and must not be treated as a way to erase paid or canonical data. Production authenticated contact UI remains **UNKNOWN** without an inspectable signed-in production session. The frozen 185-company commercial census remains 14/185 usable (7.57%), 171 without methods and zero direct buyer methods; commercial P0 remains **OPEN**. Actual provider cash cost and future automatic outcomes remain **UNKNOWN**.

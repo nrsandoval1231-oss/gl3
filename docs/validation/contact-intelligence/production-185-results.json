@@ -1,0 +1,225 @@
+{
+  "aggregate_page_failure_count": 177,
+  "by_industry": {
+    "data_center": {
+      "coverage_percent": 25.0,
+      "eligible": 4,
+      "usable": 1,
+      "verified_email_methods": 1,
+      "verified_phone_methods": 0
+    },
+    "upstream_well": {
+      "coverage_percent": 7.18,
+      "eligible": 181,
+      "usable": 13,
+      "verified_email_methods": 33,
+      "verified_phone_methods": 8
+    }
+  },
+  "by_tier": {
+    "Lead": {
+      "coverage_display": "N/A (0 eligible)",
+      "eligible": 0,
+      "usable": null,
+      "verified_email_methods": null,
+      "verified_phone_methods": null
+    },
+    "Prospect": {
+      "coverage_display": "N/A (0 eligible)",
+      "eligible": 0,
+      "usable": null,
+      "verified_email_methods": null,
+      "verified_phone_methods": null
+    },
+    "Signal": {
+      "coverage_percent": 7.57,
+      "eligible": 185,
+      "usable": 14,
+      "verified_email_methods": 34,
+      "verified_phone_methods": 8
+    }
+  },
+  "candidate": {
+    "approved_plan_sha256": "b88c84df72404b70481bcb0574d5a8f7071d53589bbdaa4169cf77c787df3060",
+    "merge_revision": "3ce9e8a68a6b988d1d8bfd8597e150f19ae36498",
+    "source_revision": "559b325ea3c3c982a4cdee7af52fb703e2622f13"
+  },
+  "cohort_note": "This is the complete 185-company eligible production census; the earlier 20-company stratified v12 benchmark was not a prevalence estimate.",
+  "companies_missing_contacts_count": 171,
+  "companies_research_required": 185,
+  "companies_url_only_route": 0,
+  "companies_with_elapsed_seconds": 185,
+  "companies_with_usable_method": 14,
+  "companies_without_elapsed_seconds": 0,
+  "companies_without_usable_contacts": 171,
+  "company_discovery_reason_counts": {
+    "all_candidate_fetches_failed": 1,
+    "no_literal_company_method": 5,
+    "official_identity_unverified": 165
+  },
+  "company_elapsed_seconds_sum": 1376.099,
+  "company_status_counts": {
+    "complete": 7,
+    "partial": 7,
+    "unresolved": 171
+  },
+  "coverage_percent": 7.57,
+  "direct_buyer_methods": 0,
+  "direct_person_email_methods": 0,
+  "direct_person_phone_methods": 0,
+  "eligible_companies": 185,
+  "first_enqueue_to_last_complete_seconds": 1914.534,
+  "first_enqueue_utc": "2026-10-25T16:27:20.964994+00:00",
+  "generator": {
+    "deterministic": true,
+    "file": "c23-production-report.py",
+    "sha256": "6834e0f65d740032970a823a7fa60b470fd5c5c2efcb4b6600bb95489850ac1a",
+    "version": "C23-1"
+  },
+  "generic_company_email_methods": 34,
+  "generic_company_phone_methods": 8,
+  "historical_v12_benchmark": {
+    "companies_processed": 20,
+    "companies_with_usable_method": 4,
+    "prevalence_note": "Stratified 20-company benchmark; not a population prevalence estimate.",
+    "selection": "All4 data_center;4 oil companies with most associated projects;12 evenly spaced by name from remaining227 oil companies. All235 current companies areSignal, other tier denominators0. URLs are search hints, never source-verified facts.",
+    "verified_email_methods": 7,
+    "verified_phone_methods": 6
+  },
+  "inputs": {
+    "checkpoint_sha256": "f25a0f78235980ac43324bd2515ddb8cb51a8f03082a1bdba7ec8016ec099b24",
+    "credit_metadata_sha256": null,
+    "historical_v12_sha256": "e57481f55eed0be3fdaabe8b07f7365853ad5a2f8c2ea3744a8a9eae9e32be84",
+    "plan_sha256": "9a43f3aa0711cfad96710340f4d3e0f0d467d24c2572d56d137618fb3e4f7d72",
+    "receipt_sha256": {
+      "c18-pilot-r1-receipt.json": "d5127e9cb04ae0eb152b28bd08ad3b2d882d68108c3bf0ad726806f338f7626a",
+      "c19-batch-01.json": "4d1d62fe52c160cb13dce39dc286814fd4cdf0ddb96bc5136719ea7dfdb330fd",
+      "c19-batch-02.json": "83eb1be34216ed7062c54333fbe90f6701ea05ed5825981588a17f5bce154a13",
+      "c19-batch-03.json": "bef60982d7dbe9bf63556817de52829d5ccde19784ae223322cffbd55f8f0219",
+      "c19-batch-04.json": "12f8810766b512615f9e56638188eeef9a40e4cc364de28c0e1cc8ec555a84fe",
+      "c19-batch-05.json": "663424292c8e3d6a2c8351a515562f17f67d4511e11f029dd165b457bb2156c5",
+      "c19-batch-06.json": "305a711d931c0c0a585de36958cc7f6a5e99cbea07642bff6ea2c4511dd611c9",
+      "c19-batch-07.json": "e33fe9d7eb5930229cc73b29b8cad59a78114178dc3db5f4c62556c7ede38b02",
+      "c19-batch-08.json": "00a8ffc5d0107d4c0aec98a95f21199ca424d02264392d3c4bc65bd034fe137d",
+      "c19-pilot-four-receipt.json": "a9b8a0d15083b86b9349b4618e7c3f425393421ba52cdb538a564b6ae2725714"
+    }
+  },
+  "interpretation_limits": [
+    "Verified email/phone means source-published and evidence-retained, not reachable or deliverable.",
+    "Direct-person methods do not establish purchasing authority; buyer authority remains unconfirmed.",
+    "Named professional counts can include people without published contact methods.",
+    "Lead and Prospect tiers have zero eligible companies in this plan; their coverage is N/A.",
+    "Industry denominators are limited to the approved 4 data_center and 181 upstream_well rows."
+  ],
+  "last_complete_utc": "2026-10-25T16:59:15.499145+00:00",
+  "method_reachability": "UNKNOWN; publication does not establish reachability or deliverability",
+  "named_people_without_methods": 4,
+  "named_relevant_professionals": 4,
+  "page_failure_reason_counts": {
+    "ResponseTooLarge": 9,
+    "TimeoutError": 3,
+    "acquisition_failed": 35,
+    "http_status_301": 10,
+    "http_status_302": 2,
+    "http_status_307": 1,
+    "http_status_403": 74,
+    "http_status_429": 2,
+    "http_status_503": 2,
+    "network_error": 39
+  },
+  "processed_companies": 185,
+  "provider_cash_cost_usd": "UNKNOWN",
+  "provider_credits": {
+    "credit_source": "ordered operator receipts",
+    "provider_credits_balance_after": 2084,
+    "provider_credits_balance_before": 2454,
+    "provider_credits_change_observed": 370,
+    "receipts": [
+      {
+        "credits_after": 2452,
+        "credits_before": 2454,
+        "exit_code": 0,
+        "file": "c18-pilot-r1-receipt.json",
+        "mode": "execute",
+        "observed_credit_change": 2
+      },
+      {
+        "credits_after": 2446,
+        "credits_before": 2452,
+        "exit_code": 0,
+        "file": "c19-pilot-four-receipt.json",
+        "mode": "execute",
+        "observed_credit_change": 6
+      },
+      {
+        "credits_after": 2396,
+        "credits_before": 2446,
+        "exit_code": 0,
+        "file": "c19-batch-01.json",
+        "mode": "execute",
+        "observed_credit_change": 50
+      },
+      {
+        "credits_after": 2346,
+        "credits_before": 2396,
+        "exit_code": 0,
+        "file": "c19-batch-02.json",
+        "mode": "execute",
+        "observed_credit_change": 50
+      },
+      {
+        "credits_after": 2296,
+        "credits_before": 2346,
+        "exit_code": 0,
+        "file": "c19-batch-03.json",
+        "mode": "execute",
+        "observed_credit_change": 50
+      },
+      {
+        "credits_after": 2246,
+        "credits_before": 2296,
+        "exit_code": 0,
+        "file": "c19-batch-04.json",
+        "mode": "execute",
+        "observed_credit_change": 50
+      },
+      {
+        "credits_after": 2196,
+        "credits_before": 2246,
+        "exit_code": 0,
+        "file": "c19-batch-05.json",
+        "mode": "execute",
+        "observed_credit_change": 50
+      },
+      {
+        "credits_after": 2146,
+        "credits_before": 2196,
+        "exit_code": 0,
+        "file": "c19-batch-06.json",
+        "mode": "execute",
+        "observed_credit_change": 50
+      },
+      {
+        "credits_after": 2096,
+        "credits_before": 2146,
+        "exit_code": 0,
+        "file": "c19-batch-07.json",
+        "mode": "execute",
+        "observed_credit_change": 50
+      },
+      {
+        "credits_after": 2084,
+        "credits_before": 2096,
+        "exit_code": 0,
+        "file": "c19-batch-08.json",
+        "mode": "execute",
+        "observed_credit_change": 12
+      }
+    ]
+  },
+  "purchasing_authority": "unconfirmed; published methods do not establish buying authority",
+  "report_id": "company-contact-production-185",
+  "reserved_usd": 1.85,
+  "verified_email_methods": 34,
+  "verified_phone_methods": 8
+}

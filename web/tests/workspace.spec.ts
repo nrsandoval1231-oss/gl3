@@ -713,6 +713,7 @@ for (const width of [1280, 390]) {
       contacts: [
         { claim_id: 'party', company: 'Example Owner', name: null, title: null, role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url, verified_at: '2026-10-20T10:00:00Z' }, { kind: 'phone', value: '+1 512 555 0101', href: 'tel:+15125550101', source_url: source.url, verified_at: '2026-10-25T10:00:00Z' }], sources: [source] },
         { claim_id: 'party-source-only', company: 'Example Owner', name: null, title: null, role: 'procurement', responsibility: 'Inferred likely role', purchasing_authority: 'Requires confirmation for this power package', methods: [], sources: [source] },
+        { claim_id: 'unknown-date', company: 'Example Owner', name: 'Taylor Unknown', title: 'Operations Director', role: 'operations', responsibility: 'Organizational role', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'email', value: 'unknown@example.test', href: 'mailto:unknown@example.test', verified_at: 'invalid-date' }], sources: [] },
       ],
       next_contact_path: 'Confirm power procurement with the company office.', next_action: 'Verify the activity-specific power window.',
       research_gaps: [{ key: 'start', label: 'Power needed', section: 'power', value: null, status: 'Research in progress', basis: 'No supported date yet.', research_category: 'timing', research_status: 'NOT_SCHEDULED', sources: [] }],
@@ -770,7 +771,12 @@ for (const width of [1280, 390]) {
     await expect(priority).toContainText('Known industrial asset')
     await expect(panel.getByText('Example Owner', { exact: true }).first()).toBeVisible()
     await expect(panel.getByRole('link', { name: 'Call Example Owner owner company route · +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
-    await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)
+    await expect(panel.locator('a[href^="mailto:"]')).toHaveAttribute('href', 'mailto:unknown@example.test')
+    const unknownDateDetails = panel.locator('.ic-contact details').nth(2)
+    await unknownDateDetails.locator('summary').click()
+    await expect(unknownDateDetails).not.toContainText('Published method source checked')
+    await expect(unknownDateDetails).not.toContainText('Role/source checked')
+    await expect(unknownDateDetails).not.toContainText('Invalid Date')
     await expect(page.locator('.wh-completeness')).toContainText('1/2')
     await panel.getByRole('button', { name: 'View automated research' }).click()
     await expect(page.getByRole('heading', { name: 'Automated research' })).toBeVisible()
