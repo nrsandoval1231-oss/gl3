@@ -72,7 +72,7 @@ export function BuyingChain({ projectId }: { projectId: string }) {
         <p className="integrity">{candidate.person_name ? (relationshipLabels[candidate.person_project_relationship] ?? relationshipLabels.UNKNOWN) : candidate.organization_relationship === 'DIRECT' ? 'Organization involvement supported · named person unknown' : 'Organization involvement unknown'} · {candidate.evidence_strength} evidence</p>
         <p>{candidate.reason}</p>{candidate.stale && <p className="integrity">Historical title evidence · current role needs verification</p>}
         <dl className="buying-chain-relations"><div><dt>Project → organization</dt><dd>{candidate.organization_relationship === 'DIRECT' ? 'Direct involvement evidence' : 'Unknown'}</dd></div><div><dt>Organization → person</dt><dd>{candidate.person_organization_relationship === 'CURRENT' ? 'Current role supported' : 'Current role unknown'}</dd></div><div><dt>Person → project</dt><dd>{relationshipLabels[candidate.person_project_relationship] ?? relationshipLabels.UNKNOWN}</dd></div></dl>
-        <p className="evidence-meta">Observed {time(candidate.observed_at)} · Verified {time(candidate.verified_at)} · {candidate.history_count ?? 1} retained claim version(s)</p>
+        <p className="evidence-meta">Observed {time(candidate.observed_at)} · Source checked {time(candidate.verified_at)} · {candidate.history_count ?? 1} retained claim version(s)</p>
         {(candidate.public_contacts ?? []).length === 0 && <p className="buying-chain-note">Public business contact details unknown</p>}
         {(candidate.public_contacts ?? []).map((contact, index) => <p key={index}>{contact.kind}: {contact.value} <a href={safeUrl(contact.source_url)} target="_blank" rel="noreferrer">Contact source</a></p>)}
 

@@ -58,6 +58,8 @@ test('Research shows source-backed contacts, separate priority and confidence, e
   await expect(page.getByText(/Temporary demand: Unknown/)).toBeVisible()
   await expect(page.locator('.research-gaps li').filter({ hasText: /^Temporary demand$/ })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Automated research' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Business contacts' })).toBeVisible()
+  await expect(page.getByText('Source checked 10/25/2026')).toBeVisible()
   await expect(page.getByRole('button', { name: /call|fact|workflow|enrich|correct|retract|research this question|save/i })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: test.info().outputPath('mobile-research.png'), fullPage: true })
