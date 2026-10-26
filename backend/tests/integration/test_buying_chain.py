@@ -699,18 +699,24 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("include_generic_route", "include_named_methods"),
-    [(False, True), (True, True), (False, False)],
-    ids=("named-only", "named-plus-generic", "methodless-named-roles"),
+    ("official_path", "include_generic_route", "include_named_methods"),
+    [
+        ("/team", False, True),
+        ("/team", True, True),
+        ("/team", False, False),
+        ("/people", False, True),
+    ],
+    ids=("team-named-only", "team-named-plus-generic", "team-methodless-roles", "people-named"),
 )
 def test_official_team_cards_persist_named_methods_without_generic_duplicates(
-    db, monkeypatch, include_generic_route, include_named_methods
+    db, monkeypatch, official_path, include_generic_route, include_named_methods
 ):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.intelligence.company_contacts import company_contacts
     from gridlens.persistence.models import Job
 
     fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    team_url = f"https://www.mesltdtx.com{official_path}"
     html = fixture.read_bytes()
     if not include_generic_route:
         html = html.replace(b"<p>For general company assistance, use info@mesltdtx.com.</p>", b"")
@@ -742,7 +748,7 @@ def test_official_team_cards_persist_named_methods_without_generic_duplicates(
         queued = discovery.discover_company_contacts(
             session,
             company_id,
-            candidate_urls=["https://www.mesltdtx.com/team"],
+            candidate_urls=[team_url],
             now=NOW,
         )
         job = session.get(Job, UUID(queued["job_id"]))
@@ -782,11 +788,7 @@ def test_official_team_cards_persist_named_methods_without_generic_duplicates(
             assert person["category"] == (
                 "procurement" if name == "Christopher Brannon" else "electrical_contractor"
             )
-            person_evidence = [
-                item
-                for item in person["evidence"]
-                if item["url"] == "https://www.mesltdtx.com/team"
-            ]
+            person_evidence = [item for item in person["evidence"] if item["url"] == team_url]
             assert person_evidence
             if include_named_methods:
                 contact_evidence = [
@@ -860,11 +862,22 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
 
     fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
     html = fixture.read_bytes()
-    card_doc = replace(
-        parse_document(team_url, html, "text/html"),
-        observed_at=NOW,
-        published_at=published_at,
-    )
+    parsed_card_doc = parse_document(team_url, html, "text/html")
+    card_doc = replace(parsed_card_doc, observed_at=NOW, published_at=published_at)
+    if team_url.endswith("/people"):
+        # Model a page with ordinary prose but no parser-confirmed card structure.
+        card_doc = replace(
+            card_doc,
+            person_cards=(),
+            structured=(),
+            links=(),
+            text=(
+                "Masters Electrical Services. Jordan Smith is an electrician. "
+                "For general company assistance, use info@mesltdtx.com.\n"
+                "© 2026 Masters Electrical Services"
+            ),
+        )
+        assert not card_doc.person_cards
     with db.begin() as session:
         project = seed(session, external_id="mes-stale-person-methods")
         project.region_status = "ELIGIBLE"
@@ -891,16 +904,20 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
         )
         company_id = UUID(company["company_identity_id"])
         old_claim = session.get(BuyingChainClaim, UUID(str(company["id"])))
-        old_methods = [
-            {
-                "kind": "email",
-                "value": card.href.removeprefix("mailto:"),
-                "source_url": team_url,
-                "quote": card.contact_text,
-                "observed_at": NOW.isoformat(),
-            }
-            for card in card_doc.person_cards
-        ]
+        old_methods = (
+            []
+            if team_url.endswith("/people")
+            else [
+                {
+                    "kind": "email",
+                    "value": card.href.removeprefix("mailto:"),
+                    "source_url": team_url,
+                    "quote": card.contact_text,
+                    "observed_at": NOW.isoformat(),
+                }
+                for card in parsed_card_doc.person_cards
+            ]
+        )
         company_method = {
             "kind": "email",
             "value": "info@mesltdtx.com",
@@ -929,7 +946,7 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
 
         assert refreshed["status"] == "complete"
         assert refreshed["named_professionals"] == 0
-        assert refreshed["contacts"] == 1
+        assert refreshed["contacts"] == 1, refreshed
         assert refreshed["reason"] == "generic_public_methods_persisted"
         projection = company_contacts(session, company_id)
         generic = [contact for contact in projection.contacts if contact.name is None]
@@ -938,8 +955,9 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
         assert old_claim.public_contacts == prior_methods
 
 
+@pytest.mark.parametrize("refresh_generation", [None, "owner-retry-generation-20261026"])
 def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_company_route(
-    db, monkeypatch
+    db, monkeypatch, refresh_generation
 ):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.intelligence.company_contacts import company_contacts
@@ -1051,6 +1069,7 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
             company_id,
             candidate_urls=[team_url],
             now=NOW + timedelta(days=31),
+            refresh_generation=refresh_generation,
         )
         second_job = session.get(Job, UUID(queued["job_id"]))
         assert second_job.id != first_job_id
@@ -1139,6 +1158,7 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
             company_id,
             candidate_urls=[team_url],
             now=NOW + timedelta(days=31),
+            refresh_generation=refresh_generation,
         )
         assert replay_job["job_id"] == str(second_job_id)
         assert replay_job["deduplicated"] is True
@@ -1158,6 +1178,23 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
         )
         assert [run.id for run in session.scalars(select(BuyingChainRun))] == run_ids_after
         assert company_contacts(session, company_id).model_dump(mode="json") == projection_after
+
+    # A stable replay generation must not hide a changed business need.
+    with db.begin() as session:
+        need = session.scalar(select(PowerNeed).where(PowerNeed.project_id == project_id))
+        assert need is not None
+        need.required_mw = "2 MW"
+    with db.begin() as session:
+        changed_need_job = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=[team_url],
+            now=NOW + timedelta(days=31),
+            refresh_generation=refresh_generation,
+        )
+        assert changed_need_job["job_id"]
+        assert changed_need_job["job_id"] != str(second_job_id)
+        assert changed_need_job.get("deduplicated") is not True
 
 
 def test_membership_link_never_binds_other_company_in_same_retained_article(db):
@@ -5356,7 +5393,10 @@ def test_tdlr_company_alignment_preserves_scoped_method_suppression(db, monkeypa
         lambda *_args: None,
     )
     number, name, location, owner, excerpt = TDLR_CASES[1]
-    excerpt += "\nOwner contact: Jordan Smith\nOwner contact phone: (713) 555-0100"
+    excerpt += (
+        "\nOwner contact: Jordan Smith\nOwner contact phone: (512) 555-0100"
+        "\nGeneral note: 512-555-0100; (512)555-0100; +15125550100"
+    )
     with db.begin() as session:
         project, _retained, _owner = _seed_tdlr_retained_project(
             session, (number, name, location, owner, excerpt)
@@ -5379,7 +5419,7 @@ def test_tdlr_company_alignment_preserves_scoped_method_suppression(db, monkeypa
             session,
             scope="method",
             subject_key=method_suppression_key(
-                old_company_id, "Jordan Smith", "phone", "(713) 555-0100"
+                old_company_id, "Jordan Smith", "phone", "(512) 555-0100"
             ),
             action="suppress",
             expected_version=0,
@@ -5387,6 +5427,45 @@ def test_tdlr_company_alignment_preserves_scoped_method_suppression(db, monkeypa
             actor="test",
             idempotency_key="tdlr-method-suppression-before-company-alignment",
         )
+        from gridlens.intelligence.buying_chain import _apply_contact_privacy
+
+        probe = deepcopy(person)
+        probe["evidence"].append(
+            {"quote": "General note: 512-555-0100; (512)555-0100; +15125550100"}
+        )
+        _apply_contact_privacy(session, [probe])
+        rendered_probe = str(probe)
+        assert "General note:" in rendered_probe
+        assert "512-555-0100" not in rendered_probe
+        assert "(512)555-0100" not in rendered_probe
+        assert "+15125550100" not in rendered_probe
+        from gridlens.intelligence.buying_chain import _apply_permit_summary_privacy
+
+        privacy_view = {
+            "candidates": [person],
+            "permit_summaries": [
+                {
+                    "evidence_id": person["evidence"][0]["id"],
+                    "facts": [
+                        {"label": "Owner", "value": owner, "quote": f"Owner: {owner}"},
+                        {
+                            "label": "Owner contact phone",
+                            "value": "512-555-0100",
+                            "quote": (
+                                f"{owner}: 512-555-0100; (512)555-0100; "
+                                "+15125550100; unrelated prose repeats 512-555-0100"
+                            ),
+                        },
+                    ],
+                }
+            ],
+        }
+        _apply_permit_summary_privacy(session, privacy_view)
+        summary_json = str(privacy_view["permit_summaries"])
+        assert "512-555-0100" not in summary_json
+        assert "(512)555-0100" not in summary_json
+        assert "+15125550100" not in summary_json
+
         person_claim_id = UUID(str(person["id"]))
         monkeypatch.setattr(
             identity_reconciliation,
@@ -5405,6 +5484,67 @@ def test_tdlr_company_alignment_preserves_scoped_method_suppression(db, monkeypa
         )
         assert current_person_link is not None
         assert current_person_link.company_identity_id == old_company_id
+
+        # A regenerated current claim can inherit only project/entity provenance;
+        # it must retain the 512 method yet receive no copied company link.
+        old_claim = session.get(BuyingChainClaim, person_claim_id)
+        old_company_link = current_person_link
+        assert old_claim is not None
+        assert any(
+            contact.get("value") == "(512) 555-0100" for contact in old_claim.public_contacts
+        )
+        old_company_link.state = "historical"
+        clone_values = {
+            column.name: deepcopy(getattr(old_claim, column.name))
+            for column in BuyingChainClaim.__table__.columns
+            if column.name not in {"id", "fingerprint", "created_at"}
+        }
+        clone_values["fingerprint"] = sha256(
+            f"regenerated-without-company-link:{old_claim.fingerprint}".encode()
+        ).hexdigest()
+        regenerated = BuyingChainClaim(**clone_values)
+        session.add(regenerated)
+        session.flush()
+        assert any(
+            contact.get("value") == "(512) 555-0100" for contact in regenerated.public_contacts
+        )
+        active_run = session.scalar(
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project.id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+            .limit(1)
+        )
+        assert active_run is not None
+        active_run.claim_ids = [
+            str(regenerated.id) if value == str(person_claim_id) else value
+            for value in active_run.claim_ids
+        ]
+        session.flush()
+        assert (
+            session.scalar(
+                select(BuyingChainIdentityLink.id).where(
+                    BuyingChainIdentityLink.claim_id == regenerated.id,
+                    BuyingChainIdentityLink.entity_type == "company",
+                )
+            )
+            is None
+        )
+        for view in (
+            buying_chain_view(session, project.id),
+            buying_chain_views(session, {project.id})[str(project.id)],
+        ):
+            regenerated_view = next(
+                candidate
+                for candidate in view["candidates"]
+                if str(candidate["id"]) == str(regenerated.id)
+            )
+            assert regenerated_view.get("company_identity_id") is None
+            assert not regenerated_view.get("suppressed")
+            assert not regenerated_view["public_contacts"]
+            rendered = str(regenerated_view)
+            assert "(512) 555-0100" not in rendered
+            assert "512-555-0100" not in rendered
+            assert "+15125550100" not in rendered
         for view in (
             buying_chain_view(session, project.id),
             buying_chain_view(session, project.id, history=True),
@@ -6662,3 +6802,21 @@ def test_organization_discovery_seeds_require_current_company_and_public_url(db,
             },
         )
         assert discovery._known_contact_urls(session, company_id, [project]) == []
+
+
+def test_refresh_baseline_uses_unredacted_internal_view(db, monkeypatch):
+    """Privacy overlays must not make persisted claims look absent to refresh."""
+    from gridlens.intelligence import buying_chain as service
+
+    real_view = service.buying_chain_view
+    calls = []
+
+    def observe_view(session, project_id, **kwargs):
+        calls.append(kwargs.get("_apply_privacy", True))
+        return real_view(session, project_id, **kwargs)
+
+    monkeypatch.setattr(service, "buying_chain_view", observe_view)
+    with db.begin() as session:
+        project = seed(session, external_id="privacy-refresh-baseline")
+        service.enrich_buying_chain(session, project.id, fetcher=lambda _url: None, now=NOW)
+    assert False in calls

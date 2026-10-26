@@ -3,6 +3,7 @@ import io
 import json
 import logging
 from collections import defaultdict
+from copy import deepcopy
 from csv import DictWriter
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
@@ -74,6 +75,7 @@ from gridlens.intelligence.opportunity_browse import (
 )
 from gridlens.intelligence.project_state import project_state as read_project_state
 from gridlens.intelligence.saved_browse import current_generation
+from gridlens.intelligence.saved_history_privacy import project_saved_history_privacy
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION
 from gridlens.intelligence.snapshot_presence import absent_need_ids
 from gridlens.persistence.database import SessionLocal
@@ -5628,7 +5630,7 @@ def autonomous_research_status(need_id: UUID):
 
 
 def _commercial_history_item(row: Any, notes: list[dict]) -> dict:
-    receipt = (row.snapshot or {}).get("commercial_triage", {})
+    receipt = deepcopy((row.snapshot or {}).get("commercial_triage", {}))
     saved_card = receipt.get("saved_card")
     if isinstance(saved_card, dict):
         saved_card = {**saved_card, "pursuit_id": str(row.id), "notes": []}
@@ -5810,73 +5812,12 @@ def commercial_triage_history(
             )
             for note in notes:
                 notes_by_pursuit[note.pursuit_id].append(note_view(note))
-        history = []
-        for row in rows:
-            receipt = (row.snapshot or {}).get("commercial_triage", {})
-            saved_card = receipt.get("saved_card")
-            if isinstance(saved_card, dict):
-                saved_card = {
-                    **saved_card,
-                    "pursuit_id": str(row.id),
-                    "notes": [],
-                }
-            else:
-                saved_card = None
-            stored_versions = receipt.get("versions")
-            if isinstance(stored_versions, list) and stored_versions:
-                versions = stored_versions
-            else:
-                versions = [
-                    {
-                        "version": 1,
-                        "disposition": receipt.get("disposition")
-                        or (saved_card or {}).get("disposition")
-                        or "UNKNOWN",
-                        "evaluated_at": receipt.get("saved_at"),
-                        "evaluated_on": receipt.get("evaluated_on"),
-                        "input_hash": receipt.get("input_hash")
-                        or (saved_card or {}).get("input_hash"),
-                        "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
-                        "live_status": "not_rechecked",
-                        "saved_card": saved_card,
-                    }
-                ]
-            normalized_versions = []
-            for index, version in enumerate(versions, start=1):
-                version_card = version.get("saved_card")
-                if isinstance(version_card, dict):
-                    version_card = {**version_card, "pursuit_id": str(row.id), "notes": []}
-                else:
-                    version_card = None
-                normalized_versions.append(
-                    {
-                        **version,
-                        "version": version.get("version") or index,
-                        "snapshot_status": "saved_as_of" if version_card else "metadata_only",
-                        "live_status": "not_rechecked",
-                        "saved_card": version_card,
-                    }
-                )
-            history.append(
-                {
-                    "pursuit_id": row.id,
-                    "need_id": receipt.get("need_id")
-                    or row.identity_key.removeprefix("commercial-need:"),
-                    "project_id": row.project_id,
-                    "related_project_ids": row.project_ids or [str(row.project_id)],
-                    "disposition": receipt.get("disposition")
-                    or (saved_card or {}).get("disposition")
-                    or "UNKNOWN",
-                    "evaluated_at": receipt.get("saved_at"),
-                    "evaluated_on": receipt.get("evaluated_on"),
-                    "input_hash": receipt.get("input_hash") or (saved_card or {}).get("input_hash"),
-                    "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
-                    "live_status": "not_rechecked",
-                    "saved_card": saved_card,
-                    "notes": notes_by_pursuit[row.id],
-                    "versions": normalized_versions,
-                }
+        history = [
+            project_saved_history_privacy(
+                session, _commercial_history_item(row, notes_by_pursuit[row.id])
             )
+            for row in rows
+        ]
         result = {
             "items": history,
             "total": total,
@@ -5968,7 +5909,7 @@ def commercial_triage_history_detail(pursuit_id: UUID):
                 .order_by(PursuitCallNote.created_at.desc(), PursuitCallNote.id)
             )
         ]
-        result = _commercial_history_item(row, notes)
+        result = project_saved_history_privacy(session, _commercial_history_item(row, notes))
         size = len(json.dumps(result, default=str, separators=(",", ":")).encode("utf-8"))
         if size > _MAX_COMMERCIAL_CARD_BYTES:
             raise _commercial_bound_error(

@@ -538,10 +538,43 @@ def discover_company_contacts(
             "refresh_generation": refresh_generation,
         }
     )
+    # Successful enrichment changes its own gap/profile inputs. Keep a separate
+    # source/request identity so an immediate replay can reuse that outcome,
+    # without hiding new evidence, changed needs, or newly missing contacts.
+    source_request_digest = fingerprint(
+        {
+            "research": research_digest(
+                replace(
+                    research_candidate,
+                    missing_buyer_relevant_method=False,
+                    missing_contact_method=False,
+                    research_profile=STANDARD_RESEARCH_PROFILE,
+                )
+            ),
+            "candidate_urls": urls,
+            "refresh_epoch": None
+            if refresh_generation is not None
+            else now.date().toordinal() // 30,
+            "refresh_generation": refresh_generation,
+            "policy": POLICY_VERSION,
+        }
+    )
     matching_failures = 0
     for job in existing:
         checkpoint = _load_checkpoint(job)
-        if checkpoint.get("request_digest") == digest:
+        outcome_gaps = checkpoint.get("contact_gaps") or {}
+        completed_profile = checkpoint.get("research_profile")
+        settled_replay = (
+            job.status == "succeeded"
+            and (not refresh_due or refresh_generation is not None)
+            and checkpoint.get("source_request_digest") == source_request_digest
+            and completed_profile in {STANDARD_RESEARCH_PROFILE, DEEP_RESEARCH_PROFILE}
+            and _adaptive_fetch_limit(selected_profile) <= _adaptive_fetch_limit(completed_profile)
+            and outcome_gaps.get("missing_named_contact_method") == missing_contact_method
+            and outcome_gaps.get("missing_buyer_relevant_contact_method")
+            == missing_buyer_relevant_method
+        )
+        if checkpoint.get("request_digest") == digest or settled_replay:
             if job.status == "queued" or (
                 job.status == "running" and (job.lease_until is None or job.lease_until > now)
             ):
@@ -583,6 +616,7 @@ def discover_company_contacts(
             {
                 "task_type": TASK_TYPE,
                 "request_digest": digest,
+                "source_request_digest": source_request_digest,
                 "research_digest": input_digest,
                 "payload": {
                     "company_identity_id": str(company_identity_id),
