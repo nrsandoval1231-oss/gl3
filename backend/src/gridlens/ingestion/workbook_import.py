@@ -54,6 +54,7 @@ MAX_COLUMNS = 300
 MAX_HYPERLINK_METADATA_BYTES = 16 * 1024 * 1024
 MAX_HYPERLINK_SHEET_SCAN_BYTES = 256 * 1024 * 1024
 MAX_HYPERLINK_TARGETS = 100_000
+MAX_HYPERLINK_TARGET_BYTES = 16 * 1024 * 1024
 
 
 class ImportRow(BaseModel):
@@ -530,6 +531,7 @@ def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
     metadata_bytes = 0
     scan_bytes = 0
     target_count = 0
+    mapped_target_bytes = 0
 
     def read_metadata_xml(archive: zipfile.ZipFile, name: str) -> ET.Element:
         nonlocal metadata_bytes
@@ -616,6 +618,14 @@ def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
                                 mapped_targets = (max_column - min_column + 1) * (
                                     max_row - min_row + 1
                                 )
+                                mapped_target_bytes += (
+                                    len(target_url.encode("utf-8")) * mapped_targets
+                                )
+                                if mapped_target_bytes > MAX_HYPERLINK_TARGET_BYTES:
+                                    raise ValueError(
+                                        "Workbook expanded hyperlink targets exceed their "
+                                        "configured byte budget"
+                                    )
                                 target_count += mapped_targets
                                 if target_count > MAX_HYPERLINK_TARGETS:
                                     raise ValueError(

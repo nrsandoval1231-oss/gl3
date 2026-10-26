@@ -256,6 +256,26 @@ def test_excel_reversed_range_cannot_reduce_budget_before_large_range(tmp_path):
         read_workbook(path)
 
 
+def test_excel_hyperlink_range_target_bytes_are_bounded_before_expansion(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "large-expanded-target.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source"])
+    sheet.append(["North Site", "Link"])
+    sheet.append(["Second Site", None])
+    sheet.append(["Third Site", None])
+    sheet.append(["Fourth Site", None])
+    sheet["B2"].hyperlink = "https://example.gov/" + ("x" * 256)
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B2:B5")
+    monkeypatch.setattr(workbook_import, "MAX_HYPERLINK_TARGET_BYTES", 1000)
+
+    with pytest.raises(ValueError, match="expanded hyperlink targets exceed"):
+        read_workbook(path)
+
+
 def test_large_contact_csv_stays_bounded_and_keeps_all_rows(tmp_path):
     path = tmp_path / "contacts.csv"
     with path.open("w", newline="", encoding="utf-8") as handle:
