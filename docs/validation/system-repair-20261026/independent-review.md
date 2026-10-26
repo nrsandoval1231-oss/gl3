@@ -2,11 +2,11 @@
 
 Reviewer: Astra independent review agent. Date: 2026-10-26.
 
-Reviewed source: `9316c36`, against retained PR126 baseline `7e5179f`. Integration head `4a4db68` adds staging-report documentation only. Earlier focused test execution was at `7954e29`; subsequent findings and source readbacks are recorded below. This review follows the owner's exceptional-control clarification and the updated Autonomous Intelligence Canon. It does not supersede the separate deployment and commercial-evidence holds.
+Accepted source: `b71306f29716ec5ac374b0f4a04022e96abeb9a5`, against retained PR126 baseline `7e5179f`. Runtime source was reviewed through `9316c36`; `4a4db68` adds staging-report documentation and `b71306f` makes the independently checked typing-only change recorded below. Earlier focused test execution was at `7954e29`; subsequent findings and source readbacks are recorded below. This review follows the owner's exceptional-control clarification and the updated Autonomous Intelligence Canon. It does not supersede the separate deployment and commercial-evidence holds.
 
 ## Review result
 
-**No remaining blocking implementation finding was identified at source `9316c36`. Final regression acceptance remains pending the exact-source full backend and browser gates.** This supersedes the changes-required result at `993b6c7`. The interrupted full-suite runs at `7954e29` and `993b6c7` are not passing acceptance evidence. Source review is complete for starting the final gate; this is not deployment approval.
+**Engineering implementation and regression acceptance is granted for exact source `b71306f29716ec5ac374b0f4a04022e96abeb9a5`.** No remaining blocking implementation finding was identified. This supersedes the changes-required result at `993b6c7` and the pending-gate result at `9316c36`. Interrupted full-suite runs at `7954e29` and `993b6c7` are not acceptance evidence. Commercial P0 and production deployment remain on hold.
 
 The review covered the integrated source, not only builder summaries: contact extraction and attribution, depth selection and refresh/retry identity, workbook reconciliation and power semantics, correction and suppression replay, public read exposure, internal membership retraction, migration 0045, and benchmark claims. The reviewer made no application-code changes, database writes, migrations, provider calls or deployment actions.
 
@@ -29,6 +29,14 @@ Independent no-database reproductions on the matching reviewed privacy implement
 `ffb5a9c` additionally recognizes canonical owner-energy and owner-construction contact roles. It still requires a usable named method, excludes EPC from that owner-role test, and leaves purchasing authority unconfirmed. `df79427` classifies the observed standalone `Rows` footer as metadata only when every other source cell is empty; populated projects named Rows remain records. The raw source row is retained. No other application behavior changed in this final delta.
 
 The coordinator reports isolated actual-workbook staging of four batches and 4,520 inactive source rows with replay/provenance checks and zero canonical project/company/need creation. The reviewer did not execute that staging, and it is not evidence of production matching or commercial qualification.
+
+## Final regression acceptance at `b71306f`
+
+The final application change renames one local lineage-loop variable and annotates `strings` as `list[str]`. The reviewer inspected the six-line diff and independently compared the complete Python-file ASTs after normalizing that local rename and annotation: they are identical. This establishes runtime equivalence with the preceding reviewed implementation; it does not substitute for final CI.
+
+The reviewer independently fetched [CI run 40265149237](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40265149237) and [CI run 40265146123](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40265146123). Both identify exact SHA `b71306f29716ec5ac374b0f4a04022e96abeb9a5` and successful backend, web and brand-assets jobs. The first run's raw backend log confirms **3,102 collected; 3,101 passed, 1 skipped**, **120 browser tests passed**, Ruff success, mypy success across **173 source files**, and no known vulnerabilities in the backend/brand dependency audits. The coordinator identifies the single skip as the optional local North Carolina access probe. A working-tree source diff against `b71306f` is empty for backend, web, scripts, config, tools and CI configuration.
+
+The reviewer also read the final local browser log showing **120 passed (2.0 minutes)**. Earlier local browser attempts affected by artifacts inside the Vite tree/protocol timeouts are not used as acceptance evidence. The coordinator separately reports **3,101 passed, 1 skipped and seven passing subtests** for the completed local backend gate at runtime-equivalent `4a4db68`; that run remains attributed to its original revision. The exact-source CI results above are the final regression basis. The earlier reviewer-executed 91 focused passes remain attributed only to `7954e29`.
 
 ## Findings and closure
 
@@ -68,7 +76,7 @@ uv run pytest tests/unit/test_company_contact_tools.py \
   tests/unit/test_autonomous_api_surface.py -q
 ```
 
-The reviewer also ran read-only parser/privacy reproductions and `git diff --check`. Database-backed correction, membership concurrency, schema preservation, complete backend and browser execution are coordinator validation; their final exact-source results must be attached before regression acceptance.
+The reviewer also ran read-only parser/privacy reproductions and `git diff --check`. Database-backed correction, membership concurrency and schema-preservation execution remain builder/coordinator validation. The reviewer independently verified the final exact-source CI metadata and raw test summaries as recorded above; no reviewer database writes or migrations were performed.
 
 ## Commercial and deployment limits
 
