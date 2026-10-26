@@ -11,7 +11,8 @@ from typing import Any, TypedDict
 from urllib.parse import urlparse, urlsplit, urlunsplit
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, insert, literal_column, select, update
+from sqlalchemy import String, case, cast, func, insert, literal_column, select, true, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
 from gridlens.ingestion.workbook_import import (
@@ -50,6 +51,8 @@ MAX_METADATA_HINTS_IN_RESULT = 100
 MAX_COMPANY_HYPERLINK_ROWS = 100
 MAX_COMPANY_HYPERLINK_URLS = 8
 MAX_COMPANY_HYPERLINK_BYTES = 16 * 1024 * 1024
+MAX_COMPANY_HYPERLINKS_PER_ROW = 64
+MAX_COMPANY_HYPERLINK_TARGET_BYTES = 2048
 _PUBLIC_HOST_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
 _ACTIVITY_SPECIFIC_POWER_HEADER = re.compile(
@@ -235,24 +238,132 @@ def company_hyperlink_hints(session: Session, company_id: UUID | str) -> dict[st
         )
         .subquery()
     )
-    row_hints = func.jsonb_path_query_array(
-        latest_event.c.details,
-        literal_column(
-            "'$.hyperlink_hints[*] ? (@.sheet == $sheet && "
-            "@.row_number == $row_number) [0 to 99]'::jsonpath"
-        ),
-        func.jsonb_build_object(
-            "sheet", ExternalImportRow.sheet, "row_number", ExternalImportRow.row_number
-        ),
+    path_rows = (
+        func.jsonb_path_query(
+            latest_event.c.details,
+            literal_column(
+                "'$.hyperlink_hints[*] ? (@.sheet == $sheet && "
+                "@.row_number == $row_number)'::jsonpath"
+            ),
+            func.jsonb_build_object(
+                "sheet", ExternalImportRow.sheet, "row_number", ExternalImportRow.row_number
+            ),
+        )
+        .table_valued("value", with_ordinality="ordinality")
+        .render_derived()
+        .lateral()
+    )
+    matched_path_rows = (
+        select(path_rows.c.value)
+        .select_from(path_rows)
+        .where(
+            func.jsonb_typeof(cast(path_rows.c.value, JSONB)["target"]) == "string",
+            func.octet_length(cast(path_rows.c.value, JSONB)["target"].astext)
+            <= MAX_COMPANY_HYPERLINK_TARGET_BYTES,
+            func.octet_length(cast(path_rows.c.value, String)) <= 2300,
+        )
+        .order_by(path_rows.c.ordinality)
+        .limit(MAX_COMPANY_HYPERLINKS_PER_ROW)
+        .correlate(ExternalImportRow, latest_event)
+        .subquery()
+    )
+    row_hints = select(
+        func.coalesce(func.jsonb_agg(matched_path_rows.c.value), literal_column("'[]'::jsonb"))
+    ).scalar_subquery()
+    hint_count = (
+        select(func.count())
+        .select_from(path_rows)
+        .correlate(ExternalImportRow, latest_event)
+        .scalar_subquery()
+    )
+    sidecar_key_array = ExternalImportBatch.report["hyperlink_metadata_sidecar_keys"][
+        ExternalImportRow.sheet
+    ]
+    sidecar_keys = (
+        func.jsonb_array_elements_text(
+            case(
+                (func.jsonb_typeof(sidecar_key_array) == "array", sidecar_key_array),
+                else_=literal_column("'[]'::jsonb"),
+            )
+        )
+        .table_valued("value")
+        .lateral()
+    )
+    raw_sidecars = (
+        func.jsonb_each(
+            case(
+                (func.jsonb_typeof(ExternalImportRow.raw) == "object", ExternalImportRow.raw),
+                else_=literal_column("'{}'::jsonb"),
+            )
+        )
+        .table_valued("key", "value")
+        .lateral()
+    )
+    raw_targets = (
+        func.jsonb_each(
+            case(
+                (func.jsonb_typeof(raw_sidecars.c.value) == "object", raw_sidecars.c.value),
+                else_=literal_column("'{}'::jsonb"),
+            )
+        )
+        .table_valued("key", "value")
+        .lateral()
+    )
+    raw_hint_rows = (
+        select(
+            func.jsonb_build_object(
+                "column",
+                raw_targets.c.key,
+                "target",
+                raw_targets.c.value,
+                "verification_status",
+                "UNVERIFIED_SOURCE_HINT",
+            ).label("hint")
+        )
+        .select_from(raw_sidecars.join(raw_targets, true()))
+        .where(raw_sidecars.c.key.in_(select(sidecar_keys.c.value)))
+        .where(
+            func.jsonb_typeof(cast(raw_targets.c.value, JSONB)) == "string",
+            func.octet_length(
+                cast(
+                    cast(raw_targets.c.value, JSONB).op("#>>")(literal_column("'{}'")),
+                    String,
+                )
+            )
+            <= MAX_COMPANY_HYPERLINK_TARGET_BYTES,
+            func.length(raw_targets.c.key) <= 256,
+        )
+        .order_by(raw_targets.c.key)
+        .limit(MAX_COMPANY_HYPERLINKS_PER_ROW)
+        .correlate(ExternalImportRow, ExternalImportBatch)
+        .subquery()
+    )
+    raw_hints = select(
+        func.coalesce(func.jsonb_agg(raw_hint_rows.c.hint), literal_column("'[]'::jsonb"))
+    ).scalar_subquery()
+    raw_hint_count = (
+        select(func.count())
+        .select_from(raw_sidecars.join(raw_targets, true()))
+        .where(raw_sidecars.c.key.in_(select(sidecar_keys.c.value)))
+        .correlate(ExternalImportRow, ExternalImportBatch)
+        .scalar_subquery()
     )
     records = session.execute(
         select(
-            ExternalImportRow,
-            ExternalImportBatch,
+            ExternalImportRow.id,
+            ExternalImportRow.sheet,
+            ExternalImportRow.row_number,
+            ExternalImportBatch.content_hash,
             latest_event.c.event_id,
             latest_event.c.details["parser_revision"].astext.label("parser_revision"),
             latest_event.c.details["metadata_fingerprint"].astext.label("metadata_fingerprint"),
             row_hints.label("row_hints"),
+            hint_count.label("hint_count"),
+            raw_hints.label("raw_hints"),
+            raw_hint_count.label("raw_hint_count"),
+            ExternalImportBatch.report["hyperlink_metadata_parser_revision"].astext.label(
+                "raw_parser_revision"
+            ),
         )
         .join(ExternalImportBatch, ExternalImportBatch.id == ExternalImportRow.batch_id)
         .join(ExternalImportActivation, ExternalImportActivation.row_id == ExternalImportRow.id)
@@ -276,29 +387,39 @@ def company_hyperlink_hints(session: Session, company_id: UUID | str) -> dict[st
     sources: list[dict[str, Any]] = []
     urls: set[str] = set()
     consumed_bytes = 0
+    hints_returned = 0
     urls_truncated = False
     metadata_hints_may_be_truncated = False
-    for row, batch, event_id, parser_revision, metadata_fingerprint, event_hints in records:
+    byte_budget_exceeded = False
+    for (
+        row_id,
+        sheet,
+        row_number,
+        batch_hash,
+        event_id,
+        parser_revision,
+        metadata_fingerprint,
+        event_hints,
+        event_hint_count,
+        raw_row_hints,
+        original_hint_count,
+        raw_parser_revision,
+    ) in records:
         if event_id is not None:
             hints = event_hints or []
-            metadata_hints_may_be_truncated = metadata_hints_may_be_truncated or len(hints) == 100
+            metadata_hints_may_be_truncated = (
+                metadata_hints_may_be_truncated or event_hint_count > len(hints)
+            )
             source_revision = parser_revision
             source_fingerprint = metadata_fingerprint
         else:
-            hints = []
-            sidecar_keys = _metadata_sidecar_keys(batch.report).get(row.sheet, set())
-            for key, container in row.raw.items():
-                if _is_hyperlink_sidecar(key, container, sidecar_keys=sidecar_keys):
-                    hints.extend(
-                        {
-                            "column": column,
-                            "target": target,
-                            "verification_status": "UNVERIFIED_SOURCE_HINT",
-                        }
-                        for column, target in container.items()
-                    )
-            source_revision = batch.report.get("hyperlink_metadata_parser_revision")
+            hints = raw_row_hints or []
+            metadata_hints_may_be_truncated = (
+                metadata_hints_may_be_truncated or original_hint_count > len(hints)
+            )
+            source_revision = raw_parser_revision
             source_fingerprint = None
+        hints_returned += len(hints)
         stable_hints = []
         for hint in hints:
             if not isinstance(hint, dict):
@@ -308,7 +429,8 @@ def company_hyperlink_hints(session: Session, company_id: UUID | str) -> dict[st
                 continue
             consumed_bytes += len(target.encode("utf-8"))
             if consumed_bytes > MAX_COMPANY_HYPERLINK_BYTES:
-                raise ValueError("company hyperlink hints exceed the bounded reader byte budget")
+                byte_budget_exceeded = True
+                continue
             stable_hints.append(
                 {
                     "column": hint.get("column"),
@@ -321,12 +443,13 @@ def company_hyperlink_hints(session: Session, company_id: UUID | str) -> dict[st
                 urls.add(candidate)
         sources.append(
             {
-                "batch_hash": batch.content_hash,
-                "row_id": str(row.id),
-                "sheet": row.sheet,
-                "row_number": row.row_number,
+                "batch_hash": batch_hash,
+                "row_id": str(row_id),
+                "sheet": sheet,
+                "row_number": row_number,
                 "parser_revision": source_revision,
                 "metadata_fingerprint": source_fingerprint,
+                "target_count": event_hint_count if event_id is not None else original_hint_count,
                 "hints": sorted(
                     stable_hints, key=lambda item: (str(item["column"]), item["target"])
                 ),
@@ -343,6 +466,7 @@ def company_hyperlink_hints(session: Session, company_id: UUID | str) -> dict[st
             "rows_truncated": rows_truncated,
             "urls_truncated": urls_truncated,
             "metadata_hints_may_be_truncated": metadata_hints_may_be_truncated,
+            "byte_budget_exceeded": byte_budget_exceeded,
         },
         sort_keys=True,
         ensure_ascii=False,
@@ -356,6 +480,8 @@ def company_hyperlink_hints(session: Session, company_id: UUID | str) -> dict[st
         "rows_truncated": rows_truncated,
         "urls_truncated": urls_truncated,
         "metadata_hints_may_be_truncated": metadata_hints_may_be_truncated,
+        "byte_budget_exceeded": byte_budget_exceeded,
+        "hints_returned": hints_returned,
     }
 
 
@@ -527,7 +653,7 @@ def _append_metadata_reparse_if_unchanged(
             ExternalImportEvent.action == "metadata_reparsed",
         )
     )
-    if revision_count >= MAX_METADATA_REPARSE_REVISIONS:
+    if int(revision_count or 0) >= MAX_METADATA_REPARSE_REVISIONS:
         raise ValueError("workbook metadata reparse revision limit reached")
     session.add(
         ExternalImportEvent(

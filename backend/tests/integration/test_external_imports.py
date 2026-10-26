@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from openpyxl import Workbook
 from sqlalchemy import create_engine, func, select
+from sqlalchemy import event as sqlalchemy_event
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -327,6 +328,14 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
         workbook.save(workbook_path)
 
         current_preview = read_workbook(workbook_path)
+        current_preview.rows = [
+            row.model_copy(update={"raw": {**row.raw, "Irrelevant payload": "x" * 1_000_000}})
+            for row in current_preview.rows
+        ]
+        current_preview.report = {
+            **current_preview.report,
+            "irrelevant_report_blob": "y" * 1_000_000,
+        }
         current_sidecar_keys = _metadata_sidecar_keys(current_preview.report)
         legacy_report = dict(current_preview.report)
         legacy_report.pop("hyperlink_metadata_parser_revision")
@@ -420,7 +429,20 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
         original_row.match_status = "matched"
         session.get(ExternalImportActivation, original_row.id).active = True
         session.flush()
+        statements = []
+
+        def capture_statement(_conn, _cursor, statement, parameters, _context, _many):
+            if "SELECT external_import_rows.id" in statement:
+                statements.append((statement, parameters))
+
+        sqlalchemy_event.listen(session.get_bind(), "before_cursor_execute", capture_statement)
         hint_result = company_hyperlink_hints(session, matched_company_id)
+        sqlalchemy_event.remove(session.get_bind(), "before_cursor_execute", capture_statement)
+        assert statements
+        assert "external_import_rows.raw," not in statements[0][0]
+        assert "external_import_batches.report," not in statements[0][0]
+        assert 64 in statements[0][1].values()
+        assert "octet_length" in statements[0][0]
         assert hint_result["urls"] == ["https://example.gov/permits/123"]
         assert hint_result["verification_status"] == "UNVERIFIED_SOURCE_HINT"
         assert len(hint_result["fingerprint"]) == 64
@@ -557,6 +579,52 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
         history = import_history(session)
         assert history[0]["recovered_unverified_hyperlink_hint_count"] == 6
 
+        many_hints = [
+            {
+                "sheet": original_row.sheet,
+                "row_number": original_row.row_number,
+                "column": f"Citation {index}",
+                "url": f"https://example.gov/permits/{index}",
+                "target": f"https://example.gov/permits/{index}",
+                "verification_status": "UNVERIFIED_SOURCE_HINT",
+            }
+            for index in range(150)
+        ]
+        many_hints.append(
+            {
+                "sheet": original_row.sheet,
+                "row_number": original_row.row_number,
+                "column": "oversized",
+                "url": None,
+                "target": "https://example.gov/" + "é" * 2048,
+                "verification_status": "UNVERIFIED_SOURCE_HINT",
+            }
+        )
+        session.add(
+            ExternalImportEvent(
+                batch_id=original_row.batch_id,
+                action="metadata_reparsed",
+                actor="reader-bound-test",
+                created_at=datetime.now(UTC) + timedelta(days=1),
+                details={
+                    "kind": "metadata_reparse",
+                    "parser_revision": "reader-bound-test-v1",
+                    "metadata_fingerprint": "f" * 64,
+                    "source_content_hash": "a" * 64,
+                    "target_count": len(many_hints),
+                    "hyperlink_hints": many_hints,
+                    "irrelevant_blob": "z" * 1_000_000,
+                },
+            )
+        )
+        session.get(ExternalImportActivation, original_row.id).active = True
+        session.flush()
+        bounded = company_hyperlink_hints(session, matched_company_id)
+        assert bounded["metadata_hints_may_be_truncated"] is True
+        assert bounded["hints_returned"] == 64
+        assert len(bounded["urls"]) == 8
+        assert bounded["urls_truncated"] is True
+
 
 def test_fresh_hyperlink_stage_replay_does_not_add_a_reparse_event(import_db):
     with TemporaryDirectory() as temporary_directory:
@@ -579,6 +647,18 @@ def test_fresh_hyperlink_stage_replay_does_not_add_a_reparse_event(import_db):
         assert replay["batch_id"] == first["batch_id"]
         assert replay["metadata_reparse_receipts"] == []
         assert session.scalar(select(func.count()).select_from(ExternalImportEvent)) == 1
+        staged_row = session.scalar(select(ExternalImportRow))
+        matched_company_id = uuid4()
+        staged_row.match_status = "matched"
+        staged_row.company_match = {
+            "status": "matched",
+            "candidate_id": str(matched_company_id),
+        }
+        session.get(ExternalImportActivation, staged_row.id).active = True
+        session.flush()
+        hints = company_hyperlink_hints(session, matched_company_id)
+        assert hints["urls"] == ["https://example.gov/permits/fresh"]
+        assert hints["verification_status"] == "UNVERIFIED_SOURCE_HINT"
 
 
 def test_name_only_and_conflicting_project_signals_remain_proposals(import_db):
