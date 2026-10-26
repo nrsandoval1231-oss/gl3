@@ -1415,11 +1415,14 @@ def test_same_bytes_metadata_reparse_changes_contact_digest_and_queues_new_job(i
         assert _research_source_digest(session, project, company.id) != before_source_digest
 
         assert plan_company_contact_jobs(session, limit=10) == 1
-        new_job = session.scalar(
-            select(Job)
-            .where(Job.kind == CONTACT_JOB_KIND, Job.target_id == company.id)
-            .order_by(Job.created_at.desc(), Job.id.desc())
-        )
+        # Both jobs share the transaction timestamp; UUID ordering is random.
+        new_job = session.scalars(
+            select(Job).where(
+                Job.kind == CONTACT_JOB_KIND,
+                Job.target_id == company.id,
+                Job.id != first_job.id,
+            )
+        ).one()
         new_checkpoint = json.loads(new_job.checkpoint)
         assert new_job.id != first_job.id
         assert new_checkpoint["research_digest"] != first_checkpoint["research_digest"]

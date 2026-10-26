@@ -1,4 +1,6 @@
-from sqlalchemy import CheckConstraint, Column, MetaData, String, Table, Text
+from copy import copy
+
+from sqlalchemy import Column, MetaData, String, Table, Text
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.schema import CreateTable
 
@@ -16,10 +18,7 @@ def test_metadata_reparse_event_check_is_postgresql_only_ddl():
         MetaData(),
         Column("action", String(20)),
         Column("details", Text),
-        CheckConstraint(
-            model_constraint.sqltext,
-            name=model_constraint.name,
-        ).ddl_if(dialect="postgresql"),
+        copy(model_constraint),
     )
 
     sqlite_ddl = str(CreateTable(probe).compile(dialect=sqlite.dialect()))
