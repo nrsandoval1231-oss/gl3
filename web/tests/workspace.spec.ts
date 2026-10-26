@@ -757,7 +757,7 @@ for (const width of [1280, 390]) {
     const contactDetails = panel.locator('.ic-contact details').first()
     await contactDetails.locator('summary').click()
     const latestMethodDate = new Date('2026-10-25T10:00:00Z').toLocaleDateString()
-    await expect(contactDetails).toContainText(`Verified ${latestMethodDate}`)
+    await expect(contactDetails).toContainText(`Published method source checked ${latestMethodDate}`)
     const sourceOnlyDetails = panel.locator('.ic-contact details').nth(1)
     await sourceOnlyDetails.locator('summary').click()
     const latestSourceDate = new Date('2026-10-22T10:00:00Z').toLocaleDateString()
