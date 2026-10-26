@@ -1,0 +1,60 @@
+{
+  "status": "HOLD_COMMERCIAL_GATES_NOT_MET",
+  "release_authority": "Conditional owner authorization: merge and deploy only after all commercial, exact-candidate engineering, independent and production safeguards pass.",
+  "pr": "https://github.com/nrsandoval1231-oss/gl3/pull/126",
+  "pr_state": "OPEN_DRAFT",
+  "merged": false,
+  "merge_commit": null,
+  "deployed": false,
+  "deployed_sha": null,
+  "production_data_mutations": [],
+  "paid_provider_activations": [],
+  "final_engineering_validation": "PENDING_FINAL_SOURCE_FREEZE",
+  "commercial_evidence": "cohort-api-adjudication.json",
+  "commercial_result": {
+    "sampled_native_project_records": 25,
+    "independently_established_eligible_distinct_physical_opportunities": 0,
+    "source_attributed_project_company_routes": 25,
+    "distinct_primary_company_ids": 21,
+    "named_owner_representatives": 4,
+    "source_checked_generic_company_phone_routes": 4,
+    "person_bound_methods": 0,
+    "independent_method_deliverability": "NOT_TESTED",
+    "purchasing_authority_established": 0,
+    "supported_activity_specific_mw": 0,
+    "supported_power_need_timing": 0,
+    "supported_residual_gap": 0,
+    "strict_commercially_actionable_opportunities": 0,
+    "classification": "All 25 are Signals; unknowns are not verified negative facts."
+  },
+  "workbooks": {
+    "retained_batches": 4,
+    "retained_rows": 4520,
+    "active_rows": 0,
+    "canonical_projects_in_staging_database": 0,
+    "production_activation": false,
+    "original_source_bytes_available": false,
+    "metadata_reparse": "Capability tested using synthetic workbooks and retained-data clone; no real missing hyperlink targets recovered."
+  },
+  "production_verification": {
+    "control_plane": "Active DigitalOcean droplet observed; this does not prove application health.",
+    "authenticated_app_session": false,
+    "host_execution_available": false,
+    "deployed_revision": "UNKNOWN",
+    "schema": "UNKNOWN",
+    "retained_record_counts": "UNKNOWN",
+    "logical_restore_rehearsal": "NOT_TESTED",
+    "post_deployment_checks": "NOT_RUN_NO_DEPLOYMENT",
+    "access_receipt": "../system-repair-20261026/release-access.json",
+    "environment_readiness_recheck": "2026-10-26: current spec59, no configured secrets, runtime variables or outbound identities."
+  },
+  "independent_release_acceptance": "NOT_ACCEPTED",
+  "independent_review": "../system-repair-20261026/independent-release-review.md",
+  "deployment_and_rollback_plan": "deployment-and-rollback.md",
+  "remaining_p0": [
+    "Actual corpus does not demonstrate required eligible physical projects, temporary-power demand/timing/gaps, or named usable contact methods. This is a commercial evidence failure, not merely a credential blocker.",
+    "Public contact retrieval remains incomplete; measured unresolved timeouts/deferred work must not be counted as successful enrichment.",
+    "Production authenticated access, deployed revision/schema/count inventory, logical backup restoration and final live acceptance are unavailable.",
+    "Final exact-candidate regression and independent engineering review pending source freeze."
+  ]
+}
