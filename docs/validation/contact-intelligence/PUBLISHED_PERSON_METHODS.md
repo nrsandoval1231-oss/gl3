@@ -1,0 +1,13 @@
+# Published person methods: isolated validation
+
+This report records a bounded, isolated known-source validation of named professional contact methods for Masters Electrical Services, Ltd. It does not update the production contact census or establish performance on the historical 20-company no-hint benchmark.
+
+The retained-source phase replayed deterministically but remained partial because contact-page navigation was deliberately blocked. A separate native-source phase observed the company's official team and contact pages on October 25, 2026 and recorded three named professionals with one published email each. No phone methods were observed. This phase used zero paid provider calls and recorded zero provider cost.
+
+All three role links are supported as organization roles. Purchasing authority remains `UNKNOWN` and requires confirmation. The three records are associated with project `79162cd1-4ac4-4dc1-8ff5-6f3e12aec653`; see [the contact rows](person-method-contacts.csv) and [the sanitized proof](person-method-proof.json). The retained and native phases preserved all original protected rows. New rows in those 11 protected tables were limited to buying-chain claims, evidence, and identity links; other job/run/accounting records are outside that aggregate. A later readback preserved all 11 protected tables and all 1,154 original company identities. Aggregate row counts are in the proof artifact.
+
+The C32 source correction makes accepted named-only methods advance organization revision and supersession while preserving historical generic methods and unrelated current methods. Two overlapping local test-harness runs hit DDL deadlocks/missing tables and were retained; a later exclusive run exposed a test-ordering assumption that was corrected in test code. The exclusive 182-affected-test run and the final root C35 gate passed on the frozen candidate. The final gate reported 3,029 passed, 3 skipped, 11 warnings, and 7 subtests passed. Exact source hashes and UTC gate times appear in [validation details](person-method-validation.json).
+
+The desktop and mobile captures show the same three contacts, source links, verification dates, and unconfirmed-authority labels. The viewport checks found no horizontal overflow, and the mobile reload matched. [Desktop capture](person-method-desktop.png) · [Mobile capture](person-method-mobile.png).
+
+This local evidence snapshot precedes independent review and remote CI; outcomes are recorded separately against the final PR head. Authenticated production UI remains unverified and commercial P0 remains open. See [validation details](person-method-validation.json).
