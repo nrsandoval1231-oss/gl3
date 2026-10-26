@@ -218,21 +218,35 @@ def discover_company_contacts(
             "job_id": None,
         }
     session.scalar(select(func.pg_advisory_xact_lock(company_identity_id.int % (2**63 - 1))))
-    digest = fingerprint(
-        {
-            "company_identity_id": str(company_identity_id),
-            "candidate_urls": urls,
-            "anchor": _anchor_digest(session, anchor, company_identity_id),
-            "refresh_epoch": now.date().toordinal() // 30,
-            "policy": POLICY_VERSION,
-        }
-    )
     existing = session.scalars(
         select(Job)
         .where(Job.kind == JOB_KIND, Job.target_id == company_identity_id)
         .order_by(Job.created_at.desc(), Job.id.desc())
         .limit(30)
     ).all()
+    latest_job = max(
+        existing,
+        key=lambda job: (_outcome_time(job, _load_checkpoint(job), now), str(job.id)),
+        default=None,
+    )
+    latest_checkpoint = _load_checkpoint(latest_job) if latest_job is not None else {}
+    refresh_due = bool(
+        latest_job is not None
+        and latest_job.status == "succeeded"
+        and str(latest_checkpoint.get("status") or "").casefold() in {"complete", "partial"}
+        and now - _outcome_time(latest_job, latest_checkpoint, now)
+        >= timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
+    )
+    digest = fingerprint(
+        {
+            "company_identity_id": str(company_identity_id),
+            "candidate_urls": urls,
+            "anchor": _anchor_digest(session, anchor, company_identity_id),
+            "refresh_epoch": now.date().toordinal() // 30,
+            "refresh_due": refresh_due,
+            "policy": POLICY_VERSION,
+        }
+    )
     matching_failures = 0
     for job in existing:
         try:
@@ -278,6 +292,7 @@ def discover_company_contacts(
                 "payload": {
                     "company_identity_id": str(company_identity_id),
                     "candidate_urls": urls,
+                    "refresh_due": refresh_due,
                 },
                 "status": "queued",
                 "queued_at": now.isoformat(),
@@ -480,7 +495,7 @@ def plan_company_contact_jobs(
                 ),
                 and_(
                     Job.status == "succeeded",
-                    Job.created_at >= now - timedelta(days=CONTACT_PLANNER_REFRESH_DAYS),
+                    Job.created_at > now - timedelta(days=CONTACT_PLANNER_REFRESH_DAYS),
                     completed_checkpoint,
                 ),
                 and_(
@@ -527,7 +542,8 @@ def plan_company_contact_jobs(
             .where(ranked_jobs.c.position <= 30)
             .order_by(Job.target_id, Job.created_at.desc(), Job.id.desc())
         ):
-            recent_jobs.setdefault(job.target_id, []).append(job)
+            if job.target_id is not None:
+                recent_jobs.setdefault(job.target_id, []).append(job)
     queued = 0
     for company_id in ids:
         history = recent_jobs.get(company_id, [])
@@ -762,6 +778,7 @@ def process_company_contact_discovery(
             }
         payload = checkpoint.get("payload", {})
         company_id = UUID(payload["company_identity_id"])
+        refresh_due = payload.get("refresh_due") is True
         urls = payload.get("candidate_urls", [])
         projects = _projects(session, company_id)
         if not urls:
@@ -771,6 +788,7 @@ def process_company_contact_discovery(
         expected_digest = _anchor_digest(session, anchor, company_id) if anchor else None
         current = company_contacts(session, company_id)
         already_named = any(relevant_named_contact(item) for item in current.contacts)
+        reuse_named_contact = already_named and not refresh_due
         organization = _search_name(session, anchor, company_id) if anchor else None
         identity = session.get(CompanyIdentity, company_id)
         operator_number = identity.rrc_operator_number if identity else None
@@ -813,7 +831,7 @@ def process_company_contact_discovery(
             else:
                 discovery_reason = str(exc)
             failures.append({"url": "firecrawl:search", "reason": type(exc).__name__})
-    to_check = [] if already_named else list(urls[:MAX_CANDIDATE_URLS])
+    to_check = [] if reuse_named_contact else list(urls[:MAX_CANDIDATE_URLS])
     checked: set[str] = set()
     while to_check and len(checked) < MAX_CANDIDATE_URLS:
         url = to_check.pop(0)
@@ -888,7 +906,7 @@ def process_company_contact_discovery(
     registry_url = _rrc_url(operator_number)
     registry_doc: PublicDocument | None = None
     if (
-        not already_named
+        not reuse_named_contact
         and not official_method_found
         and registry_url
         and len(checked) < MAX_CANDIDATE_URLS
@@ -911,8 +929,10 @@ def process_company_contact_discovery(
         projects = _projects(session, company_id)
         results: list[dict] = []
         project = next((row for row in projects if row.id == anchor_id), None)
-        if already_named:
+        if reuse_named_contact:
             results.append({"status": "complete", "reason": "current_named_contact_reused"})
+        elif refresh_due and already_named and not fetched and registry_doc is None:
+            results.append({"status": "unresolved", "reason": "no_verified_refresh_source"})
         elif project is None or _anchor_digest(session, project, company_id) != expected_digest:
             results.append({"status": "unresolved", "reason": "source_context_changed"})
         else:

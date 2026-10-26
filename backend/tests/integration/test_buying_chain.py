@@ -202,6 +202,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         job.lease_owner = "contact-test"
         job.fence = 1
         job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job.created_at = NOW
         job_id, company_id = job.id, identity.id
 
     monkeypatch.setattr(discovery, "SessionLocal", db)
@@ -298,15 +299,24 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         )
 
         contact_page_url = "https://www.eogresources.com/company/contacts/"
-        refresh_at = NOW + timedelta(days=31)
+        refresh_at = NOW + timedelta(days=30)
         with evaluate_at(refresh_at):
             due_projection = company_contacts(session, company_id)
-            assert all(not contact.methods for contact in due_projection.contacts)
+            assert any(contact.methods for contact in due_projection.contacts)
             assert contact_page_url in discovery._known_contact_urls(session, company_id, [project])
-            refresh = discovery.discover_company_contacts(session, company_id, now=refresh_at)
-        assert refresh["status"] == "queued"
-        refresh_job = session.get(Job, UUID(refresh["job_id"]))
+            assert discovery.plan_company_contact_jobs(session, limit=1, now=refresh_at) == 1
+        refresh_job = session.scalar(
+            select(Job)
+            .where(
+                Job.kind == discovery.JOB_KIND,
+                Job.target_id == company_id,
+                Job.status == "queued",
+            )
+            .order_by(Job.created_at.desc(), Job.id.desc())
+        )
         assert refresh_job is not None
+        refresh_payload = json.loads(refresh_job.checkpoint)["payload"]
+        assert refresh_payload["refresh_due"] is True
         refresh_job.status, refresh_job.lease_owner, refresh_job.fence = (
             "running",
             "contact-test",
@@ -361,6 +371,13 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         assert any(
             method["value"] == "info@eogresources.com"
             for contact in current_projection.contacts
+            for method in contact.methods
+        )
+    with evaluate_at(refresh_at + timedelta(days=1)), db() as session:
+        day_31_projection = company_contacts(session, company_id)
+        assert any(
+            method["value"] == "info@eogresources.com"
+            for contact in day_31_projection.contacts
             for method in contact.methods
         )
     # A new checkpoint opens a new transaction and must reuse the same job.
