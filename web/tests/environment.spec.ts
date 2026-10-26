@@ -64,17 +64,6 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
   })
 }
 
-async function commercialEnvironment(page: Page, pursuitId: string | null = 'pursuit-a') {
-  await mock(page, [opportunity('a', 'Austin, TX')])
-  const item = { id: 'a', project_id: 'a', pursuit_id: pursuitId, name: 'Commercial fixture A', location: 'Austin, TX', tier: 'Signal', activity: 'construction-power', industry: 'data_center', disposition: 'ACTION NOW', reason: 'Fixture reason', supply: 'Unknown', next_question: 'What is the activity-specific construction load?', next_action: 'Confirm the package buyer.', stage: { stage: 'construction', date: null }, facts: [], contacts: [], sources: [], notes: [], unknowns: [], blockers: [] }
-  await page.route('**/api/commercial/triage?*', (route) => route.fulfill({ json: {
-    evaluated_at: '2026-10-01T12:00:00Z', policy_version: 'fixture', total: 1, grouped_total: 1, offset: 0, limit: 50, next_offset: null,
-    cohort_counts: { action_now: 1, research: 0, watch: 0, reject: 0 }, daily: { evaluated: 1, surfaced: 1, contacted: 0 }, items: [item],
-  } }))
-  return item
-}
-
-
 test('canonical queue keeps geographically unknown records reachable and restores selected need', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX'), opportunity('d', null)])
   await page.goto('/environment')
@@ -90,14 +79,14 @@ test('canonical queue keeps geographically unknown records reachable and restore
   await expect(page.locator('.wh-record-identity h2')).toHaveText('Test project a')
 })
 
-test('legacy action deep link restores selected need and an unsent call preparation', async ({ page }) => {
+test('legacy action deep link restores selected need without retired call preparation', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX')])
   const writes: string[] = []
   page.on('request', request => { if (request.method() === 'POST') writes.push(request.url()) })
   await page.goto('/environment?view=environment&mode=action&state=Texas&need=a')
   await expect(page.locator('.wh-record-identity h2')).toHaveText('Test project a')
-  await expect(page.getByRole('heading', { name: 'Prepare the call' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Call preparation' }).getByText('Test next action a.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Research', exact: true }).first()).toBeVisible()
+  await expect(page.getByLabel('Call note')).toHaveCount(0)
   expect(writes).toEqual([])
 })
 
@@ -127,22 +116,6 @@ test('canonical queue uses bounded server pagination instead of map-window data'
 
 
 
-
-
-
-
-
-test('failed draft persistence invalidates the older snapshot instead of restoring stale input', async ({ page }) => {
-  await mock(page, [opportunity('a', 'Austin, TX')])
-  await page.goto('/environment?view=environment&mode=action&need=a')
-  await page.getByLabel('Call note').fill('Old snapshot must not return')
-  await page.evaluate(() => {
-    for (let i = 0; i < 39; i += 1) sessionStorage.setItem(`gl3-continuity:call:filler-${i}`, JSON.stringify({ at: Date.now(), data: 'x'.repeat(51_250) }))
-  })
-  await page.getByLabel('Call note').fill('New note '.repeat(400))
-  await page.reload()
-  await expect(page.getByLabel('Call note')).not.toHaveValue('Old snapshot must not return')
-})
 
 
 
@@ -216,20 +189,20 @@ test('section navigation keeps Opportunities and Signals searches independent th
   expect(new URL(page.url()).searchParams.get('q')).toBe('alpha')
 })
 
-test('Research disposition does not leak into Opportunities through navigation and reload', async ({ page }) => {
-  await commercialEnvironment(page)
+test('Research navigation keeps Opportunities search and selection state independent', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
   await page.goto('/?view=workspace&q=a')
   await page.getByRole('button', { name: 'Research', exact: true }).click()
-  await page.getByRole('button', { name: /WATCH 0/ }).click()
-  await expect.poll(() => new URL(page.url()).searchParams.get('disposition')).toBe('WATCH')
+  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /WATCH|ACTION NOW|REJECT/i })).toHaveCount(0)
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Search workspace' })).toHaveValue('a')
   expect(new URL(page.url()).searchParams.has('disposition')).toBe(false)
-  expect(new URL(page.url()).searchParams.has('pursuitNeed')).toBe(false)
+  expect(new URL(page.url()).searchParams.has('researchNeed')).toBe(false)
   await page.reload()
   await expect(page.getByRole('navigation', { name: 'Filter opportunities by category' }).getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.goBack()
-  await expect(page.getByRole('button', { name: /WATCH 0/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
   await page.goForward()
   await expect(page.getByRole('textbox', { name: 'Search workspace' })).toHaveValue('a')
   expect(new URL(page.url()).searchParams.has('disposition')).toBe(false)

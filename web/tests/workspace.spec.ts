@@ -71,7 +71,7 @@ test('browser Back re-reads the same selected need after identity is cleared', a
   await panel.locator(':scope > details > summary').click()
   await panel.getByRole('button', { name: 'Next changes' }).click()
   await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
-  await expect(panel.getByText('Showing 51–100 of 100 unreviewed')).toBeVisible()
+  await expect(panel.getByText('Showing 51–100 of 100 changes')).toBeVisible()
   await page.locator('[data-need-row="need-a"]').click()
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await page.locator('[data-need-row="need-a"]').click()
@@ -82,7 +82,7 @@ test('browser Back re-reads the same selected need after identity is cleared', a
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await expect(page.getByText('Loading current need detail.')).toHaveCount(0)
   await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
-  await expect(panel.getByText('Showing 51–100 of 100 unreviewed')).toBeVisible()
+  await expect(panel.getByText('Showing 51–100 of 100 changes')).toBeVisible()
 })
 
 test('table uses its source-backed browse title and settled detail recomputes from current evidence', async ({ page }) => {
@@ -209,7 +209,7 @@ test('desktop history readback does not steal Search focus after resizing to pho
   await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
-  const search = page.getByRole('textbox', { name: 'Search workspace' })
+  const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
   await search.focus()
   await expect(search).toBeFocused()
   await page.setViewportSize({ width: 390, height: 844 })
@@ -313,10 +313,10 @@ test('mobile selected detail keeps the compact header and clear return', async (
   await page.locator('[data-need-row="need-a"]').click()
   const action = page.locator('.wh-record-actions')
   await expect(action).toBeInViewport()
-  await expect(action.getByRole('button', { name: 'Research' })).toHaveCount(0)
+  await expect(action.getByRole('button', { name: 'Research' })).toHaveCount(1)
   await expect(page.locator('.wh-title-row')).toBeHidden()
   await expect(page.locator('.wh-briefing')).toBeHidden()
-  await expect(page.locator('.wh-global-search > span')).toBeHidden()
+  await expect(page.locator('.global-search label > span')).toBeHidden()
   expect(await page.locator('.wh-header>a img').evaluate(node => getComputedStyle(node).width)).toBe('170px')
   await expect(page.getByRole('button', { name: /Back to power needs/ })).toBeVisible()
 })
@@ -325,72 +325,36 @@ test('mobile selected detail keeps the compact header and clear return', async (
 
 
 
-test('switching selected needs ignores late title status', async ({ page }) => {
+test('switching selected needs does not invoke title enrichment', async ({ page }) => {
   const second = { ...need, id: 'need-b', project_id: 'project-b', name: 'Second project' }
-  let releaseFirst: (() => void) | undefined
+  const titleRequests: string[] = []
+  page.on('request', request => { if (request.url().includes('/title')) titleRequests.push(request.url()) })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([need, second]) }))
   await page.route('**/api/opportunities/needs/*', route => route.fulfill({ json: route.request().url().includes('need-b') ? second : need }))
-  await page.route('**/api/power-needs/*/title', async route => {
-    if (route.request().url().includes('need-a')) await new Promise<void>(resolve => { releaseFirst = resolve })
-    await route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
-  })
   await page.goto('/?view=workspace')
   await page.locator('[data-need-row="need-a"]').click()
   await page.locator('[data-need-row="need-b"]').click()
   await expect(page.getByRole('heading', { name: 'Second project' })).toBeVisible()
-  releaseFirst?.()
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
   await expect(page.getByRole('button', { name: /enrich title/i })).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Second project' })).toBeVisible()
+  expect(titleRequests).toEqual([])
 })
 
-
-
-
-
-
-
-test('the selected title response wins over stale browse metadata in either direction', async ({ page }) => {
-  const staleNeed = {
-    ...need,
-    id: 'need-a',
-    title_status: 'ready',
-    browse_title: 'Old enriched browse title - owner operator',
-  }
-  const refreshedNeed = {
-    ...need,
-    id: 'need-b',
-    project_id: 'project-b',
-    name: 'Second project',
-    title_status: 'stale',
-    browse_title: 'Old stale title - contractor',
-  }
-  const freshTitle = 'Second project - Synthetic Owner LLC - asset operator - Activity: Site expansion.'
+test('selected opportunity uses its returned project title without enrichment requests', async ({ page }) => {
+  const first = { ...need, id: 'need-a', name: 'Permit filing A', browse_title: 'Cedar Ridge campus', commercial_organization: null }
+  const second = { ...need, id: 'need-b', project_id: 'project-b', name: 'Permit filing B', browse_title: 'West Texas buildout', commercial_organization: null }
+  const titleRequests: string[] = []
+  page.on('request', request => { if (request.url().includes('/title')) titleRequests.push(request.url()) })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([staleNeed, refreshedNeed]) }))
-  await page.route('**/api/opportunities/needs/*', route => {
-    const id = route.request().url().includes('need-b') ? 'need-b' : 'need-a'
-    return route.fulfill({ json: id === 'need-b' ? refreshedNeed : staleNeed })
-  })
-  await page.route('**/api/power-needs/*/title', route => {
-    const id = route.request().url().includes('need-b') ? 'need-b' : 'need-a'
-    return route.fulfill({ json: id === 'need-a'
-      ? { status: 'stale', result: null, citations: [], generated_at: null, model: 'gpt-test' }
-      : { status: 'ready', result: { title: freshTitle }, citations: [{ evidence_id: 'ev-b', title: 'Current filing', url: 'https://example.test/current', publisher: 'City', quote: 'Activity: Site expansion.' }], generated_at: '2026-10-19T10:00:00Z', model: 'gpt-test' },
-    })
-  })
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([first, second]) }))
+  await page.route('**/api/opportunities/needs/*', route => route.fulfill({ json: route.request().url().includes('need-b') ? second : first }))
   await page.goto('/?view=workspace')
   await page.locator('[data-need-row="need-a"]').click()
-  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Old enriched browse title - owner operator' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Evidence-grounded title' })).toContainText('Saved title is stale')
+  await expect(page.getByRole('heading', { name: 'Cedar Ridge campus' })).toBeVisible()
   await page.locator('[data-need-row="need-b"]').click()
-  await expect(page.getByRole('heading', { name: freshTitle })).toBeVisible()
-  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Evidence-grounded title' })).toContainText('Evidence-grounded title')
-  await expect(page.getByRole('heading', { name: 'Old stale title - contractor' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'West Texas buildout' })).toBeVisible()
+  expect(titleRequests).toEqual([])
 })
 
 test('Signal tier deep links stay on workspace and a changed cohort resets pagination', async ({ page }) => {
@@ -440,13 +404,11 @@ test('a failed workspace filter hides rows, counts, and pagination from the prio
     return route.fulfill({ json: response([selectedRow]) })
   })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, name: 'Fresh canonical detail' } }))
-  await page.route('**/api/power-needs/need-a/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
   await page.goto('/?view=workspace&geography=Austin')
   await expect(page.getByRole('button', { name: /Austin retained row/ })).toBeVisible()
   await page.locator('[data-need-row="need-a"]').click()
   await expect(page.getByRole('heading', { name: 'Fresh canonical detail' })).toBeVisible()
-  await page.getByRole('button', { name: 'Notes', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Call preparation' }).getByText(oldCohortAction)).toBeVisible()
+  await expect(page.getByText(oldCohortAction)).toBeVisible()
   await page.locator('.wh-tools > summary').click()
   await page.locator('.wh-filter-disclosure summary').click()
   await page.getByLabel('Geography (exact match)').fill('Houston')
@@ -563,7 +525,7 @@ test('tablet direct selection keeps detail and header reachable and restores the
   const bounds = await identity.boundingBox()
   expect(bounds!.y).toBeGreaterThanOrEqual(0)
   expect(bounds!.y + bounds!.height).toBeLessThan(1024)
-  for (const control of [page.getByRole('link', { name: 'GridLens home' }), page.getByRole('navigation', { name: 'Primary navigation' }), page.getByRole('textbox', { name: 'Search workspace' }), page.getByRole('button', { name: 'Notifications' }), page.locator('.wh-account > summary')]) {
+  for (const control of [page.getByRole('link', { name: 'GridLens home' }), page.getByRole('navigation', { name: 'Primary navigation' }), page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' }), page.getByRole('button', { name: 'Notifications' }), page.locator('.wh-account > summary')]) {
     const box = await control.boundingBox()
     expect(box).not.toBeNull()
     expect(box!.x).toBeGreaterThanOrEqual(0)
@@ -755,10 +717,9 @@ for (const width of [1280, 390]) {
       rank_score: 8, rank_version: 'rank-v1', rank_reasons: ['Near-term power event', 'Known industrial asset'],
       intelligence_card: card,
     } }))
-    await page.route('**/api/power-needs/*/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
-    await page.route('**/api/power-needs/*/brief', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
-    let researchBody: unknown
-    await page.route('**/api/commercial/triage/need-a/autonomous-research', route => { researchBody = route.request().postDataJSON(); return route.fulfill({ json: { items: [{ id: 'queued' }] } }) })
+    const researchWrites: string[] = []
+    page.on('request', request => { if (request.url().includes('/autonomous-research') && request.method() !== 'GET') researchWrites.push(request.method()) })
+    await page.route('**/api/commercial/triage/need-a/autonomous-research', route => route.fulfill({ json: { items: [] } }))
     await page.goto('/?view=workspace&need=need-a')
     const panel = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
     await expect(panel).toBeVisible()
@@ -773,9 +734,10 @@ for (const width of [1280, 390]) {
     await expect(panel.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
     await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)
     await expect(page.locator('.wh-completeness')).toContainText('1/2')
-    await panel.getByRole('button', { name: 'Research missing information' }).click()
-    await expect.poll(() => researchBody).toEqual({ force: false, complete_intelligence: true })
-    await expect(panel.getByRole('status')).toContainText('Targeted research queued')
+    await panel.getByRole('button', { name: 'View automated research' }).click()
+    await expect(page.getByRole('heading', { name: 'Automated research' })).toBeVisible()
+    await expect(page.getByText('No autonomous research questions recorded.')).toBeVisible()
+    expect(researchWrites).toEqual([])
     await page.getByRole('button', { name: 'Power Analysis' }).click()
     const schedule = page.getByRole('region', { name: 'Reported phased power schedule' })
     await expect(schedule.getByText('Reported grid energization: 2027-01-15')).toBeVisible()

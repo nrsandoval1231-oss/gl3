@@ -9,7 +9,7 @@ const categories = [
   ['review_exception', 'Review exception'],
 ] as const
 
-export function WorkspaceChanges({ onSelectActiveNeed, revision }: { onSelectActiveNeed: (need: WorkspaceChangeNeed) => void; revision: number }) {
+export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (need: WorkspaceChangeNeed) => void }) {
   const [offset, setOffset] = useState(0)
   const [reload, setReload] = useState(0)
   const [result, setResult] = useState<WorkspaceChanges | null>(null)
@@ -19,22 +19,16 @@ export function WorkspaceChanges({ onSelectActiveNeed, revision }: { onSelectAct
   const [history, setHistory] = useState<WorkspaceHistoricalNeed | null>(null)
   const [historyError, setHistoryError] = useState('')
   const historySequence = useRef(0)
-  const lastRevision = useRef(revision)
-
   useEffect(() => {
     const controller = new AbortController()
-    const revisionChanged = lastRevision.current !== revision
-    const requestOffset = revisionChanged ? 0 : offset
-    lastRevision.current = revision
-    if (revisionChanged && offset !== 0) setOffset(0)
     setLoading(true); setError(''); setResult(null)
-    void client.workspaceChanges(50, requestOffset, controller.signal).then(value => {
+    void client.workspaceChanges(50, offset, controller.signal).then(value => {
       if (!controller.signal.aborted) setResult(value)
     }).catch((failure: Error) => {
       if (!controller.signal.aborted) setError(failure.message)
     }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [offset, reload, revision])
+  }, [offset, reload])
 
   useEffect(() => {
     if (!historyNeedId) { setHistory(null); setHistoryError(''); return }
