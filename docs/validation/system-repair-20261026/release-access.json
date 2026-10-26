@@ -53,6 +53,8 @@
     "public_health_path_note": "Both /health/live and /health/ready return the frontend HTML shell with HTTP 200; these are not evidence of backend health or readiness.",
     "available_digitalocean_tools": "Control-plane metadata and infrastructure actions; no existing-host shell execution interface.",
     "repository_workflows": "CI and historical PR87 publication diagnostic only; no configured production deployment workflow.",
+    "github_credential_metadata": "Repository Actions secret and variable metadata requests both returned HTTP 403 Resource not accessible by integration. No environment names were returned. This does not prove repository secrets are absent; this identity cannot inspect their metadata.",
+    "connected_browser": "Browser skill and available tool catalog checked; no browser extension session/tool is exposed for authenticated production inspection.",
     "required": "Established production SSH/deployment identity and authenticated GridLens session through secure environment configuration. Do not paste secrets into reports or chat."
   },
   "production_mutations": [],
