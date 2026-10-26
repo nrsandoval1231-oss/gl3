@@ -108,6 +108,31 @@ test('table uses its source-backed browse title and settled detail recomputes fr
   await expect(page.locator('.wh-source-context')).not.toContainText('JLC Electrical Contractor corp · contractor')
 })
 
+test('Signal ACTION NOW reads as a discovery call while Prospect and Lead dispositions stay unchanged', async ({ page }) => {
+  const rows = [
+    { ...need, id: 'signal-action-now', name: 'Signal discovery project', tier: 'Signal', commercial_disposition: 'ACTION NOW' },
+    { ...need, id: 'prospect-action-now', name: 'Prospect action project', tier: 'Prospect', commercial_disposition: 'ACTION NOW' },
+    { ...need, id: 'lead-action-now', name: 'Lead action project', tier: 'Lead', commercial_disposition: 'ACTION NOW' },
+    { ...need, id: 'signal-research', name: 'Signal research project', tier: 'Signal', commercial_disposition: 'RESEARCH' },
+  ]
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: {
+    ...response(rows), counts: { action_now: 3, research: 1, watch: 0, reject: 0 },
+  } }))
+  await page.goto('/?view=workspace')
+
+  const rowFor = (id: string) => page.locator('tr').filter({ has: page.locator(`[data-need-row="${id}"]`) })
+  await expect(rowFor('signal-action-now').locator('.opportunity-status')).toHaveText('Discovery call · Power need unconfirmed')
+  await expect(rowFor('signal-action-now').locator('.wh-queue-meta > span').nth(1)).toHaveText('Signal')
+  await expect(rowFor('prospect-action-now').locator('.opportunity-status')).toHaveText('ACTION NOW')
+  await expect(rowFor('lead-action-now').locator('.opportunity-status')).toHaveText('ACTION NOW')
+  await expect(rowFor('signal-research').locator('.opportunity-status')).toHaveText('RESEARCH')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(rowFor('signal-action-now')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+})
+
 test('off-page detail reload ignores historical company evidence and keeps the source name visible', async ({ page }) => {
   const detail = {
     ...need,
@@ -744,7 +769,7 @@ for (const width of [1280, 390]) {
     await expect(priority).toContainText('Canonical rank score: 8 · rank-v1')
     await expect(priority).toContainText('Known industrial asset')
     await expect(panel.getByText('Example Owner', { exact: true }).first()).toBeVisible()
-    await expect(panel.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
+    await expect(panel.getByRole('link', { name: 'Call Example Owner owner company route · +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
     await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)
     await expect(page.locator('.wh-completeness')).toContainText('1/2')
     await panel.getByRole('button', { name: 'View automated research' }).click()

@@ -19,10 +19,25 @@ type CommercialCase = {
   expected_research_project_heading?: string | false
   expected_opportunity_absent?: boolean
   expected_opportunity_text?: string
+  expected_tier?: string
+  expected_commercial_disposition?: string
   expected_unknown_keys: string[]
   expected_contact_responsibility?: string
   expected_contact_authority?: string
   expected_contact_method_count?: number
+  expected_contact_route?: {
+    company_name: string
+    company_href: string
+    company_phone: string
+    company_action_label: string
+    source_url: string
+    source_quote: string
+    source_reference: string
+    retained_evidence_id: string
+    content_hash: string
+    representative_name: string
+    representative_quote: string
+  }
   expected_signal_text?: string
   expected_research_text?: string[]
   no_qualified_gap?: boolean
@@ -63,20 +78,32 @@ for (const item of cases) {
       project_id: string
       name: string
       tier: string
+      commercial_disposition?: string
       rationale?: string
       qualified_remaining_gap?: unknown
       intelligence_card?: {
+        qualification?: string
+        disposition?: string
         fields: { key: string; label: string; value: string | null; status: string }[]
         evidence: { url: string | null; content_hash: string | null; retained_evidence_id: string | null }[]
         power_gap?: unknown
-        contacts: { responsibility: string; purchasing_authority: string; sources: unknown[]; methods: unknown[] }[]
+        contacts: {
+          name?: string | null
+          company?: string
+          responsibility: string
+          purchasing_authority: string
+          sources: { reference?: string; retained_evidence_id?: string | null; content_hash?: string | null; url?: string | null; passage?: string | null; title?: string | null }[]
+          methods: { kind: string; value: string; href: string; source_url?: string }[]
+        }[]
       }
     }
     const card = need.intelligence_card
     expect(need.id).toBe(item.need_id)
     expect(need.project_id).toBe(item.project_id)
     expect(need.name).toContain(item.project_name)
+    if (item.expected_tier) expect(need.tier).toBe(item.expected_tier)
     expect(card).toBeTruthy()
+    if (item.expected_commercial_disposition) expect(card?.disposition).toBe(item.expected_commercial_disposition)
     expect(card?.evidence.some(source =>
       source.url === item.source_url &&
       source.content_hash === item.source_hash &&
@@ -96,6 +123,34 @@ for (const item of cases) {
         if (item.expected_contact_authority) expect(contact.purchasing_authority).toBe(item.expected_contact_authority)
         if (item.expected_contact_method_count !== undefined) expect(contact.methods).toHaveLength(item.expected_contact_method_count)
       }
+    }
+    if (item.expected_contact_route) {
+      const expected = item.expected_contact_route
+      const companyRoute = card?.contacts.find(contact => contact.company === expected.company_name && contact.methods.some(method => method.href === expected.company_href))
+      expect(companyRoute, 'the sourced owner phone belongs to the company contact route').toBeTruthy()
+      const method = companyRoute?.methods.find(candidate => candidate.href === expected.company_href)
+      expect(method?.kind).toBe('phone')
+      expect(method?.value).toBe(expected.company_phone)
+      expect(method?.source_url).toBe(expected.source_url)
+      expect(expected.company_href).toBe(`tel:${expected.company_phone.replace(/\D/g, '')}`)
+      expect(companyRoute?.purchasing_authority).toMatch(/unknown|confirm/i)
+      expect(companyRoute?.sources.some(source =>
+        source.reference === expected.source_reference &&
+        source.retained_evidence_id === expected.retained_evidence_id &&
+        source.content_hash === expected.content_hash &&
+        source.url === expected.source_url && source.passage?.includes(expected.source_quote),
+      )).toBe(true)
+
+      const representative = card?.contacts.find(contact => contact.name === expected.representative_name)
+      expect(representative, 'the named owner representative is a separate contact record').toBeTruthy()
+      expect(representative?.methods, 'no personal phone or email is inferred for the named person').toHaveLength(0)
+      expect(representative?.purchasing_authority).toMatch(/unknown|confirm/i)
+      expect(representative?.sources.some(source =>
+        source.reference === expected.source_reference &&
+        source.retained_evidence_id === expected.retained_evidence_id &&
+        source.content_hash === expected.content_hash &&
+        source.url === expected.source_url && source.passage?.includes(expected.representative_quote),
+      )).toBe(true)
     }
     if (item.no_qualified_gap) {
       expect(need.qualified_remaining_gap).toBeFalsy()
@@ -119,10 +174,32 @@ for (const item of cases) {
       await expect(detail.getByText(/Loading company context/)).toHaveCount(0)
       await expect(detail.getByText(/Checking retained contacts/)).toHaveCount(0)
     }
+    if (item.expected_contact_route) {
+      const expected = item.expected_contact_route
+      const contacts = page.getByRole('region', { name: 'Key contacts and buying chain' })
+      const phoneLink = contacts.locator(`article a[href="${expected.company_href}"]`)
+      await expect(phoneLink).toHaveCount(1)
+      const companyArticle = phoneLink.locator('xpath=ancestor::article[1]')
+      await expect(companyArticle.locator('.ic-contact-identity strong')).toHaveText(expected.company_name)
+      await expect(phoneLink).toHaveText(expected.company_action_label)
+      await companyArticle.locator('details > summary').click()
+      await expect(companyArticle.getByRole('link', { name: expected.source_quote, exact: false })).toHaveAttribute('href', expected.source_url)
+
+      const representativeArticle = contacts.locator('article').filter({ hasText: expected.representative_name })
+      await expect(representativeArticle).toHaveCount(1)
+      await expect(representativeArticle.locator('.ic-contact-actions a')).toHaveCount(0)
+      await representativeArticle.locator('details > summary').click()
+      await expect(representativeArticle.getByRole('link', { name: expected.representative_quote, exact: false }).first()).toHaveAttribute('href', expected.source_url)
+
+      await page.setViewportSize({ width: 390, height: 844 })
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+      await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-contact-mobile.png`), fullPage: true })
+      await page.setViewportSize({ width: 1280, height: 900 })
+    }
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-${browseView}-desktop.png`), fullPage: true })
     await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-    const citation = page.getByRole('region', { name: 'Intelligence card sources' }).getByRole('link', { name: 'Open retained source' })
-    await expect(citation).toHaveAttribute('href', item.source_url)
+    const citations = page.getByRole('region', { name: 'Intelligence card sources' }).locator(`a[href="${item.source_url}"]`)
+    await expect(citations.first()).toHaveAttribute('href', item.source_url)
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-evidence-desktop.png`), fullPage: true })
 
     const opportunities = page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Opportunities', exact: true })
@@ -132,7 +209,7 @@ for (const item of cases) {
     await expect(opportunityView).toBeVisible()
     await opportunityView.getByRole('textbox', { name: 'Search workspace' }).fill(item.project_name)
     if (item.expected_opportunity_absent) {
-      await expect(opportunityView).not.toContainText(item.project_name)
+      await expect(opportunityView.getByRole('table', { name: 'Opportunity power needs' })).not.toContainText(item.project_name)
       if (item.expected_opportunity_text) await expect(opportunityView).toContainText(item.expected_opportunity_text)
     } else {
       await expect(opportunityView).toContainText(item.project_name)

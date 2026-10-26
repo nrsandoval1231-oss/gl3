@@ -28,7 +28,7 @@ export function OpportunityTable({ items, selectedId, onSelect, onAccount }: {
       <td data-label="Need Date">{item.start_window || 'Not established'}</td>
       <td data-label="Confidence"><span title="The API does not provide a calibrated confidence score. Completeness and qualification are separate.">Unavailable</span></td>
       <td data-label="Priority"><span title="Canonical priority score; not a confidence percentage">{item.rank_score ?? 'Unavailable'}</span></td>
-      <td data-label="Qualification"><span className="wh-queue-meta"><span className="opportunity-status">{item.commercial_disposition || 'Unavailable'}</span><span>{item.tier}</span></span></td>
+      <td data-label="Qualification"><span className="wh-queue-meta"><span className="opportunity-status">{item.tier === 'Signal' && item.commercial_disposition === 'ACTION NOW' ? 'Discovery call · Power need unconfirmed' : item.commercial_disposition || 'Unavailable'}</span><span>{item.tier}</span></span></td>
     </tr>)}</tbody>
   </table></div>
 }
