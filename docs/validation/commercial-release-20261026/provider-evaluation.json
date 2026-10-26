@@ -1,0 +1,34 @@
+{
+  "observed_at": "2026-10-26T13:50:37Z",
+  "scope": "Connected research-tool evaluation, separate from GridLens application and production provider configuration",
+  "firecrawl": {
+    "account_metadata_accessible": true,
+    "account_balance_delta_observed": 0,
+    "account_balance_note": "Current account balance was unchanged before and after these checks. Private billing-period and balance details are not published in this repository.",
+    "paid_search_calls": 0,
+    "paid_scrape_calls": 0,
+    "provider_activation_or_configuration_changes": 0,
+    "government_search_calls": 2,
+    "government_search_pricing_basis": "The connected Firecrawl skill explicitly documents government search as free; general web search and page retrieval are billed.",
+    "queries": [
+      "New Mexico Public Regulation Commission 2026 Project Jupiter El Paso Electric temporary construction commissioning power service MW agreement",
+      "Texas TCEQ 2026 Abilene Crusoe data center temporary bridge generation permit MW"
+    ],
+    "result_handling": "Search results were treated as unverified URL hints. No search snippet was promoted into a canonical project, contact, MW requirement or purchasing-authority claim.",
+    "native_followups": [
+      {
+        "artifact": "tceq-crusoe-source.json",
+        "status": "PRIMARY_PDF_RETRIEVED_AND_REVIEWED",
+        "limit": "Proposed onsite generator supply, not temporary demand; current status and exact binding to the existing bridge case remain unknown."
+      },
+      {
+        "url": "https://cms2.revize.com/revize/donaanacounty/Documents/About%20Us/Economic%20Development%20Projects/PJ%20-%20BOCC%20Presentation%20-%207.28.2026.pdf?t=202607291203050",
+        "status": "HTTP_403",
+        "limit": "One ordinary public HTTPS request with TLS verification, no redirects and an 8 MiB cap failed. No bypass or paid retrieval was attempted; this remains an unverified search hint."
+      }
+    ],
+    "runtime_limit": "A connected research-tool account does not establish an installed application API credential, autonomous production execution, or permission to activate a paid runtime provider."
+  },
+  "production_mutations": [],
+  "commercial_gate_credit": "NONE"
+}
