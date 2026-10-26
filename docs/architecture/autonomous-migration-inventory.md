@@ -23,6 +23,7 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 | `docs/architecture/autonomous-pursuit-research.md` | ARCHIVE | Prior operator-refresh/contribution instructions remain historical implementation record |
 | `docs/design/DASHBOARD_IMPLEMENTATION.md`, `docs/design/UI_MIGRATION_20261020.md`, `docs/delivery/build-plan.md`, `docs/delivery/milestones.md` | ARCHIVE | Prominent historical notices; earlier manual workflow/test results do not govern this candidate |
 | `docs/operations/commercial-pursuits.md`, `docs/operations/intelligence-surfaces.md` | TRANSFORM | Superseded manual guide replaced by current autonomous/internal boundaries; original text preserved |
+| `docs/operations/research-recovery.md`, `opportunity-intelligence-release.md` | TRANSFORM / ARCHIVE | Internal bounded recovery with no public manual refresh; older correction/editor acceptance record explicitly historical |
 | `docs/operations/README.md`: October 24 release authorization as current | TRANSFORM | Dated observation remains evidence; no inherited deployment/spending authorization for this candidate |
 | `.agent/archive/AUTONOMOUS-20261026/` | ARCHIVE | Lossless deterministic `.md.gz` snapshots of pre-edit active directions; decompress for exact original bytes |
 | `scripts/seeded_browser_acceptance.py` | TRANSFORM | Replace deleted pursuit-workflow test target with autonomous research/search checks; disclose synthetic-only UI proof and disabled external research |

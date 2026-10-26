@@ -1,5 +1,7 @@
 # Opportunity intelligence release and acceptance record
 
+> Historical PR105 release/acceptance record. The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes its user correction/editor workflows and earlier feature defaults. Preserve its exact candidate/evidence context; do not use this record as current implementation or deployment instructions.
+
 PR105 completes the follow-up to merged PR102 and composes the approved workspace from main `b224bbbe64cb6877e4910e05218365ec71364759`. Its release boundary is a controlled, default-off implementation with retained-data acceptance. Exact-head local gates, GitHub CI, runtime/restart receipts and independent review are recorded in [PR105](https://github.com/nrsandoval1231-oss/gl3/pull/105); earlier candidate results do not certify a changed head. Parent launch and live-provider activation remain separate, open gates.
 
 ## Implemented behavior

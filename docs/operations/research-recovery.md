@@ -9,15 +9,18 @@ project evidence.
 Transient attempts use delays of 1, 6, and 24 hours. The retry count follows the
 same question and evidence fingerprints across replacement question rows. After
 the final retry is exhausted, automatic scheduling pauses for that unchanged
-question. A forced manual refresh can start another bounded attempt when there
-is no unresolved external effect.
+question. This is a persisted unresolved outcome, not a user-facing manual refresh task.
+Other eligible missing-fact categories must continue to be scheduled. Recovery or
+policy changes occur through internal machine/diagnostic controls with the
+original retry and provider-effect safeguards; no public question-entry or retry
+button is part of the product.
 
 Before a paid Firecrawl request, the worker persists its source and cost
 reservation in `inflight_url` at the dispatch callback. A free source or public
 GET uses `inflight_acquisition_url` for its bounded retrieval reservation; that
 marker does not represent a paid provider effect. If a paid request may have
 been sent but its outcome cannot be confirmed, the receipt retains
-`inflight_url` and records an `UNKNOWN` effect. Force refreshes, new questions,
+`inflight_url` and records an `UNKNOWN` effect. Internal retries, new questions,
 and changed evidence do not authorize another paid attempt while that marker
 remains. Reconcile the provider request and update the receipt through an
 explicit recovery procedure before retrying; the system does not infer that a
