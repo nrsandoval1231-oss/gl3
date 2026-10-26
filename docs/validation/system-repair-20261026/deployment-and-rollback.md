@@ -1,5 +1,7 @@
 # Deployment and rollback gate
 
+Historical pre-release-direction receipt. The owner subsequently authorized merge and deployment conditionally on all commercial and release gates. See the [current release and rollback plan](../commercial-release-20261026/deployment-and-rollback.md); the original observations below remain historical.
+
 No deployment, merge, production data write, credential change or paid-provider activation was performed or authorized for this repair. This is a proposed release procedure, after completed engineering validation; owner release authorization and actual commercial acceptance remain outstanding.
 
 ## Before release
