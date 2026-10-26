@@ -6044,13 +6044,21 @@ def test_current_company_source_is_untrusted_but_useful_cold_start_seed(
         assert discovery._projects(session, company_id) == [project]
         assert discovery._select_anchor_project(session, [project], company_id) is project
         assert discovery._contact_research_gaps(session, company_id) == (True, True)
-        assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 1
-        job = session.scalar(
-            select(Job)
-            .where(Job.kind == discovery.JOB_KIND, Job.target_id == company_id)
-            .order_by(Job.created_at.desc(), Job.id.desc())
+        prior_job_ids = list(
+            session.scalars(
+                select(Job.id).where(Job.kind == discovery.JOB_KIND, Job.target_id == company_id)
+            )
         )
-        assert job is not None
+        assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 1
+        # Retained enrichment may already have queued a job in this transaction.
+        # Select the planner's new job rather than ordering equal timestamps by UUID.
+        job = session.scalars(
+            select(Job).where(
+                Job.kind == discovery.JOB_KIND,
+                Job.target_id == company_id,
+                Job.id.not_in(prior_job_ids),
+            )
+        ).one()
         checkpoint = json.loads(job.checkpoint)
         # The source citation is an untrusted cold-start fetch anchor. It must
         # reach the worker as a candidate URL without becoming a verified
