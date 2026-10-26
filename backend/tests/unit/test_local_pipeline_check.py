@@ -1,5 +1,7 @@
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 
@@ -8,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from scripts.local_pipeline_check import (  # noqa: E402
     _digest_rows,
     _ensure_output_available,
+    _morning_changes,
     _replays_unchanged,
 )
 
@@ -75,3 +78,15 @@ def test_receipt_path_cannot_overwrite_prior_evidence(tmp_path):
         _ensure_output_available(receipt)
 
     assert receipt.read_text(encoding="utf-8") == "preserved"
+
+
+def test_live_changes_receipt_serializes_database_identity_and_dates(monkeypatch):
+    from gridlens.api import app
+
+    identity = UUID("12345678-1234-5678-1234-567812345678")
+    observed = datetime(2026, 10, 26, tzinfo=UTC)
+    monkeypatch.setattr(app, "changes", lambda: [{"project_id": identity, "at": observed}])
+    first = _morning_changes()
+    assert first["items"] == [{"project_id": str(identity), "at": observed.isoformat()}]
+    assert first["count"] == 1
+    assert _morning_changes()["sha256"] == first["sha256"]

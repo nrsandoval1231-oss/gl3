@@ -152,7 +152,7 @@ def _table_snapshot(session) -> dict[str, Any]:
 def _morning_changes() -> dict[str, Any]:
     from gridlens.api.app import changes
 
-    items = changes()
+    items = _json_value(changes())
     encoded = json.dumps(
         items, sort_keys=True, ensure_ascii=False, separators=(",", ":")
     )
