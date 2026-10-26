@@ -10,41 +10,28 @@
   "production_data_mutations": [],
   "paid_provider_activations": [],
   "final_engineering_validation": {
-    "status": "PASS_PINNED_BACKEND_AND_FINAL_FRONTEND_COMPONENTS",
+    "status": "PASS",
     "ruff": "PASS: 376 source/test files formatted; lint passed",
     "mypy": "PASS:173 source files",
-    "frontend_typecheck_and_build": "PASS on final web tree, recorded in browser-operations.md",
-    "brand_assets": "PASS in both backend899 CI workflows",
+    "frontend_typecheck_and_build": "PASS in final combined CI and final local frontend run",
+    "brand_assets": "PASS in final combined CI",
     "full_backend_and_browser": {
+      "source": "2e3ee8886ce92b21f84ca8d0e009704860b5a66b",
+      "full_tree": "7005c5d5b23b1f35b3b8f3d6d03d8c2495453d9b",
+      "backend_tree": "15d841cede446686d033b83b07d1e8a4a3ed2879",
+      "web_tree": "7c3060721aeac7dfca90b50386d229e65843cd00",
       "backend_passed": 3138,
       "backend_skipped": 1,
       "backend_warnings": 8,
-      "backend_seconds": 483.89,
-      "ci_browser_passed": 121,
-      "ci_browser_seconds": 48.0,
-      "ci_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346684189",
-      "backend_job": 121655360226,
-      "source": "899e2889b3a1b7dedbfb74c7addbfee484f545c0",
-      "backend_tree": "15d841cede446686d033b83b07d1e8a4a3ed2879",
-      "final_backend_tree_identical": true,
-      "final_ui_browser": {
-        "passed": 124,
-        "duration": "2.5m",
-        "web_tree": "7c3060721aeac7dfca90b50386d229e65843cd00",
-        "record": "browser-operations.md",
-        "evidence_limit": "Builder-observed terminal result; no raw full-regression file was retained. Fresh published-candidate CI will provide durable independent logs."
-      },
-      "second_run": {
-        "backend_job": 121655323153,
-        "backend_passed": 3138,
-        "backend_skipped": 1,
-        "backend_warnings": 8,
-        "backend_seconds": 820.09,
-        "ci_browser_passed": 121,
-        "ci_browser_duration": "1.3m"
-      }
+      "backend_seconds": 753.85,
+      "browser_passed": 124,
+      "browser_duration": "1.2m",
+      "ci_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40358098701",
+      "backend_job": 121695882773,
+      "all_workflow_jobs": "SUCCESS"
     },
     "ci_runs": [
+      "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40358098701",
       "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346684189",
       "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346674353"
     ],
@@ -64,6 +51,35 @@
       "raw_logs": "browser-logs/",
       "report": "browser-operations.md",
       "browser": "Playwright1.63.0 Chromium headless shell; native Google Chrome was not used for these final runs."
+    },
+    "prior_component_validation": {
+      "backend_passed": 3138,
+      "backend_skipped": 1,
+      "backend_warnings": 8,
+      "backend_seconds": 483.89,
+      "ci_browser_passed": 121,
+      "ci_browser_seconds": 48.0,
+      "ci_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346684189",
+      "backend_job": 121655360226,
+      "source": "899e2889b3a1b7dedbfb74c7addbfee484f545c0",
+      "backend_tree": "15d841cede446686d033b83b07d1e8a4a3ed2879",
+      "final_backend_tree_identical": true,
+      "final_ui_browser": {
+        "passed": 124,
+        "duration": "2.5m",
+        "web_tree": "7c3060721aeac7dfca90b50386d229e65843cd00",
+        "record": "browser-operations.md",
+        "evidence_limit": "The local full run had no saved raw file; subsequent combined CI40358098701 independently retained the same final frontend result: 124 passed."
+      },
+      "second_run": {
+        "backend_job": 121655323153,
+        "backend_passed": 3138,
+        "backend_skipped": 1,
+        "backend_warnings": 8,
+        "backend_seconds": 820.09,
+        "ci_browser_passed": 121,
+        "ci_browser_duration": "1.3m"
+      }
     }
   },
   "commercial_evidence": "cohort-api-adjudication.json",
@@ -102,7 +118,7 @@
     "logical_restore_rehearsal": "NOT_TESTED",
     "post_deployment_checks": "NOT_RUN: no deployment",
     "access_receipt": "../system-repair-20261026/release-access.json",
-    "environment_readiness_recheck": "2026-10-26: current spec59, no configured secrets, runtime variables or outbound identities."
+    "environment_readiness_recheck": "2026-10-26: current spec73, zero configured secrets, runtime variables and outbound identities."
   },
   "independent_release_acceptance": "NOT_ACCEPTED",
   "independent_review": "../system-repair-20261026/independent-release-review.md",
@@ -172,6 +188,20 @@
   "identity_recheck": "identity-binding-recheck.json",
   "contact_transport_evidence": "contact-transport-probe.json",
   "local_validation": "local-validation.json",
-  "independent_engineering_acceptance": "ACCEPTED: final component review in commit 2764c97",
-  "latest_published_candidate_ci": "PENDING_FRESH_COMBINED_PUBLICATION_RUN"
+  "independent_engineering_acceptance": "ACCEPTED: independent-release-review.md; final source and durable CI closure recorded separately from commercial rejection.",
+  "latest_published_candidate_ci": {
+    "status": "SUCCESS",
+    "source": "2e3ee8886ce92b21f84ca8d0e009704860b5a66b",
+    "run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40358098701",
+    "note": "The governance-only main integration380ac45 has the identical full tree. Subsequent final receipts modify documentation only; application and test trees are unchanged."
+  },
+  "main_integration": {
+    "fetched_main": "d3ffb3580817ba05e6fdbc1d5b433d2f8f075256",
+    "change": "PR124 governance-only merge advanced main during this task.",
+    "integration_commit": "380ac45dedb201af8c50055deb05f54f77744c3a",
+    "changed_files": 0,
+    "tree_before_and_after": "7005c5d5b23b1f35b3b8f3d6d03d8c2495453d9b",
+    "independent_review": "Confirmed unchanged full/backend/frontend trees."
+  },
+  "recorded_at": "2026-10-26T16:40:11.218132+00:00"
 }

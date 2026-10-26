@@ -1,6 +1,6 @@
 # Commercial release and rollback plan
 
-Status: HOLD. The owner authorizes PR126 merge and production deployment only after commercial, engineering, independent-review and operational gates pass. No merge, deployment or production data mutation has occurred during this repair. Missing production access is separate from the demonstrated commercial failures.
+Status: HOLD. The owner authorizes PR126 merge and production deployment only after commercial, engineering, independent-review and operational gates pass. PR126 has not been merged into main, and no deployment or production data mutation has occurred during this repair. Missing production access is separate from the demonstrated commercial failures.
 
 ## Required sequence
 
