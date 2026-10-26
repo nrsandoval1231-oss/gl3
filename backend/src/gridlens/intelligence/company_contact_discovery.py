@@ -157,7 +157,13 @@ def _contact_research_gaps(session: Session, company_id: UUID) -> tuple[bool, bo
 
 
 def _has_buyer_relevant_method(contacts: list) -> bool:
-    roles = {"owner developer", "asset operator", "procurement"}
+    roles = {
+        "owner developer",
+        "owner construction",
+        "owner energy",
+        "asset operator",
+        "procurement",
+    }
     return any(
         relevant_named_contact(item)
         and re.sub(r"[_-]+", " ", str(item.role).casefold()).strip() in roles

@@ -348,6 +348,29 @@ def test_adaptive_contact_fetch_budget_is_bounded_and_gap_driven():
     assert _adaptive_fetch_limit("unknown-profile") == MAX_CANDIDATE_URLS
 
 
+@pytest.mark.parametrize(
+    "role", ["owner construction", "owner energy", "owner_construction", "owner_energy"]
+)
+def test_owner_specialist_method_closes_role_gap_without_inventing_authority(role):
+    from gridlens.domain.opportunity_intelligence import IntelligenceContact
+    from gridlens.intelligence.company_contact_discovery import _has_buyer_relevant_method
+
+    contact = IntelligenceContact(
+        claim_id="fixture-claim",
+        company="Fixture Energy",
+        name="Fixture Contact",
+        role=role,
+        responsibility="Verified organizational responsibility",
+        methods=[{"kind": "email", "href": "mailto:contact@example.test"}],
+    )
+    authority = contact.purchasing_authority
+    assert _has_buyer_relevant_method([contact])
+    assert contact.purchasing_authority == authority
+    assert "confirmation" in authority
+    assert not _has_buyer_relevant_method([contact.model_copy(update={"methods": []})])
+    assert not _has_buyer_relevant_method([contact.model_copy(update={"role": "epc"})])
+
+
 def test_enqueue_resumes_completed_company_and_passes_only_url_hints(monkeypatch):
     company = str(uuid4())
     url = "https://acme.example/contact"
