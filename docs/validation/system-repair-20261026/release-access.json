@@ -22,7 +22,7 @@
     "mypy_source_files": 173,
     "evidence": "Fresh GitHub connector job-log retrieval; candidate application-source diff against b71306f is empty. Backend, web and brand jobs succeeded on both final-head runs.",
     "native_chrome": "Eight passes recorded in retained prior receipt; not independently rerun by this access check.",
-    "workbooks": "Prior receipt records 4520 local staged inactive rows; current local retention/activation is checked separately by the workbook builder."
+    "workbooks": "Retained local database rechecked after restarting its existing container: 4 batches, 4520 source rows, 4520 activation records all active=false, 4 events, 0 canonical projects. Original XLSX attachments are absent in the resumed filesystem; byte-level reparse cannot be repeated without them. Isolated activation is checked separately by the workbook builder."
   },
   "production_control_plane": {
     "provider": "DigitalOcean",
