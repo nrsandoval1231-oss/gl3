@@ -31,6 +31,10 @@ Research-priority explanations now distinguish unknown demand from zero, name th
 
 **New P1 finding — failed due-refresh retry loses its refresh intent (open at `8df3231`).** After a real day-30 refresh is queued with `refresh_due=true`, a terminal worker failure becomes the latest job. The planner retains `refresh_generation`, but enqueue recomputes `refresh_due=false` because the latest job is no longer a completed success. That changes the request fingerprint and allows the retry worker to reuse a still-current named contact without fetching. The resulting successful receipt can recreate the day-31-to-day-60 contact outage. Preserve refresh intent and fingerprint across failed retries in the same generation. Existing retry-fingerprint tests start with a fresh company and do not exercise the true-to-false transition; the regression must seed an old success and current named contact, fail the real due job, and verify the retry fetch plus day-31 usability. The coordinator assigned an isolated follow-up; source acceptance remains pending.
 
+### Final contact-retry readback at `24f3985`
+
+The failed-refresh finding is **corrected in code** by `3960f33`, included in source candidate `24f3985d8b6f3c71d4fb415d4abcea8836d04694`. An explicit refresh generation now preserves `refresh_due=true` regardless of the latest attempt's failure state. The reviewer inspected the new exact-boundary regression: prior successful contact, day-30 refresh failure before a receipt, one-hour planner retry with identical request digest and refresh generation, actual mocked source retrieval, and current contact projection on day 31. The coordinator reports four focused tests passed; the reviewer did not rerun their database fixtures. No new defect was identified in this small fix.
+
 ## Earlier findings independently read back
 
 - Research planning now requests the complete bounded category list before applying active-slot, freshness, backoff and retry exclusions; early unresolved categories no longer structurally truncate later categories.
@@ -72,4 +76,4 @@ uv run pytest tests/unit/test_enrichment_api.py \
 
 ## Acceptance state
 
-The three original findings and global text-preflight limitation have corrective code read back through `8df3231`. **The newly identified failed-refresh retry defect and exact-candidate full regression verification remain pending.** Coordinator-reported results from earlier heads are not substituted for the final gate. Production deployment remains on hold: this review does not establish live TCEQ coverage, verified actionable-contact yield, paid-provider readiness, or deployed behavior.
+All identified blocking findings have corrective code read back through source candidate `24f3985`. **Exact-candidate backend and browser regression verification remain pending; final acceptance is not yet granted.** The earlier full run at `8df3231` was interrupted and is not a passing gate. Coordinator-reported results from earlier heads are not substituted for the restarted final gate. Production deployment remains on hold: this review does not establish live TCEQ coverage, verified actionable-contact yield, paid-provider readiness, or deployed behavior.
