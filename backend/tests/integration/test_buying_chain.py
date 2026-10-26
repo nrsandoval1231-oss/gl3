@@ -6052,7 +6052,10 @@ def test_current_company_source_is_untrusted_but_useful_cold_start_seed(
         )
         assert job is not None
         checkpoint = json.loads(job.checkpoint)
-        assert checkpoint["payload"]["candidate_urls"] == []
+        # The source citation is an untrusted cold-start fetch anchor. It must
+        # reach the worker as a candidate URL without becoming a verified
+        # contact or an authority-bearing company claim by itself.
+        assert checkpoint["payload"]["candidate_urls"] == [company_url]
         job.status = "running"
         job.lease_owner = "contact-cold-start-test"
         job.fence = 1
