@@ -5010,9 +5010,7 @@ def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company
     monkeypatch.setattr(
         discovery,
         "retrieve",
-        lambda url, **_kwargs: replace(
-            parse_document(url, html, "text/html"), observed_at=NOW
-        ),
+        lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
     )
     result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
     assert result["status"] == "complete"
@@ -5026,12 +5024,12 @@ def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company
             if item.get("company_identity_id") == str(company_id) and item.get("person_name")
         }
         assert set(people) == {"Josh Spaw", "Justin Flippin", "Christopher Brannon"}
-        assert [
-            method["value"] for method in people["Josh Spaw"]["public_contacts"]
-        ] == ["jspaw@mesltdtx.com"]
-        assert [
-            method["value"] for method in people["Christopher Brannon"]["public_contacts"]
-        ] == ["cbrannon@mesltdtx.com"]
+        assert [method["value"] for method in people["Josh Spaw"]["public_contacts"]] == [
+            "jspaw@mesltdtx.com"
+        ]
+        assert [method["value"] for method in people["Christopher Brannon"]["public_contacts"]] == [
+            "cbrannon@mesltdtx.com"
+        ]
         assert people["Christopher Brannon"]["category"] == "procurement"
         assert people["Christopher Brannon"]["person_project_relationship"] == "ROLE_SUPPORTED"
         assert "buying authority are UNKNOWN" in people["Christopher Brannon"]["reason"]
@@ -5089,14 +5087,11 @@ def test_contact_discovery_stops_after_two_official_low_yield_pages(db, monkeypa
             session,
             project.id,
             fetcher=lambda _url: source(
-                "Acme Energy is the electrical contractor for "
-                "Orion Data Center in Austin, TX."
+                "Acme Energy is the electrical contractor for Orion Data Center in Austin, TX."
             ),
             now=NOW,
         )
-        company = next(
-            item for item in view["candidates"] if item["organization"] == "Acme Energy"
-        )
+        company = next(item for item in view["candidates"] if item["organization"] == "Acme Energy")
         queued = discovery.discover_company_contacts(
             session, UUID(company["company_identity_id"]), candidate_urls=urls, now=NOW
         )
@@ -5143,14 +5138,11 @@ def test_high_priority_missing_buyer_uses_bounded_six_page_depth(db, monkeypatch
             session,
             project.id,
             fetcher=lambda _url: source(
-                "Acme Energy is the electrical contractor for "
-                "Orion Data Center in Austin, TX."
+                "Acme Energy is the electrical contractor for Orion Data Center in Austin, TX."
             ),
             now=NOW,
         )
-        company = next(
-            item for item in view["candidates"] if item["organization"] == "Acme Energy"
-        )
+        company = next(item for item in view["candidates"] if item["organization"] == "Acme Energy")
         queued = discovery.discover_company_contacts(
             session, UUID(company["company_identity_id"]), candidate_urls=urls, now=NOW
         )

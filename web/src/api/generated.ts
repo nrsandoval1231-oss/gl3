@@ -2311,7 +2311,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "Verified" | "Evidence-supported estimate" | "Research in progress" | "Not publicly available" | "Not applicable" | "Conflicting evidence";
+            status: "Source-reported" | "User-confirmed" | "Evidence-supported" | "Evidence-supported estimate" | "Research in progress" | "Not publicly available" | "Not applicable" | "Conflicting evidence";
             /** Value */
             value?: string | null;
             /** Basis */

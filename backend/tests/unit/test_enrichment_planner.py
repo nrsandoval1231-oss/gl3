@@ -52,12 +52,14 @@ def test_contact_gaps_increase_priority_and_are_part_of_research_digest():
     ordinary = _candidate()
     buyer_gap = replace(ordinary, missing_buyer_relevant_method=True)
     method_gap = replace(ordinary, missing_contact_method=True)
-    assert rank_candidate(buyer_gap, now=NOW)["score"] == rank_candidate(
-        ordinary, now=NOW
-    )["score"] + 12
-    assert rank_candidate(method_gap, now=NOW)["score"] == rank_candidate(
-        ordinary, now=NOW
-    )["score"] + 6
+    assert (
+        rank_candidate(buyer_gap, now=NOW)["score"]
+        == rank_candidate(ordinary, now=NOW)["score"] + 12
+    )
+    assert (
+        rank_candidate(method_gap, now=NOW)["score"]
+        == rank_candidate(ordinary, now=NOW)["score"] + 6
+    )
     assert research_digest(buyer_gap) != research_digest(ordinary)
 
 

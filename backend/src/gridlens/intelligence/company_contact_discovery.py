@@ -1648,11 +1648,14 @@ def _discover_anchor(
         )
         for item in found:
             for contact in item.public_contacts:
-                if _method_key(
-                    contact.get("source_url", doc.url),
-                    str(contact.get("kind") or ""),
-                    str(contact.get("value") or ""),
-                ) in named_method_keys:
+                if (
+                    _method_key(
+                        contact.get("source_url", doc.url),
+                        str(contact.get("kind") or ""),
+                        str(contact.get("value") or ""),
+                    )
+                    in named_method_keys
+                ):
                     continue
                 if contact.get("kind") == "phone" and any(
                     word in str(contact.get("quote", "")).casefold()
@@ -1742,7 +1745,8 @@ def _discover_anchor(
             str(method.get("source_url") or ""),
             str(method.get("kind") or ""),
             str(method.get("value") or ""),
-        ) not in named_method_keys
+        )
+        not in named_method_keys
         and any(
             c.get("url") == method.get("source_url") and c.get("quote") == method.get("quote")
             for c in citations

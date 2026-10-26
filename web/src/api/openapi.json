@@ -7493,7 +7493,9 @@
           "status": {
             "type": "string",
             "enum": [
-              "Verified",
+              "Source-reported",
+              "User-confirmed",
+              "Evidence-supported",
               "Evidence-supported estimate",
               "Research in progress",
               "Not publicly available",
