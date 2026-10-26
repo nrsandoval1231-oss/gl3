@@ -964,6 +964,8 @@ def test_excessive_retained_contact_values_fail_closed(contact_db):
             "person_name": "Synthetic Person",
             "title": "Synthetic Role",
             "reason": "Synthetic reason",
+            "category": "asset_operator",
+            "future_display_extension": {"label": "hidden@example.test"},
             "public_contacts": [],
             "reported_contacts": [],
             "correction_history": [],
@@ -980,6 +982,37 @@ def test_excessive_retained_contact_values_fail_closed(contact_db):
         assert candidate["suppressed"] is True
         assert candidate["person_name"] is None
         assert candidate["evidence"] == []
+        assert candidate["category"] == "asset_operator"
+        assert "hidden@example.test" not in str(candidate).casefold()
+
+
+def test_privacy_metadata_does_not_consume_candidate_contact_budget(contact_db):
+    from gridlens.intelligence.buying_chain import (
+        MAX_CONTACT_VALUES_PER_CANDIDATE,
+        _apply_contact_privacy,
+    )
+
+    with contact_db() as session:
+        candidate = {
+            "id": uuid4(),
+            "person_name": "Synthetic Person",
+            "title": "Synthetic Role",
+            "public_contacts": [],
+            "reported_contacts": [],
+            "correction_history": [],
+            "evidence": [],
+            "metadata": {
+                "observed_at": [
+                    f"512-555-{index:04d}" for index in range(MAX_CONTACT_VALUES_PER_CANDIDATE + 1)
+                ],
+                "content_hash": "7" * 64,
+                "version": "512-555-0199",
+            },
+        }
+        _apply_contact_privacy(session, [candidate])
+        assert candidate.get("suppressed") is not True
+        assert candidate["person_name"] == "Synthetic Person"
+        assert candidate["title"] == "Synthetic Role"
 
 
 def test_imported_contacts_remain_separate_and_unverified(contact_db):

@@ -88,6 +88,40 @@ _NANP_PHONE_VALUE = re.compile(
     r"(?<!\d)(?:\+?1[ \t.-]?)?(?:\(\d{3}\)|\d{3})[ \t.-]?\d{3}[ \t.-]?\d{4}(?!\d)"
 )
 _PROFILE_VALUE = re.compile(r"https?://[^\s<>\"']+", re.I)
+_PRIVACY_METADATA_KEYS = frozenset(
+    {
+        "id",
+        "claim_id",
+        "project_id",
+        "company_identity_id",
+        "person_identity_id",
+        "fingerprint",
+        "evidence_id",
+        "correction_version",
+        "version",
+        "content_hash",
+        "source_version_hash",
+        "current_source_version_id",
+        "retained_evidence_id",
+        "source_id",
+        "observed_at",
+        "published_at",
+        "created_at",
+        "updated_at",
+        "verified_at",
+        "category",
+        "organization_relationship",
+        "person_organization_relationship",
+        "person_project_relationship",
+        "evidence_strength",
+        "role",
+        "relationship_type",
+        "status",
+        "action",
+        "supports",
+        "extraction_location",
+    }
+)
 
 
 def _buying_chain_context_digest(session: Session, project: Project) -> str:
@@ -1961,17 +1995,7 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
 
         def collect_strings(value, key="", out=strings):
             if isinstance(value, str):
-                if key not in {
-                    "id",
-                    "claim_id",
-                    "project_id",
-                    "company_identity_id",
-                    "person_identity_id",
-                    "fingerprint",
-                    "evidence_id",
-                    "source_id",
-                    "retained_evidence_id",
-                }:
+                if key not in _PRIVACY_METADATA_KEYS:
                     out.append(value)
             elif isinstance(value, dict):
                 for child_key, child in value.items():
@@ -2026,6 +2050,20 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             )
         )
         if suppressed_subject:
+
+            def redact_display(value, key=""):
+                if isinstance(value, str):
+                    return value if key in _PRIVACY_METADATA_KEYS else "[redacted]"
+                if isinstance(value, list):
+                    return [redact_display(part, key) for part in value]
+                if isinstance(value, dict):
+                    return {
+                        child_key: redact_display(part, str(child_key))
+                        for child_key, part in value.items()
+                    }
+                return value
+
+            item.update(redact_display(item))
             item["suppressed"] = True
             item["person_name"] = None
             item["title"] = None
@@ -2066,26 +2104,7 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
 
             def scrub(value, hidden=tuple(hidden_values), key=""):
                 if isinstance(value, str):
-                    if key in {
-                        "id",
-                        "claim_id",
-                        "project_id",
-                        "company_identity_id",
-                        "person_identity_id",
-                        "fingerprint",
-                        "correction_version",
-                        "version",
-                        "content_hash",
-                        "source_version_hash",
-                        "current_source_version_id",
-                        "retained_evidence_id",
-                        "source_id",
-                        "observed_at",
-                        "published_at",
-                        "created_at",
-                        "updated_at",
-                        "verified_at",
-                    }:
+                    if key in _PRIVACY_METADATA_KEYS:
                         return value
                     for term in hidden:
                         value = re.sub(re.escape(term), "[redacted]", value, flags=re.IGNORECASE)
