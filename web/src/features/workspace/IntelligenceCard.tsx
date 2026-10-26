@@ -2,6 +2,22 @@ import type { Opportunity } from '../../api/client'
 import './intelligence-card.css'
 
 type Card = NonNullable<Opportunity['intelligence_card']>
+type CardContact = Card['contacts'][number]
+type ContactMethod = NonNullable<CardContact['methods']>[number]
+
+function latestVerifiedMethod(methods: ContactMethod[]) {
+  return methods
+    .map(method => method.verified_at)
+    .filter((value): value is string => Boolean(value) && !Number.isNaN(new Date(value as string).getTime()))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null
+}
+
+function latestSourceCheck(contact: CardContact) {
+  return (contact.sources ?? [])
+    .map(source => source.assessed_at)
+    .filter((value): value is string => Boolean(value) && !Number.isNaN(new Date(value as string).getTime()))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null
+}
 
 export function IntelligenceCard({ card, opportunityName, customer, location, activity, tier, why, nextAction, onResearch }: {
   card: Card; opportunityName: string; customer: string | null | undefined; location: string | null | undefined; activity: string; tier: string; why: string; nextAction: string; onResearch: () => void
@@ -19,7 +35,7 @@ export function IntelligenceCard({ card, opportunityName, customer, location, ac
       </section>
       <section className="ic-contacts" aria-label="Key contacts and buying chain">
         <h3>Key contacts &amp; buying chain</h3>
-        {card.contacts.length ? card.contacts.map(person => <article className="ic-contact" key={person.claim_id}><span className="ic-avatar" aria-hidden="true">{(person.name || person.company).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span><div className="ic-contact-identity"><span className="ic-role-badge">{person.role}</span><strong>{person.name || person.company}</strong><p>{person.name ? `${person.title || person.role} · ${person.company}` : person.role}</p></div><div className="ic-contact-actions">{(person.methods ?? []).map(method => <a key={`${method.kind}:${method.value}`} href={method.href}>{method.kind === 'email' ? 'Email' : 'Call'} {method.value}</a>)}</div><details><summary>Responsibility, authority &amp; evidence</summary><p>{person.responsibility}. {person.purchasing_authority}.</p>{person.verified_at && <p>Verified {new Date(person.verified_at).toLocaleDateString()}</p>}{(person.sources ?? []).map((source, index) => <p key={`${source.reference}-${index}`}><a href={source.url ?? undefined} target="_blank" rel="noreferrer">{source.passage || source.title}</a>{source.source_date ? ` · ${source.source_date}` : ''}</p>)}</details></article>) : <p>No verified contacts are available in the current retained evidence.</p>}
+        {card.contacts.length ? card.contacts.map(person => <article className="ic-contact" key={person.claim_id}><span className="ic-avatar" aria-hidden="true">{(person.name || person.company).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span><div className="ic-contact-identity"><span className="ic-role-badge">{person.role}</span><strong>{person.name || person.company}</strong><p>{person.name ? `${person.title || person.role} · ${person.company}` : person.role}</p></div><div className="ic-contact-actions">{(person.methods ?? []).map(method => <a key={`${method.kind}:${method.value}`} href={method.href}>{method.kind === 'email' ? 'Email' : 'Call'} {method.value}</a>)}</div><details><summary>Responsibility, authority &amp; evidence</summary><p>{person.responsibility}. {person.purchasing_authority}.</p>{(person.methods ?? []).length > 0 && latestVerifiedMethod(person.methods ?? []) && <p>Verified {new Date(latestVerifiedMethod(person.methods ?? []) as string).toLocaleDateString()}</p>}{!(person.methods ?? []).length && latestSourceCheck(person) && <p>Role/source checked {new Date(latestSourceCheck(person) as string).toLocaleDateString()}</p>}{(person.sources ?? []).map((source, index) => <p key={`${source.reference}-${index}`}><a href={source.url ?? undefined} target="_blank" rel="noreferrer">{source.passage || source.title}</a>{source.source_date ? ` · ${source.source_date}` : ''}</p>)}</details></article>) : <p>No verified contacts are available in the current retained evidence.</p>}
         <p className="ic-contact-path">{card.next_contact_path || 'Contact path not established.'}</p>
       </section>
       <div className="ic-recommendations">

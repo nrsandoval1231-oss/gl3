@@ -13,7 +13,9 @@ from gridlens.domain.pursuit_research import ACTIVE, fingerprint
 
 POLICY = "opportunity-intelligence-v1"
 FieldStatus = Literal[
-    "Verified",
+    "Source-reported",
+    "User-confirmed",
+    "Evidence-supported",
     "Evidence-supported estimate",
     "Research in progress",
     "Not publicly available",
@@ -579,7 +581,16 @@ def assemble_card(
             value = None
             basis = "Current evidence conflicts; no single value is accepted."
         elif value is not None and refs:
-            status = "Evidence-supported estimate" if estimate else "Verified"
+            if estimate:
+                status = "Evidence-supported estimate"
+            elif any(ref.verification_status == "Current source-reported claim" for ref in refs):
+                # A retained, current quote supports what the source reported. It
+                # does not independently verify the underlying real-world fact.
+                status = "Source-reported"
+            elif all(ref.verification_status == "User-confirmed" for ref in refs):
+                status = "User-confirmed"
+            else:
+                status = "Evidence-supported"
         else:
             value = None
             status = "Research in progress"

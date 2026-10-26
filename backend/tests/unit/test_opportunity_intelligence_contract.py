@@ -302,6 +302,8 @@ def test_supported_public_load_uses_exact_claim_without_changing_signal_qualific
     card = assemble_card(record, {}, {}, [], research_enabled=True)
     field = next(f for f in card.fields if f.key == "required_mw")
     assert field.value == "2 MW (source-reported)"
+    assert field.status == "Source-reported"
+    assert field.sources[0].verification_status == "Current source-reported claim"
     assert field.sources[0].passage == evidence["abstract"]
     assert card.qualification == "Signal" and card.power_gap is None
     record["research_state"]["activity_load_mw"]["claims"][0]["evidence_hash"] = "wrong"
