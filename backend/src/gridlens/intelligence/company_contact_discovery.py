@@ -591,7 +591,7 @@ def discover_company_contacts(
 
 def _known_contact_urls(session: Session, company_id: UUID, projects: list[Project]) -> list[str]:
     """Reuse only source-cited contact URLs or earlier checked company pages."""
-    urls: list[str] = []
+    checked_urls: list[str] = []
     import_urls: list[str] = []
     contact_urls: list[str] = []
     organization_urls: list[str] = []
@@ -649,11 +649,11 @@ def _known_contact_urls(session: Session, company_id: UUID, projects: list[Proje
             continue
         if checkpoint.get("status") not in {"complete", "partial", "unresolved"}:
             continue
-        urls.extend(checkpoint.get("checked_urls", []))
+        checked_urls.extend(checkpoint.get("checked_urls", []))
     # A prior literal contact source is more useful for a refresh than another
     # untrusted organization-source candidate. Keep it first so the four-URL
     # standard cap cannot starve a known method refresh.
-    urls = [*contact_urls, *import_urls, *organization_urls, *urls]
+    urls = [*contact_urls, *checked_urls, *import_urls, *organization_urls]
     valid: list[str] = []
     for url in urls:
         try:

@@ -2471,3 +2471,116 @@ def test_site_reclassification_holds_active_need_and_preserves_evidence_history(
         assert need.active is False
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+
+
+def test_tdlr_parser_refresh_recovers_owner_fields_and_preserves_prior_evidence(db):
+    import copy
+    from pathlib import Path
+
+    from gridlens.ingestion.adapters.tdlr_tabs import (
+        parse_project as parse_tdlr_project,
+    )
+    from gridlens.ingestion.adapters.tdlr_tabs import (
+        record as tdlr_record,
+    )
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "texas-tdlr-tabs-data-centers")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=definition["cadence_hours"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    page = (
+        Path(__file__)
+        .parents[1]
+        .joinpath("fixtures", "tdlr-tabs-project-TABS2026009183-excerpt.html")
+        .read_bytes()
+    )
+    page = page.replace(
+        b"<dd>Dan Yamagishi</dd>",
+        b"<dd>Dan Yamagishi</dd><dt>Owner Phone:</dt><dd>(214) 555-0100</dd>",
+    )
+    current_project = parse_tdlr_project(page, "TABS2026009183")
+    current = tdlr_record(current_project)
+
+    # Reproduce the old parser projection: Contact Name was in its hash, but
+    # record() omitted it from retained text and permit metadata.
+    old_project = copy.deepcopy(current_project)
+    for key in ("owner_phone", "owner_email", "owner_contact_phone", "owner_contact_email"):
+        old_project.pop(key, None)
+    old = tdlr_record(old_project)
+    old_field_prefixes = (
+        "Owner contact:",
+        "Owner phone:",
+        "Owner email:",
+        "Owner contact phone:",
+        "Owner contact email:",
+    )
+    old["abstract"] = "\n".join(
+        line for line in old["abstract"].splitlines() if not line.startswith(old_field_prefixes)
+    )
+    assert not any(line.startswith(old_field_prefixes) for line in old["abstract"].splitlines())
+    for key in (
+        "owner_contact",
+        "owner_phone",
+        "owner_email",
+        "owner_contact_phone",
+        "owner_contact_email",
+    ):
+        old["permit"]["source_fields"].pop(key, None)
+
+    import gridlens.ingestion.service as service
+
+    with factory() as session:
+        initial = service.process_records(
+            session, job_id, "test", 1, definition, [old], allow_model=False
+        )
+    assert initial["new"] == 1
+    with factory() as session:
+        prior = session.scalar(select(Evidence))
+        assert prior is not None
+        historical_abstract = prior.abstract
+        historical_hash = prior.content_hash
+
+    with factory() as session:
+        refreshed = service.process_records(
+            session, job_id, "test", 1, definition, [current], allow_model=False
+        )
+    assert refreshed["changed"] == 1
+    with factory() as session:
+        replay = service.process_records(
+            session, job_id, "test", 1, definition, [current], allow_model=False
+        )
+    assert replay["unchanged"] == 1
+    with factory() as session:
+        evidence = list(session.scalars(select(Evidence)))
+        observation = session.scalar(select(Observation))
+        assert len(evidence) == 2
+        assert observation is not None and observation.external_id == "TABS-TABS2026009183"
+        historical = next(row for row in evidence if row.content_hash == historical_hash)
+        latest = next(row for row in evidence if row.content_hash != historical_hash)
+        assert historical.abstract == historical_abstract
+        assert "Owner contact: Dan Yamagishi" in latest.abstract
+        assert "Owner phone: (214) 555-0100" in latest.abstract

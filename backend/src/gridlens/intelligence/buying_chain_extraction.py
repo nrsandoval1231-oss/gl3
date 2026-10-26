@@ -291,6 +291,9 @@ def _extract_tdlr_retained_owner(doc: PublicDocument, project: Project) -> list[
     def field_values(label: str) -> list[str]:
         return re.findall(rf"^{re.escape(label)}:[ \t]*(.*?)[ \t]*$", doc.text, re.M)
 
+    def field_lines(label: str) -> list[str]:
+        return re.findall(rf"^{re.escape(label)}:[ \t]*[^\r\n]*$", doc.text, re.M)
+
     project_fields = field_values("Project")
     location_fields = field_values("Location")
     owner_lines = re.findall(r"^Owner:[ \t]*[^\r\n]*$", doc.text, re.M)
@@ -331,20 +334,122 @@ def _extract_tdlr_retained_owner(doc: PublicDocument, project: Project) -> list[
         or _RENTAL.search(organization)
     ):
         return []
-
-    return [
-        Extracted(
-            organization,
-            Category.OWNER.value,
-            organization_relationship="DIRECT",
-            reason=(
-                "TDLR lists this organization as owner of the registered project; this does not "
-                "establish purchasing authority, current operational status, a supply gap, or "
-                "temporary-power demand."
-            ),
-            citations=[_citation(doc, owner_line, "project_organization")],
+    org_citations = [_citation(doc, owner_line, "project_organization")]
+    contact_name_lines = field_lines("Owner contact")
+    # record() emits one line per scoped source field. Older retained versions
+    # may omit those fields; duplicates are ambiguous and therefore not used.
+    contact_name = (
+        contact_name_lines[0].removeprefix("Owner contact:").strip()
+        if len(contact_name_lines) == 1
+        else ""
+    )
+    valid_contact_name = bool(
+        contact_name
+        and len(contact_name) <= 160
+        and re.fullmatch(_NAME, contact_name)
+        and organization_key(contact_name) != owner_key
+        and not re.search(
+            r"\b(?:LLC|L\.L\.C\.|Inc\.?|Incorporated|Corp\.?|Corporation|Company|LP|L\.P\.)\b",
+            contact_name,
+            re.I,
         )
-    ]
+        and normalized_identity(contact_name)
+        not in {"not stated", "unknown", "none", "n a", "na", "not available"}
+    )
+
+    def methods_for(phone_label: str, email_label: str) -> tuple[list[dict], list[dict]]:
+        contacts: list[dict] = []
+        citations: list[dict] = []
+        phone_lines = field_lines(phone_label)
+        phone_line = phone_lines[0] if len(phone_lines) == 1 else ""
+        phone = phone_line.removeprefix(f"{phone_label}:").strip()
+        if (
+            phone
+            and normalized_identity(phone)
+            not in {"not stated", "unknown", "none", "n a", "na", "not available"}
+            and re.fullmatch(r"[+()0-9 .-]{7,30}", phone)
+            and 7 <= len(re.sub(r"\D", "", phone)) <= 15
+        ):
+            contacts.append(
+                {
+                    "kind": "phone",
+                    "value": phone,
+                    "source_url": doc.url,
+                    "quote": phone_line,
+                    "observed_at": doc.observed_at.isoformat(),
+                }
+            )
+            citations.append(_citation(doc, phone_line, "public_contact"))
+        email_lines = field_lines(email_label)
+        email_line = email_lines[0] if len(email_lines) == 1 else ""
+        email = email_line.removeprefix(f"{email_label}:").strip()
+        if (
+            email
+            and len(email) <= 254
+            and re.fullmatch(
+                r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}",
+                email,
+            )
+        ):
+            contacts.append(
+                {
+                    "kind": "email",
+                    "value": email,
+                    "source_url": doc.url,
+                    "quote": email_line,
+                    "observed_at": doc.observed_at.isoformat(),
+                }
+            )
+            citations.append(_citation(doc, email_line, "public_contact"))
+        return contacts, citations
+
+    # Owner Phone/Email describe an organization route. Only an explicitly
+    # contact-bound label can attach a route to the named person.
+    org_methods, org_method_citations = methods_for("Owner phone", "Owner email")
+    person_methods, person_method_citations = methods_for(
+        "Owner contact phone", "Owner contact email"
+    )
+    owner_claim = Extracted(
+        organization,
+        Category.OWNER.value,
+        organization_relationship="DIRECT",
+        reason=(
+            "TDLR lists this organization as owner of the registered project; this does not "
+            "establish purchasing authority, current operational status, a supply gap, or "
+            "temporary-power demand."
+        ),
+        citations=[*org_citations, *org_method_citations],
+        public_contacts=org_methods,
+    )
+    results = [owner_claim]
+    if valid_contact_name:
+        contact_line = contact_name_lines[0]
+        contact_citation = _citation(doc, contact_line, "organization_person_role")
+        assignment_citation = _citation(doc, contact_line, "person_project_assignment")
+        results.append(
+            Extracted(
+                organization,
+                Category.OWNER.value,
+                person_name=contact_name,
+                organization_relationship="DIRECT",
+                person_organization_relationship="CURRENT",
+                person_project_relationship="DIRECT",
+                evidence_strength="High",
+                reason=(
+                    "TDLR lists this person as the named contact in the OWNER section for this "
+                    "registered project. This does not establish procurement responsibility, "
+                    "purchasing authority, or individual ownership of the listed owner phone."
+                ),
+                citations=[
+                    *org_citations,
+                    contact_citation,
+                    assignment_citation,
+                    *person_method_citations,
+                ],
+                public_contacts=person_methods,
+            )
+        )
+    return results
 
 
 def extract_retained_permit_organizations(

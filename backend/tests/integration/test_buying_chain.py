@@ -1438,8 +1438,12 @@ def test_no_hint_contact_job_identity_survives_discovery_and_refresh_epoch(db, m
         "retrieve",
         lambda url, **_kwargs: PublicDocument(
             url,
-            "Acme Contact",
-            "Acme company contact. Email: info@acme.example.\n© 2026 Acme. All rights reserved.",
+            "Acme Contact" if url == contact_url else "Acme owner filing",
+            (
+                "Acme company contact. Email: info@acme.example.\n© 2026 Acme. All rights reserved."
+                if url == contact_url
+                else "Acme is the project owner."
+            ),
             observed_at=NOW,
         ),
     )
@@ -1470,12 +1474,16 @@ def test_no_hint_contact_job_identity_survives_discovery_and_refresh_epoch(db, m
     assert second["status"] == "complete"
     assert len(search_calls) == 1  # The new epoch reused the verified checked URL.
     with db.begin() as session:
-        assert json.loads(session.get(Job, fresh_id).checkpoint)["checked_urls"] == [contact_url]
+        assert json.loads(session.get(Job, fresh_id).checkpoint)["checked_urls"] == [
+            contact_url,
+            URL,
+        ]
+        contacts = company_contacts(session, company_id).contacts
         assert any(
             method["value"] == "info@acme.example"
-            for contact in company_contacts(session, company_id).contacts
+            for contact in contacts
             for method in contact.methods
-        )
+        ), repr(contacts)
 
 
 def test_company_site_gate_rejects_government_and_third_party_mentions():
@@ -4634,6 +4642,57 @@ def test_tdlr_retained_owner_is_bound_to_exact_current_project(
     assert "temporary-power demand" in claim.reason
 
 
+def test_tdlr_owner_contact_name_does_not_inherit_generic_owner_phone():
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += (
+        "\nOwner contact: Jordan Smith"
+        "\nOwner phone: (713) 555-0100"
+        "\nOwner contact phone: not stated"
+        "\nOwner email: not stated"
+        "\nOwner contact email: not stated"
+    )
+    project = SimpleNamespace(
+        source_id=TDLR_SOURCE,
+        external_id=f"TABS-{number}",
+        name=name,
+        location=location,
+        identity_facts={"site": location},
+    )
+    doc = _tdlr_document(number, name, location, owner, excerpt)
+    claims = extract_retained_permit_organizations(doc, TDLR_SOURCE, project=project)
+    organization = next(item for item in claims if item.person_name is None)
+    person = next(item for item in claims if item.person_name)
+
+    assert organization.public_contacts[0]["value"] == "(713) 555-0100"
+    assert organization.public_contacts[0]["quote"] == "Owner phone: (713) 555-0100"
+    assert organization.public_contacts[0]["source_url"] == doc.url
+    assert any(
+        citation["supports"] == "public_contact"
+        and citation["quote"] == "Owner phone: (713) 555-0100"
+        for citation in organization.citations
+    )
+    assert "Owner phone: (713) 555-0100" in doc.text
+    assert person.person_name == "Jordan Smith"
+    assert person.public_contacts == []
+    assert all(citation["supports"] != "public_contact" for citation in person.citations)
+
+    explicit = excerpt.replace(
+        "Owner contact phone: not stated", "Owner contact phone: (713) 555-0101"
+    )
+    direct = extract_retained_permit_organizations(
+        _tdlr_document(number, name, location, owner, explicit), TDLR_SOURCE, project=project
+    )
+    person_with_method = next(item for item in direct if item.person_name)
+    assert person_with_method.public_contacts[0]["value"] == "(713) 555-0101"
+    assert person_with_method.public_contacts[0]["quote"] == ("Owner contact phone: (713) 555-0101")
+    assert person_with_method.public_contacts[0]["source_url"] == doc.url
+    assert any(
+        citation["supports"] == "public_contact"
+        and citation["quote"] == "Owner contact phone: (713) 555-0101"
+        for citation in person_with_method.citations
+    )
+
+
 @pytest.mark.parametrize(
     ("case", "url_number", "project_name", "location", "owner", "extra"),
     [
@@ -5183,10 +5242,58 @@ def test_unresolved_contact_attempt_retains_checked_sources_for_next_retry(db, m
     with db.begin() as session:
         checkpoint = json.loads(session.get(Job, job_id).checkpoint)
         assert checkpoint["checked_urls"] == urls[:2]
+
+    organization_urls = [f"https://acme.example/source-{index}" for index in range(5)]
+    next_attempt = NOW + timedelta(days=30)
+    with db.begin() as session:
+        retry = discovery.discover_company_contacts(session, company_id, now=next_attempt)
+        retry_job = session.get(Job, UUID(retry["job_id"]))
+        assert retry_job is not None
+        retry_job.status, retry_job.lease_owner, retry_job.fence = "running", "contact-test", 1
+        retry_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        retry_id = retry_job.id
+    monkeypatch.setattr(
+        discovery,
+        "buying_chain_view",
+        lambda _session, _project_id: {
+            "candidates": [
+                {
+                    "company_identity_id": str(company_id),
+                    "organization": "Acme Energy",
+                    "category": "contractor",
+                    "organization_relationship": "DIRECT",
+                    "evidence": [
+                        {
+                            "supports": "project_organization",
+                            "current_support": True,
+                            "url": url,
+                            "quote": "Acme Energy is the electrical contractor.",
+                            "content_hash": f"organization-source-{index}",
+                        }
+                        for index, url in enumerate(organization_urls)
+                    ],
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: PublicDocument(
+            url, "Acme Energy", "Company information only.", observed_at=next_attempt
+        ),
+    )
+    retried = discovery.process_company_contact_discovery(
+        retry_id, "contact-test", 1, now=next_attempt
+    )
+    assert retried["status"] == "unresolved"
+    with db.begin() as session:
         reused = discovery._known_contact_urls(
             session, company_id, discovery._projects(session, company_id)
         )
-        assert reused[:2] == urls[:2]
+        assert reused[:4] == [*urls[:2], *organization_urls[:2]]
+        retry_checkpoint = json.loads(session.get(Job, retry_id).checkpoint)
+        assert retry_checkpoint["checked_urls"] == [*urls[:2], *organization_urls[:2]]
 
 
 def test_high_priority_missing_buyer_uses_bounded_six_page_depth(db, monkeypatch):
