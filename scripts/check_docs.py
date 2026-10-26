@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ENTRY_POINTS = (
     "README.md",
     "AGENTS.md",
+    ".agent/README.md",
     ".agent/OWNER_REQUEST.md",
     ".agent/CURRENT_STATE.md",
     ".agent/FINISH_CONTRACT.md",
