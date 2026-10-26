@@ -90,7 +90,8 @@ def _content_snapshot_equal(left: dict[str, Any], right: dict[str, Any]) -> bool
 
 def _operational_snapshot_equal(left: dict[str, Any], right: dict[str, Any]) -> bool:
     return left.keys() == right.keys() and all(
-        left[name]["operational_sha256"] == right[name]["operational_sha256"] for name in left
+        left[name]["operational_sha256"] == right[name]["operational_sha256"]
+        for name in left
     )
 
 
@@ -104,7 +105,9 @@ def _successful_job(item: dict[str, Any]) -> bool:
     )
 
 
-def _replays_unchanged(first_pass: list[dict[str, Any]], replay: list[dict[str, Any]]) -> bool:
+def _replays_unchanged(
+    first_pass: list[dict[str, Any]], replay: list[dict[str, Any]]
+) -> bool:
     if len(first_pass) != len(replay) or not first_pass:
         return False
     if not all(_successful_job(item) for item in first_pass):
@@ -121,7 +124,9 @@ def _replays_unchanged(first_pass: list[dict[str, Any]], replay: list[dict[str, 
 
 def _ensure_output_available(output: Path) -> None:
     if output.exists():
-        raise FileExistsError(f"Refusing to overwrite existing verification receipt: {output}")
+        raise FileExistsError(
+            f"Refusing to overwrite existing verification receipt: {output}"
+        )
 
 
 def _table_snapshot(session) -> dict[str, Any]:
@@ -148,7 +153,9 @@ def _morning_changes() -> dict[str, Any]:
     from gridlens.api.app import changes
 
     items = changes()
-    encoded = json.dumps(items, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    encoded = json.dumps(
+        items, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+    )
     return {
         "count": len(items),
         "sha256": hashlib.sha256(encoded.encode()).hexdigest(),
@@ -185,7 +192,9 @@ def _source_counts(session, source_id: str) -> dict[str, int]:
         ),
         "projects": int(
             session.scalar(
-                select(func.count()).select_from(Project).where(Project.source_id == source_id)
+                select(func.count())
+                .select_from(Project)
+                .where(Project.source_id == source_id)
             )
             or 0
         ),
@@ -210,7 +219,10 @@ def _source_counts(session, source_id: str) -> dict[str, int]:
                 select(func.count())
                 .select_from(Interpretation)
                 .join(Observation, Interpretation.observation_id == Observation.id)
-                .where(Observation.source_id == source_id, Interpretation.status == "failed")
+                .where(
+                    Observation.source_id == source_id,
+                    Interpretation.status == "failed",
+                )
             )
             or 0
         ),
@@ -219,7 +231,10 @@ def _source_counts(session, source_id: str) -> dict[str, int]:
                 select(func.count())
                 .select_from(Interpretation)
                 .join(Observation, Interpretation.observation_id == Observation.id)
-                .where(Observation.source_id == source_id, Interpretation.status == "pending")
+                .where(
+                    Observation.source_id == source_id,
+                    Interpretation.status == "pending",
+                )
             )
             or 0
         ),
@@ -319,10 +334,14 @@ def _run_source(
                         attempt["error"] = other_source.health.get("error")
                         succeeded = job.status == "succeeded"
                         attempt["retrieved_records"] = (
-                            other_source.health.get("retrieved_records") if succeeded else None
+                            other_source.health.get("retrieved_records")
+                            if succeeded
+                            else None
                         )
                         attempt["parsed_records"] = (
-                            other_source.health.get("parsed_records") if succeeded else None
+                            other_source.health.get("parsed_records")
+                            if succeeded
+                            else None
                         )
                     if str(job.id) == str(job_id):
                         attempted = job.attempts > target_attempts_before
@@ -356,7 +375,8 @@ def _run_source(
         "unchanged_records": health.get("unchanged_records") if succeeded else None,
         "failed_jobs": 0 if succeeded else (1 if attempted else None),
         "failed_records": (
-            source_state["failed_interpretations"] + source_state["pending_interpretations"]
+            source_state["failed_interpretations"]
+            + source_state["pending_interpretations"]
             if succeeded
             else None
         ),
@@ -380,13 +400,20 @@ def _run_source(
     return result
 
 
-def run_check(output: Path) -> dict[str, Any]:
+def run_check(output: Path, *, source_ids: list[str] | None = None) -> dict[str, Any]:
     started = datetime.now(UTC)
     output = output.resolve()
     _ensure_output_available(output)
     db_name = _ensure_fresh_verification_database()
     definitions_list = sync_registry()
     definitions = {row["id"]: row for row in definitions_list if row["enabled"]}
+    if source_ids:
+        unknown = set(source_ids) - definitions.keys()
+        if unknown:
+            raise ValueError(
+                f"Sources are unknown or disabled: {', '.join(sorted(unknown))}"
+            )
+        definitions = {key: definitions[key] for key in sorted(set(source_ids))}
     if not definitions:
         raise RuntimeError("Source registry has no enabled sources")
     with SessionLocal() as session:
@@ -398,8 +425,8 @@ def run_check(output: Path) -> dict[str, Any]:
         "objective": "fresh real-source ordinary-worker ingestion and replay",
         "database_name": db_name,
         "started_at_utc": started.isoformat(),
-        "model": "gpt-6-luna",
-        "tokens": "UNKNOWN",
+        "execution": "ordinary worker; provider usage must be read from actual call records",
+        "requested_source_ids": sorted(source_ids) if source_ids else None,
         "source_count": len(definitions),
         "digest_policy": {
             "content_digest": (
@@ -441,7 +468,9 @@ def run_check(output: Path) -> dict[str, Any]:
             result = _run_source(source_id, definitions)
             receipt["first_pass"].append(result)
             persist()
-            print(f"ingest {source_id}: {result['status']} (failed jobs={result['failed_jobs']})")
+            print(
+                f"ingest {source_id}: {result['status']} (failed jobs={result['failed_jobs']})"
+            )
 
         with SessionLocal() as session:
             post_ingest_counts = _db_counts(session)
@@ -486,7 +515,9 @@ def run_check(output: Path) -> dict[str, Any]:
             }
             receipt["replay"].append(replay_result)
             persist()
-            print(f"replay {source_id}: {item['status']} (failed jobs={item['failed_jobs']})")
+            print(
+                f"replay {source_id}: {item['status']} (failed jobs={item['failed_jobs']})"
+            )
 
         with SessionLocal() as session:
             receipt["final_database_counts"] = _db_counts(session)
@@ -515,6 +546,12 @@ def main() -> None:
         type=Path,
         default=None,
     )
+    parser.add_argument(
+        "--source",
+        action="append",
+        dest="source_ids",
+        help="Enabled source ID to verify (repeatable); omitted means all enabled sources.",
+    )
     args = parser.parse_args()
     output = args.output or (
         ROOT
@@ -522,7 +559,7 @@ def main() -> None:
         / "GL3-013"
         / f"local-pipeline-check-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%fZ')}.json"
     )
-    receipt = run_check(output)
+    receipt = run_check(output, source_ids=args.source_ids)
     print(f"Receipt: {output}")
     print(f"Status: {receipt['status']}")
     print(f"All replay digests unchanged: {receipt.get('all_replays_unchanged')}")
