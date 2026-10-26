@@ -1,0 +1,121 @@
+[
+  {
+    "case_id": "A",
+    "project_id": "5796a14e-c301-4f3e-944e-9747ba613d15",
+    "need_id": "bd014849-c79f-442d-b861-81a23d438d5d",
+    "project_name": "PECOS COUNTY DATA CENTER",
+    "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+    "source_hash": "040886932c8b66144a8131841b8a642fa2f6b5e9c41c8df12a5c78838c597e7b",
+    "expected_evidence_id": "dda4787a-c1d5-47c3-9e59-3df667bb11d0",
+    "expected_need_rationale": [
+      "owner AMAZON DATA SERVICES, INC.",
+      "developer reported a start of 2026-08-01 and completion of 2026-12-01",
+      "MW, utility service date and the buyer are unknown"
+    ],
+    "expected_unknown_keys": [
+      "required_mw",
+      "facility_demand",
+      "start",
+      "duration",
+      "supply",
+      "gap",
+      "energization",
+      "procurement",
+      "utility_obstacle"
+    ],
+    "no_qualified_gap": true,
+    "expected_browse_view": "workspace",
+    "expected_project_heading": false,
+    "expected_detail_heading": "AMAZON DATA SERVICES, INC",
+    "expected_research_project_heading": false,
+    "source_excerpt": "PECOS COUNTY DATA CENTER \u2014 TDLR TABS TABS2026026954\nProject: PECOS COUNTY DATA CENTER (Building A)\nLocation: 6000 TX-18, Fort Stockton, TX 79735 (Pecos County)\nRegistered: 2026-08-04\nDeveloper-reported start: 2026-08-01; completion: 2026-12-01\nType of work: New Construction\nScope: New data center building.\nOwner: AMAZON DATA SERVICES, INC\nOwner contact: Kali Dickerson\nOwner phone: (206) 266-4064\nOwner contact phone: not stated\nOwner contact email: not stated",
+    "selection_basis": "source-backed distinct physical-site candidate",
+    "baseline_status": {
+      "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+      "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+      "need_timing": "UNKNOWN",
+      "project_organization": "UNKNOWN_OR_NO_SOURCE_LINKED_ORGANIZATION",
+      "power_supply": "UNKNOWN",
+      "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+      "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+    },
+    "coverage": "PARTIAL_WITH_SOURCE_CITED_OWNER_ROUTE",
+    "coverage_note": "Official TDLR source names owner Amazon Data Services, Inc., owner representative Kali Dickerson, and a separate owner-company phone route. The named person has no personal phone/email method; the company route links to tel:2062664064 and its source quote says Owner phone: (206) 266-4064. MW, utility service date, gap, project purchase, and buyer authority remain unknown; this is an exploratory next step to confirm package responsibility, not a qualified rental-power lead.",
+    "company_name": "AMAZON DATA SERVICES, INC",
+    "expected_detail_text": [
+      "PECOS COUNTY DATA CENTER (Building A)"
+    ],
+    "expected_contact_route": {
+      "company_name": "AMAZON DATA SERVICES, INC",
+      "company_href": "tel:2062664064",
+      "company_phone": "(206) 266-4064",
+      "company_action_label": "Call AMAZON DATA SERVICES, INC owner company route \u00b7 (206) 266-4064",
+      "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+      "source_quote": "Owner phone: (206) 266-4064",
+      "source_reference": "buying-chain:76a3dd62-1d17-4d64-af86-83fdbdcc008e",
+      "retained_evidence_id": "89758ef7-702b-4ac0-82a5-4b5be3b1fabf",
+      "content_hash": "053d200797da8a0517ef7a461b8a7265e58c46e8bc2e9bc6bf95750e216a0af9",
+      "representative_name": "Kali Dickerson",
+      "representative_quote": "Owner contact: Kali Dickerson"
+    },
+    "expected_tier": "Signal",
+    "expected_commercial_disposition": "ACTION NOW",
+    "expected_opportunity_absent": true,
+    "contact_refresh_database": "gridlens_release_contacts_pipeline",
+    "contact_refresh_evidence_id": "76a3dd62-1d17-4d64-af86-83fdbdcc008e"
+  },
+  {
+    "case_id": "D",
+    "project_id": "d94e32ef-93fd-44ee-8f16-1347d8cd0dbf",
+    "need_id": "8160e7ee-2cf7-483f-9dc2-de29a2104fc2",
+    "project_name": "DAL130 - Data Center",
+    "company_name": "Circle T Owner LP",
+    "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+    "source_hash": "81883e1521ed12bb569743a29f387083cd7d65d025f569c6feeb73ecd786badf",
+    "expected_evidence_id": "60df52b8-35d9-4196-8e8e-5f8dd0f62b23",
+    "expected_need_rationale": [
+      "owner Circle T Owner LP",
+      "MW, utility service date and the buyer are unknown"
+    ],
+    "expected_unknown_keys": [
+      "required_mw",
+      "facility_demand",
+      "start",
+      "duration",
+      "supply",
+      "gap",
+      "energization",
+      "procurement",
+      "utility_obstacle"
+    ],
+    "no_qualified_gap": true,
+    "expected_browse_view": "workspace",
+    "expected_project_heading": false,
+    "expected_detail_heading": "Circle T Owner LP",
+    "expected_detail_text": [
+      "DAL130 - Data Center (Circle T Ranch DAL130 Campus)"
+    ],
+    "expected_research_project_heading": false,
+    "expected_opportunity_absent": true,
+    "expected_tier": "Signal",
+    "expected_commercial_disposition": "ACTION NOW",
+    "expected_contact_route": {
+      "company_name": "Circle T Owner LP",
+      "company_href": "tel:5717311698",
+      "company_phone": "571.731.1698",
+      "company_action_label": "Call Circle T Owner LP owner company route \u00b7 571.731.1698",
+      "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+      "source_quote": "Owner phone: 571.731.1698",
+      "source_reference": "buying-chain:2c34bb7e-074b-4b74-91e1-69c512e01b88",
+      "retained_evidence_id": "0e7246ca-d753-47f8-b205-2b0bfce992da",
+      "content_hash": "58619897abf094da2a1315c7e7deb286ec32d62ea9da8208784998d7cf947543",
+      "representative_name": "Zaid Arzate",
+      "representative_quote": "Owner contact: Zaid Arzate"
+    },
+    "contact_refresh_database": "gridlens_release_contacts_pipeline",
+    "contact_refresh_evidence_id": "2c34bb7e-074b-4b74-91e1-69c512e01b88",
+    "coverage": "PARTIAL_CONTACT_TO_ACTION",
+    "coverage_note": "Official TDLR source names owner Circle T Owner LP, owner representative Zaid Arzate, and a separate owner-company phone route. The named person has no personal phone/email method; the company route links to tel:5717311698 and its source quote says Owner phone: 571.731.1698. The next step is to confirm responsibility for this power package; buyer authority, temporary need, MW, date, duration, and remaining gap remain unknown. This is source-cited contact-to-action, not a qualified purchase.",
+    "source_excerpt": "DAL130 - Data Center \u2014 TDLR TABS TABS2027002672\nProject: DAL130 - Data Center (Circle T Ranch DAL130 Campus)\nLocation: 13572 N. Main Street, Westlake, TX 76262 (Tarrant County)\nRegistered: 2026-10-02\nDeveloper-reported start: 2026-12-01; completion: 2027-06-01\nType of work: New Construction\nScope: New construction of a data center - 224,152 square feet +/-\nOwner: Circle T Owner LP\nOwner contact: Zaid Arzate\nOwner phone: 571.731.1698\nOwner contact phone: not stated\nOwner contact email: not stated"
+  }
+]
