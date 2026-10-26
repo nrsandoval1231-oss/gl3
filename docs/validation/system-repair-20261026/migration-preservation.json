@@ -295,5 +295,18 @@
   "fresh_upgrade": "PASS",
   "repeated_upgrade": "PASS",
   "metadata_drift": "PASS",
-  "reviewed_migration_revision": "0045_contact_suppressions"
+  "reviewed_migration_revision": "0045_contact_suppressions",
+  "actual_workbook_staging_upgrade": {
+    "database": "gridlens_repair_workbook_actual_test",
+    "from_revision": "0044_enrichment_planner_cursor",
+    "to_revision": "0045_contact_suppressions",
+    "fresh_actual_batches": 4,
+    "staged_source_rows": 4520,
+    "active_imports": 0,
+    "retained_table_digests_unchanged": true,
+    "upgrade": "PASS",
+    "repeated_upgrade": "PASS",
+    "metadata_drift": "PASS",
+    "production_access": false
+  }
 }

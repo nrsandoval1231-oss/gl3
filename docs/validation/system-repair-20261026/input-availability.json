@@ -4,7 +4,7 @@
   "measured_existing_opportunities": 0,
   "missing_workbooks": [],
   "workbook_checks": {
-    "status": "AVAILABLE_RECONCILIATION_IN_PROGRESS",
+    "status": "AVAILABLE_RECONCILIATION_AND_ISOLATED_STAGING_COMPLETE",
     "source": "User attachments received 2026-10-26",
     "production_promotion": "NOT_AUTHORIZED_NOT_PERFORMED",
     "files": [
@@ -28,7 +28,9 @@
         "bytes": 99505,
         "sha256": "535e762cfdd91208e30cb8a61d2bf4cf5cc4b1e64f20d652d79bbcd99cbd40cf"
       }
-    ]
+    ],
+    "report": "workbook-reconciliation.md",
+    "production_matching": "NOT_TESTED: authenticated canonical snapshot unavailable"
   },
   "production_read_probe": {
     "url": "https://app.grid-lens.com/api/opportunities/workspace",
@@ -44,7 +46,8 @@
     "projects": 6,
     "evidence_records": 171,
     "company_identities": 0,
-    "is_requested_existing_25_cohort": false
+    "is_requested_existing_25_cohort": false,
+    "published_benchmark_selection": "QUALIFICATION_PENDING; no current published generation, zero selected projects"
   },
   "not_tested": [
     "independently labeled project identity accuracy",

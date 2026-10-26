@@ -1,6 +1,6 @@
 # Deployment and rollback gate
 
-No deployment, merge, production data write, credential change or paid-provider activation was performed or authorized for this repair. This is a proposed release procedure, subject to final integrated validation and owner release authorization.
+No deployment, merge, production data write, credential change or paid-provider activation was performed or authorized for this repair. This is a proposed release procedure, after completed engineering validation; owner release authorization and actual commercial acceptance remain outstanding.
 
 ## Before release
 
@@ -22,3 +22,5 @@ Retain failed-release artifacts and diagnostic logs. Recover using the verified 
 ## Local migration evidence
 
 Fresh installation, repeated upgrade, and Alembic metadata drift checks passed in disposable PostgreSQL databases. An isolated clone of the retained Austin acquisition upgraded from `0041_evidence_packages` through `0045_contact_suppressions`; all 660 original rows across 65 existing tables retained identical canonical JSON digests. Six intervening additive tables were empty. This is local migration evidence, not a production backup/restore rehearsal.
+
+The separate actual-workbook staging database also upgraded from 0044 to 0045 with identical retained-table digests, followed by successful repeat and drift checks. All four batches and 4,520 source rows remain inactive; no canonical opportunities were created.
