@@ -159,6 +159,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
     import json
 
     import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.domain.evaluation_clock import evaluate_at
     from gridlens.intelligence.company_contacts import company_contacts
     from gridlens.persistence.models import CompanyProjectMembership, Job
 
@@ -297,6 +298,24 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
             for url in checkpoint["checked_urls"]
             for path in ("/investors/", "/careers/")
         )
+
+        contact_page_url = "https://www.eogresources.com/company/contacts/"
+        refresh_at = NOW + timedelta(days=31)
+        with evaluate_at(refresh_at):
+            due_projection = company_contacts(session, company_id)
+            assert all(not contact.methods for contact in due_projection.contacts)
+            assert contact_page_url in discovery._known_contact_urls(session, company_id, [project])
+            refresh = discovery.discover_company_contacts(session, company_id, now=refresh_at)
+        assert refresh["status"] == "queued"
+        refresh_job = session.get(Job, UUID(refresh["job_id"]))
+        assert refresh_job is not None
+        refresh_job.status, refresh_job.lease_owner, refresh_job.fence = (
+            "running",
+            "contact-test",
+            1,
+        )
+        refresh_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        refresh_job_id = refresh_job.id
         before_counts = (
             session.scalar(select(func.count()).select_from(BuyingChainClaim)),
             session.scalar(select(func.count()).select_from(BuyingChainEvidence)),
@@ -306,6 +325,45 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
             session.scalar(select(func.count()).select_from(BuyingChainClaim)),
             session.scalar(select(func.count()).select_from(BuyingChainEvidence)),
             session.scalar(select(func.count()).select_from(CompanyIdentity)),
+        )
+
+    refreshed_urls = []
+
+    def refreshed_contact_page(url, **_kwargs):
+        refreshed_urls.append(url)
+        return PublicDocument(
+            url,
+            "EOG Resources Contact",
+            "EOG Resources corporate headquarters\n"
+            "Phone: (713) 651-7000\n"
+            "Email: info@eogresources.com.\n"
+            "\ufffd 2018-2026 EOG Resources, Inc. All rights reserved.",
+            observed_at=refresh_at,
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", refreshed_contact_page)
+    monkeypatch.setattr(
+        discovery,
+        "_search_official_urls",
+        lambda *_args, **_kwargs: pytest.fail("stale cited URL should bypass paid discovery"),
+    )
+    with evaluate_at(refresh_at):
+        refreshed = discovery.process_company_contact_discovery(
+            refresh_job_id,
+            "contact-test",
+            1,
+            now=refresh_at,
+            deadline=time.monotonic() + 10,
+        )
+    assert refreshed["status"] == "complete"
+    assert contact_page_url in refreshed_urls
+    assert all("eogresources.com" in url for url in refreshed_urls)
+    with evaluate_at(refresh_at), db() as session:
+        current_projection = company_contacts(session, company_id)
+        assert any(
+            method["value"] == "info@eogresources.com"
+            for contact in current_projection.contacts
+            for method in contact.methods
         )
     # A new checkpoint opens a new transaction and must reuse the same job.
     with db.begin() as session:
@@ -863,9 +921,12 @@ def test_exact_rrc_registry_phone_is_company_scoped(db, monkeypatch):
     assert discovery._rrc_public_method(wrong_company, "123456", "EOG Resources") is None
 
 
-def test_contact_planner_pages_past_recent_companies(db):
+def test_contact_planner_pages_past_recent_companies(db, monkeypatch):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.persistence.models import Job
+    from gridlens.settings import settings
+
+    monkeypatch.setattr(settings, "company_contact_discovery_enabled", False)
 
     with db.begin() as session:
         project = seed(session, external_id="contact-planner-page")
@@ -885,6 +946,182 @@ def test_contact_planner_pages_past_recent_companies(db):
         jobs = session.scalars(select(Job).where(Job.kind == discovery.JOB_KIND)).all()
         assert len(jobs) == 2
         assert len({job.target_id for job in jobs}) == 2
+
+
+def test_contact_planner_skips_unresolvable_company_and_reaches_later_anchor(db):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import CompanyIdentity, CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        unresolvable = seed(session, external_id="contact-unresolvable-first")
+        resolvable = seed(
+            session,
+            external_id="contact-resolvable-second",
+            identity_key="contact-resolvable-second",
+        )
+        unresolvable.region_status = resolvable.region_status = "ELIGIBLE"
+        identities = [CompanyIdentity(id=UUID(int=1)), CompanyIdentity(id=UUID(int=2))]
+        session.add_all(identities)
+        session.flush()
+        for project, identity, version_hash in (
+            (unresolvable, identities[0], "missing-source-version"),
+            (resolvable, identities[1], "a"),
+        ):
+            evidence = session.scalar(
+                select(Evidence)
+                .join(Observation)
+                .where(Observation.external_id == project.external_id)
+            )
+            assert evidence is not None
+            if project is resolvable:
+                evidence.abstract = (
+                    "Beta is the owner developer for Orion Data Center in Austin, TX."
+                )
+                interpretation = session.scalar(
+                    select(Interpretation).where(
+                        Interpretation.observation_id == evidence.observation_id
+                    )
+                )
+                assert interpretation is not None
+                interpretation.assessment = {
+                    **interpretation.assessment,
+                    "project_identity_key": project.identity_key,
+                }
+            session.add(
+                CompanyProjectMembership(
+                    company_identity_id=identity.id,
+                    project_id=project.id,
+                    role="owner_developer",
+                    organization_name="Beta" if project is resolvable else "Missing Source Co",
+                    source_id="test",
+                    source_evidence_id=evidence.id,
+                    source_version_hash=version_hash,
+                    decision_basis="typed_owner_membership_v1",
+                    operator_number="000000",
+                    state="current",
+                )
+            )
+        queued = discovery.plan_company_contact_jobs(session, limit=1, now=NOW)
+        assert queued == 1
+        jobs = session.scalars(select(Job).where(Job.kind == discovery.JOB_KIND)).all()
+        by_company = {job.target_id: job for job in jobs}
+        assert by_company[identities[0].id].status == "succeeded"
+        assert json.loads(by_company[identities[0].id].checkpoint)["planner_receipt"] is True
+        assert by_company[identities[1].id].status == "queued"
+
+
+def test_due_unresolved_contact_search_can_be_enqueued_again_in_same_epoch(db):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import CompanyIdentity, CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-unresolved-retry")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence).join(Observation).where(Observation.external_id == project.external_id)
+        )
+        assert evidence is not None
+        identity = CompanyIdentity(id=UUID(int=77))
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="owner_developer",
+                organization_name="Orion Development",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_owner_membership_v1",
+                operator_number="000077",
+                state="current",
+            )
+        )
+        session.flush()
+        start_day = date.fromordinal((NOW.date().toordinal() // 30 + 1) * 30 + 1)
+        start = datetime.combine(start_day, datetime.min.time(), tzinfo=UTC)
+        initial = discovery.discover_company_contacts(session, identity.id, now=start)
+        assert initial["status"] == "queued"
+        first = session.get(Job, UUID(initial["job_id"]))
+        assert first is not None
+        first.status = "succeeded"
+        checkpoint = json.loads(first.checkpoint)
+        checkpoint.update(
+            status="unresolved",
+            completed_at=start.isoformat(),
+            retry_after=(start + timedelta(days=7)).isoformat(),
+        )
+        first.checkpoint = json.dumps(checkpoint)
+        retry_at = start + timedelta(days=8)
+        assert retry_at.date().toordinal() // 30 == start.date().toordinal() // 30
+        retried = discovery.discover_company_contacts(session, identity.id, now=retry_at)
+        assert retried["status"] == "queued"
+        assert retried["deduplicated"] is False
+        assert retried["job_id"] != initial["job_id"]
+
+
+def test_expired_public_contact_method_is_hidden_but_company_relationship_survives(db):
+    from gridlens.domain.evaluation_clock import evaluate_at
+    from gridlens.intelligence.company_contact_discovery import _known_contact_urls
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    with db.begin() as session:
+        project = seed(session, external_id="aging-contact-method")
+        retained = session.scalar(select(Evidence))
+        assert retained is not None
+        retained.abstract = "Acme is the general contractor for Orion Data Center in Austin, TX."
+        contact_quote = "Acme email: contact@acme.example"
+        fetched = PublicDocument(
+            URL,
+            retained.title,
+            f"{retained.title}\n{retained.abstract}\n{contact_quote}",
+            date(2026, 9, 21),
+            NOW,
+        )
+        initial = enrich_buying_chain(session, project.id, fetcher=lambda _url: fetched, now=NOW)
+        acme = next(item for item in initial["candidates"] if item["organization"] == "Acme")
+        assert [row["value"] for row in acme["public_contacts"]] == ["contact@acme.example"]
+        old = NOW + timedelta(days=366)
+        current = buying_chain_view(session, project.id, now=old)
+        acme = next(item for item in current["candidates"] if item["organization"] == "Acme")
+        assert acme["organization_relationship"] == "DIRECT"
+        assert acme["stale"] is False
+        assert acme["public_contacts"] == []
+        source = next(
+            row
+            for row in session.scalars(
+                select(BuyingChainEvidence).where(
+                    BuyingChainEvidence.project_id == project.id,
+                    BuyingChainEvidence.retained_evidence_id.is_(None),
+                )
+            )
+            if contact_quote in row.excerpt
+        )
+        evidence_row = next(
+            row
+            for row in acme["evidence"]
+            if str(row["id"]) == str(source.id) and row["supports"] == "public_contact"
+        )
+        assert evidence_row["contact_stale"] is True
+        link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == UUID(str(acme["id"])),
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert link is not None and link.company_identity_id is not None
+        with evaluate_at(old):
+            refreshed_projection = company_contacts(session, link.company_identity_id)
+            assert refreshed_projection.research_required is True
+            assert all(not contact.methods for contact in refreshed_projection.contacts)
+            discovery_urls = _known_contact_urls(session, link.company_identity_id, [project])
+        assert URL in discovery_urls
 
 
 def test_contact_anchor_skips_stale_member_project_for_current_later_source(db):

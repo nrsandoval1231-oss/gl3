@@ -12,6 +12,9 @@ MAX_CANDIDATES = 8
 MAX_DOCUMENTS = 8
 MAX_SOURCE_URLS = 4
 ROLE_MAX_AGE_DAYS = 365
+# Public business contact methods are useful only while their source page has
+# been observed within this window. This does not imply deliverability.
+CONTACT_MAX_AGE_DAYS = 30
 
 
 class Category(StrEnum):

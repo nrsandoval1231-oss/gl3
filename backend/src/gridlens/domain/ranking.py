@@ -52,6 +52,8 @@ _BUYER_CATEGORIES = {category.value for category in Category} - {"unknown"}
 def _latest_evidence_date(item: dict[str, Any]) -> date | None:
     latest: date | None = None
     for evidence in item.get("evidence") or []:
+        if evidence.get("assessment_current") is False:
+            continue
         for key in ("event_date", "published_at"):
             value = evidence.get(key)
             if not value:
@@ -114,7 +116,17 @@ def rank_opportunity(
         for candidate in candidates
         if candidate.get("category") in _BUYER_CATEGORIES
         and candidate.get("organization_relationship") == "DIRECT"
+        and not candidate.get("stale")
+        and not candidate.get("retracted")
     ]
+    direct.sort(
+        key=lambda candidate: (
+            candidate.get("category")
+            not in {"owner_developer", "asset_operator", "owner_energy", "owner_construction"},
+            candidate.get("category") not in {"owner_developer", "asset_operator"},
+            str(candidate.get("organization") or "").casefold(),
+        )
+    )
     if direct:
         access, access_reason = (
             1.0,

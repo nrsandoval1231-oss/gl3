@@ -28,6 +28,17 @@ def test_planner_prioritizes_two_commercial_blockers_and_replays_without_mutatin
     assert item == before
 
 
+def test_full_plan_exposes_later_questions_after_early_categories_are_fresh():
+    item = card()
+    assert [q["category"] for q in plan_questions(item)] == ["power_need", "phase"]
+    available = plan_questions(
+        item,
+        resolved_categories={"power_need", "phase"},
+        limit=None,
+    )
+    assert [q["category"] for q in available] == ["buyer", "timing", "load", "supply"]
+
+
 @pytest.mark.parametrize("disposition", ["ACTION NOW", "REJECT"])
 def test_closed_or_actionable_pursuits_do_not_spawn_questions(disposition):
     assert plan_questions(card(disposition=disposition)) == []

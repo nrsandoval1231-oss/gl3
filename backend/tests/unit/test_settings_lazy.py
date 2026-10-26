@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from gridlens.settings import get_settings, settings
+from gridlens.settings import Settings, get_settings, settings
 
 
 def test_get_settings_caches_one_object():
@@ -25,3 +25,17 @@ def test_schedule_settings_reject_unknown_zone_and_clock(monkeypatch):
     monkeypatch.setenv("SCHEDULE_ANCHOR_TIME", "25:90")
     with pytest.raises(ValidationError, match="local clock time"):
         module.get_settings()
+
+
+def test_autonomous_research_defaults_to_free_bounded_work_with_paid_calls_disabled():
+    defaults = Settings.model_construct(
+        database_url="postgresql+psycopg://unused/db",
+        app_password_hash="unused",
+        session_secret="unused",
+    )
+    assert defaults.opportunity_enrichment_enabled is True
+    assert defaults.company_contact_discovery_enabled is True
+    assert defaults.autonomous_research_enabled is True
+    assert defaults.intelligence_mode == "disabled"
+    assert defaults.intelligence_research_enabled is False
+    assert defaults.autonomous_research_max_cost_usd == 0

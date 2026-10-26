@@ -281,6 +281,27 @@ def contact_projection(chain: dict) -> list[IntelligenceContact]:
                 verified_at=_iso(party.get("verified_at")),
             )
         )
+    role_order = {
+        "owner_developer": 0,
+        "asset_operator": 1,
+        "owner_energy": 2,
+        "owner_construction": 3,
+        "procurement": 4,
+        "field_operations": 5,
+        "epc": 6,
+        "general_contractor": 7,
+        "electrical_contractor": 8,
+        "commissioning": 9,
+    }
+    result.sort(
+        key=lambda contact: (
+            role_order.get(contact.role.replace(" ", "_"), 50),
+            contact.responsibility != "Verified project responsibility",
+            not any(method["kind"] == "email" for method in contact.methods),
+            contact.company.casefold(),
+            contact.name or "",
+        )
+    )
     return result
 
 
@@ -458,7 +479,13 @@ def assemble_card(
         for p in contacts
         if p.role in {"owner developer", "asset operator", "owner construction", "owner energy"}
     ]
-    unique_owners = {p.company for p in owners}
+    owner_priority = {
+        "owner developer": 0,
+        "asset operator": 1,
+        "owner energy": 2,
+        "owner construction": 3,
+    }
+    owners.sort(key=lambda p: (owner_priority.get(p.role, 50), p.company.casefold()))
     fields: list[IntelligenceField] = []
     latest: dict[str, dict] = {}
     for q in questions:  # newest first, supplied by bounded repository read
@@ -587,7 +614,7 @@ def assemble_card(
         "customer",
         "Customer / end user",
         "identity",
-        "; ".join(sorted(unique_owners)) or None,
+        "; ".join(dict.fromkeys(p.company for p in owners)) or None,
         "identity",
         owner_refs,
     )

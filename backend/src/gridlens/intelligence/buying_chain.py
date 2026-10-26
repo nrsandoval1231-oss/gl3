@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import (
     CATEGORY_PRIORITY,
+    CONTACT_MAX_AGE_DAYS,
     MAX_CANDIDATES,
     MAX_DOCUMENTS,
     MAX_SOURCE_URLS,
@@ -2156,6 +2157,10 @@ def buying_chain_view(
                 citation["supports"] in {"organization_person_role", "person_project_assignment"}
                 and (now.date() - age_basis).days > ROLE_MAX_AGE_DAYS
             )
+            contact_aged = (
+                citation["supports"] == "public_contact"
+                and (now.date() - row.last_seen_at.date()).days > CONTACT_MAX_AGE_DAYS
+            )
             if row.retained_evidence_id:
                 original = (
                     None if preload is not None else session.get(Evidence, row.retained_evidence_id)
@@ -2179,9 +2184,9 @@ def buying_chain_view(
                 role_stale = role_stale or source_superseded or role_aged
             # Assignment freshness is independent of a newly verified employment role.
             stale = stale or source_superseded or role_aged
-            if source_superseded or role_aged:
+            if source_superseded or role_aged or contact_aged:
                 invalid_supports.add(citation["supports"])
-            if not source_superseded and not role_aged:
+            if not source_superseded and not role_aged and not contact_aged:
                 current_supports.add(citation["supports"])
                 if citation["supports"] in {"project_organization", "organization_category"}:
                     current_organization_quotes.append(citation["quote"])
@@ -2203,7 +2208,8 @@ def buying_chain_view(
                     "observed_at": row.observed_at,
                     "content_hash": row.content_hash,
                     "current_source_version_id": newest_by_url[row.url],
-                    "current_support": not source_superseded and not role_aged,
+                    "current_support": not source_superseded and not role_aged and not contact_aged,
+                    "contact_stale": contact_aged and not source_superseded,
                 }
             )
         if not history:

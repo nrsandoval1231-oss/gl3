@@ -147,6 +147,37 @@ def test_failed_research_is_not_proof_information_is_not_public():
     assert field.value is None
 
 
+def test_owner_developer_is_headline_while_contractor_remains_in_buying_chain():
+    owner = party()
+    owner.update(
+        id=str(uuid4()),
+        company_identity_id=str(uuid4()),
+        organization="Orion Development",
+        category="owner_developer",
+    )
+    contractor = party()
+    contractor.update(
+        id=str(uuid4()),
+        company_identity_id=str(uuid4()),
+        organization="Example EPC",
+        category="epc",
+    )
+    card = assemble_card(
+        item(),
+        {"candidates": [contractor, owner]},
+        {"disposition": "RESEARCH"},
+        [],
+        research_enabled=False,
+    )
+    assert next(field for field in card.fields if field.key == "customer").value == (
+        "Orion Development"
+    )
+    assert [contact.company for contact in card.contacts] == [
+        "Orion Development",
+        "Example EPC",
+    ]
+
+
 @pytest.mark.parametrize("scalar", [False, True])
 def test_official_and_operator_gap_shapes_keep_same_arithmetic_and_provenance(scalar):
     record = item()

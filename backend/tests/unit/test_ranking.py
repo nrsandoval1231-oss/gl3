@@ -77,6 +77,31 @@ def test_conflict_and_listing_review_reduce_evidence_points():
     assert conflict < clean and absent < clean
 
 
+def test_stale_evidence_and_stale_buying_chain_do_not_increase_priority():
+    baseline = rank_opportunity(item(), None, TODAY)["rank_score"]
+    stale_evidence = rank_opportunity(
+        item(evidence=[{"event_date": TODAY.isoformat(), "assessment_current": False}]),
+        None,
+        TODAY,
+    )
+    stale_chain = rank_opportunity(
+        item(),
+        {
+            "candidates": [
+                {
+                    "category": "owner_developer",
+                    "organization_relationship": "DIRECT",
+                    "organization": "Example Owner",
+                    "stale": True,
+                }
+            ]
+        },
+        TODAY,
+    )
+    assert stale_evidence["rank_score"] == baseline
+    assert stale_chain["rank_score"] == baseline
+
+
 def test_responsible_contractor_counts_but_unknown_category_does_not():
     chain = {
         "candidates": [

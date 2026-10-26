@@ -27,7 +27,10 @@ class CompanyContact(IntelligenceContact):
     company_id: UUID
     project_ids: list[UUID] = Field(default_factory=list)
     verification_status: str = "Source verified; reachability and authority unconfirmed"
-    confidence: str = "High: literal contact method in current retained evidence"
+    confidence: str = (
+        "Literal method attributed to this company in current retained evidence; "
+        "deliverability and authority unconfirmed"
+    )
     phone_type: str = "unknown"
 
 
@@ -80,7 +83,8 @@ def project_contacts(company_id: UUID, views: dict) -> CompanyContacts:
                     company_id=company_id,
                     project_ids=[project_id],
                     confidence=(
-                        "High: literal contact method in current retained evidence"
+                        "Literal method attributed to this company in current retained evidence; "
+                        "deliverability and authority unconfirmed"
                         if contact.methods
                         else "Published role; no verified direct contact method"
                     ),
