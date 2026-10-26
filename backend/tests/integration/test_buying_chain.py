@@ -317,13 +317,40 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         assert refresh_job is not None
         refresh_payload = json.loads(refresh_job.checkpoint)["payload"]
         assert refresh_payload["refresh_due"] is True
-        refresh_job.status, refresh_job.lease_owner, refresh_job.fence = (
+        first_refresh_digest = json.loads(refresh_job.checkpoint)["request_digest"]
+        first_refresh_generation = json.loads(refresh_job.checkpoint)["refresh_generation"]
+        # Simulate the worker process failing before it can write a terminal
+        # receipt. The planner retries this generation after its one-hour
+        # failure backoff.
+        refresh_checkpoint = json.loads(refresh_job.checkpoint)
+        refresh_checkpoint["status"] = "failed"
+        refresh_job.checkpoint = json.dumps(refresh_checkpoint, separators=(",", ":"))
+        refresh_job.status = "failed"
+        refresh_job.error = "Synthetic worker failure before refresh receipt"
+        retry_at = refresh_at + timedelta(hours=1)
+        with evaluate_at(retry_at):
+            assert discovery.plan_company_contact_jobs(session, limit=1, now=retry_at) == 1
+        retry_job = session.scalar(
+            select(Job)
+            .where(
+                Job.kind == discovery.JOB_KIND,
+                Job.target_id == company_id,
+                Job.status == "queued",
+            )
+            .order_by(Job.created_at.desc(), Job.id.desc())
+        )
+        assert retry_job is not None and retry_job.id != refresh_job.id
+        retry_checkpoint = json.loads(retry_job.checkpoint)
+        assert retry_checkpoint["request_digest"] == first_refresh_digest
+        assert retry_checkpoint["refresh_generation"] == first_refresh_generation
+        assert retry_checkpoint["payload"]["refresh_due"] is True
+        retry_job.status, retry_job.lease_owner, retry_job.fence = (
             "running",
             "contact-test",
             1,
         )
-        refresh_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
-        refresh_job_id = refresh_job.id
+        retry_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        refresh_job_id = retry_job.id
         before_counts = (
             session.scalar(select(func.count()).select_from(BuyingChainClaim)),
             session.scalar(select(func.count()).select_from(BuyingChainEvidence)),
@@ -346,7 +373,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
             "Phone: (713) 651-7000\n"
             "Email: info@eogresources.com.\n"
             "\ufffd 2018-2026 EOG Resources, Inc. All rights reserved.",
-            observed_at=refresh_at,
+            observed_at=retry_at,
         )
 
     monkeypatch.setattr(discovery, "retrieve", refreshed_contact_page)
@@ -355,18 +382,18 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         "_search_official_urls",
         lambda *_args, **_kwargs: pytest.fail("stale cited URL should bypass paid discovery"),
     )
-    with evaluate_at(refresh_at):
+    with evaluate_at(retry_at):
         refreshed = discovery.process_company_contact_discovery(
             refresh_job_id,
             "contact-test",
             1,
-            now=refresh_at,
+            now=retry_at,
             deadline=time.monotonic() + 10,
         )
     assert refreshed["status"] == "complete"
     assert contact_page_url in refreshed_urls
     assert all("eogresources.com" in url for url in refreshed_urls)
-    with evaluate_at(refresh_at), db() as session:
+    with evaluate_at(retry_at), db() as session:
         current_projection = company_contacts(session, company_id)
         assert any(
             method["value"] == "info@eogresources.com"

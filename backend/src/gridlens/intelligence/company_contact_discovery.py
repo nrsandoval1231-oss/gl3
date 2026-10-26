@@ -348,7 +348,10 @@ def discover_company_contacts(
         default=None,
     )
     latest_checkpoint = _load_checkpoint(latest_job) if latest_job is not None else {}
-    refresh_due = bool(
+    # The explicit generation identifies a planner refresh retry. Preserve that
+    # intent even when the latest attempt failed; otherwise its digest changes
+    # and a worker may reuse a still-current named contact without refreshing it.
+    refresh_due = bool(refresh_generation) or bool(
         latest_job is not None
         and latest_job.status == "succeeded"
         and str(latest_checkpoint.get("status") or "").casefold() in {"complete", "partial"}
