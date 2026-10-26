@@ -129,7 +129,7 @@ def test_temporary_batch_rate_limit_stops_later_notice_requests(monkeypatch):
     assert records[2]["rejected_record"]["error_code"] == "document_deferred"
 
 
-def test_retry_after_over_bound_becomes_operator_review_hint(monkeypatch):
+def test_retry_after_over_bound_preserves_scheduled_deadline(monkeypatch):
     import gridlens.ingestion.adapters.tceq_nsr_pending as adapter
 
     _install_public_ip(monkeypatch)
@@ -149,6 +149,9 @@ def test_retry_after_over_bound_becomes_operator_review_hint(monkeypatch):
     )
     assert calls == 2
     assert records[0]["_acquisition_diagnostics"]["retry_after_exceeds_bound"] == 1
+    assert datetime.fromisoformat(
+        records[0]["_acquisition_diagnostics"]["retry_after_at"]
+    ) >= datetime.now(UTC) + timedelta(days=7)
 
 
 @pytest.fixture
@@ -199,7 +202,12 @@ def regional_db():
 
 @pytest.mark.parametrize(
     ("retry_after", "expected_state"),
-    [("120", "scheduled"), ("604801", "operator_review"), (None, "scheduled")],
+    [
+        ("120", "scheduled"),
+        ("604801", "scheduled"),
+        ("9" * 128, "retry_after_unrepresentable"),
+        (None, "scheduled"),
+    ],
 )
 def test_worker_preserves_partial_source_cooldown_and_prefix(
     regional_db, monkeypatch, retry_after, expected_state
@@ -289,6 +297,9 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
             retry_at = datetime.fromisoformat(source.health["retry_at"])
             assert retry_at >= datetime.now(UTC) + timedelta(seconds=119)
         elif retry_after == "604801":
+            retry_at = datetime.fromisoformat(source.health["retry_at"])
+            assert retry_at >= datetime.now(UTC) + timedelta(seconds=604799)
+        elif expected_state == "retry_after_unrepresentable":
             assert source.health["retry_at"] is None
         else:
             retry_at = datetime.fromisoformat(source.health["retry_at"])
@@ -296,7 +307,7 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
 
         queued_id = enqueue(session, source.id)
         queued = session.get(Job, queued_id)
-        if expected_state == "operator_review":
+        if expected_state == "retry_after_unrepresentable":
             assert queued.available_at.year == 9999
             assert lease_one(session, "test-worker", job_ids=[queued_id]) is None
         else:

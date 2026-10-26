@@ -1994,7 +1994,9 @@ def process_job(
                     "source_rate_limited",
                     "source_http_status",
                     "source_retry_after_seconds",
+                    "source_retry_after_at",
                     "source_retry_after_exceeds_bound",
+                    "source_retry_after_unrepresentable",
                 )
                 if key in acquisition
             }
@@ -2069,7 +2071,9 @@ def process_job(
                 "source_rate_limited",
                 "source_http_status",
                 "source_retry_after_seconds",
+                "source_retry_after_at",
                 "source_retry_after_exceeds_bound",
+                "source_retry_after_unrepresentable",
             )
             if key in acquisition
         }
@@ -2561,7 +2565,9 @@ def _normalize_source_acquisition(
     valid_rows: list[dict[str, Any]] = []
     rate_limit_seen = False
     retry_after_seconds: int | None = None
+    retry_after_at: str | None = None
     retry_after_exceeds_bound = False
+    retry_after_unrepresentable = False
     source_http_status: int | None = None
     seen_ids: set[str] = set()
     grouped: dict[str, list[int]] = {}
@@ -2595,12 +2601,16 @@ def _normalize_source_acquisition(
                 if not isinstance(metadata, dict) or set(metadata) - {
                     "http_status",
                     "retry_after_seconds",
+                    "retry_after_at",
                     "retry_after_exceeds_bound",
+                    "retry_after_unrepresentable",
                 }:
                     raise SourceParseError("Acquisition diagnostics are invalid")
                 status = metadata.get("http_status")
                 delay = metadata.get("retry_after_seconds")
+                raw_retry_at = metadata.get("retry_after_at")
                 excessive = metadata.get("retry_after_exceeds_bound")
+                unrepresentable = metadata.get("retry_after_unrepresentable")
                 if status is not None and (
                     type(status) is not int
                     or not (status == 429 or status in {408, 425} or status >= 500)
@@ -2613,14 +2623,42 @@ def _normalize_source_acquisition(
                     type(delay) is not int or not 0 <= delay <= MAX_RETRY_AFTER_SECONDS
                 ):
                     raise SourceParseError("Acquisition retry delay is invalid")
+                parsed_retry_at = None
+                if raw_retry_at is not None:
+                    if not isinstance(raw_retry_at, str) or len(raw_retry_at) > 40:
+                        raise SourceParseError("Acquisition retry deadline is invalid")
+                    try:
+                        parsed_retry_at = datetime.fromisoformat(raw_retry_at)
+                    except ValueError as exc:
+                        raise SourceParseError("Acquisition retry deadline is invalid") from exc
+                    if parsed_retry_at.tzinfo is None:
+                        raise SourceParseError("Acquisition retry deadline must include a timezone")
+                    parsed_retry_at = parsed_retry_at.astimezone(UTC)
                 if excessive is not None and (type(excessive) is not int or excessive != 1):
                     raise SourceParseError("Acquisition retry bound marker is invalid")
-                rate_limit_seen = status == 429 or delay is not None or excessive == 1
+                if unrepresentable is not None and (
+                    type(unrepresentable) is not int or unrepresentable != 1
+                ):
+                    raise SourceParseError("Acquisition retry deadline marker is invalid")
+                if unrepresentable == 1 and parsed_retry_at is not None:
+                    raise SourceParseError("Acquisition retry deadline markers conflict")
+                rate_limit_seen = (
+                    status == 429
+                    or delay is not None
+                    or parsed_retry_at is not None
+                    or excessive == 1
+                )
                 if status is not None:
                     source_http_status = status
                 if delay is not None:
                     retry_after_seconds = max(retry_after_seconds or 0, delay)
                 retry_after_exceeds_bound = retry_after_exceeds_bound or excessive == 1
+                if parsed_retry_at is not None and (
+                    retry_after_at is None
+                    or parsed_retry_at > datetime.fromisoformat(retry_after_at)
+                ):
+                    retry_after_at = parsed_retry_at.isoformat()
+                retry_after_unrepresentable = retry_after_unrepresentable or unrepresentable == 1
             rejection = row.get("rejected_record")
             if rejection is None:
                 rejection = rejected_record(
@@ -2714,8 +2752,12 @@ def _normalize_source_acquisition(
                 normalized["source_http_status"] = source_http_status
             if retry_after_seconds is not None:
                 normalized["source_retry_after_seconds"] = retry_after_seconds
+            if retry_after_at is not None:
+                normalized["source_retry_after_at"] = retry_after_at
             if retry_after_exceeds_bound:
                 normalized["source_retry_after_exceeds_bound"] = True
+            if retry_after_unrepresentable:
+                normalized["source_retry_after_unrepresentable"] = True
         return normalized
     return valid_rows
 

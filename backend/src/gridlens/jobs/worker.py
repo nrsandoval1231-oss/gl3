@@ -109,6 +109,7 @@ _SCHEDULE_RECENT_CAP = 256
 _SCHEDULE_HISTORY_CAP = 256
 _SCHEDULE_EPOCH_CAP = 64
 _DUE_ASSIGNMENT_CAP = 100
+_PLANNER_SUCCESS_INTERVAL = timedelta(hours=1)
 
 
 def _effective_enabled(source: Source) -> bool:
@@ -625,7 +626,12 @@ def _acquisition_retry_class(error: BaseException, diagnostics: dict) -> str:
     """Retry only known transient transport, rate-limit, and server failures."""
     from gridlens.ingestion.adapters.federal_register import SourceParseError
 
-    if diagnostics.get("retry_after_exceeds_bound") == 1:
+    if diagnostics.get("retry_after_unrepresentable") == 1:
+        return "PERMANENT"
+    if (
+        diagnostics.get("retry_after_exceeds_bound") == 1
+        and _retry_after_deadline(diagnostics.get("retry_after_at")) is None
+    ):
         return "PERMANENT"
     status = diagnostics.get("http_status")
     if type(status) is int:
@@ -635,6 +641,18 @@ def _acquisition_retry_class(error: BaseException, diagnostics: dict) -> str:
     if isinstance(error, SourceParseError) or diagnostics.get("error_code") == "source_parse_error":
         return "PERMANENT"
     return "BOUNDED_UNKNOWN"
+
+
+def _retry_after_deadline(raw: object) -> datetime | None:
+    if not isinstance(raw, str) or len(raw) > 40:
+        return None
+    try:
+        deadline = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if deadline.tzinfo is None:
+        return None
+    return deadline.astimezone(UTC)
 
 
 def _defer_public_acquisition(job_id: UUID, worker_id: str, fence: int) -> None:
@@ -1092,9 +1110,17 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 rate_limited = counts.get("source_rate_limited") is True
                 retry_after_seconds = counts.get("source_retry_after_seconds")
                 retry_after_exceeds_bound = counts.get("source_retry_after_exceeds_bound") is True
+                retry_after_deadline = _retry_after_deadline(counts.get("source_retry_after_at"))
+                retry_after_unrepresentable = (
+                    counts.get("source_retry_after_unrepresentable") is True
+                )
                 throttle_status = counts.get("source_http_status", 429)
                 retry_at = None
-                if rate_limited and not retry_after_exceeds_bound:
+                if (
+                    rate_limited
+                    and not retry_after_unrepresentable
+                    and not (retry_after_exceeds_bound and retry_after_deadline is None)
+                ):
                     from gridlens.jobs.retry import jittered_delay_seconds
 
                     delay_seconds = jittered_delay_seconds(
@@ -1106,6 +1132,8 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     if type(retry_after_seconds) is int:
                         delay_seconds = max(delay_seconds, retry_after_seconds)
                     retry_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
+                    if retry_after_deadline is not None:
+                        retry_at = max(retry_at, retry_after_deadline)
                 source.health = {
                     **source.health,
                     "status": "Partial",
@@ -1149,9 +1177,11 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     if rate_limited
                     else source.health.get("retry_at"),
                     "retry_state": (
-                        "operator_review"
-                        if rate_limited and retry_after_exceeds_bound
+                        "retry_after_unrepresentable"
+                        if rate_limited and retry_after_unrepresentable
                         else "scheduled"
+                        if rate_limited and retry_at is not None
+                        else "terminal"
                         if rate_limited
                         else source.health.get("retry_state", "not_scheduled")
                     ),
@@ -1182,6 +1212,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "parse_failures": 0,
                     "retry_class": None,
                     "retry_at": None,
+                    "retry_state": "not_scheduled",
                     "error": None,
                     "error_code": None,
                     "error_stage": None,
@@ -1388,11 +1419,9 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
 
                 retry_at = None
                 retry_after_seconds = diagnostics.get("retry_after_seconds")
-                source_retry_at = (
-                    datetime.now(UTC) + timedelta(seconds=retry_after_seconds)
-                    if type(retry_after_seconds) is int
-                    else None
-                )
+                retry_after_deadline = _retry_after_deadline(diagnostics.get("retry_after_at"))
+                retry_after_unrepresentable = diagnostics.get("retry_after_unrepresentable") == 1
+                source_retry_at = retry_after_deadline
                 if should_retry:
                     delay_seconds = jittered_delay_seconds(
                         str(failed_job.id),
@@ -1403,6 +1432,8 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     if type(retry_after_seconds) is int:
                         delay_seconds = max(delay_seconds, retry_after_seconds)
                     retry_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
+                    if retry_after_deadline is not None:
+                        retry_at = max(retry_at, retry_after_deadline)
                     failed_job.available_at = retry_at
                     source_retry_at = retry_at
                 failed_job.lease_until, failed_job.lease_owner = None, None
@@ -1463,10 +1494,10 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "retry_class": retry_class,
                     "retry_at": source_retry_at.isoformat() if source_retry_at else None,
                     "retry_state": (
-                        "operator_review"
-                        if diagnostics.get("retry_after_exceeds_bound") == 1
+                        "retry_after_unrepresentable"
+                        if retry_after_unrepresentable
                         else "scheduled"
-                        if source_retry_at is not None
+                        if source_retry_at is not None and not retry_after_unrepresentable
                         else "terminal"
                     ),
                     "attempt_fetched": None,
@@ -1624,7 +1655,27 @@ def _run_planner(planner_key: str, action) -> bool:
     now = datetime.now(UTC)
     if time.monotonic() < _PLANNER_RETRY_MONOTONIC.get(planner_key, 0):
         return False
+    # A worker deployment may have several replicas. Keep the planner claim on
+    # a dedicated PostgreSQL session for the full action so only one replica
+    # runs a planner cycle at a time. Session advisory locks need explicit
+    # release before returning a pooled connection.
+    claim_connection = None
+    claimed_lock = False
     try:
+        engine = SessionLocal.kw.get("bind")
+        if engine is None:
+            raise RuntimeError("Planner claim requires a bound database engine")
+        claim_connection = engine.connect()
+        claimed = claim_connection.scalar(
+            text("SELECT pg_try_advisory_lock(hashtextextended(:planner_key, 0))"),
+            {"planner_key": f"gridlens:planner:{planner_key}"},
+        )
+        if not claimed:
+            return False
+        claimed_lock = True
+        # End the claim query's transaction but retain the session-level lock;
+        # this avoids holding a read snapshot open during a long planner run.
+        claim_connection.commit()
         with SessionLocal() as session:
             state = session.get(PlannerState, planner_key)
             if state and state.next_retry_at and state.next_retry_at > now:
@@ -1638,7 +1689,7 @@ def _run_planner(planner_key: str, action) -> bool:
             state.last_attempt_at = now
             state.last_success_at = now
             state.consecutive_failures = 0
-            state.next_retry_at = now + timedelta(hours=1)
+            state.next_retry_at = now + _PLANNER_SUCCESS_INTERVAL
             state.error_class = None
         _PLANNER_RETRY_MONOTONIC.pop(planner_key, None)
         _PLANNER_FAILURES.pop(planner_key, None)
@@ -1665,6 +1716,25 @@ def _run_planner(planner_key: str, action) -> bool:
         except Exception:
             pass
         return False
+    finally:
+        if claim_connection is not None:
+            if claim_connection.in_transaction():
+                claim_connection.rollback()
+            try:
+                if claimed_lock:
+                    released = claim_connection.scalar(
+                        text("SELECT pg_advisory_unlock(hashtextextended(:planner_key, 0))"),
+                        {"planner_key": f"gridlens:planner:{planner_key}"},
+                    )
+                    claim_connection.commit()
+                    if not released:
+                        logger.error("planner %s claim was not held at release", planner_key)
+            except Exception:
+                # Never return a possibly locked backend session to the pool.
+                logger.exception("failed to release planner %s claim", planner_key)
+                claim_connection.invalidate()
+            finally:
+                claim_connection.close()
     return True
 
 

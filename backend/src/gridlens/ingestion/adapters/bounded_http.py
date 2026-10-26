@@ -217,8 +217,12 @@ def _safe_acquisition_error(exc: BaseException) -> BaseException:
         safe.acquisition_stage = diagnostics["error_stage"]  # type: ignore[attr-defined]
     if type(diagnostics.get("retry_after_seconds")) is int:
         safe.acquisition_retry_after_seconds = diagnostics["retry_after_seconds"]  # type: ignore[attr-defined]
+    if isinstance(diagnostics.get("retry_after_at"), str):
+        safe.acquisition_retry_after_at = diagnostics["retry_after_at"]  # type: ignore[attr-defined]
     if diagnostics.get("retry_after_exceeds_bound") == 1:
         safe.acquisition_retry_after_exceeds_bound = True  # type: ignore[attr-defined]
+    if diagnostics.get("retry_after_unrepresentable") == 1:
+        safe.acquisition_retry_after_unrepresentable = True  # type: ignore[attr-defined]
     return safe
 
 

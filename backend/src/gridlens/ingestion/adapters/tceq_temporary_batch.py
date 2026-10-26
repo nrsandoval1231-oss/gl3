@@ -226,7 +226,9 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                         for key in (
                             "http_status",
                             "retry_after_seconds",
+                            "retry_after_at",
                             "retry_after_exceeds_bound",
+                            "retry_after_unrepresentable",
                         )
                         if key in diagnostics
                     }
