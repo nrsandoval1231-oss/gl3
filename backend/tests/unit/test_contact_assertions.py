@@ -1,7 +1,11 @@
+import importlib.util
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -386,6 +390,41 @@ def test_conflicted_suppression_history_fails_closed_and_cannot_be_reinstated(co
                 actor="reviewer",
                 idempotency_key="retry",
             )
+
+
+def test_suppression_migration_refuses_populated_rollback(contact_db):
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "migrations"
+        / "versions"
+        / "0045_contact_suppressions.py"
+    )
+    spec = importlib.util.spec_from_file_location("contact_suppressions_migration", migration_path)
+    assert spec is not None and spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    with contact_db() as session:
+        connection = session.connection()
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.downgrade()
+            migration.upgrade()
+        session.add(
+            ContactSuppression(
+                scope="company",
+                subject_key="1" * 64,
+                expected_version=0,
+                version=1,
+                action="suppress",
+                reason="privacy request",
+                actor="privacy-ops",
+                idempotency_key="migration-rollback-guard",
+            )
+        )
+        session.flush()
+        with Operations.context(MigrationContext.configure(connection)):
+            with pytest.raises(RuntimeError, match="retained privacy history"):
+                migration.downgrade()
+        assert session.query(ContactSuppression).count() == 1
 
 
 def test_correction_writer_rejects_forged_role_and_wrong_project_replay(contact_db):

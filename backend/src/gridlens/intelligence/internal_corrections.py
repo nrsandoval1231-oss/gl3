@@ -97,8 +97,7 @@ def correct_buying_chain_claim(
         if set(values) - allowed:
             raise ValueError("correction contains unsupported fields")
         if "category" in values and (
-            not isinstance(values["category"], str)
-            or values["category"] not in CATEGORY_PRIORITY
+            not isinstance(values["category"], str) or values["category"] not in CATEGORY_PRIORITY
         ):
             raise ValueError("unsupported buying-chain category")
         for field in ("organization", "person_name", "title"):
