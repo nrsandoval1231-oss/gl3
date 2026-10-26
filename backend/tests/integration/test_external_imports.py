@@ -26,6 +26,7 @@ from gridlens.intelligence.company_contact_discovery import (
     plan_company_contact_jobs,
 )
 from gridlens.intelligence.external_imports import (
+    MAX_COMPANY_HYPERLINK_TARGET_BYTES,
     _is_hyperlink_sidecar,
     _metadata_sidecar_keys,
     company_hyperlink_hints,
@@ -579,6 +580,14 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
         history = import_history(session)
         assert history[0]["recovered_unverified_hyperlink_hint_count"] == 6
 
+        oversized_hint = {
+            "sheet": original_row.sheet,
+            "row_number": original_row.row_number,
+            "column": "oversized",
+            "url": None,
+            "target": "https://example.gov/" + "é" * 2048,
+            "verification_status": "UNVERIFIED_SOURCE_HINT",
+        }
         many_hints = [
             {
                 "sheet": original_row.sheet,
@@ -590,16 +599,7 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
             }
             for index in range(150)
         ]
-        many_hints.append(
-            {
-                "sheet": original_row.sheet,
-                "row_number": original_row.row_number,
-                "column": "oversized",
-                "url": None,
-                "target": "https://example.gov/" + "é" * 2048,
-                "verification_status": "UNVERIFIED_SOURCE_HINT",
-            }
-        )
+        many_hints.insert(0, oversized_hint)
         session.add(
             ExternalImportEvent(
                 batch_id=original_row.batch_id,
@@ -619,11 +619,22 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
         )
         session.get(ExternalImportActivation, original_row.id).active = True
         session.flush()
+        bounded_statements = []
+
+        def capture_bounded_query(_conn, _cursor, statement, parameters, _context, _many):
+            if "SELECT external_import_rows.id" in statement:
+                bounded_statements.append((statement, parameters))
+
+        sqlalchemy_event.listen(session.get_bind(), "before_cursor_execute", capture_bounded_query)
         bounded = company_hyperlink_hints(session, matched_company_id)
+        sqlalchemy_event.remove(session.get_bind(), "before_cursor_execute", capture_bounded_query)
         assert bounded["metadata_hints_may_be_truncated"] is True
         assert bounded["hints_returned"] == 64
         assert len(bounded["urls"]) == 8
+        assert "https://example.gov/permits/0" in bounded["urls"]
         assert bounded["urls_truncated"] is True
+        assert "octet_length" in bounded_statements[0][0]
+        assert MAX_COMPANY_HYPERLINK_TARGET_BYTES in bounded_statements[0][1].values()
 
 
 def test_fresh_hyperlink_stage_replay_does_not_add_a_reparse_event(import_db):
