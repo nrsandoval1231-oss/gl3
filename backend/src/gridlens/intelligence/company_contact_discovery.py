@@ -592,6 +592,9 @@ def discover_company_contacts(
 def _known_contact_urls(session: Session, company_id: UUID, projects: list[Project]) -> list[str]:
     """Reuse only source-cited contact URLs or earlier checked company pages."""
     urls: list[str] = []
+    import_urls: list[str] = []
+    contact_urls: list[str] = []
+    organization_urls: list[str] = []
     for row, _content_hash in _active_import_rows(session, company_id):
         imported_fields = row.normalized if isinstance(row.normalized, dict) else {}
         domain = imported_fields.get("domain")
@@ -603,18 +606,32 @@ def _known_contact_urls(session: Session, company_id: UUID, projects: list[Proje
             continue
         parsed = urlsplit(hint)
         if parsed.hostname and parsed.scheme == "https" and parsed.path in {"", "/"}:
-            urls.append(hint)
+            import_urls.append(hint)
     for project in projects[:4]:
         view = buying_chain_view(session, project.id)
         for item in view["candidates"]:
             if str(item.get("company_identity_id")) != str(company_id):
                 continue
             for citation in item["evidence"]:
-                if citation.get("supports") != "public_contact" or not (
+                support = citation.get("supports")
+                # A current, company-linked organization claim can itself cite
+                # an official company page. Treat that exact immutable source
+                # as an untrusted candidate URL; the worker still requires the
+                # fetched page to self-identify as this company before it can
+                # persist any contact. Stale organization evidence is never a
+                # discovery seed.
+                current_organization_source = support == "project_organization" and citation.get(
+                    "current_support"
+                )
+                current_contact_source = support == "public_contact" and (
                     citation.get("current_support") or citation.get("contact_stale")
-                ):
+                )
+                if not (current_organization_source or current_contact_source):
                     continue
-                urls.append(citation["url"])
+                if current_organization_source:
+                    organization_urls.append(citation["url"])
+                else:
+                    contact_urls.append(citation["url"])
     jobs = session.scalars(
         select(Job)
         .where(
@@ -633,6 +650,10 @@ def _known_contact_urls(session: Session, company_id: UUID, projects: list[Proje
         if checkpoint.get("status") not in {"complete", "partial", "unresolved"}:
             continue
         urls.extend(checkpoint.get("checked_urls", []))
+    # A prior literal contact source is more useful for a refresh than another
+    # untrusted organization-source candidate. Keep it first so the four-URL
+    # standard cap cannot starve a known method refresh.
+    urls = [*contact_urls, *import_urls, *organization_urls, *urls]
     valid: list[str] = []
     for url in urls:
         try:
@@ -1733,7 +1754,9 @@ def _discover_anchor(
     if not documents and not registry_method:
         return {"status": "unresolved", "reason": "official_identity_unverified"}
     contacts = []
-    citations = list(old.citations)
+    # JSON columns return mutable nested objects; copy each row so rebinding an
+    # exact current relationship citation cannot rewrite the historical claim.
+    citations = [dict(item) for item in old.citations]
     evidence_ids = []
     sources_by_url: dict[str, BuyingChainEvidence] = {}
     for doc in documents:
@@ -1891,6 +1914,34 @@ def _discover_anchor(
             (item["evidence_id"], item["supports"], item["quote"]): item for item in citations
         }.values()
     )
+    old_link = session.scalar(
+        select(BuyingChainIdentityLink).where(
+            BuyingChainIdentityLink.claim_id == old.id,
+            BuyingChainIdentityLink.entity_type == "company",
+            BuyingChainIdentityLink.company_identity_id == company_id,
+            BuyingChainIdentityLink.state == "current",
+        )
+    )
+    if old_link is None:
+        raise ValueError("Canonical company link changed during contact persistence")
+    # When the fetched URL is also the relationship source, retain identity
+    # linkage only if that current page still contains the exact organization
+    # quote. Point the copied claim at that current evidence version so the
+    # normal identity projector can verify the link without accepting stale
+    # support.
+    rebound_identity_source: BuyingChainEvidence | None = None
+    for citation in citations:
+        current_source = sources_by_url.get(str(citation.get("url") or ""))
+        quote = str(citation.get("quote") or "")
+        if (
+            citation.get("supports") == "project_organization"
+            and str(citation.get("evidence_id")) == str(old_link.source_evidence_id)
+            and current_source is not None
+            and quote
+            and quote in current_source.excerpt
+        ):
+            citation["evidence_id"] = str(current_source.id)
+            rebound_identity_source = current_source
     state = {
         "policy_version": "company-contacts-v1",
         "organization": old.organization,
@@ -1931,16 +1982,6 @@ def _discover_anchor(
         )
         session.add(copy)
         session.flush()
-    old_link = session.scalar(
-        select(BuyingChainIdentityLink).where(
-            BuyingChainIdentityLink.claim_id == old.id,
-            BuyingChainIdentityLink.entity_type == "company",
-            BuyingChainIdentityLink.company_identity_id == company_id,
-            BuyingChainIdentityLink.state == "current",
-        )
-    )
-    if old_link is None:
-        raise ValueError("Canonical company link changed during contact persistence")
     copy_link = session.scalar(
         select(BuyingChainIdentityLink).where(
             BuyingChainIdentityLink.claim_id == copy.id,
@@ -1949,6 +1990,16 @@ def _discover_anchor(
         )
     )
     if copy_link is None:
+        link_source_id = (
+            rebound_identity_source.id
+            if rebound_identity_source is not None
+            else old_link.source_evidence_id
+        )
+        link_source_hash = (
+            rebound_identity_source.content_hash
+            if rebound_identity_source is not None
+            else old_link.source_version_hash
+        )
         session.add(
             BuyingChainIdentityLink(
                 claim_id=copy.id,
@@ -1956,8 +2007,8 @@ def _discover_anchor(
                 company_identity_id=company_id,
                 reason="Unchanged project relationship citation across contact revision.",
                 basis=old_link.basis,
-                source_evidence_id=old_link.source_evidence_id,
-                source_version_hash=old_link.source_version_hash,
+                source_evidence_id=link_source_id,
+                source_version_hash=link_source_hash,
                 state="current",
             )
         )

@@ -42,6 +42,7 @@ from gridlens.persistence.models import (
     BuyingChainIdentityLink,
     BuyingChainRun,
     CompanyIdentity,
+    CompanyProjectMembership,
     Evidence,
     IdentityIdentifier,
     Interpretation,
@@ -261,7 +262,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
     result = discovery.process_company_contact_discovery(
         job_id, "contact-test", 1, now=NOW, deadline=inherited_deadline
     )
-    assert result["status"] == "complete"
+    assert result["status"] == "complete", result
     assert seen_deadlines and all(value == inherited_deadline for value in seen_deadlines)
     with db.begin() as session:
         projected = company_contacts(session, company_id)
@@ -5475,3 +5476,198 @@ def test_projected_owner_role_method_clears_buyer_relevant_gap_without_authority
         assert jordan.methods[0]["value"] == "jordan@acme.example"
         assert jordan.purchasing_authority == "Requires confirmation for this power package"
         assert _contact_research_gaps(session, company_id) == (False, False)
+
+
+@pytest.mark.parametrize(
+    ("page_text", "expected_status", "expected_projected_method"),
+    [
+        (
+            "Acme Energy\nAcme Energy is the developer for Orion Data Center in Austin, TX.\n"
+            "Email: info@acme-energy.example\n"
+            "© 2026 Acme Energy, Inc. All rights reserved.",
+            "complete",
+            True,
+        ),
+        (
+            "Unrelated Company\nEmail: contact@unrelated.example\n"
+            "© 2026 Unrelated Company. All rights reserved.",
+            "unresolved",
+            False,
+        ),
+        (
+            "Acme Energy\nEmail: info@acme-energy.example\n"
+            "© 2026 Acme Energy, Inc. All rights reserved.",
+            "complete",
+            False,
+        ),
+    ],
+)
+def test_current_company_source_is_untrusted_but_useful_cold_start_seed(
+    db, monkeypatch, page_text, expected_status, expected_projected_method
+):
+    """Planner-to-worker reuse fetches a cited company page, then verifies its publisher."""
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import Job, Observation
+
+    company_url = "https://acme-energy.example/about/"
+    with db.begin() as session:
+        project = seed(session, external_id="company-source-contact-cold-start")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "company-source-contact-cold-start")
+        )
+        assert evidence is not None
+        evidence.url = company_url
+        evidence.abstract = "Acme Energy is the developer for Orion Data Center in Austin, TX."
+        observation = session.get(Observation, evidence.observation_id)
+        assert observation is not None
+        observation.url = company_url
+        chain = enrich_buying_chain(session, project.id, now=NOW, retained_only=True)
+        candidate = next(row for row in chain["candidates"] if row["organization"] == "Acme Energy")
+        company_id = UUID(candidate["company_identity_id"])
+        historical_claim_id = candidate["id"]
+        historical_claim = session.get(BuyingChainClaim, historical_claim_id)
+        assert historical_claim is not None
+        historical_citations = json.loads(json.dumps(historical_claim.citations))
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=company_id,
+                project_id=project.id,
+                role="owner_developer",
+                organization_name="Acme Energy",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_owner_membership_v1",
+                operator_number="123456",
+                state="current",
+            )
+        )
+        session.flush()
+        assert discovery._known_contact_urls(session, company_id, [project]) == [company_url]
+        assert discovery._projects(session, company_id) == [project]
+        assert discovery._select_anchor_project(session, [project], company_id) is project
+        assert discovery._contact_research_gaps(session, company_id) == (True, True)
+        assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 1
+        job = session.scalar(
+            select(Job)
+            .where(Job.kind == discovery.JOB_KIND, Job.target_id == company_id)
+            .order_by(Job.created_at.desc(), Job.id.desc())
+        )
+        assert job is not None
+        checkpoint = json.loads(job.checkpoint)
+        assert checkpoint["payload"]["candidate_urls"] == []
+        job.status = "running"
+        job.lease_owner = "contact-cold-start-test"
+        job.fence = 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job.created_at = NOW
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: PublicDocument(url, "Company page", page_text, observed_at=NOW),
+    )
+    result = discovery.process_company_contact_discovery(
+        job_id, "contact-cold-start-test", 1, now=NOW
+    )
+    assert result["status"] == expected_status
+    with db.begin() as session:
+        projected = company_contacts(session, company_id)
+        methods = [method for contact in projected.contacts for method in contact.methods]
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert bool(methods) is expected_projected_method
+        assert session.get(BuyingChainClaim, historical_claim_id).citations == historical_citations
+        assert checkpoint["checked_urls"] == [company_url]
+        if expected_status == "unresolved":
+            assert result["results"][0]["reason"] == "official_identity_unverified"
+
+
+def test_current_contact_refresh_seed_precedes_organization_discovery_seeds(db, monkeypatch):
+    from uuid import uuid4
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-refresh-seed-priority")
+        company_id = uuid4()
+        org_sources = [
+            {
+                "supports": "project_organization",
+                "current_support": True,
+                "url": f"https://source-{index}.example/record",
+            }
+            for index in range(5)
+        ]
+        contact_source = {
+            "supports": "public_contact",
+            "current_support": True,
+            "url": "https://acme.example/contact",
+        }
+        monkeypatch.setattr(
+            discovery,
+            "buying_chain_view",
+            lambda *_args, **_kwargs: {
+                "candidates": [
+                    {
+                        "company_identity_id": str(company_id),
+                        "evidence": [*org_sources, contact_source],
+                    }
+                ]
+            },
+        )
+        urls = discovery._known_contact_urls(session, company_id, [project])
+        assert urls[0] == "https://acme.example/contact"
+        assert len(urls[: discovery.MAX_CANDIDATE_URLS]) == discovery.MAX_CANDIDATE_URLS
+        assert "https://acme.example/contact" in urls[: discovery.MAX_CANDIDATE_URLS]
+
+
+def test_organization_discovery_seeds_require_current_company_and_public_url(db, monkeypatch):
+    from uuid import uuid4
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-org-seed-scope")
+        company_id, other_company_id = uuid4(), uuid4()
+        monkeypatch.setattr(
+            discovery,
+            "buying_chain_view",
+            lambda *_args, **_kwargs: {
+                "candidates": [
+                    {
+                        "company_identity_id": str(company_id),
+                        "evidence": [
+                            {
+                                "supports": "project_organization",
+                                "current_support": False,
+                                "url": "https://stale.example/company",
+                            },
+                            {
+                                "supports": "project_organization",
+                                "current_support": True,
+                                "url": "http://127.0.0.1/admin",
+                            },
+                        ],
+                    },
+                    {
+                        "company_identity_id": str(other_company_id),
+                        "evidence": [
+                            {
+                                "supports": "project_organization",
+                                "current_support": True,
+                                "url": "https://other.example/company",
+                            }
+                        ],
+                    },
+                ]
+            },
+        )
+        assert discovery._known_contact_urls(session, company_id, [project]) == []
