@@ -1997,9 +1997,9 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             ).where(lineage_query.c.lineage_row <= MAX_PERSON_PRIVACY_LINEAGE_LINKS + 1)
         ).all()
         for row in bounded_lineage_rows:
-            pair = (row.project_id, row.entity_key)
+            lineage_pair = (row.project_id, row.entity_key)
             if row.lineage_row > MAX_PERSON_PRIVACY_LINEAGE_LINKS:
-                lineage_overflow_pairs.add(pair)
+                lineage_overflow_pairs.add(lineage_pair)
             else:
                 lineage_links.append(row)
     company_by_claim = {
@@ -2049,7 +2049,7 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             kind = correction_values.get("public_contact_kind") or "general"
             if isinstance(value, str) and value.strip():
                 retained_values.add((str(kind), value.strip()))
-        strings = []
+        strings: list[str] = []
 
         def collect_strings(value, key="", out=strings):
             if isinstance(value, str):
