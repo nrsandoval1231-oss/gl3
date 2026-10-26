@@ -10,7 +10,7 @@
   "production_data_mutations": [],
   "paid_provider_activations": [],
   "final_engineering_validation": {
-    "status": "COMPONENT_CHECKS_PASS_FINAL_INDEPENDENT_CLOSEOUT_PENDING",
+    "status": "PASS_PINNED_BACKEND_AND_FINAL_FRONTEND_COMPONENTS",
     "ruff": "PASS: 376 source/test files formatted; lint passed",
     "mypy": "PASS:173 source files",
     "frontend_typecheck_and_build": "PASS on final web tree, recorded in browser-operations.md",
@@ -172,6 +172,6 @@
   "identity_recheck": "identity-binding-recheck.json",
   "contact_transport_evidence": "contact-transport-probe.json",
   "local_validation": "local-validation.json",
-  "independent_engineering_acceptance": "PENDING_FINAL_RECEIPT",
-  "latest_published_candidate_ci": "PENDING_FINAL_SOURCE_PUBLICATION"
+  "independent_engineering_acceptance": "ACCEPTED: final component review in commit 2764c97",
+  "latest_published_candidate_ci": "PENDING_FRESH_COMBINED_PUBLICATION_RUN"
 }
