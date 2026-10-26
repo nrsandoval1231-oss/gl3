@@ -151,6 +151,18 @@ These are four distinct cases, with A exercised in two cohorts. They used the re
 
 Frontend validation is tracked by its exact tree rather than attributed to the earlier CI frontend. The local frontend runner's API checkout differs from `899e288` by the PostgreSQL DDL conditional and backend tests. That conditional preserves PostgreSQL constraint behavior, but it also changes the source-derived saved-browse policy hash. Therefore the final real-case API and projection build must both use backend `899e288`; an old-source projection rejected by the current API is not evidence that a project or contact is absent. No freshness/cohort guard may be disabled to make a browser check pass.
 
+## Durable final combined CI closure
+
+The independent reviewer verified [CI run 40358098701](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40358098701) through GitHub run metadata, all job conclusions and the raw backend/browser job log (`121695882773`). It completed successfully at published commit `2e3ee8886ce92b21f84ca8d0e009704860b5a66b`:
+
+- **3,138 backend tests passed, one optional probe skipped, eight warnings; 753.85 seconds.**
+- **124 browser regression/authentication tests passed; 1.2 minutes.** This is the final hydrated frontend, not the earlier 121-test UI.
+- Ruff and formatting (376 files), mypy (173 source files), fresh/repeat migrations, schema drift, dependency audits, web typecheck/build and brand jobs passed. The migration check reported no new upgrade operations; dependency audits reported no known vulnerabilities.
+
+The tested full Git tree is `7005c5d5b23b1f35b3b8f3d6d03d8c2495453d9b`. The subsequent governance-only merge `380ac45dedb201af8c50055deb05f54f77744c3a` has that identical full tree; the reviewer independently confirmed an empty file diff. Backend tree `15d841cede446686d033b83b07d1e8a4a3ed2879` and frontend tree `7c3060721aeac7dfca90b50386d229e65843cd00` remain unchanged. This combined CI provides durable, independently retrieved evidence for the final 124-test UI and supersedes the earlier terminal-only limitation for engineering acceptance. It does not retroactively create a raw archive for that earlier local run.
+
+**Engineering acceptance is confirmed on the final combined published tree. Commercial release and deployment remain NOT ACCEPTED.** Neither passing tests nor the content-identical ancestry merge supplies missing qualified projects, named/direct methods, commercial actionability, complete A/B commercial validation, production access or logical restore proof. This closure changes no source, data, threshold or release authorization.
+
 ## Historical interim source and repair readback
 
 Application candidate reviewed: **`8b25d888211c90ed93b9188c698a89ec3f938277`**, including the complete source delta from baseline `29c4fe0`. **No remaining implementation blocker was found in this delta.** This accepts the source review, not full regression or commercial release. Exact-candidate full backend/browser gates and the commercial/production requirements above remain pending.
