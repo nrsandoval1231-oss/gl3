@@ -1,0 +1,138 @@
+{
+  "status": "EXACT_SOURCE_LOCAL_BINDING_RECOVERY_VERIFIED; COMMERCIAL_GATES_UNCHANGED",
+  "observed_at": "2026-10-26T15:07:06.185092+00:00",
+  "database": "gridlens_release_contacts_pipeline",
+  "frozen_manifest_sha256": "caf580c68b3ecb425e97ac44f0b53ae413e06f63baf6c5a2d00880ec9d9197ec",
+  "source_commit": "75724eb",
+  "source_file_equivalence": "Agent checked identity_reconciliation.py and test_buying_chain.py hashes against git show75724eb before applying the normal retained service.",
+  "original_measurement": "cohort-api-adjudication.json retains the pre-repair IDs and explicitly corrected21-primary-company denominator. This supplement does not overwrite the original API hashes.",
+  "artifact_sha256": {
+    "before": "b086886de475517bce520ddf11abd0f8713232236e24fedb2f2c13fa295780f2",
+    "after": "2d960aab1de060104236ead787d81b9bb277f6017853955e266acbc29d5b3368",
+    "binding": "c62433761755372b4b07b4a1f80b27e7148c8c1e33743135d579d29df3967faf",
+    "replay": "c1e13ff4ad3364c66b586032b3301f9fab794a1037128561fa08440b1e4660a8"
+  },
+  "convergence": {
+    "projects_repaired": 4,
+    "company_ids_across_all_current_candidate_roles_before": 25,
+    "company_ids_across_all_current_candidate_roles_after": 21,
+    "unique_primary_organization_company_ids_before_and_after": 21,
+    "project_route_occurrences_before_and_after": 25,
+    "stable_person_identity_ids": 4,
+    "unchanged_unique_company_methods": 4,
+    "person_bound_methods_before_and_after": 0,
+    "old_links_preserved_superseded": 4,
+    "source_evidence_version_maps_unchanged": true,
+    "second_replay_added_jobs": 0
+  },
+  "post_repair_api": {
+    "need_detail_http_200": 25,
+    "buying_chain_http_200": 25,
+    "intelligence_batch_http_200": 2,
+    "all25_signal": true,
+    "all25_power_need_mw_timing_supply_gap_unknown": true,
+    "buying_authority": "UNKNOWN",
+    "commercial_actionability_demonstrated": 0
+  },
+  "privacy_boundary": "The optional alignment fails closed whenever any method-suppression history exists, including unrelated or reinstated records. Controlled identities are not merged or silently migrated. Source/workbook/production data is not rewritten.",
+  "projects": [
+    {
+      "project_id": "d51110ed-37cf-471f-945c-42163b34b388",
+      "external_id": "TABS-TABS2027002808",
+      "person_claim_id": "400ee4ad-223d-46cf-a195-8a64321a24a9",
+      "organization_claim_id": "4cfcd8f2-b85b-4535-8024-3a6528c734d3",
+      "person_identity_id": "7de427fb-4a2f-492e-88a5-773c425adf3f",
+      "old_person_company_id": "49ec87a7-429f-4b62-ac3a-dd6db48d8eea",
+      "current_company_id": "589ea54f-6cb9-44cb-b47d-a8ae58885d45",
+      "old_company_link_id": "0c301f45-dd4a-416d-8029-b2343f5eaecf",
+      "old_company_link_state": "superseded",
+      "company_contact_job_count_for_current_id": 2,
+      "active_company_contact_jobs_for_current_id": 1,
+      "retained_result_status": "complete",
+      "retained_documents_checked": null,
+      "immutable_evidence_unchanged": true
+    },
+    {
+      "project_id": "5796a14e-c301-4f3e-944e-9747ba613d15",
+      "external_id": "TABS-TABS2026026954",
+      "person_claim_id": "0ff22ac4-cd61-4d67-81b6-0115bbaab56a",
+      "organization_claim_id": "67cf781a-2ffe-497c-aa4d-4e92a1c2c4aa",
+      "person_identity_id": "b7e02f4e-0c94-4e02-b70c-969a47c6bd8a",
+      "old_person_company_id": "741322cb-caef-4ee0-8688-55959332fe8a",
+      "current_company_id": "9d7eb4c6-f748-46ef-8245-a55847122664",
+      "old_company_link_id": "19e64a2f-3c6c-4bb8-ac98-4c93c1051da9",
+      "old_company_link_state": "superseded",
+      "company_contact_job_count_for_current_id": 2,
+      "active_company_contact_jobs_for_current_id": 1,
+      "retained_result_status": "complete",
+      "retained_documents_checked": null,
+      "immutable_evidence_unchanged": true
+    },
+    {
+      "project_id": "99faf1be-7a8b-48d0-a5e3-28aba07fcaab",
+      "external_id": "TABS-TABS2027000611",
+      "person_claim_id": "5b45f57e-2716-41da-8dae-ee8ec10f369f",
+      "organization_claim_id": "0a3b2a11-1f50-4e83-9ec4-808d8776eb82",
+      "person_identity_id": "835ac310-4e85-40a9-bbc3-16b15857ac5d",
+      "old_person_company_id": "a1187250-4c56-4a62-9d70-7823a9fdc105",
+      "current_company_id": "1e6916f1-4596-423c-a858-2ef2f10161da",
+      "old_company_link_id": "43b953ee-f5da-4872-b0f4-550d02fc806c",
+      "old_company_link_state": "superseded",
+      "company_contact_job_count_for_current_id": 2,
+      "active_company_contact_jobs_for_current_id": 1,
+      "retained_result_status": "complete",
+      "retained_documents_checked": null,
+      "immutable_evidence_unchanged": true
+    },
+    {
+      "project_id": "d94e32ef-93fd-44ee-8f16-1347d8cd0dbf",
+      "external_id": "TABS-TABS2027002672",
+      "person_claim_id": "68c30e38-268e-40fa-a952-d5da7e84d931",
+      "organization_claim_id": "ec88d6bb-5b17-4653-b344-ac192f3255ba",
+      "person_identity_id": "8884ea5b-5340-48c6-8ef8-d80d171e3c38",
+      "old_person_company_id": "5e973ff0-f0b4-42ab-81f0-8245552a6e23",
+      "current_company_id": "9edc9d93-2409-447d-b6f8-cf1dd34cd6b4",
+      "old_company_link_id": "a45f9228-e13e-4aa5-9812-51456981760c",
+      "old_company_link_state": "superseded",
+      "company_contact_job_count_for_current_id": 2,
+      "active_company_contact_jobs_for_current_id": 1,
+      "retained_result_status": "complete",
+      "retained_documents_checked": null,
+      "immutable_evidence_unchanged": true
+    }
+  ],
+  "replay": [
+    {
+      "external_id": "TABS-TABS2027002808",
+      "current_company_id": "589ea54f-6cb9-44cb-b47d-a8ae58885d45",
+      "person_identity_id": "7de427fb-4a2f-492e-88a5-773c425adf3f",
+      "company_job_count_before": 2,
+      "company_job_count_after": 2,
+      "retained_result_status": "complete"
+    },
+    {
+      "external_id": "TABS-TABS2026026954",
+      "current_company_id": "9d7eb4c6-f748-46ef-8245-a55847122664",
+      "person_identity_id": "b7e02f4e-0c94-4e02-b70c-969a47c6bd8a",
+      "company_job_count_before": 2,
+      "company_job_count_after": 2,
+      "retained_result_status": "complete"
+    },
+    {
+      "external_id": "TABS-TABS2027000611",
+      "current_company_id": "1e6916f1-4596-423c-a858-2ef2f10161da",
+      "person_identity_id": "835ac310-4e85-40a9-bbc3-16b15857ac5d",
+      "company_job_count_before": 2,
+      "company_job_count_after": 2,
+      "retained_result_status": "complete"
+    },
+    {
+      "external_id": "TABS-TABS2027002672",
+      "current_company_id": "9edc9d93-2409-447d-b6f8-cf1dd34cd6b4",
+      "person_identity_id": "8884ea5b-5340-48c6-8ef8-d80d171e3c38",
+      "company_job_count_before": 2,
+      "company_job_count_after": 2,
+      "retained_result_status": "complete"
+    }
+  ]
+}
