@@ -327,7 +327,7 @@ def _retry_error(retry_after: str) -> httpx.HTTPStatusError:
     return httpx.HTTPStatusError("rate limited", request=request, response=response)
 
 
-@pytest.mark.parametrize("retry_kind", ["numeric", "date", "oversized"])
+@pytest.mark.parametrize("retry_kind", ["numeric", "date", "oversized", "unrepresentable"])
 def test_worker_respects_retry_after_and_does_not_lease_early_or_duplicate(
     saved_db, monkeypatch, retry_kind
 ):
@@ -350,6 +350,7 @@ def test_worker_respects_retry_after_and_does_not_lease_early_or_duplicate(
         "numeric": "120",
         "date": format_datetime(retry_at, usegmt=True),
         "oversized": "604801",
+        "unrepresentable": "9" * 128,
     }[retry_kind]
     failure = _retry_error(retry_value)
     with saved_db.begin() as session:
@@ -411,16 +412,19 @@ def test_worker_respects_retry_after_and_does_not_lease_early_or_duplicate(
         assert scheduled is not None
         source_jobs = list(session.scalars(select(Job).where(Job.source_id == source_id)))
         assert len(source_jobs) == 1
-        if retry_kind == "oversized":
+        assert scheduled.status == ("failed" if retry_kind == "unrepresentable" else "queued")
+        if retry_kind == "numeric":
+            assert scheduled.available_at >= datetime.now(UTC) + timedelta(seconds=118)
+        elif retry_kind == "oversized":
+            assert scheduled.available_at >= datetime.now(UTC) + timedelta(seconds=604799)
+        elif retry_kind == "unrepresentable":
             assert scheduled.status == "failed"
+            source = session.get(Source, source_id)
+            assert source and source.health["retry_state"] == "retry_after_unrepresentable"
         else:
-            assert scheduled.status == "queued"
-            if retry_kind == "numeric":
-                assert scheduled.available_at >= datetime.now(UTC) + timedelta(seconds=118)
-            else:
-                # The HTTP-date header has one-second resolution. The scheduled
-                # instant still has to fall on or after that second.
-                assert scheduled.available_at >= retry_at.replace(microsecond=0)
+            # The HTTP-date header has one-second resolution. The scheduled
+            # instant still has to fall on or after that second.
+            assert scheduled.available_at >= retry_at.replace(microsecond=0)
 
     with saved_db.begin() as session:
         scheduled = session.get(Job, job_id)
@@ -441,8 +445,10 @@ def test_worker_respects_retry_after_and_does_not_lease_early_or_duplicate(
         new_job_id = enqueue(session, source_id)
         created = session.get(Job, new_job_id)
         assert created is not None
-        if retry_kind == "oversized":
+        if retry_kind == "unrepresentable":
             assert created.available_at.year == 9999
+        elif retry_kind == "oversized":
+            assert created.available_at >= datetime.now(UTC) + timedelta(seconds=604799)
         elif retry_kind == "date":
             assert created.available_at >= retry_at.replace(microsecond=0)
         else:
@@ -459,6 +465,8 @@ def test_worker_respects_retry_after_and_does_not_lease_early_or_duplicate(
         ({"retry_state": "scheduled", "retry_at": "not-a-timestamp"}, False),
         ({"retry_state": "scheduled"}, False),
         ({"retry_state": "operator_review"}, False),
+        ({"retry_state": "terminal"}, True),
+        ({"retry_state": "retry_after_unrepresentable"}, False),
         ({"retry_state": "scheduled", "retry_at": "2000-10-22T12:00:20.500-05:00"}, True),
     ],
 )

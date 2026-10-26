@@ -9,33 +9,26 @@ const categories = [
   ['review_exception', 'Review exception'],
 ] as const
 
-export function WorkspaceChanges({ onSelectActiveNeed, revision }: { onSelectActiveNeed: (need: WorkspaceChangeNeed) => void; revision: number }) {
+export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (need: WorkspaceChangeNeed) => void }) {
   const [offset, setOffset] = useState(0)
   const [reload, setReload] = useState(0)
   const [result, setResult] = useState<WorkspaceChanges | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [reviewing, setReviewing] = useState(false)
   const [historyNeedId, setHistoryNeedId] = useState<string | null>(null)
   const [history, setHistory] = useState<WorkspaceHistoricalNeed | null>(null)
   const [historyError, setHistoryError] = useState('')
   const historySequence = useRef(0)
-  const lastRevision = useRef(revision)
-
   useEffect(() => {
     const controller = new AbortController()
-    const revisionChanged = lastRevision.current !== revision
-    const requestOffset = revisionChanged ? 0 : offset
-    lastRevision.current = revision
-    if (revisionChanged && offset !== 0) setOffset(0)
     setLoading(true); setError(''); setResult(null)
-    void client.workspaceChanges(50, requestOffset, controller.signal).then(value => {
+    void client.workspaceChanges(50, offset, controller.signal).then(value => {
       if (!controller.signal.aborted) setResult(value)
     }).catch((failure: Error) => {
       if (!controller.signal.aborted) setError(failure.message)
     }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [offset, reload, revision])
+  }, [offset, reload])
 
   useEffect(() => {
     if (!historyNeedId) { setHistory(null); setHistoryError(''); return }
@@ -49,27 +42,10 @@ export function WorkspaceChanges({ onSelectActiveNeed, revision }: { onSelectAct
     return () => controller.abort()
   }, [historyNeedId])
 
-  async function markDisplayedReviewed() {
-    if (!result || reviewing) return
-    setReviewing(true); setError('')
-    try {
-      await client.reviewWorkspaceChanges({
-        baseline_identity: result.baseline_identity,
-        token: result.token,
-        limit: result.limit,
-        offset: result.offset,
-      })
-      setOffset(0)
-      setReload(value => value + 1)
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Could not mark the displayed changes reviewed.')
-    } finally { setReviewing(false) }
-  }
-
   return <section className="wh-changes" aria-label="Material changes">
     <details>
-      <summary>Material changes · {loading ? 'Loading' : result?.total_unreviewed ?? 'Unavailable'} unreviewed items</summary>
-      <p>Global retained changes · counts are material change items. Reviewing this page leaves source-health exceptions visible.</p>
+      <summary>Material changes · {loading ? 'Loading' : result?.total_unreviewed ?? 'Unavailable'} recent change items</summary>
+      <p>Global retained changes · counts are material change items. Change records are read-only; source-health exceptions remain visible.</p>
       {result && <>
         <p>{result.first_use ? 'Changes since tracking began · your first review records the baseline.' : `Since your last review${result.baseline_reviewed_at ? ` · last reviewed ${new Date(result.baseline_reviewed_at).toLocaleString()}` : ''}.`}</p>
         <ul className="wh-change-counts">{categories.map(([category, label]) => <li key={category}>{label}: {result.counts[category]}</li>)}</ul>
@@ -95,7 +71,7 @@ export function WorkspaceChanges({ onSelectActiveNeed, revision }: { onSelectAct
         {history && <><h3>{history.name} · {history.activity}</h3><p>{history.location ?? 'Location unknown'} · Inactive historical need · Stored state updated {new Date(history.updated_at).toLocaleString()}</p><p>{history.rationale}</p><p>Required power {history.required_mw ?? 'Unknown'} · Start {history.start_window ?? 'Unknown'} · Duration {history.duration ?? 'Unknown'} · Supply {history.supply}</p>{history.evidence.length > 0 && <details><summary>Preserved historical evidence</summary>{history.evidence.map(evidence => <p key={`${evidence.url}:${evidence.content_hash}`}><a href={evidence.url} target="_blank" rel="noreferrer">{evidence.title}</a> · Published {evidence.published_at ?? 'date unknown'} · Event {evidence.event_date ?? 'date unknown'} · Retrieved {new Date(evidence.retrieved_at).toLocaleString()} · {evidence.content_hash}</p>)}</details>}</>}
       </section>}
       {result?.source_health_exceptions.length ? <section aria-label="Source health exceptions"><h3>Source-health exceptions</h3><ul>{result.source_health_exceptions.map(item => <li key={item.source_id}>{item.source_id} · {item.status}{item.error ? ` · ${item.error}` : ''}{item.parse_failures ? ` · ${item.parse_failures} parse failures` : ''}</li>)}</ul></section> : null}
-      {result && <footer className="wh-change-footer"><span>Showing {result.items.length ? result.offset + 1 : 0}–{result.offset + result.items.length} of {result.total_unreviewed} unreviewed</span><button aria-label="Previous changes" disabled={result.offset === 0 || loading} onClick={() => setOffset(Math.max(0, result.offset - result.limit))}>Previous changes</button><button aria-label="Next changes" disabled={result.next_offset === null || loading} onClick={() => setOffset(result.next_offset ?? 0)}>Next changes</button><button disabled={reviewing || loading || result.items.length === 0} onClick={() => void markDisplayedReviewed()}>{reviewing ? 'Saving review…' : 'Mark these displayed changes reviewed'}</button></footer>}
+      {result && <footer className="wh-change-footer"><span>Showing {result.items.length ? result.offset + 1 : 0}–{result.offset + result.items.length} of {result.total_unreviewed} changes</span><button aria-label="Previous changes" disabled={result.offset === 0 || loading} onClick={() => setOffset(Math.max(0, result.offset - result.limit))}>Previous changes</button><button aria-label="Next changes" disabled={result.next_offset === null || loading} onClick={() => setOffset(result.next_offset ?? 0)}>Next changes</button></footer>}
     </details>
   </section>
 }

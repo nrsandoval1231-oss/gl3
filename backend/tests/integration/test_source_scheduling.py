@@ -163,6 +163,23 @@ def test_disabled_ingestion_jobs_remain_inspectable_and_unleased(source_db):
         )
 
 
+def test_retired_source_enablement_and_refresh_routes_return_not_found():
+    from fastapi.testclient import TestClient
+
+    import gridlens.api.app as api
+    from gridlens.security import token_for
+
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    assert (
+        client.post(
+            "/api/sources/synthetic-scheduled-source/enabled", json={"enabled": True}
+        ).status_code
+        == 404
+    )
+    assert client.post("/api/refresh", json={}).status_code == 404
+
+
 def test_registry_sync_keeps_operator_disable_and_explicit_reenable_is_effective(
     source_db, monkeypatch
 ):
@@ -204,11 +221,8 @@ def test_registry_sync_keeps_operator_disable_and_explicit_reenable_is_effective
 
 
 def test_operator_enable_reconciles_persisted_registry_disable(source_db, monkeypatch):
-    from starlette.requests import Request
-
     import gridlens.api.app as api
     import gridlens.jobs.worker as worker
-    from gridlens.api.app import SourceEnabledIn
     from gridlens.jobs.queue import enqueue
 
     factory = source_db
@@ -255,27 +269,7 @@ def test_operator_enable_reconciles_persisted_registry_disable(source_db, monkey
     with factory.begin() as session:
         assert lease_one(session, "disabled-source-worker") is None
 
-    request = Request(
-        {
-            "type": "http",
-            "method": "POST",
-            "scheme": "http",
-            "path": "/api/sources/synthetic-scheduled-source/enabled",
-            "query_string": b"",
-            "headers": [(b"host", b"testserver")],
-            "server": ("testserver", 80),
-            "client": ("testclient", 123),
-        }
-    )
-    response = api.set_source_enabled_endpoint(
-        "synthetic-scheduled-source", SourceEnabledIn(enabled=True), request
-    )
-    assert response == {
-        "id": "synthetic-scheduled-source",
-        "registry_enabled": True,
-        "operator_enabled": True,
-        "effective_enabled": True,
-    }
+    worker.set_source_enabled("synthetic-scheduled-source", True)
     assert api.health()["sources"][0]["enabled"] is True
     with factory.begin() as session:
         assert enqueue(session, "synthetic-scheduled-source")
@@ -285,11 +279,8 @@ def test_operator_enable_reconciles_persisted_registry_disable(source_db, monkey
 
 @pytest.mark.parametrize("drift", ["registry_disabled", "endpoint_changed"])
 def test_operator_transition_reconciles_unsynced_registry_drift(source_db, monkeypatch, drift):
-    from starlette.requests import Request
-
     import gridlens.api.app as api
     import gridlens.jobs.worker as worker
-    from gridlens.api.app import SourceEnabledIn
     from gridlens.jobs.queue import enqueue
 
     factory = source_db
@@ -323,25 +314,8 @@ def test_operator_transition_reconciles_unsynced_registry_drift(source_db, monke
     if drift == "endpoint_changed":
         current["endpoint"] = "https://example.invalid/changed"
     registry[0] = current
-    request = Request(
-        {
-            "type": "http",
-            "method": "POST",
-            "scheme": "http",
-            "path": "/api/sources/synthetic-scheduled-source/enabled",
-            "query_string": b"",
-            "headers": [(b"host", b"testserver")],
-            "server": ("testserver", 80),
-            "client": ("testclient", 123),
-        }
-    )
-    response = api.set_source_enabled_endpoint(
-        "synthetic-scheduled-source", SourceEnabledIn(enabled=True), request
-    )
+    worker.set_source_enabled("synthetic-scheduled-source", True)
     expected_enabled = drift == "endpoint_changed"
-    assert response["registry_enabled"] is expected_enabled
-    assert response["operator_enabled"] is True
-    assert response["effective_enabled"] is expected_enabled
 
     with factory() as session:
         source = session.get(Source, "synthetic-scheduled-source")
@@ -777,7 +751,17 @@ def test_live_registry_comparison_does_not_hide_omitted_fields(
     import gridlens.jobs.worker as worker
 
     factory = source_db
-    now = datetime.now(UTC)
+    # This tests registry drift, not elapsed scheduling time. Otherwise the
+    # receipt setup can cross an hourly slot before health() evaluates it.
+    now = datetime(2026, 10, 26, 12, 59, 59, tzinfo=UTC)
+
+    class FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now.astimezone(tz) if tz is not None else now.replace(tzinfo=None)
+
+    monkeypatch.setattr(api, "datetime", FixedClock)
+    monkeypatch.setattr(worker, "datetime", FixedClock)
     original = definition()
     if drift == "cadence_removed":
         original["cadence_hours"] = 1
@@ -857,11 +841,8 @@ def test_live_registry_comparison_does_not_hide_omitted_fields(
 def test_validator_accepted_optional_registry_fields_sync_and_operator(
     source_db, monkeypatch, tmp_path, omitted
 ):
-    from starlette.requests import Request
-
     import gridlens.api.app as api
     import gridlens.jobs.worker as worker
-    from gridlens.api.app import SourceEnabledIn
     from gridlens.ingestion.registry import load_registry
 
     factory = source_db
@@ -919,31 +900,11 @@ def test_validator_accepted_optional_registry_fields_sync_and_operator(
             == 1
         )
 
-    request = Request(
-        {
-            "type": "http",
-            "method": "POST",
-            "scheme": "http",
-            "path": "/api/sources/federal-register-eis/enabled",
-            "query_string": b"",
-            "headers": [(b"host", b"testserver")],
-            "server": ("testserver", 80),
-            "client": ("testclient", 123),
-        }
-    )
-    response = api.set_source_enabled_endpoint(
-        "federal-register-eis", SourceEnabledIn(enabled=False), request
-    )
-    assert response["registry_enabled"] is True
-    assert response["operator_enabled"] is False
-    assert response["effective_enabled"] is False
+    worker.set_source_enabled("federal-register-eis", False)
     health_source = api.health()["sources"][0]
     assert health_source["enabled"] is False
 
-    response = api.set_source_enabled_endpoint(
-        "federal-register-eis", SourceEnabledIn(enabled=True), request
-    )
-    assert response["effective_enabled"] is True
+    worker.set_source_enabled("federal-register-eis", True)
     assert api.health()["sources"][0]["enabled"] is True
 
     with factory() as session:
@@ -977,11 +938,8 @@ def test_validator_accepted_optional_registry_fields_sync_and_operator(
 def test_omitted_industries_is_epoch_drift_but_omitted_cadence_is_equivalent(
     source_db, monkeypatch, tmp_path, previous_industries
 ):
-    from starlette.requests import Request
-
     import gridlens.api.app as api
     import gridlens.jobs.worker as worker
-    from gridlens.api.app import SourceEnabledIn
     from gridlens.ingestion.registry import load_registry
 
     factory = source_db
@@ -1011,22 +969,7 @@ def test_omitted_industries_is_epoch_drift_but_omitted_cadence_is_equivalent(
 
     # Industries are different: absence is preserved in the epoch declaration.
     registry[0].pop("industries")
-    request = Request(
-        {
-            "type": "http",
-            "method": "POST",
-            "scheme": "http",
-            "path": "/api/sources/federal-register-eis/enabled",
-            "query_string": b"",
-            "headers": [(b"host", b"testserver")],
-            "server": ("testserver", 80),
-            "client": ("testclient", 123),
-        }
-    )
-    response = api.set_source_enabled_endpoint(
-        "federal-register-eis", SourceEnabledIn(enabled=True), request
-    )
-    assert response["effective_enabled"] is True
+    worker.set_source_enabled("federal-register-eis", True)
     with factory() as session:
         epochs = session.scalars(
             select(SourceScheduleEpoch)
@@ -1820,3 +1763,152 @@ def test_planner_failure_is_persisted_and_retried_with_backoff(source_db, monkey
     assert calls == ["failed"]
     assert worker._run_planner("pursuit_questions", lambda: calls.append("independent"))
     assert calls[-1] == "independent"
+
+
+def test_planner_claim_serializes_worker_replicas(source_db, monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    monkeypatch.setattr(worker, "SessionLocal", source_db)
+    worker._PLANNER_RETRY_MONOTONIC.clear()
+    worker._PLANNER_FAILURES.clear()
+    entered_action = Event()
+    finish_action = Event()
+    calls = []
+
+    def slow_action():
+        calls.append("ran")
+        entered_action.set()
+        assert finish_action.wait(timeout=5)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first_replica = pool.submit(worker._run_planner, "cross_replica", slow_action)
+        assert entered_action.wait(timeout=5)
+
+        # A second replica has no shared process-local retry state. It must be
+        # held off by the PostgreSQL planner claim while the first action runs.
+        worker._PLANNER_RETRY_MONOTONIC.clear()
+        second_replica = pool.submit(
+            worker._run_planner, "cross_replica", lambda: calls.append("duplicate")
+        )
+        assert second_replica.result(timeout=5) is False
+        assert calls == ["ran"]
+        finish_action.set()
+        assert first_replica.result(timeout=5) is True
+
+    # The session lock is explicitly released, but the successful planner
+    # cadence still prevents an immediate duplicate cycle.
+    assert worker._run_planner("cross_replica", lambda: calls.append("too_soon")) is False
+    assert calls == ["ran"]
+
+
+def test_planner_connection_failure_recovers_on_later_poll(source_db, monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    engine = factory.kw["bind"]
+    original_connect = engine.connect
+    connection_attempts = []
+    calls = []
+
+    def fail_first_connect():
+        connection_attempts.append("attempt")
+        if len(connection_attempts) == 1:
+            raise OSError("synthetic planner connection outage")
+        return original_connect()
+
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(engine, "connect", fail_first_connect)
+    worker._PLANNER_RETRY_MONOTONIC.clear()
+    worker._PLANNER_FAILURES.clear()
+
+    assert not worker._run_planner("connection_recovery", lambda: calls.append("unexpected"))
+    with factory.begin() as session:
+        state = session.get(PlannerState, "connection_recovery")
+        assert state and state.consecutive_failures == 1
+        state.next_retry_at = datetime.now(UTC) - timedelta(seconds=1)
+
+    worker._PLANNER_RETRY_MONOTONIC.clear()
+    assert worker._run_planner("connection_recovery", lambda: calls.append("recovered"))
+    assert calls == ["recovered"]
+
+
+@pytest.mark.parametrize("cleanup_failure", ["rollback", "unlock", "close"])
+def test_planner_cleanup_failure_does_not_block_a_later_cycle(
+    source_db, monkeypatch, cleanup_failure
+):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    original_connect = worker._connect_planner_claim
+    calls = []
+
+    class FaultyConnection:
+        def __init__(self, connection):
+            self.connection = connection
+            self.failed = False
+
+        def scalar(self, statement, parameters=None):
+            if cleanup_failure == "unlock" and "pg_advisory_unlock" in str(statement):
+                self.failed = True
+                raise OSError("synthetic unlock failure")
+            return self.connection.scalar(statement, parameters)
+
+        def commit(self):
+            return self.connection.commit()
+
+        def rollback(self):
+            if cleanup_failure == "rollback" and not self.failed:
+                self.failed = True
+                raise OSError("synthetic rollback failure")
+            return self.connection.rollback()
+
+        def in_transaction(self):
+            if cleanup_failure == "rollback" and not self.failed:
+                return True
+            return self.connection.in_transaction()
+
+        def invalidate(self):
+            return self.connection.invalidate()
+
+        def close(self):
+            self.connection.close()
+            if cleanup_failure == "close" and not self.failed:
+                self.failed = True
+                raise OSError("synthetic close failure")
+
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(
+        worker,
+        "_connect_planner_claim",
+        lambda: FaultyConnection(original_connect()),
+    )
+    worker._PLANNER_RETRY_MONOTONIC.clear()
+    worker._PLANNER_FAILURES.clear()
+
+    assert not worker._run_planner("cleanup_recovery", lambda: calls.append("first"))
+    with factory.begin() as session:
+        state = session.get(PlannerState, "cleanup_recovery")
+        assert state and state.last_success_at and state.next_retry_at
+        state.next_retry_at = datetime.now(UTC) - timedelta(seconds=1)
+
+    monkeypatch.setattr(worker, "_connect_planner_claim", original_connect)
+    assert worker._run_planner("cleanup_recovery", lambda: calls.append("next_tick"))
+    assert calls == ["first", "next_tick"]
+
+
+def test_planner_lane_survives_unexpected_cycle_exception(monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    stop_event = Event()
+    cycles = []
+
+    def fail_once(_planner_key, _action):
+        cycles.append("attempt")
+        if len(cycles) == 1:
+            raise OSError("synthetic escaped cycle failure")
+        stop_event.set()
+
+    monkeypatch.setattr(worker, "_run_planner", fail_once)
+    monkeypatch.setattr(worker, "_PLANNER_POLL_SECONDS", 0)
+    worker._planner_lane(stop_event, "lane_recovery", lambda: None)
+    assert cycles == ["attempt", "attempt"]

@@ -13,11 +13,12 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, union
+from sqlalchemy import and_, func, or_, select, tuple_, union
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import (
     CATEGORY_PRIORITY,
+    CONTACT_MAX_AGE_DAYS,
     MAX_CANDIDATES,
     MAX_DOCUMENTS,
     MAX_SOURCE_URLS,
@@ -80,6 +81,47 @@ BUYING_CHAIN_JOB_KIND = "buying_chain_research"
 BUYING_CHAIN_TASK_TYPE = "buying_chain_research"
 RETAINED_BUYING_CHAIN_TASK_TYPE = "buying_chain_retained"
 MAX_RETAINED_BACKFILL_PROJECTS = 100
+MAX_CONTACT_VALUES_PER_CANDIDATE = 64
+MAX_PERSON_PRIVACY_LINEAGE_LINKS = 128
+_EMAIL_VALUE = re.compile(r"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
+_PHONE_VALUE = re.compile(r"\+?\d[\d(). \t-]{5,}\d")
+_NANP_PHONE_VALUE = re.compile(
+    r"(?<!\d)(?:\+?1[ \t.-]?)?(?:\(\d{3}\)|\d{3})[ \t.-]?\d{3}[ \t.-]?\d{4}(?!\d)"
+)
+_PROFILE_VALUE = re.compile(r"https?://[^\s<>\"']+", re.I)
+_PRIVACY_METADATA_KEYS = frozenset(
+    {
+        "id",
+        "claim_id",
+        "project_id",
+        "company_identity_id",
+        "person_identity_id",
+        "fingerprint",
+        "evidence_id",
+        "correction_version",
+        "version",
+        "content_hash",
+        "source_version_hash",
+        "current_source_version_id",
+        "retained_evidence_id",
+        "source_id",
+        "observed_at",
+        "published_at",
+        "created_at",
+        "updated_at",
+        "verified_at",
+        "category",
+        "organization_relationship",
+        "person_organization_relationship",
+        "person_project_relationship",
+        "evidence_strength",
+        "role",
+        "relationship_type",
+        "status",
+        "action",
+        "supports",
+    }
+)
 
 
 def _buying_chain_context_digest(session: Session, project: Project) -> str:
@@ -1109,7 +1151,7 @@ def _deduplicate(items: list[Extracted]) -> list[Extracted]:
 
 def _retain_unchecked_contacts(session, project_id, candidates, saved, retrieved_urls, now):
     """A bounded or failed refresh is not evidence that an existing method vanished."""
-    prior_view = buying_chain_view(session, project_id, now=now)
+    prior_view = buying_chain_view(session, project_id, now=now, _apply_privacy=False)
     for previous in prior_view["candidates"]:
         if previous.get("stale") or previous.get("retracted"):
             continue
@@ -1172,7 +1214,7 @@ def _retain_unchecked_assignments(
     assignment that the normal view still validates for freshness and conflicts.
     Different titles, UNKNOWN roles and successfully retracted sources never qualify.
     """
-    prior_view = buying_chain_view(session, project_id, now=now)
+    prior_view = buying_chain_view(session, project_id, now=now, _apply_privacy=False)
     prior_candidates = {str(item["id"]): item for item in prior_view["candidates"]}
     for prior_id, previous in prior_candidates.items():
         if previous["person_project_relationship"] != "DIRECT":
@@ -1267,7 +1309,10 @@ def enrich_buying_chain(
     from gridlens.intelligence.change_detection import seed_material_state
 
     material_baseline = seed_material_state(session, project)
-    buying_chain_baseline = buying_chain_view(session, project.id, now=now)
+    # Refresh comparisons must use the actual persisted claim state.  A public
+    # privacy projection redacts that state and can otherwise make unchanged
+    # claims look newly absent (or changed) on every refresh.
+    buying_chain_baseline = buying_chain_view(session, project.id, now=now, _apply_privacy=False)
     if len(source_urls or []) > MAX_SOURCE_URLS:
         raise ValueError("At most four additional public source URLs are allowed")
     supplied = [validate_public_url(url) for url in source_urls or []]
@@ -1838,7 +1883,10 @@ def enrich_buying_chain(
                 ]
 
             after_rows = [
-                row for row in field_rows(buying_chain_view(session, project.id, now=now))
+                row
+                for row in field_rows(
+                    buying_chain_view(session, project.id, now=now, _apply_privacy=False)
+                )
             ]
             before_rows = [row for row in field_rows(buying_chain_baseline)]
             removed = Counter(map(semantic_key, before_rows)) - Counter(
@@ -1889,6 +1937,271 @@ def enrich_buying_chain(
             session, project, retained_after[0], material_baseline, buying_evidence=support
         )
     return buying_chain_view(session, project.id, now=now)
+
+
+def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
+    """Apply one bounded privacy ledger snapshot to a read cohort."""
+    if not candidates:
+        return
+    from gridlens.intelligence.contact_suppressions import (
+        _ledger_states,
+        company_suppression_key,
+        global_method_suppression_key,
+        global_person_suppression_key,
+        method_suppression_key,
+        person_suppression_key,
+    )
+    from gridlens.intelligence.saved_history_privacy import MAX_HISTORY_KEYS, _add_keys
+
+    claim_ids = [item["id"] for item in candidates]
+    claim_rows = session.execute(
+        select(BuyingChainClaim.id, BuyingChainClaim.project_id, BuyingChainClaim.entity_key).where(
+            BuyingChainClaim.id.in_(claim_ids)
+        )
+    ).all()
+    cohort_claims = {row.id: (row.project_id, row.entity_key) for row in claim_rows}
+    entity_pairs = set(cohort_claims.values())
+    lineage_links = []
+    lineage_overflow_pairs: set[tuple[UUID, str]] = set()
+    if entity_pairs:
+        distinct_lineage = (
+            select(
+                BuyingChainClaim.project_id,
+                BuyingChainClaim.entity_key,
+                BuyingChainIdentityLink.entity_type,
+                BuyingChainIdentityLink.company_identity_id,
+                BuyingChainIdentityLink.person_identity_id,
+            )
+            .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+            .where(
+                BuyingChainIdentityLink.entity_type.in_(("company", "person")),
+                tuple_(BuyingChainClaim.project_id, BuyingChainClaim.entity_key).in_(entity_pairs),
+            )
+            .distinct()
+        ).subquery()
+        lineage_query = select(
+            distinct_lineage.c.project_id,
+            distinct_lineage.c.entity_key,
+            distinct_lineage.c.entity_type,
+            distinct_lineage.c.company_identity_id,
+            distinct_lineage.c.person_identity_id,
+            func.row_number()
+            .over(
+                partition_by=(
+                    distinct_lineage.c.project_id,
+                    distinct_lineage.c.entity_key,
+                    distinct_lineage.c.entity_type,
+                ),
+                order_by=(
+                    distinct_lineage.c.company_identity_id,
+                    distinct_lineage.c.person_identity_id,
+                ),
+            )
+            .label("lineage_row"),
+        ).subquery()
+        bounded_lineage_rows = session.execute(
+            select(
+                lineage_query.c.project_id,
+                lineage_query.c.entity_key,
+                lineage_query.c.company_identity_id,
+                lineage_query.c.person_identity_id,
+                lineage_query.c.lineage_row,
+            ).where(lineage_query.c.lineage_row <= MAX_PERSON_PRIVACY_LINEAGE_LINKS + 1)
+        ).all()
+        for row in bounded_lineage_rows:
+            lineage_pair = (row.project_id, row.entity_key)
+            if row.lineage_row > MAX_PERSON_PRIVACY_LINEAGE_LINKS:
+                lineage_overflow_pairs.add(lineage_pair)
+            else:
+                lineage_links.append(row)
+    company_ids_by_pair: dict[tuple[UUID, str], set[UUID]] = defaultdict(set)
+    person_ids_by_pair: dict[tuple[UUID, str], set[UUID]] = defaultdict(set)
+    for lineage_row in lineage_links:
+        identity_pair = (lineage_row.project_id, lineage_row.entity_key)
+        if lineage_row.company_identity_id is not None:
+            company_ids_by_pair[identity_pair].add(lineage_row.company_identity_id)
+        if lineage_row.person_identity_id is not None:
+            person_ids_by_pair[identity_pair].add(lineage_row.person_identity_id)
+    fail_closed_claims: set[UUID] = {
+        claim_id for claim_id, pair in cohort_claims.items() if pair in lineage_overflow_pairs
+    }
+    candidate_scope: dict[UUID, tuple[set[UUID], str]] = {}
+    values_by_claim: dict[UUID, list[tuple[str, str]]] = {}
+    keys: set[tuple[str, str]] = set()
+    for item in candidates:
+        pair = cohort_claims.get(item["id"])
+        company_ids = company_ids_by_pair.get(pair, set()) if pair else set()
+        name = item.get("person_name") or ""
+        candidate_scope[item["id"]] = (company_ids, name)
+        for company_id in company_ids:
+            _add_keys(keys, (("company", company_suppression_key(company_id)),))
+            if name:
+                _add_keys(keys, (("person", person_suppression_key(company_id, name)),))
+        pair = cohort_claims.get(item["id"])
+        historical_person_ids = person_ids_by_pair.get(pair, set()) if pair else set()
+        for linked_person_id in historical_person_ids:
+            _add_keys(keys, (("person", global_person_suppression_key(linked_person_id)),))
+        retained_values: set[tuple[str, str]] = set()
+        for contact_field in ("public_contacts", "reported_contacts"):
+            for contact in item.get(contact_field, []):
+                kind, value = str(contact.get("kind") or ""), str(contact.get("value") or "")
+                if value:
+                    retained_values.add((kind, value))
+        for correction in item.get("correction_history", []):
+            correction_values = correction.get("values", {})
+            value = correction_values.get("public_contact_value")
+            kind = correction_values.get("public_contact_kind") or "general"
+            if isinstance(value, str) and value.strip():
+                retained_values.add((str(kind), value.strip()))
+        strings: list[str] = []
+
+        def collect_strings(value, key="", out=strings):
+            if isinstance(value, str):
+                if key not in _PRIVACY_METADATA_KEYS:
+                    out.append(value)
+            elif isinstance(value, dict):
+                for child_key, child in value.items():
+                    collect_strings(child, str(child_key), out)
+            elif isinstance(value, list):
+                for child in value:
+                    collect_strings(child, key, out)
+
+        collect_strings(item)
+        display_text = "\n".join(strings)
+        for value in _EMAIL_VALUE.findall(display_text):
+            retained_values.add(("email", value.rstrip(".,;:)")))
+        for text in strings:
+            for line in text.splitlines():
+                nanp_values = _NANP_PHONE_VALUE.findall(line)
+                phone_values = set(nanp_values) | set(_PHONE_VALUE.findall(line))
+                for value in phone_values:
+                    digits = re.sub(r"\D", "", value)
+                    if 7 <= len(digits) <= 15:
+                        retained_values.add(("phone", value.strip(" .,:;")))
+        for value in _PROFILE_VALUE.findall(display_text):
+            retained_values.add(("profile", value.rstrip(".,;:)")))
+        if len(retained_values) > MAX_CONTACT_VALUES_PER_CANDIDATE:
+            # Excessive retained contact-like strings make exact selective
+            # matching unsafe; redact this candidate's contact-bearing view.
+            fail_closed_claims.add(item["id"])
+            values_by_claim[item["id"]] = []
+            continue
+        values_by_claim[item["id"]] = list(retained_values)
+        for kind, value in retained_values:
+            _add_keys(keys, (("method", global_method_suppression_key(kind, value)),))
+            for company_id in company_ids:
+                _add_keys(
+                    keys, (("method", method_suppression_key(company_id, name, kind, value)),)
+                )
+    if len(keys) > MAX_HISTORY_KEYS:
+        fail_closed_claims.update(item["id"] for item in candidates)
+        states = {}
+    else:
+        states = _ledger_states(session, keys)
+    for item in candidates:
+        company_ids, name = candidate_scope[item["id"]]
+        pair = cohort_claims.get(item["id"])
+        historical_person_ids = person_ids_by_pair.get(pair, set()) if pair else set()
+        suppressed_subject = (
+            item["id"] in fail_closed_claims
+            or bool(
+                any(
+                    states.get(("company", company_suppression_key(company_id))) == "suppress"
+                    for company_id in company_ids
+                )
+            )
+            or bool(
+                name
+                and any(
+                    states.get(("person", person_suppression_key(company_id, name))) == "suppress"
+                    for company_id in company_ids
+                )
+            )
+            or any(
+                states.get(("person", global_person_suppression_key(person_id))) == "suppress"
+                for person_id in historical_person_ids
+            )
+        )
+        if suppressed_subject:
+
+            def redact_display(value, key=""):
+                if isinstance(value, str):
+                    return value if key in _PRIVACY_METADATA_KEYS else "[redacted]"
+                if isinstance(value, list):
+                    return [redact_display(part, key) for part in value]
+                if isinstance(value, dict):
+                    return {
+                        child_key: redact_display(part, str(child_key))
+                        for child_key, part in value.items()
+                    }
+                return value
+
+            item.update(redact_display(item))
+            item["suppressed"] = True
+            item["person_name"] = None
+            item["title"] = None
+            item["reason"] = "Contact assertion suppressed by an internal privacy control."
+            item["public_contacts"] = []
+            item["reported_contacts"] = []
+            item["evidence"] = []
+            item["correction_history"] = []
+            continue
+        hidden_values = [
+            (kind, value)
+            for kind, value in values_by_claim.get(item["id"], [])
+            if states.get(("method", global_method_suppression_key(kind, value))) == "suppress"
+            or any(
+                states.get(("method", method_suppression_key(company_id, name, kind, value)))
+                == "suppress"
+                for company_id in company_ids
+            )
+        ]
+        for contact_field in ("public_contacts", "reported_contacts"):
+            visible = []
+            for contact in item.get(contact_field, []):
+                kind, value = str(contact.get("kind") or ""), str(contact.get("value") or "")
+                global_key = global_method_suppression_key(kind, value)
+                hidden = states.get(("method", global_key)) == "suppress" or any(
+                    states.get(("method", method_suppression_key(company_id, name, kind, value)))
+                    == "suppress"
+                    for company_id in company_ids
+                )
+                if hidden:
+                    if value:
+                        hidden_values.append((kind, value))
+                else:
+                    visible.append(contact)
+            item[contact_field] = visible
+        if hidden_values:
+
+            def scrub(value, hidden=tuple(hidden_values), key=""):
+                if isinstance(value, str):
+                    if key in _PRIVACY_METADATA_KEYS:
+                        return value
+                    for kind, term in hidden:
+                        if kind in {"phone", "telephone", "tel"}:
+                            digits = re.sub(r"\D", "", term)
+                            if len(digits) == 11 and digits.startswith("1"):
+                                digits = digits[1:]
+                            if len(digits) == 10:
+                                digit_pattern = r"[\s().-]*".join(digits)
+                                pattern = r"(?<!\d)(?:\+?1[\s().-]*)?" + digit_pattern + r"(?!\d)"
+                            else:
+                                pattern = re.escape(term)
+                        else:
+                            pattern = re.escape(term)
+                        value = re.sub(pattern, "[redacted]", value, flags=re.IGNORECASE)
+                    return value
+                if isinstance(value, list):
+                    return [scrub(part, hidden, key) for part in value]
+                if isinstance(value, dict):
+                    return {
+                        child_key: scrub(part, hidden, str(child_key))
+                        for child_key, part in value.items()
+                    }
+                return value
+
+            item.update(scrub(item))
 
 
 def buying_chain_views(
@@ -2048,12 +2361,23 @@ def buying_chain_views(
 
     views = {
         str(project_id): buying_chain_view(
-            session, project_id, now=now, preload=preload, include_identity_ids=False
+            session,
+            project_id,
+            now=now,
+            preload=preload,
+            include_identity_ids=False,
+            _apply_privacy=False,
         )
         for project_id in project_ids
         if project_id in projects
     }
+    _apply_contact_privacy(
+        session,
+        [candidate for view in views.values() for candidate in view.get("candidates", [])],
+    )
     _attach_identity_ids(session, list(views.values()))
+    for view in views.values():
+        _apply_permit_summary_privacy(session, view)
     return views
 
 
@@ -2065,6 +2389,7 @@ def buying_chain_view(
     history: bool = False,
     preload: BuyingChainViewPreload | None = None,
     include_identity_ids: bool = True,
+    _apply_privacy: bool = True,
 ) -> dict:
     now = now or evaluation_now(datetime.now(UTC))
     project = session.get(Project, project_id)
@@ -2156,6 +2481,10 @@ def buying_chain_view(
                 citation["supports"] in {"organization_person_role", "person_project_assignment"}
                 and (now.date() - age_basis).days > ROLE_MAX_AGE_DAYS
             )
+            contact_aged = (
+                citation["supports"] == "public_contact"
+                and (now.date() - row.last_seen_at.date()).days > CONTACT_MAX_AGE_DAYS
+            )
             if row.retained_evidence_id:
                 original = (
                     None if preload is not None else session.get(Evidence, row.retained_evidence_id)
@@ -2179,9 +2508,9 @@ def buying_chain_view(
                 role_stale = role_stale or source_superseded or role_aged
             # Assignment freshness is independent of a newly verified employment role.
             stale = stale or source_superseded or role_aged
-            if source_superseded or role_aged:
+            if source_superseded or role_aged or contact_aged:
                 invalid_supports.add(citation["supports"])
-            if not source_superseded and not role_aged:
+            if not source_superseded and not role_aged and not contact_aged:
                 current_supports.add(citation["supports"])
                 if citation["supports"] in {"project_organization", "organization_category"}:
                     current_organization_quotes.append(citation["quote"])
@@ -2203,7 +2532,8 @@ def buying_chain_view(
                     "observed_at": row.observed_at,
                     "content_hash": row.content_hash,
                     "current_source_version_id": newest_by_url[row.url],
-                    "current_support": not source_superseded and not role_aged,
+                    "current_support": not source_superseded and not role_aged and not contact_aged,
+                    "contact_stale": contact_aged and not source_superseded,
                 }
             )
         if not history:
@@ -2358,6 +2688,8 @@ def buying_chain_view(
         history,
         decisions=preload.corrections.get(project_id, []) if preload else None,
     )
+    if _apply_privacy:
+        _apply_contact_privacy(session, candidates)
     candidates = [item for item in candidates if history or not item.get("retracted")]
     # Reuse the latest-run selection loaded above for bounded multi-project reads.
     unresolved = (
@@ -2388,6 +2720,8 @@ def buying_chain_view(
     }
     if not history and include_identity_ids:
         _attach_identity_ids(session, [result])
+    if _apply_privacy:
+        _apply_permit_summary_privacy(session, result)
     return result
 
 
@@ -2542,6 +2876,132 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
             ):
                 continue
         candidate[f"{link.entity_type}_identity_id"] = identity_id
+
+
+def _apply_permit_summary_privacy(session: Session, view: dict) -> None:
+    """Project contact tokens using exact immutable claim/evidence bindings.
+
+    Candidate display fields may already be redacted or absent. Only retained
+    DB claims, literal citation quotes and matching evidence UUIDs authorize a
+    scoped privacy lookup; global method suppression needs no claim at all.
+    """
+    from gridlens.intelligence.saved_history_privacy import (
+        MAX_HISTORY_CLAIMS,
+        MAX_HISTORY_LINKS,
+        _redact,
+        _redact_all_contact_tokens,
+        _uuid,
+        project_saved_history_privacy,
+    )
+
+    summaries = view.get("permit_summaries") or []
+    if not summaries:
+        return
+    project_id = _uuid(view.get("project_id"))
+    claims: Sequence[BuyingChainClaim] = []
+    if project_id is not None:
+        claims = session.scalars(
+            select(BuyingChainClaim)
+            .where(BuyingChainClaim.project_id == project_id)
+            .order_by(BuyingChainClaim.id)
+            .limit(MAX_HISTORY_CLAIMS + 1)
+        ).all()
+    else:
+        # Private callers may pass only a candidate cohort. Resolve its project
+        # from DB claims, never from labels on that candidate.
+        ids = {_uuid(candidate.get("id")) for candidate in view.get("candidates", [])}
+        ids.discard(None)
+        if ids and len(ids) <= MAX_HISTORY_CLAIMS:
+            claims = session.scalars(
+                select(BuyingChainClaim)
+                .where(BuyingChainClaim.id.in_(ids))
+                .order_by(BuyingChainClaim.id)
+                .limit(MAX_HISTORY_CLAIMS + 1)
+            ).all()
+            projects = {claim.project_id for claim in claims}
+            if len(projects) == 1:
+                project_id = next(iter(projects))
+    overflow = len(claims) > MAX_HISTORY_CLAIMS
+    claims = claims[:MAX_HISTORY_CLAIMS]
+    cited_ids: set[UUID] = set()
+    for claim in claims:
+        if len(claim.citations) > MAX_HISTORY_LINKS:
+            overflow = True
+            break
+        for citation in claim.citations:
+            source_id = _uuid(citation.get("evidence_id"))
+            if source_id is not None:
+                cited_ids.add(source_id)
+                if len(cited_ids) > MAX_HISTORY_LINKS:
+                    overflow = True
+                    break
+    sources: Sequence[BuyingChainEvidence] = []
+    if cited_ids and project_id is not None and not overflow:
+        sources = session.scalars(
+            select(BuyingChainEvidence)
+            .where(
+                BuyingChainEvidence.project_id == project_id, BuyingChainEvidence.id.in_(cited_ids)
+            )
+            .order_by(BuyingChainEvidence.id)
+            .limit(MAX_HISTORY_LINKS + 1)
+        ).all()
+    overflow |= len(sources) > MAX_HISTORY_LINKS
+    by_id = {source.id: source for source in sources[:MAX_HISTORY_LINKS]}
+    party_label = re.compile(
+        r"\b(owner|occupant|applicant|buyer|developer|contractor|operator|company|person)\b", re.I
+    )
+    method_label = re.compile(r"\b(phone|email|address|url|website|profile)\b", re.I)
+    projected = []
+    for summary in summaries:
+        summary_id = _uuid(summary.get("evidence_id"))
+        party_values = {
+            " ".join(str(fact.get("value") or "").split()).casefold()
+            for fact in summary.get("facts", [])
+            if party_label.search(str(fact.get("label") or ""))
+            and not method_label.search(str(fact.get("label") or ""))
+        }
+        bound: set[UUID] = set()
+        for claim in claims:
+            party_names = {
+                " ".join(str(value).split()).casefold()
+                for value in (claim.organization, claim.person_name)
+                if value
+            }
+            if not party_values.intersection(party_names):
+                continue
+            for citation in claim.citations[:MAX_HISTORY_LINKS]:
+                citation_id = _uuid(citation.get("evidence_id"))
+                source = by_id.get(citation_id) if citation_id is not None else None
+                quote = citation.get("quote")
+                if (
+                    source is not None
+                    and summary_id is not None
+                    and summary_id in {source.id, source.retained_evidence_id}
+                    and isinstance(quote, str)
+                    and quote.strip()
+                    and quote in source.excerpt
+                ):
+                    bound.add(claim.id)
+                    break
+        if overflow:
+            # Keep physical facts and provenance; only contact-like tokens and
+            # explicitly labeled parties become unavailable on scope overflow.
+            hidden = set(
+                str(fact.get("value") or "")
+                for fact in summary.get("facts", [])
+                if party_label.search(str(fact.get("label") or ""))
+            )
+            projected.append(_redact_all_contact_tokens(_redact(summary, hidden, set(), set())))
+            continue
+        item = {
+            "project_id": project_id,
+            "saved_card": {"project_id": project_id, "permit_summary": summary},
+        }
+        result = project_saved_history_privacy(
+            session, item, _claim_ids=bound, _contact_tokens_only=True
+        )
+        projected.append(result["saved_card"]["permit_summary"])
+    view["permit_summaries"] = projected
 
 
 def _permit_summaries(

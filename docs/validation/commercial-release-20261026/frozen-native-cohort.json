@@ -1,0 +1,2741 @@
+{
+  "kind": "frozen_native_source_project_record_cohort",
+  "measured_at": "2026-10-26T13:01:51.023346+00:00",
+  "source_database": "gridlens_release_combined",
+  "requested_projects": 25,
+  "selected_projects": 25,
+  "cohort_complete": true,
+  "selection_frozen_before_contact_research": true,
+  "contact_or_commercial_outcome_fields_used_for_selection": false,
+  "cohort_interpretation": "25 distinct source-linked native project records; physical site distinctness is unverified where sources provide only county-level locations.",
+  "selection_rule": "Use ELIGIBLE TX/OK/NM native canonical projects with name, physical location, and at least one linked HTTP(S) evidence URL plus observed and evidence hashes. Deduplicate by normalized location assertion (exact location for numeric street/route locations; name+location for coarse city/county locations and RRC county-code assertions). Select stable SHA-256 order round-robin across observed state/asset-type strata.",
+  "candidate_counts": {
+    "eligible_territory_projects": 1729,
+    "cited_project_candidates": 1729
+  },
+  "stratum_counts": {
+    "TX:upstream_well": 21,
+    "TX:data_center": 4
+  },
+  "commercial_qualification_status": "NOT_ADJUDICATED; missing thresholds remain failures/unknowns",
+  "paid_calls": 0,
+  "projects": [
+    {
+      "project_id": "b8a992fc-b136-4267-8b60-98431c6fa4bf",
+      "name": "Texas W-1 permit 0919088",
+      "location": "RRC county code 317, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919088",
+      "identity_key": "texas-rrc-drilling-permits:0919088",
+      "identity_facts": {
+        "site": "RRC county code 317, Texas",
+        "project_name": "Texas W-1 permit 0919088",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0919088"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0919088"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "ae4dcc63-1af3-44eb-bc80-cbec7e5448b4",
+          "observation_id": "d38a0147-8590-498c-91b6-b9f639a86ec0",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0919088: Drill; lease JAGUAR WEST A 40-45, well 2801H.",
+          "excerpt": "row: 0919088\namendment_sequence: 99\noperator: DE V OPERATING, LLC\noperator_number: 102606\nlease: JAGUAR WEST A 40-45\nwell: 2801H\ncounty_code: 317\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-10-09\napplication_received: 2026-10-01\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0919088: Drill; lease JAGUAR WEST A 40-45, well 2801H.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 370, \"raw_sha256\": \"739881c07b4c78fc9d973236297663031f11548371c517a2b11c265bf529f85d\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-10-09",
+          "observed_at": "2026-10-26T12:38:04.915935+00:00",
+          "extraction_location": "OGA049M root/master; permit 0919088; sequence 99",
+          "evidence_hash": "6f2a85d74b2b08192f24c618a6ce61b637c80c23c0c3c942e831e30fe037e633",
+          "observation_hash": "6f2a85d74b2b08192f24c618a6ce61b637c80c23c0c3c942e831e30fe037e633",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat",
+              "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "ordinal": 370,
+              "sequence": 99,
+              "raw_sha256": "739881c07b4c78fc9d973236297663031f11548371c517a2b11c265bf529f85d"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "cf5c53c9-3d9f-4acf-9443-6e8987a97b16",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "6f2a85d74b2b08192f24c618a6ce61b637c80c23c0c3c942e831e30fe037e633",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "65ccbb66-b67c-4698-8d80-a0b0502305b1",
+          "organization": "DE V OPERATING, LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "ae4dcc63-1af3-44eb-bc80-cbec7e5448b4",
+          "source_version_hash": "6f2a85d74b2b08192f24c618a6ce61b637c80c23c0c3c942e831e30fe037e633"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "001cc9ae13ac66b6258890ca7025531a5ae04056a660102e06d4f76056c59b56",
+      "location_assertion_key": "TX|county_assertion|rrc county code 317 texas|texas w 1 permit 0919088",
+      "project_assertion_key": "texas-rrc-drilling-permits:0919088",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "d51110ed-37cf-471f-945c-42163b34b388",
+      "name": "EG AI RICE CAMPUS DATA CENTER",
+      "location": "800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "data_center",
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027002808",
+      "identity_key": "texas-tdlr-tabs-data-centers:TABS-TABS2027002808",
+      "identity_facts": {
+        "site": "800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)",
+        "project_name": "EG AI RICE CAMPUS DATA CENTER",
+        "asset_identity": null,
+        "facility_scope": null,
+        "project_aliases": [
+          "EG AI RICE CAMPUS DATA CENTER"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "33daa653-ca8d-4557-9796-74b9c0786a74",
+          "observation_id": "8ceb5353-0abb-42ce-aa37-a12e63bc59da",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+          "title": "EG AI RICE CAMPUS DATA CENTER \u2014 TDLR TABS TABS2027002808",
+          "excerpt": "Project: EG AI RICE CAMPUS DATA CENTER (EG AI RICE CAMPUS)\nLocation: 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)\nRegistered: 2026-10-05\nDeveloper-reported start: 2026-11-06; completion: 2028-04-30\nEstimated cost: $5,000,000\nType of work: New Construction\nScope: NEW BUILDING FOR DATA CENTER, INCLUDING FOUNDATION, SLAB, FRAMING, WALLS AND ROOF\nOwner: EG AI CORP\nDesign firm: not stated\nTABS status: Project Registered",
+          "excerpt_truncated": false,
+          "published_at": null,
+          "observed_at": "2026-10-26T12:52:13.085074+00:00",
+          "extraction_location": "TDLR TABS project details page",
+          "evidence_hash": "3c19074fffb37b5a13171b9e2808938bbe5cd5d3d601b585600bd6638905fc13",
+          "observation_hash": "3c19074fffb37b5a13171b9e2808938bbe5cd5d3d601b585600bd6638905fc13",
+          "source_provenance": []
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "367051e4-6c09-46a1-aded-e0412713da9e",
+          "activity_key": "facility-expansion",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "TDLR TABS registration TABS2027002808 (New Construction) for a data center (EG AI RICE CAMPUS DATA CENTER) at 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County), registered 2026-10-05; owner EG AI CORP. The developer reported a start of 2026-11-06 and completion of 2028-04-30; these are the registrant's estimates, not confirmed construction dates. Estimated cost is the registrant's figure. MW, utility service date and the buyer are unknown unless stated in the scope.",
+          "admission_basis": {
+            "origin": "Official TDLR project registration",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-tdlr-tabs-data-centers",
+            "evidence_hash": "3c19074fffb37b5a13171b9e2808938bbe5cd5d3d601b585600bd6638905fc13",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [],
+      "lifecycle": null,
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "UNKNOWN_OR_NO_SOURCE_LINKED_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:data_center",
+      "selection_rank": "0c8983f59d3133f730c6cf5d8e17cb0c6693d710ce8477d930085e42a6318dde",
+      "location_assertion_key": "TX|precise_location|800 nw mckinney st rice tx 75155 navarro county",
+      "project_assertion_key": "texas-tdlr-tabs-data-centers:TABS-TABS2027002808",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "73ef209c-771c-4a53-874f-4115dc5e2c4f",
+      "name": "Texas W-1 permit 0919206",
+      "location": "RRC county code 371, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919206",
+      "identity_key": "texas-rrc-drilling-permits:0919206",
+      "identity_facts": {
+        "site": "RRC county code 371, Texas",
+        "project_name": "Texas W-1 permit 0919206",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0919206"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0919206"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "39b1638e-c546-4b7c-ab2f-14d5b1c3c3cf",
+          "observation_id": "6d4e9db6-c4d6-49e5-ba40-196b1812942c",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0919206: Drill; lease EXITO, well 3H.",
+          "excerpt": "row: 0919206\namendment_sequence: 99\noperator: HIGHMARK ENERGY OPERATING, LLC\noperator_number: 385847\nlease: EXITO\nwell: 3H\ncounty_code: 371\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-10-16\napplication_received: 2026-10-07\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0919206: Drill; lease EXITO, well 3H.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 550, \"raw_sha256\": \"5b6846672d9d8017f1e77610b6b405f2208bc3af730fca8430ae92f0ec0cab4f\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-10-16",
+          "observed_at": "2026-10-26T12:41:09.699250+00:00",
+          "extraction_location": "OGA049M root/master; permit 0919206; sequence 99",
+          "evidence_hash": "4bfb11af8c4b60dc6a45c5eca5801126467c3263cc941c4ab8d011e149ef5f96",
+          "observation_hash": "4bfb11af8c4b60dc6a45c5eca5801126467c3263cc941c4ab8d011e149ef5f96",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat",
+              "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "ordinal": 550,
+              "sequence": 99,
+              "raw_sha256": "5b6846672d9d8017f1e77610b6b405f2208bc3af730fca8430ae92f0ec0cab4f"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "23e93356-91e2-4278-bc86-e01f1b0e5db3",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "4bfb11af8c4b60dc6a45c5eca5801126467c3263cc941c4ab8d011e149ef5f96",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "f9c16931-1180-403a-91eb-48dc4c67e4d6",
+          "organization": "HIGHMARK ENERGY OPERATING, LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "39b1638e-c546-4b7c-ab2f-14d5b1c3c3cf",
+          "source_version_hash": "4bfb11af8c4b60dc6a45c5eca5801126467c3263cc941c4ab8d011e149ef5f96"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "003d170de43596a1c0fe01e241a52244e5bdbdae14dcc4f2d70b15cf4911590f",
+      "location_assertion_key": "TX|county_assertion|rrc county code 371 texas|texas w 1 permit 0919206",
+      "project_assertion_key": "texas-rrc-drilling-permits:0919206",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "5796a14e-c301-4f3e-944e-9747ba613d15",
+      "name": "PECOS COUNTY DATA CENTER",
+      "location": "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "data_center",
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2026026954",
+      "identity_key": "texas-tdlr-tabs-data-centers:TABS-TABS2026026954",
+      "identity_facts": {
+        "site": "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+        "project_name": "PECOS COUNTY DATA CENTER",
+        "asset_identity": null,
+        "facility_scope": null,
+        "project_aliases": [
+          "PECOS COUNTY DATA CENTER"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "dda4787a-c1d5-47c3-9e59-3df667bb11d0",
+          "observation_id": "4e38cfd4-0f78-411e-a99d-e1c20aa66723",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+          "title": "PECOS COUNTY DATA CENTER \u2014 TDLR TABS TABS2026026954",
+          "excerpt": "Project: PECOS COUNTY DATA CENTER (Building A)\nLocation: 6000 TX-18, Fort Stockton, TX 79735 (Pecos County)\nRegistered: 2026-08-04\nDeveloper-reported start: 2026-08-01; completion: 2026-12-01\nEstimated cost: $300,000,000\nType of work: New Construction\nScope: New data center building.\nOwner: AMAZON DATA SERVICES, INC\nDesign firm: M. ARTHUR GENSLER & ASSOCIATES, INC.\nTABS status: Project Registered",
+          "excerpt_truncated": false,
+          "published_at": null,
+          "observed_at": "2026-10-26T12:52:09.433027+00:00",
+          "extraction_location": "TDLR TABS project details page",
+          "evidence_hash": "040886932c8b66144a8131841b8a642fa2f6b5e9c41c8df12a5c78838c597e7b",
+          "observation_hash": "040886932c8b66144a8131841b8a642fa2f6b5e9c41c8df12a5c78838c597e7b",
+          "source_provenance": []
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "bd014849-c79f-442d-b861-81a23d438d5d",
+          "activity_key": "facility-expansion",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "TDLR TABS registration TABS2026026954 (New Construction) for a data center (PECOS COUNTY DATA CENTER) at 6000 TX-18, Fort Stockton, TX 79735 (Pecos County), registered 2026-08-04; owner AMAZON DATA SERVICES, INC. The developer reported a start of 2026-08-01 and completion of 2026-12-01; these are the registrant's estimates, not confirmed construction dates. Estimated cost is the registrant's figure. MW, utility service date and the buyer are unknown unless stated in the scope.",
+          "admission_basis": {
+            "origin": "Official TDLR project registration",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-tdlr-tabs-data-centers",
+            "evidence_hash": "040886932c8b66144a8131841b8a642fa2f6b5e9c41c8df12a5c78838c597e7b",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [],
+      "lifecycle": null,
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "UNKNOWN_OR_NO_SOURCE_LINKED_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:data_center",
+      "selection_rank": "2064805561c3f8ae0564371c4b718b92550534bd7c3bc1255986dacad184088a",
+      "location_assertion_key": "TX|precise_location|6000 tx 18 fort stockton tx 79735 pecos county",
+      "project_assertion_key": "texas-tdlr-tabs-data-centers:TABS-TABS2026026954",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "c4ce4c53-6492-4559-bef0-d169acb9809c",
+      "name": "Texas W-1 permit 0909805",
+      "location": "RRC county code 301, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0909805",
+      "identity_key": "texas-rrc-drilling-permits:0909805",
+      "identity_facts": {
+        "site": "RRC county code 301, Texas",
+        "project_name": "Texas W-1 permit 0909805",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0909805"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0909805"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "11c7a74f-1cbf-4421-804d-eb5a2feacaa2",
+          "observation_id": "9ece2787-97ce-459f-841a-3eba7297989e",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0909805: Drill; lease BEARTOOTH 54-1-34 UNIT, well 21H.",
+          "excerpt": "row: 0909805\namendment_sequence: 98\noperator: ANADARKO E&P ONSHORE LLC\noperator_number: 020528\nlease: BEARTOOTH 54-1-34 UNIT\nwell: 21H\ncounty_code: 301\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2025-08-13\napplication_received: 2026-09-29\namended_date: 2026-10-05\nstatus: Approved\ndescription: W-1 well permit 0909805: Drill; lease BEARTOOTH 54-1-34 UNIT, well 21H.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 299, \"raw_sha256\": \"6614704d70fd2f0265ea50533b6ed5855851a8d235bf8fedd9992d6fd4bf9864\", \"sequence\": 98, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-10-05",
+          "observed_at": "2026-10-26T12:28:39.540282+00:00",
+          "extraction_location": "OGA049M root/master; permit 0909805; sequence 98",
+          "evidence_hash": "f7f309b7821b7fe965f47a240a0e901e9e6fd50a3ba60120b30e685b0680462a",
+          "observation_hash": "f7f309b7821b7fe965f47a240a0e901e9e6fd50a3ba60120b30e685b0680462a",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat",
+              "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "ordinal": 299,
+              "sequence": 98,
+              "raw_sha256": "6614704d70fd2f0265ea50533b6ed5855851a8d235bf8fedd9992d6fd4bf9864"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "16594e46-fd3d-448a-942a-285f6f3faf9c",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "f7f309b7821b7fe965f47a240a0e901e9e6fd50a3ba60120b30e685b0680462a",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "edee8997-37a7-486d-b775-5e1c6826ece4",
+          "organization": "ANADARKO E&P ONSHORE LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "11c7a74f-1cbf-4421-804d-eb5a2feacaa2",
+          "source_version_hash": "f7f309b7821b7fe965f47a240a0e901e9e6fd50a3ba60120b30e685b0680462a"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "003e0a035357e2eb100e58608d0506263d358c2db0c22efdbc66457f414ec335",
+      "location_assertion_key": "TX|county_assertion|rrc county code 301 texas|texas w 1 permit 0909805",
+      "project_assertion_key": "texas-rrc-drilling-permits:0909805",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "99faf1be-7a8b-48d0-a5e3-28aba07fcaab",
+      "name": "Beacon Point Data Center Project",
+      "location": "4650 FM 1694, ROBSTOWN, TX 78380, Corpus Christi, TX 78380 (Nueces County)",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "data_center",
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027000611",
+      "identity_key": "texas-tdlr-tabs-data-centers:TABS-TABS2027000611",
+      "identity_facts": {
+        "site": "4650 FM 1694, ROBSTOWN, TX 78380, Corpus Christi, TX 78380 (Nueces County)",
+        "project_name": "Beacon Point Data Center Project",
+        "asset_identity": null,
+        "facility_scope": null,
+        "project_aliases": [
+          "Beacon Point Data Center Project"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "b648830a-ac7d-401b-aeeb-459d2a40ecf8",
+          "observation_id": "6815ae88-869f-4061-814d-d2057dad724a",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611",
+          "title": "Beacon Point Data Center Project \u2014 TDLR TABS TABS2027000611",
+          "excerpt": "Project: Beacon Point Data Center Project (Beacon Point Data Center)\nLocation: 4650 FM 1694, ROBSTOWN, TX 78380, Corpus Christi, TX 78380 (Nueces County)\nRegistered: 2026-09-09\nDeveloper-reported start: 2026-09-28; completion: 2027-11-05\nEstimated cost: $398,985,153\nType of work: New Construction\nScope: Type IIB construction of a fully sprinklered, 657,130 square foot, mixed use occupancy (primarily B) data center building and associated guardhouse, fire water tank and pump, and exterior mechanical and electrical support structures.\nOwner: Beacon Point DC LLC aka Lon Hill Infrastructure LLC\nDesign firm: Jacobs Project Management Co.\nTABS status: Project Registered",
+          "excerpt_truncated": false,
+          "published_at": null,
+          "observed_at": "2026-10-26T12:52:11.888548+00:00",
+          "extraction_location": "TDLR TABS project details page",
+          "evidence_hash": "598a609096d22b2def4206a96ed43389f9c892d2d7a3696280259a1a7ba214d5",
+          "observation_hash": "598a609096d22b2def4206a96ed43389f9c892d2d7a3696280259a1a7ba214d5",
+          "source_provenance": []
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "84b4d1c1-aa9d-441e-a60e-984e8b7b3e6f",
+          "activity_key": "facility-expansion",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "TDLR TABS registration TABS2027000611 (New Construction) for a data center (Beacon Point Data Center Project) at 4650 FM 1694, ROBSTOWN, TX 78380, Corpus Christi, TX 78380 (Nueces County), registered 2026-09-09; owner Beacon Point DC LLC aka Lon Hill Infrastructure LLC. The developer reported a start of 2026-09-28 and completion of 2027-11-05; these are the registrant's estimates, not confirmed construction dates. Estimated cost is the registrant's figure. MW, utility service date and the buyer are unknown unless stated in the scope.",
+          "admission_basis": {
+            "origin": "Official TDLR project registration",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-tdlr-tabs-data-centers",
+            "evidence_hash": "598a609096d22b2def4206a96ed43389f9c892d2d7a3696280259a1a7ba214d5",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [],
+      "lifecycle": null,
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "UNKNOWN_OR_NO_SOURCE_LINKED_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:data_center",
+      "selection_rank": "52d2ec078e7c0a3c1920c7846ff2fa60b957c4f752bdcc35369ed598b17fef3c",
+      "location_assertion_key": "TX|precise_location|4650 fm 1694 robstown tx 78380 corpus christi tx 78380 nueces county",
+      "project_assertion_key": "texas-tdlr-tabs-data-centers:TABS-TABS2027000611",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "0572fe0f-ccf1-48b7-8d8c-28968c9d4c02",
+      "name": "Texas W-1 permit 0918168",
+      "location": "RRC county code 235, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918168",
+      "identity_key": "texas-rrc-drilling-permits:0918168",
+      "identity_facts": {
+        "site": "RRC county code 235, Texas",
+        "project_name": "Texas W-1 permit 0918168",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918168"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918168"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "4dbf0701-7f8c-4ba1-acb3-068411055000",
+          "observation_id": "218d1e9c-ba31-4043-9177-a64a0e6f5405",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918168: Drill; lease CAMRYN D, well 4H.",
+          "excerpt": "row: 0918168\namendment_sequence: 99\noperator: HIBERNIA RESOURCES IV, LLC\noperator_number: 101969\nlease: CAMRYN D\nwell: 4H\ncounty_code: 235\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-01\napplication_received: 2026-08-25\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918168: Drill; lease CAMRYN D, well 4H.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 316, \"raw_sha256\": \"7119f44da3efcfd635861bcba820011c8896d57bf39900dd94dbe16c8081d185\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-01",
+          "observed_at": "2026-10-26T12:30:17.748502+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918168; sequence 99",
+          "evidence_hash": "e7f7e4ba52d829b9bda69c97f3a237f209436c3737881c0e44260549ac4b69c8",
+          "observation_hash": "e7f7e4ba52d829b9bda69c97f3a237f209436c3737881c0e44260549ac4b69c8",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 316,
+              "sequence": 99,
+              "raw_sha256": "7119f44da3efcfd635861bcba820011c8896d57bf39900dd94dbe16c8081d185"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "cd1a6703-6f1f-4374-a2ff-8618b240fa49",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "e7f7e4ba52d829b9bda69c97f3a237f209436c3737881c0e44260549ac4b69c8",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "b3ae8be3-52d3-4144-9978-333e4d3561f1",
+          "organization": "HIBERNIA RESOURCES IV, LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "4dbf0701-7f8c-4ba1-acb3-068411055000",
+          "source_version_hash": "e7f7e4ba52d829b9bda69c97f3a237f209436c3737881c0e44260549ac4b69c8"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "0049218bdf6114d7ceca6a44ab6e173604298a1007470fc829b2cb90cd2a4373",
+      "location_assertion_key": "TX|county_assertion|rrc county code 235 texas|texas w 1 permit 0918168",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918168",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "d94e32ef-93fd-44ee-8f16-1347d8cd0dbf",
+      "name": "DAL130 - Data Center",
+      "location": "13572 N. Main Street, Westlake, TX 76262 (Tarrant County)",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "data_center",
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027002672",
+      "identity_key": "texas-tdlr-tabs-data-centers:TABS-TABS2027002672",
+      "identity_facts": {
+        "site": "13572 N. Main Street, Westlake, TX 76262 (Tarrant County)",
+        "project_name": "DAL130 - Data Center",
+        "asset_identity": null,
+        "facility_scope": null,
+        "project_aliases": [
+          "DAL130 - Data Center"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "60df52b8-35d9-4196-8e8e-5f8dd0f62b23",
+          "observation_id": "6c068cb7-2c19-43e3-9bcc-883a6f9ba629",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+          "title": "DAL130 - Data Center \u2014 TDLR TABS TABS2027002672",
+          "excerpt": "Project: DAL130 - Data Center (Circle T Ranch DAL130 Campus)\nLocation: 13572 N. Main Street, Westlake, TX 76262 (Tarrant County)\nRegistered: 2026-10-02\nDeveloper-reported start: 2026-12-01; completion: 2027-06-01\nEstimated cost: $83,000,000\nType of work: New Construction\nScope: New construction of a data center - 224,152 square feet +/-\nOwner: Circle T Owner LP\nDesign firm: Ci Design\nTABS status: Project Registered",
+          "excerpt_truncated": false,
+          "published_at": null,
+          "observed_at": "2026-10-26T12:52:12.573722+00:00",
+          "extraction_location": "TDLR TABS project details page",
+          "evidence_hash": "81883e1521ed12bb569743a29f387083cd7d65d025f569c6feeb73ecd786badf",
+          "observation_hash": "81883e1521ed12bb569743a29f387083cd7d65d025f569c6feeb73ecd786badf",
+          "source_provenance": []
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "8160e7ee-2cf7-483f-9dc2-de29a2104fc2",
+          "activity_key": "facility-expansion",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "TDLR TABS registration TABS2027002672 (New Construction) for a data center (DAL130 - Data Center) at 13572 N. Main Street, Westlake, TX 76262 (Tarrant County), registered 2026-10-02; owner Circle T Owner LP. The developer reported a start of 2026-12-01 and completion of 2027-06-01; these are the registrant's estimates, not confirmed construction dates. Estimated cost is the registrant's figure. MW, utility service date and the buyer are unknown unless stated in the scope.",
+          "admission_basis": {
+            "origin": "Official TDLR project registration",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-tdlr-tabs-data-centers",
+            "evidence_hash": "81883e1521ed12bb569743a29f387083cd7d65d025f569c6feeb73ecd786badf",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [],
+      "lifecycle": null,
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "UNKNOWN_OR_NO_SOURCE_LINKED_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:data_center",
+      "selection_rank": "aacc10cc0bd086c57d2589fe4ec16ea610e60d693c28309af42e2b19ba9c5b6b",
+      "location_assertion_key": "TX|precise_location|13572 n main street westlake tx 76262 tarrant county",
+      "project_assertion_key": "texas-tdlr-tabs-data-centers:TABS-TABS2027002672",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "0cace1de-6940-419f-9f6b-681f79b53db4",
+      "name": "Texas W-1 permit 0918384",
+      "location": "RRC county code 485, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918384",
+      "identity_key": "texas-rrc-drilling-permits:0918384",
+      "identity_facts": {
+        "site": "RRC county code 485, Texas",
+        "project_name": "Texas W-1 permit 0918384",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918384"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918384"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "fee3270d-f98f-408c-8edc-a5eee024021c",
+          "observation_id": "2fbc5cdb-0cfa-4684-bf56-0d64ea6d0357",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918384: Drill; lease GRAY, NOBLE MRS., well 33.",
+          "excerpt": "row: 0918384\namendment_sequence: 99\noperator: NEWPORT OPERATING, LLC\noperator_number: 607883\nlease: GRAY, NOBLE MRS.\nwell: 33\ncounty_code: 485\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-09\napplication_received: 2026-09-02\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918384: Drill; lease GRAY, NOBLE MRS., well 33.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 960, \"raw_sha256\": \"e1dedbe882dc08f9f8f48f9d33240b5e6fec2f8307b2146557940515163af959\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-09",
+          "observed_at": "2026-10-26T12:31:41.341321+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918384; sequence 99",
+          "evidence_hash": "63b9f6eeaf78a82bac6419d828965d0ba6bd0d7e09a38b74ba6ed4661116227a",
+          "observation_hash": "63b9f6eeaf78a82bac6419d828965d0ba6bd0d7e09a38b74ba6ed4661116227a",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 960,
+              "sequence": 99,
+              "raw_sha256": "e1dedbe882dc08f9f8f48f9d33240b5e6fec2f8307b2146557940515163af959"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "82bda680-8484-4371-ad1d-d29c5b991f6c",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "63b9f6eeaf78a82bac6419d828965d0ba6bd0d7e09a38b74ba6ed4661116227a",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "48f089c2-985d-4590-90c6-697f1cabc6e3",
+          "organization": "NEWPORT OPERATING, LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "fee3270d-f98f-408c-8edc-a5eee024021c",
+          "source_version_hash": "63b9f6eeaf78a82bac6419d828965d0ba6bd0d7e09a38b74ba6ed4661116227a"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "005427b71bd219a6f6ca2b54635d1f613ec0f9a4954bba053965c12e51598d77",
+      "location_assertion_key": "TX|county_assertion|rrc county code 485 texas|texas w 1 permit 0918384",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918384",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "8aa5f54e-ca13-42f9-bf0e-6268d3c5eea6",
+      "name": "Texas W-1 permit 0917768",
+      "location": "RRC county code 419, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917768",
+      "identity_key": "texas-rrc-drilling-permits:0917768",
+      "identity_facts": {
+        "site": "RRC county code 419, Texas",
+        "project_name": "Texas W-1 permit 0917768",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0917768"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0917768"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "e41beb87-5eb5-4363-b264-9cfd2eaa6cc1",
+          "observation_id": "efd3421a-434b-4617-b30f-e8e5d17dc942",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0917768: Drill; lease BULLITT B, well 3H.",
+          "excerpt": "row: 0917768\namendment_sequence: 99\noperator: SILVER HILL ENERGY OPERATING LLC\noperator_number: 781863\nlease: BULLITT B\nwell: 3H\ncounty_code: 419\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-11\napplication_received: 2026-08-10\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917768: Drill; lease BULLITT B, well 3H.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 859, \"raw_sha256\": \"771e8ad0718e66655c186f91e6716ac8aad3ba270066887c8c9b1c2f77d3b59d\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-11",
+          "observed_at": "2026-10-26T12:29:42.308929+00:00",
+          "extraction_location": "OGA049M root/master; permit 0917768; sequence 99",
+          "evidence_hash": "921642c2bc2bc3e2855d5a257f55eeec80d8943ca50c5c00e5bcbe1c4e5b90ac",
+          "observation_hash": "921642c2bc2bc3e2855d5a257f55eeec80d8943ca50c5c00e5bcbe1c4e5b90ac",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 859,
+              "sequence": 99,
+              "raw_sha256": "771e8ad0718e66655c186f91e6716ac8aad3ba270066887c8c9b1c2f77d3b59d"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "729cdb1d-c330-40ab-aeaa-47d2d550846c",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "921642c2bc2bc3e2855d5a257f55eeec80d8943ca50c5c00e5bcbe1c4e5b90ac",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "8ef73e28-3853-44d8-a709-aea91c7bdb0a",
+          "organization": "SILVER HILL ENERGY OPERATING LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "e41beb87-5eb5-4363-b264-9cfd2eaa6cc1",
+          "source_version_hash": "921642c2bc2bc3e2855d5a257f55eeec80d8943ca50c5c00e5bcbe1c4e5b90ac"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "00ad15b3457277707f1abe549eae3fe720b73f5067868ae9f6baccde1c17d63a",
+      "location_assertion_key": "TX|county_assertion|rrc county code 419 texas|texas w 1 permit 0917768",
+      "project_assertion_key": "texas-rrc-drilling-permits:0917768",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "75d8efeb-697b-47c4-8128-7ff34528c4b5",
+      "name": "Texas W-1 permit 0918542",
+      "location": "RRC county code 127, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918542",
+      "identity_key": "texas-rrc-drilling-permits:0918542",
+      "identity_facts": {
+        "site": "RRC county code 127, Texas",
+        "project_name": "Texas W-1 permit 0918542",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918542"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918542"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "8af9ad36-74ba-4ddd-9356-74e07f4905b2",
+          "observation_id": "0d941f9d-9c36-4885-875a-95aea6f50d69",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918542: Drill; lease KONE, well 105H.",
+          "excerpt": "row: 0918542\namendment_sequence: 99\noperator: MURPHY EXPL. & PROD. CO. - USA\noperator_number: 594675\nlease: KONE\nwell: 105H\ncounty_code: 127\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-11\napplication_received: 2026-09-09\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918542: Drill; lease KONE, well 105H.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 154, \"raw_sha256\": \"69396158fcc824c1b0e9feff58a670e3d1354d01f0d228c80f99b2feade8c89f\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-11",
+          "observed_at": "2026-10-26T12:33:31.072649+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918542; sequence 99",
+          "evidence_hash": "4bb8756a66f60e7850d98bf0865265c389f048245ad07058c19ac98417c4ab1d",
+          "observation_hash": "4bb8756a66f60e7850d98bf0865265c389f048245ad07058c19ac98417c4ab1d",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 154,
+              "sequence": 99,
+              "raw_sha256": "69396158fcc824c1b0e9feff58a670e3d1354d01f0d228c80f99b2feade8c89f"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "fcccdf1d-a660-43a9-a287-7890f88840d1",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "4bb8756a66f60e7850d98bf0865265c389f048245ad07058c19ac98417c4ab1d",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "d8872d88-73e2-4a35-bd18-cb17ed5c7fb4",
+          "organization": "MURPHY EXPL. & PROD. CO. - USA",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "8af9ad36-74ba-4ddd-9356-74e07f4905b2",
+          "source_version_hash": "4bb8756a66f60e7850d98bf0865265c389f048245ad07058c19ac98417c4ab1d"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "00b1768e81dea788dd0e26ce98431a1475a9a6692066cc23b83fc7dbba746598",
+      "location_assertion_key": "TX|county_assertion|rrc county code 127 texas|texas w 1 permit 0918542",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918542",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "e8bc4fa7-d197-4d26-8473-1810fe00f14b",
+      "name": "Texas W-1 permit 0917670",
+      "location": "RRC county code 329, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917670",
+      "identity_key": "texas-rrc-drilling-permits:0917670",
+      "identity_facts": {
+        "site": "RRC county code 329, Texas",
+        "project_name": "Texas W-1 permit 0917670",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0917670"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0917670"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "deebbd37-1d15-4ce1-a024-a39104f0a910",
+          "observation_id": "d3711bf0-8c53-43af-82d6-89990a1b5f44",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0917670: Drill; lease RUTTER 1-12 C, well 1WA.",
+          "excerpt": "row: 0917670\namendment_sequence: 99\noperator: DIAMONDBACK E&P LLC\noperator_number: 217012\nlease: RUTTER 1-12 C\nwell: 1WA\ncounty_code: 329\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-03\napplication_received: 2026-08-05\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917670: Drill; lease RUTTER 1-12 C, well 1WA.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 626, \"raw_sha256\": \"d7dea67bb9be0f65104de7f86c6c852b8e75c0c800d5f5e95976bebf9155efe3\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-03",
+          "observed_at": "2026-10-26T12:29:35.199198+00:00",
+          "extraction_location": "OGA049M root/master; permit 0917670; sequence 99",
+          "evidence_hash": "4a74499a6ae9558b9cf9b656895de90fe955e87baf2c8b95766c25db28d3af81",
+          "observation_hash": "4a74499a6ae9558b9cf9b656895de90fe955e87baf2c8b95766c25db28d3af81",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 626,
+              "sequence": 99,
+              "raw_sha256": "d7dea67bb9be0f65104de7f86c6c852b8e75c0c800d5f5e95976bebf9155efe3"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "b0105035-dcd8-4155-8fb8-c8223ea72e67",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "4a74499a6ae9558b9cf9b656895de90fe955e87baf2c8b95766c25db28d3af81",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "organization": "DIAMONDBACK E&P LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "deebbd37-1d15-4ce1-a024-a39104f0a910",
+          "source_version_hash": "4a74499a6ae9558b9cf9b656895de90fe955e87baf2c8b95766c25db28d3af81"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "00b58a91339235dfb97d8ac893a003ed0134c080defad89015123b68a4571ab0",
+      "location_assertion_key": "TX|county_assertion|rrc county code 329 texas|texas w 1 permit 0917670",
+      "project_assertion_key": "texas-rrc-drilling-permits:0917670",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "091a69e2-96fe-4b2d-b589-97508151767b",
+      "name": "Texas W-1 permit 0918881",
+      "location": "RRC county code 419, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918881",
+      "identity_key": "texas-rrc-drilling-permits:0918881",
+      "identity_facts": {
+        "site": "RRC county code 419, Texas",
+        "project_name": "Texas W-1 permit 0918881",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918881"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918881"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "cdc539c8-3a35-4e86-a4e4-7c5fe4ae5a89",
+          "observation_id": "9a834b52-296b-4250-890f-48e355425db1",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918881: Drill; lease NEILSON RANCH B, well 3H.",
+          "excerpt": "row: 0918881\namendment_sequence: 99\noperator: ROCKCLIFF ENERGY OPERATING III\noperator_number: 103732\nlease: NEILSON RANCH B\nwell: 3H\ncounty_code: 419\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-10-23\napplication_received: 2026-09-22\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918881: Drill; lease NEILSON RANCH B, well 3H.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 649, \"raw_sha256\": \"80a7fd76b72c559738fb320cd5688b7d8f44ac74610bb6c6684186e283b03c3b\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-10-23",
+          "observed_at": "2026-10-26T12:36:13.421556+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918881; sequence 99",
+          "evidence_hash": "7f8ca001a2569385a150b9a12836d1752ace843555a04ecaaf21a31cc38f75c1",
+          "observation_hash": "7f8ca001a2569385a150b9a12836d1752ace843555a04ecaaf21a31cc38f75c1",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat",
+              "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "ordinal": 649,
+              "sequence": 99,
+              "raw_sha256": "80a7fd76b72c559738fb320cd5688b7d8f44ac74610bb6c6684186e283b03c3b"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "a89e2f58-f72f-4ffb-966f-7bad20115fc3",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "7f8ca001a2569385a150b9a12836d1752ace843555a04ecaaf21a31cc38f75c1",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "d9db41a9-88e0-4bc1-a522-2f4dc8c24801",
+          "organization": "ROCKCLIFF ENERGY OPERATING III",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "cdc539c8-3a35-4e86-a4e4-7c5fe4ae5a89",
+          "source_version_hash": "7f8ca001a2569385a150b9a12836d1752ace843555a04ecaaf21a31cc38f75c1"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "00e696903fe17972befe1fd8f20b67d9bd50ba0382254dac3189696bfa6f6a93",
+      "location_assertion_key": "TX|county_assertion|rrc county code 419 texas|texas w 1 permit 0918881",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918881",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "27fea4ee-84f1-4aee-871e-a18368691db8",
+      "name": "Texas W-1 permit 0918265",
+      "location": "RRC county code 135, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918265",
+      "identity_key": "texas-rrc-drilling-permits:0918265",
+      "identity_facts": {
+        "site": "RRC county code 135, Texas",
+        "project_name": "Texas W-1 permit 0918265",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918265"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918265"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "1c65dad6-113f-4f3a-88a9-1e8e4fcb79c1",
+          "observation_id": "d837308f-f645-4bf1-93d7-cca2fe58c55c",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918265: Drill; lease ROSE MARIE 4-40 B, well 2H.",
+          "excerpt": "row: 0918265\namendment_sequence: 99\noperator: DIAMONDBACK E&P LLC\noperator_number: 217012\nlease: ROSE MARIE 4-40 B\nwell: 2H\ncounty_code: 135\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-10\napplication_received: 2026-08-28\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918265: Drill; lease ROSE MARIE 4-40 B, well 2H.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 176, \"raw_sha256\": \"e0d64a9c0f21de77109bdcf4744f3e6332475d2420ade8186ea52ce2b6d03d58\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-10",
+          "observed_at": "2026-10-26T12:30:38.637946+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918265; sequence 99",
+          "evidence_hash": "f63275aaf8e5cbba669daf2623b37c9f0c8a155201109142b3216cad8aa7ae59",
+          "observation_hash": "f63275aaf8e5cbba669daf2623b37c9f0c8a155201109142b3216cad8aa7ae59",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 176,
+              "sequence": 99,
+              "raw_sha256": "e0d64a9c0f21de77109bdcf4744f3e6332475d2420ade8186ea52ce2b6d03d58"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "70c1fae6-9741-4498-9c03-53c0b3b86063",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "f63275aaf8e5cbba669daf2623b37c9f0c8a155201109142b3216cad8aa7ae59",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "organization": "DIAMONDBACK E&P LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "1c65dad6-113f-4f3a-88a9-1e8e4fcb79c1",
+          "source_version_hash": "f63275aaf8e5cbba669daf2623b37c9f0c8a155201109142b3216cad8aa7ae59"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "010096e909f3a30df0a35678f86c28c4b3e5498e0c46067a4fc52d6c42de6a5a",
+      "location_assertion_key": "TX|county_assertion|rrc county code 135 texas|texas w 1 permit 0918265",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918265",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "7789f456-e1dd-4bb1-96b4-ead89fd374ba",
+      "name": "Texas W-1 permit 0918684",
+      "location": "RRC county code 301, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918684",
+      "identity_key": "texas-rrc-drilling-permits:0918684",
+      "identity_facts": {
+        "site": "RRC county code 301, Texas",
+        "project_name": "Texas W-1 permit 0918684",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918684"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918684"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "759bbc81-6710-4978-a2fb-0c976866d611",
+          "observation_id": "c79aeb53-64cf-495a-b533-3c82c9363351",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918684: Drill; lease LOS VAQUEROS UNIT 2, well 1H.",
+          "excerpt": "row: 0918684\namendment_sequence: 99\noperator: PERMIAN RESOURCES OPERATING, LLC\noperator_number: 100852\nlease: LOS VAQUEROS UNIT 2\nwell: 1H\ncounty_code: 301\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-24\napplication_received: 2026-09-15\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918684: Drill; lease LOS VAQUEROS UNIT 2, well 1H.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 455, \"raw_sha256\": \"a0ad63740d870800f61dfd61d046c0df2d6aaa3a8d87be625a555174376dd1a5\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-24",
+          "observed_at": "2026-10-26T12:34:47.551928+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918684; sequence 99",
+          "evidence_hash": "91a4ef529860a85386ffa6f8a69e39824bf591b9bdc14bf1faac8cf7bf8ccff0",
+          "observation_hash": "91a4ef529860a85386ffa6f8a69e39824bf591b9bdc14bf1faac8cf7bf8ccff0",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 455,
+              "sequence": 99,
+              "raw_sha256": "a0ad63740d870800f61dfd61d046c0df2d6aaa3a8d87be625a555174376dd1a5"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "0b654fc8-e56a-4b3e-99a2-a735495bdb07",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "91a4ef529860a85386ffa6f8a69e39824bf591b9bdc14bf1faac8cf7bf8ccff0",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "5e5c73ab-4cb4-467f-8f6f-101abe8ba594",
+          "organization": "PERMIAN RESOURCES OPERATING, LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "759bbc81-6710-4978-a2fb-0c976866d611",
+          "source_version_hash": "91a4ef529860a85386ffa6f8a69e39824bf591b9bdc14bf1faac8cf7bf8ccff0"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "01166bacbcffc81799e43f5b91393273d28b996630fd733ea8b5418ccfcefd21",
+      "location_assertion_key": "TX|county_assertion|rrc county code 301 texas|texas w 1 permit 0918684",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918684",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "2b4d71c3-4c04-437e-8717-7477e40a6ba4",
+      "name": "Texas W-1 permit 0918560",
+      "location": "RRC county code 127, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918560",
+      "identity_key": "texas-rrc-drilling-permits:0918560",
+      "identity_facts": {
+        "site": "RRC county code 127, Texas",
+        "project_name": "Texas W-1 permit 0918560",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918560"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918560"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "42ed5210-3d19-4713-9be5-cc33b1bc6d27",
+          "observation_id": "2e63bd49-f8b0-4e08-9714-ba681d5dbd0e",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918560: Drill; lease ANDERSON-STONE DIM HC3, well E  3H.",
+          "excerpt": "row: 0918560\namendment_sequence: 99\noperator: INEOS USA OIL & GAS LLC\noperator_number: 424176\nlease: ANDERSON-STONE DIM HC3\nwell: E  3H\ncounty_code: 127\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-14\napplication_received: 2026-09-09\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918560: Drill; lease ANDERSON-STONE DIM HC3, well E  3H.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 142, \"raw_sha256\": \"280a38b36dec9ce0e8c39180338c1ac7b271b76f5304d25c126395b5dc18b842\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-14",
+          "observed_at": "2026-10-26T12:33:47.643777+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918560; sequence 99",
+          "evidence_hash": "3d3dc44cf544b0ac468b84ab1cf0c1b0ce7c3214ec8e66875c3551e268eaff8f",
+          "observation_hash": "3d3dc44cf544b0ac468b84ab1cf0c1b0ce7c3214ec8e66875c3551e268eaff8f",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 142,
+              "sequence": 99,
+              "raw_sha256": "280a38b36dec9ce0e8c39180338c1ac7b271b76f5304d25c126395b5dc18b842"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "0b1e24cd-fced-4da5-bd9a-47f042e6dbde",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "3d3dc44cf544b0ac468b84ab1cf0c1b0ce7c3214ec8e66875c3551e268eaff8f",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "0eb17229-ae47-4fef-822c-a18da91beaa1",
+          "organization": "INEOS USA OIL & GAS LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "42ed5210-3d19-4713-9be5-cc33b1bc6d27",
+          "source_version_hash": "3d3dc44cf544b0ac468b84ab1cf0c1b0ce7c3214ec8e66875c3551e268eaff8f"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "011d7e6fb59241e62b4ccb67bccc1c9ba6c58534f36da75d52601dfc8f047e7d",
+      "location_assertion_key": "TX|county_assertion|rrc county code 127 texas|texas w 1 permit 0918560",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918560",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "f188b62e-5df6-46e6-a521-f60bd21e536f",
+      "name": "Texas W-1 permit 0909522",
+      "location": "RRC county code 301, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0909522",
+      "identity_key": "texas-rrc-drilling-permits:0909522",
+      "identity_facts": {
+        "site": "RRC county code 301, Texas",
+        "project_name": "Texas W-1 permit 0909522",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0909522"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0909522"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "902d22d3-204f-43be-9c0b-17502b5fee67",
+          "observation_id": "517fc543-770f-411c-828a-4c8de843ddda",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0909522: Drill; lease LATRELLE UNIT, well 301BC.",
+          "excerpt": "row: 0909522\namendment_sequence: 98\noperator: ADMIRAL PERMIAN OPERATING LLC\noperator_number: 100158\nlease: LATRELLE UNIT\nwell: 301BC\ncounty_code: 301\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2025-08-12\napplication_received: 2026-09-09\namended_date: 2026-09-14\nstatus: Approved\ndescription: W-1 well permit 0909522: Drill; lease LATRELLE UNIT, well 301BC.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 401, \"raw_sha256\": \"658f87ae69d69f9743676013ee6dcbe6594467368551c5208e155538b01f1587\", \"sequence\": 98, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-14",
+          "observed_at": "2026-10-26T12:28:39.301823+00:00",
+          "extraction_location": "OGA049M root/master; permit 0909522; sequence 98",
+          "evidence_hash": "a4c33fc2edc7a144b079fcefbc66d68485bf2e0c1494fbb66f4d1d2d1b74ab23",
+          "observation_hash": "a4c33fc2edc7a144b079fcefbc66d68485bf2e0c1494fbb66f4d1d2d1b74ab23",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 401,
+              "sequence": 98,
+              "raw_sha256": "658f87ae69d69f9743676013ee6dcbe6594467368551c5208e155538b01f1587"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "32e8e02f-b658-4b86-906d-f952fbf39ea8",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "a4c33fc2edc7a144b079fcefbc66d68485bf2e0c1494fbb66f4d1d2d1b74ab23",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "a213df67-cb9c-4240-8ef4-3cc5538741dc",
+          "organization": "ADMIRAL PERMIAN OPERATING LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "902d22d3-204f-43be-9c0b-17502b5fee67",
+          "source_version_hash": "a4c33fc2edc7a144b079fcefbc66d68485bf2e0c1494fbb66f4d1d2d1b74ab23"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "013332f0745c66ade0bf69f3aa07f3334b37093b4b8becede7ff27923df40857",
+      "location_assertion_key": "TX|county_assertion|rrc county code 301 texas|texas w 1 permit 0909522",
+      "project_assertion_key": "texas-rrc-drilling-permits:0909522",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "d5aaeaf1-fccd-4677-8022-035a49e494a6",
+      "name": "Texas W-1 permit 0919327",
+      "location": "RRC county code 389, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919327",
+      "identity_key": "texas-rrc-drilling-permits:0919327",
+      "identity_facts": {
+        "site": "RRC county code 389, Texas",
+        "project_name": "Texas W-1 permit 0919327",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0919327"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0919327"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "7baed45d-2699-4db8-a005-b2c0e321937b",
+          "observation_id": "3048cbe0-caa9-4841-a813-07e9ec5bf730",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0919327: Drill; lease STATE ROCK RIVER 30-19 D, well 1SB.",
+          "excerpt": "row: 0919327\namendment_sequence: 99\noperator: BLUE ARROW OPERATING, LLC\noperator_number: 101375\nlease: STATE ROCK RIVER 30-19 D\nwell: 1SB\ncounty_code: 389\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-10-19\napplication_received: 2026-10-13\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0919327: Drill; lease STATE ROCK RIVER 30-19 D, well 1SB.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 567, \"raw_sha256\": \"1292c6c7f97b3f47cc72a7ac3f161d5129c42e72581e8ff7641fdc6e404a9a63\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-10-19",
+          "observed_at": "2026-10-26T12:42:01.287802+00:00",
+          "extraction_location": "OGA049M root/master; permit 0919327; sequence 99",
+          "evidence_hash": "6234d35463720e44ae8159d78cc601f766bb8db33d8da7b68b16ad491f2af4b1",
+          "observation_hash": "6234d35463720e44ae8159d78cc601f766bb8db33d8da7b68b16ad491f2af4b1",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat",
+              "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "ordinal": 567,
+              "sequence": 99,
+              "raw_sha256": "1292c6c7f97b3f47cc72a7ac3f161d5129c42e72581e8ff7641fdc6e404a9a63"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "bc9ab1e4-e1a6-43df-b1b3-398bb7924afa",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "6234d35463720e44ae8159d78cc601f766bb8db33d8da7b68b16ad491f2af4b1",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "5fdede29-bc57-492e-80cd-98573de866ff",
+          "organization": "BLUE ARROW OPERATING, LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "7baed45d-2699-4db8-a005-b2c0e321937b",
+          "source_version_hash": "6234d35463720e44ae8159d78cc601f766bb8db33d8da7b68b16ad491f2af4b1"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "01f1702e2bbde729a0fe60792b8803021ff4f1f463074bd23977acb86d9550f5",
+      "location_assertion_key": "TX|county_assertion|rrc county code 389 texas|texas w 1 permit 0919327",
+      "project_assertion_key": "texas-rrc-drilling-permits:0919327",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "b19efaea-1633-4ccc-92cf-c4618349cb76",
+      "name": "Texas W-1 permit 0918882",
+      "location": "RRC county code 405, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918882",
+      "identity_key": "texas-rrc-drilling-permits:0918882",
+      "identity_facts": {
+        "site": "RRC county code 405, Texas",
+        "project_name": "Texas W-1 permit 0918882",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918882"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918882"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "5dc9820b-b9c8-432e-a67c-00e068c21725",
+          "observation_id": "c8f93e66-329b-4c1f-acf3-adc9674be934",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918882: Drill; lease OLYMPIA FIELDS OS B, well 3HB.",
+          "excerpt": "row: 0918882\namendment_sequence: 99\noperator: ROCKCLIFF ENERGY OPERATING III\noperator_number: 103732\nlease: OLYMPIA FIELDS OS B\nwell: 3HB\ncounty_code: 405\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-10-05\napplication_received: 2026-09-22\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918882: Drill; lease OLYMPIA FIELDS OS B, well 3HB.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 642, \"raw_sha256\": \"5828f9073dc01eeb12486c988b3e61d47dde75125a1c94658f8d6f4f49687b4f\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-10-05",
+          "observed_at": "2026-10-26T12:36:13.747180+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918882; sequence 99",
+          "evidence_hash": "27456d61b98518db4e28a4a9eb1678f57674f0bbad4839b2f7c8d134bc7b349a",
+          "observation_hash": "27456d61b98518db4e28a4a9eb1678f57674f0bbad4839b2f7c8d134bc7b349a",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat",
+              "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "ordinal": 642,
+              "sequence": 99,
+              "raw_sha256": "5828f9073dc01eeb12486c988b3e61d47dde75125a1c94658f8d6f4f49687b4f"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "d8236b74-2c6b-4d9e-b5c2-7e343ab5ad10",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "27456d61b98518db4e28a4a9eb1678f57674f0bbad4839b2f7c8d134bc7b349a",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "d9db41a9-88e0-4bc1-a522-2f4dc8c24801",
+          "organization": "ROCKCLIFF ENERGY OPERATING III",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "5dc9820b-b9c8-432e-a67c-00e068c21725",
+          "source_version_hash": "27456d61b98518db4e28a4a9eb1678f57674f0bbad4839b2f7c8d134bc7b349a"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "02064a0222892c3dbe575a8b15fc048847c536f396dd8eb2e9565a40984fb7f3",
+      "location_assertion_key": "TX|county_assertion|rrc county code 405 texas|texas w 1 permit 0918882",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918882",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "22540dc9-9e76-4a5c-91b1-527b1ed300e0",
+      "name": "Texas W-1 permit 0915570",
+      "location": "RRC county code 329, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0915570",
+      "identity_key": "texas-rrc-drilling-permits:0915570",
+      "identity_facts": {
+        "site": "RRC county code 329, Texas",
+        "project_name": "Texas W-1 permit 0915570",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0915570"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0915570"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "6c70801c-15c0-4ba1-8eda-7c08e1bd1634",
+          "observation_id": "50b322be-1ad7-49bb-9a95-1976668d5a87",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0915570: Drill; lease COUNTRY MAC A8, well 703LH.",
+          "excerpt": "row: 0915570\namendment_sequence: 99\noperator: COG OPERATING LLC\noperator_number: 166150\nlease: COUNTRY MAC A8\nwell: 703LH\ncounty_code: 329\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-09\napplication_received: 2026-05-12\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0915570: Drill; lease COUNTRY MAC A8, well 703LH.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 616, \"raw_sha256\": \"7f81d9f922432d33ca0ebac99e77050d649c634ce2ee4264988228d83914f92a\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-09",
+          "observed_at": "2026-10-26T12:28:59.300015+00:00",
+          "extraction_location": "OGA049M root/master; permit 0915570; sequence 99",
+          "evidence_hash": "e8f1ff5a18d0101125f4301e6c763e910c51371fd1b95df54fcc97393b069a9e",
+          "observation_hash": "e8f1ff5a18d0101125f4301e6c763e910c51371fd1b95df54fcc97393b069a9e",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 616,
+              "sequence": 99,
+              "raw_sha256": "7f81d9f922432d33ca0ebac99e77050d649c634ce2ee4264988228d83914f92a"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "8d920395-de61-45e2-9f49-e058ed761ea5",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "e8f1ff5a18d0101125f4301e6c763e910c51371fd1b95df54fcc97393b069a9e",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "e75e32ec-c079-4d70-a2ea-f2aa1aa088d0",
+          "organization": "COG OPERATING LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "6c70801c-15c0-4ba1-8eda-7c08e1bd1634",
+          "source_version_hash": "e8f1ff5a18d0101125f4301e6c763e910c51371fd1b95df54fcc97393b069a9e"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "022bd4a82bbf3acde0e6e75576be708a50d1d9051921478ecac14f22eb2ee559",
+      "location_assertion_key": "TX|county_assertion|rrc county code 329 texas|texas w 1 permit 0915570",
+      "project_assertion_key": "texas-rrc-drilling-permits:0915570",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "5ddb20b5-e5f1-4c00-970f-8aec2b34b279",
+      "name": "Texas W-1 permit 0918069",
+      "location": "RRC county code 317, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918069",
+      "identity_key": "texas-rrc-drilling-permits:0918069",
+      "identity_facts": {
+        "site": "RRC county code 317, Texas",
+        "project_name": "Texas W-1 permit 0918069",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918069"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918069"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "cb709e08-aade-48d2-bde0-6aa8eca62646",
+          "observation_id": "12e37827-7402-4fa1-bd82-30ab6a8502c3",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918069: Drill; lease GLASSCOCK-DICKENSON 44C, well 3H.",
+          "excerpt": "row: 0918069\namendment_sequence: 99\noperator: PIONEER NATURAL RES. USA, INC.\noperator_number: 665748\nlease: GLASSCOCK-DICKENSON 44C\nwell: 3H\ncounty_code: 317\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-24\napplication_received: 2026-08-21\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918069: Drill; lease GLASSCOCK-DICKENSON 44C, well 3H.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 603, \"raw_sha256\": \"8fb642562fd95e0b62f509028f8272b902b11f4fea0f61694446e9b721028dce\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-24",
+          "observed_at": "2026-10-26T12:30:02.918046+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918069; sequence 99",
+          "evidence_hash": "58b1132ffa8d97713e07588363f56d0ec86cfbaee9f11d8f12ee410ea3e6d60b",
+          "observation_hash": "58b1132ffa8d97713e07588363f56d0ec86cfbaee9f11d8f12ee410ea3e6d60b",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 603,
+              "sequence": 99,
+              "raw_sha256": "8fb642562fd95e0b62f509028f8272b902b11f4fea0f61694446e9b721028dce"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "da8dd406-81f3-4abd-84a0-c2797be71e5b",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "58b1132ffa8d97713e07588363f56d0ec86cfbaee9f11d8f12ee410ea3e6d60b",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "a0627e40-3368-4749-9ade-41b3ff8a006d",
+          "organization": "PIONEER NATURAL RES. USA, INC.",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "cb709e08-aade-48d2-bde0-6aa8eca62646",
+          "source_version_hash": "58b1132ffa8d97713e07588363f56d0ec86cfbaee9f11d8f12ee410ea3e6d60b"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "0239d1b0727b3da7f180d9369c580cbd9e82f3224ac2c16189fb3be9b1d6e71a",
+      "location_assertion_key": "TX|county_assertion|rrc county code 317 texas|texas w 1 permit 0918069",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918069",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "c8956043-159e-4c2d-8995-baed952c8170",
+      "name": "Texas W-1 permit 0917656",
+      "location": "RRC county code 329, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917656",
+      "identity_key": "texas-rrc-drilling-permits:0917656",
+      "identity_facts": {
+        "site": "RRC county code 329, Texas",
+        "project_name": "Texas W-1 permit 0917656",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0917656"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0917656"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "72883efb-6cc2-42c2-bc8b-479df66b31d0",
+          "observation_id": "db19ece8-c0c0-4ef4-add6-2611b69172e4",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0917656: Drill; lease PEGGY 20 N, well U  2WB.",
+          "excerpt": "row: 0917656\namendment_sequence: 99\noperator: DIAMONDBACK E&P LLC\noperator_number: 217012\nlease: PEGGY 20 N\nwell: U  2WB\ncounty_code: 329\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-11\napplication_received: 2026-08-05\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917656: Drill; lease PEGGY 20 N, well U  2WB.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 623, \"raw_sha256\": \"496f802eb28eff1e6d074a0f10d46b8884f13d59ba0b726da0077836b332dc0d\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-11",
+          "observed_at": "2026-10-26T12:29:34.244922+00:00",
+          "extraction_location": "OGA049M root/master; permit 0917656; sequence 99",
+          "evidence_hash": "eb3c3a4d93ae243d3c7c9cc8eaa32abce9202df7e57d99dcb0185c6d1472a630",
+          "observation_hash": "eb3c3a4d93ae243d3c7c9cc8eaa32abce9202df7e57d99dcb0185c6d1472a630",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 623,
+              "sequence": 99,
+              "raw_sha256": "496f802eb28eff1e6d074a0f10d46b8884f13d59ba0b726da0077836b332dc0d"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "2f0a8d9c-198c-436e-9f4f-797548ffcfed",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "eb3c3a4d93ae243d3c7c9cc8eaa32abce9202df7e57d99dcb0185c6d1472a630",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+          "organization": "DIAMONDBACK E&P LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "72883efb-6cc2-42c2-bc8b-479df66b31d0",
+          "source_version_hash": "eb3c3a4d93ae243d3c7c9cc8eaa32abce9202df7e57d99dcb0185c6d1472a630"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "025d9903cf6128f8b69e03a64bfa9dec71fc817197dc1a84953ebfae5be97335",
+      "location_assertion_key": "TX|county_assertion|rrc county code 329 texas|texas w 1 permit 0917656",
+      "project_assertion_key": "texas-rrc-drilling-permits:0917656",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "c0b23ecf-7e2b-4f33-a457-57d764ee1e9d",
+      "name": "Texas W-1 permit 0919153",
+      "location": "RRC county code 461, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919153",
+      "identity_key": "texas-rrc-drilling-permits:0919153",
+      "identity_facts": {
+        "site": "RRC county code 461, Texas",
+        "project_name": "Texas W-1 permit 0919153",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0919153"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0919153"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "2edecc3f-b464-467c-b673-b587069d91d9",
+          "observation_id": "7e4f7c4c-a2ad-4217-81af-db44726e6a1e",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0919153: Drill; lease HALF TON 2/17 D, well N101DM.",
+          "excerpt": "row: 0919153\namendment_sequence: 99\noperator: MEWBOURNE OIL COMPANY\noperator_number: 562560\nlease: HALF TON 2/17 D\nwell: N101DM\ncounty_code: 461\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-10-22\napplication_received: 2026-10-05\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0919153: Drill; lease HALF TON 2/17 D, well N101DM.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 694, \"raw_sha256\": \"9741ccb0ca9dd5f10cdc24cf04db6882820fc08cdaa903c298b1932135b73b30\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-10-22",
+          "observed_at": "2026-10-26T12:40:50.815134+00:00",
+          "extraction_location": "OGA049M root/master; permit 0919153; sequence 99",
+          "evidence_hash": "09cdd9b40aa53c10961e7f346c4e3baa8b3fddd9bdc36b98865e20372d85bb4a",
+          "observation_hash": "09cdd9b40aa53c10961e7f346c4e3baa8b3fddd9bdc36b98865e20372d85bb4a",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat",
+              "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "ordinal": 694,
+              "sequence": 99,
+              "raw_sha256": "9741ccb0ca9dd5f10cdc24cf04db6882820fc08cdaa903c298b1932135b73b30"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "b1b9d674-bee7-4ffa-954d-a8b2c35fab24",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "09cdd9b40aa53c10961e7f346c4e3baa8b3fddd9bdc36b98865e20372d85bb4a",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "297557ba-5260-4609-b9bc-c190059e16e3",
+          "organization": "MEWBOURNE OIL COMPANY",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "2edecc3f-b464-467c-b673-b587069d91d9",
+          "source_version_hash": "09cdd9b40aa53c10961e7f346c4e3baa8b3fddd9bdc36b98865e20372d85bb4a"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "027e3def4506e8c35067d82ef7a5d5baf999071e4b2b39673f031221e831a457",
+      "location_assertion_key": "TX|county_assertion|rrc county code 461 texas|texas w 1 permit 0919153",
+      "project_assertion_key": "texas-rrc-drilling-permits:0919153",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "3d03a65e-5607-4fa7-9eef-854d2c671ce2",
+      "name": "Texas W-1 permit 0919092",
+      "location": "RRC county code 317, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919092",
+      "identity_key": "texas-rrc-drilling-permits:0919092",
+      "identity_facts": {
+        "site": "RRC county code 317, Texas",
+        "project_name": "Texas W-1 permit 0919092",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0919092"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0919092"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "b59b73a2-36fa-4b40-a189-cef7c52518aa",
+          "observation_id": "8bb0a301-059d-48ad-867f-a686f9b836ca",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0919092: Drill; lease JAGUAR WEST E 40-45, well 4205H.",
+          "excerpt": "row: 0919092\namendment_sequence: 99\noperator: DE V OPERATING, LLC\noperator_number: 102606\nlease: JAGUAR WEST E 40-45\nwell: 4205H\ncounty_code: 317\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-10-09\napplication_received: 2026-10-01\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0919092: Drill; lease JAGUAR WEST E 40-45, well 4205H.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 375, \"raw_sha256\": \"5240110e845cd34e75d1b35b3b078291c577e0344220fe84bed48879d637ea1a\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-10-09",
+          "observed_at": "2026-10-26T12:38:07.629349+00:00",
+          "extraction_location": "OGA049M root/master; permit 0919092; sequence 99",
+          "evidence_hash": "1eeed91b8d1aed875adb0b046b57a405e58bd098c3bca4ff39b9a23e8c298f1d",
+          "observation_hash": "1eeed91b8d1aed875adb0b046b57a405e58bd098c3bca4ff39b9a23e8c298f1d",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat",
+              "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "ordinal": 375,
+              "sequence": 99,
+              "raw_sha256": "5240110e845cd34e75d1b35b3b078291c577e0344220fe84bed48879d637ea1a"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "431d0388-db06-4b6e-be96-58460b5d3bdd",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "1eeed91b8d1aed875adb0b046b57a405e58bd098c3bca4ff39b9a23e8c298f1d",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "65ccbb66-b67c-4698-8d80-a0b0502305b1",
+          "organization": "DE V OPERATING, LLC",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "b59b73a2-36fa-4b40-a189-cef7c52518aa",
+          "source_version_hash": "1eeed91b8d1aed875adb0b046b57a405e58bd098c3bca4ff39b9a23e8c298f1d"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "02a768af4340ae5cb39782b6d3cc0096fc39f467a180b1afd5d5c160c46a6191",
+      "location_assertion_key": "TX|county_assertion|rrc county code 317 texas|texas w 1 permit 0919092",
+      "project_assertion_key": "texas-rrc-drilling-permits:0919092",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    },
+    {
+      "project_id": "e6bb9662-31d0-48f1-b33d-9ca8e0a7397e",
+      "name": "Texas W-1 permit 0918254",
+      "location": "RRC county code 329, Texas",
+      "region_status": "ELIGIBLE",
+      "region_state": "TX",
+      "region_reason": "project_site_in_region",
+      "asset_type": "upstream_well",
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918254",
+      "identity_key": "texas-rrc-drilling-permits:0918254",
+      "identity_facts": {
+        "site": "RRC county code 329, Texas",
+        "project_name": "Texas W-1 permit 0918254",
+        "asset_identity": [
+          "texas-rrc-drilling-permits:permit_project",
+          "0918254"
+        ],
+        "facility_scope": null,
+        "project_aliases": [
+          "0918254"
+        ],
+        "facility_source_address": null
+      },
+      "source_evidence": [
+        {
+          "evidence_id": "efcf7974-860d-4402-9f4c-a5355dd2f904",
+          "observation_id": "946c7ce8-0e31-49b2-8e04-e7e7d9f5da30",
+          "source_id": "texas-rrc-drilling-permits",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918254: Drill; lease CMC NIGHTSHADE 17/5 UNIT, well 1744JM.",
+          "excerpt": "row: 0918254\namendment_sequence: 99\noperator: CHEVRON U. S. A. INC.\noperator_number: 148113\nlease: CMC NIGHTSHADE 17/5 UNIT\nwell: 1744JM\ncounty_code: 329\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-09-10\napplication_received: 2026-08-28\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918254: Drill; lease CMC NIGHTSHADE 17/5 UNIT, well 1744JM.\nSource segment provenance: [{\"filename\": \"daf420.dat.09-30-2026\", \"ordinal\": 611, \"raw_sha256\": \"47ecef30296066a5b85f1b22cc5c2e7e43d05e8249e571d9f8e7ac25dc2f0d2f\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba\"}]",
+          "excerpt_truncated": false,
+          "published_at": "2026-09-10",
+          "observed_at": "2026-10-26T12:30:35.764030+00:00",
+          "extraction_location": "OGA049M root/master; permit 0918254; sequence 99",
+          "evidence_hash": "163d478ab422fdf6ec0b0d73ec8d0246cb1e33b8aaeda70352533e954c8a6ed3",
+          "observation_hash": "163d478ab422fdf6ec0b0d73ec8d0246cb1e33b8aaeda70352533e954c8a6ed3",
+          "source_provenance": [
+            {
+              "filename": "daf420.dat.09-30-2026",
+              "source_url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+              "ordinal": 611,
+              "sequence": 99,
+              "raw_sha256": "47ecef30296066a5b85f1b22cc5c2e7e43d05e8249e571d9f8e7ac25dc2f0d2f"
+            }
+          ]
+        }
+      ],
+      "active_power_needs": [
+        {
+          "need_id": "bc98bfe2-897e-4ab7-b55a-698af6ed4c6b",
+          "activity_key": "drilling",
+          "tier": "Signal",
+          "required_mw": null,
+          "start_window": null,
+          "duration": null,
+          "supply": "Unknown",
+          "rationale": "Official drilling permit is an early production Signal; no power gap is required.",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "texas-rrc-drilling-permits",
+            "evidence_hash": "163d478ab422fdf6ec0b0d73ec8d0246cb1e33b8aaeda70352533e954c8a6ed3",
+            "policy_version": "signal-admission-v2"
+          }
+        }
+      ],
+      "company_assertions": [
+        {
+          "company_identity_id": "d748a7e0-0acb-4c16-b29a-316fc66db7aa",
+          "organization": "CHEVRON U. S. A. INC.",
+          "role": "asset_operator",
+          "source_id": "texas-rrc-drilling-permits",
+          "source_evidence_id": "efcf7974-860d-4402-9f4c-a5355dd2f904",
+          "source_version_hash": "163d478ab422fdf6ec0b0d73ec8d0246cb1e33b8aaeda70352533e954c8a6ed3"
+        }
+      ],
+      "lifecycle": {
+        "current_state": "drilling_permit",
+        "expected_next_milestone": "spud",
+        "expected_power_event": "production / electrification power",
+        "time_to_power_start": null,
+        "time_to_power_end": null,
+        "open_questions": []
+      },
+      "baseline_unknowns": [
+        "independent project identity adjudication",
+        "source-supported temporary/rental-power relevance",
+        "source-supported 300 kW floor",
+        "current/future need date and duration",
+        "committed supply and residual gap",
+        "buyer organization and buying authority",
+        "project-connected contact and attributable business method",
+        "independent mailbox verification",
+        "contact and buyer relevance not adjudicated at freeze time"
+      ],
+      "baseline_status": {
+        "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+        "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+        "need_timing": "UNKNOWN",
+        "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+        "power_supply": "UNKNOWN",
+        "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+        "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+      },
+      "selection_stratum": "TX:upstream_well",
+      "selection_rank": "033b0413f39d8ae8831e4da9d7a7be1db7cd2d1c1631f2c5eb821437b6ab0a19",
+      "location_assertion_key": "TX|county_assertion|rrc county code 329 texas|texas w 1 permit 0918254",
+      "project_assertion_key": "texas-rrc-drilling-permits:0918254",
+      "selection_basis": "source-backed distinct physical-site candidate",
+      "qualification_status": "NOT_ADJUDICATED"
+    }
+  ]
+}

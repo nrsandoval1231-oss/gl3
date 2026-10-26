@@ -13,8 +13,14 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gridlens.intelligence.buying_chain_corrections import correct_buying_chain_claim
 from gridlens.intelligence.company_contacts import company_contacts
+from gridlens.intelligence.contact_suppressions import (
+    _ledger_states,
+    company_suppression_key,
+    global_method_suppression_key,
+    method_suppression_key,
+    person_suppression_key,
+)
 from gridlens.persistence.models import (
     ExternalImportActivation,
     ExternalImportRow,
@@ -95,107 +101,53 @@ def project_contact_assertions(session: Session, company_id: UUID) -> dict[str, 
                 **contact_assertion_status(imported=True),
             }
         )
+    suppression_keys = {("company", company_suppression_key(company_id))}
+    for item in imported:
+        name = item.get("name")
+        if name:
+            suppression_keys.add(("person", person_suppression_key(company_id, name)))
+        for kind, field in (("email", "email"), ("phone", "phone"), ("profile", "profile_url")):
+            value = item.get(field)
+            if value:
+                suppression_keys.add(
+                    ("method", method_suppression_key(company_id, name, kind, value))
+                )
+                suppression_keys.add(("method", global_method_suppression_key(kind, value)))
+    states = _ledger_states(session, suppression_keys)
+    if states.get(("company", company_suppression_key(company_id))) == "suppress":
+        imported = []
+    else:
+        visible_imported = []
+        for item in imported:
+            name = item.get("name")
+            if (
+                name
+                and states.get(("person", person_suppression_key(company_id, name))) == "suppress"
+            ):
+                continue
+            # Imported rows have no stable person UUID; canonical globally
+            # keyed method suppressions still apply to every refresh/import.
+            for kind, field in (("email", "email"), ("phone", "phone"), ("profile", "profile_url")):
+                value = item.get(field)
+                if (
+                    value
+                    and states.get(
+                        ("method", method_suppression_key(company_id, name, kind, value))
+                    )
+                    == "suppress"
+                    or (
+                        value
+                        and states.get(("method", global_method_suppression_key(kind, value)))
+                        == "suppress"
+                    )
+                ):
+                    item[field] = None
+            if any(item.get(field) for field in ("email", "phone", "profile_url")) or not name:
+                visible_imported.append(item)
+        imported = visible_imported
     return {
         "company_id": str(company_id),
         "contacts": contacts,
         "imported_unverified": imported,
         "research_required": canonical.research_required,
-    }
-
-
-def correct_contact_assertion(
-    session: Session,
-    *,
-    project_id: UUID,
-    claim_id: UUID,
-    expected_version: str,
-    idempotency_key: str,
-    action: str,
-    kind: str,
-    value: str | None,
-    reason: str,
-    actor: str,
-    source_evidence_id: UUID | None = None,
-    source_hash: str | None = None,
-    verification_basis: str | None = None,
-) -> dict[str, Any]:
-    """Suppress/replace a method through the canonical append-only claim ledger.
-
-    Source-free replacement is an attributed operator report, not a sourced
-    published contact. This correction ledger has no durable independent-mailbox
-    verification field, so verification requests remain unsupported; MX/DNS
-    observations never verify a mailbox.
-    """
-    if action not in {"suppress", "replace", "retract"}:
-        raise ValueError("Action must be suppress, replace, or retract")
-    if action != "retract" and kind not in CONTACT_KINDS:
-        raise ValueError("Unsupported contact method kind")
-    if not reason.strip() or not actor.strip() or not idempotency_key.strip():
-        raise ValueError("Reason, actor, and idempotency key are required")
-    if verification_basis is not None:
-        raise ValueError(
-            "Independent mailbox verification is unsupported; MX/DNS and imported assertions "
-            "cannot verify a mailbox"
-        )
-    if action == "retract":
-        if value is not None:
-            raise ValueError("A retraction cannot include a replacement contact value")
-        row = correct_buying_chain_claim(
-            session,
-            project_id=project_id,
-            claim_id=claim_id,
-            expected_version=expected_version,
-            idempotency_key=idempotency_key,
-            action="retract",
-            values={},
-            source_evidence_id=None,
-            source_hash=None,
-            reason=reason,
-            actor=actor,
-        )
-        return {"correction_id": str(row.id), "status": "retracted", "version": str(row.id)}
-    if action == "suppress":
-        if value not in {None, ""}:
-            raise ValueError("Suppression must not provide a replacement value")
-        values = {"public_contact_kind": kind, "public_contact_value": ""}
-        reported_contact = True
-        source_evidence_id = None
-        source_hash = None
-        verification_basis = None
-    else:
-        if not value or not value.strip():
-            raise ValueError("Replacement contact value is required")
-        values = {"public_contact_kind": kind, "public_contact_value": value.strip()}
-        reported_contact = source_evidence_id is None
-        if reported_contact and verification_basis is None:
-            # Details may be retained as a reported method, but are never labeled
-            # as verified merely because an operator entered them.
-            verification_basis = None
-    row = correct_buying_chain_claim(
-        session,
-        project_id=project_id,
-        claim_id=claim_id,
-        expected_version=expected_version,
-        idempotency_key=idempotency_key,
-        action="correct",
-        values=values,
-        source_evidence_id=source_evidence_id,
-        source_hash=source_hash,
-        reason=reason,
-        actor=actor,
-        reported_contact=reported_contact,
-    )
-    status = (
-        "suppressed"
-        if action == "suppress"
-        else "published"
-        if source_evidence_id is not None
-        else "operator_report_unverified"
-    )
-    return {
-        "correction_id": str(row.id),
-        "status": status,
-        "mailbox_verified": False,
-        "independent_verification": "UNKNOWN_UNSUPPORTED",
-        "version": str(row.id),
     }

@@ -173,6 +173,21 @@ def schedule(factory, card, **kwargs):
         return [q.id for q in schedule_questions(session, [card], **kwargs)]
 
 
+def schedule_legacy_two_category_plan(factory, card, **kwargs):
+    """Pin cache/retry tests to the historical two-category planner contract."""
+    scheduler = import_module("gridlens.intelligence.pursuit_questions")
+    original_plan = scheduler.plan_questions
+
+    def plan_two(card, **plan_kwargs):
+        return original_plan(card, **{**plan_kwargs, "limit": 2})
+
+    scheduler.plan_questions = plan_two
+    try:
+        return schedule(factory, card, **kwargs)
+    finally:
+        scheduler.plan_questions = original_plan
+
+
 def finish_questions(factory, ids):
     with factory.begin() as session:
         for question_id in ids:
@@ -238,9 +253,9 @@ def test_daily_cap_uses_one_utc_clock_for_inserted_question(runtime, monkeypatch
 @pytest.mark.parametrize("change", ["force", "evidence", "expired"])
 def test_fresh_cache_reused_until_force_material_change_or_expiry(runtime, change):
     factory, _, _, card = runtime
-    first = schedule(factory, card)
+    first = schedule_legacy_two_category_plan(factory, card)
     finish_questions(factory, first)
-    assert schedule(factory, card) == []
+    assert schedule_legacy_two_category_plan(factory, card) == []
     kwargs = {}
     if change == "force":
         kwargs["force"] = True
@@ -248,7 +263,7 @@ def test_fresh_cache_reused_until_force_material_change_or_expiry(runtime, chang
         card["input_hash"] = "changed-evidence-and-project-state"
     else:
         kwargs["now"] = datetime.now(UTC) + timedelta(days=2)
-    second = schedule(factory, card, **kwargs)
+    second = schedule_legacy_two_category_plan(factory, card, **kwargs)
     assert len(second) == 2
     assert set(second).isdisjoint(first)
     with factory() as session:
@@ -266,7 +281,7 @@ def test_fresh_cache_reused_until_force_material_change_or_expiry(runtime, chang
 )
 def test_legacy_retained_only_check_does_not_suppress_same_input_retry(runtime, retained_checks):
     factory, _, _, card = runtime
-    original_ids = schedule(factory, card)
+    original_ids = schedule_legacy_two_category_plan(factory, card)
     finish_questions(factory, original_ids)
     stale_id = original_ids[0]
     with factory.begin() as session:
@@ -280,7 +295,7 @@ def test_legacy_retained_only_check_does_not_suppress_same_input_retry(runtime, 
         }
         stale.receipt.pop("retry_class")
 
-    replacements = schedule(factory, card)
+    replacements = schedule_legacy_two_category_plan(factory, card)
     assert len(replacements) == 1
     with factory() as session:
         stale = session.get(PursuitResearchQuestion, stale_id)
@@ -294,7 +309,7 @@ def test_legacy_retained_only_check_does_not_suppress_same_input_retry(runtime, 
 
 def test_legacy_external_negative_check_still_honors_freshness(runtime):
     factory, _, _, card = runtime
-    original_ids = schedule(factory, card)
+    original_ids = schedule_legacy_two_category_plan(factory, card)
     finish_questions(factory, original_ids)
     with factory.begin() as session:
         for question_id in original_ids:
@@ -302,7 +317,7 @@ def test_legacy_external_negative_check_still_honors_freshness(runtime):
             row.receipt.pop("retry_class", None)
             row.receipt["source_checks"] = []
             row.receipt["route_results"] = [{"kind": "registered", "status": "CHECKED"}]
-    assert schedule(factory, card) == []
+    assert schedule_legacy_two_category_plan(factory, card) == []
 
 
 def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, monkeypatch):
@@ -315,7 +330,7 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
     )
 
     factory, worker, _, card = runtime
-    question_id = schedule(factory, card)[0]
+    question_id = schedule_legacy_two_category_plan(factory, card)[0]
     job_id, fence = lease_question(factory, question_id)
     with factory() as session:
         budget = session.get(PursuitResearchQuestion, question_id).budget
@@ -345,7 +360,9 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
         assert not failed.receipt.get("ambiguous_effects")
         assert failed.receipt.get("inflight_acquisition_url") is None
 
-    recovery_ids = schedule(factory, card, now=datetime.now(UTC) + timedelta(hours=2))
+    recovery_ids = schedule_legacy_two_category_plan(
+        factory, card, now=datetime.now(UTC) + timedelta(hours=2)
+    )
     assert len(recovery_ids) == 1
     recovery_id = recovery_ids[0]
     recovery_job, recovery_fence = lease_question(factory, recovery_id)
@@ -386,14 +403,14 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
         assert recovered.receipt["source_checks"][-1]["disposition"] == "ACCEPTED"
         assert not recovered.receipt.get("inflight_url")
         assert recovered.receipt.get("inflight_acquisition_url") is None
-    assert schedule(factory, card) == []
+    assert schedule_legacy_two_category_plan(factory, card) == []
 
 
 def test_mixed_completed_and_failed_checks_use_bounded_retry_chain(runtime):
     import time
 
     factory, worker, _, card = runtime
-    initial_ids = schedule(factory, card)
+    initial_ids = schedule_legacy_two_category_plan(factory, card)
     assert len(initial_ids) == 2
     first_id, sibling_id = initial_ids
     with factory.begin() as session:
@@ -474,11 +491,21 @@ def test_mixed_completed_and_failed_checks_use_bounded_retry_chain(runtime):
                 retry_after = completed.retry_after
 
         if delay_hours is None:
-            assert schedule(factory, card, now=exhausted_at + timedelta(days=2)) == []
+            assert (
+                schedule_legacy_two_category_plan(
+                    factory, card, now=exhausted_at + timedelta(days=2)
+                )
+                == []
+            )
             break
 
-        assert schedule(factory, card, now=retry_after - timedelta(seconds=1)) == []
-        next_ids = schedule(factory, card, now=retry_after + timedelta(seconds=1))
+        assert (
+            schedule_legacy_two_category_plan(factory, card, now=retry_after - timedelta(seconds=1))
+            == []
+        )
+        next_ids = schedule_legacy_two_category_plan(
+            factory, card, now=retry_after + timedelta(seconds=1)
+        )
         assert len(next_ids) == 1
         retry_id = next_ids[0]
         with factory() as session:
@@ -496,7 +523,7 @@ def test_resolved_question_is_not_reopened_for_unused_failed_route(runtime):
     import time
 
     factory, worker, _, card = runtime
-    initial_ids = schedule(factory, card)
+    initial_ids = schedule_legacy_two_category_plan(factory, card)
     question_id, sibling_id = initial_ids
     with factory.begin() as session:
         sibling = session.get(PursuitResearchQuestion, sibling_id)
@@ -535,7 +562,7 @@ def test_resolved_question_is_not_reopened_for_unused_failed_route(runtime):
         completed = session.get(PursuitResearchQuestion, question_id)
         assert completed.receipt["retry_class"] == "FRESH_CHECK"
         assert completed.receipt["source_checks"][-1]["disposition"] == "FAILED"
-    assert schedule(factory, card) == []
+    assert schedule_legacy_two_category_plan(factory, card) == []
 
 
 def test_mixed_paid_unknown_remains_blocking_across_force_and_changed_input(runtime):
@@ -626,20 +653,17 @@ def test_ambiguous_inflight_retrieval_is_visible_failure_without_repeat(runtime,
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
 
 
-def test_status_and_queue_api_require_auth_origin_and_preserve_receipts(runtime, monkeypatch):
+def test_autonomous_research_status_is_read_only_and_preserves_receipts(runtime):
     factory, _, api, card = runtime
-    from gridlens.intelligence import commercial_evaluation
-
-    # The explicit endpoint now evaluates the exact target, not a mocked shortlist.
-    monkeypatch.setattr(commercial_evaluation, "evaluate_target", lambda _session, _need: card)
+    queued_ids = schedule(factory, card)
+    assert len(queued_ids) == 2
     url = f"/api/commercial/triage/{card['id']}/autonomous-research"
     client = TestClient(api.app, base_url="https://testserver")
     assert client.get(url).status_code == 401
-    assert client.post(url, json={}).status_code == 401
+    # Research scheduling is automatic; the old request/queue writer is retired.
+    assert client.post(url, json={}).status_code == 405
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    assert client.get(url).json() == {"items": []}
-    assert client.post(url, json={}, headers={"origin": "https://evil.invalid"}).status_code == 403
-    response = client.post(url, json={}, headers={"origin": "https://testserver"})
+    response = client.get(url)
     assert response.status_code == 200, response.text
     rows = response.json()["items"]
     assert len(rows) == 2
@@ -647,9 +671,12 @@ def test_status_and_queue_api_require_auth_origin_and_preserve_receipts(runtime,
         q["status"] == "QUEUED" and q["receipt"]["reevaluation_status"] == "NOT_STARTED"
         for q in rows
     )
+    assert client.post(url, json={}, headers={"origin": "https://evil.invalid"}).status_code == 405
+    assert client.post(url, json={}, headers={"origin": "https://testserver"}).status_code == 405
     readback = client.get(url)
     assert readback.status_code == 200
     assert {q["id"] for q in readback.json()["items"]} == {q["id"] for q in rows}
+    assert {UUID(q["id"]) for q in rows} == set(queued_ids)
     assert client.get(f"/api/commercial/triage/{uuid4()}/autonomous-research").status_code == 404
 
 
@@ -805,7 +832,7 @@ def test_unconfigured_route_is_retryable_after_provider_recovery(runtime, monkey
     from decimal import Decimal
 
     factory, worker, _, card = runtime
-    question_id = schedule(factory, card)[0]
+    question_id = schedule_legacy_two_category_plan(factory, card)[0]
     job_id, fence = lease_question(factory, question_id)
     monkeypatch.setattr(
         worker,
@@ -829,7 +856,7 @@ def test_unconfigured_route_is_retryable_after_provider_recovery(runtime, monkey
         assert row.status == "UNRESOLVED"
         assert row.retry_after <= row.completed_at + timedelta(hours=2)
         assert not row.receipt.get("ambiguous_effects")
-    recovered = schedule(
+    recovered = schedule_legacy_two_category_plan(
         factory,
         card,
         now=datetime.now(UTC) + timedelta(hours=2),
@@ -855,7 +882,7 @@ def test_unconfigured_route_is_retryable_after_provider_recovery(runtime, monkey
         assert checked.status == "UNRESOLVED"
         assert checked.receipt["retry_class"] == "FRESH_CHECK"
         assert any(route["status"] == "CHECKED" for route in checked.receipt["route_results"])
-    assert schedule(factory, card) == []
+    assert schedule_legacy_two_category_plan(factory, card) == []
 
 
 def test_search_timeout_keeps_unknown_effect_across_force(runtime, monkeypatch):
@@ -967,7 +994,7 @@ def test_failed_route_is_not_a_fresh_checked_negative(runtime):
 
 def test_transient_retry_uses_bounded_backoff_and_exhausts_across_rows(runtime):
     factory, _, _, card = runtime
-    current = schedule(factory, card)
+    current = schedule_legacy_two_category_plan(factory, card)
     for retry_index, delay in enumerate((1, 6, 24)):
         now = datetime.now(UTC)
         with factory.begin() as session:
@@ -978,8 +1005,10 @@ def test_transient_retry_uses_bounded_backoff_and_exhausts_across_rows(runtime):
                 row.retry_after = now + timedelta(hours=delay)
                 row.context = {**row.context, "retry_index": retry_index}
                 row.receipt = {**row.receipt, "retry_class": "BOUNDED_TRANSIENT"}
-        assert schedule(factory, card) == []
-        current = schedule(factory, card, now=now + timedelta(hours=delay + 1))
+        assert schedule_legacy_two_category_plan(factory, card) == []
+        current = schedule_legacy_two_category_plan(
+            factory, card, now=now + timedelta(hours=delay + 1)
+        )
         assert current, f"retry index {retry_index} did not schedule after {delay}h"
         with factory() as session:
             assert all(
@@ -996,8 +1025,10 @@ def test_transient_retry_uses_bounded_backoff_and_exhausts_across_rows(runtime):
             row.retry_after = now + timedelta(hours=24)
             row.context = {**row.context, "retry_index": 3}
             row.receipt = {**row.receipt, "retry_class": "RETRIES_EXHAUSTED"}
-    assert schedule(factory, card, now=now + timedelta(days=2)) == []
-    forced = schedule(factory, card, force=True, now=now + timedelta(days=2))
+    assert schedule_legacy_two_category_plan(factory, card, now=now + timedelta(days=2)) == []
+    forced = schedule_legacy_two_category_plan(
+        factory, card, force=True, now=now + timedelta(days=2)
+    )
     assert forced
     with factory() as session:
         assert all(
@@ -1228,7 +1259,7 @@ def test_exhausted_job_terminalizes_active_question_without_losing_receipt(
     from gridlens.jobs.queue import assert_fence
 
     factory, _, _, card = runtime
-    question_id = schedule(factory, card)[0]
+    question_id = schedule_legacy_two_category_plan(factory, card)[0]
     with factory.begin() as session:
         question = session.get(PursuitResearchQuestion, question_id)
         question.status = status
@@ -1260,7 +1291,7 @@ def test_exhausted_job_terminalizes_active_question_without_losing_receipt(
         with pytest.raises(RuntimeError, match="fence lost"):
             assert_fence(session, job_id, "dead-worker", 5)
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
-    assert schedule(factory, card) == []
+    assert schedule_legacy_two_category_plan(factory, card) == []
 
 
 def test_expiry_cleanup_is_atomic_and_preserves_already_terminal_question(runtime):
@@ -1406,7 +1437,18 @@ def test_scheduler_reaches_saved_targets_outside_current_shortlist(runtime, monk
                 _fresh_checked_result(session.get(PursuitResearchQuestion, question_id))
                 for question_id in ids
             )
-        assert schedule(factory, card) == []
+        next_ids = schedule(factory, card)
+        with factory() as session:
+            fresh_categories = {
+                session.get(PursuitResearchQuestion, question_id).category for question_id in ids
+            }
+            next_categories = {
+                session.get(PursuitResearchQuestion, question_id).category
+                for question_id in next_ids
+            }
+            # Fresh checked categories are reused; they must not prevent the
+            # planner from investigating other still-missing facts.
+            assert fresh_categories.isdisjoint(next_categories)
 
 
 def test_paid_search_cannot_spend_after_document_budget_exhaustion(runtime):
@@ -1714,7 +1756,7 @@ def test_unexpected_question_worker_failure_uses_bounded_retry_and_keeps_receipt
     factory, research, _, card = runtime
     job_worker = import_module("gridlens.jobs.worker")
     monkeypatch.setattr(job_worker, "SessionLocal", factory)
-    question_id = schedule(factory, card)[0]
+    question_id = schedule_legacy_two_category_plan(factory, card)[0]
     with factory.begin() as session:
         question = session.get(PursuitResearchQuestion, question_id)
         question.context = {**question.context, "retry_index": retry_index}
@@ -1749,7 +1791,7 @@ def test_unexpected_question_worker_failure_uses_bounded_retry_and_keeps_receipt
             retry_after = question.retry_after
         else:
             retry_after = None
-    next_attempts = schedule(
+    next_attempts = schedule_legacy_two_category_plan(
         factory,
         card,
         now=(retry_after or completed_at + timedelta(hours=48)) + timedelta(seconds=1),

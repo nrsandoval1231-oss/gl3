@@ -332,6 +332,45 @@ def test_job_binding_keeps_no_hint_manifest_stable_after_discovery():
         validate_job_binding(job, "company", [])
 
 
+def test_adaptive_contact_fetch_budget_is_bounded_and_gap_driven():
+    from gridlens.intelligence.company_contact_discovery import (
+        MAX_ADAPTIVE_FETCHES,
+        MAX_CANDIDATE_URLS,
+        _adaptive_fetch_limit,
+    )
+    from gridlens.intelligence.enrichment_planner import (
+        DEEP_RESEARCH_PROFILE,
+        STANDARD_RESEARCH_PROFILE,
+    )
+
+    assert _adaptive_fetch_limit(DEEP_RESEARCH_PROFILE) == MAX_ADAPTIVE_FETCHES
+    assert _adaptive_fetch_limit(STANDARD_RESEARCH_PROFILE) == MAX_CANDIDATE_URLS
+    assert _adaptive_fetch_limit("unknown-profile") == MAX_CANDIDATE_URLS
+
+
+@pytest.mark.parametrize(
+    "role", ["owner construction", "owner energy", "owner_construction", "owner_energy"]
+)
+def test_owner_specialist_method_closes_role_gap_without_inventing_authority(role):
+    from gridlens.domain.opportunity_intelligence import IntelligenceContact
+    from gridlens.intelligence.company_contact_discovery import _has_buyer_relevant_method
+
+    contact = IntelligenceContact(
+        claim_id="fixture-claim",
+        company="Fixture Energy",
+        name="Fixture Contact",
+        role=role,
+        responsibility="Verified organizational responsibility",
+        methods=[{"kind": "email", "href": "mailto:contact@example.test"}],
+    )
+    authority = contact.purchasing_authority
+    assert _has_buyer_relevant_method([contact])
+    assert contact.purchasing_authority == authority
+    assert "confirmation" in authority
+    assert not _has_buyer_relevant_method([contact.model_copy(update={"methods": []})])
+    assert not _has_buyer_relevant_method([contact.model_copy(update={"role": "epc"})])
+
+
 def test_enqueue_resumes_completed_company_and_passes_only_url_hints(monkeypatch):
     company = str(uuid4())
     url = "https://acme.example/contact"

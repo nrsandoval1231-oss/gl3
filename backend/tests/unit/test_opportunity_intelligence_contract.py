@@ -147,6 +147,37 @@ def test_failed_research_is_not_proof_information_is_not_public():
     assert field.value is None
 
 
+def test_owner_developer_is_headline_while_contractor_remains_in_buying_chain():
+    owner = party()
+    owner.update(
+        id=str(uuid4()),
+        company_identity_id=str(uuid4()),
+        organization="Orion Development",
+        category="owner_developer",
+    )
+    contractor = party()
+    contractor.update(
+        id=str(uuid4()),
+        company_identity_id=str(uuid4()),
+        organization="Example EPC",
+        category="epc",
+    )
+    card = assemble_card(
+        item(),
+        {"candidates": [contractor, owner]},
+        {"disposition": "RESEARCH"},
+        [],
+        research_enabled=False,
+    )
+    assert next(field for field in card.fields if field.key == "customer").value == (
+        "Orion Development"
+    )
+    assert [contact.company for contact in card.contacts] == [
+        "Orion Development",
+        "Example EPC",
+    ]
+
+
 @pytest.mark.parametrize("scalar", [False, True])
 def test_official_and_operator_gap_shapes_keep_same_arithmetic_and_provenance(scalar):
     record = item()
@@ -271,6 +302,8 @@ def test_supported_public_load_uses_exact_claim_without_changing_signal_qualific
     card = assemble_card(record, {}, {}, [], research_enabled=True)
     field = next(f for f in card.fields if f.key == "required_mw")
     assert field.value == "2 MW (source-reported)"
+    assert field.status == "Source-reported"
+    assert field.sources[0].verification_status == "Current source-reported claim"
     assert field.sources[0].passage == evidence["abstract"]
     assert card.qualification == "Signal" and card.power_gap is None
     record["research_state"]["activity_load_mw"]["claims"][0]["evidence_hash"] = "wrong"

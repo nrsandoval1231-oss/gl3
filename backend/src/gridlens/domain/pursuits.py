@@ -52,7 +52,9 @@ class PursuitContactOut(BaseModel):
     label: str
 
 
-class CallNoteBody(BaseModel):
+class CallNoteOut(BaseModel):
+    """Read-only historical note; no corresponding mutation contract exists."""
+
     client_id: UUID
     note: str = Field(max_length=5000)
     outcome: Literal[
@@ -66,9 +68,6 @@ class CallNoteBody(BaseModel):
     ]
     next_action: str = Field(max_length=1000)
     follow_up: Date | None = None
-
-
-class CallNoteOut(CallNoteBody):
     id: UUID
     owner: str
     created_at: datetime
@@ -134,10 +133,6 @@ class PursuitsOut(BaseModel):
         "City permit refresh rechecks the official bounded source and exact retained row; "
         "A running worker is required; managed cloud scheduling has not been verified."
     )
-
-
-class CommercialResearchBody(BaseModel):
-    question: str = Field(min_length=12, max_length=300)
 
 
 class ResearchRouteOut(BaseModel):
@@ -221,11 +216,6 @@ class ResearchQuestionOut(BaseModel):
 
 class AutonomousResearchOut(BaseModel):
     items: list[ResearchQuestionOut]
-
-
-class AutonomousResearchBody(BaseModel):
-    force: bool = False
-    complete_intelligence: bool = False
 
 
 class CommercialTriageFact(BaseModel):

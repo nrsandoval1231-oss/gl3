@@ -52,6 +52,22 @@ def test_project_page_fields():
         parse_project(PAGE, "TABS2026000001")
 
 
+def test_owner_contact_routes_are_retained_with_their_literal_owner_labels():
+    page = PAGE.replace(
+        b"<dd>Dan Yamagishi</dd>",
+        b"<dd>Dan Yamagishi</dd><dt>Owner Phone:</dt><dd>(214) 555-0100</dd>"
+        b"<dt>Contact Phone:</dt><dd>(214) 555-0101</dd>",
+    )
+    parsed = parse_project(page, NUMBER)
+    item = record(parsed)
+    assert parsed["owner_contact"] == "Dan Yamagishi"
+    assert parsed["owner_phone"] == "(214) 555-0100"
+    assert parsed["owner_contact_phone"] == "(214) 555-0101"
+    assert "Owner phone: (214) 555-0100" in item["abstract"]
+    assert "Owner contact phone: (214) 555-0101" in item["abstract"]
+    assert item["source_hash"] != record(project())["source_hash"]
+
+
 def test_new_construction_is_a_signal_with_reported_dates_as_estimates():
     item = record(project())
     assert evaluator_version(item) == "tdlr-tabs-data-center-v1"

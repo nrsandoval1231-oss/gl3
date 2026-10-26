@@ -1,0 +1,68 @@
+{
+  "status": "BLOCKED_ACTUAL_25_COHORT",
+  "requested_existing_opportunities": 25,
+  "measured_existing_opportunities": 0,
+  "missing_workbooks": [],
+  "workbook_checks": {
+    "status": "AVAILABLE_RECONCILIATION_AND_ISOLATED_STAGING_COMPLETE",
+    "source": "User attachments received 2026-10-26",
+    "production_promotion": "NOT_AUTHORIZED_NOT_PERFORMED",
+    "files": [
+      {
+        "filename": "1-DC-Leads.xlsx",
+        "bytes": 220352,
+        "sha256": "8ab4a2abe5a7a03186cb1b6ca7b397c92694d486c10f01070410112a8d688210"
+      },
+      {
+        "filename": "2-US_Data_Center_Project_Tracker_August_2026.xlsx",
+        "bytes": 131794,
+        "sha256": "27494d7a42e070112f8bc18793073cdb3c14e1db940d2de3a02fbb01c5834040"
+      },
+      {
+        "filename": "3-texas-dc-leads.xlsx",
+        "bytes": 57981,
+        "sha256": "b4b52671e3148f212fab479438a89c9c26eca4ccf623479630d5477d73cdf30f"
+      },
+      {
+        "filename": "4-Cleanview.xlsx",
+        "bytes": 99505,
+        "sha256": "535e762cfdd91208e30cb8a61d2bf4cf5cc4b1e64f20d652d79bbcd99cbd40cf"
+      }
+    ],
+    "report": "workbook-reconciliation.md",
+    "production_matching": "NOT_TESTED: authenticated canonical snapshot unavailable"
+  },
+  "production_read_probe": {
+    "url": "https://app.grid-lens.com/api/opportunities/workspace",
+    "method": "GET",
+    "status": 401,
+    "response": "Authentication required",
+    "credentials_changed": false,
+    "data_modified": false
+  },
+  "available_local_real_source_corpus": {
+    "database": "gridlens_verify_austin_20261026",
+    "source": "prior isolated Austin acquisition",
+    "projects": 6,
+    "evidence_records": 171,
+    "company_identities": 0,
+    "is_requested_existing_25_cohort": false,
+    "published_benchmark_selection": "QUALIFICATION_PENDING; no current published generation, zero selected projects"
+  },
+  "not_tested": [
+    "independently labeled project identity accuracy",
+    "independently labeled company accuracy",
+    "current contact discovery coverage over 25 existing opportunities",
+    "independent mailbox verification coverage",
+    "decision-maker relevance adjudication",
+    "semantic duplicate rates",
+    "current power-gap evidence quality across 25",
+    "current enrichment completion across 25",
+    "production API performance",
+    "current research cost for 25",
+    "actual commercial actionability"
+  ],
+  "synthetic_validation": "Benchmark cohort selection, unpublished-generation exclusion and explicit missing-snapshot status: 3 PostgreSQL tests passed. Synthetic fixtures are not counted as commercial evidence.",
+  "historical_reports": "PR125 and prior contact reports remain dated historical evidence; not rescored or reported as candidate outcomes.",
+  "commercial_p0": "OPEN"
+}

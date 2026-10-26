@@ -48,8 +48,8 @@ from gridlens.settings import settings
 
 
 def current_cards() -> list[dict]:
-    # Reuse the existing authoritative projection, including its admission and
-    # exact-event grouping. Do not construct a second research-specific evaluator.
+    # Reuse the bounded current machine projection, including admission and
+    # exact-event grouping. HTTP history/notes budgets do not govern planning.
     from gridlens.api.app import _commercial_triage_cards
 
     with SessionLocal() as session:
@@ -62,16 +62,25 @@ def planning_cards() -> list[dict]:
     This read-only scan performs no acquisitions. Question scheduling separately
     enforces its daily cap, two active blockers and unchanged-result freshness.
     Scanning current semantic inputs also catches identity/buying-chain changes
-    that do not alter PowerNeed.updated_at or append a new Evidence row.
+    that do not alter PowerNeed.updated_at or append a new Evidence row. The
+    shared machine projection excludes archived snapshots, notes and research
+    history while retaining current evidence and group resource safeguards.
     """
     from gridlens.api.app import _commercial_triage_cards
 
     with SessionLocal() as session:
         cards = _commercial_triage_cards(session, 50)
         present = {card["id"] for card in cards}
-        covered = present | {
-            need_id for card in cards for need_id in card.get("related_need_ids", [])
+        excluded = {
+            need_id
+            for diagnostic in session.info.get("commercial_planner_exclusions", {}).values()
+            for need_id in diagnostic["need_ids"]
         }
+        covered = (
+            present
+            | excluded
+            | {need_id for card in cards for need_id in card.get("related_need_ids", [])}
+        )
         targets = {
             str(need_id)
             for need_id in session.scalars(select(PowerNeed.id).where(PowerNeed.active))
@@ -87,7 +96,7 @@ def planning_cards() -> list[dict]:
                 UUID(value)
             except ValueError:
                 continue
-            if value not in present:
+            if value not in present and value not in excluded:
                 targets.add(value)
         ordered_targets = sorted(targets)
         projected = evaluate_targets(session, ordered_targets, cohort=cards, grouped=True)

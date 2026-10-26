@@ -173,12 +173,12 @@ def _client(api):
     return client
 
 
-def _enqueue(client, need_id):
-    return client.post(
-        f"/api/power-needs/{need_id}/title",
-        json={},
-        headers={"origin": "https://testserver"},
-    )
+def _request_title(factory, titles, need_id):
+    from types import SimpleNamespace
+
+    with factory.begin() as session:
+        payload = titles.request_title(session, need_id)
+    return SimpleNamespace(status_code=200, json=lambda: payload)
 
 
 def _lease(factory, job_id):
@@ -356,8 +356,8 @@ def test_authenticated_queue_mock_worker_persists_and_projects_title(title_runti
 
     monkeypatch.setattr(intelligence_provider, "call_openai_request", provider)
     client = _client(api)
-    first = _enqueue(client, need_id)
-    second = _enqueue(client, need_id)
+    first = _request_title(factory, titles, need_id)
+    second = _request_title(factory, titles, need_id)
     assert first.status_code == second.status_code == 200
     assert first.json()["job_id"] == second.json()["job_id"]
     assert client.get(f"/api/power-needs/{need_id}/title").json()["status"] == "pending"
@@ -382,7 +382,7 @@ def test_authenticated_queue_mock_worker_persists_and_projects_title(title_runti
         assert session.scalar(select(func.count()).select_from(PowerNeedTitleVersion)) == 1
         job = session.get(Job, job.id)
         assert job.status == "succeeded" and job.lease_owner is None and job.lease_until is None
-    cached = _enqueue(client, need_id)
+    cached = _request_title(factory, titles, need_id)
     assert cached.status_code == 200 and cached.json()["status"] == "ready"
     assert cached.json()["job_id"] is None and len(calls) == 1
 
@@ -397,25 +397,20 @@ def test_authenticated_queue_mock_worker_persists_and_projects_title(title_runti
 
 
 def test_default_disabled_and_authenticated_read_boundary(title_runtime, monkeypatch):
-    _factory, api, _titles, need_id = title_runtime
+    factory, api, titles, need_id = title_runtime
     client = _client(api)
     monkeypatch.setattr(settings, "power_need_titles_enabled", False)
     get_response = client.get(f"/api/power-needs/{need_id}/title")
-    post_response = _enqueue(client, need_id)
-    assert get_response.status_code == post_response.status_code == 200
-    assert get_response.json()["status"] == post_response.json()["status"] == "disabled"
+    request = _request_title(factory, titles, need_id)
+    assert get_response.status_code == request.status_code == 200
+    assert get_response.json()["status"] == request.json()["status"] == "disabled"
     unauthenticated = TestClient(api.app, base_url="https://testserver")
     assert unauthenticated.get(f"/api/power-needs/{need_id}/title").status_code == 401
-    assert (
-        unauthenticated.post(
-            f"/api/power-needs/{need_id}/title", json={}, headers={"origin": "https://testserver"}
-        ).status_code
-        == 401
-    )
+    assert unauthenticated.post(f"/api/power-needs/{need_id}/title", json={}).status_code == 405
 
 
 def test_metadata_only_evidence_fails_without_provider_reservation(title_runtime, monkeypatch):
-    factory, api, titles, need_id = title_runtime
+    factory, _api, titles, need_id = title_runtime
     from gridlens.integrations import intelligence_provider
 
     provider_calls = []
@@ -431,7 +426,7 @@ def test_metadata_only_evidence_fails_without_provider_reservation(title_runtime
             "Address: 1212 Example Street, Test City\n"
             "Phone: (512) 555-0100",
         )
-    queued = _enqueue(_client(api), need_id)
+    queued = _request_title(factory, titles, need_id)
     assert queued.status_code == 200 and queued.json()["status"] == "pending"
     leased = _lease(factory, UUID(queued.json()["job_id"]))
     assert leased
@@ -451,7 +446,7 @@ def test_metadata_only_evidence_fails_without_provider_reservation(title_runtime
 def test_stale_or_disabled_input_fails_before_provider_and_clears_lease(
     title_runtime, monkeypatch, changed
 ):
-    factory, api, titles, need_id = title_runtime
+    factory, _api, titles, need_id = title_runtime
     from gridlens.integrations import intelligence_provider
 
     calls = []
@@ -460,8 +455,7 @@ def test_stale_or_disabled_input_fails_before_provider_and_clears_lease(
         "call_openai_request",
         lambda **kwargs: calls.append(kwargs),
     )
-    client = _client(api)
-    queued = _enqueue(client, need_id).json()
+    queued = _request_title(factory, titles, need_id).json()
     if changed == "evidence":
         with factory.begin() as session:
             evidence = session.scalar(select(Evidence))
@@ -484,7 +478,7 @@ def test_stale_or_disabled_input_fails_before_provider_and_clears_lease(
 def test_input_change_during_provider_call_never_publishes_current_title(
     title_runtime, monkeypatch
 ):
-    factory, api, titles, need_id = title_runtime
+    factory, _api, titles, need_id = title_runtime
     from gridlens.integrations import intelligence_provider
 
     def provider(*, api_key, request):
@@ -494,8 +488,7 @@ def test_input_change_during_provider_call_never_publishes_current_title(
         return _provider_result(request)
 
     monkeypatch.setattr(intelligence_provider, "call_openai_request", provider)
-    client = _client(api)
-    queued = _enqueue(client, need_id).json()
+    queued = _request_title(factory, titles, need_id).json()
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased
@@ -510,7 +503,7 @@ def test_input_change_during_provider_call_never_publishes_current_title(
 def test_source_disabled_during_provider_call_is_terminal_without_replay(
     title_runtime, monkeypatch
 ):
-    factory, api, titles, need_id = title_runtime
+    factory, _api, titles, need_id = title_runtime
     from gridlens.integrations import intelligence_provider
 
     calls = []
@@ -522,8 +515,7 @@ def test_source_disabled_during_provider_call_is_terminal_without_replay(
         return _provider_result(request)
 
     monkeypatch.setattr(intelligence_provider, "call_openai_request", provider)
-    client = _client(api)
-    queued = _enqueue(client, need_id).json()
+    queued = _request_title(factory, titles, need_id).json()
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased
@@ -550,7 +542,7 @@ def test_source_disabled_during_provider_call_is_terminal_without_replay(
 def test_wrong_model_and_malformed_usage_are_quarantined(
     title_runtime, monkeypatch, bad_model, input_tokens, output_tokens, reason
 ):
-    factory, api, titles, need_id = title_runtime
+    factory, _api, titles, need_id = title_runtime
     from gridlens.integrations import intelligence_provider
 
     def provider(*, api_key, request):
@@ -562,8 +554,7 @@ def test_wrong_model_and_malformed_usage_are_quarantined(
         )
 
     monkeypatch.setattr(intelligence_provider, "call_openai_request", provider)
-    client = _client(api)
-    queued = _enqueue(client, need_id).json()
+    queued = _request_title(factory, titles, need_id).json()
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased
@@ -592,7 +583,7 @@ def test_wrong_model_and_malformed_usage_are_quarantined(
 
 
 def test_unknown_dispatch_is_not_retried_and_lost_fence_cannot_publish(title_runtime, monkeypatch):
-    factory, api, titles, need_id = title_runtime
+    factory, _api, titles, need_id = title_runtime
     from gridlens.integrations import intelligence_provider
 
     calls = []
@@ -604,8 +595,7 @@ def test_unknown_dispatch_is_not_retried_and_lost_fence_cannot_publish(title_run
         )
 
     monkeypatch.setattr(intelligence_provider, "call_openai_request", uncertain)
-    client = _client(api)
-    queued = _enqueue(client, need_id).json()
+    queued = _request_title(factory, titles, need_id).json()
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased
@@ -614,7 +604,7 @@ def test_unknown_dispatch_is_not_retried_and_lost_fence_cannot_publish(title_run
         call = session.scalar(select(LogicalCall))
         assert call.status == "SENT_OUTCOME_UNKNOWN"
         assert session.get(PowerNeedTitle, need_id).status == "failed"
-    retried = _enqueue(client, need_id).json()
+    retried = _request_title(factory, titles, need_id).json()
     assert retried["job_id"] and retried["job_id"] != queued["job_id"]
     retry_lease = _lease(factory, UUID(retried["job_id"]))
     assert retry_lease
@@ -622,7 +612,7 @@ def test_unknown_dispatch_is_not_retried_and_lost_fence_cannot_publish(title_run
     titles.process_title_job(retry_job.id, "title-test-worker", retry_fence)
     assert calls == [True]
 
-    new_request = _enqueue(client, need_id).json()
+    new_request = _request_title(factory, titles, need_id).json()
     lost_lease = _lease(factory, UUID(new_request["job_id"]))
     assert lost_lease
     lost_job, lost_fence = lost_lease
@@ -639,7 +629,7 @@ def test_unknown_dispatch_is_not_retried_and_lost_fence_cannot_publish(title_run
 def test_expired_unknown_title_job_reuses_saved_call_after_pricing_change(
     title_runtime, monkeypatch
 ):
-    factory, api, titles, need_id = title_runtime
+    factory, _api, titles, need_id = title_runtime
     from gridlens.integrations import intelligence_provider
 
     calls = []
@@ -651,8 +641,7 @@ def test_expired_unknown_title_job_reuses_saved_call_after_pricing_change(
         )
 
     monkeypatch.setattr(intelligence_provider, "call_openai_request", uncertain)
-    client = _client(api)
-    queued = _enqueue(client, need_id).json()
+    queued = _request_title(factory, titles, need_id).json()
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased
@@ -686,7 +675,7 @@ def test_expired_unknown_title_job_reuses_saved_call_after_pricing_change(
 def test_expired_title_job_reuses_completed_call_without_second_provider_request(
     title_runtime, monkeypatch
 ):
-    factory, api, titles, need_id = title_runtime
+    factory, _api, titles, need_id = title_runtime
     from gridlens.integrations import intelligence_provider
 
     provider_calls = []
@@ -702,8 +691,7 @@ def test_expired_title_job_reuses_completed_call_without_second_provider_request
         "validate_title",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(KeyboardInterrupt()),
     )
-    client = _client(api)
-    queued = _enqueue(client, need_id).json()
+    queued = _request_title(factory, titles, need_id).json()
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased

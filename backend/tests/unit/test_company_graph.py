@@ -7,10 +7,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.company_graph import (
-    RELATIONSHIP_TYPES,
-    assert_company_relationship,
     company_graph,
-    correct_company_relationship,
 )
 from gridlens.persistence.contact_models import (
     CompanyRelationshipAssertion,
@@ -317,16 +314,7 @@ def test_claim_only_graph_obeys_existing_claim_retractions(graph_db):
         assert graph["company"]["aliases"] == []
 
 
-def test_company_relationship_is_versioned_and_reversible(graph_db):
-    assert RELATIONSHIP_TYPES == {
-        "parent",
-        "subsidiary",
-        "developer",
-        "operator",
-        "epc",
-        "gc",
-        "utility",
-    }
+def test_company_graph_reads_historical_relationship_correction_chain(graph_db):
     with graph_db() as session:
         company, related, _, _, source = _seed_graph(session)
         session.add(
@@ -341,8 +329,7 @@ def test_company_relationship_is_versioned_and_reversible(graph_db):
             )
         )
         session.flush()
-        assertion = assert_company_relationship(
-            session,
+        assertion = CompanyRelationshipAssertion(
             source_company_id=company.id,
             target_company_id=related.id,
             relationship_type="parent",
@@ -352,103 +339,51 @@ def test_company_relationship_is_versioned_and_reversible(graph_db):
             actor="reviewer",
             idempotency_key="graph-parent-assertion",
         )
-        assert isinstance(assertion, CompanyRelationshipAssertion)
-        corrected = correct_company_relationship(
-            session,
-            assertion.id,
-            expected_version=1,
-            action="suppress",
-            reason="Relationship needs review.",
-            actor="reviewer",
-            idempotency_key="graph-parent-suppress",
-        )
-        assert isinstance(corrected, CompanyRelationshipCorrection)
-        suppressed = company_graph(session, company.id)["relationships"][0]
-        assert suppressed["status"] == "suppressed"
-        assert suppressed["version"] == 2
-        assert suppressed["support_status"] == "operator_assertion_unverified"
-        assert suppressed["source_quote"] == source.excerpt
-        correct_company_relationship(
-            session,
-            assertion.id,
-            expected_version=2,
-            action="reinstate",
-            reason="Review confirmed the source.",
-            actor="reviewer",
-            idempotency_key="graph-parent-reinstate",
-        )
-        reinstated = company_graph(session, company.id)["relationships"][0]
-        assert reinstated["status"] == "current"
-        assert reinstated["version"] == 3
-
-        retracted = correct_company_relationship(
-            session,
-            assertion.id,
-            expected_version=3,
-            action="retract",
-            reason="The relationship was withdrawn.",
-            actor="reviewer",
-            idempotency_key="graph-parent-retract",
-        )
-        assert retracted.version == 4
-        retracted_view = company_graph(session, company.id)["relationships"][0]
-        assert retracted_view["status"] == "retracted"
-        assert retracted_view["version"] == 4
-
-        with pytest.raises(RuntimeError, match="correction version is stale"):
-            correct_company_relationship(
-                session,
-                assertion.id,
-                expected_version=3,
-                action="reinstate",
-                reason="Stale retraction version.",
-                actor="reviewer",
-                idempotency_key="graph-parent-stale-reinstate",
+        session.add(assertion)
+        session.flush()
+        rows = [
+            CompanyRelationshipCorrection(
+                assertion_id=assertion.id,
+                expected_version=expected_version,
+                version=expected_version + 1,
+                action=action,
+                reason=reason,
+                actor="historical_reviewer",
+                idempotency_key=f"graph-parent-history-{expected_version + 1}",
             )
-
-        reinstated_after_retract = correct_company_relationship(
-            session,
-            assertion.id,
-            expected_version=4,
-            action="reinstate",
-            reason="The source-backed relationship is restored.",
-            actor="reviewer",
-            idempotency_key="graph-parent-reinstate-after-retract",
-        )
-        replayed_reinstate = correct_company_relationship(
-            session,
-            assertion.id,
-            expected_version=4,
-            action="reinstate",
-            reason="The source-backed relationship is restored.",
-            actor="reviewer",
-            idempotency_key="graph-parent-reinstate-after-retract",
-        )
-        assert replayed_reinstate.id == reinstated_after_retract.id
+            for expected_version, action, reason in (
+                (1, "suppress", "Relationship was paused for review."),
+                (2, "reinstate", "Historical review reinstated the relationship."),
+                (3, "retract", "Historical record states the relationship ended."),
+                (4, "reinstate", "Historical record later reinstated the relationship."),
+            )
+        ]
+        session.add_all(rows)
+        session.flush()
         current = company_graph(session, company.id)["relationships"][0]
         assert current["status"] == "current"
         assert current["version"] == 5
+        assert current["correction_id"] == str(rows[-1].id)
+        assert current["support_status"] == "operator_assertion_unverified"
+        assert current["source_quote"] == source.excerpt
 
 
-def test_relationship_assertion_rejects_unbound_companies_or_missing_terms(graph_db):
+def test_company_graph_hides_historical_relationship_without_current_names(graph_db):
     with graph_db() as session:
         company, related, _, _, source = _seed_graph(session)
-        common = {
-            "source_company_id": company.id,
-            "target_company_id": related.id,
-            "source_evidence_id": source.id,
-            "source_version_hash": source.content_hash,
-            "reason": "Manually attribute a relationship for validation.",
-            "actor": "reviewer",
-        }
-        with pytest.raises(ValueError, match="Both companies must have current source-bound names"):
-            assert_company_relationship(
-                session,
-                relationship_type="parent",
-                idempotency_key="unbound-target-relationship",
-                **common,
-            )
-
+        assertion = CompanyRelationshipAssertion(
+            source_company_id=company.id,
+            target_company_id=related.id,
+            relationship_type="parent",
+            source_evidence_id=source.id,
+            source_version_hash=source.content_hash,
+            reason="Historical operator assertion; displayed only with current source binding.",
+            actor="historical_reviewer",
+            idempotency_key="graph-unbound-historical-assertion",
+        )
+        session.add(assertion)
+        session.flush()
+        assert company_graph(session, company.id)["relationships"] == []
         session.add(
             IdentityIdentifier(
                 entity_type="company",
@@ -461,14 +396,7 @@ def test_relationship_assertion_rejects_unbound_companies_or_missing_terms(graph
             )
         )
         session.flush()
-        with pytest.raises(ValueError, match="Both companies must have current source-bound names"):
-            assert_company_relationship(
-                session,
-                relationship_type="parent",
-                idempotency_key="unrelated-target-relationship",
-                **common,
-            )
-
+        assert company_graph(session, company.id)["relationships"] == []
         session.add(
             IdentityIdentifier(
                 entity_type="company",
@@ -481,10 +409,7 @@ def test_relationship_assertion_rejects_unbound_companies_or_missing_terms(graph
             )
         )
         session.flush()
-        with pytest.raises(ValueError, match="Both companies must have current source-bound names"):
-            assert_company_relationship(
-                session,
-                relationship_type="utility",
-                idempotency_key="missing-utility-term-relationship",
-                **common,
-            )
+        # Even a current pair of names is not enough unless the cited excerpt
+        # includes an explicit relationship term for the requested assertion.
+        assertion.relationship_type = "utility"
+        assert company_graph(session, company.id)["relationships"] == []

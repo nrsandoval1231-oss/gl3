@@ -266,7 +266,7 @@ def test_long_supported_quote_is_verified_in_full_but_displayed_compactly(resear
         record.update(required_mw="5 MW", demand_quote=quote)
     card = assemble_card(record, {}, {}, [], research_enabled=False)
     demand = next(field for field in card.fields if field.key == "required_mw")
-    assert demand.status == "Verified"
+    assert demand.status == ("Source-reported" if research_claim else "Evidence-supported")
     assert demand.sources[0].retained_evidence_id == "ev-1"
     assert len(demand.sources[0].passage) <= 641
     assert "RAW-TAIL" not in card.model_dump_json()

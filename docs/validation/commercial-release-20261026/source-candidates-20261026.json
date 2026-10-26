@@ -1,0 +1,359 @@
+{
+  "artifact": "public-source-candidates",
+  "retrieved_at": "2026-10-26T12:27:17Z",
+  "retrieval_method": "direct HTTPS GET using system TLS; no paid provider",
+  "candidates": [
+    {
+      "candidate_id": "project-jupiter-santa-teresa-nm",
+      "name": "Project Jupiter",
+      "site": "Santa Teresa, Doña Ana County, New Mexico",
+      "buyer_organization": "Oracle",
+      "related_utility": "El Paso Electric",
+      "project_status_as_reported": "Active construction; buildings near completion; power and microgrid not yet available at publication; air-quality permit proceeding ongoing",
+      "source": {
+        "publisher": "Searchlight New Mexico",
+        "title": "Oracle touts Project Jupiter benefits during tour as wrangling over power continues",
+        "url": "https://searchlightnm.org/oracle-touts-project-jupiter-benefits-during-tour-as-wrangling-over-power-continues/",
+        "published_at": "2026-10-16",
+        "retrieved_at": "2026-10-26T12:18:42Z",
+        "raw_body_sha256": "ae1b80e1c2d99e0328cfd0ff7e79b067cf33e0e04dd00250cd6ac0832537e56d",
+        "literal_quotes": [
+          {
+            "quote": "But even as the data center buildings near completion, they remain without power. A proposed natural gas fuel cell plant to power the sprawling complex still lacks a state air quality permit.",
+            "supports": [
+              "current power availability constraint",
+              "future supply project pending permitting"
+            ]
+          },
+          {
+            "quote": "Construction hasn’t yet started at the microgrid as the developers wait for state regulators’ decision on the air quality permit.",
+            "supports": [
+              "microgrid construction not yet started",
+              "regulatory dependency"
+            ]
+          },
+          {
+            "quote": "Oracle on Tuesday proposed to provide up to $55 million annually in direct credits to El Paso Electric customers for up to three years as part of an energy services agreement with the utility for emergency backup power, the company said in a news release. Oracle would pay El Paso Electric $100 million over 10 years.",
+            "supports": [
+              "proposed backup arrangement",
+              "commercial payment/credit terms only; not temporary supply duration"
+            ]
+          },
+          {
+            "quote": "During a presentation to Doña Ana County commissioners, the tech conglomerate also announced a $1 million investment in flood recovery and — controversially — a plan to offset El Paso Electric customers’ utility costs as Project Jupiter developers work to strike a deal with the utility for backup power.",
+            "supports": [
+              "agreement was still being negotiated at publication"
+            ]
+          }
+        ],
+        "local_raw_body_path_for_reviewer": "/tmp/jupiter.html"
+      },
+      "commercial_relevance": {
+        "timing": "Current as of 2026-10-16 publication; ongoing construction, pending microgrid permit, utility agreement described as being negotiated.",
+        "temporary_power_relevance": "Oracle explicitly describes a proposed El Paso Electric energy-service agreement to support late-stage construction, initial commissioning, emergency backup and worker life safety. This is a genuine current/future temporary/bridge/emergency supply case with named buyer and method. The primary source remains the planned Bloom Energy fuel-cell microgrid. Actual agreement approval/execution, energization, dates, MW, load profile, supply duration and residual gap are unreported; keep numeric need and gap null. Searchlight New Mexico independently reported the site still without power while buildings neared completion and microgrid construction not yet started (2026-10-16).",
+        "power_mw": null,
+        "temporary_power_gap_mw": null,
+        "duration": "Only utility customer credits are specified for up to three years; this is not the supply term. Oracle utility payment term reported as 10 years. Temporary supply duration is unknown.",
+        "method": "Reported prospective El Paso Electric energy services agreement for emergency backup power; proposed on-site natural-gas fuel-cell microgrid using Bloom Energy equipment, pending state air-quality permit and construction.",
+        "buyer_contact": "Mahesh Thiagarajan, executive vice president of Oracle Cloud Infrastructure, is identified in the article as participating in the site tour and discussing the project. This supports relevant executive context, not purchasing authority, direct contact details, or verified contactability.",
+        "qualification": "Source-backed temporary/commissioning supply case candidate. Count only as one case and retain unknown MW, dates/duration and current execution state. Oracle describes the agreement as proposed; the $10 million/year expected payment even below contracted use and 10-year agreement are not temporary supply load/term. Do not infer MW from the 7,000 fuel cells or campus size."
+      },
+      "corroborating_sources": [
+        {
+          "publisher": "Oracle",
+          "title": "Oracle Proposes Plan that could deliver at least $155M to offset customers utility costs in New Mexico",
+          "url": "https://www.oracle.com/news/announcement/oracle-proposes-plan-to-offset-customers-utility-costs-2026-10-13/",
+          "published_at": "2026-10-13",
+          "retrieved_at": "2026-10-26T12:28:54Z",
+          "raw_body_sha256": "c8443f3ea5ed8018bd5d85d54471f05b68dafa543d53b02cc95d359cb6c419fe",
+          "literal_quotes": [
+            {
+              "quote": "Oracle today announced a proposed Energy Service Agreement with El Paso Electric (EPE) for Project Jupiter to support late-stage construction, initial commissioning, emergency backup power at the site and to meet life safety needs for New Mexican workers at the data center.",
+              "supports": [
+                "proposed backup arrangement",
+                "commercial payment/credit terms only; not temporary supply duration"
+              ]
+            },
+            {
+              "quote": "the primary power source for Project Jupiter will continue to be provided by the Bloom Energy fuel cell microgrid. There is no change to our plan.",
+              "supports": [
+                "separate primary source vs. utility temporary/emergency arrangement"
+              ]
+            },
+            {
+              "quote": "As part of the Energy Service Agreement, Oracle expects to pay $10 million for power annually for 10 years even if its usage is below contracted levels.",
+              "supports": [
+                "proposed utility agreement term and payment; not temporary supply MW or term"
+              ]
+            },
+            {
+              "quote": "“We’re taking this action now — well before our data center comes online — to deliver a direct, meaningful benefit to New Mexico households and small businesses and help ensure the community shares in the value created by Project Jupiter.”",
+              "supports": [
+                "future project timing; Oracle executive attribution"
+              ]
+            }
+          ],
+          "local_raw_body_path_for_reviewer": "/tmp/oracle-jupiter-20261026.html"
+        }
+      ]
+    },
+    {
+      "candidate_id": "cassidy-ii-permian-midland-processing-plant",
+      "name": "Cassidy II processing plant / Brazos Midland system expansion",
+      "site": "Permian Midland Basin, Texas region; ONEOK says seven core basin counties but does not identify the plant county/address. Exact site and county are unresolved, so do not treat as verified territory-eligible physical site until resolved.",
+      "buyer_organization": "ONEOK (acquirer/operator of Brazos Midstream Permian Midland assets, acquisition completed October 6, 2026)",
+      "related_organizations": [
+        "Brazos Midstream (former asset owner)",
+        "Apollo-managed funds (announced minority equity investment; not project buyer)"
+      ],
+      "project_status_as_reported": "Cassidy II processing plant expected to complete in Q3 2027 per the August 30 transaction release; on October 6, ONEOK reported completing the asset acquisition and said Midland Basin processing capacity includes facilities under construction.",
+      "sources": [
+        {
+          "publisher": "ONEOK",
+          "title": "ONEOK Announces Brazos Midland Acquisition and Minority Equity Investment",
+          "url": "https://www.oneok.com/Newsroom/company-news/brazos-midland-acquisition",
+          "published_at": "2026-08-30",
+          "retrieved_at": "2026-10-26T12:27:17Z",
+          "raw_body_sha256": "be19cc092bb933fb9e3df7e5892e01463102051bed266e3560370980584bad68",
+          "literal_quotes": [
+            {
+              "quote": "Following completion of the Cassidy II processing plant expected in the third quarter of 2027, the Brazos Midland system will include approximately 700 miles of gathering infrastructure and 1.2 billion cubic feet per day (Bcf/d) of processing capacity across seven core Permian Midland Basin counties.",
+              "supports": [
+                "named facility",
+                "scheduled future completion",
+                "processing throughput, not electrical load",
+                "regional location but not plant county/address"
+              ]
+            },
+            {
+              "quote": "Headquartered in Fort Worth, Texas, Brazos Midstream represents the largest privately held midstream platform in the Midland Basin.",
+              "supports": [
+                "Texas region/company headquarters context only; does not establish Cassidy II site county"
+              ]
+            }
+          ]
+        },
+        {
+          "publisher": "ONEOK",
+          "title": "ONEOK Completes Acquisition of Brazos Midstream’s Permian Midland Basin Assets",
+          "url": "https://www.oneok.com/Newsroom/company-news/brazos-acquisition",
+          "published_at": "2026-10-06",
+          "retrieved_at": "2026-10-26T12:27:17Z",
+          "raw_body_sha256": "4f07f5d737519cf6da79d844ee3b0d4e37e1718542547413673122d7ddd405e8",
+          "literal_quotes": [
+            {
+              "quote": "ONEOK, Inc. (NYSE: OKE) today announced it has completed the acquisition of Brazos Midstream's Permian Midland Basin natural gas gathering and processing assets for total cash consideration of approximately $4.425 billion.",
+              "supports": [
+                "current buyer/operator identity and completed acquisition status"
+              ]
+            },
+            {
+              "quote": "The acquisition more than doubles ONEOK’s Midland Basin processing capacity to approximately 2.3 billion cubic feet per day, including facilities currently under construction.",
+              "supports": [
+                "current operator-reported construction context and aggregate processing throughput"
+              ]
+            }
+          ]
+        }
+      ],
+      "commercial_relevance": {
+        "timing": "Plant expected to complete Q3 2027 in company release published Aug 30, 2026. Later Oct 6 release reports acquisition completed and includes facilities under construction; it does not re-confirm Cassidy II schedule.",
+        "temporary_power_relevance": "Plausible construction/commissioning prospect for temporary power research because a named processing plant is under construction with a stated future completion window. Neither source reports temporary power procurement, electrical load, generator/utility method, unmet gap or a project power buyer. This is not an actionable temporary-power case.",
+        "processing_throughput": "1.2 Bcf/d across seven-county system after Cassidy II completion; aggregate processing rate is not a site electrical load and must not be converted to MW.",
+        "power_mw": null,
+        "temporary_power_gap_mw": null,
+        "method": "Unknown; no temporary supply method evidenced.",
+        "qualification": "Midstream construction prospect only. Hold exact site/county eligibility as unresolved. Do not count as a temporary-power case or infer electrical demand from throughput."
+      }
+    },
+    {
+      "candidate_id": "crusoe-abilene-stargate-bridge-power",
+      "name": "Abilene Stargate campus (first-phase site; Crusoe)",
+      "site": "Abilene, Taylor County, Texas. Current company blog names the Abilene campus; report states natural-gas turbines supply bridge power there.",
+      "buyer_organization": "Crusoe (operator / reporting organization); purchasing buyer and current procurement authority are not independently identified.",
+      "project_status_as_reported": "Crusoe 2025 Impact Report, published via company blog May 28, 2026, says first phase of the 1.2 GW campus was delivered/operational in under 12 months and describes temporary turbine bridge power while grid upgrades catch up. Blog page modified September 15, 2026. Current turbine operation, grid completion and any present unmet procurement are not stated.",
+      "sources": [
+        {
+          "publisher": "Crusoe",
+          "title": "Crusoe 2025 Impact Report",
+          "url": "https://cdn.prod.website-files.com/6855c1aa175582ee23e0aa19/6aa975443d2a8405e214f067_Crusoe_2025_Impact%20Report2_web_optimized.pdf",
+          "publication_date": "2025 reporting period; exact PDF publication date unknown; Crusoe release blog published 2026-05-28 and modified 2026-09-15",
+          "retrieved_at": "2026-10-26T12:29:54Z",
+          "content_type": "application/pdf",
+          "raw_body_sha256": "38ca3db4c94206be9e8b2ee1e3b5fa1239b00948c50b3ac0e102e6d7f1773619",
+          "local_raw_body_path_for_reviewer": "/tmp/crusoe-2025-impact-20261026.pdf",
+          "literal_quotes": [
+            {
+              "quote": "At gigawatt scale, no single power source can deliver what we need on our timelines. We build the generation capacity our campuses require while grid upgrades catch up so we can meet customer demand and achieve needed reliability — including on-site battery energy storage systems and natural gas power plants. In the Abilene Stargate campus, we use natural gas turbines to provide temporary bridge power and replace diesel backup with lower-emissions, higher-efficiency alternatives.",
+              "supports": [
+                "explicit temporary bridge-power configuration at named TX campus",
+                "gas-turbine method",
+                "grid upgrades ongoing in report context; timing unknown"
+              ]
+            },
+            {
+              "quote": "In June 2024, Crusoe broke ground on its first hyperscale data center near Abilene, Texas. By May 2025, the first phase of our flagship Stargate campus was operational: under twelve months from dirt to live compute — a record for greenfield development of a hyperscale data center. We later topped out the eighth and final building of the campus in late 2025 and expect the full campus to be operational by the end of 2026.",
+              "supports": [
+                "groundbreaking and phase 1 operational dates",
+                "company-reported construction milestones and full-campus target at report publication",
+                "does not state bridge-power start/end or turbine status at full-campus completion"
+              ]
+            }
+          ]
+        },
+        {
+          "publisher": "Crusoe",
+          "title": "Crusoe 2025 impact report: sustainable intelligence",
+          "url": "https://www.crusoe.ai/resources/blog/crusoes-2025-impact-report",
+          "published_at": "2026-05-28",
+          "modified_at": "2026-09-15",
+          "retrieved_at": "2026-10-26T12:30:05Z",
+          "raw_body_sha256": "bd325ce32eab514e44bbb35c1b6275d5f27efa08f02c0b8f9fe76f9aab062bb0",
+          "local_raw_body_path_for_reviewer": "/tmp/crusoe-blog-20261026.html",
+          "literal_quotes": [
+            {
+              "quote": "Delivered the first phase of our 1.2 GW Abilene Stargate campus in under 12 months",
+              "supports": [
+                "operator reports first phase delivery and campus scale; scale is not temporary demand"
+              ]
+            },
+            {
+              "quote": "The first phase of our Abilene Stargate campus — named 2025 North American Data Center Project of the Year — went from groundbreaking to operational in under 12 months, a record for greenfield hyperscale development.",
+              "supports": [
+                "company-reported phase now operational; current bridge/gas turbine state not specified"
+              ]
+            },
+            {
+              "quote": "A second 900 MW campus in Abilene developed with Microsoft, bringing our total Abilene footprint to 2.1 GW",
+              "supports": [
+                "a second campus announced; no schedule or temporary-power details"
+              ]
+            }
+          ]
+        }
+      ],
+      "commercial_relevance": {
+        "timing": "Temporary bridge configuration reported in Crusoe 2025 Impact Report released May 28, 2026; PDF says groundbreaking June 2024, phase 1 operational May 2025, final eighth building topped out late 2025, full campus expected operational by end 2026. Report does not give bridge start/end dates or state whether turbines continue through full-campus completion. Company blog modified Sep 15, 2026 confirms the first phase is operational but no current turbine/grid status.",
+        "temporary_power_relevance": "Explicit source-backed temporary bridge generation in Abilene using natural-gas turbines while grid upgrades catch up. This is a genuine historical/in-use bridge configuration and a source lead for the company/region. Current need or open purchase is unconfirmed; exact dates/duration, thermal/electrical rating, fuel/supply arrangements and residual grid gap are unknown.",
+        "power_mw": null,
+        "temporary_power_gap_mw": null,
+        "method": "Natural-gas turbines reported by Crusoe; rental/mobile status is not stated.",
+        "qualification": "Count as one source-backed bridge-power case only if historical/in-use cases are within the case criterion. Do not count as current actionable procurement without a current source. Do not infer bridge capacity from the 1.2 GW campus or 900 MW second-campus announcement."
+      }
+    },
+    {
+      "candidate_id": "trace-apollo-gas-plant-eddy-county-nm",
+      "name": "Apollo Gas Plant and related Trace gathering/compression buildout",
+      "site": "Eddy County, New Mexico (Northern Delaware Basin); facility site address/coordinates not given in operator release.",
+      "buyer_organization": "Trace Midstream Partners II, LLC (developer/operator); Trace is backed by Quantum Capital Group.",
+      "status": "Announced construction on June 24, 2026; plant expected in service Q4 2027.",
+      "source": {
+        "publisher": "Trace Midstream",
+        "title": "Trace Midstream to Construct Apollo Gas Plant, a New Natural Gas Processing Facility in the Northern Delaware Basin",
+        "url": "https://tracemidstream.com/news/trace-midstream-construct-apollo-gas-plant-new-natural-gas-processing-facility-northern",
+        "published_at": "2026-06-24",
+        "retrieved_at": "2026-10-26T12:32:40Z",
+        "raw_body_sha256": "aaa173a511abfbf0b7ee1e8d26aede80c4acf88e1d49520fc6adfe8665c25e27",
+        "local_raw_body_path_for_reviewer": "/tmp/trace-apollo-20261026.html",
+        "literal_quotes": [
+          {
+            "quote": "Trace Midstream Partners II, LLC (“Trace”) announced today that it will construct the Apollo Gas Plant, a new 250 million cubic feet per day (MMcf/d) natural gas processing facility in Eddy County, New Mexico. Trace will also construct 36 miles of gathering pipelines and two compressor stations.",
+            "supports": [
+              "named project, operator and New Mexico county",
+              "planned natural gas plant with throughput rating",
+              "36-mile pipeline build and two compressor stations"
+            ]
+          },
+          {
+            "quote": "The Apollo Gas Plant is expected to be in service in the fourth quarter of 2027.",
+            "supports": [
+              "scheduled future in-service timing"
+            ]
+          },
+          {
+            "quote": "The new Apollo Gas Plant and related infrastructure build on a sustained period of investment and growth across the Trace system. Once these projects are completed, Trace will operate over 200 miles of pipelines, 14 compressor stations and more than 125,000 horsepower of compression.",
+            "supports": [
+              "future integrated system scope after project completion; aggregate compression capability"
+            ]
+          }
+        ]
+      },
+      "commercial_relevance": {
+        "project_kind": "natural gas processing / gathering pipeline / compressor station construction",
+        "timing": "Construction announced June 24, 2026; in-service target Q4 2027.",
+        "temporary_power_relevance": "Current/future midstream construction prospect in New Mexico, but the source does not state construction power use, temporary generation, utility delay, electric load or procurement. No temporary-power case is established.",
+        "processing_throughput": "250 MMcf/d plant throughput; process rate is not electrical MW.",
+        "compression_rating": "More than 125,000 horsepower refers to the post-project Trace system aggregate, not the two new compressor stations and not temporary electrical demand.",
+        "power_mw": null,
+        "temporary_power_gap_mw": null,
+        "method": "No temporary or permanent electrical supply method reported.",
+        "qualification": "Current/future, county-level eligible construction project source. Keep exact site location unresolved and do not infer electrical demand from MMcf/d or horsepower."
+      }
+    },
+    {
+      "candidate_id": "circe-west-texas-hpc-campus",
+      "name": "Circe Energy West Texas HPC campus",
+      "site": "West Texas (exact county, municipality and street address not stated on the retrieved company pages).",
+      "buyer_organization": "Circe Energy develops/operates the campus and behind-the-meter power; data-center tenants and ultimate power buyers are not identified.",
+      "status_as_retrieved": "Circe’s company pages said it was now building in West Texas; company homepage gave a 10 MW 2026 stage and 1.1 GW by 2030 scaling target. No phase-specific in-service or construction milestones are stated.",
+      "sources": [
+        {
+          "publisher": "Circe Energy",
+          "title": "HPC AI Data Centers Powered by Design",
+          "url": "https://www.circe.energy/hpc-ai-data-centers",
+          "publication_date": "Not stated; current page retrieved 2026-10-26",
+          "retrieved_at": "2026-10-26T12:38:00Z",
+          "raw_body_sha256": "29b89d895a45e961f13f845b0f17b6a584e2ea70110f31545c7e5c4f150c02a8",
+          "local_raw_body_path_for_reviewer": "/tmp/circe-hpc-20261026.html",
+          "literal_quotes": [
+            {
+              "quote": "Circe builds HPC data center campuses around reliable, behind-the-meter natural gas generation, so you’re not waiting on the grid. Now building in West Texas.",
+              "supports": [
+                "operator-reported current construction in a broad Texas region",
+                "gas generation source and grid-independent design, not an interim/temporary designation"
+              ]
+            },
+            {
+              "quote": "Our 10MW and 24MW block design can be rapidly deployed in other locations, giving tenants access to Circe Energy’s solutions wherever capacity is needed.",
+              "supports": [
+                "marketed block sizes for other locations; not current campus total load or temporary procurement"
+              ]
+            }
+          ]
+        },
+        {
+          "publisher": "Circe Energy",
+          "title": "Circe Energy | On-Site Power Solutions, Built Around Your Business",
+          "url": "https://www.circe.energy/",
+          "publication_date": "Not stated; current page retrieved 2026-10-26",
+          "retrieved_at": "2026-10-26T12:38:00Z",
+          "raw_body_sha256": "2335a4558878a64afdcc431947913a4ecf53dc62e48594f77c4634166be76378",
+          "local_raw_body_path_for_reviewer": "/tmp/circe-home-20261026.html",
+          "literal_quotes": [
+            {
+              "quote": "Now building HPC AI data centers. West Texas: 10 MW in 2026, scaling to 1.1GW by 2030.",
+              "supports": [
+                "company-stated present construction and forward date/capacity targets; power capacity is not temporary load"
+              ]
+            },
+            {
+              "quote": "Data centers (HPC/AI) — Enabling new facilities to come online without the uncertainty and delays with a constrained power grid.",
+              "supports": [
+                "company’s claimed offering/market position; not evidence of an actual delay at this project"
+              ]
+            }
+          ]
+        }
+      ],
+      "commercial_relevance": {
+        "timing": "Company pages accessed Oct 26, 2026 say “Now building” and identify 10 MW in 2026, with scaling to 1.1 GW by 2030. No precise phase construction dates, current operating status or tenant schedule.",
+        "power_method": "Company describes behind-the-meter natural-gas microgrids for its HPC campuses.",
+        "power_capacity": "10 MW in 2026 and scaling to 1.1 GW by 2030 are company-level/project target statements; whether this describes generation capacity, campus size or a specific construction phase is not further specified on the retrieved pages. Do not count as temporary load.",
+        "temporary_power_relevance": "Current/future in-territory power-infrastructure prospect, but company describes an intended behind-the-meter primary power design. No temporary/bridge supply requirement, grid delay, temporary rating, residual gap or identified tenant demand is stated.",
+        "power_mw": null,
+        "temporary_power_gap_mw": null,
+        "qualification": "Texas-region company source only; exact physical site remains unverified. Do not count as a temporary-power case or as one eligible physical site until location and phase are substantiated."
+      }
+    }
+  ]
+}

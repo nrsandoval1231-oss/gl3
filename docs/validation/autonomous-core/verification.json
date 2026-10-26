@@ -1,0 +1,85 @@
+{
+  "source_commit": "24f3985d8b6f3c71d4fb415d4abcea8836d04694",
+  "status": "regression_passed_production_hold",
+  "backend": {
+    "collected": 3049,
+    "passed": 3048,
+    "skipped": 1,
+    "subtests_passed": 7,
+    "partitions": [
+      {
+        "index": 0,
+        "collected": 763,
+        "exit_code": 0,
+        "summary": "763 passed, 2 warnings in 801.35s (0:13:21)",
+        "node_ids_sha256": "ac9279fcd820b9b9bc3a9359d5c152dc243230307a46af0dbff025bb69bed8aa",
+        "log_sha256": "f98b0720c650294e8b50a4291b119989160ca3b347f2a686e2e9768b61a190ef"
+      },
+      {
+        "index": 1,
+        "collected": 762,
+        "exit_code": 0,
+        "summary": "761 passed, 1 skipped, 2 warnings, 7 subtests passed in 624.93s (0:10:24)",
+        "node_ids_sha256": "56e1a5b846c85ad21ab60534a5edc6d39d487e331fb37d347cfc4334a214c9fc",
+        "log_sha256": "93996ca547319314dc050b34f3b383402ee28e9bfe8745b591e3b2cf478dfde4"
+      },
+      {
+        "index": 2,
+        "collected": 762,
+        "exit_code": 0,
+        "summary": "762 passed, 2 warnings in 654.58s (0:10:54)",
+        "node_ids_sha256": "7f863d79371c1c89539449473f7e5bf5494365aac5a7d2c1148be1bf486b1ab0",
+        "log_sha256": "dc3ed3b68ab6d625f79b60df1fd517477d79ab1ecb7c2e8bb0f100104b666284"
+      },
+      {
+        "index": 3,
+        "collected": 762,
+        "exit_code": 0,
+        "summary": "762 passed, 5 warnings in 649.06s (0:10:49)",
+        "node_ids_sha256": "7d33c16005bfbf46a50c533ca9a85fd994424a5fbdf52d9fa13026f6fe3cca62",
+        "log_sha256": "6e2fc595ba01c46b1e472f7194bdb642dc5609d5115e5b14fcf7a827386aa9d9"
+      }
+    ]
+  },
+  "browser": {
+    "chromium_passed": 120,
+    "native_chrome_passed": 8,
+    "live_acceptance_blocked": 4
+  },
+  "github_ci": {
+    "run_id": 40255316876,
+    "status": "success",
+    "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40255316876",
+    "backend_passed": 3048,
+    "backend_skipped": 1,
+    "chromium_passed": 120
+  },
+  "schema": {
+    "head": "0044_enrichment_planner_cursor",
+    "fresh_upgrade": "passed",
+    "repeat_upgrade": "passed",
+    "drift_check": "passed",
+    "populated_0041_upgrade_evidence_preservation": "passed",
+    "upstream_schema_unchanged": true
+  },
+  "scope_trees": {
+    "backend": "feb819c9b9914a64da6ac2c1a086b7dac30f017b",
+    "web": "12883adbfb2488b0c0aef1410775cd7b001ca5ce",
+    "scripts": "b5ca8ab8eac542499e039e376246e60b0a63c3c8",
+    "config": "64c5b99f7fbef20ce37c1db1363c8dbe1ca20df0",
+    "tools": "8f46236a87eda872df8300c38894cb461758d3ac",
+    ".github": "dea141c5249769fea417af12b4c119ba14c37611"
+  },
+  "artifact_sha256": {
+    "gridlens-browser.log": "0febe717023752c2e2fa752bfdc673bcb4645e7635d25f28680ec55a797bc0bf",
+    "gridlens-native-chrome-user-install.log": "3b72149ca5612f99f3028fa0d14ffadaeb1c580a6e80b77ba83ecc644ad9e652",
+    "gridlens-final-python-audit.json": "a018bd3f7dae0832904a8e177f2bf3c32819408a3d1668c4abbc48c5de98081e",
+    "gridlens-final-web-audit.json": "2cfe44f761f731d7d84ce926be7d2bd060ba38a2cb6bd2560f371c7d59f2df0d",
+    "gridlens-final-brand-dependency-audit.json": "a695dc5f2acd7dbb7ac6535d39eea1b37cb959e8bd58cb75226d1c39acdec84e",
+    "gridlens-final-brand.log": "5ff88d8f3ee969747590e4b59d366e5af113157b08a433e1558f3594d6b56b0f",
+    "gridlens-final-schema-fresh.log": "da1f57e3608b23e697b11202524e8456ec9be08c58f827716744cbb1855e4f55",
+    "gridlens-final-schema-repeat.log": "e1e114a8d727fffb3893991776f75c1242568bef625705ec3bc44f26ba38040d",
+    "gridlens-final-schema-check.log": "3753592ab5773159b9e12dae030c9652ddb51960e260736441038a8e71294a40",
+    "gridlens-final-schema-existing-verify.log": "c1064926670b245275782038b35574028776a3b50a7d501544914847b5c5d6b0"
+  }
+}

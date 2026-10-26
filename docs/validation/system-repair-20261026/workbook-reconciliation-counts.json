@@ -1,0 +1,330 @@
+{
+  "run_date": "2026-10-26",
+  "operation": "read_only_workbook_reconciliation",
+  "source_previews_truncated": false,
+  "row_detail_sample_limit_per_file": 500,
+  "row_details_are_sampled": true,
+  "mapping": {
+    "file": "config/import-mappings/project-tracker.json",
+    "Developer": "company_name"
+  },
+  "workbooks": [
+    {
+      "filename": "1-DC-Leads.xlsx",
+      "sha256": "8ab4a2abe5a7a03186cb1b6ca7b397c92694d486c10f01070410112a8d688210",
+      "bytes": 220352,
+      "sheets": 40,
+      "parsed_rows": 2077,
+      "row_kinds": {
+        "project": 2037,
+        "metadata": 40
+      },
+      "parser_error_rows": 0,
+      "mapped_fields": [
+        "company_name",
+        "facility_demand_mw",
+        "it_capacity_mw",
+        "project_name",
+        "state"
+      ],
+      "field_rows": {
+        "project_name": 2037,
+        "company_name": 1935,
+        "facility_demand_mw": 1695,
+        "it_capacity_mw": 1331,
+        "state": 1957
+      },
+      "state_rows": {
+        "TX": 0,
+        "OK": 41,
+        "NM": 20,
+        "missing": 120,
+        "other": 1896
+      },
+      "activity_specific_demand_header_rows": 0,
+      "required_date_rows": 0,
+      "exact_duplicate_groups": 1,
+      "exact_duplicate_row_refs": 40,
+      "probable_duplicate_groups": 0,
+      "probable_duplicate_row_refs": 0,
+      "reconciliation_detail_rows_included": 500,
+      "reconciliation_detail_rows_omitted": 1577
+    },
+    {
+      "filename": "2-US_Data_Center_Project_Tracker_August_2026.xlsx",
+      "sha256": "27494d7a42e070112f8bc18793073cdb3c14e1db940d2de3a02fbb01c5834040",
+      "bytes": 131794,
+      "sheets": 4,
+      "parsed_rows": 1072,
+      "row_kinds": {
+        "mixed": 1011,
+        "summary": 52,
+        "metadata": 9
+      },
+      "sheet_rows": {
+        "All Projects": 1011,
+        "State Summary": 46,
+        "Status Summary": 6,
+        "Read Me": 9
+      },
+      "parser_error_rows": 2,
+      "parser_error_fields": {
+        "Power Capacity": 2
+      },
+      "mapped_fields": [
+        "address",
+        "city",
+        "company_name",
+        "email",
+        "facility_demand_mw",
+        "phone",
+        "project_name",
+        "state"
+      ],
+      "field_rows": {
+        "project_name": 1010,
+        "company_name": 991,
+        "address": 1006,
+        "city": 1009,
+        "facility_demand_mw": 488,
+        "email": 2,
+        "phone": 2,
+        "state": 1010
+      },
+      "state_rows": {
+        "TX": 158,
+        "OK": 16,
+        "NM": 4,
+        "missing": 62,
+        "other": 832
+      },
+      "activity_specific_demand_header_rows": 0,
+      "required_date_rows": 0,
+      "exact_duplicate_groups": 1,
+      "exact_duplicate_row_refs": 2,
+      "probable_duplicate_groups": 0,
+      "probable_duplicate_row_refs": 0,
+      "reconciliation_detail_rows_included": 500,
+      "reconciliation_detail_rows_omitted": 572
+    },
+    {
+      "filename": "3-texas-dc-leads.xlsx",
+      "sha256": "b4b52671e3148f212fab479438a89c9c26eca4ccf623479630d5477d73cdf30f",
+      "bytes": 57981,
+      "sheets": 8,
+      "parsed_rows": 486,
+      "row_kinds": {
+        "project": 475,
+        "metadata": 11
+      },
+      "parser_error_rows": 0,
+      "repeated_header_rows_classified_metadata": 2,
+      "mapped_fields": [
+        "company_name",
+        "facility_demand_mw",
+        "it_capacity_mw",
+        "project_name",
+        "state"
+      ],
+      "field_rows": {
+        "project_name": 475,
+        "company_name": 455,
+        "facility_demand_mw": 406,
+        "it_capacity_mw": 294,
+        "state": 457
+      },
+      "state_rows": {
+        "TX": 457,
+        "OK": 0,
+        "NM": 0,
+        "missing": 29,
+        "other": 0
+      },
+      "activity_specific_demand_header_rows": 0,
+      "required_date_rows": 0,
+      "exact_duplicate_groups": 1,
+      "exact_duplicate_row_refs": 9,
+      "probable_duplicate_groups": 1,
+      "probable_duplicate_row_refs": 5,
+      "reconciliation_detail_rows_included": 486,
+      "reconciliation_detail_rows_omitted": 0
+    },
+    {
+      "filename": "4-Cleanview.xlsx",
+      "sha256": "535e762cfdd91208e30cb8a61d2bf4cf5cc4b1e64f20d652d79bbcd99cbd40cf",
+      "bytes": 99505,
+      "sheets": 17,
+      "parsed_rows": 885,
+      "row_kinds": {
+        "project": 868,
+        "metadata": 17
+      },
+      "parser_error_rows": 0,
+      "mapped_fields": [
+        "company_name",
+        "facility_demand_mw",
+        "it_capacity_mw",
+        "project_name",
+        "state"
+      ],
+      "field_rows": {
+        "project_name": 867,
+        "company_name": 829,
+        "facility_demand_mw": 690,
+        "it_capacity_mw": 659,
+        "state": 834
+      },
+      "state_rows": {
+        "TX": 0,
+        "OK": 0,
+        "NM": 0,
+        "missing": 51,
+        "other": 834
+      },
+      "activity_specific_demand_header_rows": 0,
+      "required_date_rows": 0,
+      "exact_duplicate_groups": 1,
+      "exact_duplicate_row_refs": 17,
+      "probable_duplicate_groups": 0,
+      "probable_duplicate_row_refs": 0,
+      "reconciliation_detail_rows_included": 500,
+      "reconciliation_detail_rows_omitted": 385
+    }
+  ],
+  "aggregate": {
+    "parsed_rows": 4520,
+    "project_or_mixed_rows": 4391,
+    "state_labelled_tx_ok_nm_rows": 696,
+    "activity_specific_temporary_demand_rows": 0,
+    "supply_rows": 0,
+    "required_power_date_rows": 0,
+    "duration_rows": 0,
+    "fixture_reconciliation_status": {
+      "exact_match": 0,
+      "probable": 0,
+      "ambiguous": 0,
+      "unmatched": 4388,
+      "invalid": 2,
+      "ignored": 130
+    },
+    "fixture_database": {
+      "name": "gridlens_repair_workbook_test",
+      "canonical_projects": 0,
+      "company_identities": 0,
+      "power_needs": 0,
+      "source_rows_written": 0,
+      "production_matching_performed": false
+    },
+    "standalone_footer_metadata_rows": 66
+  },
+  "cross_workbook_candidate_analysis": {
+    "project_or_mixed_rows_with_project_name": 4389,
+    "exact_normalized_row_groups": 0,
+    "exact_normalized_row_references": 0,
+    "exact_group_references_by_file": {},
+    "exact_group_normalized_fields": [],
+    "exact_group_has_company_state_site_or_power_claim": false,
+    "shared_project_name_state_groups": 233,
+    "shared_project_name_state_row_references": 467,
+    "shared_project_name_state_company_groups": 186,
+    "shared_project_name_state_company_row_references": 372,
+    "groups_with_cross_file_value_disagreement": 67,
+    "disagreements_by_field": {
+      "company_name": 51,
+      "facility_demand_mw": 24
+    },
+    "disagreements_resolved": false,
+    "automatic_merges": 0,
+    "interpretation": "Shared project-name/state/company claims remain hints only; no physical-site identity or merge is established. Standalone footer markers are excluded as metadata.",
+    "standalone_footer_metadata_rows": 66,
+    "standalone_footer_metadata_rows_by_file": {
+      "1-DC-Leads.xlsx": 40,
+      "3-texas-dc-leads.xlsx": 9,
+      "4-Cleanview.xlsx": 17
+    }
+  },
+  "local_austin_verifier_corpus": {
+    "database": "gridlens_verify_austin_20261026",
+    "migration_revision": "0041_evidence_packages",
+    "projects": 6,
+    "evidence_rows": 171,
+    "power_needs": 6,
+    "company_identities": 0,
+    "used_as_production_snapshot": false,
+    "production_matching_performed": false
+  },
+  "actual_staging_validation": {
+    "database_name": "gridlens_repair_workbook_actual_test",
+    "host_class": "loopback_local_test",
+    "fresh_database": true,
+    "migration_revision": "0044_enrichment_planner_cursor",
+    "files_staged": 4,
+    "batches_after_replay": 4,
+    "source_rows_after_replay": 4520,
+    "activation_records": 4520,
+    "active_rows": 0,
+    "event_rows": 4,
+    "row_kinds": {
+      "project": 3380,
+      "mixed": 1011,
+      "summary": 52,
+      "metadata": 77
+    },
+    "match_statuses": {
+      "unmatched": 4388,
+      "invalid": 2,
+      "ignored": 130
+    },
+    "ignored_rows_by_kind": {
+      "metadata": 77,
+      "summary": 52,
+      "mixed_empty_normalized": 1
+    },
+    "replay_idempotent_batch_ids_and_row_counts": true,
+    "all_source_row_provenance_and_values_equal_fresh_parser": true,
+    "original_source_fields_retained_on_all_rows": true,
+    "parse_error_rows_retained_with_source_fields": 2,
+    "ignored_assertion_violations": 0,
+    "canonical_rows": {
+      "projects": 0,
+      "company_identities": 0,
+      "power_needs": 0
+    },
+    "rollback_invoked": false,
+    "production_write": false,
+    "activation_or_promotion": false,
+    "paid_calls": 0,
+    "raw_source_values_in_report": false,
+    "raw_source_values_retained_only_in_local_database": true,
+    "per_file": [
+      {
+        "filename": "1-DC-Leads.xlsx",
+        "rows_staged": 2077,
+        "source_hash_matches": true,
+        "batch_id_stable_on_replay": true,
+        "row_count_stable_on_replay": true
+      },
+      {
+        "filename": "2-US_Data_Center_Project_Tracker_August_2026.xlsx",
+        "rows_staged": 1072,
+        "source_hash_matches": true,
+        "batch_id_stable_on_replay": true,
+        "row_count_stable_on_replay": true
+      },
+      {
+        "filename": "3-texas-dc-leads.xlsx",
+        "rows_staged": 486,
+        "source_hash_matches": true,
+        "batch_id_stable_on_replay": true,
+        "row_count_stable_on_replay": true
+      },
+      {
+        "filename": "4-Cleanview.xlsx",
+        "rows_staged": 885,
+        "source_hash_matches": true,
+        "batch_id_stable_on_replay": true,
+        "row_count_stable_on_replay": true
+      }
+    ]
+  }
+}

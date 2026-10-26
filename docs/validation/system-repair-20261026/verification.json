@@ -1,0 +1,167 @@
+{
+  "date": "2026-10-26",
+  "validated_source": "b71306f29716ec5ac374b0f4a04022e96abeb9a5",
+  "engineering_regression": "ACCEPTED",
+  "commercial_p0": "OPEN",
+  "deployment": "NOT_AUTHORIZED_NOT_PERFORMED",
+  "ci": [
+    {
+      "run_id": 40265149237,
+      "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40265149237",
+      "source": "b71306f29716ec5ac374b0f4a04022e96abeb9a5",
+      "conclusion": "success",
+      "jobs": [
+        "backend",
+        "web",
+        "brand-assets"
+      ]
+    },
+    {
+      "run_id": 40265146123,
+      "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40265146123",
+      "source": "b71306f29716ec5ac374b0f4a04022e96abeb9a5",
+      "conclusion": "success",
+      "jobs": [
+        "backend",
+        "web",
+        "brand-assets"
+      ]
+    }
+  ],
+  "exact_candidate_backend": {
+    "collected": 3102,
+    "passed": 3101,
+    "skipped": 1,
+    "skip_reason": "Optional NC Commerce local access probe is not present",
+    "primary_run_seconds": 774.49,
+    "warnings": 8
+  },
+  "local_backend": {
+    "source": "4a4db68e658796a098ea4ec751fd921d9dc348ea",
+    "collected": 3102,
+    "passed": 3101,
+    "skipped": 1,
+    "subtests_passed": 7,
+    "partition_exit_codes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "source_relation": "Predates runtime-neutral local-variable rename and list annotation; independently normalized AST comparison passed. Exact final source is separately covered by CI."
+  },
+  "browser": {
+    "ci_regressions_passed": 120,
+    "local_regressions_passed": 120,
+    "local_source": "b71306f29716ec5ac374b0f4a04022e96abeb9a5",
+    "local_seconds": 120,
+    "native_chrome_login_passed": 8,
+    "viewports": "Desktop, tablet and mobile emulation; no claim of physical-device testing",
+    "artifact_location": "Final local trace and HTML output outside Vite tree"
+  },
+  "static": {
+    "ruff": "PASS",
+    "format": "PASS",
+    "mypy": {
+      "status": "PASS",
+      "source_files": 173
+    },
+    "typescript": "PASS",
+    "frontend_build": "PASS",
+    "openapi_regeneration_drift": "PASS",
+    "maintained_docs": {
+      "status": "PASS",
+      "documents": 83,
+      "local_targets": 289,
+      "anchors": 3
+    },
+    "backend_dependency_audit": "PASS",
+    "web_dependency_audit": "PASS",
+    "brand_assets_and_dependencies": "PASS"
+  },
+  "migrations": {
+    "head": "0045_contact_suppressions",
+    "fresh_upgrade": "PASS",
+    "repeated_upgrade": "PASS",
+    "metadata_drift": "PASS",
+    "populated_austin_clone": "660 original rows across 65 tables unchanged; 0041 \u2192 0045",
+    "actual_workbook_staging": "0044 \u2192 0045 preserved all table digests, four batches and 4,520 inactive source rows",
+    "populated_downgrade_guard": "PASS; populated ledger removal refused"
+  },
+  "actual_workbooks": {
+    "files": 4,
+    "source_rows": 4520,
+    "project_or_mixed_rows": 4391,
+    "unmatched_in_empty_canonical_fixture": 4388,
+    "invalid_rows": 2,
+    "ignored_rows": 130,
+    "isolated_staged_batches": 4,
+    "isolated_staged_rows": 4520,
+    "active_rows": 0,
+    "canonical_projects_created": 0,
+    "canonical_companies_created": 0,
+    "canonical_power_needs_created": 0,
+    "production_match_rate": "NOT_TESTED",
+    "provenance_and_replay": "PASS"
+  },
+  "independent_review": {
+    "reviewer": "Astra",
+    "result": "Implementation and engineering regression accepted",
+    "receipt": "independent-review.md"
+  },
+  "not_tested": [
+    {
+      "check": "25 actual existing published GridLens opportunities",
+      "blocker": "No authenticated production session/current canonical snapshot; GET returned401. Six-project Austin corpus is not the requested cohort."
+    },
+    {
+      "check": "Four live-acceptance Playwright cases in first_path.spec.ts",
+      "blocker": "Required populated multi-source/live Signal corpus (including El Paso and retained regional examples) and active worker environment are unavailable; these cases are excluded from regression by repository configuration."
+    },
+    {
+      "check": "Production backup/restore, deployment, real contact reachability, production latency and research cost",
+      "blocker": "Separate authorized production acceptance required; no deployment or paid-provider activation performed."
+    }
+  ],
+  "superseded_attempts": [
+    {
+      "source": "7954e29",
+      "result": "Partial backend run canceled after privacy finding; not acceptance."
+    },
+    {
+      "source": "993b6c7",
+      "result": "Partial backend run canceled after title-privacy finding; not acceptance."
+    },
+    {
+      "source": "4a4db68",
+      "result": "CI stopped at3mypy errors; corrected by b71306f. Local full backend runtime gate passed independently."
+    },
+    {
+      "check": "Earlier local browser runs",
+      "result": "Shared output collision and intermittent in-tree protocol/timeouts retained in local logs; not acceptance. Dashboard3repeat diagnostic passed; final outside-tree run120passed and exact-source CI120passed."
+    }
+  ],
+  "authorization": {
+    "production_data_writes": false,
+    "production_promotion": false,
+    "paid_provider_activation": false,
+    "merge": false,
+    "deployment": false
+  },
+  "harness": {
+    "lead": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high"
+    },
+    "builders": {
+      "model": "gpt-6-luna",
+      "reasoning": "low",
+      "concurrent_builders": 4
+    },
+    "independent_reviewer": {
+      "model": "gpt-6-astra",
+      "reasoning": "high"
+    },
+    "supported_concurrency_slots": 7
+  }
+}

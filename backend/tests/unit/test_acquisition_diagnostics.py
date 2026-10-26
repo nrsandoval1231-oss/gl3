@@ -66,6 +66,7 @@ def test_retry_after_seconds_survive_isolation_without_retaining_headers():
     transferred = pickle.loads(pickle.dumps(safe))
     diagnostics = acquisition_diagnostics(_safe_acquisition_error(transferred))
     assert diagnostics["retry_after_seconds"] == 321
+    assert datetime.fromisoformat(diagnostics["retry_after_at"]).tzinfo is not None
     assert diagnostics["http_status"] == 429
     assert "DO_NOT_RETAIN" not in str(safe)
     assert "DO_NOT_RETAIN" not in json.dumps(safe.__dict__)
@@ -89,7 +90,22 @@ def test_retry_after_http_date_is_parsed_and_over_bound_is_not_clamped_early():
         request=request,
         response=httpx.Response(503, request=request, headers={"Retry-After": "604801"}),
     )
-    assert acquisition_diagnostics(over_bound)["retry_after_exceeds_bound"] == 1
+    diagnostics = acquisition_diagnostics(over_bound)
+    assert diagnostics["retry_after_exceeds_bound"] == 1
+    assert datetime.fromisoformat(diagnostics["retry_after_at"]) >= retry_at
+
+
+def test_retry_after_overflow_is_explicitly_unrepresentable():
+    request = httpx.Request("GET", "https://example.test")
+    error = httpx.HTTPStatusError(
+        "unavailable",
+        request=request,
+        response=httpx.Response(503, request=request, headers={"Retry-After": "9" * 128}),
+    )
+    diagnostics = acquisition_diagnostics(error)
+    assert diagnostics["retry_after_exceeds_bound"] == 1
+    assert diagnostics["retry_after_unrepresentable"] == 1
+    assert "retry_after_at" not in diagnostics
 
 
 @pytest.mark.parametrize(

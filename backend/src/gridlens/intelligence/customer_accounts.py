@@ -23,7 +23,6 @@ from gridlens.persistence.models import (
     BuyingChainIdentityLink,
     CompanyIdentity,
     CompanyProjectMembership,
-    CompanyProjectMembershipCorrection,
     Evidence,
     Interpretation,
     NeedObservation,
@@ -466,51 +465,6 @@ def backfill_rrc_operator_memberships(session: Session, *, batch_size: int = 100
         or 0
     )
     return {"eligible_evidence_rows_examined": examined, "current_operator_memberships": current}
-
-
-def retract_customer_membership(
-    session: Session,
-    *,
-    membership_id: UUID,
-    expected_version: int,
-    idempotency_key: str,
-    reason: str,
-    actor: str,
-) -> CompanyProjectMembershipCorrection:
-    """Append an attributed, expected-version retraction and invalidate browse state."""
-    prior = session.scalar(
-        select(CompanyProjectMembershipCorrection).where(
-            CompanyProjectMembershipCorrection.membership_id == membership_id,
-            CompanyProjectMembershipCorrection.idempotency_key == idempotency_key,
-        )
-    )
-    if prior:
-        return prior
-    membership = session.scalar(
-        select(CompanyProjectMembership)
-        .where(CompanyProjectMembership.id == membership_id)
-        .with_for_update()
-    )
-    if membership is None:
-        raise LookupError("Customer membership not found")
-    if membership.version != expected_version or membership.state != "current":
-        raise RuntimeError("Customer membership changed; refresh before correcting")
-    if not reason.strip():
-        raise ValueError("A retraction reason is required")
-    event = CompanyProjectMembershipCorrection(
-        membership_id=membership.id,
-        expected_version=expected_version,
-        idempotency_key=idempotency_key,
-        action="retracted",
-        reason=reason.strip(),
-        actor=actor,
-    )
-    session.add(event)
-    membership.state = "retracted"
-    membership.superseded_at = datetime.now(UTC)
-    membership.version += 1
-    session.flush()
-    return event
 
 
 def account_projects(

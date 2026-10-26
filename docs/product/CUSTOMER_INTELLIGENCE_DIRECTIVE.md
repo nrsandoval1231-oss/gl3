@@ -1,6 +1,8 @@
 # GRIDLENS GL3 — MASTER BUILDER DIRECTIVE
 ## Canonical Customer Intelligence, Project Consolidation & Autonomous Enrichment
 
+**Current authority:** the owner-approved [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes manual workflow and older harness requirements. Compatible company/project identity, source provenance and commercial safeguards below remain in force.
+
 **Repository:** `https://github.com/nrsandoval1231-oss/gl3`
 
 **Production:** `https://app.grid-lens.com/`
@@ -419,7 +421,7 @@ Each consolidated account must produce a polished, useful card containing:
 - Most valuable next step
 - Specific research gaps
 - Recommended person or organization to contact
-- Saved notes and activity
+- Read-only retained evidence and audit history; no manual notes/activity entry
 
 ### Evidence
 - Supporting source count

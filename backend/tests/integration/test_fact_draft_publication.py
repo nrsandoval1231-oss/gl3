@@ -5,7 +5,6 @@ from importlib import import_module
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, insert, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -19,9 +18,7 @@ from gridlens.persistence.models import (
     CallFactDecision,
     CallFactVersion,
     PowerNeed,
-    Project,
 )
-from gridlens.security import token_for
 from gridlens.settings import settings
 
 api = import_module("gridlens.api.app")
@@ -103,66 +100,6 @@ def _state(factory):
     with factory() as session:
         state = session.get(BrowseState, 1)
         return state.input_revision, state.generation_id
-
-
-def test_draft_create_and_replay_keep_history_without_publication(publication_db):
-    factory = publication_db
-    need_id = _seed(factory)[0]
-    rebuild(factory)
-    initial_revision, initial_generation = _state(factory)
-    with factory() as session:
-        need = session.get(PowerNeed, need_id)
-        project_id = need.project_id
-        facility_scope = session.get(Project, project_id).location
-    now = datetime.now(UTC)
-    body = {
-        "client_id": str(uuid4()),
-        "project_id": str(project_id),
-        "expected_version": 0,
-        "activity_key": "construction",
-        "facility_scope": facility_scope,
-        "fact_type": "demand",
-        "value": {"mw": "20", "basis": "Synthetic future draft"},
-        "reporter_name": "Synthetic operator",
-        "confirmation_channel": "customer_call",
-        "confirmed_at": now.isoformat(),
-        "effective_from": (now + timedelta(days=30)).isoformat(),
-        "effective_until": (now + timedelta(days=60)).isoformat(),
-    }
-    headers = {"origin": "http://testserver"}
-    client = TestClient(api.app)
-    client.cookies.set("gridlens_session", token_for(int((now + timedelta(hours=1)).timestamp())))
-    first = client.post(f"/api/needs/{need_id}/facts", json=body, headers=headers)
-    replay = client.post(f"/api/needs/{need_id}/facts", json=body, headers=headers)
-    assert first.status_code == 200, first.text
-    assert replay.status_code == 200, replay.text
-    assert replay.json()["id"] == first.json()["id"]
-    with factory() as session:
-        assert session.scalar(select(func.count()).select_from(CallFactVersion)) == 1
-        assert session.scalar(select(func.count()).select_from(CallFactDecision)) == 1
-        assert session.scalar(select(func.count()).select_from(BrowseDirtyProject)) == 0
-    assert _state(factory) == (initial_revision, initial_generation)
-
-    accepted = client.post(
-        f"/api/needs/{need_id}/facts/{first.json()['id']}/decision",
-        json={
-            "client_id": str(uuid4()),
-            "expected_version": 1,
-            "decision": "accepted",
-            "reason": "Synthetic explicit acceptance",
-        },
-        headers=headers,
-    )
-    assert accepted.status_code == 200, accepted.text
-    changed_revision, _ = _state(factory)
-    assert changed_revision > initial_revision
-    result = rebuild(factory)
-    assert result["status"] == "published"
-    rebuilt_revision, rebuilt_generation = _state(factory)
-    assert rebuilt_revision == changed_revision
-    assert rebuilt_generation != initial_generation
-    with factory() as session:
-        assert session.scalar(select(func.count()).select_from(CallFactDecision)) == 2
 
 
 def test_initial_draft_batch_is_suppressed_but_mixed_late_draft_is_fenced(publication_db):

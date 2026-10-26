@@ -1,0 +1,9 @@
+# Exceptional company/project membership retraction
+
+The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) preserves audited internal exception controls. This service removes a disputed company/project association while retaining the physical project, company identity, original source versions and immutable audit history. It cannot create, merge or positively relabel an identity and has no public editing route.
+
+`scripts/retract_project_membership.py` defaults to a read-only preview. The reviewer supplies the exact membership, project, company, expected version, supporting evidence ID/hash, actor, reason, idempotency key and connected database name. Preview uses a read-only database transaction. Execution additionally requires `--execute`; the exact database identity must match before a write is attempted. This repair has only exercised execution on disposable test fixtures. No production execution is authorized by this document.
+
+The service serializes with source refresh and locks the exact membership. It rejects changed project/company scope, source versions, stale state/version and conflicting reuse of an idempotency key. A matching replay returns the original event. Retraction appends `CompanyProjectMembershipCorrection`, advances the membership version and retains its source reference. The existing source writer keeps attributed retractions effective across repeated or changed source observations; a changed operator remains an explicit conflict rather than silently reinstating a disputed association.
+
+The command arguments are available through `--help`. Inspect the preview and the governing authorization before any future execution. Database credentials and private source values stay outside the command output and repository. The separate stable contact suppression ledger controls person/method privacy across refreshed claims; membership retraction does not replace those privacy controls.

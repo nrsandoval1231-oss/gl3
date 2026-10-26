@@ -617,10 +617,7 @@ def test_batched_commercial_preflight_rejects_nested_evidence_before_evaluation_
 
     client = TestClient(api.app)
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    response = client.post(
-        "/api/commercial/triage/evaluate",
-        headers={"Origin": "http://testserver"},
-    )
+    response = client.get("/api/commercial/triage")
 
     assert response.status_code == 413
     assert response.json()["detail"]["resource"] == "evidence_rows"
@@ -898,7 +895,6 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
         activity="Construction",
         timing="UNKNOWN",
         mw_status="UNKNOWN",
-        status="unknown",
         response=response,
     )
     assert [str(item["id"]) for item in page] == [str(need_id)]
@@ -915,7 +911,6 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
         activity="construction",
         timing="unknown",
         mw_status="unknown",
-        status="UNKNOWN",
     )
     assert group["total"] == 1
     assert str(group["items"][0]["id"]) == str(need_id)
@@ -927,7 +922,6 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
         activity="construction",
         timing="UNKNOWN",
         mw_status="UNKNOWN",
-        status="UNKNOWN",
         cohort_token=token,
     )
     assert str(detail["id"]) == str(need_id)
@@ -953,7 +947,6 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
             "activity": "construction",
             "timing": "UNKNOWN",
             "mw_status": "UNKNOWN",
-            "status": "UNKNOWN",
             "cohort_token": token,
         },
     )
@@ -1038,10 +1031,7 @@ def test_oversized_commercial_group_rejects_before_detail_or_evaluation_write(ru
     client = TestClient(api.app)
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
 
-    response = client.post(
-        "/api/commercial/triage/evaluate",
-        headers={"Origin": "http://testserver"},
-    )
+    response = client.get("/api/commercial/triage")
 
     assert response.status_code == 413
     assert response.json()["detail"]["code"] == "commercial_group_too_large"
@@ -2161,7 +2151,7 @@ def test_successful_replacement_archives_old_policy_model_and_schema(runtime, mo
 
 @pytest.mark.parametrize("commercial", [False, True])
 @pytest.mark.parametrize("provider_fails", [False, True])
-def test_authenticated_brief_request_and_worker_keep_saved_maps_current(
+def test_brief_request_service_and_worker_keep_saved_maps_current(
     runtime, monkeypatch, commercial, provider_fails
 ):
     from gridlens.intelligence.saved_browse import current_generation, rebuild
@@ -2214,17 +2204,12 @@ def test_authenticated_brief_request_and_worker_keep_saved_maps_current(
     monkeypatch.setattr(service, "_provider", synthetic_provider)
     event.listen(worker_factory, "after_commit", after_commit)
     try:
-        route = (
-            f"/api/commercial/triage/{need_id}/research"
-            if commercial
-            else f"/api/power-needs/{need_id}/brief"
-        )
-        body = {"question": "Which source confirms the construction stage?"} if commercial else {}
-        response = client.post(route, json=body, headers={"origin": "https://testserver"})
-        assert response.status_code == 200, response.text
-        assert response.json()["status"] == "pending"
+        question = "Which source confirms the construction stage?" if commercial else None
+        with worker_factory.begin() as session:
+            response = service.request_brief(session, need_id, question)
+        assert response["status"] == "pending"
         verify_current()
-        job_id = UUID(response.json()["job_id"])
+        job_id = UUID(response["job_id"])
         leased = _lease(factory, job_id)
         assert leased
         _job, fence = leased
@@ -2242,7 +2227,7 @@ def test_authenticated_brief_request_and_worker_keep_saved_maps_current(
         assert session.get(Job, job_id).status == ("failed" if provider_fails else "succeeded")
 
 
-def test_brief_api_requires_auth_and_same_origin_for_explicit_request(runtime):
+def test_brief_read_api_requires_auth_and_request_route_is_gone(runtime):
     factory, _service, (need_id, _evidence_id) = runtime
     api = import_module("gridlens.api.app")
     client = TestClient(api.app)
@@ -2254,7 +2239,7 @@ def test_brief_api_requires_auth_and_same_origin_for_explicit_request(runtime):
         headers={"origin": "https://attacker.invalid"},
         json={},
     )
-    assert response.status_code == 403
+    assert response.status_code == 405
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Job)) == 0
 

@@ -3,10 +3,26 @@ from __future__ import annotations
 import csv
 import json
 from datetime import date
+from zipfile import ZIP_DEFLATED, ZipFile
 
+import pytest
 from openpyxl import Workbook
 
+from gridlens.ingestion import workbook_import
 from gridlens.ingestion.workbook_import import read_workbook
+
+
+def _replace_hyperlink_reference(path, original: str, replacement: str) -> None:
+    temp_path = path.with_suffix(".rewrite.xlsx")
+    with ZipFile(path) as source, ZipFile(temp_path, "w", ZIP_DEFLATED) as rewritten:
+        for entry in source.infolist():
+            contents = source.read(entry.filename)
+            if entry.filename == "xl/worksheets/sheet1.xml":
+                contents = contents.replace(
+                    f'ref="{original}"'.encode(), f'ref="{replacement}"'.encode(), 1
+                )
+            rewritten.writestr(entry, contents)
+    temp_path.replace(path)
 
 
 def test_multisheet_import_maps_mixed_rows_and_reports_duplicates(tmp_path):
@@ -64,6 +80,53 @@ def test_csv_mapping_and_bad_numeric_are_preview_errors(tmp_path):
     assert "demand_mw must be a scalar" in row.errors[0]
 
 
+def test_activity_specific_demand_header_is_distinguished_from_generic_demand(tmp_path):
+    generic_path = tmp_path / "generic-demand.csv"
+    generic_path.write_text("Company,Demand MW\nAcme,4\n", encoding="utf-8")
+    temporary_path = tmp_path / "temporary-demand.csv"
+    temporary_path.write_text("Company,Temporary Demand MW\nAcme,7\n", encoding="utf-8")
+
+    generic = read_workbook(generic_path)
+    temporary = read_workbook(temporary_path)
+
+    assert generic.rows[0].normalized["demand_mw"] == 4
+    assert generic.report["worksheets"][0]["mapped_columns"]["Demand MW"] == "demand_mw"
+    assert temporary.report["worksheets"][0]["mapped_columns"]["Temporary Demand MW"] == "demand_mw"
+    assert temporary.rows[0].normalized["demand_mw"] == 7
+
+
+def test_repeated_header_inside_project_sheet_is_retained_as_metadata(tmp_path):
+    path = tmp_path / "repeated-header.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    headers = ["Project Name", "Developer", "Facility Power (MW)", "IT Capacity (MW)", "State"]
+    sheet.append(headers)
+    sheet.append(["North Site", "Example Developer", 25, 20, "TX"])
+    sheet.append(headers)
+    sheet.append(["Rows", None, None, None, None])
+    sheet.append(["Rows", "Example Developer", 30, 25, "TX"])
+    workbook.save(path)
+
+    preview = read_workbook(path)
+
+    assert len(preview.rows) == 4
+    assert preview.rows[0].row_kind == "project"
+    assert preview.rows[0].normalized["facility_demand_mw"] == 25
+    assert preview.rows[1].row_number == 3
+    assert preview.rows[1].row_kind == "metadata"
+    assert preview.rows[1].normalized == {}
+    assert preview.rows[1].errors == []
+    assert preview.rows[1].raw == dict(zip(headers, headers, strict=True))
+    assert preview.rows[2].row_number == 4
+    assert preview.rows[2].row_kind == "metadata"
+    assert preview.rows[2].normalized == {}
+    assert preview.rows[2].raw["Project Name"] == "Rows"
+    assert preview.rows[3].row_number == 5
+    assert preview.rows[3].row_kind == "project"
+    assert preview.rows[3].normalized["project_name"] == "Rows"
+    assert preview.rows[3].normalized["company_name"] == "Example Developer"
+
+
 def test_formula_text_is_preserved_and_never_evaluated(tmp_path):
     path = tmp_path / "formula.xlsx"
     workbook = Workbook()
@@ -75,6 +138,140 @@ def test_formula_text_is_preserved_and_never_evaluated(tmp_path):
     assert preview.rows[0].raw["Company"] == "=1+1"
     assert preview.rows[0].normalized["company_name"] == "=1+1"
     assert preview.report["formulas_evaluated"] is False
+
+
+def test_excel_hyperlink_target_is_retained_separately_from_display_value(tmp_path):
+    path = tmp_path / "source-links.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "State", "Source", "Source", "Formula"])
+    sheet.append(["North Site", "TX", "Link", "Link", "formula link"])
+    sheet["C2"].hyperlink = "https://example.gov/projects/north-site"
+    sheet["D2"].hyperlink = "https://example.gov/projects/north-site/permit"
+    sheet["E2"] = '=HYPERLINK("https://untrusted.invalid/project","formula link")'
+    workbook.save(path)
+
+    preview = read_workbook(path)
+
+    row = preview.rows[0]
+    assert row.raw["Source"] == "Link"
+    assert row.raw["Source#2"] == "Link"
+    assert row.raw["__workbook_hyperlinks__"] == {
+        "Source": "https://example.gov/projects/north-site",
+        "Source#2": "https://example.gov/projects/north-site/permit",
+    }
+    assert row.raw["Formula"] == '=HYPERLINK("https://untrusted.invalid/project","formula link")'
+    assert "Formula" not in row.raw["__workbook_hyperlinks__"]
+
+
+def test_excel_hyperlink_target_budget_fails_visible_without_truncation(tmp_path, monkeypatch):
+    path = tmp_path / "too-many-source-links.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source 1", "Source 2"])
+    sheet.append(["North Site", "Link", "Link"])
+    sheet["B2"].hyperlink = "https://example.gov/source/one"
+    sheet["C2"].hyperlink = "https://example.gov/source/two"
+    workbook.save(path)
+    monkeypatch.setattr(workbook_import, "MAX_HYPERLINK_TARGETS", 1)
+
+    with pytest.raises(ValueError, match="configured target budget"):
+        read_workbook(path)
+
+
+def test_excel_hyperlink_metadata_budget_fails_visible(tmp_path, monkeypatch):
+    path = tmp_path / "metadata-limit.xlsx"
+    workbook = Workbook()
+    workbook.active.append(["Project Name", "Source"])
+    workbook.active.append(["North Site", "Link"])
+    workbook.active["B2"].hyperlink = "https://example.gov/source"
+    workbook.save(path)
+    monkeypatch.setattr(workbook_import, "MAX_HYPERLINK_METADATA_BYTES", 1)
+
+    with pytest.raises(
+        ValueError, match="relationship metadata exceeds its configured byte budget"
+    ):
+        read_workbook(path)
+
+
+def test_excel_range_hyperlink_is_preserved_on_each_bounded_cell(tmp_path):
+    path = tmp_path / "range-source-link.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source"])
+    sheet.append(["North Site", "Link"])
+    sheet.append(["South Site", None])
+    sheet["B2"].hyperlink = "https://example.gov/projects/two-sites"
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B2:B3")
+
+    preview = read_workbook(path)
+
+    expected = "https://example.gov/projects/two-sites"
+    assert preview.rows[0].raw["__workbook_hyperlinks__"]["Source"] == expected
+    assert preview.rows[1].raw["__workbook_hyperlinks__"]["Source"] == expected
+
+
+def test_excel_huge_range_hyperlink_fails_before_expansion(tmp_path):
+    path = tmp_path / "huge-range-source-link.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source"])
+    sheet.append(["North Site", "Link"])
+    sheet["B2"].hyperlink = "https://example.gov/projects/all-rows"
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B2:B100002")
+
+    with pytest.raises(ValueError, match="configured target budget"):
+        read_workbook(path)
+
+
+def test_excel_malformed_range_hyperlink_fails_clearly(tmp_path):
+    path = tmp_path / "malformed-range-source-link.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source"])
+    sheet.append(["North Site", "Link"])
+    sheet["B2"].hyperlink = "https://example.gov/projects/malformed"
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B2:Binvalid")
+
+    with pytest.raises(ValueError, match="malformed external hyperlink cell range"):
+        read_workbook(path)
+
+
+def test_excel_reversed_range_cannot_reduce_budget_before_large_range(tmp_path):
+    path = tmp_path / "reversed-range-source-links.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source 1", "Source 2"])
+    sheet.append(["North Site", "Link", "Link"])
+    sheet["B2"].hyperlink = "https://example.gov/projects/reversed"
+    sheet["C2"].hyperlink = "https://example.gov/projects/large"
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B1000000:B2")
+    _replace_hyperlink_reference(path, "C2", "C2:C100002")
+
+    with pytest.raises(ValueError, match="invalid external hyperlink cell range"):
+        read_workbook(path)
+
+
+def test_excel_hyperlink_range_target_bytes_are_bounded_before_expansion(tmp_path, monkeypatch):
+    path = tmp_path / "large-expanded-target.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source"])
+    sheet.append(["North Site", "Link"])
+    sheet.append(["Second Site", None])
+    sheet.append(["Third Site", None])
+    sheet.append(["Fourth Site", None])
+    sheet["B2"].hyperlink = "https://example.gov/" + ("x" * 256)
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B2:B5")
+    monkeypatch.setattr(workbook_import, "MAX_HYPERLINK_TARGET_BYTES", 1000)
+
+    with pytest.raises(ValueError, match="expanded hyperlink targets exceed"):
+        read_workbook(path)
 
 
 def test_large_contact_csv_stays_bounded_and_keeps_all_rows(tmp_path):

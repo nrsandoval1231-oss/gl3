@@ -10,7 +10,7 @@ import json
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from math import ceil
 from typing import Any
@@ -139,9 +139,19 @@ def _retry_after_hint(item: BaseException, result: dict[str, str | int]) -> None
     retained = getattr(item, "acquisition_retry_after_seconds", None)
     if type(retained) is int and 0 <= retained <= MAX_RETRY_AFTER_SECONDS:
         result["retry_after_seconds"] = retained
-        return
+    retained_at = getattr(item, "acquisition_retry_after_at", None)
+    if isinstance(retained_at, str):
+        try:
+            deadline = datetime.fromisoformat(retained_at)
+        except ValueError:
+            deadline = None
+        if deadline is not None and deadline.tzinfo is not None:
+            result["retry_after_at"] = deadline.astimezone(UTC).isoformat()
     if getattr(item, "acquisition_retry_after_exceeds_bound", False) is True:
         result["retry_after_exceeds_bound"] = 1
+    if getattr(item, "acquisition_retry_after_unrepresentable", False) is True:
+        result["retry_after_unrepresentable"] = 1
+    if "retry_after_at" in result or "retry_after_unrepresentable" in result:
         return
     if not isinstance(item, httpx.HTTPStatusError):
         return
@@ -149,15 +159,23 @@ def _retry_after_hint(item: BaseException, result: dict[str, str | int]) -> None
     if not raw or len(raw) > 128:
         return
     try:
-        if re.fullmatch(r"[0-9]{1,10}", raw):
+        now = datetime.now(UTC)
+        if re.fullmatch(r"[0-9]{1,128}", raw):
             delay = int(raw)
+            deadline = now + timedelta(seconds=delay)
         else:
-            retry_at = parsedate_to_datetime(raw)
-            if retry_at.tzinfo is None:
-                retry_at = retry_at.replace(tzinfo=UTC)
-            delay = max(0, ceil((retry_at - datetime.now(UTC)).total_seconds()))
-    except (TypeError, ValueError, OverflowError):
+            deadline = parsedate_to_datetime(raw)
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=UTC)
+            deadline = deadline.astimezone(UTC)
+            delay = max(0, ceil((deadline - now).total_seconds()))
+    except OverflowError:
+        result["retry_after_exceeds_bound"] = 1
+        result["retry_after_unrepresentable"] = 1
         return
+    except (TypeError, ValueError):
+        return
+    result["retry_after_at"] = deadline.isoformat()
     if delay > MAX_RETRY_AFTER_SECONDS:
         result["retry_after_exceeds_bound"] = 1
     else:

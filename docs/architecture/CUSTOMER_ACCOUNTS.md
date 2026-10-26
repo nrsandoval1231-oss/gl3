@@ -1,6 +1,6 @@
 # Customer accounts and commercial project browsing
 
-The [owner directive](../product/CUSTOMER_INTELLIGENCE_DIRECTIVE.md) makes a company the primary commercial browsing unit. A physical `Project` and its separate `PowerNeed` records keep their existing identities, qualification, evidence, notes, and history. A permit remains evidence. An applicant, electrician, or other contractor does not become the customer by default.
+The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs current behavior; the compatible earlier [customer directive](../product/CUSTOMER_INTELLIGENCE_DIRECTIVE.md) makes a company the primary commercial browsing unit. A physical `Project` and its separate `PowerNeed` records keep their existing identities, qualification, evidence, notes, and history. A permit remains evidence. An applicant, electrician, or other contractor does not become the customer by default.
 
 ## Identity and responsibility
 
@@ -8,7 +8,7 @@ PostgreSQL `CompanyIdentity` remains the organization namespace. Existing curren
 
 Texas RRC memberships use the regulator's operator identifier, scoped to the two existing RRC source adapters. RRC defines the P-5 operator identifier as six digits in its [official glossary](https://webapps2.rrc.state.tx.us/EWA/help/EWA_Glossary.html) and [form instructions](https://www.rrc.texas.gov/oil-and-gas/applications-and-permits/groundwater-advisory-unit/gau-form-instructions/). The typed adapter must bind the exact operator and identifier to current retained official evidence. This supports an operator account; it does not establish purchasing authority, a temporary-power package, fuel availability, or a qualified MW gap. Diamondback E&P LLC must not silently become its corporate parent.
 
-Versioned project memberships retain the company, physical project, participant role, original source and evidence identifiers, evidence hash, decision basis, and superseded/retracted history. Attributed corrections require an expected version and idempotency key. Automatic refresh must preserve corrections. Distinct physical sites remain distinct even when they share an operator.
+Versioned project memberships retain the company, physical project, participant role, original source and evidence identifiers, evidence hash, decision basis, and superseded/retracted history. Historical attributed corrections retain their expected version and idempotency key. Automatic refresh must preserve effective corrections and audit history; new user correction forms and public mutation routes are retired. Distinct physical sites remain distinct even when they share an operator.
 
 TDLR TABS retained owner extraction binds the literal `Owner:` field to the selected current project, exact TABS number and official HTTPS project URL, project name, and physical site. A single unambiguous owner field supports an `owner_developer` organization relationship. Missing or conflicting owner fields, unrelated project/site context, applicant-only evidence, or a mismatched URL remain unresolved. The existing evidence-currentness and citation checks still govern publication. The registered owner does not establish purchasing authority, operating status, a supply gap, or temporary-power demand.
 
@@ -30,7 +30,7 @@ Identity, membership, claim, correction, and evidence changes invalidate the sam
 
 `GET /api/opportunities/workspace?group_by=account` provides the company queue using the existing compact workspace contract plus account identity and counts. The explicit need-level API remains available. `count_unit` identifies the result unit; account-specific cohort tokens fence pagination against changed filters, search, grouping unit, policy, or published state.
 
-Authenticated `/api/customer-accounts`, `/api/customer-accounts/{id}/projects`, and `/api/customer-accounts/unresolved` provide bounded secondary projections. Projects and their individual needs page separately. Direct account/need links, browser history, search/filter/sort, source inspection, contacts, facts, notes, research, qualification, and operations retain their existing workflows.
+Authenticated `/api/customer-accounts`, `/api/customer-accounts/{id}/projects`, and `/api/customer-accounts/unresolved` provide bounded secondary projections. Projects and their individual needs page separately. Direct account/need links, browser history, search/filter/sort, source inspection, contacts, automatic research and qualification evidence remain available as read-only intelligence. User notes, manual fact/status/correction/qualification controls are retired. Operations/diagnostics remain internal.
 
 Need detail exposes a nullable `associated_account` from the selected project's current accepted, unambiguous responsibility support. It includes the organization UUID, role, basis, and evidence references. This association does not establish the purchaser or alter `intelligence_card.customer`. The UI checks related account links against current detail and clears mismatched or retracted context.
 

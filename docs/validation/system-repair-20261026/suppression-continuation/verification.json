@@ -1,0 +1,91 @@
+{
+  "candidate_commit": "78f632c8d3ec911a133cc2255a00130f74268d75",
+  "main_reconciled": "6a6551d",
+  "source_sha256": {
+    "backend/src/gridlens/api/app.py": "eca54e81affc7cf86e466b769201a716643acf183bd084226fd35197e9c678d3",
+    "backend/src/gridlens/intelligence/buying_chain.py": "2a9450f50eb6c7fbd98d5ff353fa1e5c073809d6ebf5a6caf6860f40ea0dad56",
+    "backend/src/gridlens/intelligence/company_contact_discovery.py": "55c8d1316ca2a5df6df1efb9b3591e9381810155d2acb6fdd55338226de24119",
+    "backend/src/gridlens/intelligence/saved_history_privacy.py": "78f7f931068295273a8fba596259038770348678dda588683c1658c9088f7b01"
+  },
+  "validation": {
+    "backend_full_suite": {
+      "status": "PASS_COMPLETE_RECONSTRUCTED_COVERAGE",
+      "passed": 3175,
+      "skipped": 1,
+      "expected": 3176,
+      "original_run": "SIGKILL; preserved912 passing ordered prefix; boundary rerun",
+      "remaining": "2264 disjoint tests; four known failed attempts resolved by clean focused reruns",
+      "single_uninterrupted_run": false,
+      "coverage": "backend-coverage.json",
+      "receipts": "validation-receipts.tar.gz"
+    },
+    "ruff": "PASS",
+    "format": {
+      "status": "PASS",
+      "files": 380
+    },
+    "mypy": {
+      "status": "PASS",
+      "source_files": 174
+    },
+    "docs": {
+      "status": "PASS",
+      "documents": 83,
+      "local_targets": 292,
+      "anchors": 3
+    },
+    "web_merge": {
+      "typecheck": "PASS",
+      "build": "PASS",
+      "focused_desktop_mobile_checks": 2,
+      "prior_full_browser_checks": 124,
+      "prior_run": "40358098701",
+      "note": "Prior full frontend receipt remains historical; no frontend implementation changes after focused merge checks. Not production browser acceptance."
+    }
+  },
+  "independent_engineering": "ACCEPTED",
+  "commercial_release": "OWNER_EXCEPTION_2026-10-26T17:55:00Z",
+  "production_deployment": "NOT_ATTEMPTED",
+  "workbook_activation": 0,
+  "production_mutations": 0,
+  "new_github_actions_started": 0,
+  "harness": {
+    "architecture_lead": {
+      "agent": "suppression_lead",
+      "model": "gpt-6.1-sol",
+      "reasoning": "high"
+    },
+    "builders": [
+      {
+        "agent": "buying_privacy",
+        "model": "gpt-6-luna",
+        "reasoning": "low"
+      },
+      {
+        "agent": "history_privacy",
+        "model": "gpt-6-luna",
+        "reasoning": "low"
+      },
+      {
+        "agent": "integration_tests",
+        "model": "gpt-6-luna",
+        "reasoning": "low"
+      }
+    ],
+    "independent_reviewer": {
+      "agent": "suppression_review",
+      "model": "gpt-6-astra",
+      "reasoning": "high"
+    },
+    "supported_total_concurrency": 7,
+    "execution": "Agents actually ran with exclusive file ownership; lead took over permit implementation after review found builder defects."
+  },
+  "trees": {
+    "backend": "dfe28f0cf43887358c89904453997bf010843613",
+    "web": "30254c00cc5099ec77daa99c9b23aa0cee7f02de"
+  },
+  "migration_delta": "None; prior additive migration receipts retained, production revision and logical restore unverified.",
+  "commercial_assessment": "NOT_MET",
+  "release_authority": "Merge after code-safety validation and independent engineering acceptance, deploy through existing authorized connection with essential safeguards; commercial numerical/scenario gates waived for this release only.",
+  "receipts_sha256": "af447a8d10f6df05973f85037044d61b065d5120b4e310d5cc3f8f7dd406d973"
+}

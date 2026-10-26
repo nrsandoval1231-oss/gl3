@@ -217,7 +217,12 @@ def schedule_questions(
         if parent_id:
             assert parent is not None
             resolved.add(parent.category)
-        for planned in plan_questions(card, resolved_categories=resolved, enrich=enrich):
+        # Ask the planner for the complete bounded category order. Apply active,
+        # freshness, retry and daily caps below so an unavailable early category
+        # cannot permanently starve a later buyer, load, timing or supply check.
+        for planned in plan_questions(
+            card, resolved_categories=resolved, enrich=enrich, limit=None
+        ):
             if len(active) >= 2 or today_count >= settings.autonomous_research_daily_questions:
                 break
             category = planned["category"]

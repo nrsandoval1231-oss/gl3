@@ -1,5 +1,14 @@
 # Intelligence Sprint 1 — evidence and remaining acceptance
 
+> **Historical candidate report — nonauthoritative for current readiness.** These
+> measurements and validation receipts describe the original PR125 candidate and
+> its named local/staging environment only. They do not prove the current integrated
+> candidate, deployed operation, present source/contact coverage, or owner approval
+> to spend, mutate production data, or deploy. The owner-approved [Autonomous
+> Intelligence Canon](../../product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs
+> current product behavior; its prohibition on manual correction and operator
+> workflow routes supersedes candidate-era API descriptions below.
+
 Repository: nrsandoval1231-oss/gl3. Base: 3ce9e8a (merged PR122).
 Execution: six concurrent supported gpt-6-luna/low builders with exclusive file
 ownership in one isolated worktree; independent gpt-6-astra/high review. No model
@@ -14,8 +23,8 @@ explainable conservative company/project proposals, duplicate diagnostics,
 history and batch rollback; canonical graph and contact assertions over existing
 identity/evidence/correction models; bounded incremental company research in the
 existing durable worker; exact-scope power scenarios; generated authenticated API
-contracts and an existing-panel UI integration. Operator/deployment/rollback
-instructions: [Intelligence Sprint 1](../../operations/INTELLIGENCE_SPRINT1.md).
+contracts and an existing-panel UI integration. The PR125 local staging notes are
+preserved in [the historical Sprint 1 guide](../../operations/INTELLIGENCE_SPRINT1.md).
 
 ## Actual workbooks
 

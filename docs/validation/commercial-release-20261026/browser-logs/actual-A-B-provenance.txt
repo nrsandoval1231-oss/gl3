@@ -1,0 +1,7 @@
+API source: /workspace/gl3/backend/src/gridlens/api/app.py
+Backend commit: da64f0613df3212db100b9c732b11bd1b9a6cecd
+Backend tree: 15d841cede446686d033b83b07d1e8a4a3ed2879
+Database: gridlens_release_final_browser_native
+Saved browse policy: browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/2ffc4b9473c3c2d3f87e06a2
+Manifest: docs/validation/commercial-release-20261026/real-cases-native.json
+Workers/providers/model/contact research: disabled

@@ -287,9 +287,20 @@ def blocker_resolved(category: str, card: dict, context: dict | None = None) -> 
 
 
 def plan_questions(
-    card: dict[str, Any], *, resolved_categories: set[str] | None = None, enrich: bool = False
+    card: dict[str, Any],
+    *,
+    resolved_categories: set[str] | None = None,
+    enrich: bool = False,
+    limit: int | None = 2,
 ) -> list[dict[str, Any]]:
-    """At most two independently answerable blockers; known fields are excluded."""
+    """Return prioritized blockers; scheduling applies caps after freshness checks.
+
+    The default remains the historical two-question preview. Schedulers may request
+    the full bounded plan so a fresh negative or retry delay on an early category
+    cannot starve later unanswered categories.
+    """
+    if limit is not None and limit < 0:
+        raise ValueError("Question plan limit cannot be negative")
     if card["disposition"] not in (
         {"RESEARCH", "WATCH", "ACTION NOW"} if enrich else {"RESEARCH", "WATCH"}
     ):
@@ -367,6 +378,7 @@ def plan_questions(
         for category in categories
         if category not in (resolved_categories or set()) and not blocker_resolved(category, card)
     ]
+    selected_categories = categories if limit is None else categories[:limit]
     return [
         {
             "category": category,
@@ -384,7 +396,7 @@ def plan_questions(
             "source_families": list(ROUTES[category]),
             "freshness_hours": FRESHNESS_HOURS[category],
         }
-        for category in categories[:2]
+        for category in selected_categories
     ]
 
 

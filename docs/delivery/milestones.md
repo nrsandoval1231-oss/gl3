@@ -1,5 +1,8 @@
 # Delivery status
 
+> Historical milestone/status record. Current autonomous implementation and separate launch gates are governed by the canon and current Finish Contract; recorded prior acceptance does not certify this candidate. Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md).
+
+
 The [PRD](../product/PRD.md) governs qualification and commercial acceptance; the [UI canon](../design/UI_CANON.md) governs presentation. Current bounded engineering work is the [October 24 audit completion release](../operations/audit-completion-release-20261024.md). The prior October 20 status is [archived unchanged](../../.agent/archive/COMPLETION-20261024/milestones.md).
 
 PR119 dependency/container/RRC repairs and PR120 lease recovery/release preparation are merged; main at the start of this slice was `223849b1559532ae89dd1d2f53f7217add02084a`. PR96 is closed as superseded. The current slice repairs independently reproduced company/filter/evidence/history defects and uses local gates and independent review. Exact final candidate, test receipts, PR dispositions and deployment identities belong to its release record.

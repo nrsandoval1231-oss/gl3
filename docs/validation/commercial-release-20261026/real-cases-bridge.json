@@ -1,0 +1,36 @@
+[
+  {
+    "case_id": "C",
+    "project_id": "ed50a4a7-ad0b-441f-91fe-48b76c6dc760",
+    "need_id": "c52e68a4-6c39-4b8d-bd0a-325f37b5531a",
+    "project_name": "Abilene Stargate campus",
+    "company_name": "Crusoe",
+    "source_url": "https://cdn.prod.website-files.com/6855c1aa175582ee23e0aa19/6aa975443d2a8405e214f067_Crusoe_2025_Impact%20Report2_web_optimized.pdf",
+    "source_hash": "38ca3db4c94206be9e8b2ee1e3b5fa1239b00948c50b3ac0e102e6d7f1773619",
+    "expected_unknown_keys": [
+      "required_mw",
+      "facility_demand",
+      "start",
+      "duration",
+      "supply",
+      "gap",
+      "energization",
+      "procurement",
+      "utility_obstacle"
+    ],
+    "expected_contact_responsibility": "General company contact path",
+    "expected_contact_authority": "Requires confirmation for this power package",
+    "expected_contact_method_count": 0,
+    "no_qualified_gap": true,
+    "expected_signal_text": "not an open purchase",
+    "expected_research_text": [
+      "Not established potential remaining gap",
+      "Timing unknown",
+      "Duration unknown",
+      "General company contact path",
+      "Requires confirmation for this power package"
+    ],
+    "expected_evidence_id": "c44f81f0-32f6-4dbf-b8f8-10714625d3eb",
+    "expected_opportunity_absent": false
+  }
+]

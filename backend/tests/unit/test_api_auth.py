@@ -10,7 +10,7 @@ def test_private_api_routes_reject_missing_session():
     for path in ("/api/health", "/api/opportunities", "/api/changes"):
         response = client.get(path)
         assert response.status_code == 401
-    response = client.post("/api/refresh", headers={"origin": "http://127.0.0.1:5173"})
+    response = client.get("/api/search", params={"q": "Texas"})
     assert response.status_code == 401
 
 

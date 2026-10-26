@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { client, type Opportunity } from '../../api/client'
+import type { Opportunity } from '../../api/client'
 import './intelligence-card.css'
 
 type Card = NonNullable<Opportunity['intelligence_card']>
@@ -20,19 +19,16 @@ function latestSourceCheck(contact: CardContact) {
     .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null
 }
 
-export function IntelligenceCard({ card, opportunityName, customer, location, activity, tier, why, nextAction, onReadback, onReview }: {
-  card: Card; opportunityName: string; customer: string | null | undefined; location: string | null | undefined; activity: string; tier: string; why: string; nextAction: string; onReadback: () => void; onReview: () => void
+function contactMethodLabel(contact: CardContact, method: ContactMethod) {
+  const action = method.kind === 'email' ? 'Email' : 'Call'
+  if (contact.name) return `${action} ${method.value}`
+  const route = /owner/i.test(contact.role) ? 'owner company route' : 'company contact route'
+  return `${action} ${contact.company} ${route} · ${method.value}`
+}
+
+export function IntelligenceCard({ card, opportunityName, customer, location, activity, tier, why, nextAction, onResearch }: {
+  card: Card; opportunityName: string; customer: string | null | undefined; location: string | null | undefined; activity: string; tier: string; why: string; nextAction: string; onResearch: () => void
 }) {
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-  async function research() {
-    setBusy(true); setMessage('')
-    try {
-      const result = await client.refreshAutonomousResearch(card.need_id, false, undefined, true)
-      setMessage(result.items.length ? 'Targeted research queued. Results appear after the worker completes.' : 'No new work queued. Existing work, freshness and budget limits still apply.')
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Research request failed.') }
-    finally { setBusy(false) }
-  }
   const known = card.fields.filter(field => field.value !== null)
   const projectFields = known.filter(field => field.section === 'identity' || field.section === 'power')
   const commercialFields = known.filter(field => field.section === 'commercial')
@@ -46,7 +42,7 @@ export function IntelligenceCard({ card, opportunityName, customer, location, ac
       </section>
       <section className="ic-contacts" aria-label="Key contacts and buying chain">
         <h3>Key contacts &amp; buying chain</h3>
-        {card.contacts.length ? card.contacts.map(person => <article className="ic-contact" key={person.claim_id}><span className="ic-avatar" aria-hidden="true">{(person.name || person.company).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span><div className="ic-contact-identity"><span className="ic-role-badge">{person.role}</span><strong>{person.name || person.company}</strong><p>{person.name ? `${person.title || person.role} · ${person.company}` : person.role}</p></div><div className="ic-contact-actions">{(person.methods ?? []).map(method => <a key={`${method.kind}:${method.value}`} href={method.href}>{method.kind === 'email' ? 'Email' : 'Call'} {method.value}</a>)}</div><details><summary>Responsibility, authority &amp; evidence</summary><p>{person.responsibility}. {person.purchasing_authority}.</p>{(person.methods ?? []).length > 0 && latestVerifiedMethod(person.methods ?? []) && <p>Verified {new Date(latestVerifiedMethod(person.methods ?? []) as string).toLocaleDateString()}</p>}{!(person.methods ?? []).length && latestSourceCheck(person) && <p>Role/source checked {new Date(latestSourceCheck(person) as string).toLocaleDateString()}</p>}{(person.sources ?? []).map((source, index) => <p key={`${source.reference}-${index}`}><a href={source.url ?? undefined} target="_blank" rel="noreferrer">{source.passage || source.title}</a>{source.source_date ? ` · ${source.source_date}` : ''}</p>)}</details></article>) : <p>No verified contacts are available in the current retained evidence.</p>}
+        {card.contacts.length ? card.contacts.map(person => <article className="ic-contact" key={person.claim_id}><span className="ic-avatar" aria-hidden="true">{(person.name || person.company).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span><div className="ic-contact-identity"><span className="ic-role-badge">{person.role}</span><strong>{person.name || person.company}</strong><p>{person.name ? `${person.title || person.role} · ${person.company}` : person.role}</p></div><div className="ic-contact-actions">{(person.methods ?? []).map(method => <a key={`${method.kind}:${method.value}`} href={method.href}>{contactMethodLabel(person, method)}</a>)}</div><details><summary>Responsibility, authority &amp; evidence</summary><p>{person.responsibility}. {person.purchasing_authority}.</p>{(person.methods ?? []).length > 0 && latestVerifiedMethod(person.methods ?? []) && <p>Published method source checked {new Date(latestVerifiedMethod(person.methods ?? []) as string).toLocaleDateString()}</p>}{!(person.methods ?? []).length && latestSourceCheck(person) && <p>Role/source checked {new Date(latestSourceCheck(person) as string).toLocaleDateString()}</p>}{(person.sources ?? []).map((source, index) => <p key={`${source.reference}-${index}`}><a href={source.url ?? undefined} target="_blank" rel="noreferrer">{source.passage || source.title}</a>{source.source_date ? ` · ${source.source_date}` : ''}</p>)}</details></article>) : <p>No verified contacts are available in the current retained evidence.</p>}
         <p className="ic-contact-path">{card.next_contact_path || 'Contact path not established.'}</p>
       </section>
       <div className="ic-recommendations">
@@ -56,7 +52,7 @@ export function IntelligenceCard({ card, opportunityName, customer, location, ac
         {card.research_gaps.length > 0 && <p className="ic-gap-summary">{card.research_gaps.length} research {card.research_gaps.length === 1 ? 'gap' : 'gaps'} remain.</p>}
         {commercialFields.length > 0 && <ul className="ic-commercial-list">{commercialFields.slice(0, 3).map(field => <li key={field.key}>{field.label}: {field.value}</li>)}</ul>}
       </section>
-      <section className="ic-next" aria-label="Recommended next action"><h3>Recommended next action</h3><p>{nextAction}</p><button onClick={onReview}>Review workflow and notes</button><div className="ic-research-action"><button disabled={busy || !card.research_enabled} onClick={() => void research()}>{busy ? 'Queuing research…' : 'Research missing information'}</button>{!card.research_enabled && <small>Research execution is disabled for this opportunity.</small>}</div>{message && <div className="ic-research-message"><p role="status">{message}</p><button onClick={onReadback}>Refresh research status</button></div>}</section>
+      <section className="ic-next" aria-label="Recommended next action"><h3>Recommended next action</h3><p>{nextAction}</p><button onClick={onResearch}>View automated research</button></section>
       </div>
     </div>
   </section>

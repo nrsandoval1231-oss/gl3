@@ -1,38 +1,7 @@
-# Intelligence research and operations surfaces
+# Autonomous research and internal diagnostics
 
-The authenticated intelligence API exposes bounded task metadata, per-need job
-history, operator job requests, explicit need watches, attributed owner review,
-and a read-only operations summary. The operations summary covers a rolling
-30-day window and limits source rows to 200, source due receipts to 20,000, and
-logical calls to 5,000. It reads PostgreSQL only; it does not probe providers,
-retrieve sources, or invoke a model.
+The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs these surfaces. Research presents automatically scheduled investigation, retained findings, source citations, freshness and unresolved questions. Manual task requests, arbitrary question entry, explicit watches, candidate acceptance and owner-note feedback are retired user workflows. Prior instructions remain in the [governance archive](../../.agent/archive/AUTONOMOUS-20261026/README.md).
 
-Provider configuration reports only key presence, enable flags, and pinned
-model names. Those values describe configuration, not connectivity or provider
-health. Actual model, latency, token use, and cost appear only when a completed
-provider receipt recorded them. Cost is a known subtotal when any call records
-actual cost; missing amounts remain `UNKNOWN`. Reserved cost is maximum-cost
-exposure for unresolved calls and completed calls missing actual cost. Uncertain
-call count includes all retained unresolved calls. Candidate acceptance stays `UNKNOWN` until a
-separate owner review path records it. Reviewed Signals, independently proven
-Leads, and backup/restore receipts remain `UNKNOWN` where this database has no
-supporting provenance.
+Internal diagnostics may inspect durable job status, planner state, source health, logical calls, budgets and heartbeat. A heartbeat proves process liveness, not source freshness or successful research. Configuration shows key presence and flags, not provider connectivity. Latency, tokens and actual cost require completed provider receipts; missing totals remain UNKNOWN. Uncertain remote outcomes must not be blindly retried, because a charge may have occurred.
 
-Grounded candidates retain their exact evidence ID, hash, quote, extraction
-section and span, publisher, publication date, and source URL. A candidate is
-advisory and unaccepted. Owner notes append to the existing pursuit call-note
-table with a stable client ID and a JSON review record containing the exact
-need, job, logical call, candidate snapshot, and matching source references.
-Replaying an identical client ID returns the saved note; changing its content
-returns a conflict. Review metadata is explicitly pending independent review
-and is not a canonical fact, tier decision, or benchmark label.
-
-An uncertain provider outcome cannot be retried because a duplicate remote
-charge may have occurred. Cancellation applies only to a queued request before
-dispatch. Missing or zero budget controls, disabled contracts, and missing
-provider configuration reject a request before a provider call can occur.
-
-The optional `intelligence_review` column on `pursuit_call_notes` is nullable;
-existing call notes are unchanged by migration 0027. Watch API responses expose
-only the ten most recent revisions plus the total count, while the complete
-revision history remains stored in PostgreSQL.
+Grounded candidate text is advisory until admitted through the existing evidence rules with exact source ID/hash/quote/location/date and deterministic qualification. Historical review metadata and notes remain retained audit data, never automatic canonical facts or benchmark labels. Disabled features, source restrictions, missing credentials or exhausted budgets produce explicit unresolved states while preserving last accepted intelligence. See [runtime configuration](runtime-configuration.md) and the [retention map](../architecture/autonomous-intelligence.md).

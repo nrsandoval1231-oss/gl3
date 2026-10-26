@@ -650,7 +650,8 @@ def operations_view(session: Session) -> dict[str, Any]:
             "uncertain_calls": uncertain_count,
             "accepted": None,
             "accepted_reason": (
-                "Candidate acceptance is owner-reviewed; provider completion is not acceptance."
+                "Provider completion is not evidence acceptance; deterministic validation "
+                "and qualification gates remain authoritative."
             ),
         },
         "questions": {"outcomes_30d": {str(name): int(count) for name, count in question_outcomes}},

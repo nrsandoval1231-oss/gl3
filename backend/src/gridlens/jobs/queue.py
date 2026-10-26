@@ -35,7 +35,7 @@ def enqueue(session: Session, source_id: str, *, kind: str = "ingestion") -> UUI
 
 def _source_retry_hold_until(health: dict) -> datetime | None:
     retry_state = health.get("retry_state")
-    if retry_state == "operator_review":
+    if retry_state in {"operator_review", "retry_after_unrepresentable"}:
         return datetime.max.replace(tzinfo=UTC)
     raw_retry_at = health.get("retry_at")
     if retry_state == "scheduled" and not isinstance(raw_retry_at, str):
@@ -67,12 +67,16 @@ def lease_one(
         (valid_retry_timestamp, cast(retry_at, DateTime(timezone=True))),
         else_=None,
     )
-    retry_window_clear = retry_state.is_distinct_from("operator_review") & (
-        retry_state.is_distinct_from("scheduled")
-        | and_(
-            retry_at.is_not(None),
-            valid_retry_timestamp,
-            retry_deadline <= now,
+    retry_window_clear = (
+        retry_state.is_distinct_from("operator_review")
+        & retry_state.is_distinct_from("retry_after_unrepresentable")
+        & (
+            retry_state.is_distinct_from("scheduled")
+            | and_(
+                retry_at.is_not(None),
+                valid_retry_timestamp,
+                retry_deadline <= now,
+            )
         )
     )
     abandoned = session.scalars(

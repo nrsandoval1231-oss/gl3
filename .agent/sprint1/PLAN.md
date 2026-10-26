@@ -1,5 +1,14 @@
 # Intelligence Sprint 1
 
+> **Historical plan — nonauthoritative.** This file records the PR125 work plan
+> and acceptance state at its original base. The owner-approved [Autonomous
+> Intelligence Canon](../../docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) and
+> current owner instructions supersede it. Its owner date, model assignments,
+> route/write requirements, checklist marks, and release boundaries are not current
+> authorization or evidence that the integrated implementation passed validation.
+> Contact/company correction writers and manual user workflow requirements are
+> retired under the Canon; preserve historical records and audit receipts.
+
 Owner directive 2026-10-25: implement immediately, six concurrent Luna builders,
 independent Astra review, draft PR; no production writes, paid calls, or deployment.
 Base origin/main 3ce9e8a68a6b988d1d8bfd8597e150f19ae36498.

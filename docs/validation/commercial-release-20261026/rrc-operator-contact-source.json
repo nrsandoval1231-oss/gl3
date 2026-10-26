@@ -1,0 +1,95 @@
+{
+  "kind": "bounded_official_rrc_operator_contact_source_check",
+  "checked_at": "2026-10-26T13:35:59Z",
+  "scope": "Three unique operator numbers selected from the frozen 21-project RRC native cohort; company-level generic office phone only. No person/contact-directory export or manual evidence promotion.",
+  "frozen_cohort": "../corpus/docs/validation/commercial-release-20261026/frozen-native-cohort.json",
+  "operators": [
+    {
+      "operator_number": "102606",
+      "company_name_from_native_permit_evidence": "DE V OPERATING, LLC",
+      "project_id": "b8a992fc-b136-4267-8b60-98431c6fa4bf",
+      "company_identity_id": "65ccbb66-b67c-4698-8d80-a0b0502305b1",
+      "need_id": "cf5c53c9-3d9f-4acf-9443-6e8987a97b16",
+      "permit_evidence_id": "ae4dcc63-1af3-44eb-bc80-cbec7e5448b4",
+      "permit_evidence_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+      "permit_evidence_hash": "6f2a85d74b2b08192f24c618a6ce61b637c80c23c0c3c942e831e30fe037e633",
+      "native_literal_quote": "operator: DE V OPERATING, LLC\noperator_number: 102606",
+      "official_operator_result_url": "https://webapps2.rrc.texas.gov/EWA/organizationResultsDrillDownAction.do?methodToCall=searchByOperatorNo&operatorNo=102606",
+      "official_operator_result_retrieval": {
+        "retrieved_at": "2026-10-26T13:32:54Z",
+        "status": 503,
+        "body_hash": null,
+        "body_received": false
+      },
+      "generic_phone": null,
+      "phone_status": "UNKNOWN_RRC_OPERATOR_RESULT_HTTP_503"
+    },
+    {
+      "operator_number": "217012",
+      "company_name_from_native_permit_evidence": "DIAMONDBACK E&P LLC",
+      "project_id": "e8bc4fa7-d197-4d26-8473-1810fe00f14b",
+      "company_identity_id": "b1dda60a-34cc-41f4-b3bb-e7412c17fa84",
+      "need_id": "b0105035-dcd8-4155-8fb8-c8223ea72e67",
+      "permit_evidence_id": "deebbd37-1d15-4ce1-a024-a39104f0a910",
+      "permit_evidence_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+      "permit_evidence_hash": "4a74499a6ae9558b9cf9b656895de90fe955e87baf2c8b95766c25db28d3af81",
+      "native_literal_quote": "operator: DIAMONDBACK E&P LLC\noperator_number: 217012",
+      "official_operator_result_url": "https://webapps2.rrc.texas.gov/EWA/organizationResultsDrillDownAction.do?methodToCall=searchByOperatorNo&operatorNo=217012",
+      "official_operator_result_retrieval": {
+        "retrieved_at": "2026-10-26T13:32:59Z",
+        "status": 503,
+        "body_hash": null,
+        "body_received": false
+      },
+      "generic_phone": null,
+      "phone_status": "UNKNOWN_RRC_OPERATOR_RESULT_HTTP_503"
+    },
+    {
+      "operator_number": "385847",
+      "company_name_from_native_permit_evidence": "HIGHMARK ENERGY OPERATING, LLC",
+      "project_id": "73ef209c-771c-4a53-874f-4115dc5e2c4f",
+      "company_identity_id": "f9c16931-1180-403a-91eb-48dc4c67e4d6",
+      "need_id": "23e93356-91e2-4278-bc86-e01f1b0e5db3",
+      "permit_evidence_id": "39b1638e-c546-4b7c-ab2f-14d5b1c3c3cf",
+      "permit_evidence_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+      "permit_evidence_hash": "4bfb11af8c4b60dc6a45c5eca5801126467c3263cc941c4ab8d011e149ef5f96",
+      "native_literal_quote": "operator: HIGHMARK ENERGY OPERATING, LLC\noperator_number: 385847",
+      "official_operator_result_url": "https://webapps2.rrc.texas.gov/EWA/organizationResultsDrillDownAction.do?methodToCall=searchByOperatorNo&operatorNo=385847",
+      "official_operator_result_retrieval": {
+        "retrieved_at": "2026-10-26T13:33:04Z",
+        "status": 503,
+        "body_hash": null,
+        "body_received": false
+      },
+      "generic_phone": null,
+      "phone_status": "UNKNOWN_RRC_OPERATOR_RESULT_HTTP_503"
+    }
+  ],
+  "supplementary_official_dataset": {
+    "url": "https://www.rrc.texas.gov/media/mz2knwg5/oil-and-gas-directory-7-20-26-txt.txt",
+    "publisher": "Railroad Commission of Texas",
+    "dataset_as_of": "2026-07-20 (from filename)",
+    "retrieved_at": "2026-10-26T13:35:59Z",
+    "status": 200,
+    "content_type": "text/plain",
+    "bytes": 1008782,
+    "body_sha256": "709b433c58ac5109f7c8f54f14edffc26a93116d79d23547bacfdaff090b5241",
+    "bounded_fields_checked": ["RRC Org No", "Phone No"],
+    "bounded_results": [
+      {"operator_number": "102606", "literal_operator_label": "RRC Org No 102606", "literal_phone_label": "Phone No: () -", "phone": null},
+      {"operator_number": "217012", "literal_operator_label": "RRC Org No 217012", "literal_phone_label": "Phone No: () -", "phone": null},
+      {"operator_number": "385847", "literal_operator_label": "RRC Org No 385847", "literal_phone_label": "Phone No: () -", "phone": null}
+    ],
+    "interpretation": "This July directory confirms the three operator-number entries but supplies blank telephone values. It does not provide a current generic phone route and is historical as of its filename date. Only the three requested rows/fields were emitted; the full directory was not retained or exported."
+  },
+  "implementation_check": {
+    "existing_function": "backend/src/gridlens/intelligence/company_contact_discovery.py::_rrc_public_method",
+    "current_expected_page_labels": ["Organization Operator Query Results", "Operator Number", "Operator Name", "Organization Phone No"],
+    "current_guard": "Exact official EWA URL/operator number and normalized company name; exactly one company Organization Phone No field; agency/emergency lines are excluded.",
+    "transport": "buying_chain_public._retrieve_direct pins a resolved public IP for TLS/SNI and uses httpx trust_env=False; it does not use the configured outbound proxy.",
+    "finding": "The exact operator-result endpoint returned HTTP 503 through ordinary urllib/proxy TLS on all three bounded samples, so no returned HTML exists to compare against the parser labels. The July official directory has empty Phone No fields. This evidence does not establish a parser-label bug, a working proxy-only operator endpoint, or an alternative contact source. No code change is justified by these captures alone."
+  },
+  "provider_calls": 0,
+  "contact_rows_exported": 0,
+  "canonical_writes": 0
+}

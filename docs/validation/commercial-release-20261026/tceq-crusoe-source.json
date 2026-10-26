@@ -1,0 +1,56 @@
+{
+  "kind": "bounded_primary_permit_source_check",
+  "retrieved_at": "2026-10-26T13:46:37.185216Z",
+  "url": "https://records.tceq.texas.gov/cs/idcplg?IdcService=TCEQ_EXTERNAL_SEARCH_GET_FILE&Rendition=Web&dID=8600163",
+  "publisher": "Texas Commission on Environmental Quality",
+  "status": 200,
+  "content_type": "application/pdf",
+  "bytes": 82043,
+  "sha256": "13bd44e0d6070bd8d1c616d4832c162dd7ee13fbe2e509e32e853248b3957176",
+  "document": {
+    "title": "Electric Generating Unit Standard Permit Technical Review",
+    "company": "Abilene DC 1, LLC (dba Crusoe Energy Systems, LLC)",
+    "site": "Longhorn Data Center",
+    "city": "Abilene",
+    "county": "Taylor",
+    "registration_number": "177263",
+    "regulated_entity_number": "RN112029079",
+    "project_number": "387309",
+    "customer_reference_number": "CN606295137",
+    "project_received_date": "2025-01-11",
+    "review_signoff_dates": ["2025-01-21", "2025-01-22"],
+    "application_status_as_described": "Proposed modification application; this review document does not establish current permit disposition or equipment commissioning status."
+  },
+  "literal_quotes": [
+    {
+      "quote": "Abilene DC 1, LLC (Abilene DC) dba Crusoe Energy Systems, LLC (Crusoe), has submitted the following modification application for a standard permit for electric generating units for the Longhorn Data Center in Abilene within Taylor County, Texas.",
+      "page": 1
+    },
+    {
+      "quote": "Reduce the count of Titan 350 simple-cycle turbines from six to five and increase the site-rated power to 38 MW per turbine",
+      "page": 1
+    },
+    {
+      "quote": "Reduce the count of GE LM2500 simple-cycle turbines from six to five, reduce the site-rated power to 34.1 MW per turbine, and increase the annual hours of operation from 5,880 hours to 8,760 hours per turbine.",
+      "page": 1
+    },
+    {
+      "quote": "The purpose of the equipment is to generate power for onsite use only for data centers and computing.",
+      "page": 1
+    }
+  ],
+  "claim_boundaries": {
+    "physical_site_binding": "UNVERIFIED: no exact physical-site join to the retained Crusoe/Stargate bridge case has been established. Shared company/city names do not authorize a merge or assigning these supply capacities to that canonical project.",
+    "supply_capacity": "The document states the site-rated power of the proposed onsite generating units: five Titan 350 turbines at 38 MW each and five GE LM2500 turbines at 34.1 MW each. These are generator supply capacities, not temporary load, rental capacity, or a measured grid shortfall.",
+    "temporary_demand": "The permit review does not state temporary/bridge power demand, an unsatisfied utility energization dependency, a temporary supply duration, or a buyer's need for rental generation.",
+    "contact": "No buyer procurement contact or buyer telephone/email method is asserted from this document. Permit reviewer and manager names/signatures are public agency review metadata, not buyer contacts.",
+    "status": "The text identifies a proposed modification application and its received/review dates; current disposition and present operating status remain unknown."
+  },
+  "retrieval_limits": {
+    "method": "One public HTTPS GET via ordinary environment proxy/TLS path; no redirect-following customization, scraping, paid service, or bypass.",
+    "size_limit_bytes": 20971520,
+    "deadline_seconds": 30,
+    "full_pdf_retained_in_repo": false,
+    "text_extracted_for_literal_review": true
+  }
+}

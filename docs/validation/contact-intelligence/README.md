@@ -1,4 +1,6 @@
-# P0 company contact intelligence: implementation and evidence
+# Historical PR122 company contact intelligence: implementation and evidence
+
+> This is the dated PR122 benchmark and implementation record. Its code defaults, 30-day blanket planner suppression and earlier browser workflows are superseded by the [Autonomous Intelligence Canon](../../product/AUTONOMOUS_INTELLIGENCE_CANON.md). Current default-on bounded unpaid planning and independent paid-provider gates are documented in [runtime configuration](../../operations/runtime-configuration.md). These historical benchmark methods are not a current verified contact feed or current-candidate coverage result.
 
 This continues [PR122](https://github.com/nrsandoval1231-oss/gl3/pull/122). PR #122 merged as `3ce9e8a68a6b988d1d8bfd8597e150f19ae36498`; the bounded v12 production census and automatic follow-up are summarized in the [production release report](PRODUCTION_RELEASE.md). The implementation guide and benchmark history below remain useful context for how the capability was built and validated.
 
@@ -93,7 +95,7 @@ change. Actual visual inspection caught an older organization-claim date overrid
 the method summary; it now uses the latest valid method verification and retains
 separate role/source checks for methodless professionals.
 
-## Automatic pipeline
+## Historical PR122 automatic pipeline
 
 `COMPANY_CONTACT_DISCOVERY_ENABLED` defaults to false. When explicitly enabled,
 buying-chain identity reconciliation enqueues existing durable Jobs without

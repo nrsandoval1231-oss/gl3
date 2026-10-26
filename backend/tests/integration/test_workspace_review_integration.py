@@ -1,12 +1,10 @@
-from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
-from threading import Barrier
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -121,7 +119,7 @@ def _change(observation_id, project_id, *, event_id, activity, before_tier, afte
     )
 
 
-def test_change_projection_counts_sibling_transition_and_review_exact_page(runtime):
+def test_change_projection_counts_sibling_transition_and_projects_unreviewed_page(runtime):
     client, factory, project_id, need_ids, observation_id = runtime
     now = datetime.now(UTC)
     with factory.begin() as session:
@@ -194,35 +192,7 @@ def test_change_projection_counts_sibling_transition_and_review_exact_page(runti
     assert {item["id"] for item in mixed["needs"]} == {str(value) for value in need_ids}
     assert payload["source_health_exceptions"][0]["status"] == "failed"
 
-    receipt = client.post(
-        "/api/opportunities/workspace/changes/review",
-        json={
-            "baseline_identity": payload["baseline_identity"],
-            "token": payload["token"],
-            "limit": 50,
-            "offset": 0,
-        },
-        headers={"origin": "http://testserver"},
-    )
-    assert receipt.status_code == 200, receipt.text
-    assert receipt.json()["reviewed_count"] == 50
-    assert (
-        client.post(
-            "/api/opportunities/workspace/changes/review",
-            json={
-                "baseline_identity": payload["baseline_identity"],
-                "token": payload["token"],
-                "limit": 50,
-                "offset": 0,
-            },
-            headers={"origin": "http://testserver"},
-        ).json()
-        == receipt.json()
-    )
-    with factory() as session:
-        assert len(session.scalars(select(WorkspaceChangeAcknowledgment)).all()) == 50
-
-    # A late lower-ID event is reviewed by exact identity, never a max-ID fence.
+    # A late lower-ID event remains visible in the chronological audit projection.
     with factory.begin() as session:
         session.add(
             _change(
@@ -238,7 +208,7 @@ def test_change_projection_counts_sibling_transition_and_review_exact_page(runti
     later = client.get("/api/opportunities/workspace/changes?limit=50")
     assert later.status_code == 200, later.text
     assert "change:1" in {item["event_key"] for item in later.json()["items"]}
-    assert later.json()["total_unreviewed"] == 13
+    assert later.json()["total_unreviewed"] == 63
 
 
 def test_call_fact_journal_shows_assertion_changes_and_historical_need(runtime):
@@ -472,131 +442,6 @@ def test_date_only_fact_correction_is_material_only_when_effective_window_change
         assert correction["after_state"]["effective_until"] == new_until.isoformat()
     else:
         assert corrected_items == []
-
-
-def test_review_rejects_changed_page_and_cross_origin(runtime):
-    client, factory, project_id, _need_ids, observation_id = runtime
-    api = import_module("gridlens.api.app")
-    anonymous = TestClient(api.app)
-    assert anonymous.get("/api/opportunities/workspace/changes").status_code == 401
-    now = datetime.now(UTC)
-    with factory.begin() as session:
-        session.add(
-            _change(
-                observation_id,
-                project_id,
-                event_id=50,
-                activity="construction",
-                before_tier="Signal",
-                after_tier="Prospect",
-                at=now,
-            )
-        )
-    payload = client.get("/api/opportunities/workspace/changes").json()
-    body = {
-        "baseline_identity": payload["baseline_identity"],
-        "token": "0" * 64,
-        "limit": 50,
-        "offset": 0,
-    }
-    assert (
-        client.post(
-            "/api/opportunities/workspace/changes/review",
-            json=body,
-            headers={"origin": "https://evil.example"},
-        ).status_code
-        == 403
-    )
-    assert (
-        client.post(
-            "/api/opportunities/workspace/changes/review",
-            json=body,
-            headers={"origin": "http://testserver"},
-        ).status_code
-        == 409
-    )
-
-
-def test_concurrent_first_review_and_overlapping_pages_are_bounded(runtime):
-    client, factory, project_id, _need_ids, observation_id = runtime
-    now = datetime.now(UTC)
-    with factory.begin() as session:
-        session.add_all(
-            _change(
-                observation_id,
-                project_id,
-                event_id=event_id,
-                activity="construction",
-                before_tier="Signal",
-                after_tier="Prospect",
-                at=now - timedelta(seconds=event_id),
-            )
-            for event_id in range(1, 101)
-        )
-
-    snapshot = client.get("/api/opportunities/workspace/changes?limit=50&offset=0").json()
-    body = {
-        "baseline_identity": snapshot["baseline_identity"],
-        "token": snapshot["token"],
-        "limit": 50,
-        "offset": 0,
-    }
-    first_barrier = Barrier(3)
-
-    def post_review(request_body, barrier):
-        worker = TestClient(import_module("gridlens.api.app").app)
-        worker.cookies.set(
-            "gridlens_session",
-            token_for(int((datetime.now(UTC) + timedelta(hours=1)).timestamp())),
-        )
-        barrier.wait(timeout=10)
-        return worker.post(
-            "/api/opportunities/workspace/changes/review",
-            json=request_body,
-            headers={"origin": "http://testserver"},
-        )
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        first = [pool.submit(post_review, body, first_barrier) for _ in range(2)]
-        first_barrier.wait(timeout=10)
-        first_responses = [future.result(timeout=30) for future in first]
-    assert [response.status_code for response in first_responses] == [200, 200]
-    assert first_responses[0].json() == first_responses[1].json()
-    first_reviewed_keys = set(first_responses[0].json()["event_keys"])
-    with factory() as session:
-        assert len(session.scalars(select(WorkspaceChangeAcknowledgment)).all()) == 50
-
-    second_page = client.get("/api/opportunities/workspace/changes?limit=50&offset=25").json()
-    current_first_page = client.get("/api/opportunities/workspace/changes?limit=50&offset=0").json()
-    overlap_body = {
-        "baseline_identity": second_page["baseline_identity"],
-        "token": second_page["token"],
-        "limit": 50,
-        "offset": 25,
-    }
-    first_page_body = {
-        "baseline_identity": current_first_page["baseline_identity"],
-        "token": current_first_page["token"],
-        "limit": 50,
-        "offset": 0,
-    }
-    overlap_barrier = Barrier(3)
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        overlapping = [
-            pool.submit(post_review, request_body, overlap_barrier)
-            for request_body in (first_page_body, overlap_body)
-        ]
-        overlap_barrier.wait(timeout=10)
-        overlap_responses = [future.result(timeout=30) for future in overlapping]
-    assert sorted(response.status_code for response in overlap_responses) == [200, 409]
-    overlap_receipt = next(
-        response.json() for response in overlap_responses if response.status_code == 200
-    )
-    with factory() as session:
-        acknowledgments = session.scalars(select(WorkspaceChangeAcknowledgment)).all()
-        acknowledged_keys = {item.event_key for item in acknowledgments}
-        assert acknowledged_keys == first_reviewed_keys | set(overlap_receipt["event_keys"])
-        assert len(acknowledgments) == len(acknowledged_keys)
 
 
 def test_workspace_change_get_has_constant_query_count_with_acknowledged_history(runtime):

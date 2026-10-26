@@ -1994,7 +1994,9 @@ def process_job(
                     "source_rate_limited",
                     "source_http_status",
                     "source_retry_after_seconds",
+                    "source_retry_after_at",
                     "source_retry_after_exceeds_bound",
+                    "source_retry_after_unrepresentable",
                 )
                 if key in acquisition
             }
@@ -2048,6 +2050,7 @@ def process_job(
     acquisition = _retrieve_source_outside_transaction(
         session, job_id, worker_id, fence, source_definition, client, deadline=deadline
     )
+    fetch_receipt_at = datetime.now(UTC)
     if isinstance(acquisition, list):
         retrieved = acquisition
         acquisition_partial = False
@@ -2069,7 +2072,9 @@ def process_job(
                 "source_rate_limited",
                 "source_http_status",
                 "source_retry_after_seconds",
+                "source_retry_after_at",
                 "source_retry_after_exceeds_bound",
+                "source_retry_after_unrepresentable",
             )
             if key in acquisition
         }
@@ -2087,6 +2092,19 @@ def process_job(
         deadline=deadline,
         lease_expiry=lease_expiry,
     )
+    receipt_count = _record_tdlr_fetch_receipts(
+        session,
+        job_id,
+        worker_id,
+        fence,
+        source_definition,
+        records,
+        fetch_receipt_at,
+        deadline=deadline,
+        lease_expiry=lease_expiry,
+    )
+    if source_definition.get("id") == "texas-tdlr-tabs-data-centers":
+        counts["retained_source_refresh_receipts"] = receipt_count
     incomplete = acquisition_partial or any(record.get("presence_only") for record in retrieved)
     if source_definition.get("snapshot_complete") and not incomplete:
         remaining_seconds(deadline)
@@ -2477,6 +2495,109 @@ def _retrieve_source_outside_transaction(
     return _normalize_source_acquisition(source_definition, result)
 
 
+def _record_tdlr_fetch_receipts(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    records: list[dict[str, Any]],
+    fetched_at: datetime,
+    *,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
+) -> int:
+    """Refresh contact freshness only for exact TDLR rows fetched in this run.
+
+    Evidence rows remain immutable. BuyingChainEvidence.last_seen_at records the
+    successful record-specific refetch receipt used by contact freshness gates.
+    """
+    if (
+        source_definition.get("id") != "texas-tdlr-tabs-data-centers"
+        or source_definition.get("retrieval_method") != "tdlr-tabs"
+    ):
+        return 0
+
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.ingestion.adapters.tdlr_tabs import PROJECT_URL
+    from gridlens.intelligence.buying_chain import (
+        _retained_evidence_current_for_project,
+        _store_document,
+    )
+
+    source_id = source_definition["id"]
+    if not records:
+        return 0
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    receipt_count = 0
+    for record in records:
+        remaining_seconds(deadline)
+        job = assert_fence(session, job_id, worker_id, fence)
+        _advance_job_lease(job, lease_expiry)
+        external_id = record.get("document_number")
+        source_url = record.get("html_url")
+        expected_hash = record.get("source_hash")
+        number = external_id.removeprefix("TABS-") if isinstance(external_id, str) else ""
+        if (
+            not re.fullmatch(r"TABS\d{10}", number)
+            or not isinstance(source_url, str)
+            or source_url != PROJECT_URL.format(number=number)
+            or not isinstance(expected_hash, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", expected_hash)
+        ):
+            continue
+        observation = session.scalar(
+            select(Observation).where(
+                Observation.source_id == source_id,
+                Observation.external_id == external_id,
+            )
+        )
+        if observation is None or observation.content_hash != _hash(record):
+            continue
+        evidence = session.scalar(
+            select(Evidence).where(
+                Evidence.observation_id == observation.id,
+                Evidence.content_hash == expected_hash,
+                Evidence.url == source_url,
+            )
+        )
+        project = session.scalar(
+            select(Project).where(
+                Project.source_id == source_id,
+                Project.external_id == external_id,
+            )
+        )
+        if (
+            evidence is None
+            or project is None
+            or evidence.title != record.get("title")
+            or evidence.abstract != record.get("abstract")
+            or not _retained_evidence_current_for_project(session, project, evidence)
+        ):
+            continue
+        document = PublicDocument(
+            evidence.url,
+            evidence.title,
+            f"{evidence.title}\n{evidence.abstract or ''}",
+            evidence.published_at,
+            evidence.observed_at,
+            evidence.extraction_location,
+            retained_version=evidence.content_hash,
+        )
+        _store_document(
+            session,
+            project,
+            document,
+            "Exact TDLR project record fetched in the current native ingestion run.",
+            evidence.id,
+            seen_at=fetched_at,
+        )
+        receipt_count += 1
+    remaining_seconds(deadline)
+    assert_fence(session, job_id, worker_id, fence)
+    return receipt_count
+
+
 def _validate_adapter_rejection(value: object) -> dict[str, Any]:
     """Keep only the bounded, safe rejection contract emitted by reviewed adapters."""
     if not isinstance(value, dict):
@@ -2561,7 +2682,9 @@ def _normalize_source_acquisition(
     valid_rows: list[dict[str, Any]] = []
     rate_limit_seen = False
     retry_after_seconds: int | None = None
+    retry_after_at: str | None = None
     retry_after_exceeds_bound = False
+    retry_after_unrepresentable = False
     source_http_status: int | None = None
     seen_ids: set[str] = set()
     grouped: dict[str, list[int]] = {}
@@ -2595,12 +2718,16 @@ def _normalize_source_acquisition(
                 if not isinstance(metadata, dict) or set(metadata) - {
                     "http_status",
                     "retry_after_seconds",
+                    "retry_after_at",
                     "retry_after_exceeds_bound",
+                    "retry_after_unrepresentable",
                 }:
                     raise SourceParseError("Acquisition diagnostics are invalid")
                 status = metadata.get("http_status")
                 delay = metadata.get("retry_after_seconds")
+                raw_retry_at = metadata.get("retry_after_at")
                 excessive = metadata.get("retry_after_exceeds_bound")
+                unrepresentable = metadata.get("retry_after_unrepresentable")
                 if status is not None and (
                     type(status) is not int
                     or not (status == 429 or status in {408, 425} or status >= 500)
@@ -2613,14 +2740,42 @@ def _normalize_source_acquisition(
                     type(delay) is not int or not 0 <= delay <= MAX_RETRY_AFTER_SECONDS
                 ):
                     raise SourceParseError("Acquisition retry delay is invalid")
+                parsed_retry_at = None
+                if raw_retry_at is not None:
+                    if not isinstance(raw_retry_at, str) or len(raw_retry_at) > 40:
+                        raise SourceParseError("Acquisition retry deadline is invalid")
+                    try:
+                        parsed_retry_at = datetime.fromisoformat(raw_retry_at)
+                    except ValueError as exc:
+                        raise SourceParseError("Acquisition retry deadline is invalid") from exc
+                    if parsed_retry_at.tzinfo is None:
+                        raise SourceParseError("Acquisition retry deadline must include a timezone")
+                    parsed_retry_at = parsed_retry_at.astimezone(UTC)
                 if excessive is not None and (type(excessive) is not int or excessive != 1):
                     raise SourceParseError("Acquisition retry bound marker is invalid")
-                rate_limit_seen = status == 429 or delay is not None or excessive == 1
+                if unrepresentable is not None and (
+                    type(unrepresentable) is not int or unrepresentable != 1
+                ):
+                    raise SourceParseError("Acquisition retry deadline marker is invalid")
+                if unrepresentable == 1 and parsed_retry_at is not None:
+                    raise SourceParseError("Acquisition retry deadline markers conflict")
+                rate_limit_seen = (
+                    status == 429
+                    or delay is not None
+                    or parsed_retry_at is not None
+                    or excessive == 1
+                )
                 if status is not None:
                     source_http_status = status
                 if delay is not None:
                     retry_after_seconds = max(retry_after_seconds or 0, delay)
                 retry_after_exceeds_bound = retry_after_exceeds_bound or excessive == 1
+                if parsed_retry_at is not None and (
+                    retry_after_at is None
+                    or parsed_retry_at > datetime.fromisoformat(retry_after_at)
+                ):
+                    retry_after_at = parsed_retry_at.isoformat()
+                retry_after_unrepresentable = retry_after_unrepresentable or unrepresentable == 1
             rejection = row.get("rejected_record")
             if rejection is None:
                 rejection = rejected_record(
@@ -2714,8 +2869,12 @@ def _normalize_source_acquisition(
                 normalized["source_http_status"] = source_http_status
             if retry_after_seconds is not None:
                 normalized["source_retry_after_seconds"] = retry_after_seconds
+            if retry_after_at is not None:
+                normalized["source_retry_after_at"] = retry_after_at
             if retry_after_exceeds_bound:
                 normalized["source_retry_after_exceeds_bound"] = True
+            if retry_after_unrepresentable:
+                normalized["source_retry_after_unrepresentable"] = True
         return normalized
     return valid_rows
 

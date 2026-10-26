@@ -1,5 +1,15 @@
 # Intelligence Sprint 1: operator guide and delivery boundary
 
+> **Historical PR125 record — not current operating guidance.** This page records
+> the candidate's local import and enrichment design. The owner-approved
+> [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md)
+> supersedes any manual correction, qualification, or queueing workflow described
+> here. Contact/company graph corrections and user-started research writes are not
+> supported routes. Preserve historical assertions and correction receipts for
+> audit; use only currently supported read paths and separately authorized internal
+> staging procedures. Nothing here authorizes production data changes, provider
+> spending, merge, or deployment.
+
 This extends the existing GridLens application, canonical company identities,
 buying-chain evidence/corrections, PostgreSQL jobs, and power schedule engine.
 It does not create a second contact store or a dashboard. The owner authorized
@@ -86,20 +96,15 @@ integration settings are preserved. Neither provider was invoked in validation.
 The research planner uses heuristics, not calibrated match probabilities or
 predicted sales values. No new research framework or infrastructure is introduced.
 
-The existing contacts endpoint now adds clearly separated imported assertions.
-GET `/api/companies/{id}/graph` exposes current, evidence-backed identity aliases,
-project roles and relationship assertions. Relationship assertion/correction
-helpers require retained version-bound evidence and attribution. The UI uses the
-generated graph contract inside the existing contact panel, with desktop/mobile
-states and source links. It does not redesign navigation or brand assets.
-
-POST `/api/contact-assertions/{claim_id}/corrections` supports suppression,
-replacement and retraction with expected-version, idempotency and same-origin
-checks. Existing canonical buying-chain corrections remain the history. Source-free
-operator contact reports stay unverified; source-backed replacements require
-literal current evidence. Inferred emails and DNS/MX never establish a verified
-mailbox. Independently verified mailbox state is explicitly UNKNOWN_UNSUPPORTED:
-this candidate does not pretend the existing ledger supplies that authority.
+The PR125 candidate added a read projection for current company aliases, project
+roles, relationships and imported assertions. Current graph/contact/power
+enrichment surfaces are read-only. The candidate's contact-assertion, company
+relationship and buying-chain correction writers are superseded by the Canon and
+must not be used or restored as user workflows. Keep their historical assertions,
+evidence versions and correction receipts for audit; a retained ledger entry does
+not independently verify a relationship or contact. Source-free contact reports
+remain unverified, and inferred emails or DNS/MX do not establish a verified
+mailbox. Independently verified mailbox status remains UNKNOWN_UNSUPPORTED.
 
 GET `/api/projects/{id}/power-enrichment` projects exact accepted project/need/site
 schedules through the existing power engine. It preserves unknown supply, ranges,

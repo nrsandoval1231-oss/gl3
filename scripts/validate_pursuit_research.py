@@ -1,4 +1,8 @@
-"""Capture an immutable corpus baseline, then bounded research and exact replay receipts.
+"""Capture an isolated corpus baseline, then autonomous research/replay receipts.
+
+Internal validation utility: calls the machine scheduler, never retired user
+question-entry, status, call-log or owner-review routes. Historical fact/note rows
+remain protected evidence. It does not certify current product or deployed operation.
 
 No restore, credential setup, or work occurs by default. `baseline` is read-only.
 `run` requires --execute --allow-public-research and the exact manifest corpus ID.

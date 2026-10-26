@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     login_client_limit: int = Field(default=5, ge=1, le=100)
     login_global_limit: int = Field(default=500, ge=10, le=10000)
     login_client_bucket_cap: int = Field(default=10000, ge=100, le=100000)
-    opportunity_enrichment_enabled: bool = False
+    # Retained evidence analysis and bounded zero-cost research are part of the
+    # autonomous product loop. Paid/model dispatch remains separately gated by
+    # explicit contracts, configured prices, budgets and keys below.
+    opportunity_enrichment_enabled: bool = True
     worker_auto_refresh: bool = True
     monitoring_enabled: bool = False
     monitoring_plan_batch_limit: int = Field(default=20, ge=1, le=100)
@@ -139,7 +142,9 @@ class Settings(BaseSettings):
     power_need_titles_enabled: bool = False
     autonomous_research_enabled: bool = True
     buying_chain_public_research_enabled: bool = False
-    company_contact_discovery_enabled: bool = False
+    # Enable source-verified public business contact refresh by default. Provider
+    # search still requires the independent intelligence ledger authorization.
+    company_contact_discovery_enabled: bool = True
     autonomous_research_daily_questions: int = Field(default=8, ge=0, le=100)
     autonomous_research_max_searches: int = Field(default=3, ge=0, le=5)
     autonomous_research_max_urls: int = Field(default=10, ge=1, le=15)

@@ -1,5 +1,5 @@
 # Feature areas
 
-`workspace/` owns the company queue, nested projects/needs, detail/evidence views, material changes and navigation history. `pursuits/` implements commercial pursuits, retained research and call-fact workflows; `CommercialPursuits` mounts the saved `Pursuits` history. `buyingChain/` presents project-specific organizations, roles and evidence. `environment/` owns runtime/source operations views. `opportunities/` retains the opportunity presentation used by the shell.
+`workspace/` owns the authenticated Opportunities surface, company queue, project detail and source evidence. `pursuits/` now contains the read-only autonomous Research view and history projection. `buyingChain/` presents retained project organizations, roles and contact evidence without correction controls. `operations/` exposes internal source and pipeline diagnostics. `opportunities/` owns Signals browsing and its evidence-based grouping.
 
-`morning/` documents the morning-change journey; its current rendering lives in `workspace/WorkspaceChanges.tsx`. Folder names and compatibility paths are not evidence of unused code. Keep missing evidence explicit and preserve separate project/need identity beneath companies.
+Keep missing evidence explicit and preserve separate project and need identity beneath company accounts. Customer-facing surfaces do not collect call notes, operator status, fact drafts or manual research requests.

@@ -1,5 +1,8 @@
 # GridLens dashboard implementation — October 24, 2026
 
+> Historical October 24 candidate report. Its notes, fact correction, call and status coverage records prior behavior; it is not a requirement to retain those workflows. Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md).
+
+
 ## Result and repository inspection
 
 Initially extended PR #115 while it was open at `fe913f9`, with main at `a70e533`. The PR already contained the seven-color migration, two-ink G/L candidate assets, Sora/Inter fonts, and initial table/detail integration; those changes were reused. All remote branch heads and active PR #114 (`d2a2c6c`) were inspected. Separate PR #114 backend work was not imported or overwritten.

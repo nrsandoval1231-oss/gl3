@@ -15,5 +15,5 @@ def test_enrichment_routes_require_authentication():
     ):
         assert client.get(route).status_code == 401
     assert (
-        client.post(f"/api/contact-assertions/{identity}/corrections", json={}).status_code == 401
+        client.post(f"/api/contact-assertions/{identity}/corrections", json={}).status_code == 404
     )

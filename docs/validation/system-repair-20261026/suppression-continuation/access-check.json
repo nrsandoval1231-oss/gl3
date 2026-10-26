@@ -1,0 +1,50 @@
+{
+  "observed_at": "2026-10-26T17:45:14.907055+00:00",
+  "deployment_authorized": true,
+  "control_plane": {
+    "tool": "digitalocean_droplet_get",
+    "droplet_id": 609407604,
+    "name": "gridlens-production",
+    "status": "active",
+    "region": "nyc1",
+    "backup_ids": [
+      251385344,
+      250317208
+    ]
+  },
+  "local_host_access": {
+    "ssh_directory_present": false,
+    "ssh_identity_files": 0,
+    "ssh_agent_configured": false
+  },
+  "browser_tools_exposed": false,
+  "remote_host_execution_tool_exposed": false,
+  "prior_authenticated_api_attempt": {
+    "status": 401,
+    "receipt": "../release-access.json",
+    "repeated": false
+  },
+  "not_retried": "GitHub Actions secret metadata previously returned403; no new authorization or credential was supplied.",
+  "unknown": [
+    "deployed_sha",
+    "production_schema",
+    "production_counts",
+    "logical_backup_restore",
+    "authenticated_desktop_mobile_acceptance"
+  ],
+  "required_input": "Established production SSH/deployment identity and an authenticated GridLens session made available through secure environment configuration or an already authenticated supported connection. Do not paste credentials into chat.",
+  "commercial_gate": "Unmet evidence retained, but explicit17:55UTC owner exception removes commercial numerical/scenario thresholds as release blockers for PR126. Authenticated deployment access remains absent.",
+  "mutations": [],
+  "external_authorized_deployment_preflight": {
+    "reported_by": "Existing desktop deployment task via controller; not directly executed here",
+    "ssh_user": "gridlens",
+    "strict_host_checks": true,
+    "live_sha": "d75a856dc77f403e77929c1ab9a58b17545c0cc2",
+    "active_database": "gridlens_restore_20261014",
+    "preserve_active_database": true,
+    "schema": "0044_enrichment_planner_cursor",
+    "postgresql": "18.6",
+    "todays_backup_checksum": "reported_verified",
+    "pending": "Fresh checkpoint, isolated0044-to0046 migration/restore, suppression-compatible rollback, verified mergedSHA, essential livechecks"
+  }
+}

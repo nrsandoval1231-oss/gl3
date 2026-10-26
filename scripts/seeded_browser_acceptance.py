@@ -1,6 +1,7 @@
-"""Run unchanged browser workflows against a new, isolated SYNTHETIC database.
+"""Run autonomous browse/research browser checks in an isolated SYNTHETIC database.
 
-This is workflow proof, never retained PR23 corpus or live-source proof. No fixture
+This is fixture UI proof, never retained PR23 corpus, live-source, contact-coverage
+or scheduled-operation proof. The fixture worker disables autonomous external research. No fixture
 is installed into the application database. Public source URLs describe fixture
 shapes only; this runner performs no external source acquisition or model calls.
 The created database and receipt remain available for inspection; none is dropped.
@@ -281,7 +282,7 @@ def seed():
         print(
             json.dumps(
                 {
-                    "label": "SYNTHETIC workflow fixture; NOT retained or live corpus",
+                    "label": "SYNTHETIC autonomous browse fixture; NOT retained or live corpus",
                     "observations": session.scalar(select(func.count()).select_from(Observation)),
                     "needs": session.scalar(select(func.count()).select_from(PowerNeed)),
                     "pursuits": session.scalar(select(func.count()).select_from(Pursuit)),
@@ -353,7 +354,7 @@ def main():
         json.dumps(
             {
                 "database": name,
-                "data_kind": "SYNTHETIC fixture-only workflow proof",
+                "data_kind": "SYNTHETIC fixture-only autonomous browse/research UI proof",
                 "retained_PR23_corpus": False,
                 "live_source_proof": False,
                 "full_suite": args.full_suite,
@@ -406,7 +407,7 @@ def main():
                     "run",
                     "test",
                     "--",
-                    *([] if args.full_suite else ["first_path.spec.ts$", "/pursuits.spec.ts$"]),
+                    *([] if args.full_suite else ["first_path.spec.ts$", "autonomous-research.spec.ts$"]),
                     "--workers=1",
                     "--reporter=list,json",
                     f"--output={output / 'browser-results'}",

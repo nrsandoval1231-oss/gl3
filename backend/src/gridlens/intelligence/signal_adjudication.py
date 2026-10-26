@@ -285,7 +285,7 @@ def adjudicate(
                 "jev_error",
                 None,
                 {"status": failure_status(exc)},
-                f"Jev {failure_status(exc)}; evidence retained and manual review required.",
+                f"Jev {failure_status(exc)}; evidence retained; assessment unresolved.",
             )
     row = SignalDecision(
         observation_id=observation.id,
@@ -453,12 +453,10 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
             block_reason = str(exc)
             status = "blocked"
             dims = {"status": status, "reason": block_reason}
-            reason = (
-                f"Jev blocked before provider dispatch: {block_reason}; manual review required."
-            )
+            reason = f"Jev blocked before provider dispatch: {block_reason}; assessment unresolved."
         else:
             dims = {"status": status}
-            reason = f"Jev {status}; evidence retained and manual review required."
+            reason = f"Jev {status}; evidence retained; automated assessment remains unresolved."
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence)
         current_observation = session.get(Observation, observation.id)

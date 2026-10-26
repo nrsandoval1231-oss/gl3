@@ -1,0 +1,68 @@
+{
+  "observed_at": "2026-10-26T12:16:00Z",
+  "release_authority": "Owner authorizes merge and DigitalOcean deployment only after commercial P0, independent acceptance, regression, backup and recovery gates pass.",
+  "candidate": "29c4fe085cd261c19c4aeb7b1b4cca4dc538a006",
+  "application_source": "b71306f29716ec5ac374b0f4a04022e96abeb9a5",
+  "fetched_main": "d75a856dc77f403e77929c1ab9a58b17545c0cc2",
+  "pr": {
+    "url": "https://github.com/nrsandoval1231-oss/gl3/pull/126",
+    "state": "OPEN",
+    "draft": true,
+    "mergeable": true
+  },
+  "baseline_reverified": {
+    "ci_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40267075523",
+    "backend_job": 121391698468,
+    "backend_passed": 3101,
+    "backend_skipped": 1,
+    "backend_warnings": 8,
+    "backend_seconds": 538.38,
+    "browser_passed": 120,
+    "browser_seconds": 53.9,
+    "mypy_source_files": 173,
+    "evidence": "Fresh GitHub connector job-log retrieval; candidate application-source diff against b71306f is empty. Backend, web and brand jobs succeeded on both final-head runs.",
+    "native_chrome": "Eight passes recorded in retained prior receipt; not independently rerun by this access check.",
+    "workbooks": "Retained local database rechecked after restarting its existing container: 4 batches, 4520 source rows, 4520 activation records all active=false, 4 events, 0 canonical projects. Original XLSX attachments are absent in the resumed filesystem; byte-level reparse cannot be repeated without them. Isolated activation is checked separately by the workbook builder."
+  },
+  "production_control_plane": {
+    "provider": "DigitalOcean",
+    "droplet_id": 609407604,
+    "name": "gridlens-production",
+    "region": "nyc1",
+    "status": "active",
+    "backup_ids": [251385344, 250317208],
+    "latest_backup_observed": {
+      "id": 251385344,
+      "type": "backup",
+      "created_at": "2026-10-25T04:07:44Z",
+      "status": "available"
+    },
+    "logical_restore_verified": false,
+    "current_deployed_sha": null,
+    "current_schema": null,
+    "current_data_counts": null
+  },
+  "access": {
+    "environment_observations_current": true,
+    "configured_secrets": 0,
+    "configured_runtime_variables": 0,
+    "configured_outbound_identities": 0,
+    "ssh_identity_files": 0,
+    "production_workspace_http_status": 401,
+    "production_api_health_http_status": 401,
+    "public_health_path_note": "Both /health/live and /health/ready return the frontend HTML shell with HTTP 200; these are not evidence of backend health or readiness.",
+    "available_digitalocean_tools": "Control-plane metadata and infrastructure actions; no existing-host shell execution interface.",
+    "repository_workflows": "CI and historical PR87 publication diagnostic only; no configured production deployment workflow.",
+    "github_credential_metadata": "Repository Actions secret and variable metadata requests both returned HTTP 403 Resource not accessible by integration. No environment names were returned. This does not prove repository secrets are absent; this identity cannot inspect their metadata.",
+    "connected_browser": "Browser skill and available tool catalog checked; no browser extension session/tool is exposed for authenticated production inspection.",
+    "required": "Established production SSH/deployment identity and authenticated GridLens session through secure environment configuration. Do not paste secrets into reports or chat."
+  },
+  "production_mutations": [],
+  "deployment_performed": false,
+  "release_status": "HOLD_PENDING_COMMERCIAL_AND_PRODUCTION_ACCEPTANCE",
+  "notes": [
+    "Droplet active state and an available infrastructure backup do not establish application readiness, database preservation, logical recovery or commercial acceptance.",
+    "Established host procedure uses /etc/gridlens/compose.app.yaml, protected Infisical startup, and immutable /opt/gridlens/releases artifacts. The alternative deploy/digitalocean proposal must not be substituted blindly.",
+    "Actual production inventory, fresh checkpoint/restore rehearsal and release execution await authenticated access; isolated commercial work continues independently."
+  ]
+}

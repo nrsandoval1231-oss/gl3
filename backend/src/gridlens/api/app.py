@@ -1,41 +1,31 @@
 import hashlib
 import io
 import json
-import time
+import logging
 from collections import defaultdict
+from copy import deepcopy
 from csv import DictWriter
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any, Literal
-from uuid import UUID, uuid4
+from typing import cast as cast_type
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field, SecretStr
-from sqlalchemy import Date, Text, and_, cast, func, literal, or_, select, text, union_all
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import joinedload
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from sqlalchemy import Date, Text, and_, case, cast, func, literal, or_, select, text, union_all
+from sqlalchemy.orm import Session, joinedload
 
 from gridlens.api.enrichment import router as enrichment_router
 from gridlens.api.intelligence import router as intelligence_router
 from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import (
-    BuyingChainCorrectionBody,
-    BuyingChainCorrectionOut,
     BuyingChainOut,
-    BuyingEnrichBody,
 )
-from gridlens.domain.call_facts import (
-    CurrentOperatorInputBoundExceeded,
-    _source_lead_timing_bounds,
-    canonical_hash,
-    fact_digest,
-    validate_fact,
-    validate_timezone,
-)
+from gridlens.domain.call_facts import CurrentOperatorInputBoundExceeded, fact_digest
 from gridlens.domain.commercial_presentation import commercial_size_status, exact_mw_interval
 from gridlens.domain.commercial_triage import POLICY_VERSION as COMMERCIAL_TRIAGE_POLICY
 from gridlens.domain.commercial_triage import (
@@ -44,41 +34,29 @@ from gridlens.domain.commercial_triage import (
 from gridlens.domain.commercial_triage import (
     grouped_need_groups,
 )
-from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
+from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.lifecycle import is_industrial_asset_type
 from gridlens.domain.opportunity_intelligence import IntelligenceCard, compact_source_excerpt
 from gridlens.domain.pursuits import (
-    AutonomousResearchBody,
     AutonomousResearchOut,
-    CommercialResearchBody,
-    CommercialResearchStatusOut,
     CommercialTriageHistoryItem,
     CommercialTriageHistoryOut,
     CommercialTriageOut,
 )
 from gridlens.domain.ranking import rank_opportunity
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
-from gridlens.domain.workflow_status import WORKFLOW_STATUSES
 from gridlens.ingestion.registry import load_registry
-from gridlens.ingestion.service import _current_need_claims, _need_has_current_support
+from gridlens.ingestion.service import _need_has_current_support
 from gridlens.intelligence.briefs import (
     BriefUnavailable,
-    brief_fingerprint,
     brief_input,
     brief_preview,
-    brief_view,
     brief_view_for_payload,
-    request_brief,
 )
 from gridlens.intelligence.buying_chain import (
     buying_chain_job_status,
     buying_chain_view,
     buying_chain_views,
-    enqueue_buying_chain_research,
-)
-from gridlens.intelligence.buying_chain_corrections import (
-    correct_buying_chain_claim,
-    correction_view,
 )
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.opportunity_browse import (
@@ -97,26 +75,23 @@ from gridlens.intelligence.opportunity_browse import (
 )
 from gridlens.intelligence.project_state import project_state as read_project_state
 from gridlens.intelligence.saved_browse import current_generation
-from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
+from gridlens.intelligence.saved_history_privacy import project_saved_history_privacy
+from gridlens.intelligence.signal_adjudication import POLICY_VERSION
 from gridlens.intelligence.snapshot_presence import absent_need_ids
-from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
+    BuyingChainClaim,
     BuyingChainEvidence,
-    CallFactDecision,
-    CallFactVersion,
     ChangeEvent,
     Evidence,
     Interpretation,
     Job,
     LifecycleEvent,
     NeedObservation,
-    NeedWorkflowStatusEvent,
     Observation,
     PlannerState,
     PowerNeed,
     PowerNeedBrief,
-    PowerNeedBriefVersion,
     PowerNeedTitle,
     Project,
     ProjectLifecycle,
@@ -126,7 +101,6 @@ from gridlens.persistence.models import (
     SourceDueCheck,
     SourceScheduleEpoch,
     WorkerHeartbeat,
-    WorkspaceChangeAcknowledgment,
     WorkspaceChangeBaseline,
 )
 from gridlens.security import (
@@ -143,9 +117,6 @@ from gridlens.settings import settings
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
 app.include_router(intelligence_router)
 app.include_router(enrichment_router)
-WorkflowStatusFilter = Literal[
-    "UNKNOWN", "NEW", "INVESTIGATING", "CONTACTED", "QUALIFIED", "WON", "LOST", "CLOSED"
-]
 
 
 @app.exception_handler(CurrentOperatorInputBoundExceeded)
@@ -357,6 +328,90 @@ class CustomerAccountsPageOut(BaseModel):
     offset: int
 
 
+class UnifiedSearchProjectOut(BaseModel):
+    project_id: UUID
+    need_id: UUID
+    name: str
+    location: str | None
+    region_state: str | None
+    updated_at: datetime
+
+
+class UnifiedSearchCompanyOut(BaseModel):
+    company_identity_id: UUID
+    name: str
+    aliases: list[str]
+    project_count: int
+    need_count: int
+    supporting_evidence_count: int
+    last_evidence_update: datetime | None
+    qualification_tiers: list[str]
+    highest_priority_need: dict[str, Any] | None = None
+
+
+class UnifiedSearchContactMethodOut(BaseModel):
+    kind: str
+    value: str
+    source_url: str
+    quote: str | None = None
+    observed_at: str | None = None
+    model_config = ConfigDict(extra="allow")
+
+
+class UnifiedSearchContactEvidenceOut(BaseModel):
+    id: UUID | None = None
+    retained_evidence_id: UUID | None = None
+    source_id: str | None = None
+    url: str | None = None
+    quote: str | None = None
+    supports: str | None = None
+    extraction_location: str | None = None
+    published_at: datetime | None = None
+    observed_at: datetime | None = None
+    content_hash: str | None = None
+    current_source_version_id: UUID | None = None
+    current_support: bool | None = None
+    model_config = ConfigDict(extra="allow")
+
+
+class UnifiedSearchContactOut(BaseModel):
+    company_identity_id: UUID | None
+    project_id: UUID
+    need_id: UUID | None
+    name: str | None
+    title: str | None
+    organization: str
+    methods: list[UnifiedSearchContactMethodOut]
+    sources: list[UnifiedSearchContactEvidenceOut]
+    verification_status: Literal["Source linked; reachability and authority unconfirmed"]
+
+
+class UnifiedSearchOpportunityOut(BaseModel):
+    id: UUID | None = None
+    need_id: UUID
+    project_id: UUID
+    name: str | None = None
+    location: str | None = None
+    tier: str | None = None
+    activity: str | None = None
+    required_mw: str | None = None
+    start_window: str | None = None
+    duration: str | None = None
+    supply: str | None = None
+    commercial_preview: dict[str, Any] | None = None
+    model_config = ConfigDict(extra="allow")
+
+
+class UnifiedSearchOut(BaseModel):
+    query: str
+    projects: list[UnifiedSearchProjectOut]
+    companies: list[UnifiedSearchCompanyOut]
+    companies_status: Literal["current", "qualification_pending"]
+    contacts: list[UnifiedSearchContactOut]
+    opportunities: list[UnifiedSearchOpportunityOut]
+    opportunities_status: Literal["current", "qualification_pending"]
+
+
 class CustomerProjectOut(BaseModel):
     id: UUID
     name: str
@@ -374,21 +429,6 @@ class CustomerProjectsPageOut(BaseModel):
     offset: int
     next_offset: int | None = None
     account: CustomerAccountOut | None = None
-
-
-class CustomerMembershipCorrectionBody(BaseModel):
-    expected_version: int = Field(ge=0)
-    idempotency_key: str = Field(min_length=8, max_length=120)
-    reason: str = Field(min_length=1, max_length=2000)
-
-
-class CustomerMembershipCorrectionOut(BaseModel):
-    id: UUID
-    membership_id: UUID
-    expected_version: int
-    action: Literal["retracted"]
-    reason: str
-    created_at: datetime
 
 
 class UnresolvedCustomerProjectOut(BaseModel):
@@ -480,22 +520,6 @@ class WorkspaceChangesOut(BaseModel):
     source_health_exceptions: list[WorkspaceChangeSourceExceptionOut]
 
 
-class WorkspaceChangesReviewBody(BaseModel):
-    baseline_identity: UUID
-    token: str = Field(pattern=r"^[0-9a-f]{64}$")
-    limit: int = Field(default=50, ge=1, le=50)
-    offset: int = Field(default=0, ge=0, le=100000)
-
-
-class WorkspaceChangesReviewReceiptOut(BaseModel):
-    baseline_identity: UUID
-    reviewed_at: datetime
-    reviewed_count: int
-    event_keys: list[str]
-    token: str
-    remaining_counts: WorkspaceChangeCountsOut
-
-
 class WorkspaceHistoricalEvidenceOut(BaseModel):
     title: str
     url: str
@@ -520,136 +544,6 @@ class WorkspaceHistoricalNeedOut(BaseModel):
     supply: str
     updated_at: datetime
     evidence: list[WorkspaceHistoricalEvidenceOut]
-
-
-class CallFactDraftBody(BaseModel):
-    client_id: UUID
-    project_id: UUID
-    pursuit_id: UUID | None = None
-    expected_version: int = Field(ge=0)
-    predecessor_id: UUID | None = None
-    activity_key: str = Field(min_length=1, max_length=100)
-    facility_scope: str = Field(min_length=2, max_length=500)
-    fact_type: str
-    value: dict[str, Any]
-    reporter_name: str = Field(min_length=2, max_length=160)
-    reporter_organization: str | None = Field(default=None, max_length=200)
-    reporter_role: str | None = Field(default=None, max_length=160)
-    confirmation_channel: str = Field(min_length=2, max_length=40)
-    source_reference: str | None = Field(default=None, max_length=2000)
-    source_date: date | None = None
-    confirmed_at: datetime
-    effective_from: datetime
-    effective_until: datetime | None = None
-
-
-class CallFactDecisionBody(BaseModel):
-    client_id: UUID
-    expected_version: int = Field(ge=0)
-    decision: str
-    reason: str = Field(min_length=3, max_length=1000)
-
-
-class NeedWorkflowStatusBody(BaseModel):
-    client_id: UUID
-    project_id: UUID
-    pursuit_id: UUID | None = None
-    expected_version: int = Field(ge=0)
-    status: str
-    reason: str = Field(min_length=3, max_length=1000)
-
-
-class CallFactOut(BaseModel):
-    id: UUID
-    need_id: UUID
-    project_id: UUID
-    pursuit_id: UUID | None
-    predecessor_id: UUID | None
-    activity_key: str
-    facility_scope: str
-    fact_type: str
-    value: dict[str, Any]
-    reporter_name: str
-    reporter_organization: str | None
-    reporter_role: str | None
-    confirmation_channel: str
-    source_reference: str | None
-    source_date: date | None
-    confirmed_at: datetime
-    effective_from: datetime
-    effective_until: datetime | None
-    content_hash: str
-    decision: str
-    decision_version: int | None
-    decision_reason: str | None
-    decision_actor: str | None
-    decided_at: datetime | None
-    authority_label: str
-    recorded_by: str
-    created_at: datetime
-
-
-class TimingCorrectionTargetOut(BaseModel):
-    available: bool
-    unavailable_reason: str | None
-    need_id: UUID
-    project_id: UUID
-    project_identity_key: str
-    activity_key: str
-    facility_identity: str | None
-    source_semantic_hash: str | None
-    source_evidence_hash: str | None
-    retained_evidence_id: str | None
-    source_id: str | None
-    earliest_possible_start: DateType | None
-    latest_possible_start: DateType | None
-    minimum_duration_days: int | None
-    maximum_duration_days: int | None
-    current_fact_version: int
-
-
-class CallFactPageOut(BaseModel):
-    items: list[CallFactOut]
-    total: int
-    limit: int
-    offset: int
-    next_offset: int | None
-    current_fact_version: int
-    current_reported_timing_correction_target: TimingCorrectionTargetOut
-
-
-class CallFactDecisionOut(BaseModel):
-    id: UUID
-    version: int
-    decision: str
-    reason: str
-    actor: str
-    created_at: datetime
-    fact_version_id: UUID | None = None
-    content_hash: str | None = None
-    tier: str | None = None
-    active: bool | None = None
-
-
-class NeedWorkflowEventOut(BaseModel):
-    id: UUID
-    need_id: UUID
-    project_id: UUID
-    pursuit_id: UUID | None
-    version: int
-    status: str
-    previous_status: str | None
-    expected_version: int
-    reason: str
-    content_hash: str
-    actor: str
-    created_at: datetime
-
-
-class NeedWorkflowStatusOut(BaseModel):
-    status: str
-    version: int
-    events: list[NeedWorkflowEventOut]
 
 
 class OpportunityGroupPageOut(BaseModel):
@@ -681,7 +575,6 @@ _BROWSE_FILTER_NAMES = {
     "mw_min",
     "mw_max",
     "priority_segment",
-    "status",
 }
 _BROWSE_QUERY_NAMES = _BROWSE_FILTER_NAMES | {
     "tier",
@@ -745,7 +638,6 @@ def _normalized_browse_filters(
     mw_min: str | None,
     mw_max: str | None,
     priority_segment: str | None,
-    status: str | None,
     search: str | None,
     industry_group: str | None = None,
 ) -> dict[str, Any]:
@@ -778,7 +670,6 @@ def _normalized_browse_filters(
         raise HTTPException(422, "Signal decisions can only filter Signal opportunities")
     timing = enum("timing", timing, {"KNOWN", "UNKNOWN"})
     mw_status = enum("mw_status", mw_status, {"KNOWN", "UNKNOWN"})
-    status = enum("status", status, {"UNKNOWN", *(value.upper() for value in WORKFLOW_STATUSES)})
     if industry_group is not None:
         industry_group = industry_group.strip().casefold()
         if industry_group != "industrial":
@@ -835,7 +726,6 @@ def _normalized_browse_filters(
         "mw_min": minimum,
         "mw_max": maximum,
         "priority_segment": priority,
-        "status": status,
     }
 
 
@@ -900,11 +790,6 @@ def _filter_opportunity_summaries(
             and item.get("_priority_segment") != filters["priority_segment"]
         ):
             continue
-        selected_status = filters.get("status")
-        if selected_status is not None:
-            actual_status = str(item.get("workflow_status", "UNKNOWN")).upper()
-            if actual_status != selected_status:
-                continue
         selected.append(item)
     return selected
 
@@ -1069,7 +954,14 @@ def _preflight_opportunity_details(session, rows: list[dict]) -> None:
             raise HTTPException(413, "Opportunity has too many lifecycle rows for one response")
 
 
-def _preflight_streamed_evidence_text(session, need_ids: Any, project_ids: Any) -> None:
+def _preflight_streamed_evidence_text(
+    session,
+    need_ids: Any,
+    project_ids: Any,
+    *,
+    current_only: bool = False,
+    diagnostics: dict | None = None,
+) -> None:
     scopes = []
     if need_ids is not None and (not isinstance(need_ids, list) or need_ids):
         scopes.append(
@@ -1115,12 +1007,34 @@ def _preflight_streamed_evidence_text(session, need_ids: Any, project_ids: Any) 
         )
         .group_by(evidence_scopes.c.scope)
     )
+    if current_only:
+        # Summary hydration uses only these exact current versions. Historical
+        # text stays in PostgreSQL until the selected complete group preflight.
+        query = query.where(
+            Interpretation.assessment["evidence_hash"].as_string() == Evidence.content_hash,
+            or_(
+                evidence_scopes.c.scope == "lifecycle",
+                Interpretation.assessment["semantic_hash"].as_string() == Observation.content_hash,
+            ),
+        )
     for _scope, max_field, total_bytes in session.execute(query):
         if max_field and max_field > _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES:
+            if diagnostics is not None:
+                diagnostics.update(
+                    resource="source_text_field_bytes",
+                    count=max_field,
+                    cap=_MAX_OPPORTUNITY_SEARCH_FIELD_BYTES,
+                )
             raise HTTPException(
                 413, "Retained evidence text exceeds the bounded processing field limit"
             )
         if total_bytes > _MAX_OPPORTUNITY_SEARCH_COHORT_BYTES:
+            if diagnostics is not None:
+                diagnostics.update(
+                    resource="source_text_scope_bytes",
+                    count=total_bytes,
+                    cap=_MAX_OPPORTUNITY_SEARCH_COHORT_BYTES,
+                )
             raise HTTPException(
                 413, "Retained evidence text exceeds the bounded processing cohort limit"
             )
@@ -1205,10 +1119,6 @@ class BriefOut(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     question_context: str = "current"
-
-
-class BriefRequestOut(BriefOut):
-    job_id: UUID | None = None
 
 
 class PowerNeedTitleOut(BaseModel):
@@ -1357,21 +1267,6 @@ class SessionOut(BaseModel):
 
 class LogoutOut(BaseModel):
     authenticated: bool
-
-
-class RefreshOut(BaseModel):
-    queued: list[str]
-
-
-class SourceEnabledIn(BaseModel):
-    enabled: bool
-
-
-class SourceEnabledOut(BaseModel):
-    id: str
-    registry_enabled: bool
-    operator_enabled: bool
-    effective_enabled: bool
 
 
 class IngestionItemOut(BaseModel):
@@ -2115,7 +2010,6 @@ def opportunities(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
     sort: Literal["updated", "rank"] = "updated",
 ):
     response = response or Response()
@@ -2130,7 +2024,6 @@ def opportunities(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
     )
     if offset > 0 and (cohort is None or not cohort.strip()):
@@ -2331,7 +2224,6 @@ def pursuit_workspace(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=None,
-        status=None,
         search=search,
         industry_group=industry_group,
     )
@@ -2392,6 +2284,166 @@ def customer_accounts(
     with SessionLocal() as session:
         _begin_consistent_read(session)
         return account_queue(session, search=search, limit=limit, offset=offset)
+
+
+@app.get(
+    "/api/search",
+    response_model=UnifiedSearchOut,
+    dependencies=[Depends(require_session)],
+)
+def unified_search(
+    q: Annotated[str, Query(min_length=2, max_length=100)],
+    limit: Annotated[int, Query(ge=1, le=20)] = 10,
+):
+    """Search current eligible projects, accounts, contacts, and opportunity intelligence."""
+    from gridlens.intelligence.buying_chain import buying_chain_views
+    from gridlens.intelligence.customer_accounts import account_queue
+    from gridlens.intelligence.saved_browse import page as saved_browse_page
+
+    term = q.strip()
+    if len(term) < 2:
+        raise HTTPException(422, "q must contain at least two non-space characters")
+    escaped_term = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{escaped_term}%"
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        accounts_status = "current"
+        try:
+            accounts = account_queue(session, search=term, limit=limit, offset=0)["items"]
+        except HTTPException as exc:
+            if exc.status_code != 503:
+                raise
+            accounts, accounts_status = [], "qualification_pending"
+
+        project_rows = session.execute(
+            select(Project, PowerNeed)
+            .join(PowerNeed, PowerNeed.project_id == Project.id)
+            .where(
+                Project.region_status == "ELIGIBLE",
+                PowerNeed.active.is_(True),
+                or_(
+                    Project.name.ilike(pattern, escape="\\"),
+                    Project.location.ilike(pattern, escape="\\"),
+                ),
+            )
+            .order_by(PowerNeed.updated_at.desc(), Project.id, PowerNeed.id)
+            .limit(limit)
+        ).all()
+        projects = [
+            {
+                "project_id": project.id,
+                "need_id": need.id,
+                "name": project.name,
+                "location": project.location,
+                "region_state": project.region_state,
+                "updated_at": need.updated_at,
+            }
+            for project, need in project_rows
+        ]
+
+        # Search only retained current buying-chain projections. The text match
+        # narrows candidate projects; buying_chain_views applies correction and
+        # version state before any contact is returned.
+        contact_project_ids = list(
+            session.scalars(
+                select(BuyingChainClaim.project_id)
+                .join(Project, Project.id == BuyingChainClaim.project_id)
+                .where(
+                    Project.region_status == "ELIGIBLE",
+                    or_(
+                        BuyingChainClaim.person_name.ilike(pattern, escape="\\"),
+                        BuyingChainClaim.title.ilike(pattern, escape="\\"),
+                        BuyingChainClaim.organization.ilike(pattern, escape="\\"),
+                        cast(BuyingChainClaim.public_contacts, Text).ilike(pattern, escape="\\"),
+                    ),
+                    select(PowerNeed.id)
+                    .where(PowerNeed.project_id == Project.id, PowerNeed.active.is_(True))
+                    .exists(),
+                )
+                .distinct()
+                .limit(limit * 4)
+            )
+        )
+        contact_views = buying_chain_views(session, set(contact_project_ids))
+        contact_need_rows = session.execute(
+            select(PowerNeed.project_id, PowerNeed.id)
+            .where(
+                PowerNeed.project_id.in_(contact_project_ids),
+                PowerNeed.active.is_(True),
+            )
+            .order_by(PowerNeed.project_id, PowerNeed.updated_at.desc(), PowerNeed.id)
+        ).all()
+        contact_need_by_project: dict[str, UUID] = {}
+        for project_id, need_id in contact_need_rows:
+            contact_need_by_project.setdefault(str(project_id), need_id)
+        contacts = []
+        normalized_term = term.casefold()
+
+        for project_id, view in contact_views.items():
+            for candidate in view.get("candidates", []):
+                if (
+                    candidate.get("stale")
+                    or candidate.get("correction_stale")
+                    or candidate.get("retracted")
+                    or candidate.get("suppressed")
+                ):
+                    continue
+                fields = [
+                    candidate.get("person_name"),
+                    candidate.get("title"),
+                    candidate.get("organization"),
+                    json.dumps(candidate.get("public_contacts", []), ensure_ascii=False),
+                ]
+                if not any(normalized_term in str(value or "").casefold() for value in fields):
+                    continue
+                contacts.append(
+                    {
+                        "company_identity_id": candidate.get("company_identity_id"),
+                        "project_id": project_id,
+                        "need_id": contact_need_by_project.get(str(project_id)),
+                        "name": candidate.get("person_name"),
+                        "title": candidate.get("title"),
+                        "organization": candidate.get("organization"),
+                        "methods": candidate.get("public_contacts", []),
+                        "sources": candidate.get("evidence", []),
+                        "verification_status": (
+                            "Source linked; reachability and authority unconfirmed"
+                        ),
+                    }
+                )
+        contacts = contacts[:limit]
+
+        opportunities_status = "current"
+        try:
+            opportunity_page = saved_browse_page(
+                session,
+                {"search": normalized_term},
+                limit=limit,
+                offset=0,
+                ranked=True,
+            )
+            opportunities = opportunity_page.get("items", [])
+            opportunities = [
+                {
+                    **item,
+                    "need_id": item.get("need_id") or item.get("id"),
+                    "name": item.get("name") or item.get("title") or item.get("display_title"),
+                }
+                for item in opportunities
+            ]
+        except HTTPException as exc:
+            if exc.status_code != 503:
+                raise
+            opportunities, opportunities_status = [], "qualification_pending"
+        return {
+            "query": term,
+            "projects": projects,
+            "companies": accounts,
+            "companies_status": accounts_status,
+            "contacts": contacts,
+            "opportunities": opportunities,
+            "opportunities_status": opportunities_status,
+        }
 
 
 @app.get(
@@ -2458,35 +2510,6 @@ def customer_account_projects(
             raise HTTPException(404, str(exc)) from exc
 
 
-@app.post(
-    "/api/customer-account-memberships/{membership_id}/retractions",
-    response_model=CustomerMembershipCorrectionOut,
-    dependencies=[Depends(require_session)],
-)
-def retract_customer_account_membership(
-    membership_id: UUID, request: Request, body: CustomerMembershipCorrectionBody
-):
-    require_same_origin(request)
-    from gridlens.intelligence.customer_accounts import retract_customer_membership
-
-    with SessionLocal.begin() as session:
-        try:
-            return retract_customer_membership(
-                session,
-                membership_id=membership_id,
-                expected_version=body.expected_version,
-                idempotency_key=body.idempotency_key,
-                reason=body.reason,
-                actor="authenticated_operator",
-            )
-        except LookupError as exc:
-            raise HTTPException(404, str(exc)) from exc
-        except RuntimeError as exc:
-            raise HTTPException(409, str(exc)) from exc
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
-
-
 _OPPORTUNITY_MAP_WINDOW_LIMIT = 200
 
 
@@ -2508,7 +2531,6 @@ def opportunity_map_window(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
 ):
     """Return the exact globally ranked, bounded map window in one authenticated read."""
     filters = _normalized_browse_filters(
@@ -2522,7 +2544,6 @@ def opportunity_map_window(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
     )
     tier = filters["tier"]
@@ -2940,7 +2961,6 @@ def opportunity_group_page(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -2953,7 +2973,6 @@ def opportunity_group_page(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
     )
     tier = filters["tier"]
@@ -3093,7 +3112,6 @@ def opportunity_need_detail(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -3106,7 +3124,6 @@ def opportunity_need_detail(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
     )
     tier = filters["tier"]
@@ -3296,7 +3313,6 @@ def export_opportunities_csv(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -3309,7 +3325,6 @@ def export_opportunities_csv(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=priority_segment,
-        status=status,
         search=search,
         industry_group=industry_group,
     )
@@ -3490,6 +3505,8 @@ def _opportunity_summary_projection(
     include_below_floor: bool,
     selected_need_ids: set[UUID] | None,
     diagnostics: dict[str, int] | None,
+    current_evidence_only: bool = False,
+    preflight_diagnostics: dict | None = None,
 ) -> list[dict]:
     """Stream compact candidate inputs; selected details use the regular projection."""
     from gridlens.domain.commercial_triage import PriorityInputAccumulator, _priority
@@ -3544,6 +3561,8 @@ def _opportunity_summary_projection(
         session,
         select(candidate_scope.c.id),
         select(candidate_scope.c.project_id),
+        current_only=current_evidence_only,
+        diagnostics=preflight_diagnostics,
     )
     cursor: UUID | None = None
     houston_project_ids: set[UUID] = set()
@@ -4651,19 +4670,6 @@ def signal_decision_counts():
     return counts
 
 
-@app.post("/api/signals/decisions/adjudicate", dependencies=[Depends(require_session)])
-def adjudicate_signal_batch(
-    request: Request,
-    limit: int = Query(default=100, ge=1, le=500),
-):
-    """Explicit bounded replay/backfill; unchanged evidence and policy are idempotent."""
-    require_same_origin(request)
-    with SessionLocal.begin() as session:
-        result = adjudicate_current_signals(session, limit=limit)
-        _refresh_saved_operator_change(session)
-        return result
-
-
 def _change_sources(session, event: ChangeEvent) -> list[dict]:
     if event.buying_chain_evidence_id is not None:
         stored_ids = (event.new_state or {}).get("buying_chain_evidence_ids")
@@ -4746,106 +4752,6 @@ def workspace_change_briefing(
         result["baseline_reviewed_at"] = baseline.reviewed_at if baseline else None
         result["first_use"] = baseline is None
         return result
-
-
-@app.post(
-    "/api/opportunities/workspace/changes/review",
-    response_model=WorkspaceChangesReviewReceiptOut,
-    dependencies=[Depends(require_session)],
-)
-def review_workspace_changes(body: WorkspaceChangesReviewBody, request: Request):
-    from gridlens.intelligence.workspace_changes import (
-        workspace_changes,
-    )
-
-    require_same_origin(request)
-    for attempt in range(3):
-        try:
-            with SessionLocal.begin() as session:
-                session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
-                session.execute(
-                    text(
-                        "INSERT INTO workspace_change_baselines "
-                        "(id, baseline_identity) VALUES (1, :baseline_identity) "
-                        "ON CONFLICT (id) DO NOTHING"
-                    ),
-                    {"baseline_identity": str(body.baseline_identity)},
-                )
-                baseline = session.scalar(
-                    select(WorkspaceChangeBaseline)
-                    .where(WorkspaceChangeBaseline.id == 1)
-                    .with_for_update()
-                )
-                if baseline is None:
-                    raise HTTPException(500, "Workspace review baseline could not be initialized")
-                if body.baseline_identity != baseline.baseline_identity:
-                    raise HTTPException(
-                        409, "Workspace review baseline changed; reload the briefing"
-                    )
-                if baseline.last_token == body.token and baseline.last_receipt is not None:
-                    return baseline.last_receipt
-
-                snapshot = workspace_changes(
-                    session,
-                    baseline.baseline_identity,
-                    limit=body.limit,
-                    offset=body.offset,
-                    evaluated_at=datetime.now(UTC),
-                )
-                if snapshot["token"] != body.token:
-                    raise HTTPException(
-                        409, "Workspace changes changed; reload the briefing before reviewing"
-                    )
-
-                reviewed_at = session.scalar(select(func.clock_timestamp())) or datetime.now(UTC)
-                event_keys = [item["event_key"] for item in snapshot["items"]]
-                if event_keys:
-                    session.execute(
-                        pg_insert(WorkspaceChangeAcknowledgment)
-                        .values(
-                            [
-                                {
-                                    "event_key": event_key,
-                                    "reviewed_at": reviewed_at,
-                                    "review_token": body.token,
-                                }
-                                for event_key in event_keys
-                            ]
-                        )
-                        .on_conflict_do_nothing(
-                            index_elements=[WorkspaceChangeAcknowledgment.event_key]
-                        )
-                    )
-                remaining = workspace_changes(
-                    session,
-                    baseline.baseline_identity,
-                    limit=body.limit,
-                    offset=body.offset,
-                    evaluated_at=reviewed_at,
-                )
-                receipt = {
-                    "baseline_identity": str(baseline.baseline_identity),
-                    "reviewed_at": reviewed_at.isoformat(),
-                    "reviewed_count": len(event_keys),
-                    "event_keys": event_keys,
-                    "token": body.token,
-                    "remaining_counts": remaining["counts"],
-                }
-                baseline.reviewed_at = reviewed_at
-                baseline.last_token = body.token
-                baseline.last_receipt = receipt
-                session.flush()
-                return receipt
-        except DBAPIError as exc:
-            original = exc.orig
-            sqlstate = getattr(original, "sqlstate", None) or getattr(original, "pgcode", None)
-            if sqlstate not in {"40001", "40P01"}:
-                raise
-            if attempt == 2:
-                raise HTTPException(
-                    409, "Workspace review changed concurrently; reload the briefing"
-                ) from exc
-    raise HTTPException(409, "Workspace review changed concurrently; reload the briefing")
 
 
 @app.get(
@@ -4954,52 +4860,6 @@ def project_changes_endpoint(project_id: UUID, limit: int = Query(default=100, g
         ]
 
 
-@app.post("/api/refresh", response_model=RefreshOut, dependencies=[Depends(require_session)])
-def refresh(request: Request):
-    require_same_origin(request)
-    from gridlens.jobs.worker import sync_registry
-
-    definitions = sync_registry()
-    with SessionLocal.begin() as session:
-        sources = {
-            row.id: row
-            for row in session.scalars(
-                select(Source).where(Source.id.in_([d["id"] for d in definitions]))
-            )
-        }
-        ids = [
-            str(enqueue(session, item["id"]))
-            for item in definitions
-            if sources[item["id"]].enabled and sources[item["id"]].registry_enabled
-        ]
-    return {"queued": ids}
-
-
-@app.post(
-    "/api/sources/{source_id}/enabled",
-    response_model=SourceEnabledOut,
-    dependencies=[Depends(require_session)],
-)
-def set_source_enabled_endpoint(source_id: str, body: SourceEnabledIn, request: Request):
-    require_same_origin(request)
-    from gridlens.jobs.worker import set_source_enabled
-
-    try:
-        set_source_enabled(source_id, body.enabled)
-    except ValueError as exc:
-        raise HTTPException(404, str(exc)) from exc
-    with SessionLocal() as session:
-        source = session.get(Source, source_id)
-        if source is None:
-            raise HTTPException(404, "Source not found")
-        return {
-            "id": source.id,
-            "registry_enabled": source.registry_enabled,
-            "operator_enabled": source.enabled,
-            "effective_enabled": source.enabled and source.registry_enabled,
-        }
-
-
 @app.get(
     "/api/projects/{project_id}/buying-chain",
     response_model=BuyingChainOut,
@@ -5013,42 +4873,6 @@ def project_buying_chain(project_id: UUID, history: bool = False):
             return result
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
-
-
-@app.post(
-    "/api/projects/{project_id}/buying-chain/{claim_id}/corrections",
-    response_model=BuyingChainCorrectionOut,
-    dependencies=[Depends(require_session)],
-)
-def correct_project_buying_chain(
-    project_id: UUID, claim_id: UUID, request: Request, body: BuyingChainCorrectionBody
-):
-    require_same_origin(request)
-    with SessionLocal.begin() as session:
-        try:
-            row = correct_buying_chain_claim(
-                session,
-                project_id=project_id,
-                claim_id=claim_id,
-                expected_version=body.expected_version,
-                idempotency_key=body.idempotency_key,
-                action=body.action,
-                values=body.values,
-                source_evidence_id=body.source_evidence_id,
-                source_hash=body.source_hash,
-                reason=body.reason,
-                actor="authenticated_operator",
-                reported_contact=body.reported_contact,
-                identity_type=body.identity_type,
-                identity_id=body.identity_id,
-            )
-            return correction_view(row)
-        except LookupError as exc:
-            raise HTTPException(404, str(exc)) from exc
-        except RuntimeError as exc:
-            raise HTTPException(409, str(exc)) from exc
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
 
 
 @app.get(
@@ -5066,24 +4890,6 @@ def get_power_need_brief(need_id: UUID):
             payload = None
         row = session.get(PowerNeedBrief, need_id)
         return brief_view_for_payload(row, payload)
-
-
-@app.post(
-    "/api/power-needs/{need_id}/brief",
-    response_model=BriefRequestOut,
-    dependencies=[Depends(require_session)],
-)
-def create_power_need_brief(need_id: UUID, request: Request):
-    require_same_origin(request)
-    with SessionLocal.begin() as session:
-        try:
-            result = request_brief(session, need_id)
-            _refresh_saved_operator_change(session)
-            return result
-        except LookupError as exc:
-            raise HTTPException(404, "Power need not found") from exc
-        except BriefUnavailable as exc:
-            raise HTTPException(409, str(exc)) from exc
 
 
 @app.get(
@@ -5108,651 +4914,17 @@ def get_power_need_title(need_id: UUID):
         return title_view(row, fingerprint)
 
 
-@app.post(
-    "/api/power-needs/{need_id}/title",
-    response_model=PowerNeedTitleOut,
-    dependencies=[Depends(require_session)],
-)
-def create_power_need_title(need_id: UUID, request: Request):
-    require_same_origin(request)
-    from gridlens.intelligence.titles import request_title
-
-    with SessionLocal.begin() as session:
-        try:
-            return request_title(session, need_id)
-        except LookupError as exc:
-            raise HTTPException(404, "Power need not found") from exc
-        except Exception as exc:
-            raise HTTPException(
-                409, "Title enrichment is unavailable for current evidence"
-            ) from exc
-
-
-@app.post(
-    "/api/projects/{project_id}/buying-chain/enrich",
-    response_model=BuyingChainOut,
-    dependencies=[Depends(require_session)],
-)
-def enrich_project_buying_chain(
-    project_id: UUID, request: Request, body: BuyingEnrichBody | None = None
-):
-    require_same_origin(request)
-    with SessionLocal.begin() as session:
-        try:
-            enqueue_buying_chain_research(session, project_id, body.source_urls if body else [])
-            result = buying_chain_view(session, project_id)
-            result["research_job"] = buying_chain_job_status(session, project_id)
-            return result
-        except LookupError as exc:
-            raise HTTPException(404, "Project not found") from exc
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
-
-
-# Commercial action workflow is independent of the existing evidence tiers.
+# Historical commercial snapshots remain readable for audit and continuity.
 from gridlens.domain.pursuits import (  # noqa: E402
-    CallNoteBody,
-    CallNoteOut,
-    PursuitJobOut,
     PursuitOut,
     PursuitsOut,
 )
 from gridlens.intelligence.pursuits import (  # noqa: E402
-    job_view,
     list_pursuits,
     note_view,
     pursuit_view,
 )
 from gridlens.persistence.models import Pursuit, PursuitCallNote  # noqa: E402
-
-
-def _validate_need_scope(session, need_id: UUID, project_id: UUID, pursuit_id: UUID | None):
-    need = session.scalar(select(PowerNeed).where(PowerNeed.id == need_id).with_for_update())
-    if need is None:
-        raise HTTPException(404, "Power need not found")
-    project = session.get(Project, need.project_id)
-    if project is None or project.id != project_id:
-        raise HTTPException(404, "Need/project scope does not match")
-    pursuit = None
-    if pursuit_id is not None:
-        pursuit = session.get(Pursuit, pursuit_id)
-        if pursuit is None or pursuit.project_id != project.id:
-            raise HTTPException(404, "Need/project/pursuit scope does not match")
-    return need, project, pursuit
-
-
-def _validate_current_fact_predecessor(
-    session, predecessor: CallFactVersion, need: PowerNeed, *, fact_type: str, facility: str
-) -> None:
-    if (
-        predecessor.project_id != need.project_id
-        or predecessor.fact_type != fact_type
-        or predecessor.activity_key != need.activity_key
-        or " ".join(predecessor.facility_scope.split()).casefold() != facility.casefold()
-    ):
-        raise HTTPException(
-            409, "Correction predecessor must match the exact fact type, activity and facility"
-        )
-    latest = session.scalar(
-        select(CallFactDecision)
-        .where(CallFactDecision.fact_version_id == predecessor.id)
-        .order_by(CallFactDecision.version.desc())
-        .limit(1)
-    )
-    now = evaluation_now(datetime.now(UTC))
-    if (
-        latest is None
-        or latest.decision not in {"accepted", "corrected"}
-        or predecessor.effective_from > now
-        or predecessor.effective_until is not None
-        and predecessor.effective_until <= now
-    ):
-        raise HTTPException(409, "Correction predecessor is not a current accepted fact")
-
-
-def _fact_version_view(row: CallFactVersion, decision: CallFactDecision | None):
-    return {
-        "id": row.id,
-        "need_id": row.need_id,
-        "project_id": row.project_id,
-        "pursuit_id": row.pursuit_id,
-        "predecessor_id": row.predecessor_id,
-        "activity_key": row.activity_key,
-        "facility_scope": row.facility_scope,
-        "fact_type": row.fact_type,
-        "value": row.value,
-        "reporter_name": row.reporter_name,
-        "reporter_organization": row.reporter_organization,
-        "reporter_role": row.reporter_role,
-        "confirmation_channel": row.confirmation_channel,
-        "source_reference": row.source_reference,
-        "source_date": row.source_date,
-        "confirmed_at": row.confirmed_at,
-        "effective_from": row.effective_from,
-        "effective_until": row.effective_until,
-        "content_hash": row.content_hash,
-        "decision": decision.decision if decision else "UNKNOWN",
-        "decision_version": decision.version if decision else None,
-        "decision_reason": decision.reason if decision else None,
-        "decision_actor": decision.actor if decision else None,
-        "decided_at": decision.created_at if decision else None,
-        "authority_label": (
-            "User-confirmed"
-            if decision and decision.decision in {"accepted", "corrected"}
-            else "Reported / not accepted"
-        ),
-        "recorded_by": row.recorded_by,
-        "created_at": row.created_at,
-    }
-
-
-def _reported_timing_correction_target(
-    session, need: PowerNeed, project: Project, current_fact_version: int
-) -> dict[str, Any]:
-    unavailable = {
-        "available": False,
-        "unavailable_reason": "no_current_admitted_lead",
-        "need_id": need.id,
-        "project_id": project.id,
-        "project_identity_key": project.identity_key,
-        "activity_key": need.activity_key,
-        "facility_identity": None,
-        "source_semantic_hash": None,
-        "source_evidence_hash": None,
-        "retained_evidence_id": None,
-        "source_id": None,
-        "earliest_possible_start": None,
-        "latest_possible_start": None,
-        "minimum_duration_days": None,
-        "maximum_duration_days": None,
-        "current_fact_version": current_fact_version,
-    }
-    claims = _current_need_claims(session, need, project)
-    if not claims:
-        return unavailable
-    claim = claims[0]
-    if claim.get("qualification_conflict"):
-        unavailable["unavailable_reason"] = "current_source_claim_conflict"
-        return unavailable
-    if claim.get("tier") != "Lead":
-        return unavailable
-    bounds = _source_lead_timing_bounds(claim)
-    evidence = claim.get("evidence")
-    semantic_hash = claim.get("semantic_hash")
-    evidence_hash = claim.get("evidence_hash")
-    evidence_id = evidence.get("id") if isinstance(evidence, dict) else None
-    if (
-        bounds is None
-        or not isinstance(semantic_hash, str)
-        or len(semantic_hash) != 64
-        or any(character not in "0123456789abcdef" for character in semantic_hash)
-        or not isinstance(evidence_hash, str)
-        or len(evidence_hash) != 64
-        or any(character not in "0123456789abcdef" for character in evidence_hash)
-        or not isinstance(evidence_id, str)
-        or claim.get("project_identity_key") != project.identity_key
-    ):
-        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
-        return unavailable
-    try:
-        retained_evidence_id = UUID(evidence_id)
-    except ValueError:
-        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
-        return unavailable
-    bound_evidence_id = session.scalar(
-        select(Evidence.id)
-        .join(Observation, Observation.id == Evidence.observation_id)
-        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
-        .where(
-            NeedObservation.need_id == need.id,
-            Observation.content_hash == semantic_hash,
-            Evidence.content_hash == evidence_hash,
-            Evidence.id == retained_evidence_id,
-        )
-        .limit(1)
-    )
-    if bound_evidence_id is None:
-        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
-        return unavailable
-    first_start, last_start, minimum_duration, maximum_duration = bounds
-    return {
-        **unavailable,
-        "available": True,
-        "unavailable_reason": None,
-        "facility_identity": (
-            project.identity_key
-            if claim.get("project_identity_key") == project.identity_key
-            else None
-        ),
-        "source_semantic_hash": semantic_hash,
-        "source_evidence_hash": evidence_hash,
-        "retained_evidence_id": str(bound_evidence_id),
-        "source_id": claim.get("source_id"),
-        "earliest_possible_start": first_start,
-        "latest_possible_start": last_start,
-        "minimum_duration_days": minimum_duration,
-        "maximum_duration_days": maximum_duration,
-    }
-
-
-def _workflow_event_view(event: NeedWorkflowStatusEvent):
-    return {
-        "id": event.id,
-        "need_id": event.need_id,
-        "project_id": event.project_id,
-        "pursuit_id": event.pursuit_id,
-        "version": event.version,
-        "status": event.status,
-        "previous_status": event.previous_status,
-        "expected_version": event.expected_version,
-        "reason": event.reason,
-        "content_hash": event.content_hash,
-        "actor": event.actor,
-        "created_at": event.created_at,
-    }
-
-
-@app.get(
-    "/api/needs/{need_id}/facts",
-    response_model=CallFactPageOut,
-    dependencies=[Depends(require_session)],
-)
-def list_need_call_facts(
-    need_id: UUID,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-):
-    with SessionLocal() as session:
-        need = session.get(PowerNeed, need_id)
-        if need is None:
-            raise HTTPException(404, "Power need not found")
-        project = session.get(Project, need.project_id)
-        if project is None:
-            raise HTTPException(404, "Need project not found")
-        versions = session.scalars(
-            select(CallFactVersion)
-            .where(CallFactVersion.need_id == need_id)
-            .order_by(CallFactVersion.created_at.desc(), CallFactVersion.id)
-            .limit(limit)
-            .offset(offset)
-        ).all()
-        decisions = (
-            session.scalars(
-                select(CallFactDecision)
-                .where(CallFactDecision.fact_version_id.in_([row.id for row in versions]))
-                .order_by(CallFactDecision.version.desc())
-            ).all()
-            if versions
-            else []
-        )
-        latest: dict[UUID, CallFactDecision] = {}
-        for event in decisions:
-            latest.setdefault(event.fact_version_id, event)
-        total = (
-            session.scalar(
-                select(func.count())
-                .select_from(CallFactVersion)
-                .where(CallFactVersion.need_id == need_id)
-            )
-            or 0
-        )
-        current_fact_version = (
-            session.scalar(
-                select(func.max(CallFactDecision.version)).where(
-                    CallFactDecision.need_id == need_id
-                )
-            )
-            or 0
-        )
-        return {
-            "items": [_fact_version_view(row, latest.get(row.id)) for row in versions],
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-            "next_offset": offset + len(versions) if offset + len(versions) < total else None,
-            "current_fact_version": current_fact_version,
-            "current_reported_timing_correction_target": _reported_timing_correction_target(
-                session, need, project, current_fact_version
-            ),
-        }
-
-
-def _refresh_saved_operator_change(session):
-    if settings.saved_browse_enabled:
-        from gridlens.intelligence.saved_browse import refresh_project_changes
-
-        # Canonical facts/corrections must remain writable when a derived build
-        # fails. The committed revision still fences the previous generation.
-        session.flush()
-        try:
-            with session.begin_nested():
-                refresh_project_changes(session)
-        except Exception:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "Saved browse refresh failed; canonical change retained, qualification pending"
-            )
-
-
-@app.post(
-    "/api/needs/{need_id}/facts",
-    response_model=CallFactOut,
-    dependencies=[Depends(require_session)],
-)
-def create_need_call_fact(need_id: UUID, body: CallFactDraftBody, request: Request):
-    require_same_origin(request)
-    try:
-        value = validate_fact(body.fact_type, body.value)
-        confirmed_at = validate_timezone(body.confirmed_at, "confirmed_at")
-        effective_from = validate_timezone(body.effective_from, "effective_from")
-        effective_until = (
-            validate_timezone(body.effective_until, "effective_until")
-            if body.effective_until
-            else None
-        )
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
-    if effective_until is not None and effective_until <= effective_from:
-        raise HTTPException(422, "effective_until must follow effective_from")
-    if confirmed_at > datetime.now(UTC):
-        raise HTTPException(422, "confirmed_at cannot be in the future")
-    payload = body.model_dump(mode="json", exclude={"expected_version"})
-    payload["value"] = value
-    digest = canonical_hash(payload)
-    with SessionLocal.begin() as session:
-        need, project, pursuit = _validate_need_scope(
-            session, need_id, body.project_id, body.pursuit_id
-        )
-        prior = session.scalar(
-            select(CallFactVersion).where(
-                CallFactVersion.need_id == need.id, CallFactVersion.client_id == body.client_id
-            )
-        )
-        if prior is not None:
-            if prior.content_hash != digest:
-                raise HTTPException(
-                    409, "This fact request key was already used with different content"
-                )
-            latest = session.scalar(
-                select(CallFactDecision)
-                .where(CallFactDecision.fact_version_id == prior.id)
-                .order_by(CallFactDecision.version.desc())
-                .limit(1)
-            )
-            return _fact_version_view(prior, latest)
-        version = (
-            session.scalar(
-                select(func.max(CallFactDecision.version)).where(
-                    CallFactDecision.need_id == need.id
-                )
-            )
-            or 0
-        )
-        if body.expected_version != version:
-            raise HTTPException(409, "Fact history version is stale")
-        facility = " ".join(body.facility_scope.split())
-        if (
-            body.activity_key != need.activity_key
-            or facility.casefold() != " ".join((project.location or "").split()).casefold()
-        ):
-            raise HTTPException(
-                422, "Fact activity and facility must match the exact need and project"
-            )
-        if body.predecessor_id is not None:
-            predecessor = session.get(CallFactVersion, body.predecessor_id)
-            if predecessor is None or predecessor.need_id != need.id:
-                raise HTTPException(404, "Predecessor fact is outside this exact need")
-            _validate_current_fact_predecessor(
-                session, predecessor, need, fact_type=body.fact_type, facility=facility
-            )
-        row = CallFactVersion(
-            need_id=need.id,
-            project_id=project.id,
-            pursuit_id=pursuit.id if pursuit else None,
-            predecessor_id=body.predecessor_id,
-            client_id=body.client_id,
-            activity_key=body.activity_key,
-            facility_scope=facility,
-            fact_type=body.fact_type,
-            value=value,
-            reporter_name=body.reporter_name.strip(),
-            reporter_organization=body.reporter_organization.strip()
-            if body.reporter_organization
-            else None,
-            reporter_role=body.reporter_role.strip() if body.reporter_role else None,
-            confirmation_channel=body.confirmation_channel,
-            source_reference=body.source_reference,
-            source_date=body.source_date,
-            confirmed_at=confirmed_at,
-            effective_from=effective_from,
-            effective_until=effective_until,
-            content_hash=digest,
-            recorded_by="Nick Sandoval",
-        )
-        session.add(row)
-        session.flush()
-        event = CallFactDecision(
-            need_id=need.id,
-            fact_version_id=row.id,
-            version=version + 1,
-            client_id=body.client_id,
-            decision="draft",
-            expected_version=version,
-            reason="Fact captured as an unaccepted operator report.",
-            content_hash=canonical_hash({"draft": digest}),
-            actor="Nick Sandoval",
-        )
-        session.add(event)
-        session.flush()
-        _refresh_saved_operator_change(session)
-        return _fact_version_view(row, event)
-
-
-@app.post(
-    "/api/needs/{need_id}/facts/{fact_version_id}/decision",
-    response_model=CallFactDecisionOut,
-    dependencies=[Depends(require_session)],
-)
-def decide_need_call_fact(
-    need_id: UUID, fact_version_id: UUID, body: CallFactDecisionBody, request: Request
-):
-    require_same_origin(request)
-    if body.decision not in {"accepted", "rejected", "corrected", "retracted"}:
-        raise HTTPException(422, "Unsupported fact decision")
-    digest = canonical_hash(body.model_dump(mode="json", exclude={"expected_version"}))
-    with SessionLocal.begin() as session:
-        need = session.scalar(select(PowerNeed).where(PowerNeed.id == need_id).with_for_update())
-        if need is None:
-            raise HTTPException(404, "Power need not found")
-        prior = session.scalar(
-            select(CallFactDecision).where(
-                CallFactDecision.need_id == need.id, CallFactDecision.client_id == body.client_id
-            )
-        )
-        if prior is not None:
-            if prior.fact_version_id != fact_version_id:
-                raise HTTPException(
-                    409, "This fact decision key was already used for a different fact version"
-                )
-            if prior.content_hash != digest:
-                raise HTTPException(
-                    409, "This fact decision key was already used with different content"
-                )
-            return {
-                "id": prior.id,
-                "version": prior.version,
-                "decision": prior.decision,
-                "reason": prior.reason,
-                "actor": prior.actor,
-                "created_at": prior.created_at,
-            }
-        row = session.get(CallFactVersion, fact_version_id)
-        if row is None or row.need_id != need.id:
-            raise HTTPException(404, "Fact version is outside this exact need")
-        version = (
-            session.scalar(
-                select(func.max(CallFactDecision.version)).where(
-                    CallFactDecision.need_id == need.id
-                )
-            )
-            or 0
-        )
-        if version != body.expected_version:
-            raise HTTPException(409, "Fact history version is stale")
-        if row.predecessor_id is not None and body.decision == "accepted":
-            raise HTTPException(422, "A correction successor must be decided as corrected")
-        next_version = version + 1
-        if body.decision == "corrected":
-            if row.predecessor_id is None:
-                raise HTTPException(422, "A corrected version must identify its predecessor")
-            row_decision = session.scalar(
-                select(CallFactDecision)
-                .where(CallFactDecision.fact_version_id == row.id)
-                .order_by(CallFactDecision.version.desc())
-                .limit(1)
-            )
-            if row_decision is None or row_decision.decision != "draft":
-                raise HTTPException(409, "Only a current draft correction can be accepted")
-            predecessor = session.get(CallFactVersion, row.predecessor_id)
-            if predecessor is None or predecessor.need_id != need.id:
-                raise HTTPException(409, "Correction predecessor is invalid")
-            _validate_current_fact_predecessor(
-                session,
-                predecessor,
-                need,
-                fact_type=row.fact_type,
-                facility=row.facility_scope,
-            )
-            session.add(
-                CallFactDecision(
-                    need_id=need.id,
-                    fact_version_id=predecessor.id,
-                    version=next_version,
-                    client_id=uuid4(),
-                    decision="superseded",
-                    expected_version=version,
-                    reason=body.reason,
-                    content_hash=canonical_hash({"superseded": digest}),
-                    actor="Nick Sandoval",
-                )
-            )
-            next_version += 1
-        event = CallFactDecision(
-            need_id=need.id,
-            fact_version_id=row.id,
-            version=next_version,
-            client_id=body.client_id,
-            decision=body.decision,
-            expected_version=version,
-            reason=body.reason.strip(),
-            content_hash=digest,
-            actor="Nick Sandoval",
-        )
-        session.add(event)
-        session.flush()
-        project = session.get(Project, need.project_id)
-        if project is not None:
-            from gridlens.ingestion.service import _apply_current_qualification
-
-            _apply_current_qualification(session, need, project)
-        _refresh_saved_operator_change(session)
-        return {
-            "id": event.id,
-            "version": event.version,
-            "decision": event.decision,
-            "reason": event.reason,
-            "actor": event.actor,
-            "created_at": event.created_at,
-            "fact_version_id": row.id,
-            "content_hash": row.content_hash,
-            "tier": need.tier,
-            "active": need.active,
-        }
-
-
-@app.get(
-    "/api/needs/{need_id}/workflow-status",
-    response_model=NeedWorkflowStatusOut,
-    dependencies=[Depends(require_session)],
-)
-def read_need_workflow_status(need_id: UUID):
-    with SessionLocal() as session:
-        if session.get(PowerNeed, need_id) is None:
-            raise HTTPException(404, "Power need not found")
-        events = session.scalars(
-            select(NeedWorkflowStatusEvent)
-            .where(NeedWorkflowStatusEvent.need_id == need_id)
-            .order_by(NeedWorkflowStatusEvent.version.desc())
-            .limit(100)
-        ).all()
-        latest = events[0] if events else None
-        return {
-            "status": latest.status if latest else "UNKNOWN",
-            "version": latest.version if latest else 0,
-            "events": list(reversed(events)),
-        }
-
-
-@app.post(
-    "/api/needs/{need_id}/workflow-status",
-    response_model=NeedWorkflowEventOut,
-    dependencies=[Depends(require_session)],
-)
-def set_need_workflow_status(need_id: UUID, body: NeedWorkflowStatusBody, request: Request):
-    require_same_origin(request)
-    if body.status not in WORKFLOW_STATUSES:
-        raise HTTPException(422, "Unsupported workflow status")
-    digest = canonical_hash(
-        {
-            "status": body.status,
-            "reason": body.reason.strip(),
-            "project_id": str(body.project_id),
-            "pursuit_id": str(body.pursuit_id) if body.pursuit_id else None,
-        }
-    )
-    with SessionLocal.begin() as session:
-        need, project, pursuit = _validate_need_scope(
-            session, need_id, body.project_id, body.pursuit_id
-        )
-        prior = session.scalar(
-            select(NeedWorkflowStatusEvent).where(
-                NeedWorkflowStatusEvent.need_id == need.id,
-                NeedWorkflowStatusEvent.client_id == body.client_id,
-            )
-        )
-        if prior is not None:
-            if prior.content_hash != digest:
-                raise HTTPException(
-                    409, "This status request key was already used with different content"
-                )
-            return _workflow_event_view(prior)
-        latest = session.scalar(
-            select(NeedWorkflowStatusEvent)
-            .where(NeedWorkflowStatusEvent.need_id == need.id)
-            .order_by(NeedWorkflowStatusEvent.version.desc())
-            .limit(1)
-        )
-        version = latest.version if latest else 0
-        if body.expected_version != version:
-            raise HTTPException(409, "Workflow status version is stale")
-        event = NeedWorkflowStatusEvent(
-            need_id=need.id,
-            project_id=project.id,
-            pursuit_id=pursuit.id if pursuit else None,
-            version=version + 1,
-            client_id=body.client_id,
-            status=body.status,
-            previous_status=latest.status if latest else None,
-            expected_version=version,
-            reason=body.reason.strip(),
-            content_hash=digest,
-            actor="Nick Sandoval",
-        )
-        session.add(event)
-        session.flush()
-        _refresh_saved_operator_change(session)
-        return _workflow_event_view(event)
 
 
 @app.get("/api/pursuits", response_model=PursuitsOut, dependencies=[Depends(require_session)])
@@ -5775,54 +4947,6 @@ def pursuit_detail(pursuit_id: UUID):
                 "Commercial triage workspaces are available through /api/commercial/triage",
             )
         return pursuit_view(session, row)
-
-
-@app.post(
-    "/api/pursuits/refresh", response_model=PursuitJobOut, dependencies=[Depends(require_session)]
-)
-def refresh_pursuits(request: Request, force: bool = False):
-    require_same_origin(request)
-    with SessionLocal.begin() as session:
-        try:
-            job_id = enqueue(session, "austin-building-permits", kind="pursuit_research")
-        except ValueError as exc:
-            raise HTTPException(409, "Enable and reconcile Austin ingestion first") from exc
-        job = session.get(Job, job_id)
-        assert job
-        if job.status == "queued" and job.attempts == 0 and job.checkpoint is None:
-            import json
-
-            job.checkpoint = json.dumps({"force": force})
-        return job_view(job)
-
-
-@app.post(
-    "/api/pursuits/{pursuit_id}/notes",
-    response_model=CallNoteOut,
-    dependencies=[Depends(require_session)],
-)
-def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
-    require_same_origin(request)
-    with SessionLocal.begin() as session:
-        row = session.scalar(select(Pursuit).where(Pursuit.id == pursuit_id).with_for_update())
-        if row is None:
-            raise HTTPException(404, "Pursuit not found")
-        prior = session.scalar(
-            select(PursuitCallNote).where(
-                PursuitCallNote.pursuit_id == pursuit_id,
-                PursuitCallNote.client_id == body.client_id,
-            )
-        )
-        if prior:
-            if any(getattr(prior, key) != value for key, value in body.model_dump().items()):
-                raise HTTPException(
-                    409, "This note request was already saved with different content"
-                )
-            return note_view(prior)
-        note = PursuitCallNote(pursuit_id=pursuit_id, owner="Nick Sandoval", **body.model_dump())
-        session.add(note)
-        session.flush()
-        return note_view(note)
 
 
 def _commercial_triage_page(
@@ -5862,6 +4986,199 @@ def _commercial_triage_page(
         raise HTTPException(
             413, "Commercial research history exceeds the triage overview row budget"
         )
+    return _commercial_current_triage_page(
+        session,
+        limit,
+        offset,
+        saved_selection=saved_selection,
+        selection_metadata=selection_metadata,
+        include_saved_history=True,
+    )
+
+
+def _exclude_commercial_planner_group(
+    session: Session, identity: str, need_ids: list[str], count: int, cap: int, resource: str
+) -> None:
+    """Retain an observable whole-group exclusion without admitting partial facts."""
+    detail = cast_type(
+        dict[str, Any], _commercial_bound_error(identity, count, cap, resource).detail
+    )
+    session.info.setdefault("commercial_planner_exclusions", {})[identity] = {
+        **detail,
+        "need_ids": list(need_ids),
+    }
+    logging.getLogger("gridlens.intelligence.autonomous_research").warning(
+        "Autonomous research group excluded: group=%s resource=%s count=%s max=%s",
+        detail["group_id"],
+        resource,
+        count,
+        cap,
+    )
+
+
+def _commercial_machine_summaries(
+    session: Session, *, tier: str | None, include_below_floor: bool
+) -> list[dict]:
+    """Read bounded current inputs; isolate complete scopes before text hydration."""
+    from gridlens.domain.pursuit_screening import work_identity
+
+    # Only bounded metadata crosses the database boundary before source text is
+    # checked. Keys are hashes, so even a large allowed site string is not kept.
+    location = case(
+        (
+            func.octet_length(Project.location) <= _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES,
+            Project.location,
+        ),
+        else_=None,
+    )
+    candidate_query = (
+        select(
+            PowerNeed.id,
+            Project.id,
+            Project.source_id,
+            Project.external_id,
+            location,
+            func.greatest(
+                func.octet_length(func.coalesce(Project.name, "")),
+                func.octet_length(func.coalesce(Project.location, "")),
+            ),
+        )
+        .join(Project, PowerNeed.project_id == Project.id)
+        .where(PowerNeed.active.is_(True), Project.region_status == "ELIGIBLE")
+        .order_by(PowerNeed.id)
+    )
+    work_keys: dict[UUID, set[str]] = {}
+    primary_keys: dict[UUID, str] = {}
+    for need_id, _project_id, source_id, external_id, site, field_bytes in session.execute(
+        candidate_query
+    ).yield_per(128):
+        identity = work_identity(source_id, external_id, site or "")
+        work_keys[need_id] = {identity}
+        primary_keys[need_id] = identity
+        if field_bytes > _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES:
+            _exclude_commercial_planner_group(
+                session,
+                identity,
+                [str(need_id)],
+                field_bytes,
+                _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES,
+                "project_text_field_bytes",
+            )
+    if not work_keys:
+        return []
+    # Include every linked source identity conservatively. A bad sibling must
+    # never be dropped from an otherwise published exact-event work group.
+    identities = (
+        select(PowerNeed.id, Observation.source_id, Observation.external_id, location)
+        .join(Project, PowerNeed.project_id == Project.id)
+        .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+        .join(Observation, Observation.id == NeedObservation.observation_id)
+        .where(PowerNeed.active.is_(True), Project.region_status == "ELIGIBLE")
+        .distinct()
+    )
+    for need_id, source_id, external_id, site in session.execute(identities).yield_per(128):
+        if need_id in work_keys:
+            work_keys[need_id].add(work_identity(source_id, external_id, site or ""))
+
+    def excluded_ids() -> set[UUID]:
+        return {
+            UUID(need_id)
+            for diagnostic in session.info.get("commercial_planner_exclusions", {}).values()
+            for need_id in diagnostic["need_ids"]
+        }
+
+    def project_batch(need_ids: list[UUID]) -> list[dict]:
+        diagnostics: dict = {}
+        try:
+            return _opportunity_summary_projection(
+                session,
+                tier=tier,
+                search=None,
+                include_below_floor=include_below_floor,
+                selected_need_ids=set(need_ids),
+                diagnostics=None,
+                current_evidence_only=True,
+                preflight_diagnostics=diagnostics,
+            )
+        except HTTPException as exc:
+            if exc.status_code != 413 or not diagnostics:
+                raise
+            if len(need_ids) > 1:
+                midpoint = len(need_ids) // 2
+                return project_batch(need_ids[:midpoint]) + project_batch(need_ids[midpoint:])
+            need_id = need_ids[0]
+            _exclude_commercial_planner_group(
+                session,
+                primary_keys[need_id],
+                [str(need_id)],
+                diagnostics["count"],
+                diagnostics["cap"],
+                diagnostics["resource"],
+            )
+            return []
+
+    summaries: list[dict] = []
+    eligible_ids = sorted(work_keys.keys() - excluded_ids(), key=str)
+    # Selected summary reads are deliberately <=50: their existing SQL batch
+    # limit is preserved, and aggregate text limits apply per bounded chunk.
+    for start in range(0, len(eligible_ids), 50):
+        summaries.extend(project_batch(eligible_ids[start : start + 50]))
+
+    neighbors: dict[str, set[UUID]] = {}
+    for need_id, keys in work_keys.items():
+        for key in keys:
+            neighbors.setdefault(key, set()).add(need_id)
+    blocked = excluded_ids() & work_keys.keys()
+    remaining = set(blocked)
+    diagnostics_by_need = {
+        UUID(need_id): diagnostic
+        for diagnostic in session.info.get("commercial_planner_exclusions", {}).values()
+        for need_id in diagnostic["need_ids"]
+    }
+    while remaining:
+        seed = remaining.pop()
+        component = {seed}
+        frontier = [seed]
+        while frontier:
+            for identity in work_keys[frontier.pop()]:
+                additions = neighbors[identity] - component
+                component.update(additions)
+                frontier.extend(additions)
+        blocked.update(component)
+        remaining.difference_update(component)
+        diagnostic = diagnostics_by_need[seed]
+        _exclude_commercial_planner_group(
+            session,
+            primary_keys[seed],
+            sorted(str(need_id) for need_id in component),
+            diagnostic["resource_count"],
+            diagnostic["resource_cap"],
+            diagnostic["resource"],
+        )
+    return [summary for summary in summaries if summary["id"] not in blocked]
+
+
+def _commercial_current_triage_page(
+    session,
+    limit: int,
+    offset: int = 0,
+    *,
+    saved_selection: bool = False,
+    selection_metadata: dict | None = None,
+    include_saved_history: bool = False,
+    isolate_resource_bounds: bool = False,
+    tier: str | None = "Signal",
+    include_below_floor: bool = False,
+    requested_need_ids: set[UUID] | None = None,
+) -> tuple[list[dict], int]:
+    """Project current cards with evidence bounds, independently of old receipts.
+
+    Machine callers consume no notes, research history or saved snapshots. Only
+    HTTP overviews attach those records, so their history preflight is separate
+    from the bounds on current group members, source evidence and output bytes.
+    """
+    if not 1 <= limit <= 50 or offset < 0:
+        raise ValueError("Commercial card selection requires limit 1..50 and offset >= 0")
     if saved_selection and settings.saved_browse_enabled:
         from gridlens.intelligence.saved_browse import commercial_selection
 
@@ -5873,15 +5190,35 @@ def _commercial_triage_page(
             selection_metadata=selection_metadata,
         )
     else:
-        summaries = opportunity_projection(session, tier="Signal", summary_only=True)
+        if isolate_resource_bounds:
+            summaries = _commercial_machine_summaries(
+                session, tier=tier, include_below_floor=include_below_floor
+            )
+        else:
+            summaries = opportunity_projection(
+                session, tier=tier, summary_only=True, include_below_floor=include_below_floor
+            )
         all_keyed_groups = grouped_need_groups(summaries)
+        if requested_need_ids is not None:
+            requested = {str(need_id) for need_id in requested_need_ids}
+            all_keyed_groups = [
+                (identity, group)
+                for identity, group in all_keyed_groups
+                if requested.intersection(group)
+            ]
         selected_keyed_groups = all_keyed_groups[offset : offset + limit]
         grouped_total = len(all_keyed_groups)
         project_ids_by_need = {
             UUID(str(item["id"])): UUID(str(item["project_id"])) for item in summaries
         }
+    bounded_keyed_groups = []
     for identity, group in selected_keyed_groups:
         if len(group) > 50:
+            if isolate_resource_bounds:
+                _exclude_commercial_planner_group(
+                    session, identity, group, len(group), 50, "group_members"
+                )
+                continue
             raise HTTPException(
                 413,
                 {
@@ -5894,6 +5231,8 @@ def _commercial_triage_page(
                     ),
                 },
             )
+        bounded_keyed_groups.append((identity, group))
+    selected_keyed_groups = bounded_keyed_groups
     selected_groups = [need_ids for _identity, need_ids in selected_keyed_groups]
     selected_ids = {UUID(need_id) for group in selected_groups for need_id in group}
 
@@ -5929,86 +5268,158 @@ def _commercial_triage_page(
             .group_by(BuyingChainEvidence.project_id)
         ).all()
     )
-    workspace_ids_by_need = {
-        UUID(need_id): f"commercial-need:{need_id}"
-        for group in selected_groups
-        for need_id in group
-    }
-    selected_workspace_ids = set(workspace_ids_by_need.values())
-    workspace_sizes = dict(
-        session.execute(
-            select(Pursuit.identity_key, func.octet_length(cast(Pursuit.snapshot, Text))).where(
-                Pursuit.identity_key.in_(selected_workspace_ids)
-            )
-        ).all()
-    )
-    note_counts_by_workspace = dict(
-        session.execute(
-            select(Pursuit.identity_key, func.count(PursuitCallNote.id))
-            .join(Pursuit, Pursuit.id == PursuitCallNote.pursuit_id)
-            .where(Pursuit.identity_key.in_(selected_workspace_ids))
-            .group_by(Pursuit.identity_key)
-        ).all()
-    )
-
+    workspace_sizes = {}
+    note_counts_by_workspace = {}
+    workspace_ids_by_need = {}
+    if include_saved_history:
+        workspace_ids_by_need = {
+            UUID(need_id): f"commercial-need:{need_id}"
+            for group in selected_groups
+            for need_id in group
+        }
+        selected_workspace_ids = set(workspace_ids_by_need.values())
+        workspace_sizes = dict(
+            session.execute(
+                select(Pursuit.identity_key, func.octet_length(cast(Pursuit.snapshot, Text))).where(
+                    Pursuit.identity_key.in_(selected_workspace_ids)
+                )
+            ).all()
+        )
+        note_counts_by_workspace = dict(
+            session.execute(
+                select(Pursuit.identity_key, func.count(PursuitCallNote.id))
+                .join(Pursuit, Pursuit.id == PursuitCallNote.pursuit_id)
+                .where(Pursuit.identity_key.in_(selected_workspace_ids))
+                .group_by(Pursuit.identity_key)
+            ).all()
+        )
+    bounded_keyed_groups = []
     for identity, group in selected_keyed_groups:
         group_need_ids = {UUID(need_id) for need_id in group}
-        evidence_rows = sum(evidence_counts_by_need.get(need_id, 0) for need_id in group_need_ids)
-        if evidence_rows > _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS:
-            raise _commercial_bound_error(
-                identity, evidence_rows, _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS, "evidence_rows"
-            )
         project_ids_for_group = {project_ids_by_need[need_id] for need_id in group_need_ids}
-        lifecycle_rows = sum(
-            lifecycle_counts_by_project.get(project_id, 0) for project_id in project_ids_for_group
-        )
-        if lifecycle_rows > _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS:
-            raise _commercial_bound_error(
-                identity,
-                lifecycle_rows,
-                _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS,
+        resources = (
+            (
+                "evidence_rows",
+                sum(evidence_counts_by_need.get(need_id, 0) for need_id in group_need_ids),
+                _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS,
+            ),
+            (
                 "lifecycle_rows",
-            )
-        relationship_rows = sum(
-            relationship_counts_by_project.get(project_id, 0)
-            for project_id in project_ids_for_group
-        )
-        if relationship_rows > _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS:
-            raise _commercial_bound_error(
-                identity,
-                relationship_rows,
-                _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS,
+                sum(
+                    lifecycle_counts_by_project.get(project_id, 0)
+                    for project_id in project_ids_for_group
+                ),
+                _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS,
+            ),
+            (
                 "relationship_rows",
-            )
-        group_workspace_ids = [workspace_ids_by_need[need_id] for need_id in group_need_ids]
-        for workspace_id in group_workspace_ids:
-            snapshot_size = workspace_sizes.get(workspace_id)
-            if snapshot_size and snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
-                raise _commercial_bound_error(
-                    identity,
-                    snapshot_size,
-                    _MAX_SAVED_SNAPSHOT_BYTES,
-                    "saved_snapshot_bytes",
-                )
-        note_count = sum(
-            note_counts_by_workspace.get(workspace_id, 0) for workspace_id in group_workspace_ids
+                sum(
+                    relationship_counts_by_project.get(project_id, 0)
+                    for project_id in project_ids_for_group
+                ),
+                _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS,
+            ),
         )
-        if note_count > _MAX_COMMERCIAL_CARD_NOTES:
-            raise _commercial_bound_error(identity, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes")
-    chains: dict[str, dict] = {}
-    selected = opportunity_projection(
-        session,
-        tier="Signal",
-        selected_need_ids=selected_ids,
-        include_operator_fact_refs=True,
-        buying_chain_results=chains,
-    )
-    missing_chains = {
-        item["project_id"] for item in selected if str(item["project_id"]) not in chains
-    }
-    if missing_chains:
-        chains.update(buying_chain_views(session, missing_chains))
-    cards = make_commercial_cards(selected, chains, chicago_today(), limit)
+        exceeded = next(
+            ((resource, count, cap) for resource, count, cap in resources if count > cap), None
+        )
+        if exceeded:
+            resource, count, cap = exceeded
+            if isolate_resource_bounds:
+                _exclude_commercial_planner_group(session, identity, group, count, cap, resource)
+                continue
+            raise _commercial_bound_error(identity, count, cap, resource)
+        if isolate_resource_bounds:
+            diagnostics: dict[str, Any] = {}
+            try:
+                _preflight_streamed_evidence_text(
+                    session,
+                    list(group_need_ids),
+                    list(project_ids_for_group),
+                    diagnostics=diagnostics,
+                )
+            except HTTPException as exc:
+                if exc.status_code != 413 or not diagnostics:
+                    raise
+                _exclude_commercial_planner_group(
+                    session,
+                    identity,
+                    group,
+                    diagnostics["count"],
+                    diagnostics["cap"],
+                    diagnostics["resource"],
+                )
+                continue
+        bounded_keyed_groups.append((identity, group))
+        if include_saved_history:
+            group_workspace_ids = [workspace_ids_by_need[need_id] for need_id in group_need_ids]
+            for workspace_id in group_workspace_ids:
+                snapshot_size = workspace_sizes.get(workspace_id)
+                if snapshot_size and snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
+                    raise _commercial_bound_error(
+                        identity,
+                        snapshot_size,
+                        _MAX_SAVED_SNAPSHOT_BYTES,
+                        "saved_snapshot_bytes",
+                    )
+            note_count = sum(
+                note_counts_by_workspace.get(workspace_id, 0)
+                for workspace_id in group_workspace_ids
+            )
+            if note_count > _MAX_COMMERCIAL_CARD_NOTES:
+                raise _commercial_bound_error(
+                    identity, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes"
+                )
+    selected_keyed_groups = bounded_keyed_groups
+    selected_ids = {UUID(need_id) for _, group in selected_keyed_groups for need_id in group}
+
+    def build_current_cards(need_ids: set[UUID]) -> list[dict]:
+        chains: dict[str, dict] = {}
+        selected = opportunity_projection(
+            session,
+            tier=tier,
+            include_below_floor=include_below_floor,
+            selected_need_ids=need_ids,
+            include_operator_fact_refs=True,
+            buying_chain_results=chains,
+        )
+        missing_chains = {
+            item["project_id"] for item in selected if str(item["project_id"]) not in chains
+        }
+        if missing_chains:
+            chains.update(buying_chain_views(session, missing_chains))
+        return make_commercial_cards(selected, chains, chicago_today(), limit)
+
+    if isolate_resource_bounds:
+        bounded_cards: list[dict] = []
+        page_bytes = 2  # JSON array delimiters; keep each machine page bounded too.
+        # Each complete group already passed the retained-text byte preflight.
+        # Render it before loading another group: otherwise fifty individually
+        # bounded groups could hydrate fifty times the allowed input at once.
+        for identity, group in selected_keyed_groups:
+            for card in build_current_cards({UUID(need_id) for need_id in group}):
+                card_bytes = len(
+                    json.dumps(card, default=str, separators=(",", ":")).encode("utf-8")
+                )
+                if card_bytes + 2 > _MAX_COMMERCIAL_CARD_BYTES:
+                    _exclude_commercial_planner_group(
+                        session,
+                        identity,
+                        group,
+                        card_bytes + 2,
+                        _MAX_COMMERCIAL_CARD_BYTES,
+                        "card_bytes",
+                    )
+                    continue
+                separator_bytes = int(bool(bounded_cards))
+                if page_bytes + separator_bytes + card_bytes > _MAX_COMMERCIAL_CARD_BYTES:
+                    # This complete current group is eligible for the next page;
+                    # it is not failed and its evidence is never truncated.
+                    return bounded_cards, grouped_total
+                bounded_cards.append(card)
+                page_bytes += separator_bytes + card_bytes
+        return bounded_cards, grouped_total
+    cards = build_current_cards(selected_ids)
     encoded_size = len(json.dumps(cards, default=str, separators=(",", ":")).encode("utf-8"))
     if encoded_size > _MAX_COMMERCIAL_CARD_BYTES:
         identity = selected_keyed_groups[0][0] if selected_keyed_groups else "empty"
@@ -6019,8 +5430,14 @@ def _commercial_triage_page(
 
 
 def _commercial_triage_cards(session, limit: int) -> list[dict]:
-    """Return the legacy complete shortlist shape used by research callers."""
-    cards, _grouped_total = _commercial_triage_page(session, limit)
+    """Return bounded current cards for machine research, without HTTP history.
+
+    Both discovery and grouped scheduler reevaluation use this entry point.
+    Archived receipts and notes must never impose a lifetime research limit.
+    """
+    cards, _grouped_total = _commercial_current_triage_page(
+        session, limit, isolate_resource_bounds=True
+    )
     return cards
 
 
@@ -6165,68 +5582,8 @@ def _commercial_triage_payload(
     return payload
 
 
-def _commercial_triage_evaluation_payload(
-    session,
-    limit: int,
-    offset: int,
-    *,
-    instant: datetime | None = None,
-    selection_metadata: dict | None = None,
-    snapshot_started: bool = False,
-) -> dict:
-    """Use freshness-fenced scalar selection for writes, retaining canonical fallback.
-
-    The payload pins a REPEATABLE READ snapshot before either selector runs. Thus a
-    stale/missing saved generation can fall back inside the same input cohort, while
-    selected cards and all persisted decisions still come from canonical detail.
-    """
-    instant = instant or datetime.now(UTC)
-    with evaluate_at(instant):
-        if not settings.saved_browse_enabled:
-            return _commercial_triage_payload(
-                session,
-                limit,
-                offset,
-                selection_metadata=selection_metadata,
-                snapshot_started=snapshot_started,
-            )
-        try:
-            return _commercial_triage_payload(
-                session,
-                limit,
-                offset,
-                saved_selection=True,
-                selection_metadata=selection_metadata,
-                snapshot_started=snapshot_started,
-            )
-        except HTTPException as exc:
-            if (
-                exc.status_code != 503
-                or (exc.headers or {}).get("X-Qualification-State") != "pending"
-            ):
-                raise
-            return _commercial_triage_payload(
-                session,
-                limit,
-                offset,
-                saved_selection=False,
-                selection_metadata=selection_metadata,
-                snapshot_started=snapshot_started,
-            )
-
-
 class _EvaluationAttemptExpired(Exception):
     """The request crossed its canonical clock interval before commit."""
-
-
-def _evaluation_real_now() -> datetime:
-    """Read wall time without consulting the canonical evaluation context."""
-    return datetime.now(UTC)
-
-
-def _require_evaluation_interval(t0: datetime, deadline: datetime, observed: datetime) -> None:
-    if observed < t0 or observed >= deadline:
-        raise _EvaluationAttemptExpired
 
 
 @app.get(
@@ -6272,31 +5629,8 @@ def autonomous_research_status(need_id: UUID):
         return {"items": [question_view(row) for row in rows]}
 
 
-@app.post(
-    "/api/commercial/triage/{need_id}/autonomous-research",
-    response_model=AutonomousResearchOut,
-    dependencies=[Depends(require_session)],
-)
-def request_autonomous_research(need_id: UUID, body: AutonomousResearchBody, request: Request):
-    require_same_origin(request)
-    if body.complete_intelligence and not settings.autonomous_research_enabled:
-        raise HTTPException(409, "Research execution is disabled")
-    from gridlens.intelligence.pursuit_questions import question_view, schedule_questions
-
-    with SessionLocal.begin() as session:
-        from gridlens.intelligence.commercial_evaluation import evaluate_target
-
-        card = evaluate_target(session, need_id)
-        if card is None:
-            raise HTTPException(409, "Power need is not in the current commercial cohort")
-        rows = schedule_questions(
-            session, [card], force=body.force, origin="manual", enrich=body.complete_intelligence
-        )
-        return {"items": [question_view(row) for row in rows]}
-
-
 def _commercial_history_item(row: Any, notes: list[dict]) -> dict:
-    receipt = (row.snapshot or {}).get("commercial_triage", {})
+    receipt = deepcopy((row.snapshot or {}).get("commercial_triage", {}))
     saved_card = receipt.get("saved_card")
     if isinstance(saved_card, dict):
         saved_card = {**saved_card, "pursuit_id": str(row.id), "notes": []}
@@ -6478,73 +5812,12 @@ def commercial_triage_history(
             )
             for note in notes:
                 notes_by_pursuit[note.pursuit_id].append(note_view(note))
-        history = []
-        for row in rows:
-            receipt = (row.snapshot or {}).get("commercial_triage", {})
-            saved_card = receipt.get("saved_card")
-            if isinstance(saved_card, dict):
-                saved_card = {
-                    **saved_card,
-                    "pursuit_id": str(row.id),
-                    "notes": [],
-                }
-            else:
-                saved_card = None
-            stored_versions = receipt.get("versions")
-            if isinstance(stored_versions, list) and stored_versions:
-                versions = stored_versions
-            else:
-                versions = [
-                    {
-                        "version": 1,
-                        "disposition": receipt.get("disposition")
-                        or (saved_card or {}).get("disposition")
-                        or "UNKNOWN",
-                        "evaluated_at": receipt.get("saved_at"),
-                        "evaluated_on": receipt.get("evaluated_on"),
-                        "input_hash": receipt.get("input_hash")
-                        or (saved_card or {}).get("input_hash"),
-                        "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
-                        "live_status": "not_rechecked",
-                        "saved_card": saved_card,
-                    }
-                ]
-            normalized_versions = []
-            for index, version in enumerate(versions, start=1):
-                version_card = version.get("saved_card")
-                if isinstance(version_card, dict):
-                    version_card = {**version_card, "pursuit_id": str(row.id), "notes": []}
-                else:
-                    version_card = None
-                normalized_versions.append(
-                    {
-                        **version,
-                        "version": version.get("version") or index,
-                        "snapshot_status": "saved_as_of" if version_card else "metadata_only",
-                        "live_status": "not_rechecked",
-                        "saved_card": version_card,
-                    }
-                )
-            history.append(
-                {
-                    "pursuit_id": row.id,
-                    "need_id": receipt.get("need_id")
-                    or row.identity_key.removeprefix("commercial-need:"),
-                    "project_id": row.project_id,
-                    "related_project_ids": row.project_ids or [str(row.project_id)],
-                    "disposition": receipt.get("disposition")
-                    or (saved_card or {}).get("disposition")
-                    or "UNKNOWN",
-                    "evaluated_at": receipt.get("saved_at"),
-                    "evaluated_on": receipt.get("evaluated_on"),
-                    "input_hash": receipt.get("input_hash") or (saved_card or {}).get("input_hash"),
-                    "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
-                    "live_status": "not_rechecked",
-                    "saved_card": saved_card,
-                    "notes": notes_by_pursuit[row.id],
-                    "versions": normalized_versions,
-                }
+        history = [
+            project_saved_history_privacy(
+                session, _commercial_history_item(row, notes_by_pursuit[row.id])
             )
+            for row in rows
+        ]
         result = {
             "items": history,
             "total": total,
@@ -6636,215 +5909,13 @@ def commercial_triage_history_detail(pursuit_id: UUID):
                 .order_by(PursuitCallNote.created_at.desc(), PursuitCallNote.id)
             )
         ]
-        result = _commercial_history_item(row, notes)
+        result = project_saved_history_privacy(session, _commercial_history_item(row, notes))
         size = len(json.dumps(result, default=str, separators=(",", ":")).encode("utf-8"))
         if size > _MAX_COMMERCIAL_CARD_BYTES:
             raise _commercial_bound_error(
                 row.identity_key, size, _MAX_COMMERCIAL_CARD_BYTES, "history_detail_bytes"
             )
         return result
-
-
-@app.post(
-    "/api/commercial/triage/evaluate",
-    response_model=CommercialTriagePageOut,
-    dependencies=[Depends(require_session)],
-)
-def evaluate_commercial_triage(
-    request: Request,
-    limit: Annotated[int, Query(ge=1, le=50)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-):
-    require_same_origin(request)
-    for attempt in range(4):
-        try:
-            with SessionLocal.begin() as session:
-                # Set transaction isolation before any query; every deadline and
-                # selection read below belongs to this one repeatable snapshot.
-                _begin_consistent_read(session)
-                t0 = _evaluation_real_now()
-                from gridlens.intelligence.saved_browse import clock_deadline
-
-                deadline = clock_deadline(session, t0)
-                selection_metadata: dict = {}
-                payload = _commercial_triage_evaluation_payload(
-                    session,
-                    limit,
-                    offset,
-                    instant=t0,
-                    selection_metadata=selection_metadata,
-                    snapshot_started=True,
-                )
-                selected_generation_deadline = selection_metadata.get("generation_valid_until")
-                if selected_generation_deadline is not None:
-                    deadline = min(deadline, selected_generation_deadline)
-
-                save_at = _evaluation_real_now()
-                _require_evaluation_interval(t0, deadline, save_at)
-                today = chicago_today(save_at).isoformat()
-                payload["evaluated_at"] = save_at.isoformat()
-                from gridlens.intelligence.commercial_evaluation import save_evaluations
-
-                save_evaluations(session, payload["items"], now=save_at)
-                # Flush before the final fence so ORM writes and lock waits are covered.
-                session.flush()
-                receipts = list(
-                    session.scalars(
-                        select(Pursuit).where(
-                            Pursuit.identity_key.like("commercial-need:%"),
-                            Pursuit.project_id.in_(
-                                select(Project.id).where(Project.region_status == "ELIGIBLE")
-                            ),
-                        )
-                    )
-                )
-                payload["daily"]["evaluated"] = sum(
-                    (row.snapshot or {}).get("commercial_triage", {}).get("evaluated_on") == today
-                    for row in receipts
-                )
-                payload["daily"]["surfaced"] = sum(
-                    (row.snapshot or {}).get("commercial_triage", {}).get("surfaced_on") == today
-                    for row in receipts
-                )
-                _require_evaluation_interval(t0, deadline, _evaluation_real_now())
-            return payload
-        except _EvaluationAttemptExpired:
-            if attempt == 3:
-                raise HTTPException(
-                    503,
-                    "Evaluation interval expired before the receipt could be committed; "
-                    "retry the request",
-                    headers={"Retry-After": "1", "X-Qualification-State": "pending"},
-                ) from None
-        except DBAPIError as exc:
-            # REPEATABLE READ can reject a receipt/note race with SQLSTATE 40001.
-            # Retry the whole transaction up to three times so selection, canonical detail and saves
-            # all use a fresh cohort; never retry a partial write or arbitrary failure.
-            sqlstate = getattr(exc.orig, "sqlstate", None)
-            constraint_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
-            retryable_insert_race = (
-                sqlstate == "23505" and constraint_name == "pursuits_identity_key_key"
-            )
-            if attempt == 3 or (sqlstate != "40001" and not retryable_insert_race):
-                raise
-            time.sleep(0.025 * (attempt + 1))
-    raise RuntimeError("unreachable evaluation retry state")
-
-
-@app.post(
-    "/api/commercial/triage/{need_id}/research",
-    response_model=BriefRequestOut,
-    dependencies=[Depends(require_session)],
-)
-def research_commercial_need(need_id: UUID, body: CommercialResearchBody, request: Request):
-    require_same_origin(request)
-    question = body.question.strip()
-    if len(question) < 12:
-        raise HTTPException(422, "Question must contain at least 12 non-space characters")
-    with SessionLocal.begin() as session:
-        try:
-            payload, _ = brief_input(session, need_id, question)
-            fingerprint = brief_fingerprint(payload)
-            row = session.get(PowerNeedBrief, need_id)
-            if row and row.generated_fingerprint == fingerprint and row.result:
-                return {"job_id": None, **brief_view(row, fingerprint)}
-            result = request_brief(session, need_id, question)
-            _refresh_saved_operator_change(session)
-            return result
-        except LookupError as exc:
-            raise HTTPException(404, "Power need not found") from exc
-        except BriefUnavailable as exc:
-            raise HTTPException(409, str(exc)) from exc
-
-
-@app.get(
-    "/api/commercial/triage/{need_id}/research",
-    response_model=CommercialResearchStatusOut,
-    dependencies=[Depends(require_session)],
-)
-def commercial_research_status(need_id: UUID, question: str = Query(..., min_length=12)):
-    question = question.strip()
-    if len(question) < 12:
-        raise HTTPException(422, "Question must contain at least 12 non-space characters")
-    with SessionLocal() as session:
-        try:
-            payload, _ = brief_input(session, need_id, question)
-        except LookupError as exc:
-            raise HTTPException(404, "Power need not found") from exc
-        except BriefUnavailable as exc:
-            raise HTTPException(409, str(exc)) from exc
-        fingerprint = brief_fingerprint(payload)
-        row = session.get(PowerNeedBrief, need_id)
-        if row and row.generated_fingerprint == fingerprint and row.result:
-            return {
-                "status": "ready",
-                "job_id": None,
-                "input_hash": fingerprint,
-                "generated_at": row.generated_at,
-                "result": row.result,
-                "citations": row.citations,
-                "error": None,
-            }
-        version = session.scalar(
-            select(PowerNeedBriefVersion)
-            .where(
-                PowerNeedBriefVersion.need_id == need_id,
-                PowerNeedBriefVersion.input_fingerprint == fingerprint,
-            )
-            .order_by(PowerNeedBriefVersion.generated_at.desc(), PowerNeedBriefVersion.id.desc())
-            .limit(1)
-        )
-        if version:
-            return {
-                "status": "ready",
-                "job_id": None,
-                "input_hash": fingerprint,
-                "generated_at": version.generated_at,
-                "result": version.result,
-                "citations": version.citations,
-                "error": None,
-            }
-        if row and row.requested_fingerprint == fingerprint:
-            active_job = session.scalar(
-                select(Job)
-                .where(
-                    Job.kind == "power_need_brief",
-                    Job.target_id == need_id,
-                    Job.status.in_(["queued", "running"]),
-                )
-                .order_by(Job.created_at.desc(), Job.id.desc())
-                .limit(1)
-            )
-            if active_job or row.status in {"pending", "running"}:
-                return {
-                    "status": "pending",
-                    "job_id": active_job.id if active_job else None,
-                    "input_hash": fingerprint,
-                    "generated_at": None,
-                    "result": None,
-                    "citations": [],
-                    "error": None,
-                }
-            if row.status == "failed":
-                return {
-                    "status": "failed",
-                    "job_id": None,
-                    "input_hash": fingerprint,
-                    "generated_at": None,
-                    "result": None,
-                    "citations": [],
-                    "error": row.error,
-                }
-        status = "superseded" if row and row.requested_fingerprint else "not_requested"
-        return {
-            "status": status,
-            "job_id": None,
-            "input_hash": fingerprint,
-            "generated_at": None,
-            "result": None,
-            "citations": [],
-            "error": None,
-        }
 
 
 @app.get(

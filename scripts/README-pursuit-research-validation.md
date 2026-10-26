@@ -1,4 +1,6 @@
-# Bounded pursuit research validation tools
+# Bounded autonomous research validation tools
+
+These are internal isolated validation utilities. The [Autonomous Intelligence Canon](../docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes historical manually submitted research and evaluation workflows. Historical call notes remain protected evidence; this guide does not authorize their user-facing creation or public mutation routes.
 
 `pursuit_research_metrics.py` is read-only. It counts commercial and tier changes
 from consecutive immutable Pursuit evaluation versions. Two questions observing
@@ -202,3 +204,5 @@ host, port and username. Passwords may be omitted. Only scalar `sslmode`,
 `sslrootcert`, `sslcert` and `sslkey` query options are accepted; host overrides,
 service aliases and other query options are refused so SQLAlchemy snapshots and
 PostgreSQL command-line tools cannot silently select different servers.
+
+The seeded browser harness now targets `first_path.spec.ts` and `autonomous-research.spec.ts` by default. The removed manual-pursuit test is not an acceptance target. Fixture mode disables external autonomous research and clears provider keys; it verifies source/browse/research UI mechanics only, with no claim of real contacts, live collection, scheduler cadence or production readiness.

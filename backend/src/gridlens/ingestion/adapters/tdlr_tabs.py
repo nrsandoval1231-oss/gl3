@@ -139,6 +139,14 @@ def parse_project(body: bytes, number: str) -> dict[str, Any]:
         "status": project.get("Current Status") or None,
         "owner": owner.get("Owner Name") or None,
         "owner_contact": owner.get("Contact Name") or None,
+        "owner_phone": owner.get("Owner Phone") or None,
+        "owner_email": owner.get("Owner Email") or None,
+        "owner_contact_phone": (
+            owner.get("Contact Phone") or owner.get("Owner Contact Phone") or None
+        ),
+        "owner_contact_email": (
+            owner.get("Contact Email") or owner.get("Owner Contact Email") or None
+        ),
         "design_firm": sections.get("DESIGN FIRM", {}).get("Design Firm Name") or None,
     }
 
@@ -167,6 +175,11 @@ def record(project: dict[str, Any]) -> dict[str, Any]:
                 f"Type of work: {project['work_type'] or 'not stated'}",
                 f"Scope: {project['scope'] or 'not stated'}",
                 f"Owner: {project['owner'] or 'not stated'}",
+                f"Owner contact: {project.get('owner_contact') or 'not stated'}",
+                f"Owner phone: {project.get('owner_phone') or 'not stated'}",
+                f"Owner email: {project.get('owner_email') or 'not stated'}",
+                f"Owner contact phone: {project.get('owner_contact_phone') or 'not stated'}",
+                f"Owner contact email: {project.get('owner_contact_email') or 'not stated'}",
                 f"Design firm: {project['design_firm'] or 'not stated'}",
                 f"TABS status: {project['status'] or 'unknown'}",
             ]
@@ -205,6 +218,12 @@ def record(project: dict[str, Any]) -> dict[str, Any]:
                 "start": "Start Date (developer-reported)",
                 "completion": "Completion Date (developer-reported)",
                 "location": "Location Address, Location County",
+                "owner": "OWNER: Owner Name",
+                "owner_contact": "OWNER: Contact Name",
+                "owner_phone": "OWNER: Owner Phone",
+                "owner_email": "OWNER: Owner Email",
+                "owner_contact_phone": "OWNER: Contact Phone or Owner Contact Phone",
+                "owner_contact_email": "OWNER: Contact Email or Owner Contact Email",
             },
         },
     }

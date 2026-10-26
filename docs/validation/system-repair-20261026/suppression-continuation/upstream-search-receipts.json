@@ -1,0 +1,523 @@
+{
+  "observed_at": "2026-10-26T17:09:32.576Z",
+  "purpose": "Bounded read-only follow-up for 15 previously unresearched frozen upstream entries",
+  "exact_queries": [
+    {
+      "queries": [
+        "\"0909805\" Anadarko",
+        "\"0918168\" Hibernia",
+        "\"0918384\" Newport",
+        "\"0917768\" \"Silver Hill\""
+      ],
+      "outcome": "No exact permit/operator evidence accepted; returned numeric collisions and one operator-level directory, all insufficient."
+    },
+    {
+      "queries": [
+        "\"0918542\" Murphy",
+        "\"0918265\" Diamondback",
+        "\"0918560\" INEOS",
+        "\"0909522\" Admiral"
+      ],
+      "outcome": "No exact permit/operator evidence accepted; returned numeric collisions and one operator-level directory, all insufficient."
+    },
+    {
+      "queries": [
+        "\"0919327\" \"Blue Arrow\"",
+        "\"0918882\" Rockcliff",
+        "\"0915570\" \"COG\"",
+        "\"0918069\" Pioneer"
+      ],
+      "outcome": "No exact permit/operator evidence accepted; returned numeric collisions and one operator-level directory, all insufficient."
+    },
+    {
+      "queries": [
+        "\"0917656\" Diamondback",
+        "\"0919092\" \"DE V\"",
+        "\"0918254\" Chevron"
+      ],
+      "outcome": "No exact permit/operator evidence accepted; returned numeric collisions and one operator-level directory, all insufficient."
+    }
+  ],
+  "lease_searches": [
+    {
+      "queries": [
+        "\"BEARTOOTH 54-1-34\" Anadarko",
+        "\"CAMRYN D\" Hibernia",
+        "\"GRAY, NOBLE\" Newport",
+        "\"BULLITT B\" \"Silver Hill\""
+      ],
+      "candidates": [
+        {
+          "heading": "Lease Detail (https://webapps2.rrc.texas.gov/EWA/leaseDetailAction.do%3Bjsessionid%3Da7esKAjEyAfIQw9fpq5BILIzECSMCTP_GpuV-kHFu4BYHI0SbuC3%21-169621710?methodToCall=displayLeaseDetail&rrcActionMan=H4sIAAAAAAAAALVSy27bMBD8GvVCRODyIcuHPbCOAxd1JFVRmwJGDoxNOAKUSKDktgH08eU6cJvYKQoEyIm7O1xyZjAjcI5yBA4oPni_Nuuhbh_Ktd-s-A3u5z_dre26XsQBjgf3y_bxtv0RSaMULQqMxMX82oRSUtnWTeHbLzvnH58eizdtwBTeu-Gu3VTtzDZNGGj0btj5h6q9ctav78IoRX7CYdXvUeO3fdxZb--_2WbniJrEohxBoeRwtAXvzbw_ME6ws1vnnzF7VQbcrI7vEUWEySgQ-ChRgEpHhZDwUYdGj0mYn77yBjPE28xonO3duRts3fzHjE3dd419XP5d-Lcxp-RWzz6i0ZEuDpw0Sc2loE6ingitqQyJDeH90wr8ODdllefVgml1BmdSsa_Zp4owhTwNZxBpuzojHSH1E5iS8GANvMRgilxwLWgFNDIGsGBUJ5jTkeIBFRxNZs5N-Tln80gkBcuzq0VeztlyOSMc8DsdInwWVqacUydfdAqLhcmq_JJFIr3Olxczc1lEYnrq1OsROiQIQnwoPLCPzm-I1WpR2AMAAA&selTab=1024)",
+          "snippet": "【turn476995search0】 [wordlim: 200] Crawled: 5 months ago; /Gas Well ID No: 57255 Lease Name: BEARTOOTH 54-1-34 UNIT ... Current Operator Number: 020528 Current Operator Name: ANADARKO E&P ONSHORE LLC "
+        },
+        {
+          "heading": "Lease Detail (https://webapps2.rrc.texas.gov/EWA/leaseDetailAction.do%3Bjsessionid%3D1LOsJ6LjWCArwe0l5aggItlZG7N5DXLm1UqSf1p0ghQWrNKl-A0_%21-169621710?methodToCall=displayLeaseDetail&rrcActionMan=H4sIAAAAAAAAALVSy27bMBD8GuVCRODyIcuHPbCOAwd1JFVRmgJGDqxNOAKUSKDktgH08eW6cJPaKQoE6Im7M1xyZjEjcI5yBA4ozrxfm_VQt0_l2m9W_B73-Hf31XZdL-JAx4P7Yft4236LpFGKBgVG4nJ-Z0IpqWzrpvDtp53zz78eizdt4BQ-uuGh3VTtzDZNADR6N-z8U9XeOOvXDwFKkZ9oWPV71vhtH3fW28fPttk5kiaxKEdQKDkcTcH_Vt4fFCfY2a3zr5S9aQPuV8f3SCLCZBQIfJQoQKWjQkj4qEOjxyTgp6-8YxnifctonO3dhRts3fxjGZu67xr7vHwZ-PtiTsWtXn1E0JEvDpw8Sc2loE6ingitqQyJDeH93Qr8MDdllefVgml1DudSsdvsqiJOIU_DGUzars7IR0j9BKZkPKzmiIMpcsG1IBg0MgawYFQnmNOR4oEVHE1mLkz5MWfzSCQFy7ObRV7O2XI5Ix7wCx0ifBZGppxTJ__oFBYLk1X5NYtEepcvL2fmuojE9HRTb0fokCAd4kPhgX10fgIoj4rZ2AMAAA&selTab=1)",
+          "snippet": "【turn476995search1】 [wordlim: 200] Crawled: 2 months ago; BEARTOOTH 54-1-34 UNIT 11H PHANTOM (WOLFCAMP) ANADARKO E&P ONSHORE LLC LOVING Y 11920 "
+        },
+        {
+          "heading": "Lease Detail (https://webapps2.rrc.texas.gov/EWA/leaseDetailAction.do%3Bjsessionid%3D1LOsJ6LjWCArwe0l5aggItlZG7N5DXLm1UqSf1p0ghQWrNKl-A0_%21-169621710?methodToCall=displayLeaseDetail&rrcActionMan=H4sIAAAAAAAAALVSy27bMBD8GuVCRODyIcuHPbCOAwd1JFVRmgJGDqxNOAKUSKDktgH08eW6cJPaKQoE6Im7M1xyZjEjcI5yBA4ozrxfm_VQt0_l2m9W_B73-Hf31XZdL-JAx4P7Yft4236LpFGKBgVG4nJ-Z0IpqWzrpvDtp53zz78eizdt4BQ-uuGh3VTtzDZNADR6N-z8U9XeOOvXDwFKkZ9oWPV71vhtH3fW28fPttk5kiaxKEdQKDkcTcH_Vt4fFCfY2a3zr5S9aQPuV8f3SCLCZBQIfJQoQKWjQkj4qEOjxyTgp6-8YxnifctonO3dhRts3fxjGZu67xr7vHwZ-PtiTsWtXn1E0JEvDpw8Sc2loE6ingitqQyJDeH93Qr8MDdllefVgml1DudSsdvsqiJOIU_DGUzars7IR0j9BKZkPKzmiIMpcsG1IBg0MgawYFQnmNOR4oEVHE1mLkz5MWfzSCQFy7ObRV7O2XI5Ix7wCx0ifBZGppxTJ__oFBYLk1X5NYtEepcvL2fmuojE9HRTb0fokCAd4kPhgX10fgIoj4rZ2AMAAA&selTab=8)",
+          "snippet": "【turn476995search2】 [wordlim: 200] Crawled: 9 months ago; BEARTOOTH 54-1-34 UNIT 71052900 PHANTOM (WOLFCAMP) ANADARKO E&P ONSHORE LLC ANADARKO E&P ONSHORE LLC Gatherer Oil Oil "
+        },
+        {
+          "heading": "Loving County, TX Oil and Gas Title, Operators and Permits | LMJ Land Services (https://lmjlandservices.com/directory/texas/loving-county/)",
+          "snippet": "【turn476995search3】 [wordlim: 200] Crawled: 4 days ago; 09/30/2026  | 42-301-37513 🖶  | BEARTOOTH 54-1-34 UNIT  | 23H  | Loving  | ANADARKO E&P ONSHORE LLC  | Horizontal  | 13,000  | New Drill "
+        },
+        {
+          "heading": "Irion County, TX — Drilling Permits & Activity | Petrora (https://petrora.com/counties/irion)",
+          "snippet": "【turn476995search12】 [wordlim: 200] Crawled: 2 days ago; HIBERNIA RESOURCES IV, LLC  | 2  | 18 ... 918168  | CAMRYN D  | DRILL  | 2026-09-01 "
+        },
+        {
+          "heading": "Shelby County, Texas drilling permits · EZRRC (https://ezrrc.com/permits/county/shelby/)",
+          "snippet": "【turn476995search13】 [wordlim: 200] Crawled: 3 days ago; 2026-09-11  | SILVER HILL ENERGY OPERATING LLC  | BULLITT B  | 4H  | `42-419-31953`  | DRILL  | Horizontal  | 12,500  | CARTHAGE (HAYNESVILLE SHALE)  | 917773 Well on oilandgasinfo.com "
+        },
+        {
+          "heading": "Wichita County, Texas drilling permits · EZRRC (https://ezrrc.com/permits/county/wichita/)",
+          "snippet": "【turn476995search14】 [wordlim: 200] Crawled: 2 days ago; 2026-09-09  | NEWPORT OPERATING, LLC  | GRAY, NOBLE MRS. "
+        },
+        {
+          "heading": "Well 42-235-36785 — CAMRYN D | Petrora (https://petrora.com/wells/23536785)",
+          "snippet": "【turn476995search16】 [wordlim: 200] Published: last month; Crawled: last month; CAMRYN DIRION County · District 9 · HIBERNIA RESOURCES IV, LLC "
+        },
+        {
+          "heading": "Well 42-419-31953 — BULLITT B | Petrora (https://petrora.com/wells/41931953)",
+          "snippet": "【turn476995search17】 [wordlim: 200] Crawled: 3 weeks ago; BULLITT BSHELBY County · District 6 · SILVER HILL ENERGY OPERATING LLC "
+        },
+        {
+          "heading": "Well 42-419-31950 — BULLITT B | Petrora (https://petrora.com/wells/41931950)",
+          "snippet": "【turn476995search19】 [wordlim: 200] Crawled: last month; BULLITT BSHELBY County · District 6 · SILVER HILL ENERGY OPERATING LLC "
+        },
+        {
+          "heading": "NEWPORT OPERATING, LLC — Texas drilling permits · EZRRC (https://ezrrc.com/permits/operator/607883/)",
+          "snippet": "【turn476995search20】 [wordlim: 200] Crawled: 2 days ago; 2026-09-09  | Wichita  | NEWPORT OPERATING, LLC  | GRAY, NOBLE MRS. "
+        },
+        {
+          "heading": "Irion County, TX Drilling Permits — Updated Daily | Petrora (https://petrora.com/counties/irion/permits)",
+          "snippet": "【turn476995search21】 [wordlim: 200] Crawled: 4 days ago; 2026-09-01  | 918168  | 42-235-36785  | CAMRYN D #4H  | HIBERNIA RESOURCES IV, LLC  | DRILL  | 9,000  | Y "
+        },
+        {
+          "heading": "Newport Operating LLC — Permits · Shale Experts (https://www.shaleexperts.com/company/Newport-Operating-LLC/permits)",
+          "snippet": "【turn476995search22】 [wordlim: 200] Crawled: 2 days ago; # Newport Operating LLC ... Sep 9, 2026  | GRAY, NOBLE MRS. "
+        },
+        {
+          "heading": "Irion County, TX — Drilling Permits & Activity | Petrora (https://petrora.com/counties/irion?window=365)",
+          "snippet": "【turn476995search23】 [wordlim: 200] Crawled: 4 days ago; HIBERNIA RESOURCES IV, LLC  | 2  | 18 ... 918168  | CAMRYN D  | DRILL  | 2026-09-01 "
+        },
+        {
+          "heading": "(OGPFS) 07/27/2023 (https://www.rrc.texas.gov/media/e3lleaag/rogpfsf_08_20230727_rrc048_none.pdf)",
+          "snippet": "【turn476995search49】 [wordlim: 200] Crawled: 7 months ago; <tr><td></td><td>OIL</td><td></td><td>57255</td><td>BEARTOOTH 54-1-34 UNIT</td><td></td><td>71052900</td><td>PHANTOM (WOLFCAMP)</td><td>301</td><td>LOVING</td></tr> "
+        },
+        {
+          "heading": "Irion County, TX — Drilling Permits & Activity | Petrora (https://petrora.com/counties/irion?window=90)",
+          "snippet": "【turn476995search25】 [wordlim: 200] Crawled: 4 days ago; HIBERNIA RESOURCES IV, LLC  | 2  | 18 ... 918168  | CAMRYN D  | DRILL  | 2026-09-01 "
+        },
+        {
+          "heading": "Shelby County, TX — Drilling Permits, Oil & Gas Activity | PetroPlanet (https://petroplanet.com/texas/shelby)",
+          "snippet": "【turn476995search27】 [wordlim: 200] Crawled: yesterday; Sep 11, 2026  | Silver Hill Energy Operating LLC  | Bullitt B #4H  |  | Horizontal  | 12,500 ft "
+        },
+        {
+          "heading": "Newport Operating LLC · Shale Experts (https://www.shaleexperts.com/company/Newport-Operating-LLC)",
+          "snippet": "【turn476995search28】 [wordlim: 200] Crawled: last week; When Newport Operating LLC next appears in the Shale Experts newsfeed it will surface here. ... GRAY, NOBLE MRS. "
+        },
+        {
+          "heading": "Permian Basin development well permits for Aug. 8-15 (https://www.mrt.com/business/oil/article/permian-basin-drilling-permits-20823997.php)",
+          "snippet": "【turn476995news50】 [wordlim: 100] Published: 1.2 years ago; Anadarko E&P Onshore LLC•    Beartooth 54-1-34 Unit #21H: Phantom (Wolfcamp)-Horizontal; 702 fnl, 1421 fwl, Sec 46, Blk 54, T-1, Abst. "
+        },
+        {
+          "heading": "Well 42-485-46434 — GRAY, NOBLE MRS. | Petrora (https://petrora.com/wells/48546434)",
+          "snippet": "【turn476995search30】 [wordlim: 200] Crawled: 3 weeks ago; GRAY, NOBLE MRS.WICHITA County · District 13 · NEWPORT OPERATING, LLC "
+        },
+        {
+          "heading": "Wichita County, TX — Drilling Permits & Activity | Petrora (https://petrora.com/counties/wichita)",
+          "snippet": "【turn476995search32】 [wordlim: 200] Crawled: 3 weeks ago; NEWPORT OPERATING, LLC leads with 9 permits in the past 12 months, one of 7 operators active in the county. 2 operators filed a first Wichita County permit in the past year. ... 918384  | GRAY, NOBLE MRS. "
+        },
+        {
+          "heading": "Silver Hill Energy Operating LLC — Texas Drilling Permits, Wells & Completions | PetroPlanet (https://petroplanet.com/operator/silver-hill-energy-operating-llc)",
+          "snippet": "【turn476995search35】 [wordlim: 200] Crawled: today; # Silver Hill Energy Operating LLC ... Sep 29, 2026  | Bullitt C #6H  | Shelby  |  | Horizontal  | 12,500 ft ... Sep 17, 2026  | Black Stone #B 3H  | San Augustine  |  | Horizontal  | 13,200 ft "
+        }
+      ]
+    },
+    {
+      "queries": [
+        "\"KONE\" \"105H\" Murphy",
+        "\"ROSE MARIE 4-40\" Diamondback",
+        "\"ANDERSON-STONE\" INEOS",
+        "\"LATRELLE UNIT\" Admiral"
+      ],
+      "candidates": [
+        {
+          "heading": "Well 42-135-44313 — ROSE MARIE 4-40 A | Petrora (https://petrora.com/wells/13544313)",
+          "snippet": "【turn769608search0】 [wordlim: 200] Crawled: 3 weeks ago; ROSE MARIE 4-40 AECTOR County · District 10 · DIAMONDBACK E&P LLC  ✓ 42-135-40010 AUNT BEE · FDL OPERATING, LLC  1.0 mi  San Andres 4,913'Spraberry 6,368'Wolfcamp 9,153'Strawn 10,160'  ✓ 42-135-39999 AUNT BEE · FDL OPERATING, LLC  1.1 mi  San Andres 4,950'Spraberry 7,449'Wolfcamp 9,397'Wolfcamp 9,397'Strawn 10,160'  ✓ 42-135-40693 AUNT BEE · FDL OPERATING, LLC  1.1 mi  Clear Fork 7,271'Clea"
+        },
+        {
+          "heading": "Oct 7, 2026 Public Hearing: P.O. Box 12967, Austin, TX (https://www.noticeregistry.com/texas/notice/public-hearing-austin-960969)",
+          "snippet": "【turn769608search1】 [wordlim: 200] Published: 2 weeks ago; Crawled: 6 days ago; Diamondback E&P LLC applied to the Railroad Commission of Texas for a spacing exception permit for a horizontal well (Rose Marie 4-40 B, 2H) in Section 40, Block 42 in Ector County; protests or hearing requests must be received by 5:00 PM, Oct 26, 2026.  Oct 7, 2026 Public Hearing: P.O. Box 12967, Austin, TX | Texas | NoticeRegistry  # Public Hearing - P.O. Box 12967,"
+        },
+        {
+          "heading": "Ector County, TX Oil and Gas Title, Operators and Permits | LMJ Land Services (https://lmjlandservices.com/directory/texas/ector-county/)",
+          "snippet": "【turn769608search2】 [wordlim: 200] Published: 2 weeks ago; Crawled: 4 days ago; 09/24/2026  | 42-135-44314 🖶  | ROSE MARIE 4-40 B  | 2H  | Ector  | DIAMONDBACK E&P LLC  | Horizontal  | 13,000  | New Drill 08/28/2026  | 42-135-44313 🖶  | ROSE MARIE 4-40 A  | 1H  | Ector  | DIAMONDBACK E&P LLC  | Horizontal  | 13,000  | New Drill 08/28/2026  | 42-135-44314 🖶  | ROSE MARIE 4-40 B  | 2H  | Ector  | DIAMONDBACK E&P LLC  | Horizontal  | 13,000  | Ne"
+        },
+        {
+          "heading": "Well 42-135-44316 — ROSE MARIE 4-40 D | Petrora (https://petrora.com/wells/13544316)",
+          "snippet": "【turn769608search3】 [wordlim: 200] Crawled: last month; ROSE MARIE 4-40 DECTOR County · District 10 · DIAMONDBACK E&P LLC  # 42-135-44316  Horizontal  ROSE MARIE 4-40 D  ECTOR County · District 10 · DIAMONDBACK E&P LLC  Permits  1  Max Depth  13,000 ft  First Permit  2026-09-10  Latest Activity  2026-09-10  Lifespan  < 1 yr  ## Regulatory Status  Schedule  —  Completion  —  Shut-In  —  Plugged  —  ## Formation Tops  No tops on file for this well."
+        },
+        {
+          "heading": "Well 42-127-39241 — KONE | Petrora (https://petrora.com/wells/12739241)",
+          "snippet": "【turn769608search4】 [wordlim: 200] Crawled: last month; KONEDIMMIT County · District 1 · MURPHY EXPL. ...     105H "
+        },
+        {
+          "heading": "MURPHY EXPL. & PROD. CO. - USA — Texas drilling permits · EZRRC (https://ezrrc.com/permits/operator/594675/)",
+          "snippet": "【turn769608search5】 [wordlim: 200] Crawled: 4 days ago; # MURPHY EXPL. ... CO. - USA  | KONE  | 105H  | `42-127-39241`  | DRILL  | Horizontal  | 9,000  | BRISCOE RANCH (EAGLEFORD)  | 918542 Well on oilandgasinfo.com "
+        },
+        {
+          "heading": "Development Wells drilling permits September 4-September 11 (https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22431874.php)",
+          "snippet": "【turn769608search6】 [wordlim: 100] Published: last month; Diamondback E&P LLC• Rose Marie 4-40 B #2H, Peart (Barnett)-Horizontal, 1812 fel, 2636 fnl, Sec 4, Blk 42, T-3-S, Abst. "
+        },
+        {
+          "heading": "Permian Permit Report — Cutoff 2026-10-04 (https://www.shaleexperts.com/reports/permian/2026-10-04)",
+          "snippet": "【turn769608search7】 [wordlim: 200] Published: 3 weeks ago; Crawled: 2 weeks ago; 13,000'  | PEART (BARNETT)  | DIAMONDBACK E&P LLC  | ROSE MARIE 4-40 A  | 9/29/26  | 42-135-44313  | O-G  | Horizontal "
+        },
+        {
+          "heading": "Loving County, TX Oil and Gas Title, Operators and Permits | LMJ Land Services (https://lmjlandservices.com/directory/texas/loving-county/)",
+          "snippet": "【turn769608search8】 [wordlim: 200] Crawled: 4 days ago; 09/09/2026  | 42-301-37482 🖶  | LATRELLE UNIT  | 202BS  | Loving  | ADMIRAL PERMIAN OPERATING LLC  | Horizontal  | 10,950  | New Drill "
+        },
+        {
+          "heading": "District 08 drilling permits — Midland · EZRRC (https://ezrrc.com/permits/district/08/)",
+          "snippet": "【turn769608search9】 [wordlim: 200] Crawled: 2 days ago; 2026-09-29  | Ector  | DIAMONDBACK E&P LLC  | ROSE MARIE 4-40 A  | 1H  | `42-135-44313`  | DRILL  | Horizontal  | 13,000  | PEART (BARNETT)  | 918264 Well on oilandgasinfo.com "
+        },
+        {
+          "heading": "Diamondback Energy in Andrews, Martin and Midland Counties: Permits, Production, Title | LMJ (https://lmjlandservices.com/operators/diamondback-energy/)",
+          "snippet": "【turn769608search10】 [wordlim: 200] Crawled: today; Website diamondbackenergy.com ... 09/24/2026  | 42-135-44314 🖶  | ROSE MARIE 4-40 B  | 2H  | Ector  | Horizontal  | 13,000  | New Drill "
+        },
+        {
+          "heading": "Development Wells drilling permits Sept. 25-Oct. 2 (https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22462985.php)",
+          "snippet": "【turn769608search12】 [wordlim: 100] Published: 2 weeks ago; Diamondback E&P LLC• Rose Marie 4-40 A #1H, Peart (Barnett)-Horizontal; 1837 fel, 2636 fnl, Sec 4, Blk 42, T-3-S, Abst. "
+        },
+        {
+          "heading": "Dimmit County, TX Oil and Gas Title, Operators and Permits | LMJ Land Services (https://lmjlandservices.com/directory/texas/dimmit-county/)",
+          "snippet": "【turn769608search13】 [wordlim: 200] Crawled: 4 days ago; 10-09-2026  | INEOS USA OIL & GAS LLC  | ANDERSON-STONE DIM HC5 E 5H "
+        },
+        {
+          "heading": "Dimmit County, TX Drilling Permits — All 1,743 Permits | PetroPlanet (https://petroplanet.com/texas/dimmit/permits)",
+          "snippet": "【turn769608search14】 [wordlim: 200] Crawled: 2 days ago; Sep 11, 2026  | Murphy Expl. ... CO. - USA  | Kone #105H  |  | Horizontal  | 9,000 ft "
+        },
+        {
+          "heading": "Admiral Permian Operating LLC Drilling Permits — All 149 Texas Permits | PetroPlanet (https://petroplanet.com/operator/admiral-permian-operating-llc/permits)",
+          "snippet": "【turn769608search15】 [wordlim: 200] Crawled: last week; PetroPlanet › Operators › Admiral Permian Operating LLC › Permits ... Sep 14, 2026  | Latrelle Unit #302BC  | Loving  |  | Horizontal  | 11,500 ft "
+        },
+        {
+          "heading": "Ector County, TX — Drilling Permits, Oil & Gas Activity | PetroPlanet (https://petroplanet.com/texas/ector)",
+          "snippet": "【turn769608search16】 [wordlim: 200] Crawled: 2 days ago; Sep 29, 2026  | Diamondback E&P LLC  | Rose Marie 4-40 C #3H  |  | Horizontal  | 13,000 ft "
+        },
+        {
+          "heading": "Ector County, TX Drilling Permits — All 1,174 Permits | PetroPlanet (https://petroplanet.com/texas/ector/permits)",
+          "snippet": "【turn769608search17】 [wordlim: 200] Crawled: 2 days ago; Sep 29, 2026  | Diamondback E&P LLC  | Rose Marie 4-40 C #3H  |  | Horizontal  | 13,000 ft "
+        },
+        {
+          "heading": "Permian Basin development well permits for 9/11/26-9/18/26 (https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22441953.php)",
+          "snippet": "【turn769608search18】 [wordlim: 100] Published: last month; Crawled: 2 days ago; Admiral Permian Operating LLC• Latrelle Unit #102BS, Sandbar (Bone Spring)-Horizontal, 40 fnl, 1210 fwl, Sec 20, Blk C-26, Abst. "
+        },
+        {
+          "heading": "Dimmit County, TX Oil & Gas Production, Leases & Permits | Extrxct (https://extrxct.com/county/dimmit/)",
+          "snippet": "【turn769608search19】 [wordlim: 200] Crawled: 2 days ago; 2026-10-09  | Dimmit  | INEOS USA OIL & GAS LLC  | ANDERSON-STONE DIM HC5  | E 5H  | 7,300  | Drill "
+        },
+        {
+          "heading": "Dimmit County, TX — Drilling Permits, Oil & Gas Activity | PetroPlanet (https://petroplanet.com/texas/dimmit)",
+          "snippet": "【turn769608search20】 [wordlim: 200] Crawled: 2 days ago; Oct 9, 2026  | Ineos USA Oil & Gas LLC  | Anderson-Stone Dim Hc5 #E 5H  |  | Horizontal  | 7,300 ft "
+        },
+        {
+          "heading": "Well 42-127-39248 — ANDERSON-STONE DIM HC5 | Petrora (https://petrora.com/wells/12739248)",
+          "snippet": "【turn769608search21】 [wordlim: 200] Crawled: 2 weeks ago; ANDERSON-STONE DIM HC5DIMMIT County · District 1 · INEOS USA OIL & GAS LLC "
+        },
+        {
+          "heading": "NOV 28, 2024                                        OIL LEASE NAME INDEX LISTING                                        PAGE 1 (https://rrc.state.tx.us/media/zecaexhl/olm003_01_20241127_rrc021_jan2025.pdf)",
+          "snippet": "【turn769608search47】 [wordlim: 200] Published: 1.7 years ago;                ANDERSON-STONE DIM                BRISCOE RANCH (EAGLEFORD)        INEOS USA OIL & GAS LLC          15630 "
+        },
+        {
+          "heading": "Dimmit County, TX — Drilling Permits & Activity | Petrora (https://petrora.com/counties/dimmit?window=0)",
+          "snippet": "【turn769608search24】 [wordlim: 200] Crawled: 3 days ago; INEOS USA OIL & GAS LLC  | 11  | 727 ... 918528  | ANDERSON-STONE DIM HC5  | DRILL  | 2026-10-09 "
+        },
+        {
+          "heading": "Ineos USA Oil & Gas LLC — Texas Drilling Permits, Wells & Completions | PetroPlanet (https://petroplanet.com/operator/ineos-usa-oil-gas-llc)",
+          "snippet": "【turn769608search25】 [wordlim: 200] Crawled: 2 days ago; # Ineos USA Oil & Gas LLC ... Oct 9, 2026  | Anderson-Stone Dim Hc5 #E 5H  | Dimmit  |  | Horizontal  | 7,300 ft "
+        },
+        {
+          "heading": "Admiral Permian Operating LLC — Texas Drilling Permits, Wells & Completions | PetroPlanet (https://petroplanet.com/operator/admiral-permian-operating-llc)",
+          "snippet": "【turn769608search26】 [wordlim: 200] Crawled: 2 days ago; # Admiral Permian Operating LLC ... Sep 14, 2026  | Latrelle Unit #302BC  | Loving  |  | Horizontal  | 11,500 ft "
+        },
+        {
+          "heading": "Dimmit County, TX — Drilling Permits & Activity | Petrora (https://petrora.com/counties/dimmit?window=30)",
+          "snippet": "【turn769608search27】 [wordlim: 200] Crawled: 2 days ago; INEOS USA OIL & GAS LLC  | 11  | 727 ... 918528  | ANDERSON-STONE DIM HC5  | DRILL  | 2026-10-09 "
+        },
+        {
+          "heading": "(OWN415)                   03/15/2024                   RAILROAD COMMISSION OF TEXAS (https://rrc.state.tx.us/media/uedjyrql/oilldg01_20240315_rrc175_jan2024.pdf)",
+          "snippet": "【turn769608search49】 [wordlim: 200] Published: 11 months ago;     ANDERSON-STONE DIM                                LEASE -> 15630        GATHERER -> INEOS "
+        },
+        {
+          "heading": "Dimmit County, TX — Drilling Permits & Activity | Petrora (https://petrora.com/counties/dimmit?window=180)",
+          "snippet": "【turn769608search29】 [wordlim: 200] Crawled: 2 days ago; INEOS USA OIL & GAS LLC  | 11  | 727 ... 918528  | ANDERSON-STONE DIM HC5  | DRILL  | 2026-10-09 "
+        },
+        {
+          "heading": "Permian Basin development well permits for Aug. 8-15 (https://www.mrt.com/business/oil/article/permian-basin-drilling-permits-20823997.php)",
+          "snippet": "【turn769608search32】 [wordlim: 100] Published: 1.2 years ago; Crawled: 2 days ago; Admiral Permian Operating LLC•    Latrelle #201SH: Sandbar (Bone Spring)-Horizontal; 300 fnl, 675 fwl, Sec 22, Blk C-26, Abst. ... •    Beartooth 54-1-34 Unit #21H: Phantom (Wolfcamp)-Horizontal; 702 fnl, 1421 fwl, Sec 46, Blk 54, T-1, Abst. "
+        },
+        {
+          "heading": "Permian Basin development well permits for May 29-June 5 (https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22295702.php)",
+          "snippet": "【turn769608search34】 [wordlim: 100] Published: 4 months ago; Crawled: 2 days ago; Admiral Permian Operating LLC ... • Latrelle 1WB Unit #1WB, Phantom (Wolfcamp)-Horizontal, 70 fnl, 2200 fwl, Sec 20, Blk C-26, Abst. "
+        }
+      ]
+    },
+    {
+      "queries": [
+        "\"STATE ROCK RIVER 30-19\"",
+        "\"OLYMPIA FIELDS OS B\"",
+        "\"COUNTRY MAC A8\"",
+        "\"GLASSCOCK-DICKENSON 44C\""
+      ],
+      "candidates": [
+        {
+          "heading": "FEB 27, 2026                                         OIL LEASE NAME INDEX LISTING                                         PAGE 1408 (https://www.rrc.state.tx.us/media/4updx5gs/olm003_08_20260227_rrc021_apr2026.pdf)",
+          "snippet": "【turn437966search43】 [wordlim: 200] Crawled: 7 months ago; | STATE ROCK RIVER 30-19 UA | HOEFS T-K (WOLFCAMP) | DIAMONDBACK E&P LLC | 54604 | FEB 27, 2026                                         OIL LEASE NAME INDEX LISTING                                         PAGE 1408                                                        (OLM003)  DISTRICT 08  <table id=\"e1\"> | ---LEASE NAME--- | FIELD NAME | ORGANIZATION NAME | LEASE NUMBER | |---|---|---|"
+        },
+        {
+          "heading": "Permian Permit Report — Cutoff 2026-10-25 (https://www.shaleexperts.com/reports/permian/2026-10-25)",
+          "snippet": "【turn437966search1】 [wordlim: 200] Crawled: today; 9,400'  | HOEFS T-K (WOLFCAMP)  | BLUE ARROW OPERATING, LLC  | STATE ROCK RIVER 30-19 D  | 10/19/26  | 42-389-42358  | O-G  | Horizontal  #### Reeves County Permits: 6  PTD  | Field/Zone  | Operator  | Well Name  | Date  | API  | PUR  | H/V/D --- | --- | --- | --- | --- | --- | --- | --- 9,400'  | HOEFS T-K (WOLFCAMP)  | BLUE ARROW OPERATING, LLC  | STATE ROCK RIVER 30-19 D  | 10/19/26  | 42-389-"
+        },
+        {
+          "heading": "San Augustine County, TX — Drilling Permits, Oil & Gas Activity | PetroPlanet (https://petroplanet.com/texas/san-augustine)",
+          "snippet": "【turn437966search2】 [wordlim: 200] Crawled: 2 days ago; Approved  | Operator  | Lease / Well  | Field  | Type  | Depth ... Oct 5, 2026  | Rockcliff Energy Operating III  | Olympia Fields Os B #3HB  |  | Horizontal  | 16,000 ft  ## Recent drilling permits  Approved  | Operator  | Lease / Well  | Field  | Type  | Depth --- | --- | --- | --- | --- | --- Oct 6, 2026  | Rockcliff Energy Operating III  | Olympia Fields Os D #5HB  |  | Horizontal  | 16,"
+        },
+        {
+          "heading": "(OGPFS) 01/28/2026 (https://rrc.texas.gov/media/euzptaf5/rogpfsf_08_20260128_rrc048_none.pdf)",
+          "snippet": "【turn437966search44】 [wordlim: 200] Crawled: 8 months ago; <tr><td></td><td>OIL</td><td>54604</td><td></td><td>STATE ROCK RIVER 30-19 UA</td><td></td><td>41911500</td><td>HOEFS T-K (WOLFCAMP)</td><td>389</td><td>REEVES</td></tr> <tr><td></td><td>OIL</td><td>55158</td><td></td><td>STATE REED F 11-12</td><td></td><td>41911500</td><td>HOEFS T-K (WOLFCAMP)</td><td>371</td><td>PECOS</td></tr> <tr><td></td><td>OIL</td><td>54604</td><td></td><td>STATE R"
+        },
+        {
+          "heading": "ROCKCLIFF ENERGY OPERATING III: Texas Oil & Gas Leases | Extrxct (https://extrxct.com/operator/rockcliff-energy-operating-iii-103732/)",
+          "snippet": "【turn437966search3】 [wordlim: 200] Crawled: 2 days ago; Its top lease was QUAIL HOLLOW QB in the CARTHAGE (HAYNESVILLE SHALE) field. ... 2026-10-05  | San Augustine  | ROCKCLIFF ENERGY OPERATING III  | OLYMPIA FIELDS OS B  | 3HB  | 16,000  | Drill  ## New permits this month  Issued  | County  | Operator  | Lease  | Well  | Total depth (ft)  | Type --- | --- | --- | --- | --- | --- | --- 2026-10-06  | San Augustine  | ROCKCLIFF ENERGY OPERATING II"
+        },
+        {
+          "heading": "RAILROAD COMMISSION OF TEXAS (https://www.rrc.state.tx.us/media/cyzfazwf/rogpfsf_08_20260225_rrc048_none.pdf)",
+          "snippet": "【turn437966search45】 [wordlim: 200] Crawled: 7 months ago; <tr><td></td><td>OIL</td><td>54604</td><td></td><td>STATE ROCK RIVER 30-19 UA</td><td></td><td>41911500</td><td>HOEFS T-K (WOLFCAMP)</td><td>389</td><td>REEVES</td></tr> "
+        },
+        {
+          "heading": "Texas and New Mexico Drilling Permits by County and Operator | LMJ (https://lmjlandservices.com/drilling-permits/)",
+          "snippet": "【turn437966search4】 [wordlim: 200] Crawled: 2 days ago; 10-19-2026  | 42-389-42358  | BLUE ARROW OPERATING, LLC  | STATE ROCK RIVER 30-19 D  | 1SB  | Reeves  | HOEFS T-K (WOLFCAMP)  | Sec 30, Blk 49 T8S, T&P RR CO/ROSS, J F, A-2442  | Horizontal  | 9,400  | New drill  | RRC query "
+        },
+        {
+          "heading": "(OGPFS)              04/29/2026                     RAILROAD COMMISSION OF TEXAS                            PAGE    1 (https://www.rrc.texas.gov/media/bjlffwwx/rogpfsf_08_20260429_rrc048_none.pdf)",
+          "snippet": "【turn437966search46】 [wordlim: 200] Published: 5 months ago;        OIL    54604  STATE ROCK RIVER 30-19 UA           41911500  HOEFS T-K (WOLFCAMP)               389    REEVES "
+        },
+        {
+          "heading": "Texas drilling permits issued October 19, 2026 · EZRRC (https://ezrrc.com/permits/2026-10-19/)",
+          "snippet": "【turn437966search5】 [wordlim: 200] Crawled: 2 days ago; Reeves  | BLUE ARROW OPERATING, LLC  | STATE ROCK RIVER 30-19 D  | 1SB  | `42-389-42358`  | DRILL  | Horizontal  | 9,400  | HOEFS T-K (WOLFCAMP)  | 919327 Well on oilandgasinfo.com "
+        },
+        {
+          "heading": "New Texas Drilling Permits, Oct 2026 | Extrxct (https://extrxct.com/permits/)",
+          "snippet": "【turn437966search6】 [wordlim: 200] Crawled: today; 2026-10-19  | Reeves  | BLUE ARROW OPERATING, LLC  | STATE ROCK RIVER 30-19 D  | 1SB  | 9,400  | Drill "
+        },
+        {
+          "heading": "District 08 drilling permits — Midland · EZRRC (https://ezrrc.com/permits/district/08/)",
+          "snippet": "【turn437966search7】 [wordlim: 200] Crawled: 2 days ago; 2026-10-19  | Reeves  | BLUE ARROW OPERATING, LLC  | STATE ROCK RIVER 30-19 D  | 1SB  | `42-389-42358`  | DRILL  | Horizontal  | 9,400  | HOEFS T-K (WOLFCAMP)  | 919327 Well on oilandgasinfo.com "
+        },
+        {
+          "heading": "Reeves County, TX Oil & Gas Production, Leases & Permits | Extrxct (https://extrxct.com/county/reeves/)",
+          "snippet": "【turn437966search10】 [wordlim: 200] Crawled: today; 2026-10-19  | Reeves  | BLUE ARROW OPERATING, LLC  | STATE ROCK RIVER 30-19 D  | 1SB  | 9,400  | Drill "
+        },
+        {
+          "heading": "SEP 28, 2024 (https://www.rrc.texas.gov/media/20ylefpk/olm003_08_20240928_rrc021_nov2024.pdf)",
+          "snippet": "【turn437966search48】 [wordlim: 200] Crawled: 10 months ago; <tr><td>STATE ROCK RIVER 30-19 UA</td><td>HOEFS T-K (WOLFCAMP)</td><td>DIAMONDBACK E&amp;P LLC</td><td>54604</td></tr> "
+        },
+        {
+          "heading": "Rockcliff Energy Operating III — Texas Drilling Permits, Wells & Completions | PetroPlanet (https://petroplanet.com/operator/rockcliff-energy-operating-iii)",
+          "snippet": "【turn437966search12】 [wordlim: 200] Crawled: 2 days ago; Approved  | Lease / Well  | County  | Field  | Type  | Depth ... Oct 5, 2026  | Olympia Fields Os B #3HB  | San Augustine  |  | Horizontal  | 16,000 ft "
+        },
+        {
+          "heading": "Midland County, TX Oil and Gas Title, Operators and Permits | LMJ Land Services (https://lmjlandservices.com/directory/texas/midland-county/)",
+          "snippet": "【turn437966search13】 [wordlim: 200] Crawled: 4 days ago; 05/12/2026  | 42-329-48367 🖶  | COUNTRY MAC A8  | 703LH  | Midland  | COG OPERATING LLC  | Horizontal  | 10,000  | New Drill "
+        },
+        {
+          "heading": "Development Wells drilling permits Sept. 18-25 (https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22452674.php)",
+          "snippet": "【turn437966search14】 [wordlim: 100] Published: 3 weeks ago; • Glasscock-Dickenson 44C #3H, Spraberry (Trend Area)-Horizontal, 570 fnl, 1330 fel, Sec 44, Blk 37, T-1-N, Abst. "
+        },
+        {
+          "heading": "Martin County, TX Oil and Gas Title, Operators and Permits | LMJ Land Services (https://lmjlandservices.com/directory/texas/martin-county/)",
+          "snippet": "【turn437966search15】 [wordlim: 200] Crawled: today; 08/21/2026  | 42-317-47395 🖶  | GLASSCOCK-DICKENSON 44C  | 3H  | Martin  | PIONEER NATURAL RES. "
+        },
+        {
+          "heading": "Well 42-405-30992 — OLYMPIA FIELDS OS B | Petrora (https://petrora.com/wells/40530992)",
+          "snippet": "【turn437966search17】 [wordlim: 200] Crawled: last week; OLYMPIA FIELDS OS B "
+        },
+        {
+          "heading": "Reeves County, TX — Drilling Permits, Oil & Gas Activity | PetroPlanet (https://petroplanet.com/texas/reeves)",
+          "snippet": "【turn437966search18】 [wordlim: 200] Crawled: today; Oct 19, 2026  | Blue Arrow Operating, LLC  | State Rock River 30-19 D #1SB  |  | Horizontal  | 9,400 ft "
+        },
+        {
+          "heading": "Blue Arrow Operating, LLC — Texas Drilling Permits, Wells & Completions | PetroPlanet (https://petroplanet.com/operator/blue-arrow-operating-llc)",
+          "snippet": "【turn437966search19】 [wordlim: 200] Crawled: 2 days ago; Oct 19, 2026  | State Rock River 30-19 D #1SB  | Reeves  |  | Horizontal  | 9,400 ft "
+        },
+        {
+          "heading": "State Rock River 30-19 Ub #2WB — Reeves County, TX Well, API 42-389-38717 | PetroPlanet (https://petroplanet.com/well/42-389-38717)",
+          "snippet": "【turn437966search20】 [wordlim: 200] Crawled: last month; # State Rock River 30-19 Ub #2WB "
+        },
+        {
+          "heading": "VMO Lease Production, San Augustine County, TX | Extrxct (https://extrxct.com/lease/g-06-296395-vmo/)",
+          "snippet": "【turn437966search21】 [wordlim: 200] Crawled: 2 days ago; 2026-10-05  | ROCKCLIFF ENERGY OPERATING III  | OLYMPIA FIELDS OS B  | 3HB  | 16,000 "
+        },
+        {
+          "heading": "ExxonMobil in Martin, Midland and Andrews Counties: Permits, Production, Title | LMJ (https://lmjlandservices.com/operators/exxonmobil/)",
+          "snippet": "【turn437966search23】 [wordlim: 200] Crawled: today; 09/24/2026  | 42-317-47395 🖶  | GLASSCOCK-DICKENSON 44C  | 3H  | Martin  | Horizontal  | 10,389  | New Drill "
+        },
+        {
+          "heading": "Well 42-329-48367 — COUNTRY MAC A8 | Petrora (https://petrora.com/wells/32948367)",
+          "snippet": "【turn437966search24】 [wordlim: 200] Crawled: last month; #915570 Drill COUNTRY MAC A8 · 10,000 ft 2026-09-09 "
+        },
+        {
+          "heading": "WILLIAMS CHUMLEY WO B Lease, San Augustine County, TX | Extrxct (https://extrxct.com/lease/g-06-296873-williams-chumley-wo-b/)",
+          "snippet": "【turn437966search25】 [wordlim: 200] Crawled: 2 days ago; 2026-10-05  | ROCKCLIFF ENERGY OPERATING III  | OLYMPIA FIELDS OS B  | 3HB  | 16,000 "
+        },
+        {
+          "heading": "Spud Report | Petrora (https://petrora.com/reports/spuds?days=90)",
+          "snippet": "【turn437966search26】 [wordlim: 200] Crawled: today; 2026-10-15  | ROCKCLIFF ENERGY OPERATING III  | SAN AUGUSTINE  | OLYMPIA FIELDS OS B  | 3HB  | Hz  | 16,000  | 2026-10-05  | 42-405-30992 "
+        },
+        {
+          "heading": "OLYMPIA FIELDS Lease Production, San Augustine County, TX | Extrxct (https://extrxct.com/lease/g-06-300756-olympia-fields/)",
+          "snippet": "【turn437966search27】 [wordlim: 200] Crawled: 6 days ago; RRC gas well 300756, district 06 · CARTHAGE (HAYNESVILLE SHALE) field · San Augustine County · operated by ROCKCLIFF ENERGY OPERATING III ... 2026-10-05  | ROCKCLIFF ENERGY OPERATING III  | OLYMPIA FIELDS OS B  | 3HB  | 16,000 "
+        },
+        {
+          "heading": "MARQUETTE-WEST IRONOSA A Lease, San Augustine County, TX | Extrxct (https://extrxct.com/lease/g-06-298326-marquette-west-ironosa-a/)",
+          "snippet": "【turn437966search28】 [wordlim: 200] Crawled: 6 days ago; 2026-10-05  | ROCKCLIFF ENERGY OPERATING III  | OLYMPIA FIELDS OS B  | 3HB  | 16,000 "
+        }
+      ]
+    },
+    {
+      "queries": [
+        "\"PEGGY 20 N\" Diamondback",
+        "\"JAGUAR WEST E 40-45\"",
+        "\"CMC NIGHTSHADE 17/5\""
+      ],
+      "candidates": [
+        {
+          "heading": "Midland County, TX Oil and Gas Title, Operators and Permits | LMJ Land Services (https://lmjlandservices.com/directory/texas/midland-county/)",
+          "snippet": "【turn910548search0】 [wordlim: 200] Crawled: 4 days ago; 08/28/2026  | 42-329-48587 🖶  | CMC NIGHTSHADE 17/5 UNIT  | 1744JM  | Midland  | CHEVRON U. 08/28/2026  | 42-329-48587 🖶  | CMC NIGHTSHADE 17/5 UNIT  | 1744JM  | Midland  | CHEVRON U. S. A. INC.  | Horizontal  | 10,800  | New Drill 08/28/2026  | 42-329-48588 🖶  | CMC NIGHTSHADE 17/5 UNIT  | 1745JM  | Midland  | CHEVRON U. S. A. INC.  | Horizontal  | 10,800  | New Drill 08/28/2026  | 42-32"
+        },
+        {
+          "heading": "Well 42-329-48589 — CMC NIGHTSHADE 17/5 UNIT | Petrora (https://petrora.com/wells/32948589)",
+          "snippet": "【turn910548search1】 [wordlim: 200] Crawled: last month; CMC NIGHTSHADE 17/5 UNIT  # 42-329-48589  Horizontal  CMC NIGHTSHADE 17/5 UNIT  MIDLAND County · District 10 · CHEVRON U. S. A. INC.  Permits  1  Max Depth  10,800 ft  First Permit  2026-09-10  Latest Activity  2026-09-10  Lifespan  < 1 yr  ## Regulatory Status  Schedule  —  Completion  —  Shut-In  —  Plugged  —  ## Formation Tops  No tops on file for this well. Formation tops come from W-2/"
+        },
+        {
+          "heading": "JAN 30, 2026 (https://www.rrc.state.tx.us/media/v1wpot0x/olm003_08_20260130_rrc021_mar2026.pdf)",
+          "snippet": "【turn910548search34】 [wordlim: 200] Crawled: 8 months ago; <tr><td>CMC NIGHTSHADE 17/5 UNIT</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. <tr><td>CMC FENWAY 22/34 C</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. S. A. INC.</td><td>49759</td></tr> <tr><td>CMC FENWAY 22/34 CC</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. S. A. INC.</td><td>49760</td></tr> <tr><td>CMC FENWAY 22/34 D</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. S. A. "
+        },
+        {
+          "heading": "Martin County, TX Oil and Gas Title, Operators and Permits | LMJ Land Services (https://lmjlandservices.com/directory/texas/martin-county/)",
+          "snippet": "【turn910548search2】 [wordlim: 200] Crawled: today; 10/01/2026  | 42-317-47560 🖶  | JAGUAR WEST E 40-45  | 4205H  | Martin  | DE V OPERATING, LLC  | Horizontal  | 10,605  | New Drill 10/01/2026  | 42-317-47565 🖶  | JAGUAR WEST G 40-45  | 3007H  | Martin  | DE V OPERATING, LLC  | Horizontal  | 10,605  | New Drill 09/30/2026  | 42-317-47535 🖶  | CHENIN 10-11 A  | 1MS  | Martin  | DIAMONDBACK E&P LLC  | Horizontal  | 9,640  | New Drill 09/30/2026 "
+        },
+        {
+          "heading": "Permian Basin development well permits for 9/4/26-9/11/26 (https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22431874.php)",
+          "snippet": "【turn910548search3】 [wordlim: 100] Published: last month; Crawled: today; • CMC Nightshade 17/5 Unit #1744JM, Spraberry (Trend Area)-Horizontal, 2434 fnl, 2443.4 fel, Sec 17, Blk 38, T-4-S, Abst. Diamondback E&P LLC • Halsey 4-45 A #1WB, Spraberry (Trend Area)-Horizontal, 1991 fwl, 431 fsl, Sec 4, Blk 35, T-1-S, Abst. 654, T&P RR, 4.8 ne Stanton; TD 12500; API #42-317-47409 • Halsey 4-45 B #2LS, Spraberry (Trend Area)-Horizontal, 1992 fwl, 456 fs"
+        },
+        {
+          "heading": "MAR 28, 2025 (https://www.rrc.texas.gov/media/0w0gav03/olm003_08_20250329_rrc021_may2025.pdf)",
+          "snippet": "【turn910548search35】 [wordlim: 200] Crawled: 5 months ago; <tr><td>CMC NIGHTSHADE 17/5 UNIT</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. <tr><td>CMC FENWAY 22/34 D</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. S. A. INC.</td><td>49203</td></tr> <tr><td>CMC FENWAY 22/34 E</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. S. A. INC.</td><td>49387</td></tr> <tr><td>CMC FENWAY 22/34 F</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. S. A. I"
+        },
+        {
+          "heading": "Midland County, TX — Drilling Permits & Activity | Petrora (https://petrora.com/counties/midland?window=90)",
+          "snippet": "【turn910548search4】 [wordlim: 200] Crawled: last month; 918254  | CMC NIGHTSHADE 17/5 UNIT  | DRILL  | 2026-09-10  ## Permit Activity  ## Permit Types (90d)  DRILL  191  -38 vs prior  RENTR  1  NEW vs prior  ## Top Operators  by permits, trailing 12 mo View All  OPERATOR  | PERMITS 12MO  | WELLS --- | --- | --- DIAMONDBACK E&P LLC  | 331  | 2696 PIONEER NATURAL RES. USA, INC.  | 203  | 5360 CHEVRON U. S. A. INC.  | 50  | 973 XTO ENERGY INC.  | 49"
+        },
+        {
+          "heading": "De V Operating, LLC Drilling Permits — All 32 Texas Permits | PetroPlanet (https://petroplanet.com/operator/de-v-operating-llc/permits)",
+          "snippet": "【turn910548search6】 [wordlim: 200] Crawled: last week; Oct 9, 2026  | Jaguar West E 40-45 #2805H  | Martin  |  | Horizontal  | 10,605 ft "
+        },
+        {
+          "heading": "Chevron Corp — Permits · Shale Experts (https://www.shaleexperts.com/company/Chevron-Corp/permits)",
+          "snippet": "【turn910548search7】 [wordlim: 200] Crawled: 4 days ago; Sep 10, 2026  | CMC NIGHTSHADE 17/5 UNIT  | CHEVRON U. "
+        },
+        {
+          "heading": "Chevron U. S. A. INC. — Texas Drilling Permits, Wells & Completions | PetroPlanet (https://petroplanet.com/operator/chevron-u-s-a-inc)",
+          "snippet": "【turn910548search8】 [wordlim: 200] Crawled: 2 days ago; Sep 10, 2026  | CMC Nightshade 17/5 Unit #1746JM  | Midland  |  | Horizontal  | 10,800 ft "
+        },
+        {
+          "heading": "JUN 28, 2024                                        OIL LEASE NAME INDEX LISTING                                        PAGE 934 (https://rrc.texas.gov/media/neimyqcw/olm003_08_20240627_rrc021_aug2024.pdf)",
+          "snippet": "【turn910548search38】 [wordlim: 200] Published: 1.9 years ago;                CMC NIGHTSHADE 17/5 UNIT          SPRABERRY (TREND AREA)           CHEVRON U. "
+        },
+        {
+          "heading": "New Texas Drilling Permits, Oct 2026 | Extrxct (https://extrxct.com/permits/)",
+          "snippet": "【turn910548search10】 [wordlim: 200] Crawled: today; 2026-10-09  | Martin  | DE V OPERATING, LLC  | JAGUAR WEST E 40-45  | 2805H  | 10,605  | Drill "
+        },
+        {
+          "heading": "Well 42-329-48576 — CMC NIGHTSHADE 17/5 UNIT | Petrora (https://petrora.com/wells/32948576)",
+          "snippet": "【turn910548search11】 [wordlim: 200] Published: 2 months ago; Crawled: last month; CMC NIGHTSHADE 17/5 UNIT "
+        },
+        {
+          "heading": "Diamondback Energy in Andrews, Martin and Midland Counties: Permits, Production, Title | LMJ (https://lmjlandservices.com/operators/diamondback-energy/)",
+          "snippet": "【turn910548search12】 [wordlim: 200] Crawled: today; Website diamondbackenergy.com ... 08/05/2026  | 42-329-48551 🖶  | PEGGY 20 N  | U 2WB  | Midland  | Horizontal  | 13,000  | New Drill "
+        },
+        {
+          "heading": "CHEVRON U. S. A. INC. — Texas drilling permits · EZRRC (https://ezrrc.com/permits/operator/148113/)",
+          "snippet": "【turn910548search13】 [wordlim: 200] Crawled: yesterday; | CMC NIGHTSHADE 17/5 UNIT  | 1746JM  | `42-329-48589`  | DRILL  | Horizontal  | 10,800  | SPRABERRY (TREND AREA)  | 918257 Well on oilandgasinfo.com "
+        },
+        {
+          "heading": "(OGPFS)              01/27/2023                     RAILROAD COMMISSION OF TEXAS                            PAGE    1 (https://rrc.state.tx.us/media/1wtbshnu/rogpfsf_08_20230127_rrc048_none.pdf)",
+          "snippet": "【turn910548search39】 [wordlim: 200] Published: 8 months ago;        OIL    57836  CMC NIGHTSHADE 17/5 UNIT            85280300  SPRABERRY (TREND AREA)             329    MIDLAND "
+        },
+        {
+          "heading": "Texas and New Mexico Drilling Permits by County and Operator | LMJ (https://lmjlandservices.com/drilling-permits/)",
+          "snippet": "【turn910548search14】 [wordlim: 200] Crawled: 2 days ago; 10-09-2026  | 42-317-47562  | DE V OPERATING, LLC  | JAGUAR WEST E 40-45  | 2805H  | Martin  | SPRABERRY (TREND AREA)  | Sec 5, Blk 36 T2N, T&P RR CO, A-153  | Horizontal  | 10,605  | New drill  | RRC query "
+        },
+        {
+          "heading": "District 08 drilling permits — Midland · EZRRC (https://ezrrc.com/permits/district/08/)",
+          "snippet": "【turn910548search16】 [wordlim: 200] Crawled: 2 days ago; 2026-10-09  | Martin  | DE V OPERATING, LLC  | JAGUAR WEST E 40-45  | 4205H  | `42-317-47560`  | DRILL  | Horizontal  | 10,605  | SPRABERRY (TREND AREA)  | 919092 Well on oilandgasinfo.com "
+        },
+        {
+          "heading": "MAR 29, 2024                                        OIL LEASE NAME INDEX LISTING                                        PAGE 928 (https://rrc.state.tx.us/media/0g1o5mjc/olm003_08_20240328_rrc021_may2024.pdf)",
+          "snippet": "【turn910548search40】 [wordlim: 200] Published: 2.2 years ago;                CMC NIGHTSHADE 17/5 UNIT          SPRABERRY (TREND AREA)           CHEVRON U. "
+        },
+        {
+          "heading": "NOV 29, 2022 (https://rrc.state.tx.us/media/eg5nbvut/olm003_08_20221129_rrc021_jan2023.pdf)",
+          "snippet": "【turn910548search41】 [wordlim: 200] Crawled: 11 months ago; <tr><td>CMC NIGHTSHADE 17/5 UNIT</td><td>SPRABERRY (TREND AREA)</td><td>CHEVRON U. "
+        },
+        {
+          "heading": "Permian Basin development well permits for 8/21/26-8/28/26 (https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22410987.php)",
+          "snippet": "【turn910548search18】 [wordlim: 100] Published: last month; Crawled: 2 days ago; • CMC Nightshade 17/5 Unit #1741JM, Spraberry (Trend Area)-Horizontal; 2434 fnl, 2503.4 fel, Sec 17, Blk 38, T-4-S, Abst. "
+        },
+        {
+          "heading": "Well 42-317-47562 — JAGUAR WEST E 40-45 | Petrora (https://petrora.com/wells/31747562)",
+          "snippet": "【turn910548search19】 [wordlim: 200] Crawled: 2 weeks ago; JAGUAR WEST E 40-45 "
+        },
+        {
+          "heading": "De V Operating, LLC — Texas Drilling Permits, Wells & Completions | PetroPlanet (https://petroplanet.com/operator/de-v-operating-llc)",
+          "snippet": "【turn910548search20】 [wordlim: 200] Crawled: 2 days ago; Oct 9, 2026  | Jaguar West E 40-45 #2805H  | Martin  |  | Horizontal  | 10,605 ft "
+        },
+        {
+          "heading": "Permian Basin development well permits for Oct. 2-9 (https://www.mrt.com/business/oil/article/permian-basin-tx-drilling-permits-22473475.php)",
+          "snippet": "【turn910548search21】 [wordlim: 100] Published: last week; Crawled: 2 days ago; • Jaguar West E 40-45 #2805H, Spraberry (Trend Area)-Horizontal; 268 fsl, 1191 fwl, Sec 5, Blk 36, T-2-N, Abst. "
+        },
+        {
+          "heading": "Martin County, TX Oil & Gas Production, Leases & Permits | Extrxct (https://extrxct.com/county/martin/)",
+          "snippet": "【turn910548search22】 [wordlim: 200] Crawled: 4 days ago; 2026-10-09  | Martin  | DE V OPERATING, LLC  | JAGUAR WEST E 40-45  | 2805H  | 10,605  | Drill "
+        },
+        {
+          "heading": "Permian Permit Report — Cutoff 2026-10-11 (https://www.shaleexperts.com/reports/permian/2026-10-11)",
+          "snippet": "【turn910548search23】 [wordlim: 200] Crawled: 2 days ago; 10,605'  | SPRABERRY (TREND AREA)  | DE V OPERATING, LLC  | JAGUAR WEST E 40-45  | 10/9/26  | 42-317-47560  | O-G  | Horizontal "
+        },
+        {
+          "heading": "Texas Drilling Permits | Petrora (https://petrora.com/permits?search=MIDLAND&window=180)",
+          "snippet": "【turn910548search24】 [wordlim: 200] Crawled: 2 days ago; 917796  | DRILL  | DIAMONDBACK E&P LLC  | MIDLAND  | RUTTER 1-12 J  | 2026-09-10  | 42-329-48561 "
+        },
+        {
+          "heading": "Texas Drilling Permits | Petrora (https://petrora.com/permits?search=MIDLAND&window=90)",
+          "snippet": "【turn910548search25】 [wordlim: 200] Crawled: 2 days ago; 917803  | DRILL  | DIAMONDBACK E&P LLC  | MIDLAND  | RUTTER 1-12 L  | 2026-09-10  | 42-329-48565 "
+        },
+        {
+          "heading": "Spud Report | Petrora (https://petrora.com/reports/spuds?days=90)",
+          "snippet": "【turn910548search26】 [wordlim: 200] Crawled: today; 2026-09-19  | DIAMONDBACK E&P LLC  | MARTIN  | HALSEY 4-45 C  | 1JM  | Hz  | 12,500  | 2026-09-04  | 42-317-47411 "
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Search snippets are discovery leads, not independent verification.",
+    "No paid or gated content acquired; no outreach.",
+    "No inference from drilling depth, permit date or gas throughput to electrical load."
+  ]
+}

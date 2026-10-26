@@ -1,5 +1,8 @@
 # GridLens — Jev + LLM Intelligence Integration Strategy
 
+> Historical integration strategy. Preserve compatible evidence/model safeguards; pursuit statuses, manual workflow and previous harness directions are superseded. Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md).
+
+
 **Status:** Proposed implementation strategy; subordinate to existing GL3 canonical PRD, approved evidence architecture, security boundaries and owner decisions
 **Prepared:** October 18, 2026
 **Repository:** [`nrsandoval1231-oss/gl3`](https://github.com/nrsandoval1231-oss/gl3)

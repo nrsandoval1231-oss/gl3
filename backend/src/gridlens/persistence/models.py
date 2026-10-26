@@ -969,15 +969,54 @@ class ExternalImportActivation(Base):
 
 
 class ExternalImportEvent(Base):
-    """Append-only audit event for batch staging and rollback."""
+    """Append-only audit event for staging, metadata recovery, and rollback."""
 
     __tablename__ = "external_import_events"
     __table_args__ = (
         CheckConstraint(
-            "action IN ('staged', 'rolled_back')", name="ck_external_import_event_action"
-        ),
-        UniqueConstraint("batch_id", "action", name="uq_external_import_event_batch_action"),
+            "action IN ('staged', 'metadata_reparsed', 'rolled_back') AND ("
+            "action <> 'metadata_reparsed' OR ("
+            "COALESCE(jsonb_typeof(details) = 'object', false) AND "
+            "COALESCE(details ->> 'kind' = 'metadata_reparse', false) AND "
+            "COALESCE(jsonb_typeof(details -> 'parser_revision') = 'string', false) AND "
+            "COALESCE(length(btrim(details ->> 'parser_revision')) BETWEEN 1 AND 120, false) AND "
+            "COALESCE(jsonb_typeof(details -> 'metadata_fingerprint') = 'string', false) AND "
+            "COALESCE(details ->> 'metadata_fingerprint' ~ '^[0-9a-f]{64}$', false) AND "
+            "COALESCE(jsonb_typeof(details -> 'source_content_hash') = 'string', false) AND "
+            "COALESCE(details ->> 'source_content_hash' ~ '^[0-9a-f]{64}$', false) AND "
+            "COALESCE(jsonb_typeof(details -> 'hyperlink_hints') = 'array', false) AND "
+            "COALESCE(CASE WHEN jsonb_typeof(details -> 'hyperlink_hints') = 'array' "
+            "THEN jsonb_array_length(details -> 'hyperlink_hints')::text = "
+            "details ->> 'target_count' ELSE false END, false) AND "
+            "COALESCE(jsonb_typeof(details -> 'target_count') = 'number', false) AND "
+            "COALESCE(details ->> 'target_count' ~ '^[1-9][0-9]{0,5}$' AND ("
+            "length(details ->> 'target_count') < 6 OR "
+            "details ->> 'target_count' <= '100000'), false)"
+            "))",
+            name="ck_external_import_event_action",
+        ).ddl_if(dialect="postgresql"),
         Index("ix_external_import_events_batch", "batch_id", "created_at"),
+        Index(
+            "uq_external_import_event_batch_lifecycle",
+            "batch_id",
+            "action",
+            unique=True,
+            postgresql_where=text("action IN ('staged', 'rolled_back')"),
+        ),
+        Index(
+            "uq_external_import_event_batch_metadata_revision",
+            "batch_id",
+            text("(details ->> 'parser_revision')"),
+            unique=True,
+            postgresql_where=text("action = 'metadata_reparsed'"),
+        ),
+        Index(
+            "uq_external_import_event_batch_metadata_fingerprint",
+            "batch_id",
+            text("(details ->> 'metadata_fingerprint')"),
+            unique=True,
+            postgresql_where=text("action = 'metadata_reparsed'"),
+        ),
     )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     batch_id: Mapped[UUID] = mapped_column(
@@ -1369,4 +1408,5 @@ class LogicalCallSettlement(Base):
 
 # Register the bounded monitoring tables with the same declarative metadata.
 from gridlens.persistence import contact_models as contact_models  # noqa: E402,F401
+from gridlens.persistence import suppression_models as suppression_models  # noqa: E402,F401
 from gridlens.persistence import watch_models as watch_models  # noqa: E402,F401

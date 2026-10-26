@@ -1,0 +1,408 @@
+{
+  "evidence_type": "actual ordinary-worker public-source acquisition in isolated local PostgreSQL",
+  "application_equivalence": "RRC and TDLR adapters unchanged between29c4fe0 and8b25d88; fresh JETI recovery uses148d8fc fix integrated in8b25d88",
+  "provider_policy": "No paid/model keys; model/research/enrichment planning disabled during acquisition diagnostic. Targeted worker still runs due native jobs and observes fences.",
+  "paid_calls": 0,
+  "production_writes": 0,
+  "receipts": [
+    {
+      "check": "native-intake-initial",
+      "original_receipt_sha256": "0bae8b282bbface5717305a7b380cf36ebb74e7a371a106dba38e770b9579d08",
+      "database": "gridlens_verify_release_native_20261026",
+      "started_at": "2026-10-26T12:28:04.236689+00:00",
+      "completed_at": null,
+      "status": "failed",
+      "first_pass": [
+        {
+          "source_id": "texas-jeti-applications",
+          "status": "Failed",
+          "attempted": true,
+          "pipeline_status": "FAIL",
+          "job_status": "queued",
+          "job_attempts": 1,
+          "error": "Source acquisition failed: network_error",
+          "retrieved_records": null,
+          "parsed_records": null,
+          "new_records": null,
+          "changed_records": null,
+          "unchanged_records": null,
+          "source_database_counts": {
+            "observations": 0,
+            "evidence": 0,
+            "projects": 0,
+            "needs": 0,
+            "changes": 0,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          }
+        },
+        {
+          "source_id": "texas-rrc-drilling-permits",
+          "status": "Failed",
+          "attempted": true,
+          "pipeline_status": "FAIL",
+          "job_status": "queued",
+          "job_attempts": 1,
+          "error": "Source acquisition failed: acquisition_timeout",
+          "retrieved_records": null,
+          "parsed_records": null,
+          "new_records": null,
+          "changed_records": null,
+          "unchanged_records": null,
+          "source_database_counts": {
+            "observations": 1442,
+            "evidence": 1442,
+            "projects": 1434,
+            "needs": 1434,
+            "changes": 4200,
+            "failed_interpretations": 0,
+            "pending_interpretations": 1
+          }
+        },
+        {
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "status": "Overdue",
+          "attempted": false,
+          "pipeline_status": "FAIL",
+          "job_status": "queued",
+          "job_attempts": 0,
+          "error": "worker did not complete this source job",
+          "retrieved_records": null,
+          "parsed_records": null,
+          "new_records": null,
+          "changed_records": null,
+          "unchanged_records": null,
+          "source_database_counts": {
+            "observations": 0,
+            "evidence": 0,
+            "projects": 0,
+            "needs": 0,
+            "changes": 0,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          }
+        }
+      ],
+      "replay": [
+        {
+          "source_id": "texas-jeti-applications",
+          "status": "Failed",
+          "attempted": false,
+          "pipeline_status": "FAIL",
+          "job_status": "queued",
+          "job_attempts": 1,
+          "error": "Source acquisition failed: network_error",
+          "retrieved_records": null,
+          "parsed_records": null,
+          "new_records": null,
+          "changed_records": null,
+          "unchanged_records": null,
+          "source_database_counts": {
+            "observations": 0,
+            "evidence": 0,
+            "projects": 0,
+            "needs": 0,
+            "changes": 0,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          },
+          "content_digest_unchanged": false,
+          "operational_digest_unchanged": false,
+          "counts_unchanged": false
+        },
+        {
+          "source_id": "texas-rrc-drilling-permits",
+          "status": "Updated",
+          "attempted": false,
+          "pipeline_status": "FAIL",
+          "job_status": "queued",
+          "job_attempts": 0,
+          "error": "worker did not complete this source job",
+          "retrieved_records": null,
+          "parsed_records": null,
+          "new_records": null,
+          "changed_records": null,
+          "unchanged_records": null,
+          "source_database_counts": {
+            "observations": 1730,
+            "evidence": 1730,
+            "projects": 1723,
+            "needs": 1723,
+            "changes": 5307,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          },
+          "content_digest_unchanged": false,
+          "operational_digest_unchanged": false,
+          "counts_unchanged": false
+        },
+        {
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "status": "Overdue",
+          "attempted": false,
+          "pipeline_status": "FAIL",
+          "job_status": "queued",
+          "job_attempts": 0,
+          "error": "worker did not complete this source job",
+          "retrieved_records": null,
+          "parsed_records": null,
+          "new_records": null,
+          "changed_records": null,
+          "unchanged_records": null,
+          "source_database_counts": {
+            "observations": 0,
+            "evidence": 0,
+            "projects": 0,
+            "needs": 0,
+            "changes": 0,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          },
+          "content_digest_unchanged": false,
+          "operational_digest_unchanged": false,
+          "counts_unchanged": false
+        }
+      ]
+    },
+    {
+      "check": "jeti-recovery",
+      "original_receipt_sha256": "725610b8c0118fe8d18597e848608b9a3a893f5596e0eb4a809df5f5a192054e",
+      "database": "gridlens_verify_release_jeti_20261026",
+      "started_at": "2026-10-26T12:37:24.060902+00:00",
+      "completed_at": null,
+      "status": "passed",
+      "first_pass": [
+        {
+          "source_id": "texas-jeti-applications",
+          "status": "Updated",
+          "attempted": true,
+          "pipeline_status": "PASS",
+          "job_status": "succeeded",
+          "job_attempts": 1,
+          "error": null,
+          "retrieved_records": 39,
+          "parsed_records": 39,
+          "new_records": 39,
+          "changed_records": 0,
+          "unchanged_records": 0,
+          "source_database_counts": {
+            "observations": 39,
+            "evidence": 39,
+            "projects": 0,
+            "needs": 0,
+            "changes": 0,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          }
+        }
+      ],
+      "replay": [
+        {
+          "source_id": "texas-jeti-applications",
+          "status": "Checked\u2014No Change",
+          "attempted": true,
+          "pipeline_status": "PASS",
+          "job_status": "succeeded",
+          "job_attempts": 1,
+          "error": null,
+          "retrieved_records": 39,
+          "parsed_records": 39,
+          "new_records": 0,
+          "changed_records": 0,
+          "unchanged_records": 39,
+          "source_database_counts": {
+            "observations": 39,
+            "evidence": 39,
+            "projects": 0,
+            "needs": 0,
+            "changes": 0,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          },
+          "content_digest_unchanged": true,
+          "operational_digest_unchanged": true,
+          "counts_unchanged": true
+        }
+      ]
+    },
+    {
+      "check": "tdlr-initial-replay",
+      "original_receipt_sha256": "1c2170c93c44ff87fd8f4fe2c689ff6fe82d08d37ad81878c736c473170fac23",
+      "database": "gridlens_verify_release_tdlr_20261026",
+      "started_at": "2026-10-26T12:43:08.735213+00:00",
+      "completed_at": null,
+      "status": "failed",
+      "first_pass": [
+        {
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "status": "Updated",
+          "attempted": true,
+          "pipeline_status": "PASS",
+          "job_status": "succeeded",
+          "job_attempts": 1,
+          "error": null,
+          "retrieved_records": 11,
+          "parsed_records": 11,
+          "new_records": 11,
+          "changed_records": 0,
+          "unchanged_records": 0,
+          "source_database_counts": {
+            "observations": 11,
+            "evidence": 11,
+            "projects": 6,
+            "needs": 6,
+            "changes": 12,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          }
+        }
+      ],
+      "replay": [
+        {
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "status": "Checked\u2014No Change",
+          "attempted": true,
+          "pipeline_status": "PASS",
+          "job_status": "succeeded",
+          "job_attempts": 1,
+          "error": null,
+          "retrieved_records": 11,
+          "parsed_records": 11,
+          "new_records": 0,
+          "changed_records": 0,
+          "unchanged_records": 11,
+          "source_database_counts": {
+            "observations": 11,
+            "evidence": 11,
+            "projects": 6,
+            "needs": 6,
+            "changes": 18,
+            "failed_interpretations": 0,
+            "pending_interpretations": 0
+          },
+          "content_digest_unchanged": false,
+          "operational_digest_unchanged": false,
+          "counts_unchanged": false
+        }
+      ]
+    },
+    {
+      "check": "tdlr-settled-replay",
+      "original_receipt_sha256": "c49b8b11e5bf064648033d403187bc055ace6690c302e00618aa98d3ed441b3d",
+      "database": null,
+      "started_at": null,
+      "completed_at": "2026-10-26T12:50:19.995914+00:00",
+      "status": "Checked\u2014No Change",
+      "result": {
+        "source_id": "texas-tdlr-tabs-data-centers",
+        "status": "Checked\u2014No Change",
+        "attempted": true,
+        "pipeline_status": "PASS",
+        "job_status": "succeeded",
+        "job_attempts": 2,
+        "error": null,
+        "retrieved_records": 11,
+        "parsed_records": 11,
+        "new_records": 0,
+        "changed_records": 0,
+        "unchanged_records": 11,
+        "source_database_counts": {
+          "observations": 11,
+          "evidence": 11,
+          "projects": 6,
+          "needs": 6,
+          "changes": 18,
+          "failed_interpretations": 0,
+          "pending_interpretations": 0
+        },
+        "content_digest_unchanged": true,
+        "operational_digest_unchanged": true
+      }
+    },
+    {
+      "check": "combined-tdlr-intake",
+      "original_receipt_sha256": "710ea56c02c8662ad2df70e56e890204bd52ed1f03bc2994c83039ccd8185632",
+      "database": "gridlens_release_combined",
+      "started_at": null,
+      "completed_at": null,
+      "status": null,
+      "result": {
+        "attempted": true,
+        "job_status": "succeeded",
+        "job_attempts": 1
+      },
+      "source_health": {
+        "error": null,
+        "status": "Updated",
+        "attempts": 1,
+        "retry_at": null,
+        "error_code": null,
+        "attempt_new": 11,
+        "error_stage": null,
+        "http_status": null,
+        "new_records": 11,
+        "retry_class": null,
+        "retry_state": "not_scheduled",
+        "last_attempt": "2026-10-26T12:52:01.199992+00:00",
+        "last_success": "2026-10-26T12:52:01.199992+00:00",
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "regional_held": 0,
+        "parse_failures": 0,
+        "parsed_records": 11,
+        "pdf_candidates": 0,
+        "attempt_changed": 0,
+        "attempt_fetched": 11,
+        "changed_records": 0,
+        "permit_accepted": 6,
+        "permit_rejected": 5,
+        "records_scanned": 11,
+        "attempt_rejected": 0,
+        "collection_scope": "Statewide TABS registrations in the last 90 days whose project name matches a data-center term, with each project page read for county, developer-reported dates, cost, scope and owner. Covers unincorporated county land.",
+        "processing_error": null,
+        "records_rejected": 0,
+        "attempt_duplicate": 0,
+        "attempt_processed": 11,
+        "collection_status": null,
+        "pdf_skipped_limit": 0,
+        "regional_excluded": 0,
+        "retrieved_records": 11,
+        "unchanged_records": 0,
+        "coverage_limitation": "Only projects of $50,000 or more registered with TDLR, matched by project name; projects named without a data-center term are missed. Start and completion dates and cost are the registrant's estimates. Registration is accessibility review, not a building permit.",
+        "last_success_counts": {
+          "new_records": 11,
+          "parsed_records": 11,
+          "changed_records": 0,
+          "permit_accepted": 6,
+          "permit_rejected": 5,
+          "records_scanned": 11,
+          "retrieved_records": 11,
+          "unchanged_records": 0
+        },
+        "last_valid_record_at": "2026-10-26T12:52:13.883360+00:00",
+        "last_rejected_records": [],
+        "attempt_metrics_status": "KNOWN",
+        "last_meaningful_update": "2026-10-26T12:52:13.883360+00:00",
+        "pdf_skipped_not_signal": 0,
+        "latest_publication_date": null,
+        "collection_current_complete": true,
+        "latest_public_comment_deadline": null
+      },
+      "job_id": "aadbdddf-02df-47a4-8dbe-4bcc9914dcac"
+    }
+  ],
+  "interpretation": [
+    "Initial combined verification failed: JETI transport ignored runtime proxy; RRC first600-second job lease timed out after partial durable commits and then succeeded on retry2; the script could not attempt every target while other due work consumed its bounded target windows.",
+    "Fresh corrected JETI ordinary ingestion retained39official index observations/evidence and deliberately created no projects where the index has no site. Its replay digests were unchanged.",
+    "Fresh TDLR ingestion retained11official registrations and admitted6projects. Its first whole-database replay check failed because six previously queued buying-chain jobs legitimately added six ChangeEvents before the unchanged ingestion target. Source/evidence/project/need content did not change.",
+    "A subsequent ordinary TDLR replay after those derived jobs settled passed: source and whole recorded content/operational digests were unchanged, with no failed or pending interpretations.",
+    "An initial ad-hoc settled replay wrapper used stdin and failed multiprocessing main-path initialization; it changed no source content. The guarded file wrapper above supplies the actual successful settled replay result.",
+    "The completed RRC corpus was cloned togridlens_release_combined and the existing explicit job_ids worker interface ingested TDLR there without executing1723unrelated research jobs. This is targeted acquisition verification, not proof of scheduler fairness or commercial qualification."
+  ],
+  "limitations": [
+    "Source acquisition counts are not eligible temporary-power opportunities or actionable buyers.",
+    "The initial combined receipt is a failure and is not relabeled as passed.",
+    "No production operation, paid-provider capability or seven actual scheduled cycles was established.",
+    "Final commercial metrics use a separately frozen25-project source-backed diagnostic and retain unknowns."
+  ]
+}

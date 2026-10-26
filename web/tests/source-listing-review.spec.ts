@@ -18,7 +18,6 @@ test('a filing that left its source listing is flagged for status review, not hi
     const body = path === '/api/auth/session' ? { authenticated: true }
       : path === '/api/opportunities' ? [absent]
         : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 }
-          : path.endsWith('/workflow-status') ? { status: 'UNKNOWN', version: 0, events: [] }
             : []
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
   })

@@ -120,335 +120,7 @@
         }
       }
     },
-    "/api/intelligence/needs/{need_id}/jobs": {
-      "post": {
-        "tags": [
-          "intelligence"
-        ],
-        "summary": "Request Intelligence Job",
-        "operationId": "request_intelligence_job_api_intelligence_needs__need_id__jobs_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntelligenceJobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/intelligence/needs/{need_id}/evidence/{evidence_id}/ocr": {
-      "post": {
-        "tags": [
-          "intelligence"
-        ],
-        "summary": "Request Scanned Pdf Ocr",
-        "description": "Queue OCR only for one already-linked source Evidence; never fetch in the API.",
-        "operationId": "request_scanned_pdf_ocr_api_intelligence_needs__need_id__evidence__evidence_id__ocr_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          },
-          {
-            "name": "evidence_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evidence Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntelligenceJobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/intelligence/needs/{need_id}/evidence/{evidence_id}/ocr-followon": {
-      "post": {
-        "tags": [
-          "intelligence"
-        ],
-        "summary": "Request Ocr Grounded Followon",
-        "description": "Queue a separate OCR_UNVERIFIED candidate extraction over an existing transcript.",
-        "operationId": "request_ocr_grounded_followon_api_intelligence_needs__need_id__evidence__evidence_id__ocr_followon_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          },
-          {
-            "name": "evidence_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Evidence Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntelligenceJobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/intelligence/needs/{need_id}/jobs/{job_id}/cancel": {
-      "post": {
-        "tags": [
-          "intelligence"
-        ],
-        "summary": "Cancel Intelligence Job",
-        "operationId": "cancel_intelligence_job_api_intelligence_needs__need_id__jobs__job_id__cancel_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          },
-          {
-            "name": "job_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Job Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntelligenceJobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/intelligence/needs/{need_id}/jobs/{job_id}/retry": {
-      "post": {
-        "tags": [
-          "intelligence"
-        ],
-        "summary": "Retry Intelligence Job",
-        "operationId": "retry_intelligence_job_api_intelligence_needs__need_id__jobs__job_id__retry_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          },
-          {
-            "name": "job_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Job Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntelligenceJobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/intelligence/needs/{need_id}/watches": {
-      "post": {
-        "tags": [
-          "intelligence"
-        ],
-        "summary": "Set Need Watch",
-        "operationId": "set_need_watch_api_intelligence_needs__need_id__watches_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WatchRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntelligenceWatchOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
       "get": {
         "tags": [
           "intelligence"
@@ -474,59 +146,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IntelligenceWatchOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/intelligence/needs/{need_id}/feedback": {
-      "post": {
-        "tags": [
-          "intelligence"
-        ],
-        "summary": "Save Owner Feedback",
-        "operationId": "save_owner_feedback_api_intelligence_needs__need_id__feedback_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OwnerFeedback"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OwnerFeedbackOut"
                 }
               }
             }
@@ -615,61 +234,6 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Contact Assertions Api Companies  Company Id  Contact Assertions Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/contact-assertions/{claim_id}/corrections": {
-      "post": {
-        "tags": [
-          "enrichment"
-        ],
-        "summary": "Correct Contact",
-        "operationId": "correct_contact_api_contact_assertions__claim_id__corrections_post",
-        "parameters": [
-          {
-            "name": "claim_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Claim Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ContactCorrectionBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Correct Contact Api Contact Assertions  Claim Id  Corrections Post"
                 }
               }
             }
@@ -1163,32 +727,6 @@
             }
           },
           {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -1597,6 +1135,60 @@
         }
       }
     },
+    "/api/search": {
+      "get": {
+        "summary": "Unified Search",
+        "description": "Search current eligible projects, accounts, contacts, and opportunity intelligence.",
+        "operationId": "unified_search_api_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 100,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnifiedSearchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/customer-accounts/unresolved": {
       "get": {
         "summary": "Unresolved Customer Projects",
@@ -1794,56 +1386,6 @@
         }
       }
     },
-    "/api/customer-account-memberships/{membership_id}/retractions": {
-      "post": {
-        "summary": "Retract Customer Account Membership",
-        "operationId": "retract_customer_account_membership_api_customer_account_memberships__membership_id__retractions_post",
-        "parameters": [
-          {
-            "name": "membership_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Membership Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CustomerMembershipCorrectionBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerMembershipCorrectionOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/opportunities/map-window": {
       "get": {
         "summary": "Opportunity Map Window",
@@ -2024,32 +1566,6 @@
                 }
               ],
               "title": "Priority Segment"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
             }
           }
         ],
@@ -2298,32 +1814,6 @@
               ],
               "title": "Priority Segment"
             }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
           }
         ],
         "responses": {
@@ -2555,32 +2045,6 @@
                 }
               ],
               "title": "Priority Segment"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
             }
           }
         ],
@@ -2897,32 +2361,6 @@
               ],
               "title": "Priority Segment"
             }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "UNKNOWN",
-                    "NEW",
-                    "INVESTIGATING",
-                    "CONTACTED",
-                    "QUALIFIED",
-                    "WON",
-                    "LOST",
-                    "CLOSED"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
           }
         ],
         "responses": {
@@ -2959,47 +2397,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SignalDecisionCountsOut"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/signals/decisions/adjudicate": {
-      "post": {
-        "summary": "Adjudicate Signal Batch",
-        "description": "Explicit bounded replay/backfill; unchanged evidence and policy are idempotent.",
-        "operationId": "adjudicate_signal_batch_api_signals_decisions_adjudicate_post",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 500,
-              "minimum": 1,
-              "default": 100,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -3066,44 +2463,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WorkspaceChangesOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/opportunities/workspace/changes/review": {
-      "post": {
-        "summary": "Review Workspace Changes",
-        "operationId": "review_workspace_changes_api_opportunities_workspace_changes_review_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WorkspaceChangesReviewBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WorkspaceChangesReviewReceiptOut"
                 }
               }
             }
@@ -3257,73 +2616,6 @@
         }
       }
     },
-    "/api/refresh": {
-      "post": {
-        "summary": "Refresh",
-        "operationId": "refresh_api_refresh_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RefreshOut"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/sources/{source_id}/enabled": {
-      "post": {
-        "summary": "Set Source Enabled Endpoint",
-        "operationId": "set_source_enabled_endpoint_api_sources__source_id__enabled_post",
-        "parameters": [
-          {
-            "name": "source_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Source Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SourceEnabledIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SourceEnabledOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/projects/{project_id}/buying-chain": {
       "get": {
         "summary": "Project Buying Chain",
@@ -3357,66 +2649,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BuyingChainOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/projects/{project_id}/buying-chain/{claim_id}/corrections": {
-      "post": {
-        "summary": "Correct Project Buying Chain",
-        "operationId": "correct_project_buying_chain_api_projects__project_id__buying_chain__claim_id__corrections_post",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Project Id"
-            }
-          },
-          {
-            "name": "claim_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Claim Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BuyingChainCorrectionBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BuyingChainCorrectionOut"
                 }
               }
             }
@@ -3472,44 +2704,6 @@
             }
           }
         }
-      },
-      "post": {
-        "summary": "Create Power Need Brief",
-        "operationId": "create_power_need_brief_api_power_needs__need_id__brief_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BriefRequestOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/power-needs/{need_id}/title": {
@@ -3535,360 +2729,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PowerNeedTitleOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Create Power Need Title",
-        "operationId": "create_power_need_title_api_power_needs__need_id__title_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PowerNeedTitleOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/projects/{project_id}/buying-chain/enrich": {
-      "post": {
-        "summary": "Enrich Project Buying Chain",
-        "operationId": "enrich_project_buying_chain_api_projects__project_id__buying_chain_enrich_post",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Project Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/BuyingEnrichBody"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BuyingChainOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/needs/{need_id}/facts": {
-      "get": {
-        "summary": "List Need Call Facts",
-        "operationId": "list_need_call_facts_api_needs__need_id__facts_get",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 100,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CallFactPageOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Create Need Call Fact",
-        "operationId": "create_need_call_fact_api_needs__need_id__facts_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CallFactDraftBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CallFactOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/needs/{need_id}/facts/{fact_version_id}/decision": {
-      "post": {
-        "summary": "Decide Need Call Fact",
-        "operationId": "decide_need_call_fact_api_needs__need_id__facts__fact_version_id__decision_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          },
-          {
-            "name": "fact_version_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Fact Version Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CallFactDecisionBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CallFactDecisionOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/needs/{need_id}/workflow-status": {
-      "get": {
-        "summary": "Read Need Workflow Status",
-        "operationId": "read_need_workflow_status_api_needs__need_id__workflow_status_get",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NeedWorkflowStatusOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Set Need Workflow Status",
-        "operationId": "set_need_workflow_status_api_needs__need_id__workflow_status_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NeedWorkflowStatusBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NeedWorkflowEventOut"
                 }
               }
             }
@@ -3998,96 +2838,6 @@
         }
       }
     },
-    "/api/pursuits/refresh": {
-      "post": {
-        "summary": "Refresh Pursuits",
-        "operationId": "refresh_pursuits_api_pursuits_refresh_post",
-        "parameters": [
-          {
-            "name": "force",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Force"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PursuitJobOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/pursuits/{pursuit_id}/notes": {
-      "post": {
-        "summary": "Save Pursuit Note",
-        "operationId": "save_pursuit_note_api_pursuits__pursuit_id__notes_post",
-        "parameters": [
-          {
-            "name": "pursuit_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Pursuit Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CallNoteBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CallNoteOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/commercial/triage": {
       "get": {
         "summary": "Commercial Triage",
@@ -4157,54 +2907,6 @@
             }
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AutonomousResearchOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Request Autonomous Research",
-        "operationId": "request_autonomous_research_api_commercial_triage__need_id__autonomous_research_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AutonomousResearchBody"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4307,157 +3009,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CommercialTriageHistoryItem"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/commercial/triage/evaluate": {
-      "post": {
-        "summary": "Evaluate Commercial Triage",
-        "operationId": "evaluate_commercial_triage_api_commercial_triage_evaluate_post",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CommercialTriagePageOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/commercial/triage/{need_id}/research": {
-      "post": {
-        "summary": "Research Commercial Need",
-        "operationId": "research_commercial_need_api_commercial_triage__need_id__research_post",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CommercialResearchBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BriefRequestOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "summary": "Commercial Research Status",
-        "operationId": "commercial_research_status_api_commercial_triage__need_id__research_get",
-        "parameters": [
-          {
-            "name": "need_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Need Id"
-            }
-          },
-          {
-            "name": "question",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 12,
-              "title": "Question"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CommercialResearchStatusOut"
                 }
               }
             }
@@ -4603,22 +3154,6 @@
           "evidence_refs"
         ],
         "title": "AssociatedAccountOut"
-      },
-      "AutonomousResearchBody": {
-        "properties": {
-          "force": {
-            "type": "boolean",
-            "title": "Force",
-            "default": false
-          },
-          "complete_intelligence": {
-            "type": "boolean",
-            "title": "Complete Intelligence",
-            "default": false
-          }
-        },
-        "type": "object",
-        "title": "AutonomousResearchBody"
       },
       "AutonomousResearchOut": {
         "properties": {
@@ -4785,91 +3320,6 @@
           "status"
         ],
         "title": "BriefOut"
-      },
-      "BriefRequestOut": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "stale": {
-            "type": "boolean",
-            "title": "Stale",
-            "default": false
-          },
-          "generated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Generated At"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/BriefContentOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "citations": {
-            "items": {
-              "$ref": "#/components/schemas/BriefCitationOut"
-            },
-            "type": "array",
-            "title": "Citations"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "input_tokens": {
-            "type": "integer",
-            "title": "Input Tokens",
-            "default": 0
-          },
-          "output_tokens": {
-            "type": "integer",
-            "title": "Output Tokens",
-            "default": 0
-          },
-          "question_context": {
-            "type": "string",
-            "title": "Question Context",
-            "default": "current"
-          },
-          "job_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Job Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "status"
-        ],
-        "title": "BriefRequestOut"
       },
       "BriefStatementOut": {
         "properties": {
@@ -5077,207 +3527,6 @@
         ],
         "title": "BuyingCandidateOut"
       },
-      "BuyingChainCorrectionBody": {
-        "properties": {
-          "expected_version": {
-            "type": "string",
-            "maxLength": 80,
-            "minLength": 1,
-            "title": "Expected Version"
-          },
-          "idempotency_key": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 8,
-            "title": "Idempotency Key"
-          },
-          "action": {
-            "type": "string",
-            "pattern": "^(correct|retract)$",
-            "title": "Action"
-          },
-          "values": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "type": "object",
-            "title": "Values"
-          },
-          "source_evidence_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Evidence Id"
-          },
-          "source_hash": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 64,
-                "minLength": 64
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Hash"
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 1000,
-            "minLength": 3,
-            "title": "Reason"
-          },
-          "reported_contact": {
-            "type": "boolean",
-            "title": "Reported Contact",
-            "default": false
-          },
-          "identity_type": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(company|person)$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Identity Type"
-          },
-          "identity_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Identity Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "expected_version",
-          "idempotency_key",
-          "action",
-          "reason"
-        ],
-        "title": "BuyingChainCorrectionBody"
-      },
-      "BuyingChainCorrectionOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "claim_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Claim Id"
-          },
-          "project_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Project Id"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version"
-          },
-          "action": {
-            "type": "string",
-            "title": "Action"
-          },
-          "values": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/components/schemas/BuyingChainIdentityReferenceOut"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "type": "object",
-            "title": "Values"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "actor": {
-            "type": "string",
-            "title": "Actor"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "reported_contact": {
-            "type": "boolean",
-            "title": "Reported Contact",
-            "default": false
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "claim_id",
-          "project_id",
-          "version",
-          "action",
-          "values",
-          "reason",
-          "actor",
-          "created_at"
-        ],
-        "title": "BuyingChainCorrectionOut"
-      },
-      "BuyingChainIdentityReferenceOut": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "company",
-              "person"
-            ],
-            "title": "Type"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "id"
-        ],
-        "title": "BuyingChainIdentityReferenceOut"
-      },
       "BuyingChainOut": {
         "properties": {
           "project_id": {
@@ -5375,20 +3624,6 @@
           "created_at"
         ],
         "title": "BuyingChainResearchJobOut"
-      },
-      "BuyingEnrichBody": {
-        "properties": {
-          "source_urls": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 4,
-            "title": "Source Urls"
-          }
-        },
-        "type": "object",
-        "title": "BuyingEnrichBody"
       },
       "BuyingEvidenceOut": {
         "properties": {
@@ -5491,620 +3726,6 @@
         ],
         "title": "BuyingRunOut"
       },
-      "CallFactDecisionBody": {
-        "properties": {
-          "client_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Client Id"
-          },
-          "expected_version": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Expected Version"
-          },
-          "decision": {
-            "type": "string",
-            "title": "Decision"
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 1000,
-            "minLength": 3,
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "client_id",
-          "expected_version",
-          "decision",
-          "reason"
-        ],
-        "title": "CallFactDecisionBody"
-      },
-      "CallFactDecisionOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "version": {
-            "type": "integer",
-            "title": "Version"
-          },
-          "decision": {
-            "type": "string",
-            "title": "Decision"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "actor": {
-            "type": "string",
-            "title": "Actor"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "fact_version_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fact Version Id"
-          },
-          "content_hash": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content Hash"
-          },
-          "tier": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier"
-          },
-          "active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Active"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "version",
-          "decision",
-          "reason",
-          "actor",
-          "created_at"
-        ],
-        "title": "CallFactDecisionOut"
-      },
-      "CallFactDraftBody": {
-        "properties": {
-          "client_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Client Id"
-          },
-          "project_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Project Id"
-          },
-          "pursuit_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pursuit Id"
-          },
-          "expected_version": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Expected Version"
-          },
-          "predecessor_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Predecessor Id"
-          },
-          "activity_key": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Activity Key"
-          },
-          "facility_scope": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 2,
-            "title": "Facility Scope"
-          },
-          "fact_type": {
-            "type": "string",
-            "title": "Fact Type"
-          },
-          "value": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Value"
-          },
-          "reporter_name": {
-            "type": "string",
-            "maxLength": 160,
-            "minLength": 2,
-            "title": "Reporter Name"
-          },
-          "reporter_organization": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reporter Organization"
-          },
-          "reporter_role": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 160
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reporter Role"
-          },
-          "confirmation_channel": {
-            "type": "string",
-            "maxLength": 40,
-            "minLength": 2,
-            "title": "Confirmation Channel"
-          },
-          "source_reference": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Reference"
-          },
-          "source_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Date"
-          },
-          "confirmed_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Confirmed At"
-          },
-          "effective_from": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Effective From"
-          },
-          "effective_until": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective Until"
-          }
-        },
-        "type": "object",
-        "required": [
-          "client_id",
-          "project_id",
-          "expected_version",
-          "activity_key",
-          "facility_scope",
-          "fact_type",
-          "value",
-          "reporter_name",
-          "confirmation_channel",
-          "confirmed_at",
-          "effective_from"
-        ],
-        "title": "CallFactDraftBody"
-      },
-      "CallFactOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "need_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Need Id"
-          },
-          "project_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Project Id"
-          },
-          "pursuit_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pursuit Id"
-          },
-          "predecessor_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Predecessor Id"
-          },
-          "activity_key": {
-            "type": "string",
-            "title": "Activity Key"
-          },
-          "facility_scope": {
-            "type": "string",
-            "title": "Facility Scope"
-          },
-          "fact_type": {
-            "type": "string",
-            "title": "Fact Type"
-          },
-          "value": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Value"
-          },
-          "reporter_name": {
-            "type": "string",
-            "title": "Reporter Name"
-          },
-          "reporter_organization": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reporter Organization"
-          },
-          "reporter_role": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reporter Role"
-          },
-          "confirmation_channel": {
-            "type": "string",
-            "title": "Confirmation Channel"
-          },
-          "source_reference": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Reference"
-          },
-          "source_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Date"
-          },
-          "confirmed_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Confirmed At"
-          },
-          "effective_from": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Effective From"
-          },
-          "effective_until": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective Until"
-          },
-          "content_hash": {
-            "type": "string",
-            "title": "Content Hash"
-          },
-          "decision": {
-            "type": "string",
-            "title": "Decision"
-          },
-          "decision_version": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decision Version"
-          },
-          "decision_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decision Reason"
-          },
-          "decision_actor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decision Actor"
-          },
-          "decided_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decided At"
-          },
-          "authority_label": {
-            "type": "string",
-            "title": "Authority Label"
-          },
-          "recorded_by": {
-            "type": "string",
-            "title": "Recorded By"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "need_id",
-          "project_id",
-          "pursuit_id",
-          "predecessor_id",
-          "activity_key",
-          "facility_scope",
-          "fact_type",
-          "value",
-          "reporter_name",
-          "reporter_organization",
-          "reporter_role",
-          "confirmation_channel",
-          "source_reference",
-          "source_date",
-          "confirmed_at",
-          "effective_from",
-          "effective_until",
-          "content_hash",
-          "decision",
-          "decision_version",
-          "decision_reason",
-          "decision_actor",
-          "decided_at",
-          "authority_label",
-          "recorded_by",
-          "created_at"
-        ],
-        "title": "CallFactOut"
-      },
-      "CallFactPageOut": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/CallFactOut"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "limit": {
-            "type": "integer",
-            "title": "Limit"
-          },
-          "offset": {
-            "type": "integer",
-            "title": "Offset"
-          },
-          "next_offset": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Offset"
-          },
-          "current_fact_version": {
-            "type": "integer",
-            "title": "Current Fact Version"
-          },
-          "current_reported_timing_correction_target": {
-            "$ref": "#/components/schemas/TimingCorrectionTargetOut"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset",
-          "next_offset",
-          "current_fact_version",
-          "current_reported_timing_correction_target"
-        ],
-        "title": "CallFactPageOut"
-      },
-      "CallNoteBody": {
-        "properties": {
-          "client_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Client Id"
-          },
-          "note": {
-            "type": "string",
-            "maxLength": 5000,
-            "title": "Note"
-          },
-          "outcome": {
-            "type": "string",
-            "enum": [
-              "Not reached",
-              "Contacted",
-              "Needs follow-up",
-              "Reached buying organization",
-              "Qualified",
-              "No requirement",
-              "Closed"
-            ],
-            "title": "Outcome"
-          },
-          "next_action": {
-            "type": "string",
-            "maxLength": 1000,
-            "title": "Next Action"
-          },
-          "follow_up": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Follow Up"
-          }
-        },
-        "type": "object",
-        "required": [
-          "client_id",
-          "note",
-          "outcome",
-          "next_action"
-        ],
-        "title": "CallNoteBody"
-      },
       "CallNoteOut": {
         "properties": {
           "client_id": {
@@ -6184,199 +3805,8 @@
           "owner",
           "created_at"
         ],
-        "title": "CallNoteOut"
-      },
-      "CandidateReviewRef": {
-        "properties": {
-          "field": {
-            "type": "string",
-            "title": "Field"
-          },
-          "value": {
-            "type": "string",
-            "title": "Value"
-          },
-          "unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
-          },
-          "original_value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Original Value"
-          },
-          "original_unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Original Unit"
-          },
-          "precision": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Precision"
-          },
-          "date_precision": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Date Precision"
-          },
-          "evidence_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Evidence Id"
-          },
-          "evidence_hash": {
-            "type": "string",
-            "pattern": "^[a-f0-9]{64}$",
-            "title": "Evidence Hash"
-          },
-          "quote": {
-            "type": "string",
-            "title": "Quote"
-          },
-          "section": {
-            "type": "string",
-            "title": "Section"
-          },
-          "page": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page"
-          },
-          "span_start": {
-            "type": "integer",
-            "title": "Span Start"
-          },
-          "span_end": {
-            "type": "integer",
-            "title": "Span End"
-          },
-          "publisher": {
-            "type": "string",
-            "title": "Publisher"
-          },
-          "published_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Published Date"
-          },
-          "speaker": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Speaker"
-          },
-          "speaker_organization": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Speaker Organization"
-          },
-          "speaker_role": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Speaker Role"
-          },
-          "support": {
-            "type": "string",
-            "title": "Support"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "source_url": {
-            "type": "string",
-            "title": "Source Url"
-          },
-          "source_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Id"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "field",
-          "value",
-          "evidence_id",
-          "evidence_hash",
-          "quote",
-          "section",
-          "span_start",
-          "span_end",
-          "publisher",
-          "support",
-          "status",
-          "source_url"
-        ],
-        "title": "CandidateReviewRef"
+        "title": "CallNoteOut",
+        "description": "Read-only historical note; no corresponding mutation contract exists."
       },
       "ChangeOut": {
         "properties": {
@@ -6643,101 +4073,6 @@
           "selected_facts"
         ],
         "title": "CommercialAssessmentSupportOut"
-      },
-      "CommercialResearchBody": {
-        "properties": {
-          "question": {
-            "type": "string",
-            "maxLength": 300,
-            "minLength": 12,
-            "title": "Question"
-          }
-        },
-        "type": "object",
-        "required": [
-          "question"
-        ],
-        "title": "CommercialResearchBody"
-      },
-      "CommercialResearchStatusOut": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "ready",
-              "failed",
-              "superseded",
-              "not_requested"
-            ],
-            "title": "Status"
-          },
-          "job_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Job Id"
-          },
-          "input_hash": {
-            "type": "string",
-            "title": "Input Hash"
-          },
-          "generated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Generated At"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Result"
-          },
-          "citations": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Citations"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "status",
-          "input_hash"
-        ],
-        "title": "CommercialResearchStatusOut"
       },
       "CommercialTriageCard": {
         "properties": {
@@ -7970,7 +5305,7 @@
           "confidence": {
             "type": "string",
             "title": "Confidence",
-            "default": "High: literal contact method in current retained evidence"
+            "default": "Literal method attributed to this company in current retained evidence; deliverability and authority unconfirmed"
           },
           "phone_type": {
             "type": "string",
@@ -8090,101 +5425,6 @@
           "limits"
         ],
         "title": "CompanyGraphOut"
-      },
-      "ContactCorrectionBody": {
-        "properties": {
-          "project_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Project Id"
-          },
-          "expected_version": {
-            "type": "string",
-            "maxLength": 80,
-            "minLength": 1,
-            "title": "Expected Version"
-          },
-          "idempotency_key": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Idempotency Key"
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "suppress",
-              "replace",
-              "retract"
-            ],
-            "title": "Action"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "email",
-              "phone",
-              "profile",
-              "website",
-              "general"
-            ],
-            "title": "Kind",
-            "default": "email"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 1000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value"
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Reason"
-          },
-          "source_evidence_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Evidence Id"
-          },
-          "source_hash": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 64,
-                "minLength": 64
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Hash"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "project_id",
-          "expected_version",
-          "idempotency_key",
-          "action",
-          "reason"
-        ],
-        "title": "ContactCorrectionBody"
       },
       "CustomerAccountNeedOut": {
         "properties": {
@@ -8432,76 +5672,6 @@
           "offset"
         ],
         "title": "CustomerAccountsPageOut"
-      },
-      "CustomerMembershipCorrectionBody": {
-        "properties": {
-          "expected_version": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Expected Version"
-          },
-          "idempotency_key": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 8,
-            "title": "Idempotency Key"
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "expected_version",
-          "idempotency_key",
-          "reason"
-        ],
-        "title": "CustomerMembershipCorrectionBody"
-      },
-      "CustomerMembershipCorrectionOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "membership_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Membership Id"
-          },
-          "expected_version": {
-            "type": "integer",
-            "title": "Expected Version"
-          },
-          "action": {
-            "type": "string",
-            "const": "retracted",
-            "title": "Action"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "membership_id",
-          "expected_version",
-          "action",
-          "reason",
-          "created_at"
-        ],
-        "title": "CustomerMembershipCorrectionOut"
       },
       "CustomerProjectOut": {
         "properties": {
@@ -10323,7 +7493,9 @@
           "status": {
             "type": "string",
             "enum": [
-              "Verified",
+              "Source-reported",
+              "User-confirmed",
+              "Evidence-supported",
               "Evidence-supported estimate",
               "Research in progress",
               "Not publicly available",
@@ -10582,186 +7754,6 @@
           "items"
         ],
         "title": "IntelligenceHistoryPageOut"
-      },
-      "IntelligenceJobOut": {
-        "properties": {
-          "job_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Job Id"
-          },
-          "task_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Task Type"
-          },
-          "need_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Need Id"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Result"
-          },
-          "validation_outcome": {
-            "type": "string",
-            "title": "Validation Outcome",
-            "default": "UNKNOWN"
-          },
-          "validation_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Validation Reason"
-          },
-          "provider_response_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider Response Id"
-          },
-          "result_status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Result Status"
-          },
-          "commercial_assessment_support": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CommercialAssessmentSupportOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "evidence_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Evidence Ids"
-          },
-          "logical_call_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Logical Call Id"
-          },
-          "usage": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Usage"
-          },
-          "reserved": {
-            "type": "boolean",
-            "title": "Reserved"
-          },
-          "uncertain": {
-            "type": "boolean",
-            "title": "Uncertain"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          },
-          "completed_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Completed At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "job_id",
-          "task_type",
-          "need_id",
-          "status",
-          "result",
-          "error",
-          "evidence_ids",
-          "logical_call_id",
-          "usage",
-          "reserved",
-          "uncertain",
-          "created_at",
-          "completed_at"
-        ],
-        "title": "IntelligenceJobOut"
       },
       "IntelligenceOperationsOut": {
         "properties": {
@@ -11120,34 +8112,6 @@
         "type": "object",
         "title": "IntelligenceWatchOut"
       },
-      "JobRequest": {
-        "properties": {
-          "task_type": {
-            "type": "string",
-            "maxLength": 80,
-            "minLength": 1,
-            "title": "Task Type"
-          },
-          "question_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 80
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Question Id"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "task_type"
-        ],
-        "title": "JobRequest"
-      },
       "LifecycleEventOut": {
         "properties": {
           "state": {
@@ -11261,169 +8225,6 @@
           "authenticated"
         ],
         "title": "LogoutOut"
-      },
-      "NeedWorkflowEventOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "need_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Need Id"
-          },
-          "project_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Project Id"
-          },
-          "pursuit_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pursuit Id"
-          },
-          "version": {
-            "type": "integer",
-            "title": "Version"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "previous_status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Previous Status"
-          },
-          "expected_version": {
-            "type": "integer",
-            "title": "Expected Version"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "content_hash": {
-            "type": "string",
-            "title": "Content Hash"
-          },
-          "actor": {
-            "type": "string",
-            "title": "Actor"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "need_id",
-          "project_id",
-          "pursuit_id",
-          "version",
-          "status",
-          "previous_status",
-          "expected_version",
-          "reason",
-          "content_hash",
-          "actor",
-          "created_at"
-        ],
-        "title": "NeedWorkflowEventOut"
-      },
-      "NeedWorkflowStatusBody": {
-        "properties": {
-          "client_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Client Id"
-          },
-          "project_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Project Id"
-          },
-          "pursuit_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pursuit Id"
-          },
-          "expected_version": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Expected Version"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 1000,
-            "minLength": 3,
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "client_id",
-          "project_id",
-          "expected_version",
-          "status",
-          "reason"
-        ],
-        "title": "NeedWorkflowStatusBody"
-      },
-      "NeedWorkflowStatusOut": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "version": {
-            "type": "integer",
-            "title": "Version"
-          },
-          "events": {
-            "items": {
-              "$ref": "#/components/schemas/NeedWorkflowEventOut"
-            },
-            "type": "array",
-            "title": "Events"
-          }
-        },
-        "type": "object",
-        "required": [
-          "status",
-          "version",
-          "events"
-        ],
-        "title": "NeedWorkflowStatusOut"
       },
       "OpportunityGroupPageOut": {
         "properties": {
@@ -12161,127 +8962,6 @@
           "evidence"
         ],
         "title": "OpportunityOut"
-      },
-      "OwnerFeedback": {
-        "properties": {
-          "client_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Client Id"
-          },
-          "job_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Job Id"
-          },
-          "logical_call_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Logical Call Id"
-          },
-          "decision": {
-            "type": "string",
-            "enum": [
-              "SUPPORTED",
-              "CONFLICT",
-              "UNRESOLVED",
-              "OTHER"
-            ],
-            "title": "Decision"
-          },
-          "note": {
-            "type": "string",
-            "maxLength": 5000,
-            "minLength": 1,
-            "title": "Note"
-          },
-          "next_action": {
-            "type": "string",
-            "maxLength": 1000,
-            "title": "Next Action",
-            "default": ""
-          },
-          "follow_up": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Follow Up"
-          },
-          "candidate": {
-            "$ref": "#/components/schemas/CandidateReviewRef"
-          },
-          "evidence_refs": {
-            "items": {
-              "$ref": "#/components/schemas/ReviewEvidenceRef"
-            },
-            "type": "array",
-            "maxItems": 12,
-            "minItems": 1,
-            "title": "Evidence Refs"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "client_id",
-          "job_id",
-          "logical_call_id",
-          "decision",
-          "note",
-          "candidate",
-          "evidence_refs"
-        ],
-        "title": "OwnerFeedback"
-      },
-      "OwnerFeedbackOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "client_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Client Id"
-          },
-          "metadata": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Metadata"
-          },
-          "note": {
-            "type": "string",
-            "title": "Note"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "client_id",
-          "metadata",
-          "note",
-          "created_at"
-        ],
-        "title": "OwnerFeedbackOut"
       },
       "PermitFactOut": {
         "properties": {
@@ -14706,22 +11386,6 @@
         ],
         "title": "PursuitsOut"
       },
-      "RefreshOut": {
-        "properties": {
-          "queued": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Queued"
-          }
-        },
-        "type": "object",
-        "required": [
-          "queued"
-        ],
-        "title": "RefreshOut"
-      },
       "RentalValueEstimate": {
         "properties": {
           "currency": {
@@ -15520,34 +12184,6 @@
         ],
         "title": "ResearchSourceCheckOut"
       },
-      "ReviewEvidenceRef": {
-        "properties": {
-          "evidence_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Evidence Id"
-          },
-          "content_hash": {
-            "type": "string",
-            "pattern": "^[a-fA-F0-9]{64}$",
-            "title": "Content Hash"
-          },
-          "source_url": {
-            "type": "string",
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Source Url"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "evidence_id",
-          "content_hash",
-          "source_url"
-        ],
-        "title": "ReviewEvidenceRef"
-      },
       "SessionOut": {
         "properties": {
           "authenticated": {
@@ -15589,119 +12225,100 @@
         ],
         "title": "SignalDecisionCountsOut"
       },
-      "SourceEnabledIn": {
+      "UnifiedSearchCompanyOut": {
         "properties": {
-          "enabled": {
-            "type": "boolean",
-            "title": "Enabled"
+          "company_identity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Identity Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "project_count": {
+            "type": "integer",
+            "title": "Project Count"
+          },
+          "need_count": {
+            "type": "integer",
+            "title": "Need Count"
+          },
+          "supporting_evidence_count": {
+            "type": "integer",
+            "title": "Supporting Evidence Count"
+          },
+          "last_evidence_update": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Evidence Update"
+          },
+          "qualification_tiers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Qualification Tiers"
+          },
+          "highest_priority_need": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highest Priority Need"
           }
         },
         "type": "object",
         "required": [
-          "enabled"
+          "company_identity_id",
+          "name",
+          "aliases",
+          "project_count",
+          "need_count",
+          "supporting_evidence_count",
+          "last_evidence_update",
+          "qualification_tiers"
         ],
-        "title": "SourceEnabledIn"
+        "title": "UnifiedSearchCompanyOut"
       },
-      "SourceEnabledOut": {
+      "UnifiedSearchContactEvidenceOut": {
         "properties": {
           "id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Id"
-          },
-          "registry_enabled": {
-            "type": "boolean",
-            "title": "Registry Enabled"
-          },
-          "operator_enabled": {
-            "type": "boolean",
-            "title": "Operator Enabled"
-          },
-          "effective_enabled": {
-            "type": "boolean",
-            "title": "Effective Enabled"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "registry_enabled",
-          "operator_enabled",
-          "effective_enabled"
-        ],
-        "title": "SourceEnabledOut"
-      },
-      "TimingCorrectionTargetOut": {
-        "properties": {
-          "available": {
-            "type": "boolean",
-            "title": "Available"
-          },
-          "unavailable_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unavailable Reason"
-          },
-          "need_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Need Id"
-          },
-          "project_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Project Id"
-          },
-          "project_identity_key": {
-            "type": "string",
-            "title": "Project Identity Key"
-          },
-          "activity_key": {
-            "type": "string",
-            "title": "Activity Key"
-          },
-          "facility_identity": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Facility Identity"
-          },
-          "source_semantic_hash": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Semantic Hash"
-          },
-          "source_evidence_hash": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Evidence Hash"
           },
           "retained_evidence_id": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "uuid"
               },
               {
                 "type": "null"
@@ -15720,77 +12337,500 @@
             ],
             "title": "Source Id"
           },
-          "earliest_possible_start": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote"
+          },
+          "supports": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supports"
+          },
+          "extraction_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Location"
+          },
+          "published_at": {
             "anyOf": [
               {
                 "type": "string",
-                "format": "date"
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Earliest Possible Start"
+            "title": "Published At"
           },
-          "latest_possible_start": {
+          "observed_at": {
             "anyOf": [
               {
                 "type": "string",
-                "format": "date"
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Latest Possible Start"
+            "title": "Observed At"
           },
-          "minimum_duration_days": {
+          "content_hash": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Minimum Duration Days"
+            "title": "Content Hash"
           },
-          "maximum_duration_days": {
+          "current_source_version_id": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "string",
+                "format": "uuid"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Maximum Duration Days"
+            "title": "Current Source Version Id"
           },
-          "current_fact_version": {
-            "type": "integer",
-            "title": "Current Fact Version"
+          "current_support": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Support"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "UnifiedSearchContactEvidenceOut"
+      },
+      "UnifiedSearchContactMethodOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "value",
+          "source_url"
+        ],
+        "title": "UnifiedSearchContactMethodOut"
+      },
+      "UnifiedSearchContactOut": {
+        "properties": {
+          "company_identity_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Identity Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "need_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "methods": {
+            "items": {
+              "$ref": "#/components/schemas/UnifiedSearchContactMethodOut"
+            },
+            "type": "array",
+            "title": "Methods"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/UnifiedSearchContactEvidenceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "verification_status": {
+            "type": "string",
+            "const": "Source linked; reachability and authority unconfirmed",
+            "title": "Verification Status"
           }
         },
         "type": "object",
         "required": [
-          "available",
-          "unavailable_reason",
-          "need_id",
+          "company_identity_id",
           "project_id",
-          "project_identity_key",
-          "activity_key",
-          "facility_identity",
-          "source_semantic_hash",
-          "source_evidence_hash",
-          "retained_evidence_id",
-          "source_id",
-          "earliest_possible_start",
-          "latest_possible_start",
-          "minimum_duration_days",
-          "maximum_duration_days",
-          "current_fact_version"
+          "need_id",
+          "name",
+          "title",
+          "organization",
+          "methods",
+          "sources",
+          "verification_status"
         ],
-        "title": "TimingCorrectionTargetOut"
+        "title": "UnifiedSearchContactOut"
+      },
+      "UnifiedSearchOpportunityOut": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "need_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Need Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity"
+          },
+          "required_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Mw"
+          },
+          "start_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Window"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "supply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply"
+          },
+          "commercial_preview": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Preview"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "need_id",
+          "project_id"
+        ],
+        "title": "UnifiedSearchOpportunityOut"
+      },
+      "UnifiedSearchOut": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/UnifiedSearchProjectOut"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "companies": {
+            "items": {
+              "$ref": "#/components/schemas/UnifiedSearchCompanyOut"
+            },
+            "type": "array",
+            "title": "Companies"
+          },
+          "companies_status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "qualification_pending"
+            ],
+            "title": "Companies Status"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/UnifiedSearchContactOut"
+            },
+            "type": "array",
+            "title": "Contacts"
+          },
+          "opportunities": {
+            "items": {
+              "$ref": "#/components/schemas/UnifiedSearchOpportunityOut"
+            },
+            "type": "array",
+            "title": "Opportunities"
+          },
+          "opportunities_status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "qualification_pending"
+            ],
+            "title": "Opportunities Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "projects",
+          "companies",
+          "companies_status",
+          "contacts",
+          "opportunities",
+          "opportunities_status"
+        ],
+        "title": "UnifiedSearchOut"
+      },
+      "UnifiedSearchProjectOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "need_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Need Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "region_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region State"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "need_id",
+          "name",
+          "location",
+          "region_state",
+          "updated_at"
+        ],
+        "title": "UnifiedSearchProjectOut"
       },
       "UnresolvedCustomerProjectOut": {
         "properties": {
@@ -15926,91 +12966,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "WatchRequest": {
-        "properties": {
-          "sources": {
-            "items": {
-              "$ref": "#/components/schemas/WatchSource"
-            },
-            "type": "array",
-            "maxItems": 12,
-            "minItems": 1,
-            "title": "Sources"
-          },
-          "question_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array",
-                "maxItems": 12
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Question Ids"
-          },
-          "enabled": {
-            "type": "boolean",
-            "title": "Enabled",
-            "default": true
-          },
-          "reprocess_revision": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 80
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reprocess Revision"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "sources"
-        ],
-        "title": "WatchRequest"
-      },
-      "WatchSource": {
-        "properties": {
-          "source_id": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Source Id"
-          },
-          "allowed_urls": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 20,
-            "minItems": 1,
-            "title": "Allowed Urls"
-          },
-          "record_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 5,
-            "title": "Record Ids"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "source_id",
-          "allowed_urls"
-        ],
-        "title": "WatchSource"
       },
       "WorkspaceChangeCountsOut": {
         "properties": {
@@ -16496,82 +13451,6 @@
           "source_health_exceptions"
         ],
         "title": "WorkspaceChangesOut"
-      },
-      "WorkspaceChangesReviewBody": {
-        "properties": {
-          "baseline_identity": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Baseline Identity"
-          },
-          "token": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$",
-            "title": "Token"
-          },
-          "limit": {
-            "type": "integer",
-            "maximum": 50.0,
-            "minimum": 1.0,
-            "title": "Limit",
-            "default": 50
-          },
-          "offset": {
-            "type": "integer",
-            "maximum": 100000.0,
-            "minimum": 0.0,
-            "title": "Offset",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": [
-          "baseline_identity",
-          "token"
-        ],
-        "title": "WorkspaceChangesReviewBody"
-      },
-      "WorkspaceChangesReviewReceiptOut": {
-        "properties": {
-          "baseline_identity": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Baseline Identity"
-          },
-          "reviewed_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Reviewed At"
-          },
-          "reviewed_count": {
-            "type": "integer",
-            "title": "Reviewed Count"
-          },
-          "event_keys": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Event Keys"
-          },
-          "token": {
-            "type": "string",
-            "title": "Token"
-          },
-          "remaining_counts": {
-            "$ref": "#/components/schemas/WorkspaceChangeCountsOut"
-          }
-        },
-        "type": "object",
-        "required": [
-          "baseline_identity",
-          "reviewed_at",
-          "reviewed_count",
-          "event_keys",
-          "token",
-          "remaining_counts"
-        ],
-        "title": "WorkspaceChangesReviewReceiptOut"
       },
       "WorkspaceHistoricalEvidenceOut": {
         "properties": {

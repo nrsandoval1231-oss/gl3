@@ -24,9 +24,7 @@ from gridlens.intelligence.buying_chain import (
     enrich_buying_chain,
 )
 from gridlens.intelligence.buying_chain_corrections import (
-    _has_current_semantic_support,
     _ordered_correction_chain,
-    correct_buying_chain_claim,
     overlay_corrections,
 )
 from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
@@ -44,6 +42,7 @@ from gridlens.persistence.models import (
     BuyingChainIdentityLink,
     BuyingChainRun,
     CompanyIdentity,
+    CompanyProjectMembership,
     Evidence,
     IdentityIdentifier,
     Interpretation,
@@ -161,6 +160,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
     import json
 
     import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.domain.evaluation_clock import evaluate_at
     from gridlens.intelligence.company_contacts import company_contacts
     from gridlens.persistence.models import CompanyProjectMembership, Job
 
@@ -205,6 +205,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         job.lease_owner = "contact-test"
         job.fence = 1
         job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job.created_at = NOW
         job_id, company_id = job.id, identity.id
 
     monkeypatch.setattr(discovery, "SessionLocal", db)
@@ -261,7 +262,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
     result = discovery.process_company_contact_discovery(
         job_id, "contact-test", 1, now=NOW, deadline=inherited_deadline
     )
-    assert result["status"] == "complete"
+    assert result["status"] == "complete", result
     assert seen_deadlines and all(value == inherited_deadline for value in seen_deadlines)
     with db.begin() as session:
         projected = company_contacts(session, company_id)
@@ -299,6 +300,60 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
             for url in checkpoint["checked_urls"]
             for path in ("/investors/", "/careers/")
         )
+
+        contact_page_url = "https://www.eogresources.com/company/contacts/"
+        refresh_at = NOW + timedelta(days=30)
+        with evaluate_at(refresh_at):
+            due_projection = company_contacts(session, company_id)
+            assert any(contact.methods for contact in due_projection.contacts)
+            assert contact_page_url in discovery._known_contact_urls(session, company_id, [project])
+            assert discovery.plan_company_contact_jobs(session, limit=1, now=refresh_at) == 1
+        refresh_job = session.scalar(
+            select(Job)
+            .where(
+                Job.kind == discovery.JOB_KIND,
+                Job.target_id == company_id,
+                Job.status == "queued",
+            )
+            .order_by(Job.created_at.desc(), Job.id.desc())
+        )
+        assert refresh_job is not None
+        refresh_payload = json.loads(refresh_job.checkpoint)["payload"]
+        assert refresh_payload["refresh_due"] is True
+        first_refresh_digest = json.loads(refresh_job.checkpoint)["request_digest"]
+        first_refresh_generation = json.loads(refresh_job.checkpoint)["refresh_generation"]
+        # Simulate the worker process failing before it can write a terminal
+        # receipt. The planner retries this generation after its one-hour
+        # failure backoff.
+        refresh_checkpoint = json.loads(refresh_job.checkpoint)
+        refresh_checkpoint["status"] = "failed"
+        refresh_job.checkpoint = json.dumps(refresh_checkpoint, separators=(",", ":"))
+        refresh_job.status = "failed"
+        refresh_job.error = "Synthetic worker failure before refresh receipt"
+        retry_at = refresh_at + timedelta(hours=1)
+        with evaluate_at(retry_at):
+            assert discovery.plan_company_contact_jobs(session, limit=1, now=retry_at) == 1
+        retry_job = session.scalar(
+            select(Job)
+            .where(
+                Job.kind == discovery.JOB_KIND,
+                Job.target_id == company_id,
+                Job.status == "queued",
+            )
+            .order_by(Job.created_at.desc(), Job.id.desc())
+        )
+        assert retry_job is not None and retry_job.id != refresh_job.id
+        retry_checkpoint = json.loads(retry_job.checkpoint)
+        assert retry_checkpoint["request_digest"] == first_refresh_digest
+        assert retry_checkpoint["refresh_generation"] == first_refresh_generation
+        assert retry_checkpoint["payload"]["refresh_due"] is True
+        retry_job.status, retry_job.lease_owner, retry_job.fence = (
+            "running",
+            "contact-test",
+            1,
+        )
+        retry_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        refresh_job_id = retry_job.id
         before_counts = (
             session.scalar(select(func.count()).select_from(BuyingChainClaim)),
             session.scalar(select(func.count()).select_from(BuyingChainEvidence)),
@@ -308,6 +363,52 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
             session.scalar(select(func.count()).select_from(BuyingChainClaim)),
             session.scalar(select(func.count()).select_from(BuyingChainEvidence)),
             session.scalar(select(func.count()).select_from(CompanyIdentity)),
+        )
+
+    refreshed_urls = []
+
+    def refreshed_contact_page(url, **_kwargs):
+        refreshed_urls.append(url)
+        return PublicDocument(
+            url,
+            "EOG Resources Contact",
+            "EOG Resources corporate headquarters\n"
+            "Phone: (713) 651-7000\n"
+            "Email: info@eogresources.com.\n"
+            "\ufffd 2018-2026 EOG Resources, Inc. All rights reserved.",
+            observed_at=retry_at,
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", refreshed_contact_page)
+    monkeypatch.setattr(
+        discovery,
+        "_search_official_urls",
+        lambda *_args, **_kwargs: pytest.fail("stale cited URL should bypass paid discovery"),
+    )
+    with evaluate_at(retry_at):
+        refreshed = discovery.process_company_contact_discovery(
+            refresh_job_id,
+            "contact-test",
+            1,
+            now=retry_at,
+            deadline=time.monotonic() + 10,
+        )
+    assert refreshed["status"] == "complete"
+    assert contact_page_url in refreshed_urls
+    assert all("eogresources.com" in url for url in refreshed_urls)
+    with evaluate_at(retry_at), db() as session:
+        current_projection = company_contacts(session, company_id)
+        assert any(
+            method["value"] == "info@eogresources.com"
+            for contact in current_projection.contacts
+            for method in contact.methods
+        )
+    with evaluate_at(refresh_at + timedelta(days=1)), db() as session:
+        day_31_projection = company_contacts(session, company_id)
+        assert any(
+            method["value"] == "info@eogresources.com"
+            for contact in day_31_projection.contacts
+            for method in contact.methods
         )
     # A new checkpoint opens a new transaction and must reuse the same job.
     with db.begin() as session:
@@ -598,18 +699,24 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("include_generic_route", "include_named_methods"),
-    [(False, True), (True, True), (False, False)],
-    ids=("named-only", "named-plus-generic", "methodless-named-roles"),
+    ("official_path", "include_generic_route", "include_named_methods"),
+    [
+        ("/team", False, True),
+        ("/team", True, True),
+        ("/team", False, False),
+        ("/people", False, True),
+    ],
+    ids=("team-named-only", "team-named-plus-generic", "team-methodless-roles", "people-named"),
 )
 def test_official_team_cards_persist_named_methods_without_generic_duplicates(
-    db, monkeypatch, include_generic_route, include_named_methods
+    db, monkeypatch, official_path, include_generic_route, include_named_methods
 ):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.intelligence.company_contacts import company_contacts
     from gridlens.persistence.models import Job
 
     fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    team_url = f"https://www.mesltdtx.com{official_path}"
     html = fixture.read_bytes()
     if not include_generic_route:
         html = html.replace(b"<p>For general company assistance, use info@mesltdtx.com.</p>", b"")
@@ -641,7 +748,7 @@ def test_official_team_cards_persist_named_methods_without_generic_duplicates(
         queued = discovery.discover_company_contacts(
             session,
             company_id,
-            candidate_urls=["https://www.mesltdtx.com/team"],
+            candidate_urls=[team_url],
             now=NOW,
         )
         job = session.get(Job, UUID(queued["job_id"]))
@@ -681,11 +788,7 @@ def test_official_team_cards_persist_named_methods_without_generic_duplicates(
             assert person["category"] == (
                 "procurement" if name == "Christopher Brannon" else "electrical_contractor"
             )
-            person_evidence = [
-                item
-                for item in person["evidence"]
-                if item["url"] == "https://www.mesltdtx.com/team"
-            ]
+            person_evidence = [item for item in person["evidence"] if item["url"] == team_url]
             assert person_evidence
             if include_named_methods:
                 contact_evidence = [
@@ -759,11 +862,22 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
 
     fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
     html = fixture.read_bytes()
-    card_doc = replace(
-        parse_document(team_url, html, "text/html"),
-        observed_at=NOW,
-        published_at=published_at,
-    )
+    parsed_card_doc = parse_document(team_url, html, "text/html")
+    card_doc = replace(parsed_card_doc, observed_at=NOW, published_at=published_at)
+    if team_url.endswith("/people"):
+        # Model a page with ordinary prose but no parser-confirmed card structure.
+        card_doc = replace(
+            card_doc,
+            person_cards=(),
+            structured=(),
+            links=(),
+            text=(
+                "Masters Electrical Services. Jordan Smith is an electrician. "
+                "For general company assistance, use info@mesltdtx.com.\n"
+                "© 2026 Masters Electrical Services"
+            ),
+        )
+        assert not card_doc.person_cards
     with db.begin() as session:
         project = seed(session, external_id="mes-stale-person-methods")
         project.region_status = "ELIGIBLE"
@@ -790,16 +904,20 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
         )
         company_id = UUID(company["company_identity_id"])
         old_claim = session.get(BuyingChainClaim, UUID(str(company["id"])))
-        old_methods = [
-            {
-                "kind": "email",
-                "value": card.href.removeprefix("mailto:"),
-                "source_url": team_url,
-                "quote": card.contact_text,
-                "observed_at": NOW.isoformat(),
-            }
-            for card in card_doc.person_cards
-        ]
+        old_methods = (
+            []
+            if team_url.endswith("/people")
+            else [
+                {
+                    "kind": "email",
+                    "value": card.href.removeprefix("mailto:"),
+                    "source_url": team_url,
+                    "quote": card.contact_text,
+                    "observed_at": NOW.isoformat(),
+                }
+                for card in parsed_card_doc.person_cards
+            ]
+        )
         company_method = {
             "kind": "email",
             "value": "info@mesltdtx.com",
@@ -828,7 +946,7 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
 
         assert refreshed["status"] == "complete"
         assert refreshed["named_professionals"] == 0
-        assert refreshed["contacts"] == 1
+        assert refreshed["contacts"] == 1, refreshed
         assert refreshed["reason"] == "generic_public_methods_persisted"
         projection = company_contacts(session, company_id)
         generic = [contact for contact in projection.contacts if contact.name is None]
@@ -837,8 +955,9 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
         assert old_claim.public_contacts == prior_methods
 
 
+@pytest.mark.parametrize("refresh_generation", [None, "owner-retry-generation-20261026"])
 def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_company_route(
-    db, monkeypatch
+    db, monkeypatch, refresh_generation
 ):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.intelligence.company_contacts import company_contacts
@@ -950,6 +1069,7 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
             company_id,
             candidate_urls=[team_url],
             now=NOW + timedelta(days=31),
+            refresh_generation=refresh_generation,
         )
         second_job = session.get(Job, UUID(queued["job_id"]))
         assert second_job.id != first_job_id
@@ -1038,6 +1158,7 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
             company_id,
             candidate_urls=[team_url],
             now=NOW + timedelta(days=31),
+            refresh_generation=refresh_generation,
         )
         assert replay_job["job_id"] == str(second_job_id)
         assert replay_job["deduplicated"] is True
@@ -1057,6 +1178,23 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
         )
         assert [run.id for run in session.scalars(select(BuyingChainRun))] == run_ids_after
         assert company_contacts(session, company_id).model_dump(mode="json") == projection_after
+
+    # A stable replay generation must not hide a changed business need.
+    with db.begin() as session:
+        need = session.scalar(select(PowerNeed).where(PowerNeed.project_id == project_id))
+        assert need is not None
+        need.required_mw = "2 MW"
+    with db.begin() as session:
+        changed_need_job = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=[team_url],
+            now=NOW + timedelta(days=31),
+            refresh_generation=refresh_generation,
+        )
+        assert changed_need_job["job_id"]
+        assert changed_need_job["job_id"] != str(second_job_id)
+        assert changed_need_job.get("deduplicated") is not True
 
 
 def test_membership_link_never_binds_other_company_in_same_retained_article(db):
@@ -1327,9 +1465,12 @@ def test_exact_rrc_registry_phone_is_company_scoped(db, monkeypatch):
     assert discovery._rrc_public_method(wrong_company, "123456", "EOG Resources") is None
 
 
-def test_contact_planner_pages_past_recent_companies(db):
+def test_contact_planner_pages_past_recent_companies(db, monkeypatch):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.persistence.models import Job
+    from gridlens.settings import settings
+
+    monkeypatch.setattr(settings, "company_contact_discovery_enabled", False)
 
     with db.begin() as session:
         project = seed(session, external_id="contact-planner-page")
@@ -1349,6 +1490,182 @@ def test_contact_planner_pages_past_recent_companies(db):
         jobs = session.scalars(select(Job).where(Job.kind == discovery.JOB_KIND)).all()
         assert len(jobs) == 2
         assert len({job.target_id for job in jobs}) == 2
+
+
+def test_contact_planner_skips_unresolvable_company_and_reaches_later_anchor(db):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import CompanyIdentity, CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        unresolvable = seed(session, external_id="contact-unresolvable-first")
+        resolvable = seed(
+            session,
+            external_id="contact-resolvable-second",
+            identity_key="contact-resolvable-second",
+        )
+        unresolvable.region_status = resolvable.region_status = "ELIGIBLE"
+        identities = [CompanyIdentity(id=UUID(int=1)), CompanyIdentity(id=UUID(int=2))]
+        session.add_all(identities)
+        session.flush()
+        for project, identity, version_hash in (
+            (unresolvable, identities[0], "missing-source-version"),
+            (resolvable, identities[1], "a"),
+        ):
+            evidence = session.scalar(
+                select(Evidence)
+                .join(Observation)
+                .where(Observation.external_id == project.external_id)
+            )
+            assert evidence is not None
+            if project is resolvable:
+                evidence.abstract = (
+                    "Beta is the owner developer for Orion Data Center in Austin, TX."
+                )
+                interpretation = session.scalar(
+                    select(Interpretation).where(
+                        Interpretation.observation_id == evidence.observation_id
+                    )
+                )
+                assert interpretation is not None
+                interpretation.assessment = {
+                    **interpretation.assessment,
+                    "project_identity_key": project.identity_key,
+                }
+            session.add(
+                CompanyProjectMembership(
+                    company_identity_id=identity.id,
+                    project_id=project.id,
+                    role="owner_developer",
+                    organization_name="Beta" if project is resolvable else "Missing Source Co",
+                    source_id="test",
+                    source_evidence_id=evidence.id,
+                    source_version_hash=version_hash,
+                    decision_basis="typed_owner_membership_v1",
+                    operator_number="000000",
+                    state="current",
+                )
+            )
+        queued = discovery.plan_company_contact_jobs(session, limit=1, now=NOW)
+        assert queued == 1
+        jobs = session.scalars(select(Job).where(Job.kind == discovery.JOB_KIND)).all()
+        by_company = {job.target_id: job for job in jobs}
+        assert by_company[identities[0].id].status == "succeeded"
+        assert json.loads(by_company[identities[0].id].checkpoint)["planner_receipt"] is True
+        assert by_company[identities[1].id].status == "queued"
+
+
+def test_due_unresolved_contact_search_can_be_enqueued_again_in_same_epoch(db):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import CompanyIdentity, CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-unresolved-retry")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence).join(Observation).where(Observation.external_id == project.external_id)
+        )
+        assert evidence is not None
+        identity = CompanyIdentity(id=UUID(int=77))
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="owner_developer",
+                organization_name="Orion Development",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_owner_membership_v1",
+                operator_number="000077",
+                state="current",
+            )
+        )
+        session.flush()
+        start_day = date.fromordinal((NOW.date().toordinal() // 30 + 1) * 30 + 1)
+        start = datetime.combine(start_day, datetime.min.time(), tzinfo=UTC)
+        initial = discovery.discover_company_contacts(session, identity.id, now=start)
+        assert initial["status"] == "queued"
+        first = session.get(Job, UUID(initial["job_id"]))
+        assert first is not None
+        first.status = "succeeded"
+        checkpoint = json.loads(first.checkpoint)
+        checkpoint.update(
+            status="unresolved",
+            completed_at=start.isoformat(),
+            retry_after=(start + timedelta(days=7)).isoformat(),
+        )
+        first.checkpoint = json.dumps(checkpoint)
+        retry_at = start + timedelta(days=8)
+        assert retry_at.date().toordinal() // 30 == start.date().toordinal() // 30
+        retried = discovery.discover_company_contacts(session, identity.id, now=retry_at)
+        assert retried["status"] == "queued"
+        assert retried["deduplicated"] is False
+        assert retried["job_id"] != initial["job_id"]
+
+
+def test_expired_public_contact_method_is_hidden_but_company_relationship_survives(db):
+    from gridlens.domain.evaluation_clock import evaluate_at
+    from gridlens.intelligence.company_contact_discovery import _known_contact_urls
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    with db.begin() as session:
+        project = seed(session, external_id="aging-contact-method")
+        retained = session.scalar(select(Evidence))
+        assert retained is not None
+        retained.abstract = "Acme is the general contractor for Orion Data Center in Austin, TX."
+        contact_quote = "Acme email: contact@acme.example"
+        fetched = PublicDocument(
+            URL,
+            retained.title,
+            f"{retained.title}\n{retained.abstract}\n{contact_quote}",
+            date(2026, 9, 21),
+            NOW,
+        )
+        initial = enrich_buying_chain(session, project.id, fetcher=lambda _url: fetched, now=NOW)
+        acme = next(item for item in initial["candidates"] if item["organization"] == "Acme")
+        assert [row["value"] for row in acme["public_contacts"]] == ["contact@acme.example"]
+        old = NOW + timedelta(days=366)
+        current = buying_chain_view(session, project.id, now=old)
+        acme = next(item for item in current["candidates"] if item["organization"] == "Acme")
+        assert acme["organization_relationship"] == "DIRECT"
+        assert acme["stale"] is False
+        assert acme["public_contacts"] == []
+        source = next(
+            row
+            for row in session.scalars(
+                select(BuyingChainEvidence).where(
+                    BuyingChainEvidence.project_id == project.id,
+                    BuyingChainEvidence.retained_evidence_id.is_(None),
+                )
+            )
+            if contact_quote in row.excerpt
+        )
+        evidence_row = next(
+            row
+            for row in acme["evidence"]
+            if str(row["id"]) == str(source.id) and row["supports"] == "public_contact"
+        )
+        assert evidence_row["contact_stale"] is True
+        link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == UUID(str(acme["id"])),
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert link is not None and link.company_identity_id is not None
+        with evaluate_at(old):
+            refreshed_projection = company_contacts(session, link.company_identity_id)
+            assert refreshed_projection.research_required is True
+            assert all(not contact.methods for contact in refreshed_projection.contacts)
+            discovery_urls = _known_contact_urls(session, link.company_identity_id, [project])
+        assert URL in discovery_urls
 
 
 def test_contact_anchor_skips_stale_member_project_for_current_later_source(db):
@@ -1511,7 +1828,7 @@ def test_contact_search_uses_one_accounted_logical_call(db, monkeypatch, uncerta
                 state="current",
             )
         )
-        queued = discovery.discover_company_contacts(session, identity.id)
+        queued = discovery.discover_company_contacts(session, identity.id, now=NOW)
         job = session.get(Job, UUID(queued["job_id"]))
         job.status, job.lease_owner, job.fence = "running", "contact-test", 1
         job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
@@ -1558,7 +1875,10 @@ def test_contact_search_uses_one_accounted_logical_call(db, monkeypatch, uncerta
         assert logical is not None
         assert checkpoint["search_logical_call_id"] == str(logical.id)
         assert logical.status == ("SENT_OUTCOME_UNKNOWN" if uncertain else "COMPLETED")
-        replay = discovery.discover_company_contacts(session, company_id)
+        # The worker outcome uses the synthetic NOW clock, so replay it against
+        # that same instant; a real-time retry after the 7-day unresolved delay
+        # is a different scenario and must not be mistaken for immediate dedupe.
+        replay = discovery.discover_company_contacts(session, company_id, now=NOW)
         assert replay["job_id"] == str(job_id)
         assert replay["deduplicated"] is True
     assert len(calls) == 1
@@ -1617,8 +1937,12 @@ def test_no_hint_contact_job_identity_survives_discovery_and_refresh_epoch(db, m
         "retrieve",
         lambda url, **_kwargs: PublicDocument(
             url,
-            "Acme Contact",
-            "Acme company contact. Email: info@acme.example.\n© 2026 Acme. All rights reserved.",
+            "Acme Contact" if url == contact_url else "Acme owner filing",
+            (
+                "Acme company contact. Email: info@acme.example.\n© 2026 Acme. All rights reserved."
+                if url == contact_url
+                else "Acme is the project owner."
+            ),
             observed_at=NOW,
         ),
     )
@@ -1649,12 +1973,16 @@ def test_no_hint_contact_job_identity_survives_discovery_and_refresh_epoch(db, m
     assert second["status"] == "complete"
     assert len(search_calls) == 1  # The new epoch reused the verified checked URL.
     with db.begin() as session:
-        assert json.loads(session.get(Job, fresh_id).checkpoint)["checked_urls"] == [contact_url]
+        assert json.loads(session.get(Job, fresh_id).checkpoint)["checked_urls"] == [
+            contact_url,
+            URL,
+        ]
+        contacts = company_contacts(session, company_id).contacts
         assert any(
             method["value"] == "info@acme.example"
-            for contact in company_contacts(session, company_id).contacts
+            for contact in contacts
             for method in contact.methods
-        )
+        ), repr(contacts)
 
 
 def test_company_site_gate_rejects_government_and_third_party_mentions():
@@ -2800,1047 +3128,16 @@ def test_api_auth_origin_unknown_project_and_url_bound(db, monkeypatch):
     client = TestClient(api.app)
     path = f"/api/projects/{p.id}/buying-chain"
     assert client.get(path).status_code == 401
-    assert client.post(path + "/enrich").status_code == 401
+    assert client.post(path + "/enrich").status_code == 404
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     assert client.get(path).json()["status"] == "not_researched"
     assert (
-        client.post(path + "/enrich", headers={"origin": "https://evil.example"}).status_code == 403
+        client.post(path + "/enrich", headers={"origin": "https://evil.example"}).status_code == 404
     )
-    assert (
-        client.post(path + "/enrich", json={"source_urls": ["https://127.0.0.1"]}).status_code
-        == 422
-    )
-    assert client.post(path + "/enrich", json={"source_urls": [URL] * 5}).status_code == 422
     assert (
         client.get("/api/projects/00000000-0000-0000-0000-000000000000/buying-chain").status_code
         == 404
     )
-
-
-def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one_project(
-    db, monkeypatch
-):
-    api = import_module("gridlens.api.app")
-    monkeypatch.setattr(api, "SessionLocal", db)
-    with db.begin() as session:
-        project_a = seed(session, external_id="correction-a", identity_key="correction-a")
-        project_b = seed(session, external_id="correction-b", identity_key="correction-b")
-        for project, external_id in ((project_a, "correction-a"), (project_b, "correction-b")):
-            observation = session.scalar(
-                select(Observation).where(Observation.external_id == external_id)
-            )
-            interpretation = session.scalar(
-                select(Interpretation).where(Interpretation.observation_id == observation.id)
-            )
-            interpretation.assessment = {
-                **interpretation.assessment,
-                "project_identity_key": project.identity_key,
-            }
-        a = enrich_buying_chain(
-            session,
-            project_a.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX."
-            ),
-            now=NOW,
-        )
-        b = enrich_buying_chain(
-            session,
-            project_b.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX."
-            ),
-            now=NOW,
-        )
-        candidate = a["candidates"][0]
-        claim_id, project_id = candidate["id"], project_a.id
-        evidence = candidate["evidence"][0]
-        payload = {
-            "expected_version": candidate["fingerprint"],
-            "idempotency_key": "correction-test-001",
-            "action": "correct",
-            "values": {"category": "general_contractor"},
-            "source_evidence_id": str(evidence["id"]),
-            "source_hash": evidence["content_hash"],
-            "reason": "Operator verified title in cited source.",
-        }
-    client = TestClient(api.app)
-    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
-    import gridlens.intelligence.buying_chain_corrections as corrections
-
-    class SameTimestamp(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return NOW
-
-    monkeypatch.setattr(corrections, "datetime", SameTimestamp)
-    assert client.post(path, json=payload).status_code == 401
-    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    assert (
-        client.post(path, headers={"origin": "https://evil.example"}, json=payload).status_code
-        == 403
-    )
-    response = client.post(path, headers={"origin": "http://testserver"}, json=payload)
-    assert response.status_code == 200, response.text
-    replay = client.post(path, headers={"origin": "http://testserver"}, json=payload)
-    assert replay.json()["id"] == response.json()["id"]
-    sequential = {
-        **payload,
-        "expected_version": response.json()["id"],
-        "idempotency_key": "correction-test-002",
-        "values": {"organization_relationship": "UNKNOWN"},
-    }
-    second = client.post(path, headers={"origin": "http://testserver"}, json=sequential)
-    assert second.status_code == 200, second.text
-    second_replay = client.post(path, headers={"origin": "http://testserver"}, json=sequential)
-    assert second_replay.status_code == 200, second_replay.text
-    assert second_replay.json()["id"] == second.json()["id"]
-    stale = {**payload, "idempotency_key": "correction-test-008"}
-    assert client.post(path, headers={"origin": "http://testserver"}, json=stale).status_code == 409
-    current = client.get(f"/api/projects/{project_id}/buying-chain").json()
-    edited = next(item for item in current["candidates"] if item["id"] == str(claim_id))
-    assert edited["category"] == "general_contractor"
-    assert edited["correction_version"] == second.json()["id"]
-    unsupported_contact = {
-        "expected_version": second.json()["id"],
-        "idempotency_key": "correction-test-005",
-        "action": "correct",
-        "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0100"},
-        "source_evidence_id": str(evidence["id"]),
-        "source_hash": evidence["content_hash"],
-        "reason": "Attempted contact correction without a contact citation.",
-    }
-    assert (
-        client.post(
-            path, headers={"origin": "http://testserver"}, json=unsupported_contact
-        ).status_code
-        == 422
-    )
-    changed_hash = {
-        **unsupported_contact,
-        "idempotency_key": "correction-test-006",
-        "source_hash": "f" * 64,
-    }
-    assert (
-        client.post(path, headers={"origin": "http://testserver"}, json=changed_hash).status_code
-        == 422
-    )
-    arbitrary_identity = {
-        "expected_version": second.json()["id"],
-        "idempotency_key": "correction-test-007",
-        "action": "correct",
-        "values": {},
-        "source_evidence_id": str(evidence["id"]),
-        "source_hash": evidence["content_hash"],
-        "identity_type": "company",
-        "identity_id": "00000000-0000-0000-0000-000000000001",
-        "reason": "Attempted identity reference without an existing reviewed identity.",
-    }
-    assert (
-        client.post(
-            path, headers={"origin": "http://testserver"}, json=arbitrary_identity
-        ).status_code
-        == 422
-    )
-    unsupported_readback = client.get(f"/api/projects/{project_id}/buying-chain")
-    assert unsupported_readback.status_code == 200, unsupported_readback.text
-    unsupported_candidate = next(
-        item for item in unsupported_readback.json()["candidates"] if item["id"] == str(claim_id)
-    )
-    assert unsupported_candidate["company_identity_id"] == str(candidate["company_identity_id"])
-    with db.begin() as session:
-        session.add(
-            BuyingChainEvidence(
-                project_id=project_id,
-                url=evidence["url"],
-                title="Updated article",
-                excerpt="Updated article with no current buyer or contact claim.",
-                content_hash="b" * 64,
-                extraction_location="article body",
-                published_at=date(2026, 9, 21),
-                observed_at=NOW + timedelta(days=1),
-                last_seen_at=NOW + timedelta(days=1),
-                project_match_reason="same test project",
-            )
-        )
-    stale_history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()
-    stale_item = next(item for item in stale_history["candidates"] if item["id"] == str(claim_id))
-    assert stale_item["correction_stale"] is True
-    assert stale_item["category"] == "general_contractor"
-    assert len(stale_item["correction_history"]) == 2
-    replay_after_stale = client.post(path, headers={"origin": "http://testserver"}, json=payload)
-    assert replay_after_stale.status_code == 200, replay_after_stale.text
-    assert replay_after_stale.json()["id"] == response.json()["id"]
-    stale_current = client.get(f"/api/projects/{project_id}/buying-chain").json()
-    assert all(item["id"] != str(claim_id) for item in stale_current["candidates"])
-    report = {
-        "expected_version": second.json()["id"],
-        "idempotency_key": "correction-test-003",
-        "action": "correct",
-        "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0100"},
-        "reason": "Operator reported a contact during a call.",
-        "reported_contact": True,
-    }
-    reported = client.post(path, headers={"origin": "http://testserver"}, json=report)
-    assert reported.status_code == 409, reported.text
-    retract = {
-        "expected_version": second.json()["id"],
-        "idempotency_key": "correction-test-004",
-        "action": "retract",
-        "reason": "Operator withdrew the relationship.",
-        "reported_contact": True,
-    }
-    retracted = client.post(path, headers={"origin": "http://testserver"}, json=retract)
-    assert retracted.status_code == 409, retracted.text
-    assert all(
-        item["id"] != str(claim_id)
-        for item in client.get(f"/api/projects/{project_id}/buying-chain").json()["candidates"]
-    )
-    history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()
-    edited_history = next(item for item in history["candidates"] if item["id"] == str(claim_id))
-    assert edited_history["category"] == "general_contractor"
-    assert edited_history["correction_version"] == second.json()["id"]
-    assert len(edited_history["correction_history"]) == 2
-    assert [row["id"] for row in edited_history["correction_history"]] == [
-        response.json()["id"],
-        second.json()["id"],
-    ]
-    assert (
-        edited_history["correction_history"][0]["created_at"]
-        == edited_history["correction_history"][1]["created_at"]
-    )
-
-    original_view = corrections.buying_chain_view
-
-    def stale_chain_with_current_citation(session, selected_project_id, **kwargs):
-        result = original_view(session, selected_project_id, **kwargs)
-        item = next(
-            (
-                candidate
-                for candidate in result["candidates"]
-                if str(candidate["id"]) == str(claim_id)
-            ),
-            None,
-        )
-        if item is None:
-            return result
-        item["correction_stale"] = True
-        item["stale"] = False
-        current_citation = next(
-            item for item in item["evidence"] if str(item["id"]) == str(evidence["id"])
-        )
-        current_citation.update(
-            current_source_version_id=evidence["id"],
-            content_hash=evidence["content_hash"],
-            current_support=True,
-        )
-        return result
-
-    monkeypatch.setattr(corrections, "buying_chain_view", stale_chain_with_current_citation)
-    current_cited = {
-        "expected_version": second.json()["id"],
-        "idempotency_key": "correction-after-stale-chain",
-        "action": "correct",
-        "values": {"category": "electrical_contractor"},
-        "source_evidence_id": str(evidence["id"]),
-        "source_hash": evidence["content_hash"],
-        "reason": "Attempted a current-cited correction after stale history.",
-    }
-    blocked_current_cited = client.post(
-        path, headers={"origin": "http://testserver"}, json=current_cited
-    )
-    assert blocked_current_cited.status_code == 409, blocked_current_cited.text
-    with db() as session:
-        assert (
-            session.scalar(
-                select(func.count())
-                .select_from(BuyingChainCorrection)
-                .where(BuyingChainCorrection.claim_id == claim_id)
-            )
-            == 2
-        )
-    other = client.get(f"/api/projects/{project_b.id}/buying-chain").json()
-    other_candidate = next(
-        item for item in other["candidates"] if item["id"] == str(b["candidates"][0]["id"])
-    )
-    assert other_candidate["category"] == "general_contractor"
-
-
-def test_semantic_corrections_require_current_subject_and_project_evidence(db, monkeypatch):
-    api = import_module("gridlens.api.app")
-    monkeypatch.setattr(api, "SessionLocal", db)
-    with db.begin() as session:
-        project = seed(
-            session, external_id="semantic-correction", identity_key="semantic-correction"
-        )
-        observation = session.scalar(
-            select(Observation).where(Observation.external_id == "semantic-correction")
-        )
-        interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == observation.id)
-        )
-        interpretation.assessment = {
-            **interpretation.assessment,
-            "project_identity_key": project.identity_key,
-        }
-        result = enrich_buying_chain(
-            session,
-            project.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX."
-            ),
-            now=NOW,
-        )
-        candidate = result["candidates"][0]
-        claim_id, project_id = candidate["id"], project.id
-        claim = session.get(BuyingChainClaim, claim_id)
-        assert claim is not None
-        # Exercise a positive relationship promotion while retaining the source's
-        # explicit organization/project statement as the only valid proof.
-        claim.organization_relationship = "UNKNOWN"
-
-        def cite_document(url: str, text: str, evidence_id: UUID) -> BuyingChainEvidence:
-            row = BuyingChainEvidence(
-                id=evidence_id,
-                project_id=project.id,
-                url=url,
-                title="Project role update",
-                excerpt=text,
-                content_hash=("d" if "electrical contractor" in text else "e") * 64,
-                extraction_location="article body",
-                published_at=date(2026, 9, 25),
-                observed_at=NOW,
-                last_seen_at=NOW,
-                project_match_reason="same named project",
-            )
-            session.add(row)
-            session.flush()
-            quote = text
-            claim.citations = [
-                *claim.citations,
-                {
-                    "evidence_id": str(row.id),
-                    "url": row.url,
-                    "quote": quote,
-                    "supports": "project_organization",
-                },
-            ]
-            session.flush()
-            return row
-
-        electrical = cite_document(
-            "https://news.example/orion-electrical",
-            "Acme is the electrical contractor for Orion Data Center in Austin, TX.",
-            UUID("00000000-0000-0000-0000-000000000101"),
-        )
-        unrelated = cite_document(
-            "https://news.example/vega-electrical",
-            "Acme is the electrical contractor for Vega Data Center in Austin, TX.",
-            UUID("00000000-0000-0000-0000-000000000102"),
-        )
-        contact_only = cite_document(
-            "https://news.example/orion-contact",
-            "Contact Acme about Orion Data Center in Austin, TX.",
-            UUID("00000000-0000-0000-0000-000000000103"),
-        )
-        initial_version = candidate["fingerprint"]
-
-    client = TestClient(api.app)
-    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
-    import gridlens.intelligence.buying_chain_corrections as corrections
-
-    original_view = corrections.buying_chain_view
-
-    def with_unrelated_stale_contact(session, selected_project_id, **kwargs):
-        view = original_view(session, selected_project_id, **kwargs)
-        candidate = next(item for item in view["candidates"] if str(item["id"]) == str(claim_id))
-        candidate["stale"] = True
-        return view
-
-    monkeypatch.setattr(corrections, "buying_chain_view", with_unrelated_stale_contact)
-    with db.begin() as session:
-        before_edit = with_unrelated_stale_contact(
-            session, project_id, history=False, include_identity_ids=False
-        )
-        stale_contact_candidate = next(
-            item for item in before_edit["candidates"] if str(item["id"]) == str(claim_id)
-        )
-        assert stale_contact_candidate["stale"] is True
-
-    def payload(
-        key: str,
-        evidence: BuyingChainEvidence,
-        field: str,
-        value: str,
-        expected_version: str = initial_version,
-    ) -> dict:
-        return {
-            "expected_version": expected_version,
-            "idempotency_key": key,
-            "action": "correct",
-            "values": {field: value},
-            "source_evidence_id": str(evidence.id),
-            "source_hash": evidence.content_hash,
-            "reason": "Checked the cited role statement.",
-        }
-
-    unsupported = client.post(
-        path,
-        headers={"origin": "http://testserver"},
-        json=payload("semantic-contact-only", contact_only, "organization_relationship", "DIRECT"),
-    )
-    assert unsupported.status_code == 422, unsupported.text
-    unrelated_result = client.post(
-        path,
-        headers={"origin": "http://testserver"},
-        json=payload("semantic-other-project", unrelated, "category", "electrical_contractor"),
-    )
-    assert unrelated_result.status_code == 422, unrelated_result.text
-    with db.begin() as session:
-        assert session.scalar(select(func.count()).select_from(BuyingChainCorrection)) == 0
-
-    matching_values = payload(
-        "semantic-matching-role-and-category",
-        electrical,
-        "category",
-        "electrical_contractor",
-    )
-    matching_values["values"]["organization_relationship"] = "DIRECT"
-    matched = client.post(
-        path,
-        headers={"origin": "http://testserver"},
-        json=matching_values,
-    )
-    assert matched.status_code == 200, matched.text
-    unsupported_person_relationship = client.post(
-        path,
-        headers={"origin": "http://testserver"},
-        json=payload(
-            "semantic-person-organization-direct",
-            electrical,
-            "person_organization_relationship",
-            "DIRECT",
-            matched.json()["id"],
-        ),
-    )
-    assert unsupported_person_relationship.status_code == 422, unsupported_person_relationship.text
-    unsupported_assignment = client.post(
-        path,
-        headers={"origin": "http://testserver"},
-        json=payload(
-            "semantic-person-project-role",
-            electrical,
-            "person_project_relationship",
-            "ROLE_SUPPORTED",
-            matched.json()["id"],
-        ),
-    )
-    assert unsupported_assignment.status_code == 422, unsupported_assignment.text
-    readback = client.get(f"/api/projects/{project_id}/buying-chain").json()
-    corrected = next(item for item in readback["candidates"] if item["id"] == str(claim_id))
-    assert corrected["category"] == "electrical_contractor"
-    assert corrected["organization_relationship"] == "DIRECT"
-    with db.begin() as session:
-        assert session.scalar(select(func.count()).select_from(BuyingChainCorrection)) == 1
-
-
-def test_correction_rejects_null_required_organization_without_persisted_effects(db, monkeypatch):
-    api = import_module("gridlens.api.app")
-    monkeypatch.setattr(api, "SessionLocal", db)
-    with db.begin() as session:
-        project = seed(session, external_id="correction-null-organization")
-        observation = session.scalar(
-            select(Observation).where(Observation.external_id == "correction-null-organization")
-        )
-        interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == observation.id)
-        )
-        interpretation.assessment = {
-            **interpretation.assessment,
-            "project_identity_key": project.identity_key,
-        }
-        result = enrich_buying_chain(
-            session,
-            project.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX."
-            ),
-            now=NOW,
-        )
-        candidate = result["candidates"][0]
-        evidence = candidate["evidence"][0]
-        project_id, claim_id = project.id, candidate["id"]
-        correction_count = session.scalar(select(func.count()).select_from(BuyingChainCorrection))
-    client = TestClient(api.app)
-    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
-    headers = {"origin": "http://testserver"}
-    for index, organization in enumerate((None, "   ")):
-        invalid = {
-            "expected_version": candidate["fingerprint"],
-            "idempotency_key": f"organization-null-{index:04d}",
-            "action": "correct",
-            "values": {"organization": organization},
-            "source_evidence_id": str(evidence["id"]),
-            "source_hash": evidence["content_hash"],
-            "reason": "Attempted to clear the required organization.",
-        }
-        response = client.post(path, headers=headers, json=invalid)
-        assert response.status_code == 422, response.text
-    readback = client.get(f"/api/projects/{project_id}/buying-chain")
-    assert readback.status_code == 200, readback.text
-    unchanged = next(item for item in readback.json()["candidates"] if item["id"] == str(claim_id))
-    assert unchanged["organization"] == "Acme"
-    assert unchanged["correction_version"] == candidate["fingerprint"]
-    with db.begin() as session:
-        assert (
-            session.scalar(select(func.count()).select_from(BuyingChainCorrection))
-            == correction_count
-        )
-
-
-def test_source_free_contact_report_cannot_smuggle_other_corrections(db, monkeypatch):
-    api = import_module("gridlens.api.app")
-    monkeypatch.setattr(api, "SessionLocal", db)
-    with db.begin() as session:
-        project = seed(session, external_id="contact-report-boundary")
-        observation = session.scalar(
-            select(Observation).where(Observation.external_id == "contact-report-boundary")
-        )
-        interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == observation.id)
-        )
-        interpretation.assessment = {
-            **interpretation.assessment,
-            "project_identity_key": project.identity_key,
-        }
-        result = enrich_buying_chain(
-            session,
-            project.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX."
-            ),
-            now=NOW,
-        )
-        candidate = result["candidates"][0]
-        project_id, claim_id = project.id, candidate["id"]
-        correction_count = session.scalar(select(func.count()).select_from(BuyingChainCorrection))
-    client = TestClient(api.app)
-    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
-    headers = {"origin": "http://testserver"}
-    invalid_values = [
-        {"category": "electrical_contractor"},
-        {"title": "New buyer title"},
-        {"organization_relationship": "DIRECT"},
-        {"person_project_relationship": "ROLE_SUPPORTED"},
-        {
-            "public_contact_kind": "phone",
-            "public_contact_value": "+1-512-555-0100",
-            "title": "Buyer",
-        },
-    ]
-    for index, values in enumerate(invalid_values):
-        response = client.post(
-            path,
-            headers=headers,
-            json={
-                "expected_version": candidate["fingerprint"],
-                "idempotency_key": f"contact-report-boundary-{index}",
-                "action": "correct",
-                "values": values,
-                "reason": "Operator reported a contact during a call.",
-                "reported_contact": True,
-            },
-        )
-        assert response.status_code == 422, response.text
-    readback = client.get(f"/api/projects/{project_id}/buying-chain")
-    assert readback.status_code == 200, readback.text
-    unchanged = next(item for item in readback.json()["candidates"] if item["id"] == str(claim_id))
-    assert unchanged["correction_version"] == candidate["fingerprint"]
-    assert unchanged["organization"] == "Acme"
-    assert unchanged["title"] == candidate["title"]
-    with db() as session:
-        assert (
-            session.scalar(select(func.count()).select_from(BuyingChainCorrection))
-            == correction_count
-        )
-
-    reported = client.post(
-        path,
-        headers=headers,
-        json={
-            "expected_version": candidate["fingerprint"],
-            "idempotency_key": "contact-report-boundary-replacement",
-            "action": "correct",
-            "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0100"},
-            "reason": "Operator reported a contact during a call.",
-            "reported_contact": True,
-        },
-    )
-    assert reported.status_code == 200, reported.text
-    replayed_report = client.post(
-        path,
-        headers=headers,
-        json={
-            "expected_version": candidate["fingerprint"],
-            "idempotency_key": "contact-report-boundary-replacement",
-            "action": "correct",
-            "values": {
-                "public_contact_kind": "phone",
-                "public_contact_value": "+1-512-555-0100",
-            },
-            "reason": "Operator reported a contact during a call.",
-            "reported_contact": True,
-        },
-    )
-    assert replayed_report.status_code == 200, replayed_report.text
-    assert replayed_report.json()["id"] == reported.json()["id"]
-    changed_report_flag = client.post(
-        path,
-        headers=headers,
-        json={
-            "expected_version": candidate["fingerprint"],
-            "idempotency_key": "contact-report-boundary-replacement",
-            "action": "correct",
-            "values": {
-                "public_contact_kind": "phone",
-                "public_contact_value": "+1-512-555-0100",
-            },
-            "reason": "Operator reported a contact during a call.",
-            "reported_contact": False,
-        },
-    )
-    assert changed_report_flag.status_code == 422, changed_report_flag.text
-    after_report = next(
-        item
-        for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
-            "candidates"
-        ]
-        if item["id"] == str(claim_id)
-    )
-    assert after_report["reported_contacts"][0]["operator_report"] is True
-    assert all(contact["operator_report"] is False for contact in after_report["public_contacts"])
-    cleared = client.post(
-        path,
-        headers=headers,
-        json={
-            "expected_version": reported.json()["id"],
-            "idempotency_key": "contact-report-boundary-clear",
-            "action": "correct",
-            "values": {"public_contact_kind": "phone", "public_contact_value": "   "},
-            "reason": "Operator cleared the reported phone number.",
-            "reported_contact": True,
-        },
-    )
-    assert cleared.status_code == 200, cleared.text
-    after_clear = next(
-        item
-        for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
-            "candidates"
-        ]
-        if item["id"] == str(claim_id)
-    )
-    assert after_clear["reported_contacts"] == []
-    assert after_clear["correction_history"][-1]["reported_contact"] is True
-    assert after_clear["correction_history"][-1]["values"]["contact_status"] == ("operator_report")
-    null_clear = client.post(
-        path,
-        headers=headers,
-        json={
-            "expected_version": cleared.json()["id"],
-            "idempotency_key": "contact-report-boundary-null-clear",
-            "action": "correct",
-            "values": {"public_contact_kind": "phone", "public_contact_value": None},
-            "reason": "Operator explicitly cleared the reported phone number.",
-            "reported_contact": True,
-        },
-    )
-    assert null_clear.status_code == 200, null_clear.text
-    assert null_clear.json()["reported_contact"] is True
-    retraction = client.post(
-        path,
-        headers=headers,
-        json={
-            "expected_version": null_clear.json()["id"],
-            "idempotency_key": "contact-report-boundary-retract",
-            "action": "retract",
-            "reason": "Operator reported withdrawal of the relationship.",
-            "reported_contact": True,
-        },
-    )
-    assert retraction.status_code == 200, retraction.text
-    assert retraction.json()["reported_contact"] is True
-    history_after_retraction = next(
-        item
-        for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
-            "candidates"
-        ]
-        if item["id"] == str(claim_id)
-    )
-    retract_decision = history_after_retraction["correction_history"][-1]
-    assert retract_decision["reported_contact"] is True
-    assert retract_decision["values"]["contact_status"] == "operator_report"
-    reported_after_retraction = client.post(
-        path,
-        headers=headers,
-        json={
-            "expected_version": retraction.json()["id"],
-            "idempotency_key": "contact-report-boundary-after-retract",
-            "action": "correct",
-            "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0199"},
-            "reason": "Operator reported a contact after the relationship was withdrawn.",
-            "reported_contact": True,
-        },
-    )
-    assert reported_after_retraction.status_code == 200, reported_after_retraction.text
-    after_contact_on_retracted_claim = next(
-        item
-        for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
-            "candidates"
-        ]
-        if item["id"] == str(claim_id)
-    )
-    assert after_contact_on_retracted_claim["retracted"] is True
-    assert after_contact_on_retracted_claim["reported_contacts"][0]["value"] == "+1-512-555-0199"
-    current_after_contact_on_retracted_claim = client.get(
-        f"/api/projects/{project_id}/buying-chain"
-    )
-    assert current_after_contact_on_retracted_claim.status_code == 200
-    assert all(
-        item["id"] != str(claim_id)
-        for item in current_after_contact_on_retracted_claim.json()["candidates"]
-    )
-
-
-def test_mixed_case_public_contact_correction_survives_current_cited_readback(db, monkeypatch):
-    api = import_module("gridlens.api.app")
-    monkeypatch.setattr(api, "SessionLocal", db)
-    with db.begin() as session:
-        project = seed(session, external_id="correction-casefold-contact")
-        observation = session.scalar(
-            select(Observation).where(Observation.external_id == "correction-casefold-contact")
-        )
-        interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == observation.id)
-        )
-        interpretation.assessment = {
-            **interpretation.assessment,
-            "project_identity_key": project.identity_key,
-        }
-        result = enrich_buying_chain(
-            session,
-            project.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX. "
-                "Alice Smith is Project Director at Acme; "
-                "Alice Smith email: Alice.Smith@Example.com."
-            ),
-            now=NOW,
-        )
-        candidate = next(
-            item for item in result["candidates"] if item["person_name"] == "Alice Smith"
-        )
-        evidence = next(
-            item for item in candidate["evidence"] if item.get("supports") == "public_contact"
-        )
-        assert evidence["current_support"] is True
-        assert evidence["public_research_provenance"] is True
-        project_id, claim_id = project.id, candidate["id"]
-    client = TestClient(api.app)
-    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
-    corrected = client.post(
-        path,
-        headers={"origin": "http://testserver"},
-        json={
-            "expected_version": candidate["fingerprint"],
-            "idempotency_key": "contact-casefold-0001",
-            "action": "correct",
-            "values": {
-                "title": None,
-                "public_contact_kind": "email",
-                "public_contact_value": "ALICE.SMITH@EXAMPLE.COM",
-            },
-            "source_evidence_id": str(evidence["id"]),
-            "source_hash": evidence["content_hash"],
-            "reason": "Corrected the case of the cited current public email.",
-        },
-    )
-    assert corrected.status_code == 200, corrected.text
-    readback = client.get(f"/api/projects/{project_id}/buying-chain")
-    assert readback.status_code == 200, readback.text
-    current = next(item for item in readback.json()["candidates"] if item["id"] == str(claim_id))
-    assert current["title"] is None
-    assert len(current["public_contacts"]) == 1
-    contact = current["public_contacts"][0]
-    assert contact["kind"] == "email"
-    assert contact["value"] == "ALICE.SMITH@EXAMPLE.COM"
-    assert contact["source_url"] == URL
-    assert contact["quote"] == "Alice Smith email: Alice.Smith@Example.com."
-    assert datetime.fromisoformat(contact["observed_at"]) == evidence["observed_at"]
-    assert current["organization_relationship"] == "DIRECT", current
-    with db() as session:
-        live_chain = buying_chain_view(session, project_id)
-    projected = next(
-        contact for contact in contact_projection(live_chain) if contact.claim_id == str(claim_id)
-    )
-    methods = projected.methods
-    assert methods[0]["href"] == "mailto:ALICE.SMITH@EXAMPLE.COM"
-    mixed_report = client.post(
-        path,
-        headers={"origin": "http://testserver"},
-        json={
-            "expected_version": corrected.json()["id"],
-            "idempotency_key": "contact-casefold-mixed-report",
-            "action": "correct",
-            "values": {
-                "title": None,
-                "public_contact_kind": "phone",
-                "public_contact_value": "555-0100",
-            },
-            "source_evidence_id": str(evidence["id"]),
-            "source_hash": evidence["content_hash"],
-            "reason": "Cleared a stale title and recorded a phone from the operator.",
-            "reported_contact": True,
-        },
-    )
-    assert mixed_report.status_code == 200, mixed_report.text
-
-
-def test_identity_link_correction_api_returns_typed_reference_and_replays(db, monkeypatch):
-    api = import_module("gridlens.api.app")
-    monkeypatch.setattr(api, "SessionLocal", db)
-    with db.begin() as session:
-        projects = [
-            seed(session, external_id="identity-api-a", identity_key="identity-api-a"),
-            seed(session, external_id="identity-api-b", identity_key="identity-api-b"),
-        ]
-        candidates = []
-        for project, external_id in zip(
-            projects, ("identity-api-a", "identity-api-b"), strict=True
-        ):
-            observed = session.scalar(
-                select(Observation).where(Observation.external_id == external_id)
-            )
-            interpretation = session.scalar(
-                select(Interpretation).where(Interpretation.observation_id == observed.id)
-            )
-            interpretation.assessment = {
-                **interpretation.assessment,
-                "project_identity_key": project.identity_key,
-            }
-            result = enrich_buying_chain(
-                session,
-                project.id,
-                fetcher=lambda url: source(
-                    "Acme is the general contractor for Orion Data Center in Austin, TX."
-                ),
-                now=NOW,
-            )
-            candidates.append(result["candidates"][0])
-        candidate = candidates[0]
-        evidence = candidate["evidence"][0]
-        payload = {
-            "expected_version": candidate["fingerprint"],
-            "idempotency_key": "identity-api-link-001",
-            "action": "correct",
-            "values": {},
-            "source_evidence_id": str(evidence["id"]),
-            "source_hash": evidence["content_hash"],
-            "reason": "Reviewed the company identity against current evidence.",
-            "identity_type": "company",
-        }
-    client = TestClient(api.app)
-    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    project_id, other_project_id = (project.id for project in projects)
-    claim_id, other_claim_id = candidates[0]["id"], candidates[1]["id"]
-    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
-    source_readback = client.get(f"/api/projects/{other_project_id}/buying-chain")
-    assert source_readback.status_code == 200, source_readback.text
-    source_candidate = next(
-        item for item in source_readback.json()["candidates"] if item["id"] == str(other_claim_id)
-    )
-    identity_id = source_candidate["company_identity_id"]
-    assert identity_id is not None
-    assert identity_id != str(candidates[0]["company_identity_id"])
-    payload["identity_id"] = identity_id
-    source_evidence = next(
-        item for item in candidates[0]["evidence"] if item.get("supports") == "project_organization"
-    )
-    payload["source_evidence_id"] = str(source_evidence["id"])
-    payload["source_hash"] = source_evidence["content_hash"]
-    original = client.get(f"/api/projects/{project_id}/buying-chain")
-    assert original.status_code == 200, original.text
-    original_candidate = next(
-        item for item in original.json()["candidates"] if item["id"] == str(claim_id)
-    )
-    assert original_candidate["company_identity_id"] == str(candidates[0]["company_identity_id"])
-    response = client.post(path, headers={"origin": "http://testserver"}, json=payload)
-    assert response.status_code == 200, response.text
-    assert response.json()["values"]["identity_reference"] == {
-        "type": "company",
-        "id": str(identity_id),
-    }
-    replay = client.post(path, headers={"origin": "http://testserver"}, json=payload)
-    assert replay.status_code == 200, replay.text
-    assert replay.json()["id"] == response.json()["id"]
-    rebound_readback = client.get(f"/api/projects/{project_id}/buying-chain")
-    assert rebound_readback.status_code == 200, rebound_readback.text
-    rebound_candidate = next(
-        item for item in rebound_readback.json()["candidates"] if item["id"] == str(claim_id)
-    )
-    assert rebound_candidate["company_identity_id"] == identity_id
-    assert rebound_candidate["person_identity_id"] is None
-    history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
-        "candidates"
-    ]
-    corrected = next(item for item in history if item["id"] == str(claim_id))
-    assert corrected["correction_history"][-1]["values"]["identity_reference"] == {
-        "type": "company",
-        "id": str(identity_id),
-    }
-    with db.begin() as session:
-        links = list(
-            session.scalars(
-                select(BuyingChainIdentityLink).where(
-                    BuyingChainIdentityLink.claim_id == claim_id,
-                    BuyingChainIdentityLink.company_identity_id == identity_id,
-                    BuyingChainIdentityLink.state == "current",
-                )
-            )
-        )
-        assert len(links) == 1
-        corrections = list(
-            session.scalars(
-                select(BuyingChainCorrection).where(
-                    BuyingChainCorrection.claim_id == claim_id,
-                    BuyingChainCorrection.idempotency_key == "identity-api-link-001",
-                )
-            )
-        )
-        assert len(corrections) == 1
-
-
-def test_retraction_rejects_identity_fields_without_changing_any_state(db, monkeypatch):
-    api = import_module("gridlens.api.app")
-    monkeypatch.setattr(api, "SessionLocal", db)
-    with db.begin() as session:
-        project = seed(session, external_id="retract-identity")
-        observation = session.scalar(
-            select(Observation).where(Observation.external_id == "retract-identity")
-        )
-        interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == observation.id)
-        )
-        interpretation.assessment = {
-            **interpretation.assessment,
-            "project_identity_key": project.identity_key,
-        }
-        result = enrich_buying_chain(
-            session,
-            project.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX. "
-                "Alice Smith is Project Director at Acme."
-            ),
-            now=NOW,
-        )
-        company_candidate = next(item for item in result["candidates"] if not item["person_name"])
-        claim_id = company_candidate["id"]
-        company_identity = CompanyIdentity()
-        person_identity = PersonIdentity()
-        session.add_all([company_identity, person_identity])
-        session.flush()
-        correction_count = session.scalar(select(func.count()).select_from(BuyingChainCorrection))
-        before_links = [
-            (
-                link.id,
-                link.claim_id,
-                link.entity_type,
-                link.company_identity_id,
-                link.person_identity_id,
-                link.source_evidence_id,
-                link.source_version_hash,
-                link.state,
-                link.basis,
-                link.reviewed_by,
-                link.superseded_at,
-            )
-            for link in session.scalars(
-                select(BuyingChainIdentityLink).order_by(BuyingChainIdentityLink.id)
-            )
-        ]
-        company_identity_ids = sorted(
-            str(item.id) for item in session.scalars(select(CompanyIdentity))
-        )
-        person_identity_ids = sorted(
-            str(item.id) for item in session.scalars(select(PersonIdentity))
-        )
-        project_id = project.id
-    client = TestClient(api.app)
-    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
-    invalid_identity_fields = [
-        {"identity_type": "company", "identity_id": str(company_identity.id)},
-        {"identity_type": "person", "identity_id": str(person_identity.id)},
-        {"identity_type": "company"},
-        {"identity_id": str(company_identity.id)},
-    ]
-    for index, identity_fields in enumerate(invalid_identity_fields):
-        response = client.post(
-            path,
-            headers={"origin": "http://testserver"},
-            json={
-                "expected_version": company_candidate["fingerprint"],
-                "idempotency_key": f"retract-identity-{index:03d}",
-                "action": "retract",
-                "reason": "Withdraw the relationship without changing its identity.",
-                "reported_contact": True,
-                **identity_fields,
-            },
-        )
-        assert response.status_code == 422, response.text
-    current = client.get(f"/api/projects/{project_id}/buying-chain")
-    assert current.status_code == 200, current.text
-    still_present = next(
-        item for item in current.json()["candidates"] if item["id"] == str(claim_id)
-    )
-    assert still_present["retracted"] is False
-    assert still_present["company_identity_id"] == str(company_candidate["company_identity_id"])
-    with db.begin() as session:
-        assert (
-            session.scalar(select(func.count()).select_from(BuyingChainCorrection))
-            == correction_count
-        )
-        after_links = [
-            (
-                link.id,
-                link.claim_id,
-                link.entity_type,
-                link.company_identity_id,
-                link.person_identity_id,
-                link.source_evidence_id,
-                link.source_version_hash,
-                link.state,
-                link.basis,
-                link.reviewed_by,
-                link.superseded_at,
-            )
-            for link in session.scalars(
-                select(BuyingChainIdentityLink).order_by(BuyingChainIdentityLink.id)
-            )
-        ]
-        assert after_links == before_links
-        assert (
-            sorted(str(item.id) for item in session.scalars(select(CompanyIdentity)))
-            == company_identity_ids
-        )
-        assert (
-            sorted(str(item.id) for item in session.scalars(select(PersonIdentity)))
-            == person_identity_ids
-        )
 
 
 def test_buying_chain_api_hides_identity_link_with_unsupported_citation(db, monkeypatch):
@@ -4495,347 +3792,6 @@ def test_correction_order_follows_expected_version_links_and_rejects_forks():
     assert _ordered_correction_chain("initial", [disconnected]) is None
 
 
-@pytest.mark.parametrize("sparse", [False, True])
-@pytest.mark.parametrize("person_name", [None, "Jordan Lee"])
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        (
-            "Acme is the owner for Orion Data Center in Austin, TX. "
-            "Beta delivered a chair to Orion Data Center in Austin, TX.",
-            False,
-        ),
-        ("Beta is the owner for Orion Data Center in Austin, TX.", True),
-    ],
-)
-def test_company_subject_change_revalidates_inherited_semantics(
-    sparse, person_name, text, expected
-):
-    project_id = UUID("00000000-0000-0000-0000-000000000010")
-    source_id = UUID("00000000-0000-0000-0000-000000000011")
-    quote = text.split(". ")[0]
-    project = SimpleNamespace(
-        id=project_id,
-        name="Orion Data Center",
-        location="Austin, TX",
-        identity_facts={},
-        source_id="news",
-    )
-    source = SimpleNamespace(
-        id=source_id,
-        retained_evidence_id=None,
-        url="https://news.example/orion",
-        title="Orion update",
-        excerpt=text,
-        published_at=None,
-        observed_at=NOW,
-        extraction_location="article body",
-        content_hash="a" * 64,
-    )
-    candidate = {
-        "organization": "Acme",
-        "person_name": person_name,
-        "category": "owner_developer",
-        "organization_relationship": "DIRECT",
-        "person_organization_relationship": "DIRECT" if person_name else "UNKNOWN",
-        "person_project_relationship": "DIRECT" if person_name else "UNKNOWN",
-        "evidence": [
-            {
-                "id": source_id,
-                "current_source_version_id": source_id,
-                "content_hash": source.content_hash,
-                "current_support": True,
-                "quote": quote,
-                "supports": "project_organization",
-            }
-        ],
-    }
-
-    class Session:
-        def get(self, _model, key):
-            return project if key == project_id else None
-
-    values = {"organization": "Beta"}
-    if not sparse:
-        values.update(category="owner_developer", organization_relationship="DIRECT")
-    assert _has_current_semantic_support(
-        session=Session(),
-        project_id=project_id,
-        candidate=candidate,
-        source=source,
-        values=values,
-    ) is (expected and person_name is None)
-
-
-@pytest.mark.parametrize("cleared_name", [None, "   "])
-def test_optional_person_clear_is_a_downgrade(cleared_name):
-    project_id = UUID("00000000-0000-0000-0000-000000000020")
-    source_id = UUID("00000000-0000-0000-0000-000000000021")
-    project = SimpleNamespace(
-        id=project_id,
-        name="Orion Data Center",
-        location="Austin, TX",
-        identity_facts={},
-        source_id="news",
-    )
-    source = SimpleNamespace(
-        id=source_id,
-        retained_evidence_id=None,
-        url="https://news.example/orion",
-        title="Orion update",
-        excerpt="Acme owns Orion Data Center in Austin, TX.",
-        published_at=None,
-        observed_at=NOW,
-        extraction_location="article body",
-        content_hash="b" * 64,
-    )
-    candidate = {
-        "organization": "Acme",
-        "person_name": "Jordan Lee",
-        "category": "owner_developer",
-        "organization_relationship": "DIRECT",
-        "person_organization_relationship": "UNKNOWN",
-        "person_project_relationship": "UNKNOWN",
-        "evidence": [
-            {
-                "id": source_id,
-                "current_source_version_id": source_id,
-                "content_hash": source.content_hash,
-                "current_support": True,
-                "quote": source.excerpt,
-                "supports": "project_organization",
-            }
-        ],
-    }
-
-    class Session:
-        def get(self, _model, key):
-            return project if key == project_id else None
-
-    assert _has_current_semantic_support(
-        session=Session(),
-        project_id=project_id,
-        candidate=candidate,
-        source=source,
-        values={"person_name": cleared_name},
-    )
-
-
-@pytest.mark.parametrize(
-    ("requested_title", "cite_person_title", "expected"),
-    [
-        ("Construction Director", True, False),
-        ("Project Manager", True, True),
-        ("Project Manager", False, False),
-        (None, False, True),
-        ("", False, True),
-        ("   ", False, True),
-    ],
-)
-def test_title_correction_binds_current_title_to_the_cited_person(
-    requested_title, cite_person_title, expected
-):
-    project_id = UUID("00000000-0000-0000-0000-000000000030")
-    source_id = UUID("00000000-0000-0000-0000-000000000031")
-    organization_quote = "Acme is the general contractor for Orion Data Center in Austin, TX."
-    alice_quote = "Alice Smith is Project Manager at Acme for Orion Data Center in Austin, TX."
-    text = organization_quote + " " + alice_quote + " Bob Jones is Construction Director at Acme."
-    project = SimpleNamespace(
-        id=project_id,
-        name="Orion Data Center",
-        location="Austin, TX",
-        identity_facts={},
-        source_id="news",
-    )
-    source = SimpleNamespace(
-        id=source_id,
-        retained_evidence_id=None,
-        url="https://news.example/team",
-        title="Acme team",
-        excerpt=text,
-        published_at=date(2026, 10, 20),
-        observed_at=NOW,
-        extraction_location="team page",
-        content_hash="c" * 64,
-    )
-    candidate_evidence = [
-        {
-            "id": source_id,
-            "current_source_version_id": source_id,
-            "content_hash": source.content_hash,
-            "current_support": True,
-            "quote": organization_quote,
-            "supports": "project_organization",
-        }
-    ]
-    if cite_person_title:
-        candidate_evidence.append(
-            {
-                "id": source_id,
-                "current_source_version_id": source_id,
-                "content_hash": source.content_hash,
-                "current_support": True,
-                "quote": alice_quote,
-                "supports": "organization_person_role",
-            }
-        )
-    candidate = {
-        "organization": "Acme",
-        "person_name": "Alice Smith",
-        "title": "Assistant Project Manager",
-        "evidence": candidate_evidence,
-    }
-
-    class Session:
-        def get(self, _model, key):
-            return project if key == project_id else None
-
-    assert (
-        _has_current_semantic_support(
-            session=Session(),
-            project_id=project_id,
-            candidate=candidate,
-            source=source,
-            values={"title": requested_title},
-        )
-        is expected
-    )
-
-
-@pytest.mark.parametrize(
-    (
-        "organization_excerpt",
-        "cited_organization_quote",
-        "organization_project_id",
-        "organization_current",
-        "expected",
-    ),
-    [
-        (
-            "Acme is the general contractor for Orion Data Center in Austin, TX.",
-            "Acme is the general contractor for Orion Data Center in Austin, TX.",
-            UUID("00000000-0000-0000-0000-000000000030"),
-            True,
-            True,
-        ),
-        (
-            "Acme is the general contractor for Orion Data Center in Austin, TX.",
-            "Acme is the general contractor for Orion Data Center in Austin, TX.",
-            UUID("00000000-0000-0000-0000-000000000099"),
-            True,
-            False,
-        ),
-        (
-            "Beta is the general contractor for Orion Data Center in Austin, TX.",
-            "Beta is the general contractor for Orion Data Center in Austin, TX.",
-            UUID("00000000-0000-0000-0000-000000000030"),
-            True,
-            False,
-        ),
-        (
-            "Acme is the general contractor for Orion Data Center in Austin, TX.",
-            "Acme is the general contractor for Orion Data Center in Austin, TX.",
-            UUID("00000000-0000-0000-0000-000000000030"),
-            False,
-            False,
-        ),
-        (
-            "Beta is the general contractor for Orion Data Center in Austin, TX. "
-            "Acme is the general contractor for Orion Data Center in Austin, TX.",
-            "Beta is the general contractor for Orion Data Center in Austin, TX.",
-            UUID("00000000-0000-0000-0000-000000000030"),
-            True,
-            False,
-        ),
-    ],
-)
-def test_title_correction_reuses_only_current_same_project_organization_support(
-    organization_excerpt,
-    cited_organization_quote,
-    organization_project_id,
-    organization_current,
-    expected,
-):
-    project_id = UUID("00000000-0000-0000-0000-000000000030")
-    roster_source_id = UUID("00000000-0000-0000-0000-000000000031")
-    organization_source_id = UUID("00000000-0000-0000-0000-000000000032")
-    roster_quote = "Alice Smith, President"
-    project = SimpleNamespace(
-        id=project_id,
-        name="Orion Data Center",
-        location="Austin, TX",
-        identity_facts={},
-        source_id="news",
-    )
-    roster_source = SimpleNamespace(
-        id=roster_source_id,
-        retained_evidence_id=None,
-        url="https://acme.com/team",
-        title="Acme team",
-        excerpt=roster_quote,
-        published_at=None,
-        observed_at=NOW,
-        extraction_location="team page",
-        content_hash="c" * 64,
-    )
-    organization_source = SimpleNamespace(
-        id=organization_source_id,
-        project_id=organization_project_id,
-        retained_evidence_id=None,
-        url="https://news.example/orion",
-        title="Orion Data Center project team",
-        excerpt=organization_excerpt,
-        published_at=date(2026, 10, 20),
-        observed_at=NOW,
-        extraction_location="project team",
-        content_hash="d" * 64,
-    )
-    candidate = {
-        "organization": "Acme",
-        "person_name": "Alice Smith",
-        "title": None,
-        "evidence": [
-            {
-                "id": roster_source_id,
-                "current_source_version_id": roster_source_id,
-                "content_hash": roster_source.content_hash,
-                "current_support": True,
-                "url": roster_source.url,
-                "quote": roster_quote,
-                "supports": "organization_person_role",
-            },
-            {
-                "id": organization_source_id,
-                "current_source_version_id": organization_source_id,
-                "content_hash": organization_source.content_hash,
-                "current_support": organization_current,
-                "url": organization_source.url,
-                "quote": cited_organization_quote,
-                "supports": "project_organization",
-            },
-        ],
-    }
-
-    class Session:
-        def get(self, _model, key):
-            if key == project_id:
-                return project
-            if key == organization_source_id:
-                return organization_source
-            return None
-
-    assert (
-        _has_current_semantic_support(
-            session=Session(),
-            project_id=project_id,
-            candidate=candidate,
-            source=roster_source,
-            values={"title": "President"},
-        )
-        is expected
-    )
-
-
 @pytest.mark.parametrize(
     ("entity_type", "subject_field", "support"),
     [
@@ -4917,117 +3873,6 @@ def test_identity_attachment_uses_expected_version_order_for_equal_timestamps(
 
     _attach_identity_ids(Session(), [{"candidates": [candidate]}])
     assert candidate[f"{entity_type}_identity_id"] == str(identity_id)
-
-
-def test_corrected_company_hides_old_identity_until_reviewed_rebind_and_keeps_rebind(db):
-    with db.begin() as session:
-        project = seed(
-            session, external_id="identity-correction", identity_key="identity-correction"
-        )
-        interpretation = session.scalar(
-            select(Interpretation).where(
-                Interpretation.observation_id
-                == session.scalar(
-                    select(Observation.id).where(Observation.external_id == "identity-correction")
-                )
-            )
-        )
-        interpretation.assessment = {
-            **interpretation.assessment,
-            "project_identity_key": project.identity_key,
-        }
-        result = enrich_buying_chain(
-            session,
-            project.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX."
-            ),
-            now=NOW,
-        )
-        candidate = result["candidates"][0]
-        claim = session.get(BuyingChainClaim, candidate["id"])
-        evidence = session.get(BuyingChainEvidence, candidate["evidence"][0]["id"])
-        replacement_quote = "Beta is the general contractor for Orion Data Center in Austin, TX."
-        evidence.excerpt += " " + replacement_quote
-        claim.citations = [
-            *claim.citations,
-            {
-                "evidence_id": str(evidence.id),
-                "url": evidence.url,
-                "quote": replacement_quote,
-                "supports": "project_organization",
-            },
-        ]
-        old_identity = CompanyIdentity()
-        new_identity = CompanyIdentity()
-        session.add_all([old_identity, new_identity])
-        session.flush()
-        link_claim_to_identity(
-            session,
-            claim,
-            "company",
-            old_identity.id,
-            evidence,
-            "Previously reviewed company identity.",
-            reviewed_by="operator",
-        )
-        first = correct_buying_chain_claim(
-            session,
-            project_id=project.id,
-            claim_id=claim.id,
-            expected_version=candidate["fingerprint"],
-            idempotency_key="subject-change",
-            action="correct",
-            values={"organization": "Beta"},
-            source_evidence_id=evidence.id,
-            source_hash=evidence.content_hash,
-            reason="Corrected organization from current source.",
-            actor="operator",
-        )
-        changed = buying_chain_view(session, project.id)["candidates"][0]
-        assert changed["organization"] == "Beta"
-        assert "company_identity_id" not in changed
-        old_link = session.scalar(
-            select(BuyingChainIdentityLink).where(
-                BuyingChainIdentityLink.claim_id == claim.id,
-                BuyingChainIdentityLink.entity_type == "company",
-                BuyingChainIdentityLink.company_identity_id == old_identity.id,
-            )
-        )
-        assert old_link.state == "superseded"
-        assert old_link.superseded_at is not None
-
-        rebound = correct_buying_chain_claim(
-            session,
-            project_id=project.id,
-            claim_id=claim.id,
-            expected_version=str(first.id),
-            idempotency_key="reviewed-rebind",
-            action="correct",
-            values={},
-            source_evidence_id=evidence.id,
-            source_hash=evidence.content_hash,
-            reason="Reviewed the corrected company identity.",
-            actor="operator",
-            identity_type="company",
-            identity_id=new_identity.id,
-        )
-        correct_buying_chain_claim(
-            session,
-            project_id=project.id,
-            claim_id=claim.id,
-            expected_version=str(rebound.id),
-            idempotency_key="later-contact-report",
-            action="correct",
-            values={"public_contact_kind": "phone", "public_contact_value": "512-555-0199"},
-            source_evidence_id=None,
-            source_hash=None,
-            reason="Operator reported a current contact.",
-            actor="operator",
-            reported_contact=True,
-        )
-        current = buying_chain_view(session, project.id)["candidates"][0]
-        assert current["company_identity_id"] == str(new_identity.id)
 
 
 def test_chicago_default_exact_id_fetch_and_contractors_without_supplied_url(db):
@@ -6296,6 +5141,544 @@ def test_tdlr_retained_owner_is_bound_to_exact_current_project(
     assert "temporary-power demand" in claim.reason
 
 
+def test_tdlr_owner_contact_name_does_not_inherit_generic_owner_phone():
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += (
+        "\nOwner contact: Jordan Smith"
+        "\nOwner phone: (713) 555-0100"
+        "\nOwner contact phone: not stated"
+        "\nOwner email: not stated"
+        "\nOwner contact email: not stated"
+    )
+    project = SimpleNamespace(
+        source_id=TDLR_SOURCE,
+        external_id=f"TABS-{number}",
+        name=name,
+        location=location,
+        identity_facts={"site": location},
+    )
+    doc = _tdlr_document(number, name, location, owner, excerpt)
+    claims = extract_retained_permit_organizations(doc, TDLR_SOURCE, project=project)
+    organization = next(item for item in claims if item.person_name is None)
+    person = next(item for item in claims if item.person_name)
+
+    assert organization.public_contacts[0]["value"] == "(713) 555-0100"
+    assert organization.public_contacts[0]["quote"] == "Owner phone: (713) 555-0100"
+    assert organization.public_contacts[0]["source_url"] == doc.url
+    assert any(
+        citation["supports"] == "public_contact"
+        and citation["quote"] == "Owner phone: (713) 555-0100"
+        for citation in organization.citations
+    )
+    assert "Owner phone: (713) 555-0100" in doc.text
+    assert person.person_name == "Jordan Smith"
+    assert person.public_contacts == []
+    assert all(citation["supports"] != "public_contact" for citation in person.citations)
+
+    explicit = excerpt.replace(
+        "Owner contact phone: not stated", "Owner contact phone: (713) 555-0101"
+    )
+    direct = extract_retained_permit_organizations(
+        _tdlr_document(number, name, location, owner, explicit), TDLR_SOURCE, project=project
+    )
+    person_with_method = next(item for item in direct if item.person_name)
+    assert person_with_method.public_contacts[0]["value"] == "(713) 555-0101"
+    assert person_with_method.public_contacts[0]["quote"] == ("Owner contact phone: (713) 555-0101")
+    assert person_with_method.public_contacts[0]["source_url"] == doc.url
+    assert any(
+        citation["supports"] == "public_contact"
+        and citation["quote"] == "Owner contact phone: (713) 555-0101"
+        for citation in person_with_method.citations
+    )
+
+
+def test_tdlr_named_owner_reuses_exact_project_company_link_without_duplicate_contact_job(db):
+    from gridlens.intelligence.identity_reconciliation import (
+        _same_current_project_organization_source,
+        ensure_project_scoped_identity_links,
+    )
+    from gridlens.persistence.models import Job
+
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += "\nOwner contact: Jordan Smith\nOwner phone: (713) 555-0100"
+    case = (number, name, location, owner, excerpt)
+    with db.begin() as session:
+        project, _retained, _owner = _seed_tdlr_retained_project(session, case)
+        project.region_status = "ELIGIBLE"
+        result = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
+        organization = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and not item["person_name"]
+        )
+        person = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and item["person_name"] == "Jordan Smith"
+        )
+        assert (
+            _same_current_project_organization_source(
+                person,
+                organization,
+                person_project_id=project.id,
+                company_project_id=project.id,
+            )
+            is not None
+        )
+        assert person["company_identity_id"] == organization["company_identity_id"]
+        assert person["person_identity_id"] != person["company_identity_id"]
+        person_claim_id = UUID(str(person["id"]))
+        company_identity_id = UUID(str(organization["company_identity_id"]))
+
+        person_company_links = session.scalars(
+            select(BuyingChainIdentityLink)
+            .where(
+                BuyingChainIdentityLink.claim_id == person_claim_id,
+                BuyingChainIdentityLink.entity_type == "company",
+            )
+            .order_by(BuyingChainIdentityLink.created_at, BuyingChainIdentityLink.id)
+        ).all()
+        assert len(person_company_links) == 2
+        assert [link.state for link in person_company_links].count("superseded") == 1
+        current_person_company = next(
+            link for link in person_company_links if link.state == "current"
+        )
+        assert current_person_company.company_identity_id == company_identity_id
+
+        company_jobs = session.scalars(
+            select(Job).where(
+                Job.kind == "company_contact_discovery",
+                Job.target_id == company_identity_id,
+            )
+        ).all()
+        assert len(company_jobs) == 1
+        ensure_project_scoped_identity_links(session, [str(organization["id"]), str(person["id"])])
+        assert (
+            len(
+                session.scalars(
+                    select(Job).where(
+                        Job.kind == "company_contact_discovery",
+                        Job.target_id == company_identity_id,
+                    )
+                ).all()
+            )
+            == 1
+        )
+        assert (
+            len(
+                session.scalars(
+                    select(BuyingChainIdentityLink).where(
+                        BuyingChainIdentityLink.claim_id == person_claim_id,
+                        BuyingChainIdentityLink.entity_type == "company",
+                    )
+                ).all()
+            )
+            == 2
+        )
+
+
+@pytest.mark.parametrize("suppressed_link", ["person_company", "organization_company"])
+def test_tdlr_exact_company_identity_reuse_preserves_company_suppressions(
+    db, monkeypatch, suppressed_link
+):
+    import json
+
+    from gridlens.intelligence import identity_reconciliation
+    from gridlens.intelligence.contact_suppressions import (
+        company_suppression_key,
+        record_contact_suppression,
+    )
+    from gridlens.persistence.models import Job
+
+    real_reconcile = identity_reconciliation._reuse_exact_project_company_for_named_people
+    monkeypatch.setattr(
+        identity_reconciliation,
+        "_reuse_exact_project_company_for_named_people",
+        lambda *_args: None,
+    )
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += "\nOwner contact: Jordan Smith\nOwner phone: (713) 555-0100"
+    with db.begin() as session:
+        project, _retained, _owner = _seed_tdlr_retained_project(
+            session, (number, name, location, owner, excerpt)
+        )
+        project.region_status = "ELIGIBLE"
+        result = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
+        organization = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and not item["person_name"]
+        )
+        person = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and item["person_name"] == "Jordan Smith"
+        )
+        person_company_id = UUID(str(person["company_identity_id"]))
+        organization_company_id = UUID(str(organization["company_identity_id"]))
+        assert person_company_id != organization_company_id
+        suppressed_id = (
+            person_company_id if suppressed_link == "person_company" else organization_company_id
+        )
+        record_contact_suppression(
+            session,
+            scope="company",
+            subject_key=company_suppression_key(suppressed_id),
+            action="suppress",
+            expected_version=0,
+            reason="Privacy fixture: preserve company-scoped suppression across identity refresh.",
+            actor="test",
+            idempotency_key=f"identity-reuse-{suppressed_link}",
+        )
+
+        monkeypatch.setattr(
+            identity_reconciliation,
+            "_reuse_exact_project_company_for_named_people",
+            real_reconcile,
+        )
+        person_claim_id = UUID(str(person["id"]))
+        identity_reconciliation.ensure_project_scoped_identity_links(
+            session, [str(organization["id"]), str(person["id"])]
+        )
+        current_person_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == person_claim_id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert current_person_link is not None
+        assert current_person_link.company_identity_id == person_company_id
+
+        current_view = buying_chain_view(session, project.id)
+        history_view = buying_chain_view(session, project.id, history=True)
+        search_view = buying_chain_views(session, {project.id})[str(project.id)]
+        for view in (current_view, history_view, search_view):
+            suppressed = [
+                candidate for candidate in view["candidates"] if candidate.get("suppressed")
+            ]
+            assert suppressed
+            assert all(
+                "Jordan Smith" not in json.dumps(candidate, default=str)
+                and "(713) 555-0100" not in json.dumps(candidate, default=str)
+                for candidate in suppressed
+            )
+        expected_suppressed_claim = person if suppressed_link == "person_company" else organization
+        assert any(
+            candidate.get("suppressed")
+            for candidate in current_view["candidates"]
+            if str(candidate.get("id")) == str(expected_suppressed_claim["id"])
+        )
+
+        contact_jobs = session.scalars(
+            select(Job).where(
+                Job.kind == "company_contact_discovery",
+                Job.target_id.in_([person_company_id, organization_company_id]),
+            )
+        ).all()
+        assert len(contact_jobs) == 2
+
+
+def test_tdlr_company_alignment_preserves_scoped_method_suppression(db, monkeypatch):
+    from gridlens.intelligence import identity_reconciliation
+    from gridlens.intelligence.contact_suppressions import (
+        method_suppression_key,
+        record_contact_suppression,
+    )
+
+    real_reconcile = identity_reconciliation._reuse_exact_project_company_for_named_people
+    monkeypatch.setattr(
+        identity_reconciliation,
+        "_reuse_exact_project_company_for_named_people",
+        lambda *_args: None,
+    )
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += (
+        "\nOwner contact: Jordan Smith\nOwner contact phone: (512) 555-0100"
+        "\nGeneral note: 512-555-0100; (512)555-0100; +15125550100"
+    )
+    with db.begin() as session:
+        project, _retained, _owner = _seed_tdlr_retained_project(
+            session, (number, name, location, owner, excerpt)
+        )
+        result = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
+        organization = next(
+            candidate
+            for candidate in result["candidates"]
+            if candidate["organization"] == owner and not candidate["person_name"]
+        )
+        person = next(
+            candidate
+            for candidate in result["candidates"]
+            if candidate["person_name"] == "Jordan Smith"
+        )
+        old_company_id = UUID(str(person["company_identity_id"]))
+        assert person["company_identity_id"] != organization["company_identity_id"]
+        assert person["public_contacts"]
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=method_suppression_key(
+                old_company_id, "Jordan Smith", "phone", "(512) 555-0100"
+            ),
+            action="suppress",
+            expected_version=0,
+            reason="Keep a company-scoped method private across identity refresh.",
+            actor="test",
+            idempotency_key="tdlr-method-suppression-before-company-alignment",
+        )
+        from gridlens.intelligence.buying_chain import _apply_contact_privacy
+
+        probe = deepcopy(person)
+        probe["evidence"].append(
+            {"quote": "General note: 512-555-0100; (512)555-0100; +15125550100"}
+        )
+        _apply_contact_privacy(session, [probe])
+        rendered_probe = str(probe)
+        assert "General note:" in rendered_probe
+        assert "512-555-0100" not in rendered_probe
+        assert "(512)555-0100" not in rendered_probe
+        assert "+15125550100" not in rendered_probe
+        from gridlens.intelligence.buying_chain import _apply_permit_summary_privacy
+
+        privacy_view = {
+            "candidates": [person],
+            "permit_summaries": [
+                {
+                    "evidence_id": person["evidence"][0]["id"],
+                    "facts": [
+                        {"label": "Owner", "value": owner, "quote": f"Owner: {owner}"},
+                        {
+                            "label": "Owner contact phone",
+                            "value": "512-555-0100",
+                            "quote": (
+                                f"{owner}: 512-555-0100; (512)555-0100; "
+                                "+15125550100; unrelated prose repeats 512-555-0100"
+                            ),
+                        },
+                    ],
+                }
+            ],
+        }
+        _apply_permit_summary_privacy(session, privacy_view)
+        summary_json = str(privacy_view["permit_summaries"])
+        assert "512-555-0100" not in summary_json
+        assert "(512)555-0100" not in summary_json
+        assert "+15125550100" not in summary_json
+
+        person_claim_id = UUID(str(person["id"]))
+        monkeypatch.setattr(
+            identity_reconciliation,
+            "_reuse_exact_project_company_for_named_people",
+            real_reconcile,
+        )
+        identity_reconciliation.ensure_project_scoped_identity_links(
+            session, [str(organization["id"]), str(person["id"])]
+        )
+        current_person_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == person_claim_id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert current_person_link is not None
+        assert current_person_link.company_identity_id == old_company_id
+
+        # A regenerated current claim can inherit only project/entity provenance;
+        # it must retain the 512 method yet receive no copied company link.
+        old_claim = session.get(BuyingChainClaim, person_claim_id)
+        old_company_link = current_person_link
+        assert old_claim is not None
+        assert any(
+            contact.get("value") == "(512) 555-0100" for contact in old_claim.public_contacts
+        )
+        old_company_link.state = "historical"
+        clone_values = {
+            column.name: deepcopy(getattr(old_claim, column.name))
+            for column in BuyingChainClaim.__table__.columns
+            if column.name not in {"id", "fingerprint", "created_at"}
+        }
+        clone_values["fingerprint"] = sha256(
+            f"regenerated-without-company-link:{old_claim.fingerprint}".encode()
+        ).hexdigest()
+        regenerated = BuyingChainClaim(**clone_values)
+        session.add(regenerated)
+        session.flush()
+        assert any(
+            contact.get("value") == "(512) 555-0100" for contact in regenerated.public_contacts
+        )
+        active_run = session.scalar(
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project.id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+            .limit(1)
+        )
+        assert active_run is not None
+        active_run.claim_ids = [
+            str(regenerated.id) if value == str(person_claim_id) else value
+            for value in active_run.claim_ids
+        ]
+        session.flush()
+        assert (
+            session.scalar(
+                select(BuyingChainIdentityLink.id).where(
+                    BuyingChainIdentityLink.claim_id == regenerated.id,
+                    BuyingChainIdentityLink.entity_type == "company",
+                )
+            )
+            is None
+        )
+        for view in (
+            buying_chain_view(session, project.id),
+            buying_chain_views(session, {project.id})[str(project.id)],
+        ):
+            regenerated_view = next(
+                candidate
+                for candidate in view["candidates"]
+                if str(candidate["id"]) == str(regenerated.id)
+            )
+            assert regenerated_view.get("company_identity_id") is None
+            assert not regenerated_view.get("suppressed")
+            assert not regenerated_view["public_contacts"]
+            rendered = str(regenerated_view)
+            assert "(512) 555-0100" not in rendered
+            assert "512-555-0100" not in rendered
+            assert "+15125550100" not in rendered
+        for view in (
+            buying_chain_view(session, project.id),
+            buying_chain_view(session, project.id, history=True),
+            buying_chain_views(session, {project.id})[str(project.id)],
+        ):
+            person_view = next(
+                candidate
+                for candidate in view["candidates"]
+                if candidate.get("person_name") == "Jordan Smith"
+            )
+            assert not person_view["public_contacts"]
+
+
+def test_same_project_company_identity_alignment_rejects_other_project_source_or_name():
+    from gridlens.intelligence.identity_reconciliation import (
+        _same_current_project_organization_source,
+    )
+
+    person_candidate = {
+        "organization": "Acme Energy",
+        "organization_relationship": "DIRECT",
+        "person_name": "Jordan Smith",
+        "evidence": [
+            {
+                "id": "source-a",
+                "current_source_version_id": "source-a",
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": "project_organization",
+                "quote": "Owner: Acme Energy",
+            },
+            {
+                "id": "source-a",
+                "current_source_version_id": "source-a",
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": "organization_person_role",
+                "quote": "Owner contact: Jordan Smith",
+            },
+        ],
+    }
+    company_candidate = {
+        "organization": "Acme Energy",
+        "organization_relationship": "DIRECT",
+        "person_name": None,
+        "evidence": [
+            {
+                "id": "source-a",
+                "current_source_version_id": "source-a",
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": "project_organization",
+                "quote": "Owner: Acme Energy",
+            }
+        ],
+    }
+    assert _same_current_project_organization_source(
+        person_candidate,
+        company_candidate,
+        person_project_id=UUID(int=1),
+        company_project_id=UUID(int=1),
+    ) == ("source-a", "a" * 64)
+    assert (
+        _same_current_project_organization_source(
+            person_candidate,
+            company_candidate,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=2),
+        )
+        is None
+    )
+
+    other_source = {**company_candidate, "evidence": [dict(company_candidate["evidence"][0])]}
+    other_source["evidence"][0]["id"] = "source-b"
+    other_source["evidence"][0]["current_source_version_id"] = "source-b"
+    assert (
+        _same_current_project_organization_source(
+            person_candidate,
+            other_source,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+
+    refreshed_source = {
+        **company_candidate,
+        "evidence": [
+            {
+                **company_candidate["evidence"][0],
+                "content_hash": "b" * 64,
+            }
+        ],
+    }
+    assert (
+        _same_current_project_organization_source(
+            person_candidate,
+            refreshed_source,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+
+    other_name = {**company_candidate, "organization": "Acme Energy, Inc."}
+    assert (
+        _same_current_project_organization_source(
+            person_candidate,
+            other_name,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+    assert (
+        _same_current_project_organization_source(
+            {**person_candidate, "correction_stale": True},
+            company_candidate,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+    assert (
+        _same_current_project_organization_source(
+            {**person_candidate, "suppressed": True},
+            company_candidate,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+
+
 @pytest.mark.parametrize(
     ("case", "url_number", "project_name", "location", "owner", "extra"),
     [
@@ -6561,36 +5944,6 @@ def test_company_contact_survives_retained_refresh_commit_and_api(db, monkeypatc
     assert response.json()["contacts"][0]["methods"][0]["href"] == "mailto:office@acme.example"
 
 
-def test_contact_recovery_cannot_revive_operator_retraction(db):
-    with db.begin() as session:
-        project = seed(session)
-        phrase = "Acme is the owner for Orion Data Center in Austin, TX."
-
-        def fetch(url):
-            return source(phrase + "\nAcme email: office@acme.example", url=url)
-
-        first = enrich_buying_chain(session, project.id, fetcher=fetch, now=NOW)
-        candidate = first["candidates"][0]
-        correct_buying_chain_claim(
-            session,
-            project_id=project.id,
-            claim_id=candidate["id"],
-            source_evidence_id=None,
-            source_hash=None,
-            actor="test operator",
-            expected_version=candidate["fingerprint"],
-            idempotency_key="contact-recovery-retraction",
-            action="retract",
-            values={},
-            reason="Operator confirmed this is the wrong buying organization.",
-        )
-        again = enrich_buying_chain(
-            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=1)
-        )
-        assert not again["candidates"]
-        assert not contact_projection(again)
-
-
 def test_contact_recovery_requeues_legacy_success_once(db, monkeypatch):
     import json
 
@@ -6659,3 +6012,811 @@ def test_contact_recovery_plan_prioritizes_tiers_and_resumes_without_writes(db, 
         third = recover(session, limit=1, cursor=second["next_cursor"])
         assert third["outcomes"][0]["priority"] == 2
         assert session.scalar(select(func.count()).select_from(Job)) == 0
+
+
+@pytest.mark.parametrize(
+    "team_path",
+    ("contact", "our-people", "team/jane-doe", "team.html"),
+    ids=("contact-page", "people-page", "person-subpage", "html-suffix"),
+)
+def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company_route(
+    db, monkeypatch, team_path
+):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import Job
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    html = fixture.read_bytes()
+    team_url = f"https://www.mesltdtx.com/{team_path}"
+    with db.begin() as session:
+        project = seed(session, external_id="mes-team-person-methods")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Masters Electrical Services is the electrical contractor for "
+                "Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(
+            item
+            for item in view["candidates"]
+            if item["organization"] == "Masters Electrical Services"
+        )
+        company_id = UUID(company["company_identity_id"])
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=[team_url],
+            now=NOW,
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
+    )
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "complete"
+    assert result["results"][0]["named_professionals"] == 3
+    assert result["results"][0]["contacts"] == 4
+    with db.begin() as session:
+        view = buying_chain_view(session, project.id)
+        people = {
+            item["person_name"]: item
+            for item in view["candidates"]
+            if item.get("company_identity_id") == str(company_id) and item.get("person_name")
+        }
+        assert set(people) == {"Josh Spaw", "Justin Flippin", "Christopher Brannon"}
+        assert [method["value"] for method in people["Josh Spaw"]["public_contacts"]] == [
+            "jspaw@mesltdtx.com"
+        ]
+        assert [method["value"] for method in people["Christopher Brannon"]["public_contacts"]] == [
+            "cbrannon@mesltdtx.com"
+        ]
+        assert people["Christopher Brannon"]["category"] == "procurement"
+        assert people["Christopher Brannon"]["person_project_relationship"] == "ROLE_SUPPORTED"
+        assert "buying authority are UNKNOWN" in people["Christopher Brannon"]["reason"]
+        for person_name, email in (
+            ("Josh Spaw", "jspaw@mesltdtx.com"),
+            ("Justin Flippin", "jflippin@mesltdtx.com"),
+            ("Christopher Brannon", "cbrannon@mesltdtx.com"),
+        ):
+            method_evidence = [
+                item
+                for item in people[person_name]["evidence"]
+                if item["supports"] == "public_contact" and item["url"] == team_url
+            ]
+            assert len(method_evidence) == 1
+            assert email in method_evidence[0]["quote"]
+        projected = company_contacts(session, company_id).contacts
+        named_methods = [
+            (contact.name, method["value"])
+            for contact in projected
+            if contact.name
+            for method in contact.methods
+        ]
+        assert len(named_methods) == 3
+        assert {value for _name, value in named_methods} == {
+            "jspaw@mesltdtx.com",
+            "jflippin@mesltdtx.com",
+            "cbrannon@mesltdtx.com",
+        }
+        generic_methods = [
+            method["value"]
+            for contact in projected
+            if contact.name is None
+            for method in contact.methods
+        ]
+        assert generic_methods == ["info@mesltdtx.com"]
+
+
+def test_contact_discovery_stops_after_two_official_low_yield_pages(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
+
+    urls = [
+        "https://acme.example/contact",
+        "https://acme.example/team",
+        "https://acme.example/leadership",
+        "https://acme.example/about",
+    ]
+    with db.begin() as session:
+        project = seed(session, external_id="low-yield-contact")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Acme Energy is the electrical contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(item for item in view["candidates"] if item["organization"] == "Acme Energy")
+        queued = discovery.discover_company_contacts(
+            session, UUID(company["company_identity_id"]), candidate_urls=urls, now=NOW
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    fetched = []
+
+    def empty_official_page(url, **_kwargs):
+        fetched.append(url)
+        return PublicDocument(
+            url,
+            "Acme Energy",
+            "Acme Energy official information.\nEmail: info@acme.example.\n© 2026 Acme Energy.",
+            observed_at=NOW,
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", empty_official_page)
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "complete"
+    assert result["research_required"] is True
+    assert len(fetched) == 3
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert checkpoint["depth_stop_reason"] == "two_official_pages_without_contact_yield"
+        assert checkpoint["fetched_count"] == 3
+        assert checkpoint["new_contact_yield_count"] == 1
+        assert checkpoint["contact_gaps"]["missing_buyer_relevant_contact_method"] is True
+
+
+def test_unresolved_contact_attempt_retains_checked_sources_for_next_retry(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
+
+    urls = [
+        "https://acme.example/contact",
+        "https://acme.example/team",
+        "https://acme.example/leadership",
+        "https://acme.example/about",
+    ]
+    with db.begin() as session:
+        project = seed(session, external_id="unresolved-source-reuse")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Acme Energy is the electrical contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company_id = UUID(
+            next(item for item in view["candidates"] if item["organization"] == "Acme Energy")[
+                "company_identity_id"
+            ]
+        )
+        queued = discovery.discover_company_contacts(
+            session, company_id, candidate_urls=urls, now=NOW
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: PublicDocument(
+            url,
+            "Acme Energy",
+            "Acme Energy official information.\n© 2026 Acme Energy.",
+            observed_at=NOW,
+        ),
+    )
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "unresolved"
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert checkpoint["checked_urls"] == urls[:2]
+
+    organization_urls = [f"https://acme.example/source-{index}" for index in range(5)]
+    next_attempt = NOW + timedelta(days=30)
+    with db.begin() as session:
+        retry = discovery.discover_company_contacts(session, company_id, now=next_attempt)
+        retry_job = session.get(Job, UUID(retry["job_id"]))
+        assert retry_job is not None
+        retry_job.status, retry_job.lease_owner, retry_job.fence = "running", "contact-test", 1
+        retry_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        retry_id = retry_job.id
+    monkeypatch.setattr(
+        discovery,
+        "buying_chain_view",
+        lambda _session, _project_id: {
+            "candidates": [
+                {
+                    "company_identity_id": str(company_id),
+                    "organization": "Acme Energy",
+                    "category": "contractor",
+                    "organization_relationship": "DIRECT",
+                    "evidence": [
+                        {
+                            "supports": "project_organization",
+                            "current_support": True,
+                            "url": url,
+                            "quote": "Acme Energy is the electrical contractor.",
+                            "content_hash": f"organization-source-{index}",
+                        }
+                        for index, url in enumerate(organization_urls)
+                    ],
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: PublicDocument(
+            url, "Acme Energy", "Company information only.", observed_at=next_attempt
+        ),
+    )
+    retried = discovery.process_company_contact_discovery(
+        retry_id, "contact-test", 1, now=next_attempt
+    )
+    assert retried["status"] == "unresolved"
+    with db.begin() as session:
+        reused = discovery._known_contact_urls(
+            session, company_id, discovery._projects(session, company_id)
+        )
+        assert reused[:4] == [*urls[:2], *organization_urls[:2]]
+        retry_checkpoint = json.loads(session.get(Job, retry_id).checkpoint)
+        assert retry_checkpoint["checked_urls"] == [*urls[:2], *organization_urls[:2]]
+
+
+def test_high_priority_missing_buyer_uses_bounded_six_page_depth(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.enrichment_planner import (
+        DEEP_RESEARCH_PROFILE,
+        STANDARD_RESEARCH_PROFILE,
+    )
+    from gridlens.persistence.models import Job
+
+    urls = [f"https://acme.example/p{index}" for index in range(4)]
+    expanded = ["https://acme.example/p4", "https://acme.example/p5"]
+    with db.begin() as session:
+        project = seed(session, external_id="adaptive-contact-depth")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Acme Energy is the electrical contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(item for item in view["candidates"] if item["organization"] == "Acme Energy")
+        company_id = UUID(company["company_identity_id"])
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=urls,
+            now=NOW,
+            research_profile=STANDARD_RESEARCH_PROFILE,
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    fetched = []
+
+    def page(url, **_kwargs):
+        fetched.append(url)
+        return PublicDocument(
+            url,
+            "Acme Energy",
+            "Acme Energy official information.\n© 2026 Acme Energy.",
+            observed_at=NOW,
+            links=tuple(expanded) if url == urls[0] else (),
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", page)
+    shallow_result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert shallow_result["status"] == "unresolved"
+    assert len(fetched) == discovery.MAX_CANDIDATE_URLS
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert checkpoint["research_profile"] == STANDARD_RESEARCH_PROFILE
+        assert checkpoint["fetch_budget"] == discovery.MAX_CANDIDATE_URLS
+        assert checkpoint["fetched_count"] == discovery.MAX_CANDIDATE_URLS
+        assert checkpoint["contact_gaps"]["missing_buyer_relevant_contact_method"] is True
+        deep = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=urls,
+            now=NOW,
+            research_profile=DEEP_RESEARCH_PROFILE,
+        )
+        assert deep["job_id"] != str(job_id)
+        deep_job = session.get(Job, UUID(deep["job_id"]))
+        deep_job.status, deep_job.lease_owner, deep_job.fence = "running", "contact-test", 1
+        deep_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        deep_job_id = deep_job.id
+    fetched.clear()
+    result = discovery.process_company_contact_discovery(deep_job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "unresolved"
+    assert len(fetched) == discovery.MAX_ADAPTIVE_FETCHES
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, deep_job_id).checkpoint)
+        assert checkpoint["research_profile"] == DEEP_RESEARCH_PROFILE
+        assert checkpoint["payload"]["research_profile"] == DEEP_RESEARCH_PROFILE
+        assert checkpoint["fetch_budget"] == discovery.MAX_ADAPTIVE_FETCHES
+        assert checkpoint["fetched_count"] == discovery.MAX_ADAPTIVE_FETCHES
+        assert checkpoint["contact_gaps"]["missing_buyer_relevant_contact_method"] is True
+
+
+def test_named_nonbuyer_contact_does_not_suppress_missing_buyer_search(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    html = fixture.read_bytes().replace(
+        b"      <div>\n"
+        b"        <h3>Christopher Brannon, Purchasing Manager</h3>\n"
+        b'        <p><a href="mailto:cbrannon@mesltdtx.com">Contact Chris by Email</a></p>\n'
+        b"      </div>\n",
+        b"",
+    )
+    with db.begin() as session:
+        project = seed(session, external_id="named-nonbuyer-search")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Masters Electrical Services is the electrical contractor for "
+                "Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company_id = UUID(
+            next(
+                item
+                for item in view["candidates"]
+                if item["organization"] == "Masters Electrical Services"
+            )["company_identity_id"]
+        )
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=["https://www.mesltdtx.com/team"],
+            now=NOW,
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        first_job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
+    )
+    first = discovery.process_company_contact_discovery(first_job_id, "contact-test", 1, now=NOW)
+    assert first["status"] == "complete"
+    with db.begin() as session:
+        from gridlens.intelligence.company_contacts import company_contacts
+
+        projection = company_contacts(session, company_id)
+        assert any(
+            contact.name == "Josh Spaw" and contact.role == "electrical contractor"
+            for contact in projection.contacts
+        )
+        assert all(contact.role != "procurement" for contact in projection.contacts if contact.name)
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            now=NOW,
+            refresh_generation="buyer-role-recovery",
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        assert json.loads(job.checkpoint)["payload"]["candidate_urls"] == []
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        second_job_id = job.id
+
+    monkeypatch.setattr(discovery, "_known_contact_urls", lambda *_args, **_kwargs: [])
+    searches = []
+    monkeypatch.setattr(
+        discovery,
+        "_search_official_urls",
+        lambda *_args, **_kwargs: searches.append("bounded-search") or [],
+    )
+    second = discovery.process_company_contact_discovery(second_job_id, "contact-test", 1, now=NOW)
+    assert searches == ["bounded-search"]
+    assert second["status"] == "unresolved"
+    assert second["results"][0]["reason"] == "no_verified_refresh_source"
+
+
+def test_projected_owner_role_method_clears_buyer_relevant_gap_without_authority_claim(db):
+    from gridlens.intelligence.company_contact_discovery import _contact_research_gaps
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    with db.begin() as session:
+        project = seed(session, external_id="projected-owner-role-method")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Acme Energy is the developer for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(item for item in view["candidates"] if item["organization"] == "Acme Energy")
+        company_id = UUID(company["company_identity_id"])
+        project_support = next(
+            item
+            for item in company["evidence"]
+            if item["supports"] == "project_organization" and item["current_support"]
+        )
+        organization_source = session.get(BuyingChainEvidence, project_support["id"])
+        assert organization_source is not None
+
+        role_quote = "Jordan Smith is Vice President of Development at Acme Energy."
+        method_quote = "Jordan Smith email: jordan@acme.example."
+        roster_source = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://acme.example/leadership",
+            title="Acme Energy Leadership",
+            excerpt=f"{role_quote}\n{method_quote}",
+            content_hash="a" * 64,
+            extraction_location="official roster fixture",
+            observed_at=NOW,
+            last_seen_at=NOW,
+            project_match_reason="Official organization roster.",
+        )
+        session.add(roster_source)
+        session.flush()
+        person = BuyingChainClaim(
+            project_id=project.id,
+            entity_key="owner-role-method-fixture",
+            fingerprint="b" * 64,
+            policy_version="test",
+            organization="Acme Energy",
+            person_name="Jordan Smith",
+            title="Vice President of Development",
+            category="owner_developer",
+            organization_relationship="DIRECT",
+            person_organization_relationship="CURRENT",
+            person_project_relationship="ROLE_SUPPORTED",
+            evidence_strength="High",
+            reason="Current organizational role; buying authority is UNKNOWN.",
+            citations=[
+                {
+                    "evidence_id": str(organization_source.id),
+                    "url": organization_source.url,
+                    "quote": project_support["quote"],
+                    "supports": "project_organization",
+                },
+                {
+                    "evidence_id": str(roster_source.id),
+                    "url": roster_source.url,
+                    "quote": role_quote,
+                    "supports": "organization_person_role",
+                },
+                {
+                    "evidence_id": str(roster_source.id),
+                    "url": roster_source.url,
+                    "quote": method_quote,
+                    "supports": "public_contact",
+                },
+            ],
+            public_contacts=[
+                {
+                    "kind": "email",
+                    "value": "jordan@acme.example",
+                    "source_url": roster_source.url,
+                    "quote": method_quote,
+                    "observed_at": NOW.isoformat(),
+                }
+            ],
+            observed_at=NOW,
+        )
+        session.add(person)
+        session.flush()
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=person.id,
+                entity_type="company",
+                company_identity_id=company_id,
+                reason="Same current source-cited owner organization.",
+                basis="reviewed_alias",
+                source_evidence_id=organization_source.id,
+                source_version_hash=organization_source.content_hash,
+                state="current",
+            )
+        )
+        current_run = session.scalar(
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project.id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+            .limit(1)
+        )
+        assert current_run is not None
+        current_run.claim_ids = [*current_run.claim_ids, str(person.id)]
+        current_run.evidence_ids = [*current_run.evidence_ids, str(roster_source.id)]
+        session.flush()
+
+        projection = company_contacts(session, company_id)
+        jordan = next(contact for contact in projection.contacts if contact.name == "Jordan Smith")
+        assert jordan.role == "owner developer"
+        assert jordan.methods[0]["value"] == "jordan@acme.example"
+        assert jordan.purchasing_authority == "Requires confirmation for this power package"
+        assert _contact_research_gaps(session, company_id) == (False, False)
+
+
+@pytest.mark.parametrize(
+    ("page_text", "expected_status", "expected_projected_method"),
+    [
+        (
+            "Acme Energy\nAcme Energy is the developer for Orion Data Center in Austin, TX.\n"
+            "Email: info@acme-energy.example\n"
+            "© 2026 Acme Energy, Inc. All rights reserved.",
+            "complete",
+            True,
+        ),
+        (
+            "Unrelated Company\nEmail: contact@unrelated.example\n"
+            "© 2026 Unrelated Company. All rights reserved.",
+            "unresolved",
+            False,
+        ),
+        (
+            "Acme Energy\nEmail: info@acme-energy.example\n"
+            "© 2026 Acme Energy, Inc. All rights reserved.",
+            "complete",
+            False,
+        ),
+    ],
+)
+def test_current_company_source_is_untrusted_but_useful_cold_start_seed(
+    db, monkeypatch, page_text, expected_status, expected_projected_method
+):
+    """Planner-to-worker reuse fetches a cited company page, then verifies its publisher."""
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import Job, Observation
+
+    company_url = "https://acme-energy.example/about/"
+    with db.begin() as session:
+        project = seed(session, external_id="company-source-contact-cold-start")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "company-source-contact-cold-start")
+        )
+        assert evidence is not None
+        evidence.url = company_url
+        evidence.abstract = "Acme Energy is the developer for Orion Data Center in Austin, TX."
+        observation = session.get(Observation, evidence.observation_id)
+        assert observation is not None
+        observation.url = company_url
+        chain = enrich_buying_chain(session, project.id, now=NOW, retained_only=True)
+        candidate = next(row for row in chain["candidates"] if row["organization"] == "Acme Energy")
+        company_id = UUID(candidate["company_identity_id"])
+        historical_claim_id = candidate["id"]
+        historical_claim = session.get(BuyingChainClaim, historical_claim_id)
+        assert historical_claim is not None
+        historical_citations = json.loads(json.dumps(historical_claim.citations))
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=company_id,
+                project_id=project.id,
+                role="owner_developer",
+                organization_name="Acme Energy",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_owner_membership_v1",
+                operator_number="123456",
+                state="current",
+            )
+        )
+        session.flush()
+        assert discovery._known_contact_urls(session, company_id, [project]) == [company_url]
+        assert discovery._projects(session, company_id) == [project]
+        assert discovery._select_anchor_project(session, [project], company_id) is project
+        assert discovery._contact_research_gaps(session, company_id) == (True, True)
+        prior_job_ids = list(
+            session.scalars(
+                select(Job.id).where(Job.kind == discovery.JOB_KIND, Job.target_id == company_id)
+            )
+        )
+        assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 1
+        # Retained enrichment may already have queued a job in this transaction.
+        # Select the planner's new job rather than ordering equal timestamps by UUID.
+        job = session.scalars(
+            select(Job).where(
+                Job.kind == discovery.JOB_KIND,
+                Job.target_id == company_id,
+                Job.id.not_in(prior_job_ids),
+            )
+        ).one()
+        checkpoint = json.loads(job.checkpoint)
+        # The source citation is an untrusted cold-start fetch anchor. It must
+        # reach the worker as a candidate URL without becoming a verified
+        # contact or an authority-bearing company claim by itself.
+        assert checkpoint["payload"]["candidate_urls"] == [company_url]
+        job.status = "running"
+        job.lease_owner = "contact-cold-start-test"
+        job.fence = 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job.created_at = NOW
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: PublicDocument(url, "Company page", page_text, observed_at=NOW),
+    )
+    result = discovery.process_company_contact_discovery(
+        job_id, "contact-cold-start-test", 1, now=NOW
+    )
+    assert result["status"] == expected_status
+    with db.begin() as session:
+        projected = company_contacts(session, company_id)
+        methods = [method for contact in projected.contacts for method in contact.methods]
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert bool(methods) is expected_projected_method
+        assert session.get(BuyingChainClaim, historical_claim_id).citations == historical_citations
+        assert checkpoint["checked_urls"] == [company_url]
+        if expected_status == "unresolved":
+            assert result["results"][0]["reason"] == "official_identity_unverified"
+
+
+def test_current_contact_refresh_seed_precedes_organization_discovery_seeds(db, monkeypatch):
+    import json
+    from uuid import uuid4
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-refresh-seed-priority")
+        company_id = uuid4()
+        org_sources = [
+            {
+                "supports": "project_organization",
+                "current_support": True,
+                "url": f"https://source-{index}.example/record",
+            }
+            for index in range(5)
+        ]
+        contact_source = {
+            "supports": "public_contact",
+            "current_support": True,
+            "url": "https://acme.example/contact",
+        }
+        previously_checked = ["https://acme.example/checked/contact"]
+        session.add(
+            Job(
+                source_id=project.source_id,
+                kind=discovery.JOB_KIND,
+                target_id=company_id,
+                status="succeeded",
+                checkpoint=json.dumps({"status": "unresolved", "checked_urls": previously_checked}),
+            )
+        )
+        monkeypatch.setattr(
+            discovery,
+            "_company_hyperlink_hints",
+            lambda *_args: {
+                "urls": ["https://acme.com/imported-citation"],
+                "fingerprint": "metadata-hints-fingerprint",
+            },
+        )
+        monkeypatch.setattr(
+            discovery,
+            "buying_chain_view",
+            lambda *_args, **_kwargs: {
+                "candidates": [
+                    {
+                        "company_identity_id": str(company_id),
+                        "evidence": [*org_sources, contact_source],
+                    }
+                ]
+            },
+        )
+        urls = discovery._known_contact_urls(session, company_id, [project])
+        assert urls[:4] == [
+            "https://acme.example/contact",
+            *previously_checked,
+            "https://acme.com/imported-citation",
+            "https://source-0.example/record",
+        ]
+        assert len(urls[: discovery.MAX_CANDIDATE_URLS]) == discovery.MAX_CANDIDATE_URLS
+        assert "https://acme.example/contact" in urls[: discovery.MAX_CANDIDATE_URLS]
+        assert "https://acme.com/imported-citation" in urls[: discovery.MAX_CANDIDATE_URLS]
+        assert "https://source-0.example/record" in urls[: discovery.MAX_CANDIDATE_URLS]
+
+
+def test_organization_discovery_seeds_require_current_company_and_public_url(db, monkeypatch):
+    from uuid import uuid4
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+
+    with db.begin() as session:
+        project = seed(session, external_id="contact-org-seed-scope")
+        company_id, other_company_id = uuid4(), uuid4()
+        monkeypatch.setattr(
+            discovery,
+            "buying_chain_view",
+            lambda *_args, **_kwargs: {
+                "candidates": [
+                    {
+                        "company_identity_id": str(company_id),
+                        "evidence": [
+                            {
+                                "supports": "project_organization",
+                                "current_support": False,
+                                "url": "https://stale.example/company",
+                            },
+                            {
+                                "supports": "project_organization",
+                                "current_support": True,
+                                "url": "http://127.0.0.1/admin",
+                            },
+                        ],
+                    },
+                    {
+                        "company_identity_id": str(other_company_id),
+                        "evidence": [
+                            {
+                                "supports": "project_organization",
+                                "current_support": True,
+                                "url": "https://other.example/company",
+                            }
+                        ],
+                    },
+                ]
+            },
+        )
+        assert discovery._known_contact_urls(session, company_id, [project]) == []
+
+
+def test_refresh_baseline_uses_unredacted_internal_view(db, monkeypatch):
+    """Privacy overlays must not make persisted claims look absent to refresh."""
+    from gridlens.intelligence import buying_chain as service
+
+    real_view = service.buying_chain_view
+    calls = []
+
+    def observe_view(session, project_id, **kwargs):
+        calls.append(kwargs.get("_apply_privacy", True))
+        return real_view(session, project_id, **kwargs)
+
+    monkeypatch.setattr(service, "buying_chain_view", observe_view)
+    with db.begin() as session:
+        project = seed(session, external_id="privacy-refresh-baseline")
+        service.enrich_buying_chain(session, project.id, fetcher=lambda _url: None, now=NOW)
+    assert False in calls

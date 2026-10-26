@@ -2471,3 +2471,442 @@ def test_site_reclassification_holds_active_need_and_preserves_evidence_history(
         assert need.active is False
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+
+
+def test_tdlr_parser_refresh_recovers_owner_fields_and_preserves_prior_evidence(db):
+    import copy
+    from pathlib import Path
+
+    from gridlens.ingestion.adapters.tdlr_tabs import (
+        parse_project as parse_tdlr_project,
+    )
+    from gridlens.ingestion.adapters.tdlr_tabs import (
+        record as tdlr_record,
+    )
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "texas-tdlr-tabs-data-centers")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=definition["cadence_hours"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    page = (
+        Path(__file__)
+        .parents[1]
+        .joinpath("fixtures", "tdlr-tabs-project-TABS2026009183-excerpt.html")
+        .read_bytes()
+    )
+    page = page.replace(
+        b"<dd>Dan Yamagishi</dd>",
+        b"<dd>Dan Yamagishi</dd><dt>Owner Phone:</dt><dd>(214) 555-0100</dd>",
+    )
+    current_project = parse_tdlr_project(page, "TABS2026009183")
+    current = tdlr_record(current_project)
+
+    # Reproduce the old parser projection: Contact Name was in its hash, but
+    # record() omitted it from retained text and permit metadata.
+    old_project = copy.deepcopy(current_project)
+    for key in ("owner_phone", "owner_email", "owner_contact_phone", "owner_contact_email"):
+        old_project.pop(key, None)
+    old = tdlr_record(old_project)
+    old_field_prefixes = (
+        "Owner contact:",
+        "Owner phone:",
+        "Owner email:",
+        "Owner contact phone:",
+        "Owner contact email:",
+    )
+    old["abstract"] = "\n".join(
+        line for line in old["abstract"].splitlines() if not line.startswith(old_field_prefixes)
+    )
+    assert not any(line.startswith(old_field_prefixes) for line in old["abstract"].splitlines())
+    for key in (
+        "owner_contact",
+        "owner_phone",
+        "owner_email",
+        "owner_contact_phone",
+        "owner_contact_email",
+    ):
+        old["permit"]["source_fields"].pop(key, None)
+
+    import gridlens.ingestion.service as service
+
+    with factory() as session:
+        initial = service.process_records(
+            session, job_id, "test", 1, definition, [old], allow_model=False
+        )
+    assert initial["new"] == 1
+    with factory() as session:
+        prior = session.scalar(select(Evidence))
+        assert prior is not None
+        historical_abstract = prior.abstract
+        historical_hash = prior.content_hash
+
+    with factory() as session:
+        refreshed = service.process_records(
+            session, job_id, "test", 1, definition, [current], allow_model=False
+        )
+    assert refreshed["changed"] == 1
+    with factory() as session:
+        replay = service.process_records(
+            session, job_id, "test", 1, definition, [current], allow_model=False
+        )
+    assert replay["unchanged"] == 1
+    with factory() as session:
+        evidence = list(session.scalars(select(Evidence)))
+        observation = session.scalar(select(Observation))
+        assert len(evidence) == 2
+        assert observation is not None and observation.external_id == "TABS-TABS2026009183"
+        historical = next(row for row in evidence if row.content_hash == historical_hash)
+        latest = next(row for row in evidence if row.content_hash != historical_hash)
+        assert historical.abstract == historical_abstract
+        assert "Owner contact: Dan Yamagishi" in latest.abstract
+        assert "Owner phone: (214) 555-0100" in latest.abstract
+
+
+def test_tdlr_exact_refetch_receipt_refreshes_only_fetched_retained_contact_source(db, monkeypatch):
+    from pathlib import Path
+
+    from gridlens.ingestion.adapters.tdlr_tabs import parse_project, record
+    from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+    from gridlens.persistence.models import BuyingChainEvidence
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "texas-tdlr-tabs-data-centers")
+    page_a = (
+        (
+            Path(__file__)
+            .parents[1]
+            .joinpath("fixtures", "tdlr-tabs-project-TABS2026009183-excerpt.html")
+            .read_bytes()
+        )
+        .replace(
+            b"<dd>Dan Yamagishi</dd>",
+            b"<dd>Dan Yamagishi</dd><dt>Owner Phone:</dt><dd>(214) 555-0100</dd>",
+        )
+        .replace(b"1/5/2026", b"10/20/2026")
+    )
+    page_b = (
+        page_a.replace(b"TABS2026009183", b"TABS2026009184")
+        .replace(b"Databank Red Oak - DFW13", b"Acme Red Oak - DFW14")
+        .replace(b"Stainback Rd,", b"Landmark St,")
+    )
+    page_c = (
+        page_b.replace(b"TABS2026009184", b"TABS2026009185")
+        .replace(b"Acme Red Oak - DFW14", b"Other Red Oak - DFW15")
+        .replace(b"Landmark St,", b"Other St,")
+    )
+    record_a = record(parse_project(page_a, "TABS2026009183"))
+    record_b = record(parse_project(page_b, "TABS2026009184"))
+    record_c = record(parse_project(page_c, "TABS2026009185"))
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=definition["cadence_hours"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="tdlr-fetch-receipt-test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    import gridlens.ingestion.service as service
+
+    with factory() as session:
+        service.process_records(
+            session,
+            job_id,
+            "tdlr-fetch-receipt-test",
+            1,
+            definition,
+            [record_a, record_b, record_c],
+            allow_model=False,
+        )
+    now = datetime.now(UTC)
+    stale_since = now - timedelta(days=31)
+    with factory.begin() as session:
+        projects = {
+            item.external_id: item
+            for item in session.scalars(
+                select(Project).where(
+                    Project.source_id == definition["id"],
+                    Project.external_id.in_(
+                        [
+                            record_a["document_number"],
+                            record_b["document_number"],
+                            record_c["document_number"],
+                        ]
+                    ),
+                )
+            )
+        }
+        evidence = {
+            item["document_number"]: session.scalar(
+                select(Evidence)
+                .join(Observation)
+                .where(
+                    Observation.source_id == definition["id"],
+                    Observation.external_id == item["document_number"],
+                    Evidence.content_hash == item["source_hash"],
+                )
+            )
+            for item in (record_a, record_b, record_c)
+        }
+        for item in evidence.values():
+            item.observed_at = stale_since
+        from gridlens.intelligence.buying_chain import _retained_evidence_current_for_project
+
+        assert _retained_evidence_current_for_project(
+            session, projects[record_a["document_number"]], evidence[record_a["document_number"]]
+        )
+        old_evidence_metadata = {
+            external_id: (
+                evidence[external_id].id,
+                evidence[external_id].content_hash,
+                evidence[external_id].observed_at,
+                evidence[external_id].abstract,
+            )
+            for external_id in projects
+        }
+        for item in (record_a, record_b):
+            enrich_buying_chain(
+                session,
+                projects[item["document_number"]].id,
+                retained_only=True,
+                now=now,
+            )
+        b_receipt = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == projects[record_b["document_number"]].id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_b["document_number"]].id,
+            )
+        )
+        assert b_receipt is not None and b_receipt.last_seen_at == stale_since
+        b_view = buying_chain_view(session, projects[record_b["document_number"]].id, now=now)
+        b_owner = next(item for item in b_view["candidates"] if item["person_name"] is None)
+        b_phone = next(item for item in b_owner["evidence"] if item["supports"] == "public_contact")
+        assert b_phone["contact_stale"] is True
+        assert (
+            session.scalar(
+                select(BuyingChainEvidence).where(
+                    BuyingChainEvidence.project_id == projects[record_c["document_number"]].id
+                )
+            )
+            is None
+        )
+        a_view = buying_chain_view(session, projects[record_a["document_number"]].id, now=now)
+        a_owner = next(item for item in a_view["candidates"] if item["person_name"] is None)
+        a_phone = next(item for item in a_owner["evidence"] if item["supports"] == "public_contact")
+        assert a_phone["contact_stale"] is True
+
+    # The exact adapter retrieval returns a stale existing source and a source
+    # with no BuyingChainEvidence row. Both receipts are scoped to returned pages.
+    source_calls = []
+
+    def tdlr_handler(request):
+        source_calls.append(str(request.url))
+        if request.method == "POST":
+            return httpx.Response(
+                200,
+                json={
+                    "recordsFiltered": 2,
+                    "data": [
+                        {
+                            "ProjectNumber": "TABS2026009183",
+                            "ProjectName": "Databank Red Oak - DFW13",
+                        },
+                        {
+                            "ProjectNumber": "TABS2026009185",
+                            "ProjectName": "Other Red Oak - DFW15",
+                        },
+                    ],
+                },
+            )
+        if str(request.url) == record_a["html_url"]:
+            return httpx.Response(200, content=page_a)
+        assert str(request.url) == record_c["html_url"]
+        return httpx.Response(200, content=page_c)
+
+    with httpx.Client(transport=httpx.MockTransport(tdlr_handler)) as client:
+        with factory() as session:
+            counts = service.process_job(
+                session,
+                job_id,
+                "tdlr-fetch-receipt-test",
+                1,
+                definition,
+                client,
+            )
+            session.commit()
+    assert source_calls.count("https://www.tdlr.texas.gov/TABS/Search/SearchProjects") == 2
+    assert set(source_calls[-2:]) == {record_a["html_url"], record_c["html_url"]}
+    assert counts["retrieved_records"] == 2
+    assert counts["retained_source_refresh_receipts"] == 2
+    with factory.begin() as session:
+        project_a = projects[record_a["document_number"]]
+        a_receipt = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project_a.id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_a["document_number"]].id,
+            )
+        )
+        b_receipt = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == projects[record_b["document_number"]].id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_b["document_number"]].id,
+            )
+        )
+        c_receipt = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == projects[record_c["document_number"]].id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_c["document_number"]].id,
+            )
+        )
+        assert a_receipt is not None, list(
+            session.scalars(
+                select(BuyingChainEvidence).where(BuyingChainEvidence.project_id == project_a.id)
+            )
+        )
+        assert a_receipt.last_seen_at > stale_since
+        assert b_receipt is not None and b_receipt.last_seen_at == stale_since
+        assert c_receipt is not None and c_receipt.last_seen_at > stale_since
+        for _external_id, original in old_evidence_metadata.items():
+            current_evidence = session.get(Evidence, original[0])
+            assert current_evidence is not None
+            assert (
+                current_evidence.content_hash,
+                current_evidence.observed_at,
+                current_evidence.abstract,
+            ) == original[1:]
+        enrich_buying_chain(session, project_a.id, retained_only=True, now=now)
+        enrich_buying_chain(
+            session,
+            projects[record_b["document_number"]].id,
+            retained_only=True,
+            now=now,
+        )
+        enrich_buying_chain(
+            session,
+            projects[record_c["document_number"]].id,
+            retained_only=True,
+            now=now,
+        )
+        refreshed_a = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project_a.id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_a["document_number"]].id,
+            )
+        )
+        refreshed_b = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == projects[record_b["document_number"]].id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_b["document_number"]].id,
+            )
+        )
+        refreshed_c = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == projects[record_c["document_number"]].id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_c["document_number"]].id,
+            )
+        )
+        assert refreshed_a is not None and refreshed_a.last_seen_at == a_receipt.last_seen_at
+        assert refreshed_b is not None and refreshed_b.last_seen_at == stale_since
+        assert refreshed_c is not None and refreshed_c.last_seen_at == c_receipt.last_seen_at
+        a_view = buying_chain_view(session, project_a.id, now=now)
+        a_owner = next(item for item in a_view["candidates"] if item["person_name"] is None)
+        a_phone = next(item for item in a_owner["evidence"] if item["supports"] == "public_contact")
+        assert a_phone["contact_stale"] is False
+        c_view = buying_chain_view(session, projects[record_c["document_number"]].id, now=now)
+        c_owner = next(item for item in c_view["candidates"] if item["person_name"] is None)
+        c_phone = next(item for item in c_owner["evidence"] if item["supports"] == "public_contact")
+        assert c_phone["contact_stale"] is False
+
+    # A lease stolen after records are processed must block the exact-fetch
+    # receipt write; it cannot turn the refreshed content into trusted freshness.
+    with factory.begin() as session:
+        stale_a = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project_a.id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_a["document_number"]].id,
+            )
+        )
+        assert stale_a is not None
+        stale_a.last_seen_at = stale_since
+    original_process_records = service.process_records
+
+    def steal_after_records(*args, **kwargs):
+        result = original_process_records(*args, **kwargs)
+        with factory.begin() as session:
+            leased = session.get(Job, job_id)
+            assert leased is not None
+            leased.lease_owner = "replacement-worker"
+            leased.fence = 2
+            leased.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        return result
+
+    monkeypatch.setattr(service, "process_records", steal_after_records)
+    with httpx.Client(transport=httpx.MockTransport(tdlr_handler)) as client:
+        with factory() as session:
+            with pytest.raises(RuntimeError, match="Worker lease fence lost"):
+                service.process_job(
+                    session,
+                    job_id,
+                    "tdlr-fetch-receipt-test",
+                    1,
+                    definition,
+                    client,
+                )
+            session.rollback()
+    with factory() as session:
+        stale_a = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project_a.id,
+                BuyingChainEvidence.retained_evidence_id
+                == evidence[record_a["document_number"]].id,
+            )
+        )
+        assert stale_a is not None and stale_a.last_seen_at == stale_since

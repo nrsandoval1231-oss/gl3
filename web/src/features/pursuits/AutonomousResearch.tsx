@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { client, type AutonomousResearch as ResearchResponse, type ResearchQuestion, type ResearchRoute } from '../../api/client'
 
 const active = (question: ResearchQuestion) => ['QUEUED', 'SEARCHING', 'REVIEWING_EVIDENCE'].includes(question.status)
@@ -22,60 +22,40 @@ function readOnlyResearch(needId: string): Promise<ResearchResponse> {
   return request
 }
 
-export function AutonomousResearch({ needId, readOnly = false, readOnlyLabel }: { needId: string; readOnly?: boolean; readOnlyLabel?: string }) {
+export function AutonomousResearch({ needId }: { needId: string }) {
   const [data, setData] = useState<ResearchResponse | null>(null)
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
   const [reload, setReload] = useState(0)
-  const request = useRef<AbortController | null>(null)
   useEffect(() => {
     const controller = new AbortController()
     let timer: number | undefined
     setData(null)
     setError('')
-    setBusy(false)
     async function load() {
       try {
-        const result = readOnly
-          ? await readOnlyResearch(needId)
-          : checked(await client.autonomousResearch(needId, controller.signal))
+        const result = await readOnlyResearch(needId)
         if (controller.signal.aborted) return
         setData(result)
         setError('')
-        if (!readOnly && result.items.some(active)) timer = window.setTimeout(() => void load(), 1600)
+        if (result.items.some(active)) timer = window.setTimeout(() => void load(), 1600)
       } catch (cause) {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Research status is unavailable.')
       }
     }
     void load()
-    return () => { controller.abort(); request.current?.abort(); request.current = null; if (timer !== undefined) window.clearTimeout(timer) }
-  }, [needId, readOnly, reload])
-  async function refresh() {
-    if (request.current) return
-    const controller = new AbortController()
-    request.current = controller
-    setBusy(true)
-    try {
-      checked(await client.refreshAutonomousResearch(needId, Boolean(data?.items.length), controller.signal))
-      if (!controller.signal.aborted) setReload((value) => value + 1)
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Research could not be requested.')
-    } finally {
-      if (!controller.signal.aborted) { setBusy(false); request.current = null }
-    }
-  }
+    return () => { controller.abort(); if (timer !== undefined) window.clearTimeout(timer) }
+  }, [needId, reload])
   const pending = data?.items.filter(active) ?? []
-  return <section className="commercial-action" aria-label="Autonomous pursuit research" data-context-loading={!data && !error}>
-    <h3>Missing facts · autonomous research</h3>
-    <p>Bounded public research with evidence admission and deterministic reevaluation. No commercial outreach occurs.</p>
-    {readOnly && data && <p>{readOnlyLabel ?? 'Read-only research history for this power need, including attempts after the saved evaluation above.'}</p>}
-    {readOnly && !data && error && <p>Later research attempt history is unavailable; status is UNKNOWN. Saved disposition and tier were not rechecked.</p>}
+  return <section className="commercial-action autonomous-research" aria-label="Autonomous research history" data-context-loading={!data && !error}>
+    <h3>Automated research</h3>
+    <p>Source discovery, evidence checks and reevaluation run automatically. No commercial outreach occurs.</p>
+    {data && <p>Research history for this eligible power need.</p>}
+    {!data && error && <p>Research history is unavailable. Research status is unknown.</p>}
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p role="status">Loading research history…</p>}
     {data && !data.items.length && <p>No autonomous research questions recorded.</p>}
     {pending.length > 0 && <p role="status">{pending.length} active blocker{pending.length === 1 ? '' : 's'} · queued or in progress; no completed result yet.</p>}
-    {!readOnly && <button type="button" disabled={busy || pending.length > 0 || !data} onClick={() => void refresh()}>{busy ? 'Requesting research…' : pending.length ? 'Research in progress…' : data?.items.length ? 'Refresh missing facts' : 'Research missing facts'}</button>}
-    {!readOnly && error && <button type="button" disabled={busy} onClick={() => setReload((value) => value + 1)}>Retry research status</button>}
+    {error && <button type="button" onClick={() => setReload((value) => value + 1)}>Retry research status</button>}
     {data?.items.map((question) => <Question key={question.id} question={question}/>)}
   </section>
 }

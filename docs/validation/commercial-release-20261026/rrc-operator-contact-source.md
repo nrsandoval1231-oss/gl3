@@ -1,0 +1,11 @@
+# Bounded RRC operator contact source check — 2026-10-26
+
+I checked the exact public RRC EWA operator-number result pages for three distinct operator numbers in the frozen native cohort: 102606 (DE V OPERATING, LLC), 217012 (DIAMONDBACK E&P LLC), and 385847 (HIGHMARK ENERGY OPERATING, LLC). Each direct GET through the environment's ordinary proxy/TLS path returned HTTP 503. No HTML body was received, so there is no page-body hash, literal operator-result field, or generic company phone to admit for these pages.
+
+The permit evidence tied to each frozen project contains only the source-native company label and operator number. Those exact quotes, project/company/need/evidence IDs, source URLs, hashes and failed endpoint receipts are in [the JSON evidence record](rrc-operator-contact-source.json).
+
+I also bounded a lookup against the RRC's official Oil & Gas P5 directory published as of July 20, 2026. The 1,008,782-byte file returned HTTP 200 with SHA-256 `709b433c58ac5109f7c8f54f14edffc26a93116d79d23547bacfdaff090b5241`. Filtering only the three exact operator numbers found one `RRC Org No` match apiece and blank `Phone No: () -` values. The file confirms no usable generic telephone method for these operators and is too old to stand in for current operator-page retrieval.
+
+The repository already implements an exact-number RRC fallback in `company_contact_discovery._rrc_public_method`: it requires the official operator-results heading, one exact operator number, one company name matching the current source-supported identity, and one literal `Organization Phone No` field. It excludes agency and emergency numbers. Its caller uses the general pinned-IP public-document retriever, which deliberately sets `trust_env=False` and therefore does not use the environment proxy. The independent proxy path also received 503 from the EWA endpoint, so the current evidence cannot tell whether the native worker's earlier failures are caused by transport, a temporary RRC outage, or page content changes. There is no returned EWA page to compare with the parser's field labels. I made no code or canonical-data changes and did not export the bulk directory.
+
+No paid provider calls, person-level contact searches, contact promotion, or database writes occurred.

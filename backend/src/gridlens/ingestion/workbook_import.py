@@ -6,7 +6,9 @@ import csv
 import hashlib
 import json
 import math
+import posixpath
 import re
+import xml.etree.ElementTree as ET
 import zipfile
 from collections import defaultdict
 from collections.abc import Iterator
@@ -18,7 +20,14 @@ from typing import Any
 from urllib.parse import urlparse
 
 from openpyxl import load_workbook  # type: ignore[import-untyped]
+from openpyxl.utils.cell import get_column_letter, range_boundaries
 from pydantic import BaseModel, ConfigDict
+
+_OOXML_MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+_OOXML_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_OOXML_PACKAGE_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+_HYPERLINK_METADATA_KEY = "__workbook_hyperlinks__"
+HYPERLINK_METADATA_PARSER_REVISION = "xlsx-ooxml-hyperlinks-v2"
 
 CANONICAL_FIELDS = (
     "company_name",
@@ -43,6 +52,10 @@ CANONICAL_FIELDS = (
 MAX_FILE_BYTES = 50 * 1024 * 1024
 MAX_ROWS = 100_000
 MAX_COLUMNS = 300
+MAX_HYPERLINK_METADATA_BYTES = 16 * 1024 * 1024
+MAX_HYPERLINK_SHEET_SCAN_BYTES = 256 * 1024 * 1024
+MAX_HYPERLINK_TARGETS = 100_000
+MAX_HYPERLINK_TARGET_BYTES = 16 * 1024 * 1024
 
 
 class ImportRow(BaseModel):
@@ -98,6 +111,16 @@ _ALIASES: dict[str, tuple[str, ...]] = {
     "phone": ("phone", "telephone", "mobile", "phone number", "project phone"),
     "profile_url": ("profile url", "linkedin", "linkedin url", "linkedin profile", "profile link"),
     "demand_mw": (
+        "temporary demand",
+        "temporary demand mw",
+        "temporary power demand",
+        "temporary power demand mw",
+        "rental power demand",
+        "rental power demand mw",
+        "construction power demand",
+        "construction power demand mw",
+        "commissioning power demand",
+        "commissioning power demand mw",
         "demand",
         "demand mw",
         "demand kw",
@@ -429,21 +452,65 @@ def _header_score(values: tuple[Any, ...], column_mapping: dict[str, str] | None
     return sum(_header_key(value) in known_headers for value in values if value is not None)
 
 
+def _is_repeated_header_row(values: tuple[Any, ...], headers: list[Any]) -> bool:
+    """Identify an echoed header row within a data range without interpreting it as a record."""
+    if not headers or not any(header is not None and str(header).strip() for header in headers):
+        return False
+    for index, header in enumerate(headers):
+        value = values[index] if index < len(values) else None
+        if header is None or not str(header).strip():
+            if value is not None and str(value).strip():
+                return False
+            continue
+        if _header_key(value) != _header_key(header):
+            return False
+    return not any(value is not None and str(value).strip() for value in values[len(headers) :])
+
+
+def _is_standalone_rows_footer(raw: dict[str, Any], project_name_headers: set[str]) -> bool:
+    """Ignore the observed standalone footer label, but keep populated projects named Rows."""
+    label_columns = {
+        header
+        for header in project_name_headers
+        if str(raw.get(header) or "").strip().casefold() == "rows"
+    }
+    if not label_columns:
+        return False
+    return all(
+        value is None or not str(value).strip()
+        for header, value in raw.items()
+        if header not in label_columns
+    )
+
+
 def _iter_sources(path: Path):
     suffix = path.suffix.casefold()
     if suffix == ".csv":
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.reader(handle)
-            yield "CSV", enumerate(reader, start=1)
+            yield "CSV", ((index, tuple(row), {}) for index, row in enumerate(reader, start=1))
     elif suffix in {".xlsx", ".xlsm"}:
         workbook = load_workbook(path, read_only=True, data_only=False)
         try:
+            hyperlinks = _xlsx_hyperlink_targets(path)
             for sheet in workbook.worksheets:
                 iterator = sheet.iter_rows(values_only=False)
                 yield (
                     sheet.title,
                     (
-                        (index, tuple(cell.value for cell in row))
+                        (
+                            index,
+                            tuple(cell.value for cell in row),
+                            {
+                                cell_index: hyperlinks.get(sheet.title, {}).get(
+                                    f"{get_column_letter(cell_index + 1)}{index}"
+                                )
+                                for cell_index, cell in enumerate(row)
+                                if hyperlinks.get(sheet.title, {}).get(
+                                    f"{get_column_letter(cell_index + 1)}{index}"
+                                )
+                            },
+                        )
                         for index, row in enumerate(iterator, start=1)
                     ),
                 )
@@ -451,6 +518,131 @@ def _iter_sources(path: Path):
             workbook.close()
     else:
         raise ValueError("Supported file types are .csv, .xlsx, and .xlsm")
+
+
+def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
+    """Read external OOXML hyperlink targets omitted by openpyxl read-only cells.
+
+    Cell values remain on openpyxl's streaming, non-formula path. This reads
+    relationship metadata only and never visits the hyperlink targets.
+    """
+    result: dict[str, dict[str, str]] = {}
+    metadata_bytes = 0
+    scan_bytes = 0
+    target_count = 0
+    mapped_target_bytes = 0
+
+    def read_metadata_xml(archive: zipfile.ZipFile, name: str) -> ET.Element:
+        nonlocal metadata_bytes
+        size = archive.getinfo(name).file_size
+        metadata_bytes += size
+        if metadata_bytes > MAX_HYPERLINK_METADATA_BYTES:
+            raise ValueError(
+                "Workbook hyperlink relationship metadata exceeds its configured byte budget"
+            )
+        return ET.fromstring(archive.read(name))
+
+    with zipfile.ZipFile(path) as archive:
+        workbook_root = read_metadata_xml(archive, "xl/workbook.xml")
+        workbook_rels = read_metadata_xml(archive, "xl/_rels/workbook.xml.rels")
+        workbook_targets = {
+            relation.attrib["Id"]: relation.attrib["Target"]
+            for relation in workbook_rels.findall(f"{{{_OOXML_PACKAGE_REL_NS}}}Relationship")
+            if "Id" in relation.attrib and "Target" in relation.attrib
+        }
+        members = {info.filename for info in archive.infolist()}
+        for sheet in workbook_root.findall(f".//{{{_OOXML_MAIN_NS}}}sheet"):
+            name = sheet.attrib.get("name")
+            relation_id = sheet.attrib.get(f"{{{_OOXML_REL_NS}}}id")
+            target = workbook_targets.get(relation_id or "")
+            if not name or not target:
+                continue
+            sheet_path = (
+                target.lstrip("/")
+                if target.startswith("/")
+                else posixpath.normpath(posixpath.join("xl", target))
+            )
+            if sheet_path.startswith("../") or sheet_path not in members:
+                continue
+            rels_path = posixpath.join(
+                posixpath.dirname(sheet_path),
+                "_rels",
+                posixpath.basename(sheet_path) + ".rels",
+            )
+            if rels_path not in members:
+                continue
+            sheet_rels = read_metadata_xml(archive, rels_path)
+            external_targets = {
+                relation.attrib["Id"]: relation.attrib["Target"]
+                for relation in sheet_rels.findall(f"{{{_OOXML_PACKAGE_REL_NS}}}Relationship")
+                if relation.attrib.get("TargetMode") == "External"
+                and "Id" in relation.attrib
+                and "Target" in relation.attrib
+            }
+            sheet_hyperlinks: dict[str, str] = {}
+            sheet_xml_bytes = archive.getinfo(sheet_path).file_size
+            scan_bytes += sheet_xml_bytes
+            if scan_bytes > MAX_HYPERLINK_SHEET_SCAN_BYTES:
+                raise ValueError("Workbook worksheet XML exceeds its configured scan-byte budget")
+            with archive.open(sheet_path) as stream:
+                stack: list[ET.Element] = []
+                for event, element in ET.iterparse(stream, events=("start", "end")):
+                    if event == "start":
+                        stack.append(element)
+                        continue
+                    if element.tag == f"{{{_OOXML_MAIN_NS}}}hyperlink":
+                        ref = element.attrib.get("ref")
+                        rel_id = element.attrib.get(f"{{{_OOXML_REL_NS}}}id")
+                        target_url = external_targets.get(rel_id or "")
+                        if ref and target_url:
+                            try:
+                                min_column, min_row, max_column, max_row = range_boundaries(ref)
+                            except ValueError as exc:
+                                raise ValueError(
+                                    "Workbook contains a malformed external hyperlink cell range"
+                                ) from exc
+                            if None in {min_column, min_row, max_column, max_row}:
+                                raise ValueError(
+                                    "Workbook contains an unsupported external hyperlink cell range"
+                                )
+                            if not (
+                                1 <= min_row <= max_row <= 1_048_576
+                                and 1 <= min_column <= max_column <= 16_384
+                            ):
+                                raise ValueError(
+                                    "Workbook contains an invalid external hyperlink cell range"
+                                )
+                            max_column = min(max_column, MAX_COLUMNS)
+                            if min_column <= max_column:
+                                mapped_targets = (max_column - min_column + 1) * (
+                                    max_row - min_row + 1
+                                )
+                                mapped_target_bytes += (
+                                    len(target_url.encode("utf-8")) * mapped_targets
+                                )
+                                if mapped_target_bytes > MAX_HYPERLINK_TARGET_BYTES:
+                                    raise ValueError(
+                                        "Workbook expanded hyperlink targets exceed their "
+                                        "configured byte budget"
+                                    )
+                                target_count += mapped_targets
+                                if target_count > MAX_HYPERLINK_TARGETS:
+                                    raise ValueError(
+                                        "Workbook contains more external hyperlinks than its "
+                                        "configured target budget"
+                                    )
+                                for row_number in range(min_row, max_row + 1):
+                                    for column_number in range(min_column, max_column + 1):
+                                        cell_ref = f"{get_column_letter(column_number)}{row_number}"
+                                        sheet_hyperlinks[cell_ref] = target_url
+                    element.clear()
+                    if len(stack) > 1:
+                        stack[-2].remove(element)
+                    if stack:
+                        stack.pop()
+            if sheet_hyperlinks:
+                result[name] = sheet_hyperlinks
+    return result
 
 
 def read_workbook(
@@ -474,6 +666,7 @@ def read_workbook(
 
     rows: list[ImportRow] = []
     sheets: list[dict[str, Any]] = []
+    hyperlink_sidecar_keys: dict[str, set[str]] = defaultdict(set)
     duplicate_index: dict[str, list[tuple[str, int]]] = defaultdict(list)
     probable_index: dict[str, list[tuple[str, int, str]]] = defaultdict(list)
     truncated = False
@@ -484,13 +677,16 @@ def read_workbook(
                 buffered.append(next(numbered_rows))
             except StopIteration:
                 break
-        source_rows: Iterator[tuple[int, tuple[Any, ...]]]
+        source_rows: Iterator[tuple[int, tuple[Any, ...], dict[int, str]]]
         if buffered:
             header_position = max(
                 range(len(buffered)),
                 key=lambda index: (_header_score(buffered[index][1], column_mapping), -index),
             )
-            header_row_number, header_values = buffered[header_position]
+            header_row_number, header_values = (
+                buffered[header_position][0],
+                buffered[header_position][1],
+            )
             headers = list(header_values)
             source_rows = iter(chain(buffered[header_position + 1 :], numbered_rows))
             preamble_count = header_position
@@ -570,7 +766,7 @@ def read_workbook(
                 "row_kind": row_kind,
             }
         )
-        for row_number, values in source_rows:
+        for row_number, values, cell_hyperlinks in source_rows:
             if len(rows) >= MAX_ROWS:
                 truncated = True
                 break
@@ -586,11 +782,33 @@ def read_workbook(
                     key = f"{base}#{suffix}"
                     suffix += 1
                 raw[key] = _json_value(values[index])
+            if cell_hyperlinks:
+                hyperlink_key = _HYPERLINK_METADATA_KEY
+                suffix = 2
+                while hyperlink_key in raw:
+                    hyperlink_key = f"{_HYPERLINK_METADATA_KEY}#{suffix}"
+                    suffix += 1
+                raw[hyperlink_key] = {
+                    raw_headers[index]
+                    if index < len(raw_headers)
+                    else f"_extra_column_{index + 1}": target
+                    for index, target in cell_hyperlinks.items()
+                }
+                hyperlink_sidecar_keys[sheet_name].add(hyperlink_key)
             if not any(value is not None and value != "" for value in raw.values()):
                 continue
+            project_name_headers = {
+                raw_headers[index] for index, field in mapping.items() if field == "project_name"
+            }
+            is_footer = _is_standalone_rows_footer(raw, project_name_headers)
+            item_row_kind = (
+                "metadata" if _is_repeated_header_row(values, headers) or is_footer else row_kind
+            )
             normalized: dict[str, Any] = {}
             errors: list[str] = []
-            for index, field in mapping.items() if row_kind not in {"summary", "metadata"} else ():
+            for index, field in (
+                mapping.items() if item_row_kind not in {"summary", "metadata"} else ()
+            ):
                 value = values[index] if index < len(values) else None
                 try:
                     if field in _POWER_FIELDS:
@@ -617,7 +835,7 @@ def read_workbook(
                 raw=raw,
                 normalized=normalized,
                 errors=errors,
-                row_kind=row_kind,
+                row_kind=item_row_kind,
             )
             rows.append(item)
             if mapping_diagnostics:
@@ -692,5 +910,9 @@ def read_workbook(
             "row_limit": MAX_ROWS,
             "file_size_limit_bytes": MAX_FILE_BYTES,
             "formulas_evaluated": False,
+            "hyperlink_metadata_parser_revision": HYPERLINK_METADATA_PARSER_REVISION,
+            "hyperlink_metadata_sidecar_keys": {
+                sheet: sorted(keys) for sheet, keys in sorted(hyperlink_sidecar_keys.items())
+            },
         },
     )

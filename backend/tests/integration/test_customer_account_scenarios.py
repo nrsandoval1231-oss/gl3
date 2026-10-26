@@ -12,7 +12,6 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.intelligence.customer_accounts import (
     account_queue,
     record_rrc_operator_membership,
-    retract_customer_membership,
     unresolved_projects,
 )
 from gridlens.intelligence.saved_browse import (
@@ -63,6 +62,25 @@ def scenario_db():
     with admin.begin() as connection:
         connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
     admin.dispose()
+
+
+def _historical_retraction(session, membership, *, idempotency_key, reason):
+    """Seed a persisted historical operator decision without invoking its retired writer."""
+    expected_version = membership.version
+    membership.state = "retracted"
+    membership.version += 1
+    membership.superseded_at = datetime.now(UTC)
+    correction = CompanyProjectMembershipCorrection(
+        membership_id=membership.id,
+        expected_version=expected_version,
+        idempotency_key=idempotency_key,
+        action="retracted",
+        reason=reason,
+        actor="historical_scenario_operator",
+    )
+    session.add(correction)
+    session.flush()
+    return correction
 
 
 def _source(session, source_id):
@@ -481,13 +499,11 @@ def test_same_name_accounts_conflicts_shared_document_and_generation_refresh(sce
                 CompanyProjectMembership.state == "current",
             )
         )
-        correction = retract_customer_membership(
+        correction = _historical_retraction(
             session,
-            membership_id=second_membership.id,
-            expected_version=0,
+            second_membership,
             idempotency_key="scenario-retract-twin-b",
-            reason="Synthetic acceptance correction",
-            actor="scenario-test-operator",
+            reason="Historical synthetic acceptance correction",
         )
         correction_id = correction.id
     with scenario_db() as session, pytest.raises(HTTPException) as stale_generation:
@@ -568,13 +584,11 @@ def test_retracted_operator_conflict_replay_is_idempotent(scenario_db):
                 CompanyProjectMembership.state == "current",
             )
         )
-        correction = retract_customer_membership(
+        correction = _historical_retraction(
             session,
-            membership_id=membership.id,
-            expected_version=0,
+            membership,
             idempotency_key="replay-retracted-a",
-            reason="Synthetic acceptance correction",
-            actor="scenario-test-operator",
+            reason="Historical synthetic acceptance correction",
         )
         conflict_evidence = _rrc_version(
             session, project, "910002", "Changed Operator LLC", "conflict-b"
@@ -658,13 +672,11 @@ def test_need_detail_has_current_unambiguous_associated_account(scenario_db, mon
                 CompanyProjectMembership.state == "current",
             )
         )
-        retract_customer_membership(
+        _historical_retraction(
             session,
-            membership_id=retracted_membership.id,
-            expected_version=0,
+            retracted_membership,
             idempotency_key="detail-retract-operator",
-            reason="Synthetic detail acceptance test",
-            actor="scenario-test-operator",
+            reason="Historical synthetic detail acceptance test",
         )
         other_source_id = "texas-rrc-flare-vent-exceptions"
         _source(session, other_source_id)

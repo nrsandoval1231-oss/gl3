@@ -1,169 +1,236 @@
-import { expect, test, type Page } from '@playwright/test'
-import type { ResearchQuestion, ResearchOverview } from '../src/api/client'
+import { expect, test } from '@playwright/test'
 
-const question = (status: string): ResearchQuestion => ({
-  id: 'question-a', project_id: 'project-a', need_id: 'need-a', pursuit_id: 'pursuit-a', category: 'buyer', question: 'Who owns the electrical scope at this exact project?', status, attempt_count: 1,
-  created_at: '2026-10-04T10:00:00Z', completed_at: status === 'QUEUED' ? null : '2026-10-04T10:01:00Z', retry_after: null,
-  query_fingerprint: 'query-hash', evidence_fingerprint: 'evidence-hash', budget: {},
-  context: { route_plan: [{kind: 'registered', family: 'utility-filings', status: 'PLANNED', source_id: 'utility-fixture'}], why: 'A reachable project path supports a discovery call.', known_facts: [{ text: 'Temporary construction power is required.', evidence_id: 'ev-before' }], unknowns: ['Electrical contractor'], before: { disposition: 'RESEARCH', tier: 'Signal' }, source_families: ['permit', 'contractor'], queries: ['"811 Test Lane" electrical contractor'] },
-  receipt: status === 'QUEUED' ? { reevaluation_status: 'NOT_STARTED', searches: 0, retrieval_attempts: 0, model_calls: 0 } : { route_results: [{kind: 'registered', family: 'utility-filings', status: 'UNAVAILABLE', reason: 'No bounded utility adapter configured.'}], before: 'RESEARCH', after: status === 'RESOLVED' ? 'ACTION NOW' : 'RESEARCH', reason: status === 'RESOLVED' ? 'Current project contractor and public contact confirmed.' : 'No admissible contractor evidence.', reevaluation_status: 'COMPLETED', tier: 'Signal', remaining_blockers: ['Activity-specific load remains unknown.'], searches: 0, retrieval_attempts: 1, model_calls: 0, cost_usd: null, reserved_cost_usd: '0.05', runtime_seconds: 1.2,
-    error: status === 'FAILED' ? 'Public source timed out.' : null,
-    queries_attempted: ['\"811 Test Lane\" project contact'], queries_searched: [], acquisition_limitations: ['Broad web search was unavailable.'], queries_generated: ['"811 Test Lane" electrical contractor'],
-    source_checks: [{ event_date: '2026-09-30', match_basis: 'Exact retained permit identifier', evidence_url: 'https://example.test/original-permit', claim_type: 'project_organization_relationship', publisher: 'Municipal permits', extraction_location: 'Electrical contractor field', checked_at: '2026-10-04T10:00:31Z', cache_reused: true, duplicate: true, url: 'https://example.test/permit', disposition: status === 'RESOLVED' ? 'accepted' : 'rejected', reason: 'Exact project identifier checked.', evidence_id: status === 'RESOLVED' ? 'ev-new' : null, label: 'Reported', excerpt: 'Project electrical contractor: Example Electric.', published_at: '2026-10-01', retrieved_at: '2026-10-04T10:00:30Z' }],
+const need = {
+  id: 'need-demo', project_id: 'project-demo', name: 'Ridgeview commissioning', browse_title: 'Ridgeview commissioning', title_status: 'unavailable',
+  location: 'Austin, TX', tier: 'Prospect', workflow_status: 'UNKNOWN', activity: 'commissioning', rationale: 'Current source-backed project opportunity.',
+  signal_evidence_state: 'active_evidence', required_mw: null, qualified_remaining_gap: null, start_window: null, duration: null, supply: 'Unknown',
+  next_action: 'Current timing is unknown.', conflict_state: 'clear', missing_facts: ['Temporary demand', 'Power start date'], evidence: [],
+  intelligence_card: {
+    policy_version: 'test', need_id: 'need-demo', project_id: 'project-demo', input_fingerprint: 'test', qualification: 'Prospect', disposition: 'RESEARCH',
+    fields: [{ key: 'project', label: 'Project', section: 'identity', status: 'Verified', value: 'Ridgeview commissioning', basis: 'Publisher filing' }, { key: 'customer', label: 'Company', section: 'identity', status: 'Verified', value: 'Ridgeview Energy', basis: 'Publisher filing' }],
+    contacts: [{ claim_id: 'contact-1', company: 'Ridgeview Energy', name: 'Morgan Lee', title: 'Director, Construction', role: 'Project buyer', responsibility: 'Verified project responsibility', purchasing_authority: 'Purchasing authority requires confirmation', methods: [{ kind: 'email', value: 'morgan@example.test', href: 'mailto:morgan@example.test' }], verified_at: '2026-10-25T00:00:00Z', sources: [] }],
+    next_contact_path: 'Verified business email available', next_action: 'Review current gap evidence', research_gaps: [{ key: 'demand', label: 'Temporary demand', section: 'power', status: 'Not publicly available', value: null, basis: 'No current source supports activity demand.' }],
+    completeness: { supported: 2, total: 5 }, last_intelligence_update: '2026-10-25T00:00:00Z', power_gap: null, evidence: [], research_enabled: true,
   },
-})
-async function fixture(page: Page, initial: ResearchQuestion[], progress = false, overview: ResearchOverview | null = null) {
-  let posts = 0
-  let gets = 0
-  let readsAfterPost = 0
-  let forced: unknown
-  let items = initial
-  await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/health', (route) => route.fulfill({ json: {} }))
-  await page.route('**/api/opportunities?*', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/projects/*/buying-chain', (route) => route.fulfill({ json: { project_id: 'project-a', status: 'available', unresolved: [], runs: [], candidates: [] } }))
-  await page.route('**/api/commercial/triage?*', (route) => route.fulfill({ json: {
-    research_overview: overview, evaluated_at: '2026-10-04T10:00:00Z', policy_version: 'v1', total: 1, cohort_counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, daily: { evaluated: 1, surfaced: 0, contacted: 0 },
-    items: [{ id: 'need-a', project_id: 'project-a', pursuit_id: 'pursuit-a', name: 'Research fixture project', tier: 'Signal', activity: 'construction', industry: 'data_center', disposition: 'RESEARCH', reason: 'Buying path unknown.', supply: 'Unknown', next_question: 'Who owns electrical scope?', next_action: 'Find the public project contact.', stage: { stage: 'construction' }, blockers: ['Project contractor unknown'], facts: [], contacts: [], sources: [], unknowns: [], lifecycle_timeline: [], notes: [] }],
-  } }))
-  await page.route('**/api/commercial/triage/need-a/autonomous-research', async (route) => {
-    if (route.request().method() === 'POST') {
-      posts += 1
-      forced = route.request().postDataJSON().force
-      items = [question('QUEUED')]
-    } else {
-      gets += 1
-      if (posts > 0) readsAfterPost += 1
-      if (progress && readsAfterPost > 1) items = [question('RESOLVED')]
-    }
-    await route.fulfill({ json: { items } })
-  })
-  await page.goto('/?view=pursuits')
-  await page.getByText('Queue details and research updates').click()
-  await page.getByRole('button', { name: 'RESEARCH 1', exact: true }).click()
-  await page.locator('.commercial-card-heading').filter({ hasText: 'Research fixture project' }).click()
-  return { get posts() { return posts }, get gets() { return gets }, get forced() { return forced } }
+} as const
+
+const workspace = { items: [need], total: 1, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort', count_unit: 'power needs', counts: {} }
+
+async function install(page: import('@playwright/test').Page) {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: workspace }))
+  await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: need }))
+  await page.route('**/api/commercial/triage/need-demo/autonomous-research', route => route.fulfill({ json: { items: [] } }))
 }
 
-test('explicit request polls GET through resolution, exposes evidence and preserves prior state', async ({ page }) => {
-  const calls = await fixture(page, [], true)
-  const panel = page.getByRole('region', { name: 'Autonomous pursuit research' })
-  await panel.getByRole('button', { name: 'Research missing facts', exact: true }).click()
-  await expect(panel.getByText(/1 active blocker/)).toBeVisible()
-  await expect(panel.getByRole('button', { name: 'Research in progress…' })).toBeDisabled()
-  await expect(panel.getByText(/RESEARCH → ACTION NOW/)).toBeVisible()
-  await expect(panel.getByText('Resulting evidence tier: Signal')).toBeVisible()
-  await panel.getByText('What GridLens knew before').click()
-  await expect(panel.getByText(/Temporary construction power is required/)).toBeVisible()
-  await panel.getByText('Research trail · sources and evidence decisions').click()
-  await expect(panel.getByText(/Searches executed: 0/)).toBeVisible()
-  await expect(panel.getByText(/Actual cost: Unavailable · Reserved cost: \$0.05/)).toBeVisible()
-  await expect(panel.getByText('No successful searches recorded.')).toBeVisible()
-  await expect(panel.getByRole('heading', {name: 'Planned source routes'})).toBeVisible()
-  await expect(panel.getByText('No bounded utility adapter configured.')).toBeVisible()
-  await expect(panel.getByText('Project match basis: Exact retained permit identifier')).toBeVisible()
-  await expect(panel.getByText(/Event date: 2026-09-30/)).toBeVisible()
-  await expect(panel.getByText(/Publisher: Municipal permits/)).toBeVisible()
-  await expect(panel.getByText('Cached source result reused.')).toBeVisible()
-  await expect(panel.getByText('Duplicate evidence avoided.')).toBeVisible()
-  await expect(panel.getByText('Claim type: Project organization relationship')).toBeVisible()
-  await expect(panel.getByRole('link', { name: 'https://example.test/original-permit', exact: true })).toHaveAttribute('href', 'https://example.test/original-permit')
-  await expect(panel.getByText('Project electrical contractor: Example Electric.')).toBeVisible()
-  await expect(panel.getByRole('link', { name: 'https://example.test/permit' })).toHaveAttribute('href', 'https://example.test/permit')
-  expect(calls.posts).toBe(1)
-  expect(calls.forced).toBe(false)
-  const gets = calls.gets
-  await page.waitForTimeout(1800)
-  expect(calls.gets).toBe(gets)
-})
-
-test('unresolved and failure history are inspectable without POST; refresh is explicit', async ({ page }) => {
-  const unresolved = question('UNRESOLVED')
-  const failed = { ...question('FAILED'), id: 'question-b' }
-  const calls = await fixture(page, [unresolved, failed])
-  const panel = page.getByRole('region', { name: 'Autonomous pursuit research' })
-  await expect(panel.getByText(/Insufficient evidence within this attempt/)).toBeVisible()
-  await expect(panel.getByRole('alert')).toHaveText('Public source timed out.')
-  expect(calls.posts).toBe(0)
-  await panel.getByRole('button', { name: 'Refresh missing facts' }).click()
-  await expect(panel.getByText(/1 active blocker/)).toBeVisible()
-  expect(calls.posts).toBe(1)
-  expect(calls.forced).toBe(true)
-  const gets = calls.gets
-  await page.getByRole('button', { name: /Research fixture project/ }).click()
-  await page.waitForTimeout(1800)
-  expect(calls.gets).toBe(gets)
-  expect(calls.posts).toBe(1)
-})
-
-test('failed status request is visible and retry only reads status', async ({ page }) => {
-  const calls = await fixture(page, [])
-  await page.route('**/api/commercial/triage/need-a/autonomous-research', (route) => route.fulfill({ status: 503, json: { detail: 'Status temporarily unavailable.' } }))
-  await page.getByRole('button', { name: /Research fixture project/ }).click()
-  await page.getByRole('button', { name: /Research fixture project/ }).click()
-  const panel = page.getByRole('region', { name: 'Autonomous pursuit research' })
-  await expect(panel.getByRole('alert')).toContainText('Status temporarily unavailable')
-  await panel.getByRole('button', { name: 'Retry research status' }).click()
-  await expect(panel.getByRole('alert')).toContainText('Status temporarily unavailable')
-  expect(calls.posts).toBe(0)
-})
-
-test('saved evaluation research history loads only on explicit read and stays read-only', async ({ page }) => {
-  await fixture(page, [])
-  let reads = 0
-  let writes = 0
-  const savedDetail = { pursuit_id: 'pursuit-old', need_id: 'need-old', project_id: 'project-old', disposition: 'RESEARCH', snapshot_status: 'metadata_only' as const, live_status: 'not_rechecked' as const, saved_card: null, notes: [] }
-  await page.route('**/api/commercial/triage/history', (route) => route.fulfill({ json: { items: [savedDetail] } }))
-  await page.route('**/api/commercial/triage/history/pursuit-old', (route) => route.fulfill({ json: savedDetail }))
-  await page.route('**/api/commercial/triage/need-old/autonomous-research', (route) => {
-    if (route.request().method() === 'POST') writes += 1
-    else reads += 1
-    return route.fulfill({ json: { items: [{ ...question('QUEUED'), need_id: 'need-old' }] } })
-  })
-  const history = page.locator('.commercial-history')
-  await history.locator('summary').click()
-  await history.getByRole('button', { name: /Saved work · need-old/ }).click()
-  expect(reads).toBe(0)
-  expect(writes).toBe(0)
-  await expect(history.getByRole('region', { name: 'Autonomous pursuit research' })).toHaveCount(0)
-  await history.getByRole('button', { name: 'Inspect later research attempts' }).click()
-  const panel = history.getByRole('region', { name: 'Autonomous pursuit research' })
-  await expect(history.getByText('Research attempt history loaded now; it may include attempts after this saved evaluation. Saved disposition and tier were not rechecked.')).toBeVisible()
-  await expect(panel.getByText(/Research attempt history loaded now; it may include attempts after this saved evaluation/)).toBeVisible()
-  await expect(panel.getByText(/1 active blocker/)).toBeVisible()
-  await expect(panel.getByRole('button')).toHaveCount(0)
-  expect(reads).toBe(1)
-  const initialReads = reads
-  await page.waitForTimeout(1800)
-  expect(reads).toBe(initialReads)
-  expect(writes).toBe(0)
-})
-
-
-test('research-related summary preserves one evaluation for multiple questions and opens read-only history', async ({ page }) => {
+test('Research shows source-backed contacts, separate priority and confidence, explicit unknowns, and read-only history on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  const overview: ResearchOverview = {
-    since: '2026-10-04T00:00:00Z', summary: { blockers_attempted: 2, blocker_statuses: { RESOLVED: 1, UNRESOLVED: 1 }, commercial_transitions: { 'RESEARCH → ACTION NOW': 1 } },
-    items: [{ id: 'pursuit-a:2', pursuit_id: 'pursuit-a', need_id: 'need-a', project_id: 'project-a', version: 2, evaluated_at: '2026-10-04T10:01:00Z', name: 'Research fixture project', before: 'RESEARCH', after: 'ACTION NOW', before_tier: 'Signal', after_tier: 'Signal', reason: 'Reachable project contractor confirmed.', next_action: 'Ask the contractor who owns the power package.', question_ids: ['question-a', 'question-b'], new_evidence: [{ text: 'Project electrical contractor confirmed.', evidence_id: 'ev-new', url: 'https://example.test/permit', hash: 'hash-new', date: '2026-10-01' }] }],
+  await install(page)
+  const longCompany = `Northstar${'Compute'.repeat(14)}`
+  const longEmail = `morgan.${'construction'.repeat(9)}@${'northstar-energy-'.repeat(7)}example.com`
+  const longNeed = {
+    ...need,
+    commercial_organization: longCompany,
+    intelligence_card: {
+      ...need.intelligence_card,
+      fields: need.intelligence_card.fields.map(field => field.key === 'customer' ? { ...field, value: longCompany } : field),
+      contacts: need.intelligence_card.contacts.map(contact => ({
+        ...contact, company: longCompany,
+        methods: contact.methods.map(method => ({ ...method, value: longEmail, href: `mailto:${longEmail}` })),
+      })),
+    },
   }
-  const calls = await fixture(page, [question('RESOLVED')], false, overview)
-  const summary = page.getByRole('region', { name: 'Research-related changes' })
-  await expect(summary.getByText(/2 blockers attempted · 1 resolved/)).toBeVisible()
-  await expect(summary.getByText('RESEARCH → ACTION NOW', { exact: true })).toHaveCount(1)
-  await expect(summary.getByText('Evidence tier: Signal → Signal')).toBeVisible()
-  await expect(summary.getByText(/Ask the contractor who owns the power package/)).toBeVisible()
-  await summary.getByRole('button', { name: 'Inspect research history · Research fixture project' }).click()
-  const history = summary.getByRole('region', { name: 'Autonomous pursuit research' })
-  await expect(history.getByText(/Read-only research history/)).toBeVisible()
-  await expect(history.getByRole('button')).toHaveCount(0)
+  const longThinNeed = { ...longNeed, title_company: longCompany, intelligence_card: undefined }
+  await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: { ...workspace, items: [longThinNeed] } }))
+  await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: longNeed }))
+  const writes: string[] = []
+  await page.route('**/api/**', async route => {
+    if (route.request().method() !== 'GET' && !route.request().url().includes('/api/auth/session')) writes.push(`${route.request().method()} ${route.request().url()}`)
+    await route.fallback()
+  })
+  await page.goto('/?view=pursuits')
+  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: /Northstar/ }).click()
+  await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
+  await expect(page.getByRole('link', { name: longEmail })).toHaveAttribute('href', `mailto:${longEmail}`)
+  await expect(page.locator('.research-detail-heading').getByText(longCompany)).toBeVisible()
+  await expect(page.getByText('Purchasing authority requires confirmation')).toBeVisible()
+  await expect(page.getByText('Confidence', { exact: true })).toBeVisible()
+  await expect(page.locator('.research-detail-heading dd').filter({ hasText: 'Not provided' })).toBeVisible()
+  await expect(page.getByText(/Temporary demand: Unknown/)).toBeVisible()
+  await expect(page.locator('.research-gaps li').filter({ hasText: /^Temporary demand$/ })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Automated research' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Business contacts' })).toBeVisible()
+  await expect(page.getByText('Evidence assessed 10/25/2026')).toBeVisible()
+  await expect(page.getByRole('button', { name: /call|fact|workflow|enrich|correct|retract|research this question|save/i })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  expect(calls.posts).toBe(0)
+  await page.screenshot({ path: test.info().outputPath('mobile-research.png'), fullPage: true })
+  expect(writes).toEqual([])
 })
 
-test('empty research overview does not claim actionable changes', async ({ page }) => {
-  await fixture(page, [], false, { since: null, summary: { blockers_attempted: 0 }, items: [] })
-  const summary = page.getByRole('region', { name: 'Research-related changes' })
-  await expect(summary.getByText('No research-linked evaluation changes recorded in this time window.')).toBeVisible()
-  await expect(summary.getByRole('button')).toHaveCount(0)
+test('Research reports contact detail unavailable when the selected need read fails', async ({ page }) => {
+  await install(page)
+  let detailReads = 0
+  await page.route('**/api/opportunities/needs/need-demo**', route => {
+    detailReads += 1
+    return detailReads === 1
+      ? route.fulfill({ status: 503, json: { detail: 'detail unavailable' } })
+      : route.fulfill({ json: need })
+  })
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  const contacts = page.getByRole('region', { name: 'Business contacts' })
+  await expect(contacts.getByText(/No conclusion about missing contacts can be drawn/)).toBeVisible()
+  await expect(contacts.getByText('No source-backed business contact is currently available.')).toHaveCount(0)
+  await expect(contacts.getByText('Morgan Lee')).toHaveCount(0)
+  await contacts.getByRole('button', { name: 'Retry contact detail' }).click()
+  await expect(contacts.getByRole('link', { name: 'morgan@example.test' })).toHaveAttribute('href', 'mailto:morgan@example.test')
+})
+
+test('Research treats a successful detail response without an intelligence card as unavailable', async ({ page }) => {
+  await install(page)
+  await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: { ...need, intelligence_card: null } }))
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  const contacts = page.getByRole('region', { name: 'Business contacts' })
+  await expect(contacts.getByText(/No conclusion about missing contacts can be drawn/)).toBeVisible()
+  await expect(contacts.getByText('No source-backed business contact is currently available.')).toHaveCount(0)
+  await expect(contacts.getByRole('button', { name: 'Retry contact detail' })).toBeVisible()
+})
+
+test('Research does not show a prior project contact after a rapid selection change', async ({ page }) => {
+  await install(page)
+  const secondNeed = {
+    ...need,
+    id: 'need-two', project_id: 'project-two', name: 'Lakeshore commissioning', browse_title: 'Lakeshore commissioning',
+    commercial_organization: 'Second Energy',
+    intelligence_card: {
+      ...need.intelligence_card,
+      need_id: 'need-two', project_id: 'project-two',
+      fields: need.intelligence_card.fields.map(field => field.key === 'customer' ? { ...field, value: 'Second Energy' } : field.key === 'project' ? { ...field, value: 'Lakeshore commissioning' } : field),
+      contacts: [{ ...need.intelligence_card.contacts[0], claim_id: 'contact-two', company: 'Second Energy', name: null, methods: [{ kind: 'phone', value: '+13125550188', href: 'tel:+13125550188' }] }],
+    },
+  }
+  await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: { ...workspace, items: [need, secondNeed] } }))
+  let releaseFirst: (() => void) | undefined
+  let markFirstStarted: (() => void) | undefined
+  let markFirstFinished: (() => void) | undefined
+  const firstHeld = new Promise<void>(resolve => { releaseFirst = resolve })
+  const firstStarted = new Promise<void>(resolve => { markFirstStarted = resolve })
+  const firstFinished = new Promise<void>(resolve => { markFirstFinished = resolve })
+  await page.route('**/api/opportunities/needs/**', async route => {
+    const pathname = new URL(route.request().url()).pathname
+    if (pathname.endsWith('/need-demo')) {
+      markFirstStarted?.()
+      await firstHeld
+      try { await route.fulfill({ json: need }) } catch { /* the selected request was aborted */ }
+      markFirstFinished?.()
+      return
+    }
+    if (pathname.endsWith('/need-two')) return route.fulfill({ json: secondNeed })
+    await route.fallback()
+  })
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  await firstStarted
+  await page.getByRole('button', { name: /Second Energy/ }).click()
+  const contacts = page.getByRole('region', { name: 'Business contacts' })
+  await expect(contacts.getByRole('link', { name: '+13125550188' })).toHaveAttribute('href', 'tel:+13125550188')
+  await expect(contacts.getByText('Morgan Lee')).toHaveCount(0)
+  releaseFirst?.()
+  await firstFinished
+  await expect(contacts.getByRole('link', { name: '+13125550188' })).toBeVisible()
+  await expect(contacts.getByText('Morgan Lee')).toHaveCount(0)
+})
+
+test('Research hides the previous cohort while a new search loads or fails', async ({ page }) => {
+  await install(page)
+  let releaseFailure: (() => void) | undefined
+  const blocked = new Promise<void>(resolve => { releaseFailure = resolve })
+  await page.route('**/api/opportunities/workspace?**', route => {
+    const query = new URL(route.request().url()).searchParams.get('search')
+    if (query === 'Missing') return blocked.then(() => route.fulfill({ status: 503, json: { detail: 'cohort unavailable' } }))
+    return route.fulfill({ json: workspace })
+  })
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
+  const search = page.getByRole('textbox', { name: 'Search research opportunities' })
+  await search.fill('Missing')
+  await expect(page.getByText('Loading current opportunities…')).toBeVisible()
+  await expect(page.locator('.research-opportunity-list').getByRole('button', { name: /Ridgeview/ })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toHaveCount(0)
+  releaseFailure?.()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByText('No opportunities match this search.')).toHaveCount(0)
+})
+
+test('Back to opportunities clears the selected research URL across reloads', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await install(page)
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to opportunities' }).click()
+  expect(new URL(page.url()).searchParams.has('researchNeed')).toBe(false)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Select an opportunity' })).toBeVisible()
+})
+
+test('global search groups projects, companies and verified contacts and opens a matching need', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await install(page)
+  const longCompany = `Ridgeview${'Energy'.repeat(16)}`
+  const longEmail = `morgan.${'project-buyer'.repeat(8)}@${'ridgeview-power-'.repeat(7)}example.com`
+  await page.route('**/api/search?**', route => route.fulfill({ json: {
+    query: 'Morgan', projects: [{ project_id: 'project-demo', need_id: 'need-demo', name: 'Ridgeview commissioning', location: 'Austin, TX', region_state: 'TX', tier: 'Prospect', updated_at: '2026-10-25T00:00:00Z' }],
+    companies: [{ company_identity_id: 'company-demo', name: longCompany, project_count: 1 }],
+    contacts: [{ company_identity_id: 'company-demo', project_id: 'project-demo', need_id: 'need-demo', name: 'Morgan Lee', title: 'Director, Construction', organization: longCompany, methods: [{ kind: 'email', value: longEmail }], sources: [], verification_status: 'verified' }], opportunities: [],
+  } }))
+  await page.goto('/?view=workspace')
+  const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
+  await search.fill('Morgan')
+  await expect(page.getByRole('heading', { name: 'Contacts' })).toBeVisible()
+  await expect(page.locator('.global-search-results')).toContainText(longCompany)
+  await expect(page.locator('.global-search-results')).toContainText(longEmail)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.screenshot({ path: test.info().outputPath('mobile-search.png'), fullPage: true })
+  await page.getByRole('button', { name: /Morgan Lee/ }).click()
+  await expect(page.getByRole('heading', { name: 'Ridgeview Energy' })).toBeVisible()
+  await expect(page.getByText('Current timing is unknown.')).toBeVisible()
+})
+
+test('global search opens compact opportunity hits and drops prior results after a failed query', async ({ page }) => {
+  await install(page)
+  await page.route('**/api/search?**', route => {
+    const query = new URL(route.request().url()).searchParams.get('q')
+    if (query === 'Failure') return route.fulfill({ status: 503, json: { detail: 'unavailable' } })
+    return route.fulfill({ json: {
+      query, projects: [], companies: [], contacts: [],
+      opportunities: [{ id: 'need-demo', project_id: 'project-demo', name: 'Ridgeview commissioning', location: 'Austin, TX', tier: 'Prospect', activity: 'commissioning', rank_score: 82, sources: [] }],
+    } })
+  })
+  await page.goto('/?view=workspace')
+  const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
+  await search.fill('Ridgeview')
+  const hit = page.getByRole('region', { name: 'Search results', exact: true }).getByRole('button', { name: /Ridgeview commissioning/ })
+  await expect(hit).toBeEnabled()
+  await hit.click()
+  await expect(page.getByRole('heading', { name: 'Ridgeview Energy' })).toBeVisible()
+  await page.goBack()
+  await search.fill('Failure')
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.locator('.global-search-results').getByRole('button', { name: /Ridgeview commissioning/ })).toHaveCount(0)
+})
+
+test('global search reports qualification pending without claiming there are no matches', async ({ page }) => {
+  await install(page)
+  await page.route('**/api/search?**', route => route.fulfill({ json: {
+    query: 'Ridgeview', companies_status: 'qualification_pending', opportunities_status: 'qualification_pending',
+    projects: [], companies: [], contacts: [], opportunities: [],
+  } }))
+  await page.goto('/?view=workspace')
+  await page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' }).fill('Ridgeview')
+  await expect(page.getByText(/waiting for the current opportunity qualification snapshot/)).toBeVisible()
+  await expect(page.getByText('No current companies, projects, contacts or opportunities match this search.')).toHaveCount(0)
 })
