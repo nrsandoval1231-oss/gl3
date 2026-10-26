@@ -34,7 +34,11 @@ def correct_buying_chain_claim(
     source_evidence_id: UUID | None = None,
     source_version_hash: str | None = None,
 ) -> BuyingChainCorrection:
-    """Append a project-scoped, idempotent correction after optimistic version check."""
+    """Append a project-scoped correction; null contact values clear the requested kind.
+
+    Omitting contact kind on a null value clears all methods. Positive values may
+    only reuse a currently extracted and cited method exactly.
+    """
     claim = session.get(BuyingChainClaim, claim_id)
     if claim is None or claim.project_id != project_id:
         raise LookupError("Buying-chain claim not found for project")
@@ -149,7 +153,7 @@ def correct_buying_chain_claim(
                 if str(item.get("id")) == str(source_evidence_id)
                 and item.get("content_hash") == source_version_hash
                 and item.get("current_support")
-                and item.get("current_source_version_id") == str(source_evidence_id)
+                and str(item.get("current_source_version_id")) == str(source_evidence_id)
             ),
             None,
         )
@@ -181,6 +185,25 @@ def correct_buying_chain_claim(
             if not appropriate:
                 raise ValueError(f"source does not support correction field {field}")
             value = values[field]
+            if field == "public_contact_kind":
+                extracted_contacts = (
+                    candidate.get("public_contacts", [])
+                    if values.get("public_contact_value") is not None
+                    else claim.public_contacts
+                )
+                if not any(
+                    value == contact.get("kind")
+                    and any(
+                        contact.get("source_url") == evidence.get("url")
+                        and contact.get("quote") == evidence.get("quote")
+                        for evidence in appropriate
+                    )
+                    for contact in extracted_contacts
+                ):
+                    raise ValueError(
+                        "positive contact kinds must exactly reuse an extracted, cited method"
+                    )
+                continue
             if field == "public_contact_value":
                 if value is None:
                     continue
@@ -190,8 +213,11 @@ def correct_buying_chain_claim(
                         "public_contact_kind" not in values
                         or values["public_contact_kind"] == contact.get("kind")
                     )
-                    and contact.get("source_url") == support.get("url")
-                    and contact.get("quote") == support.get("quote")
+                    and any(
+                        contact.get("source_url") == evidence.get("url")
+                        and contact.get("quote") == evidence.get("quote")
+                        for evidence in appropriate
+                    )
                     for contact in candidate.get("public_contacts", [])
                 ):
                     raise ValueError(
@@ -205,12 +231,6 @@ def correct_buying_chain_claim(
                 raise ValueError(
                     f"positive {field} edits must reuse the current extracted assertion"
                 )
-        if "public_contact_kind" in values:
-            if not any(
-                contact.get("kind") == values["public_contact_kind"]
-                for contact in candidate.get("public_contacts", [])
-            ):
-                raise ValueError("positive contact kinds must exactly reuse an extracted contact")
     row = BuyingChainCorrection(
         project_id=project_id,
         claim_id=claim_id,

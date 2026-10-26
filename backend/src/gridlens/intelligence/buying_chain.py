@@ -81,6 +81,10 @@ BUYING_CHAIN_JOB_KIND = "buying_chain_research"
 BUYING_CHAIN_TASK_TYPE = "buying_chain_research"
 RETAINED_BUYING_CHAIN_TASK_TYPE = "buying_chain_retained"
 MAX_RETAINED_BACKFILL_PROJECTS = 100
+MAX_CONTACT_VALUES_PER_CANDIDATE = 64
+_EMAIL_VALUE = re.compile(r"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
+_PHONE_VALUE = re.compile(r"\+?\d[\d().\s-]{5,}\d")
+_PROFILE_VALUE = re.compile(r"https?://[^\s<>\"']+", re.I)
 
 
 def _buying_chain_context_digest(session: Session, project: Project) -> str:
@@ -1924,6 +1928,8 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
         if row.entity_type == "person" and row.person_identity_id is not None
     }
     candidate_scope: dict[UUID, tuple[UUID | None, str]] = {}
+    values_by_claim: dict[UUID, list[tuple[str, str]]] = {}
+    fail_closed_claims: set[UUID] = set()
     keys: set[tuple[str, str]] = set()
     for item in candidates:
         company_id = company_by_claim.get(item["id"])
@@ -1936,18 +1942,45 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
                 keys.add(("person", person_suppression_key(company_id, name)))
         if person_id is not None:
             keys.add(("person", global_person_suppression_key(person_id)))
+        retained_values: set[tuple[str, str]] = set()
         for contact_field in ("public_contacts", "reported_contacts"):
             for contact in item.get(contact_field, []):
                 kind, value = str(contact.get("kind") or ""), str(contact.get("value") or "")
-                keys.add(("method", global_method_suppression_key(kind, value)))
-                if company_id is not None:
-                    keys.add(("method", method_suppression_key(company_id, name, kind, value)))
+                if value:
+                    retained_values.add((kind, value))
+        for correction in item.get("correction_history", []):
+            correction_values = correction.get("values", {})
+            value = correction_values.get("public_contact_value")
+            kind = correction_values.get("public_contact_kind") or "general"
+            if isinstance(value, str) and value.strip():
+                retained_values.add((str(kind), value.strip()))
+        evidence_text = "\n".join(str(row.get("quote") or "") for row in item.get("evidence", []))
+        for value in _EMAIL_VALUE.findall(evidence_text):
+            retained_values.add(("email", value.rstrip(".,;:)")))
+        for value in _PHONE_VALUE.findall(evidence_text):
+            digits = re.sub(r"\D", "", value)
+            if 7 <= len(digits) <= 15:
+                retained_values.add(("phone", value.strip(" .,:;")))
+        for value in _PROFILE_VALUE.findall(evidence_text):
+            retained_values.add(("profile", value.rstrip(".,;:)")))
+        if len(retained_values) > MAX_CONTACT_VALUES_PER_CANDIDATE:
+            # Excessive retained contact-like strings make exact selective
+            # matching unsafe; redact this candidate's contact-bearing view.
+            fail_closed_claims.add(item["id"])
+            values_by_claim[item["id"]] = []
+            continue
+        values_by_claim[item["id"]] = list(retained_values)
+        for kind, value in retained_values:
+            keys.add(("method", global_method_suppression_key(kind, value)))
+            if company_id is not None:
+                keys.add(("method", method_suppression_key(company_id, name, kind, value)))
     states = _ledger_states(session, keys)
     for item in candidates:
         company_id, name = candidate_scope[item["id"]]
         person_id = person_by_claim.get(item["id"])
         suppressed_subject = (
-            bool(
+            item["id"] in fail_closed_claims
+            or bool(
                 company_id is not None
                 and states.get(("company", company_suppression_key(company_id))) == "suppress"
             )
@@ -1971,7 +2004,16 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             item["evidence"] = []
             item["correction_history"] = []
             continue
-        hidden_values: list[str] = []
+        hidden_values = [
+            value.casefold()
+            for kind, value in values_by_claim.get(item["id"], [])
+            if states.get(("method", global_method_suppression_key(kind, value))) == "suppress"
+            or (
+                company_id is not None
+                and states.get(("method", method_suppression_key(company_id, name, kind, value)))
+                == "suppress"
+            )
+        ]
         for contact_field in ("public_contacts", "reported_contacts"):
             visible = []
             for contact in item.get(contact_field, []):

@@ -36,6 +36,10 @@ def _method_parts(kind: str, value: str) -> tuple[str, str]:
         if value.casefold().startswith("tel:"):
             value = value[4:].split(";", 1)[0]
         digits = re.sub(r"\D", "", value)
+        if len(digits) == 11 and digits.startswith("1"):
+            return kind, digits[1:]
+        if len(digits) == 10:
+            return kind, digits
         return kind, ("+" if value.lstrip().startswith("+") else "") + digits
     if kind in {"profile", "website", "url"}:
         parsed = urlsplit(value if "://" in value else "//" + value)
@@ -98,7 +102,14 @@ def _ledger_states(session: Session, keys: set[tuple[str, str]]) -> dict[tuple[s
                 state = "suppress"
                 version = -1
                 break
-            state, version = row.action, row.version
+            if (row.action == "suppress" and state != "active") or (
+                row.action == "reinstate" and state != "suppress"
+            ):
+                state = "suppress"
+                version = -1
+                break
+            state = "suppress" if row.action == "suppress" else "active"
+            version = row.version
         states[key] = state
     return states
 
@@ -111,9 +122,15 @@ def _ledger_state(session: Session, scope: str, subject_key: str) -> tuple[str, 
         .order_by(ContactSuppression.version)
     ).all()
     version = 0
+    prior_state = "active"
     for row in rows:
         if row.expected_version != version or row.version != version + 1:
             return "suppress", -1
+        if (row.action == "suppress" and prior_state != "active") or (
+            row.action == "reinstate" and prior_state != "suppress"
+        ):
+            return "suppress", -1
+        prior_state = "suppress" if row.action == "suppress" else "active"
         version = row.version
     return state, version
 
