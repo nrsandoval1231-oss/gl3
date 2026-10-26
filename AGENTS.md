@@ -1,13 +1,11 @@
-# Working in gl3
+# Working in gl3 — Autonomous Intelligence Authority
 
-- Read `docs/product/PRD.md` before implementation. Its 42 requirements and milestone gates define scope.
-- Implement from scratch. Do not copy or import old GridLens code, database schemas, migrations, pipelines, tests, or architecture.
-- Deliver a working end-to-end path at each milestone; no invented discoveries, buyers, confidence probabilities, or gap inputs.
-- Preserve source links, dates, conflicts, and prior accepted claims. Failures in ingestion or research must be visible.
-- Keep source-specific logic in ingestion adapters and integrations, calculations and tier gates in domain, and user presentation in web.
-- Add modules when needed by a milestone. A folder README documents ownership; it does not claim that the named capability exists.
-- Show the real-source evidence, relevant tests, and remaining limitations when reporting completion.
-- Follow `docs/design/UI_CANON.md` and the October 23 seven-color directive: light surfaces, horizontal navigation, dense opportunity/customer browse and contextual intelligence. Earlier presentation directions are superseded.
-- This explicit owner-approved UI amendment supersedes conflicting visual/layout instructions and historical browse/detail references in older documents. The PRD's product scope, evidence rules, qualification gates, and commercial requirements remain unchanged.
-- Follow the October 23 seven-color G/L directive and `docs/design/BRAND_ASSETS.md`. Earlier identity masters are historical evidence in `docs/design/archive/pre-seven-color/`; never use them in the application. Use no permanent sidebar, decorative charts, atmospheric canvas, map-first landing, or cinematic transformation. Preserve evidence/buyer/action context and Back restoration.
-- Extend the existing app and accepted APIs. Prototype data is fictional and must not enter normal operation. Design approval is not production implementation or live-data acceptance.
+**FIRST: Read [docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md).** Owner-approved 2026-10-25; it supersedes conflicting older PRD, UI, workflow, and historical agent instructions. Do not implement manual call logging, operator status, fact drafting, or human-maintained qualification workflows.
+
+Read `docs/product/PRD.md` for compatible evidence, territory, commercial and technical constraints only. Where it conflicts, the Autonomous Intelligence Canon wins. Read `docs/design/UI_CANON.md` for compatible branding/layout; remove conflicting manual-workflow requirements. Existing dated reports are historical, not instructions.
+
+Build autonomous discover → resolve → research → enrich → analyze → score → publish → refresh, with evidence-backed gaps and verified business contacts. Preserve source provenance, backend audit history, project integrity, qualification boundaries, privacy/terms, and data safety.
+
+Use supported OpenAI-only harness: Sol 6.1/high coordinator, 3–6 Luna 6/low builders, Astra 6/high independent reviewer. Verify actual availability and concurrency; never claim assignments not run. Partition file ownership; integrate and test.
+
+Do not equate deletion of user logging UI with deletion of evidence infrastructure. No fabricated projects, contacts, MW, timing, confidence or deployment claims. Preserve production data and existing brand. Update contradictory current documentation and tests as part of implementation.
