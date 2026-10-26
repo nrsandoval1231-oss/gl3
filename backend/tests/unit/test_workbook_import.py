@@ -87,11 +87,13 @@ def test_repeated_header_inside_project_sheet_is_retained_as_metadata(tmp_path):
     sheet.append(headers)
     sheet.append(["North Site", "Example Developer", 25, 20, "TX"])
     sheet.append(headers)
+    sheet.append(["Rows", None, None, None, None])
+    sheet.append(["Rows", "Example Developer", 30, 25, "TX"])
     workbook.save(path)
 
     preview = read_workbook(path)
 
-    assert len(preview.rows) == 2
+    assert len(preview.rows) == 4
     assert preview.rows[0].row_kind == "project"
     assert preview.rows[0].normalized["facility_demand_mw"] == 25
     assert preview.rows[1].row_number == 3
@@ -99,6 +101,14 @@ def test_repeated_header_inside_project_sheet_is_retained_as_metadata(tmp_path):
     assert preview.rows[1].normalized == {}
     assert preview.rows[1].errors == []
     assert preview.rows[1].raw == dict(zip(headers, headers, strict=True))
+    assert preview.rows[2].row_number == 4
+    assert preview.rows[2].row_kind == "metadata"
+    assert preview.rows[2].normalized == {}
+    assert preview.rows[2].raw["Project Name"] == "Rows"
+    assert preview.rows[3].row_number == 5
+    assert preview.rows[3].row_kind == "project"
+    assert preview.rows[3].normalized["project_name"] == "Rows"
+    assert preview.rows[3].normalized["company_name"] == "Example Developer"
 
 
 def test_formula_text_is_preserved_and_never_evaluated(tmp_path):

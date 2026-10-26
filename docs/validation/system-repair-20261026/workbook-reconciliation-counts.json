@@ -15,15 +15,36 @@
       "bytes": 220352,
       "sheets": 40,
       "parsed_rows": 2077,
-      "row_kinds": {"project": 2077},
+      "row_kinds": {
+        "project": 2037,
+        "metadata": 40
+      },
       "parser_error_rows": 0,
-      "mapped_fields": ["company_name", "facility_demand_mw", "it_capacity_mw", "project_name", "state"],
-      "field_rows": {"project_name": 2077, "company_name": 1935, "facility_demand_mw": 1695, "it_capacity_mw": 1331, "state": 1957},
-      "state_rows": {"TX": 0, "OK": 41, "NM": 20, "missing": 120, "other": 1896},
+      "mapped_fields": [
+        "company_name",
+        "facility_demand_mw",
+        "it_capacity_mw",
+        "project_name",
+        "state"
+      ],
+      "field_rows": {
+        "project_name": 2037,
+        "company_name": 1935,
+        "facility_demand_mw": 1695,
+        "it_capacity_mw": 1331,
+        "state": 1957
+      },
+      "state_rows": {
+        "TX": 0,
+        "OK": 41,
+        "NM": 20,
+        "missing": 120,
+        "other": 1896
+      },
       "activity_specific_demand_header_rows": 0,
       "required_date_rows": 0,
-      "exact_duplicate_groups": 2,
-      "exact_duplicate_row_refs": 80,
+      "exact_duplicate_groups": 1,
+      "exact_duplicate_row_refs": 40,
       "probable_duplicate_groups": 0,
       "probable_duplicate_row_refs": 0,
       "reconciliation_detail_rows_included": 500,
@@ -35,13 +56,48 @@
       "bytes": 131794,
       "sheets": 4,
       "parsed_rows": 1072,
-      "row_kinds": {"mixed": 1011, "summary": 52, "metadata": 9},
-      "sheet_rows": {"All Projects": 1011, "State Summary": 46, "Status Summary": 6, "Read Me": 9},
+      "row_kinds": {
+        "mixed": 1011,
+        "summary": 52,
+        "metadata": 9
+      },
+      "sheet_rows": {
+        "All Projects": 1011,
+        "State Summary": 46,
+        "Status Summary": 6,
+        "Read Me": 9
+      },
       "parser_error_rows": 2,
-      "parser_error_fields": {"Power Capacity": 2},
-      "mapped_fields": ["address", "city", "company_name", "email", "facility_demand_mw", "phone", "project_name", "state"],
-      "field_rows": {"project_name": 1010, "company_name": 991, "address": 1006, "city": 1009, "facility_demand_mw": 488, "email": 2, "phone": 2, "state": 1010},
-      "state_rows": {"TX": 158, "OK": 16, "NM": 4, "missing": 62, "other": 832},
+      "parser_error_fields": {
+        "Power Capacity": 2
+      },
+      "mapped_fields": [
+        "address",
+        "city",
+        "company_name",
+        "email",
+        "facility_demand_mw",
+        "phone",
+        "project_name",
+        "state"
+      ],
+      "field_rows": {
+        "project_name": 1010,
+        "company_name": 991,
+        "address": 1006,
+        "city": 1009,
+        "facility_demand_mw": 488,
+        "email": 2,
+        "phone": 2,
+        "state": 1010
+      },
+      "state_rows": {
+        "TX": 158,
+        "OK": 16,
+        "NM": 4,
+        "missing": 62,
+        "other": 832
+      },
       "activity_specific_demand_header_rows": 0,
       "required_date_rows": 0,
       "exact_duplicate_groups": 1,
@@ -57,16 +113,37 @@
       "bytes": 57981,
       "sheets": 8,
       "parsed_rows": 486,
-      "row_kinds": {"project": 484, "metadata": 2},
+      "row_kinds": {
+        "project": 475,
+        "metadata": 11
+      },
       "parser_error_rows": 0,
       "repeated_header_rows_classified_metadata": 2,
-      "mapped_fields": ["company_name", "facility_demand_mw", "it_capacity_mw", "project_name", "state"],
-      "field_rows": {"project_name": 484, "company_name": 455, "facility_demand_mw": 406, "it_capacity_mw": 294, "state": 457},
-      "state_rows": {"TX": 457, "OK": 0, "NM": 0, "missing": 29, "other": 0},
+      "mapped_fields": [
+        "company_name",
+        "facility_demand_mw",
+        "it_capacity_mw",
+        "project_name",
+        "state"
+      ],
+      "field_rows": {
+        "project_name": 475,
+        "company_name": 455,
+        "facility_demand_mw": 406,
+        "it_capacity_mw": 294,
+        "state": 457
+      },
+      "state_rows": {
+        "TX": 457,
+        "OK": 0,
+        "NM": 0,
+        "missing": 29,
+        "other": 0
+      },
       "activity_specific_demand_header_rows": 0,
       "required_date_rows": 0,
-      "exact_duplicate_groups": 3,
-      "exact_duplicate_row_refs": 20,
+      "exact_duplicate_groups": 1,
+      "exact_duplicate_row_refs": 9,
       "probable_duplicate_groups": 1,
       "probable_duplicate_row_refs": 5,
       "reconciliation_detail_rows_included": 486,
@@ -78,15 +155,36 @@
       "bytes": 99505,
       "sheets": 17,
       "parsed_rows": 885,
-      "row_kinds": {"project": 885},
+      "row_kinds": {
+        "project": 868,
+        "metadata": 17
+      },
       "parser_error_rows": 0,
-      "mapped_fields": ["company_name", "facility_demand_mw", "it_capacity_mw", "project_name", "state"],
-      "field_rows": {"project_name": 884, "company_name": 829, "facility_demand_mw": 690, "it_capacity_mw": 659, "state": 834},
-      "state_rows": {"TX": 0, "OK": 0, "NM": 0, "missing": 51, "other": 834},
+      "mapped_fields": [
+        "company_name",
+        "facility_demand_mw",
+        "it_capacity_mw",
+        "project_name",
+        "state"
+      ],
+      "field_rows": {
+        "project_name": 867,
+        "company_name": 829,
+        "facility_demand_mw": 690,
+        "it_capacity_mw": 659,
+        "state": 834
+      },
+      "state_rows": {
+        "TX": 0,
+        "OK": 0,
+        "NM": 0,
+        "missing": 51,
+        "other": 834
+      },
       "activity_specific_demand_header_rows": 0,
       "required_date_rows": 0,
-      "exact_duplicate_groups": 2,
-      "exact_duplicate_row_refs": 34,
+      "exact_duplicate_groups": 1,
+      "exact_duplicate_row_refs": 17,
       "probable_duplicate_groups": 0,
       "probable_duplicate_row_refs": 0,
       "reconciliation_detail_rows_included": 500,
@@ -95,13 +193,20 @@
   ],
   "aggregate": {
     "parsed_rows": 4520,
-    "project_or_mixed_rows": 4457,
+    "project_or_mixed_rows": 4391,
     "state_labelled_tx_ok_nm_rows": 696,
     "activity_specific_temporary_demand_rows": 0,
     "supply_rows": 0,
     "required_power_date_rows": 0,
     "duration_rows": 0,
-    "fixture_reconciliation_status": {"exact_match": 0, "probable": 0, "ambiguous": 0, "unmatched": 4454, "invalid": 2, "ignored": 64},
+    "fixture_reconciliation_status": {
+      "exact_match": 0,
+      "probable": 0,
+      "ambiguous": 0,
+      "unmatched": 4388,
+      "invalid": 2,
+      "ignored": 130
+    },
     "fixture_database": {
       "name": "gridlens_repair_workbook_test",
       "canonical_projects": 0,
@@ -109,18 +214,15 @@
       "power_needs": 0,
       "source_rows_written": 0,
       "production_matching_performed": false
-    }
+    },
+    "standalone_footer_metadata_rows": 66
   },
   "cross_workbook_candidate_analysis": {
-    "project_or_mixed_rows_with_project_name": 4455,
-    "exact_normalized_row_groups": 1,
-    "exact_normalized_row_references": 66,
-    "exact_group_references_by_file": {
-      "1-DC-Leads.xlsx": 40,
-      "3-texas-dc-leads.xlsx": 9,
-      "4-Cleanview.xlsx": 17
-    },
-    "exact_group_normalized_fields": ["project_name"],
+    "project_or_mixed_rows_with_project_name": 4389,
+    "exact_normalized_row_groups": 0,
+    "exact_normalized_row_references": 0,
+    "exact_group_references_by_file": {},
+    "exact_group_normalized_fields": [],
     "exact_group_has_company_state_site_or_power_claim": false,
     "shared_project_name_state_groups": 233,
     "shared_project_name_state_row_references": 467,
@@ -133,7 +235,13 @@
     },
     "disagreements_resolved": false,
     "automatic_merges": 0,
-    "interpretation": "Project-name/state and company-name equality are hints only; no physical-site identity or merge is established."
+    "interpretation": "Shared project-name/state/company claims remain hints only; no physical-site identity or merge is established. Standalone footer markers are excluded as metadata.",
+    "standalone_footer_metadata_rows": 66,
+    "standalone_footer_metadata_rows_by_file": {
+      "1-DC-Leads.xlsx": 40,
+      "3-texas-dc-leads.xlsx": 9,
+      "4-Cleanview.xlsx": 17
+    }
   },
   "local_austin_verifier_corpus": {
     "database": "gridlens_verify_austin_20261026",

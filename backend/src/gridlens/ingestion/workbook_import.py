@@ -454,6 +454,22 @@ def _is_repeated_header_row(values: tuple[Any, ...], headers: list[Any]) -> bool
     return not any(value is not None and str(value).strip() for value in values[len(headers) :])
 
 
+def _is_standalone_rows_footer(raw: dict[str, Any], project_name_headers: set[str]) -> bool:
+    """Ignore the observed standalone footer label, but keep populated projects named Rows."""
+    label_columns = {
+        header
+        for header in project_name_headers
+        if str(raw.get(header) or "").strip().casefold() == "rows"
+    }
+    if not label_columns:
+        return False
+    return all(
+        value is None or not str(value).strip()
+        for header, value in raw.items()
+        if header not in label_columns
+    )
+
+
 def _iter_sources(path: Path):
     suffix = path.suffix.casefold()
     if suffix == ".csv":
@@ -613,7 +629,13 @@ def read_workbook(
                 raw[key] = _json_value(values[index])
             if not any(value is not None and value != "" for value in raw.values()):
                 continue
-            item_row_kind = "metadata" if _is_repeated_header_row(values, headers) else row_kind
+            project_name_headers = {
+                raw_headers[index] for index, field in mapping.items() if field == "project_name"
+            }
+            is_footer = _is_standalone_rows_footer(raw, project_name_headers)
+            item_row_kind = (
+                "metadata" if _is_repeated_header_row(values, headers) or is_footer else row_kind
+            )
             normalized: dict[str, Any] = {}
             errors: list[str] = []
             for index, field in (
