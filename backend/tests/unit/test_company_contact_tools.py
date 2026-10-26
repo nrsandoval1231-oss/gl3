@@ -338,12 +338,14 @@ def test_adaptive_contact_fetch_budget_is_bounded_and_gap_driven():
         MAX_CANDIDATE_URLS,
         _adaptive_fetch_limit,
     )
+    from gridlens.intelligence.enrichment_planner import (
+        DEEP_RESEARCH_PROFILE,
+        STANDARD_RESEARCH_PROFILE,
+    )
 
-    assert _adaptive_fetch_limit(50, True) == MAX_ADAPTIVE_FETCHES
-    assert _adaptive_fetch_limit(1000, True) == MAX_ADAPTIVE_FETCHES
-    assert _adaptive_fetch_limit(80, False) == MAX_CANDIDATE_URLS
-    assert _adaptive_fetch_limit(49, True) == MAX_CANDIDATE_URLS
-    assert _adaptive_fetch_limit(True, True) == MAX_CANDIDATE_URLS
+    assert _adaptive_fetch_limit(DEEP_RESEARCH_PROFILE) == MAX_ADAPTIVE_FETCHES
+    assert _adaptive_fetch_limit(STANDARD_RESEARCH_PROFILE) == MAX_CANDIDATE_URLS
+    assert _adaptive_fetch_limit("unknown-profile") == MAX_CANDIDATE_URLS
 
 
 def test_enqueue_resumes_completed_company_and_passes_only_url_hints(monkeypatch):

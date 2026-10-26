@@ -11,6 +11,8 @@ from typing import Any
 from gridlens.domain.pursuit_research import fingerprint
 
 REFRESH_AFTER = timedelta(days=30)
+STANDARD_RESEARCH_PROFILE = "contact-depth-v1:standard"
+DEEP_RESEARCH_PROFILE = "contact-depth-v1:deep"
 
 
 @dataclass(frozen=True)
@@ -24,6 +26,7 @@ class ResearchCandidate:
     source_digest: str = ""
     missing_buyer_relevant_method: bool = False
     missing_contact_method: bool = False
+    research_profile: str = STANDARD_RESEARCH_PROFILE
 
 
 def _missing(need: Any) -> list[str]:
@@ -71,7 +74,12 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
     """Rank research work heuristically; this is not commercial or evidence confidence."""
     needs = candidate.needs
     if not needs:
-        return {"score": 0, "reasons": ["no_active_power_need"], "missing_facts": []}
+        return {
+            "score": 0,
+            "contact_depth_score": 0,
+            "reasons": ["no_active_power_need"],
+            "missing_facts": [],
+        }
     demand_values = [value for n in needs if (value := _demand_mw(n.required_mw)) is not None]
     commercial = int(min(20, max(demand_values, default=0) * 2))
     missing = sorted({fact for need in needs for fact in _missing(need)})
@@ -102,6 +110,9 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         if candidate.missing_contact_method
         else 0
     )
+    contact_depth_score = (
+        commercial + evidence + resolvability + min(8, len(missing) * 2) + contact_gap
+    )
     score = (
         commercial
         + urgency
@@ -117,6 +128,7 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         f"urgency:{urgency}",
         f"project_need_coverage:{evidence}",
         f"resolvability:{resolvability}",
+        f"stable_contact_depth_score:{contact_depth_score}",
         f"bounded_public_research_cost:{cost}",
         f"freshness:{freshness}",
         f"known_demand_mw:{format(max(demand_values), 'g') if demand_values else 'unknown'}",
@@ -128,7 +140,20 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         reasons.append("missing_buyer_relevant_contact_method:12")
     elif candidate.missing_contact_method:
         reasons.append("missing_contact_method:6")
-    return {"score": score, "reasons": reasons, "missing_facts": missing}
+    return {
+        "score": score,
+        "contact_depth_score": contact_depth_score,
+        "reasons": reasons,
+        "missing_facts": missing,
+    }
+
+
+def select_research_profile(candidate: ResearchCandidate, *, now: datetime) -> str:
+    """Choose a stable bounded depth profile from opportunity evidence and contact gaps."""
+    rank = rank_candidate(candidate, now=now)
+    if candidate.missing_buyer_relevant_method and rank.get("contact_depth_score", 0) >= 38:
+        return DEEP_RESEARCH_PROFILE
+    return STANDARD_RESEARCH_PROFILE
 
 
 def research_digest(candidate: ResearchCandidate) -> str:
@@ -145,6 +170,7 @@ def research_digest(candidate: ResearchCandidate) -> str:
             "source_digest": candidate.source_digest,
             "missing_buyer_relevant_method": candidate.missing_buyer_relevant_method,
             "missing_contact_method": candidate.missing_contact_method,
+            "research_profile": candidate.research_profile,
         }
     )
 

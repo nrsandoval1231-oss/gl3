@@ -214,6 +214,58 @@ def test_refresh_request_fingerprint_is_stable_across_failed_retries(db):
         assert exhausted["reason"] == "retries_exhausted"
 
 
+def test_contact_research_profile_change_requeues_completed_shallow_generation(db):
+    from gridlens.intelligence.company_contact_discovery import discover_company_contacts
+    from gridlens.intelligence.enrichment_planner import (
+        DEEP_RESEARCH_PROFILE,
+        STANDARD_RESEARCH_PROFILE,
+    )
+
+    with db.begin() as session:
+        company, _projects = _fixture_company(session)
+        now = datetime.now(UTC)
+        shallow = discover_company_contacts(
+            session,
+            company.id,
+            now=now,
+            research_profile=STANDARD_RESEARCH_PROFILE,
+        )
+        shallow_job = session.get(Job, shallow["job_id"])
+        shallow_checkpoint = json.loads(shallow_job.checkpoint)
+        shallow_checkpoint.update(status="complete", completed_at=now.isoformat())
+        shallow_job.checkpoint = json.dumps(shallow_checkpoint)
+        shallow_job.status = "succeeded"
+
+        same_profile = discover_company_contacts(
+            session,
+            company.id,
+            now=now,
+            research_profile=STANDARD_RESEARCH_PROFILE,
+        )
+        assert same_profile["deduplicated"] is True
+        deep = discover_company_contacts(
+            session,
+            company.id,
+            now=now,
+            research_profile=DEEP_RESEARCH_PROFILE,
+        )
+        assert deep["status"] == "queued"
+        assert deep["job_id"] != str(shallow_job.id)
+        deep_job = session.get(Job, deep["job_id"])
+        deep_checkpoint = json.loads(deep_job.checkpoint)
+        assert deep_checkpoint["research_profile"] == DEEP_RESEARCH_PROFILE
+        assert deep_checkpoint["payload"]["research_profile"] == DEEP_RESEARCH_PROFILE
+        assert deep_checkpoint["research_digest"] != shallow_checkpoint["research_digest"]
+        replay = discover_company_contacts(
+            session,
+            company.id,
+            now=now,
+            research_profile=DEEP_RESEARCH_PROFILE,
+        )
+        assert replay["job_id"] == deep["job_id"]
+        assert replay["deduplicated"] is True
+
+
 def test_directly_enqueued_job_is_refreshable_after_30_days(db):
     from gridlens.intelligence.company_contact_discovery import (
         JOB_KIND,

@@ -4968,8 +4968,13 @@ def test_contact_recovery_plan_prioritizes_tiers_and_resumes_without_writes(db, 
         assert session.scalar(select(func.count()).select_from(Job)) == 0
 
 
+@pytest.mark.parametrize(
+    "team_path",
+    ("contact", "our-people", "team/jane-doe", "team.html"),
+    ids=("contact-page", "people-page", "person-subpage", "html-suffix"),
+)
 def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company_route(
-    db, monkeypatch
+    db, monkeypatch, team_path
 ):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.intelligence.company_contacts import company_contacts
@@ -4977,6 +4982,7 @@ def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company
 
     fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
     html = fixture.read_bytes()
+    team_url = f"https://www.mesltdtx.com/{team_path}"
     with db.begin() as session:
         project = seed(session, external_id="mes-team-person-methods")
         project.region_status = "ELIGIBLE"
@@ -4998,7 +5004,7 @@ def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company
         queued = discovery.discover_company_contacts(
             session,
             company_id,
-            candidate_urls=["https://www.mesltdtx.com/team"],
+            candidate_urls=[team_url],
             now=NOW,
         )
         job = session.get(Job, UUID(queued["job_id"]))
@@ -5041,8 +5047,7 @@ def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company
             method_evidence = [
                 item
                 for item in people[person_name]["evidence"]
-                if item["supports"] == "public_contact"
-                and item["url"] == "https://www.mesltdtx.com/team"
+                if item["supports"] == "public_contact" and item["url"] == team_url
             ]
             assert len(method_evidence) == 1
             assert email in method_evidence[0]["quote"]
@@ -5108,25 +5113,89 @@ def test_contact_discovery_stops_after_two_official_low_yield_pages(db, monkeypa
         return PublicDocument(
             url,
             "Acme Energy",
-            "Acme Energy official information.\n© 2026 Acme Energy.",
+            "Acme Energy official information.\nEmail: info@acme.example.\n© 2026 Acme Energy.",
             observed_at=NOW,
         )
 
     monkeypatch.setattr(discovery, "retrieve", empty_official_page)
     result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
-    assert result["status"] == "unresolved"
-    assert len(fetched) == 2
+    assert result["status"] == "complete"
+    assert result["research_required"] is True
+    assert len(fetched) == 3
     with db.begin() as session:
         checkpoint = json.loads(session.get(Job, job_id).checkpoint)
         assert checkpoint["depth_stop_reason"] == "two_official_pages_without_contact_yield"
-        assert checkpoint["fetched_count"] == 2
+        assert checkpoint["fetched_count"] == 3
+        assert checkpoint["new_contact_yield_count"] == 1
         assert checkpoint["contact_gaps"]["missing_buyer_relevant_contact_method"] is True
+
+
+def test_unresolved_contact_attempt_retains_checked_sources_for_next_retry(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
+
+    urls = [
+        "https://acme.example/contact",
+        "https://acme.example/team",
+        "https://acme.example/leadership",
+        "https://acme.example/about",
+    ]
+    with db.begin() as session:
+        project = seed(session, external_id="unresolved-source-reuse")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Acme Energy is the electrical contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company_id = UUID(
+            next(item for item in view["candidates"] if item["organization"] == "Acme Energy")[
+                "company_identity_id"
+            ]
+        )
+        queued = discovery.discover_company_contacts(
+            session, company_id, candidate_urls=urls, now=NOW
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: PublicDocument(
+            url,
+            "Acme Energy",
+            "Acme Energy official information.\n© 2026 Acme Energy.",
+            observed_at=NOW,
+        ),
+    )
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "unresolved"
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert checkpoint["checked_urls"] == urls[:2]
+        reused = discovery._known_contact_urls(
+            session, company_id, discovery._projects(session, company_id)
+        )
+        assert reused[:2] == urls[:2]
 
 
 def test_high_priority_missing_buyer_uses_bounded_six_page_depth(db, monkeypatch):
     import json
 
     import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.enrichment_planner import (
+        DEEP_RESEARCH_PROFILE,
+        STANDARD_RESEARCH_PROFILE,
+    )
     from gridlens.persistence.models import Job
 
     urls = [f"https://acme.example/p{index}" for index in range(4)]
@@ -5143,16 +5212,15 @@ def test_high_priority_missing_buyer_uses_bounded_six_page_depth(db, monkeypatch
             now=NOW,
         )
         company = next(item for item in view["candidates"] if item["organization"] == "Acme Energy")
+        company_id = UUID(company["company_identity_id"])
         queued = discovery.discover_company_contacts(
-            session, UUID(company["company_identity_id"]), candidate_urls=urls, now=NOW
+            session,
+            company_id,
+            candidate_urls=urls,
+            now=NOW,
+            research_profile=STANDARD_RESEARCH_PROFILE,
         )
         job = session.get(Job, UUID(queued["job_id"]))
-        checkpoint = json.loads(job.checkpoint)
-        checkpoint["research_rank"] = {
-            "score": 50,
-            "reasons": ["missing_buyer_relevant_contact_method"],
-        }
-        job.checkpoint = json.dumps(checkpoint)
         job.status, job.lease_owner, job.fence = "running", "contact-test", 1
         job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
         job_id = job.id
@@ -5171,11 +5239,239 @@ def test_high_priority_missing_buyer_uses_bounded_six_page_depth(db, monkeypatch
         )
 
     monkeypatch.setattr(discovery, "retrieve", page)
-    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    shallow_result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert shallow_result["status"] == "unresolved"
+    assert len(fetched) == discovery.MAX_CANDIDATE_URLS
+    with db.begin() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert checkpoint["research_profile"] == STANDARD_RESEARCH_PROFILE
+        assert checkpoint["fetch_budget"] == discovery.MAX_CANDIDATE_URLS
+        assert checkpoint["fetched_count"] == discovery.MAX_CANDIDATE_URLS
+        assert checkpoint["contact_gaps"]["missing_buyer_relevant_contact_method"] is True
+        deep = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=urls,
+            now=NOW,
+            research_profile=DEEP_RESEARCH_PROFILE,
+        )
+        assert deep["job_id"] != str(job_id)
+        deep_job = session.get(Job, UUID(deep["job_id"]))
+        deep_job.status, deep_job.lease_owner, deep_job.fence = "running", "contact-test", 1
+        deep_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        deep_job_id = deep_job.id
+    fetched.clear()
+    result = discovery.process_company_contact_discovery(deep_job_id, "contact-test", 1, now=NOW)
     assert result["status"] == "unresolved"
     assert len(fetched) == discovery.MAX_ADAPTIVE_FETCHES
     with db.begin() as session:
-        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        checkpoint = json.loads(session.get(Job, deep_job_id).checkpoint)
+        assert checkpoint["research_profile"] == DEEP_RESEARCH_PROFILE
+        assert checkpoint["payload"]["research_profile"] == DEEP_RESEARCH_PROFILE
         assert checkpoint["fetch_budget"] == discovery.MAX_ADAPTIVE_FETCHES
         assert checkpoint["fetched_count"] == discovery.MAX_ADAPTIVE_FETCHES
         assert checkpoint["contact_gaps"]["missing_buyer_relevant_contact_method"] is True
+
+
+def test_named_nonbuyer_contact_does_not_suppress_missing_buyer_search(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    html = fixture.read_bytes().replace(
+        b"      <div>\n"
+        b"        <h3>Christopher Brannon, Purchasing Manager</h3>\n"
+        b'        <p><a href="mailto:cbrannon@mesltdtx.com">Contact Chris by Email</a></p>\n'
+        b"      </div>\n",
+        b"",
+    )
+    with db.begin() as session:
+        project = seed(session, external_id="named-nonbuyer-search")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Masters Electrical Services is the electrical contractor for "
+                "Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company_id = UUID(
+            next(
+                item
+                for item in view["candidates"]
+                if item["organization"] == "Masters Electrical Services"
+            )["company_identity_id"]
+        )
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=["https://www.mesltdtx.com/team"],
+            now=NOW,
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        first_job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
+    )
+    first = discovery.process_company_contact_discovery(first_job_id, "contact-test", 1, now=NOW)
+    assert first["status"] == "complete"
+    with db.begin() as session:
+        from gridlens.intelligence.company_contacts import company_contacts
+
+        projection = company_contacts(session, company_id)
+        assert any(
+            contact.name == "Josh Spaw" and contact.role == "electrical contractor"
+            for contact in projection.contacts
+        )
+        assert all(contact.role != "procurement" for contact in projection.contacts if contact.name)
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            now=NOW,
+            refresh_generation="buyer-role-recovery",
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        assert json.loads(job.checkpoint)["payload"]["candidate_urls"] == []
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        second_job_id = job.id
+
+    monkeypatch.setattr(discovery, "_known_contact_urls", lambda *_args, **_kwargs: [])
+    searches = []
+    monkeypatch.setattr(
+        discovery,
+        "_search_official_urls",
+        lambda *_args, **_kwargs: searches.append("bounded-search") or [],
+    )
+    second = discovery.process_company_contact_discovery(second_job_id, "contact-test", 1, now=NOW)
+    assert searches == ["bounded-search"]
+    assert second["status"] == "unresolved"
+    assert second["results"][0]["reason"] == "no_verified_refresh_source"
+
+
+def test_projected_owner_role_method_clears_buyer_relevant_gap_without_authority_claim(db):
+    from gridlens.intelligence.company_contact_discovery import _contact_research_gaps
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    with db.begin() as session:
+        project = seed(session, external_id="projected-owner-role-method")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Acme Energy is the developer for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(item for item in view["candidates"] if item["organization"] == "Acme Energy")
+        company_id = UUID(company["company_identity_id"])
+        project_support = next(
+            item
+            for item in company["evidence"]
+            if item["supports"] == "project_organization" and item["current_support"]
+        )
+        organization_source = session.get(BuyingChainEvidence, project_support["id"])
+        assert organization_source is not None
+
+        role_quote = "Jordan Smith is Vice President of Development at Acme Energy."
+        method_quote = "Jordan Smith email: jordan@acme.example."
+        roster_source = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://acme.example/leadership",
+            title="Acme Energy Leadership",
+            excerpt=f"{role_quote}\n{method_quote}",
+            content_hash="a" * 64,
+            extraction_location="official roster fixture",
+            observed_at=NOW,
+            last_seen_at=NOW,
+            project_match_reason="Official organization roster.",
+        )
+        session.add(roster_source)
+        session.flush()
+        person = BuyingChainClaim(
+            project_id=project.id,
+            entity_key="owner-role-method-fixture",
+            fingerprint="b" * 64,
+            policy_version="test",
+            organization="Acme Energy",
+            person_name="Jordan Smith",
+            title="Vice President of Development",
+            category="owner_developer",
+            organization_relationship="DIRECT",
+            person_organization_relationship="CURRENT",
+            person_project_relationship="ROLE_SUPPORTED",
+            evidence_strength="High",
+            reason="Current organizational role; buying authority is UNKNOWN.",
+            citations=[
+                {
+                    "evidence_id": str(organization_source.id),
+                    "url": organization_source.url,
+                    "quote": project_support["quote"],
+                    "supports": "project_organization",
+                },
+                {
+                    "evidence_id": str(roster_source.id),
+                    "url": roster_source.url,
+                    "quote": role_quote,
+                    "supports": "organization_person_role",
+                },
+                {
+                    "evidence_id": str(roster_source.id),
+                    "url": roster_source.url,
+                    "quote": method_quote,
+                    "supports": "public_contact",
+                },
+            ],
+            public_contacts=[
+                {
+                    "kind": "email",
+                    "value": "jordan@acme.example",
+                    "source_url": roster_source.url,
+                    "quote": method_quote,
+                    "observed_at": NOW.isoformat(),
+                }
+            ],
+            observed_at=NOW,
+        )
+        session.add(person)
+        session.flush()
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=person.id,
+                entity_type="company",
+                company_identity_id=company_id,
+                reason="Same current source-cited owner organization.",
+                basis="reviewed_alias",
+                source_evidence_id=organization_source.id,
+                source_version_hash=organization_source.content_hash,
+                state="current",
+            )
+        )
+        current_run = session.scalar(
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project.id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+            .limit(1)
+        )
+        assert current_run is not None
+        current_run.claim_ids = [*current_run.claim_ids, str(person.id)]
+        current_run.evidence_ids = [*current_run.evidence_ids, str(roster_source.id)]
+        session.flush()
+
+        projection = company_contacts(session, company_id)
+        jordan = next(contact for contact in projection.contacts if contact.name == "Jordan Smith")
+        assert jordan.role == "owner developer"
+        assert jordan.methods[0]["value"] == "jordan@acme.example"
+        assert jordan.purchasing_authority == "Requires confirmation for this power package"
+        assert _contact_research_gaps(session, company_id) == (False, False)
