@@ -2043,13 +2043,17 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
 
             def scrub(value, hidden=tuple(hidden_values)):
                 if isinstance(value, str):
-                    return "" if any(term in value.casefold() for term in hidden) else value
+                    for term in hidden:
+                        value = re.sub(re.escape(term), "[redacted]", value, flags=re.IGNORECASE)
+                    return value
                 if isinstance(value, list):
                     return [scrub(part, hidden) for part in value]
                 if isinstance(value, dict):
                     return {key: scrub(part, hidden) for key, part in value.items()}
                 return value
 
+            item["public_contacts"] = scrub(item.get("public_contacts", []))
+            item["reported_contacts"] = scrub(item.get("reported_contacts", []))
             item["evidence"] = scrub(item.get("evidence", []))
             item["reason"] = scrub(item.get("reason", ""))
             item["correction_history"] = scrub(item.get("correction_history", []))

@@ -807,6 +807,80 @@ def test_phone_suppression_does_not_join_neighboring_evidence_quotes(contact_db,
     assert project_id not in {item["project_id"] for item in search["projects"]}
 
 
+def test_suppressed_email_is_redacted_from_surviving_phone_quote(contact_db, monkeypatch):
+    from gridlens.api import app as api_app
+
+    with contact_db() as session:
+        _company, project, claim, source = _seed_published_contact(session)
+        project.region_status = "ELIGIBLE"
+        project.region_state = "TX"
+        shared_quote = (
+            "Contact Avery at hidden@example.test or call 512-555-0100 for project operations."
+        )
+        source.excerpt = f"{source.excerpt}\n{shared_quote}"
+        claim.citations = [
+            citation for citation in claim.citations if citation["supports"] != "public_contact"
+        ] + [
+            {
+                "evidence_id": str(source.id),
+                "quote": shared_quote,
+                "supports": "public_contact",
+                "url": source.url,
+            }
+        ]
+        claim.public_contacts = [
+            {
+                "kind": "email",
+                "value": "hidden@example.test",
+                "source_url": source.url,
+                "quote": shared_quote,
+                "observed_at": source.observed_at.isoformat(),
+            },
+            {
+                "kind": "phone",
+                "value": "512-555-0100",
+                "source_url": source.url,
+                "quote": shared_quote,
+                "observed_at": source.observed_at.isoformat(),
+            },
+        ]
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=global_method_suppression_key("email", "hidden@example.test"),
+            action="suppress",
+            expected_version=0,
+            reason="email privacy request",
+            actor="privacy-ops",
+            idempotency_key="suppress-email-shared-quote",
+        )
+        session.flush()
+        for view in (
+            buying_chain_view(session, project.id),
+            buying_chain_view(session, project.id, history=True),
+        ):
+            item = next(row for row in view["candidates"] if row["id"] == claim.id)
+            assert len(item["public_contacts"]) == 1
+            phone = item["public_contacts"][0]
+            assert phone["kind"] == "phone"
+            assert "hidden@example.test" not in phone["quote"]
+            assert "512-555-0100" in phone["quote"]
+            cited = next(
+                evidence
+                for evidence in item["evidence"]
+                if evidence["supports"] == "public_contact"
+                and evidence["url"] == phone["source_url"]
+            )
+            assert cited["quote"] == phone["quote"]
+        assert "hidden@example.test" in source.excerpt
+        session.commit()
+        project_id = project.id
+    monkeypatch.setattr(api_app, "SessionLocal", contact_db)
+    result = api_app.unified_search("hidden@example.test")
+    assert result["contacts"] == []
+    assert project_id not in {item["project_id"] for item in result["projects"]}
+
+
 def test_excessive_retained_contact_values_fail_closed(contact_db):
     from gridlens.intelligence.buying_chain import (
         MAX_CONTACT_VALUES_PER_CANDIDATE,
