@@ -728,6 +728,85 @@ def test_suppression_redacts_methods_removed_before_suppression(contact_db):
         assert cleared.id
 
 
+def test_phone_suppression_does_not_join_neighboring_evidence_quotes(contact_db, monkeypatch):
+    from gridlens.api import app as api_app
+    from gridlens.intelligence.internal_corrections import correct_buying_chain_claim
+
+    with contact_db() as session:
+        _company, project, claim, source = _seed_published_contact(session)
+        project.region_status = "ELIGIBLE"
+        project.region_state = "TX"
+        first_quote = "Call Avery at 512-555-0100 for project operations."
+        second_quote = "Alternate office line: 512-555-0200."
+        source.excerpt = f"{source.excerpt}\n{first_quote}\n{second_quote}"
+        claim.citations = [
+            citation for citation in claim.citations if citation["supports"] != "public_contact"
+        ] + [
+            {
+                "evidence_id": str(source.id),
+                "quote": first_quote,
+                "supports": "public_contact",
+                "url": source.url,
+            },
+            {
+                "evidence_id": str(source.id),
+                "quote": second_quote,
+                "supports": "public_contact",
+                "url": source.url,
+            },
+        ]
+        claim.public_contacts = [
+            {
+                "kind": "phone",
+                "value": "512-555-0100",
+                "source_url": source.url,
+                "quote": first_quote,
+                "observed_at": source.observed_at.isoformat(),
+            }
+        ]
+        session.flush()
+        correct_buying_chain_claim(
+            session,
+            project_id=project.id,
+            claim_id=claim.id,
+            expected_version=claim.fingerprint,
+            action="correct",
+            values={"public_contact_kind": "phone", "public_contact_value": None},
+            reason="privacy removal",
+            actor="privacy-ops",
+            idempotency_key="clear-phone-before-suppress",
+            source_evidence_id=source.id,
+            source_version_hash=source.content_hash,
+        )
+        key = global_method_suppression_key("phone", "+1 (512) 555-0100")
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=key,
+            action="suppress",
+            expected_version=0,
+            reason="global phone privacy request",
+            actor="privacy-ops",
+            idempotency_key="suppress-cleared-phone",
+        )
+        session.flush()
+        for view in (
+            buying_chain_view(session, project.id),
+            buying_chain_view(session, project.id, history=True),
+        ):
+            item = next(row for row in view["candidates"] if row["id"] == claim.id)
+            rendered = str(item.get("evidence", [])).casefold()
+            assert "512-555-0100" not in rendered
+            assert "512-555-0200" in rendered
+        assert "512-555-0100" in source.excerpt
+        session.commit()
+        project_id = project.id
+    monkeypatch.setattr(api_app, "SessionLocal", contact_db)
+    search = api_app.unified_search("512-555-0100")
+    assert search["contacts"] == []
+    assert project_id not in {item["project_id"] for item in search["projects"]}
+
+
 def test_excessive_retained_contact_values_fail_closed(contact_db):
     from gridlens.intelligence.buying_chain import (
         MAX_CONTACT_VALUES_PER_CANDIDATE,

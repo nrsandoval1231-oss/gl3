@@ -83,7 +83,10 @@ RETAINED_BUYING_CHAIN_TASK_TYPE = "buying_chain_retained"
 MAX_RETAINED_BACKFILL_PROJECTS = 100
 MAX_CONTACT_VALUES_PER_CANDIDATE = 64
 _EMAIL_VALUE = re.compile(r"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
-_PHONE_VALUE = re.compile(r"\+?\d[\d().\s-]{5,}\d")
+_PHONE_VALUE = re.compile(r"\+?\d[\d(). \t-]{5,}\d")
+_NANP_PHONE_VALUE = re.compile(
+    r"(?<!\d)(?:\+?1[ \t.-]?)?(?:\(\d{3}\)|\d{3})[ \t.-]?\d{3}[ \t.-]?\d{4}(?!\d)"
+)
 _PROFILE_VALUE = re.compile(r"https?://[^\s<>\"']+", re.I)
 
 
@@ -1954,13 +1957,18 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             kind = correction_values.get("public_contact_kind") or "general"
             if isinstance(value, str) and value.strip():
                 retained_values.add((str(kind), value.strip()))
-        evidence_text = "\n".join(str(row.get("quote") or "") for row in item.get("evidence", []))
+        evidence_quotes = [str(row.get("quote") or "") for row in item.get("evidence", [])]
+        evidence_text = "\n".join(evidence_quotes)
         for value in _EMAIL_VALUE.findall(evidence_text):
             retained_values.add(("email", value.rstrip(".,;:)")))
-        for value in _PHONE_VALUE.findall(evidence_text):
-            digits = re.sub(r"\D", "", value)
-            if 7 <= len(digits) <= 15:
-                retained_values.add(("phone", value.strip(" .,:;")))
+        for quote in evidence_quotes:
+            for line in quote.splitlines():
+                nanp_values = _NANP_PHONE_VALUE.findall(line)
+                phone_values = nanp_values or _PHONE_VALUE.findall(line)
+                for value in phone_values:
+                    digits = re.sub(r"\D", "", value)
+                    if 7 <= len(digits) <= 15:
+                        retained_values.add(("phone", value.strip(" .,:;")))
         for value in _PROFILE_VALUE.findall(evidence_text):
             retained_values.add(("profile", value.rstrip(".,;:)")))
         if len(retained_values) > MAX_CONTACT_VALUES_PER_CANDIDATE:
