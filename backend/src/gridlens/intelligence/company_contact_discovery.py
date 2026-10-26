@@ -130,11 +130,26 @@ def _active_import_rows(session: Session, company_id: UUID) -> list[tuple[Extern
     return [(row, content_hash) for row, content_hash in rows]
 
 
+def _company_hyperlink_hints(session: Session, company_id: UUID) -> dict:
+    """Read only bounded active-import hyperlink hints from the import service."""
+    # Keep metadata-reparse receipt interpretation in the staging service. The
+    # contact planner consumes only its stable public URL set and fingerprint.
+    from gridlens.intelligence.external_imports import company_hyperlink_hints
+
+    return company_hyperlink_hints(session, company_id)
+
+
 def _research_source_digest(session: Session, project: Project, company_id: UUID) -> str:
     imports = _active_import_rows(session, company_id)
+    hyperlink_hints = _company_hyperlink_hints(session, company_id)
+    hint_urls = hyperlink_hints.get("urls") or []
     return fingerprint(
         {
             "anchor": _anchor_digest(session, project, company_id),
+            # Unsupported/malformed metadata does not create a new research
+            # generation. A newly recoverable public URL does, including a
+            # same-bytes parser-only import reparse.
+            "hyperlink_hints": (hyperlink_hints.get("fingerprint") if hint_urls else None),
             "imports": [
                 {
                     "row_id": str(row.id),
@@ -590,11 +605,16 @@ def discover_company_contacts(
 
 
 def _known_contact_urls(session: Session, company_id: UUID, projects: list[Project]) -> list[str]:
-    """Reuse only source-cited contact URLs or earlier checked company pages."""
+    """Reuse bounded unverified public URLs while preserving refresh priority."""
     checked_urls: list[str] = []
     import_urls: list[str] = []
+    hyperlink_urls: list[str] = []
     contact_urls: list[str] = []
     organization_urls: list[str] = []
+    hyperlink_hints = _company_hyperlink_hints(session, company_id)
+    for url in hyperlink_hints.get("urls", []):
+        if isinstance(url, str):
+            hyperlink_urls.append(url)
     for row, _content_hash in _active_import_rows(session, company_id):
         imported_fields = row.normalized if isinstance(row.normalized, dict) else {}
         domain = imported_fields.get("domain")
@@ -653,7 +673,11 @@ def _known_contact_urls(session: Session, company_id: UUID, projects: list[Proje
     # A prior literal contact source is more useful for a refresh than another
     # untrusted organization-source candidate. Keep it first so the four-URL
     # standard cap cannot starve a known method refresh.
-    urls = [*contact_urls, *checked_urls, *import_urls, *organization_urls]
+    # Literal contact refreshes and prior checked pages remain first. Newly
+    # recovered workbook hyperlinks then precede normalized-domain and generic
+    # organization-source candidates, so those older broad hints cannot starve
+    # a metadata-recovered source under the four-URL worker cap.
+    urls = [*contact_urls, *checked_urls, *hyperlink_urls, *import_urls, *organization_urls]
     valid: list[str] = []
     for url in urls:
         try:
@@ -908,6 +932,9 @@ def plan_company_contact_jobs(
         result = discover_company_contacts(
             session,
             company_id,
+            candidate_urls=_known_contact_urls(session, company_id, list(_candidate.projects))[
+                :MAX_CANDIDATE_URLS
+            ],
             now=now,
             refresh_generation=refresh_generation,
             research_profile=_candidate.research_profile,

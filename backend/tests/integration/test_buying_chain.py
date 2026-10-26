@@ -5698,9 +5698,11 @@ def test_current_company_source_is_untrusted_but_useful_cold_start_seed(
 
 
 def test_current_contact_refresh_seed_precedes_organization_discovery_seeds(db, monkeypatch):
+    import json
     from uuid import uuid4
 
     import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
 
     with db.begin() as session:
         project = seed(session, external_id="contact-refresh-seed-priority")
@@ -5718,6 +5720,24 @@ def test_current_contact_refresh_seed_precedes_organization_discovery_seeds(db, 
             "current_support": True,
             "url": "https://acme.example/contact",
         }
+        previously_checked = ["https://acme.example/checked/contact"]
+        session.add(
+            Job(
+                source_id=project.source_id,
+                kind=discovery.JOB_KIND,
+                target_id=company_id,
+                status="succeeded",
+                checkpoint=json.dumps({"status": "unresolved", "checked_urls": previously_checked}),
+            )
+        )
+        monkeypatch.setattr(
+            discovery,
+            "_company_hyperlink_hints",
+            lambda *_args: {
+                "urls": ["https://acme.com/imported-citation"],
+                "fingerprint": "metadata-hints-fingerprint",
+            },
+        )
         monkeypatch.setattr(
             discovery,
             "buying_chain_view",
@@ -5731,9 +5751,16 @@ def test_current_contact_refresh_seed_precedes_organization_discovery_seeds(db, 
             },
         )
         urls = discovery._known_contact_urls(session, company_id, [project])
-        assert urls[0] == "https://acme.example/contact"
+        assert urls[:4] == [
+            "https://acme.example/contact",
+            *previously_checked,
+            "https://acme.com/imported-citation",
+            "https://source-0.example/record",
+        ]
         assert len(urls[: discovery.MAX_CANDIDATE_URLS]) == discovery.MAX_CANDIDATE_URLS
         assert "https://acme.example/contact" in urls[: discovery.MAX_CANDIDATE_URLS]
+        assert "https://acme.com/imported-citation" in urls[: discovery.MAX_CANDIDATE_URLS]
+        assert "https://source-0.example/record" in urls[: discovery.MAX_CANDIDATE_URLS]
 
 
 def test_organization_discovery_seeds_require_current_company_and_public_url(db, monkeypatch):

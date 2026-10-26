@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -15,6 +16,13 @@ from gridlens.ingestion.workbook_import import (
     ImportPreview,
     ImportRow,
     read_workbook,
+)
+from gridlens.intelligence.company_contact_discovery import (
+    JOB_KIND as CONTACT_JOB_KIND,
+)
+from gridlens.intelligence.company_contact_discovery import (
+    _research_source_digest,
+    plan_company_contact_jobs,
 )
 from gridlens.intelligence.external_imports import (
     _is_hyperlink_sidecar,
@@ -38,6 +46,7 @@ from gridlens.persistence.models import (
     ExternalImportRow,
     IdentityIdentifier,
     Interpretation,
+    Job,
     Observation,
     PowerNeed,
     Project,
@@ -1210,3 +1219,117 @@ def test_25k_rows_are_staged_in_bounded_chunks_and_return_bounded_summary(import
         assert len(result["rows"]) == 100
         assert result["metrics"]["rows_with_power_assertions"] == 25_000
         assert session.scalar(select(func.count()).select_from(ExternalImportRow)) == 25_000
+
+
+def test_same_bytes_metadata_reparse_changes_contact_digest_and_queues_new_job(import_db):
+    from gridlens.intelligence.external_imports import company_hyperlink_hints
+
+    with TemporaryDirectory() as temporary_directory:
+        workbook_path = Path(temporary_directory) / "linked-accounts.xlsx"
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Accounts"
+        sheet.append(["Company", "Domain", "Project", "City", "State", "Citation"])
+        sheet.append(["Acme Energy", "acme.example", "North Campus", "Austin", "TX", "Link"])
+        sheet.append(["Acme Energy", "acme.example", "North Campus", "Austin", "TX", "Link"])
+        sheet.append(
+            ["Unmatched Energy", "unmatched.example", "Unknown Site", "Austin", "TX", "Link"]
+        )
+        sheet["F2"].hyperlink = "https://acme.com/projects/north-campus"
+        sheet["F3"].hyperlink = "https://inactive.com/acme"
+        sheet["F4"].hyperlink = "https://unmatched.com/projects"
+        workbook.save(workbook_path)
+
+        current_preview = read_workbook(workbook_path)
+        assert current_preview.report["hyperlink_metadata_parser_revision"] == (
+            HYPERLINK_METADATA_PARSER_REVISION
+        )
+        sidecar_keys = _metadata_sidecar_keys(current_preview.report)
+        legacy_report = {
+            key: value
+            for key, value in current_preview.report.items()
+            if key not in {"hyperlink_metadata_parser_revision", "hyperlink_metadata_sidecar_keys"}
+        }
+        legacy_rows = [
+            row.model_copy(
+                update={
+                    "raw": {
+                        key: value
+                        for key, value in row.raw.items()
+                        if not _is_hyperlink_sidecar(
+                            key,
+                            value,
+                            sidecar_keys=sidecar_keys.get(row.sheet, set()),
+                        )
+                    }
+                }
+            )
+            for row in current_preview.rows
+        ]
+        legacy_preview = ImportPreview(
+            filename=current_preview.filename,
+            content_hash=current_preview.content_hash,
+            rows=legacy_rows,
+            report=legacy_report,
+        )
+
+    with import_db.begin() as session:
+        project, company = _seed_matchable(session)
+        project.region_status = "ELIGIBLE"
+        session.add(
+            PowerNeed(
+                project_id=project.id,
+                activity_key="construction",
+                tier="Prospect",
+                rationale="Staging planner fixture",
+                required_mw="2-4 MW",
+                start_window="2026-Q4",
+            )
+        )
+        staged_v1 = stage_import(session, legacy_preview, actor="v1-importer")
+        assert staged_v1["matched_count"] == 2
+        first_rows = list(
+            session.scalars(
+                select(ExternalImportRow)
+                .where(ExternalImportRow.batch_id == staged_v1["batch_id"])
+                .order_by(ExternalImportRow.row_number)
+            )
+        )
+        assert first_rows[0].raw["Citation"] == first_rows[1].raw["Citation"] == "Link"
+        inactive_row = next(row for row in first_rows if row.row_number == 3)
+        inactive_activation = session.get(ExternalImportActivation, inactive_row.id)
+        assert inactive_activation is not None and inactive_activation.active
+        inactive_activation.active = False
+
+        assert company_hyperlink_hints(session, company.id)["urls"] == []
+        before_source_digest = _research_source_digest(session, project, company.id)
+        assert plan_company_contact_jobs(session, limit=10) == 1
+        first_job = session.scalar(
+            select(Job)
+            .where(Job.kind == CONTACT_JOB_KIND, Job.target_id == company.id)
+            .order_by(Job.created_at.desc(), Job.id.desc())
+        )
+        first_checkpoint = json.loads(first_job.checkpoint)
+        first_checkpoint.update(status="complete", completed_at=datetime.now(UTC).isoformat())
+        first_job.checkpoint = json.dumps(first_checkpoint)
+        first_job.status = "succeeded"
+
+        reparsed = stage_import(session, current_preview, actor="metadata-reparser")
+        assert reparsed["batch_id"] == staged_v1["batch_id"]
+        assert reparsed["recovered_unverified_hyperlink_hint_count"] == 3
+        hint_result = company_hyperlink_hints(session, company.id)
+        expected_url = "https://acme.com/projects/north-campus"
+        assert hint_result["urls"] == [expected_url]
+        assert hint_result["fingerprint"]
+        assert _research_source_digest(session, project, company.id) != before_source_digest
+
+        assert plan_company_contact_jobs(session, limit=10) == 1
+        new_job = session.scalar(
+            select(Job)
+            .where(Job.kind == CONTACT_JOB_KIND, Job.target_id == company.id)
+            .order_by(Job.created_at.desc(), Job.id.desc())
+        )
+        new_checkpoint = json.loads(new_job.checkpoint)
+        assert new_job.id != first_job.id
+        assert new_checkpoint["research_digest"] != first_checkpoint["research_digest"]
+        assert expected_url in new_checkpoint["payload"]["candidate_urls"]
