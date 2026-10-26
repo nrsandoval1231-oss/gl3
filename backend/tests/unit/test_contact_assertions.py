@@ -17,6 +17,7 @@ from gridlens.intelligence.company_contacts import company_contacts
 from gridlens.intelligence.contact_suppressions import (
     SuppressionConflict,
     global_method_suppression_key,
+    global_person_suppression_key,
     method_suppression_key,
     record_contact_suppression,
 )
@@ -34,6 +35,7 @@ from gridlens.persistence.models import (
     ExternalImportRow,
     Interpretation,
     Observation,
+    PersonIdentity,
     PowerNeed,
     Project,
     Source,
@@ -599,6 +601,231 @@ def test_global_method_suppression_applies_without_company_identity_link(contact
         assert item["public_contacts"] == []
 
 
+def test_global_person_suppression_survives_new_claim_and_source_version(contact_db, monkeypatch):
+    from gridlens.api import app as api_app
+
+    with contact_db() as session:
+        company, project, old_claim, old_source = _seed_published_contact(session)
+        project.region_status = "ELIGIBLE"
+        project.region_state = "TX"
+        person = PersonIdentity()
+        session.add(person)
+        session.flush()
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=old_claim.id,
+                entity_type="person",
+                company_identity_id=None,
+                person_identity_id=person.id,
+                reason="Synthetic original linked person.",
+                basis="project_scoped",
+                source_evidence_id=old_source.id,
+                source_version_hash=old_source.content_hash,
+                state="current",
+            )
+        )
+        refreshed_source = BuyingChainEvidence(
+            project_id=project.id,
+            retained_evidence_id=None,
+            url=old_source.url,
+            title=old_source.title,
+            excerpt=old_source.excerpt + " Updated listing.",
+            content_hash="9" * 64,
+            extraction_location="updated fixture",
+            published_at=old_source.published_at,
+            observed_at=old_source.observed_at + timedelta(minutes=5),
+            last_seen_at=old_source.last_seen_at + timedelta(minutes=5),
+            project_match_reason=old_source.project_match_reason,
+        )
+        session.add(refreshed_source)
+        session.flush()
+        refreshed_claim = BuyingChainClaim(
+            project_id=old_claim.project_id,
+            entity_key=old_claim.entity_key,
+            fingerprint=uuid4().hex,
+            policy_version=old_claim.policy_version,
+            organization=old_claim.organization,
+            person_name=old_claim.person_name,
+            title=old_claim.title,
+            category=old_claim.category,
+            organization_relationship=old_claim.organization_relationship,
+            person_organization_relationship=old_claim.person_organization_relationship,
+            person_project_relationship=old_claim.person_project_relationship,
+            evidence_strength=old_claim.evidence_strength,
+            reason=old_claim.reason,
+            citations=[
+                {**citation, "evidence_id": str(refreshed_source.id)}
+                for citation in old_claim.citations
+            ],
+            public_contacts=old_claim.public_contacts,
+            observed_at=old_claim.observed_at + timedelta(minutes=5),
+        )
+        session.add(refreshed_claim)
+        session.flush()
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=refreshed_claim.id,
+                entity_type="company",
+                company_identity_id=company.id,
+                person_identity_id=None,
+                reason="Synthetic refreshed company-only link.",
+                basis="project_scoped",
+                source_evidence_id=refreshed_source.id,
+                source_version_hash=refreshed_source.content_hash,
+                state="current",
+            )
+        )
+        run = session.query(BuyingChainRun).filter_by(project_id=project.id).one()
+        run.evidence_ids = [str(old_source.id), str(refreshed_source.id)]
+        run.claim_ids = [str(refreshed_claim.id)]
+        record_contact_suppression(
+            session,
+            scope="person",
+            subject_key=global_person_suppression_key(person.id),
+            action="suppress",
+            expected_version=0,
+            reason="global privacy request",
+            actor="privacy-ops",
+            idempotency_key="hide-refreshed-person",
+        )
+        session.flush()
+        for view in (
+            buying_chain_view(session, project.id),
+            buying_chain_view(session, project.id, history=True),
+        ):
+            hidden = [row for row in view["candidates"] if row.get("suppressed") is True]
+            assert hidden
+            assert not any("Avery Example" in str(row) for row in hidden)
+            assert all(not contact.methods for contact in contact_projection(view))
+        session.commit()
+        project_id = project.id
+    monkeypatch.setattr(api_app, "SessionLocal", contact_db)
+    search = api_app.unified_search("Avery Example")
+    assert search["contacts"] == []
+    assert project_id not in {item["project_id"] for item in search["projects"]}
+    with contact_db() as session:
+        event = session.query(ContactSuppression).filter_by(scope="person").one()
+        record_contact_suppression(
+            session,
+            scope="person",
+            subject_key=event.subject_key,
+            action="reinstate",
+            expected_version=1,
+            reason="explicit privacy review restored visibility",
+            actor="privacy-ops",
+            idempotency_key="reinstate-refreshed-person",
+        )
+        session.flush()
+        visible = buying_chain_view(session, project_id)
+        assert any(
+            row["id"] == refreshed_claim.id and row["person_name"] == "Avery Example"
+            for row in visible["candidates"]
+        )
+
+
+def test_person_privacy_lineage_limit_is_per_exact_entity_and_fail_closed(contact_db):
+    from gridlens.intelligence.buying_chain import (
+        MAX_PERSON_PRIVACY_LINEAGE_LINKS,
+        _apply_contact_privacy,
+    )
+
+    with contact_db() as session:
+        _company, project, seed_claim, source = _seed_published_contact(session)
+        candidates = []
+
+        def add_linked_claim(entity_key: str, name: str, index: int):
+            person = PersonIdentity()
+            claim = BuyingChainClaim(
+                project_id=project.id,
+                entity_key=entity_key,
+                fingerprint=uuid4().hex,
+                policy_version=seed_claim.policy_version,
+                organization=seed_claim.organization,
+                person_name=name,
+                title="Project Operations",
+                category=seed_claim.category,
+                organization_relationship=seed_claim.organization_relationship,
+                person_organization_relationship=seed_claim.person_organization_relationship,
+                person_project_relationship=seed_claim.person_project_relationship,
+                evidence_strength=seed_claim.evidence_strength,
+                reason=seed_claim.reason,
+                citations=[],
+                public_contacts=[],
+                observed_at=seed_claim.observed_at + timedelta(seconds=index + 1),
+            )
+            session.add_all([person, claim])
+            session.flush()
+            session.add(
+                BuyingChainIdentityLink(
+                    claim_id=claim.id,
+                    entity_type="person",
+                    company_identity_id=None,
+                    person_identity_id=person.id,
+                    reason="Synthetic historical identity link.",
+                    basis="project_scoped",
+                    source_evidence_id=source.id,
+                    source_version_hash=source.content_hash,
+                    state="current",
+                )
+            )
+            candidates.append(
+                {
+                    "id": claim.id,
+                    "person_name": name,
+                    "title": "Project Operations",
+                    "public_contacts": [],
+                    "reported_contacts": [],
+                    "correction_history": [],
+                    "evidence": [],
+                }
+            )
+            return claim
+
+        overflow_claims = [seed_claim]
+        for index in range(MAX_PERSON_PRIVACY_LINEAGE_LINKS):
+            overflow_claims.append(
+                add_linked_claim(seed_claim.entity_key, "Overflow Subject", index)
+            )
+        overflow_person = PersonIdentity()
+        session.add(overflow_person)
+        session.flush()
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=seed_claim.id,
+                entity_type="person",
+                company_identity_id=None,
+                person_identity_id=overflow_person.id,
+                reason="Synthetic original identity link.",
+                basis="project_scoped",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+                state="current",
+            )
+        )
+        overflow_candidate = {
+            "id": seed_claim.id,
+            "person_name": "Overflow Subject",
+            "title": "Project Operations",
+            "public_contacts": [],
+            "reported_contacts": [],
+            "correction_history": [],
+            "evidence": [],
+        }
+        candidates.append(overflow_candidate)
+        clean_candidates = [
+            add_linked_claim(f"separate-{index}", f"Separate Subject {index}", index + 200)
+            for index in range(MAX_PERSON_PRIVACY_LINEAGE_LINKS + 1)
+        ]
+        _apply_contact_privacy(session, candidates)
+        assert overflow_candidate.get("suppressed") is True
+        clean_ids = {claim.id for claim in clean_candidates}
+        assert all(
+            candidate.get("suppressed") is not True
+            for candidate in candidates
+            if candidate["id"] in clean_ids
+        )
+
+
 def test_global_search_does_not_return_suppressed_contact_method(contact_db, monkeypatch):
     from gridlens.api import app as api_app
     from gridlens.intelligence.internal_corrections import correct_buying_chain_claim
@@ -1013,6 +1240,65 @@ def test_privacy_metadata_does_not_consume_candidate_contact_budget(contact_db):
         assert candidate.get("suppressed") is not True
         assert candidate["person_name"] == "Synthetic Person"
         assert candidate["title"] == "Synthetic Role"
+
+
+def test_extraction_location_is_scanned_and_redacted(contact_db):
+    from gridlens.intelligence.buying_chain import _apply_contact_privacy
+
+    with contact_db() as session:
+        key = global_method_suppression_key("email", "hidden@example.test")
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=key,
+            action="suppress",
+            expected_version=0,
+            reason="privacy request",
+            actor="privacy-ops",
+            idempotency_key="provenance-email-hide",
+        )
+        candidate = {
+            "id": uuid4(),
+            "person_name": "Avery Example",
+            "title": "Project Operations",
+            "public_contacts": [],
+            "reported_contacts": [],
+            "correction_history": [],
+            "evidence": [{"extraction_location": "Heading: hidden@example.test"}],
+        }
+        _apply_contact_privacy(session, [candidate])
+        assert "hidden@example.test" not in str(candidate).casefold()
+        assert "[redacted]" in candidate["evidence"][0]["extraction_location"]
+
+
+def test_phone_scanner_keeps_international_and_nanp_matches_on_same_line(contact_db):
+    from gridlens.intelligence.buying_chain import _apply_contact_privacy
+
+    with contact_db() as session:
+        key = global_method_suppression_key("phone", "+44 20 7946 0958")
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=key,
+            action="suppress",
+            expected_version=0,
+            reason="privacy request",
+            actor="privacy-ops",
+            idempotency_key="uk-phone-hide",
+        )
+        candidate = {
+            "id": uuid4(),
+            "person_name": "Avery Example",
+            "title": "Project Operations",
+            "public_contacts": [],
+            "reported_contacts": [],
+            "correction_history": [],
+            "evidence": [{"quote": "UK +44 20 7946 0958; US 512-555-0100"}],
+        }
+        _apply_contact_privacy(session, [candidate])
+        quote = candidate["evidence"][0]["quote"]
+        assert "+44 20 7946 0958" not in quote
+        assert "512-555-0100" in quote
 
 
 def test_imported_contacts_remain_separate_and_unverified(contact_db):

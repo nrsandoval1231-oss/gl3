@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, union
+from sqlalchemy import and_, func, or_, select, tuple_, union
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import (
@@ -82,6 +82,7 @@ BUYING_CHAIN_TASK_TYPE = "buying_chain_research"
 RETAINED_BUYING_CHAIN_TASK_TYPE = "buying_chain_retained"
 MAX_RETAINED_BACKFILL_PROJECTS = 100
 MAX_CONTACT_VALUES_PER_CANDIDATE = 64
+MAX_PERSON_PRIVACY_LINEAGE_LINKS = 128
 _EMAIL_VALUE = re.compile(r"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
 _PHONE_VALUE = re.compile(r"\+?\d[\d(). \t-]{5,}\d")
 _NANP_PHONE_VALUE = re.compile(
@@ -119,7 +120,6 @@ _PRIVACY_METADATA_KEYS = frozenset(
         "status",
         "action",
         "supports",
-        "extraction_location",
     }
 )
 
@@ -1954,6 +1954,54 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             BuyingChainIdentityLink.entity_type.in_(("company", "person")),
         )
     ).all()
+    claim_rows = session.execute(
+        select(BuyingChainClaim.id, BuyingChainClaim.project_id, BuyingChainClaim.entity_key).where(
+            BuyingChainClaim.id.in_(claim_ids)
+        )
+    ).all()
+    cohort_claims = {row.id: (row.project_id, row.entity_key) for row in claim_rows}
+    entity_pairs = set(cohort_claims.values())
+    lineage_links = []
+    lineage_overflow_pairs: set[tuple[UUID, str]] = set()
+    if entity_pairs:
+        distinct_lineage = (
+            select(
+                BuyingChainClaim.project_id,
+                BuyingChainClaim.entity_key,
+                BuyingChainIdentityLink.person_identity_id,
+            )
+            .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+            .where(
+                BuyingChainIdentityLink.entity_type == "person",
+                tuple_(BuyingChainClaim.project_id, BuyingChainClaim.entity_key).in_(entity_pairs),
+            )
+            .distinct()
+        ).subquery()
+        lineage_query = select(
+            distinct_lineage.c.project_id,
+            distinct_lineage.c.entity_key,
+            distinct_lineage.c.person_identity_id,
+            func.row_number()
+            .over(
+                partition_by=(distinct_lineage.c.project_id, distinct_lineage.c.entity_key),
+                order_by=distinct_lineage.c.person_identity_id,
+            )
+            .label("lineage_row"),
+        ).subquery()
+        bounded_lineage_rows = session.execute(
+            select(
+                lineage_query.c.project_id,
+                lineage_query.c.entity_key,
+                lineage_query.c.person_identity_id,
+                lineage_query.c.lineage_row,
+            ).where(lineage_query.c.lineage_row <= MAX_PERSON_PRIVACY_LINEAGE_LINKS + 1)
+        ).all()
+        for row in bounded_lineage_rows:
+            pair = (row.project_id, row.entity_key)
+            if row.lineage_row > MAX_PERSON_PRIVACY_LINEAGE_LINKS:
+                lineage_overflow_pairs.add(pair)
+            else:
+                lineage_links.append(row)
     company_by_claim = {
         row.claim_id: row.company_identity_id
         for row in links
@@ -1964,9 +2012,15 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
         for row in links
         if row.entity_type == "person" and row.person_identity_id is not None
     }
+    person_ids_by_pair: dict[tuple[UUID, str], set[UUID]] = defaultdict(set)
+    for row in lineage_links:
+        if row.person_identity_id is not None:
+            person_ids_by_pair[(row.project_id, row.entity_key)].add(row.person_identity_id)
+    fail_closed_claims: set[UUID] = {
+        claim_id for claim_id, pair in cohort_claims.items() if pair in lineage_overflow_pairs
+    }
     candidate_scope: dict[UUID, tuple[UUID | None, str]] = {}
     values_by_claim: dict[UUID, list[tuple[str, str]]] = {}
-    fail_closed_claims: set[UUID] = set()
     keys: set[tuple[str, str]] = set()
     for item in candidates:
         company_id = company_by_claim.get(item["id"])
@@ -1977,8 +2031,12 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             keys.add(("company", company_suppression_key(company_id)))
             if name:
                 keys.add(("person", person_suppression_key(company_id, name)))
+        pair = cohort_claims.get(item["id"])
+        historical_person_ids = person_ids_by_pair.get(pair, set()) if pair else set()
         if person_id is not None:
-            keys.add(("person", global_person_suppression_key(person_id)))
+            historical_person_ids.add(person_id)
+        for linked_person_id in historical_person_ids:
+            keys.add(("person", global_person_suppression_key(linked_person_id)))
         retained_values: set[tuple[str, str]] = set()
         for contact_field in ("public_contacts", "reported_contacts"):
             for contact in item.get(contact_field, []):
@@ -2011,7 +2069,7 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
         for text in strings:
             for line in text.splitlines():
                 nanp_values = _NANP_PHONE_VALUE.findall(line)
-                phone_values = nanp_values or _PHONE_VALUE.findall(line)
+                phone_values = set(nanp_values) | set(_PHONE_VALUE.findall(line))
                 for value in phone_values:
                     digits = re.sub(r"\D", "", value)
                     if 7 <= len(digits) <= 15:
@@ -2032,7 +2090,10 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
     states = _ledger_states(session, keys)
     for item in candidates:
         company_id, name = candidate_scope[item["id"]]
-        person_id = person_by_claim.get(item["id"])
+        pair = cohort_claims.get(item["id"])
+        historical_person_ids = person_ids_by_pair.get(pair, set()) if pair else set()
+        if person_by_claim.get(item["id"]) is not None:
+            historical_person_ids = historical_person_ids | {person_by_claim[item["id"]]}
         suppressed_subject = (
             item["id"] in fail_closed_claims
             or bool(
@@ -2044,9 +2105,9 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
                 and name
                 and states.get(("person", person_suppression_key(company_id, name))) == "suppress"
             )
-            or bool(
-                person_id is not None
-                and states.get(("person", global_person_suppression_key(person_id))) == "suppress"
+            or any(
+                states.get(("person", global_person_suppression_key(person_id))) == "suppress"
+                for person_id in historical_person_ids
             )
         )
         if suppressed_subject:
