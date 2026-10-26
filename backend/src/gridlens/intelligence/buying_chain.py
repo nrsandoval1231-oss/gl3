@@ -2364,6 +2364,73 @@ def buying_chain_view(
         history,
         decisions=preload.corrections.get(project_id, []) if preload else None,
     )
+    # Privacy suppressions are stable across regenerated claim IDs. Apply them
+    # to the actionable projection after correction replay, preserving history.
+    if not history and candidates:
+        from gridlens.intelligence.contact_suppressions import (
+            _ledger_state,
+            company_suppression_key,
+            method_suppression_key,
+            person_suppression_key,
+            global_person_suppression_key,
+            global_method_suppression_key,
+        )
+
+        claim_ids = [item["id"] for item in candidates]
+        company_by_claim = {
+            row.claim_id: row.company_identity_id
+            for row in session.scalars(
+                select(BuyingChainIdentityLink).where(
+                    BuyingChainIdentityLink.claim_id.in_(claim_ids),
+                    BuyingChainIdentityLink.entity_type == "company",
+                    BuyingChainIdentityLink.state == "current",
+                )
+            )
+        }
+        for item in candidates:
+            company_id = company_by_claim.get(item["id"])
+            if company_id is None:
+                continue
+            if _ledger_state(session, "company", company_suppression_key(company_id))[0] == "suppress":
+                item["public_contacts"] = []
+                item["suppressed"] = True
+                continue
+            name = item.get("person_name") or ""
+            person_link = session.scalar(
+                select(BuyingChainIdentityLink.person_identity_id).where(
+                    BuyingChainIdentityLink.claim_id == item["id"],
+                    BuyingChainIdentityLink.entity_type == "person",
+                    BuyingChainIdentityLink.state == "current",
+                )
+            )
+            if name and (
+                _ledger_state(session, "person", person_suppression_key(company_id, name))[0] == "suppress"
+                or (person_link and _ledger_state(session, "person", global_person_suppression_key(person_link))[0] == "suppress")
+            ):
+                item["public_contacts"] = []
+                item["suppressed"] = True
+                continue
+            item["public_contacts"] = [
+                contact
+                for contact in item.get("public_contacts", [])
+                if _ledger_state(
+                    session,
+                    "method",
+                    method_suppression_key(
+                        company_id,
+                        name,
+                        str(contact.get("kind") or ""),
+                        str(contact.get("value") or ""),
+                    ),
+                )[0] != "suppress"
+                and _ledger_state(
+                    session,
+                    "method",
+                    global_method_suppression_key(
+                        str(contact.get("kind") or ""), str(contact.get("value") or "")
+                    ),
+                )[0] != "suppress"
+            ]
     candidates = [item for item in candidates if history or not item.get("retracted")]
     # Reuse the latest-run selection loaded above for bounded multi-project reads.
     unresolved = (

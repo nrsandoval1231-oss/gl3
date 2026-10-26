@@ -14,6 +14,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.intelligence.company_contacts import company_contacts
+from gridlens.intelligence.contact_suppressions import (
+    _ledger_state,
+    company_suppression_key,
+    method_suppression_key,
+    person_suppression_key,
+)
 from gridlens.persistence.models import (
     ExternalImportActivation,
     ExternalImportRow,
@@ -94,6 +100,23 @@ def project_contact_assertions(session: Session, company_id: UUID) -> dict[str, 
                 **contact_assertion_status(imported=True),
             }
         )
+    if _ledger_state(session, "company", company_suppression_key(company_id))[0] == "suppress":
+        imported = []
+    else:
+        visible_imported = []
+        for item in imported:
+            name = item.get("name")
+            if name and _ledger_state(session, "person", person_suppression_key(company_id, name))[0] == "suppress":
+                continue
+            for kind, field in (("email", "email"), ("phone", "phone"), ("profile", "profile_url")):
+                value = item.get(field)
+                if value and _ledger_state(
+                    session, "method", method_suppression_key(company_id, name, kind, value)
+                )[0] == "suppress":
+                    item[field] = None
+            if any(item.get(field) for field in ("email", "phone", "profile_url")) or not name:
+                visible_imported.append(item)
+        imported = visible_imported
     return {
         "company_id": str(company_id),
         "contacts": contacts,

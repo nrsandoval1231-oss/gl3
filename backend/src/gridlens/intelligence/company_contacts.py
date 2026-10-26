@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from gridlens.domain.opportunity_intelligence import IntelligenceContact, contact_projection
 from gridlens.intelligence.buying_chain import buying_chain_views
+from gridlens.intelligence.contact_suppressions import apply_contact_suppressions
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainIdentityLink,
@@ -161,6 +162,9 @@ def company_contacts(session: Session, company_id: UUID) -> CompanyContacts:
             )
         )
     )
-    return project_contacts(
+    result = project_contacts(
         company_id, buying_chain_views(session, project_ids) if project_ids else {}
     )
+    result.contacts = apply_contact_suppressions(session, company_id, result.contacts)
+    result.research_required = not any(relevant_named_contact(c) for c in result.contacts)
+    return result

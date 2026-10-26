@@ -2376,6 +2376,12 @@ def unified_search(
             contact_need_by_project.setdefault(str(project_id), need_id)
         contacts = []
         normalized_term = term.casefold()
+        from gridlens.intelligence.contact_suppressions import (
+            apply_contact_suppressions,
+            company_suppression_key,
+            _ledger_state,
+        )
+
         for project_id, view in contact_views.items():
             for candidate in view.get("candidates", []):
                 if (
@@ -2384,23 +2390,42 @@ def unified_search(
                     or candidate.get("retracted")
                 ):
                     continue
+                company_id = candidate.get("company_identity_id")
+                if not company_id:
+                    continue
+                try:
+                    company_uuid = UUID(str(company_id))
+                except ValueError:
+                    continue
+                if _ledger_state(session, "company", company_suppression_key(company_uuid))[0] == "suppress":
+                    continue
+                candidate_name = candidate.get("person_name")
+                from gridlens.intelligence.contact_suppressions import person_suppression_key
+                if candidate_name and _ledger_state(session, "person", person_suppression_key(company_uuid, candidate_name))[0] == "suppress":
+                    continue
+                methods = candidate.get("public_contacts", [])
+                filtered_methods = apply_contact_suppressions(
+                    session,
+                    company_uuid,
+                    [type("Contact", (), {"name": candidate_name, "methods": methods})()],
+                )[0].methods
                 fields = [
                     candidate.get("person_name"),
                     candidate.get("title"),
                     candidate.get("organization"),
-                    json.dumps(candidate.get("public_contacts", []), ensure_ascii=False),
+                    json.dumps(filtered_methods, ensure_ascii=False),
                 ]
                 if not any(normalized_term in str(value or "").casefold() for value in fields):
                     continue
                 contacts.append(
                     {
-                        "company_identity_id": candidate.get("company_identity_id"),
+                        "company_identity_id": company_id,
                         "project_id": project_id,
                         "need_id": contact_need_by_project.get(str(project_id)),
                         "name": candidate.get("person_name"),
                         "title": candidate.get("title"),
                         "organization": candidate.get("organization"),
-                        "methods": candidate.get("public_contacts", []),
+                        "methods": filtered_methods,
                         "sources": candidate.get("evidence", []),
                         "verification_status": (
                             "Source linked; reachability and authority unconfirmed"
