@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import TextClause
 
 from gridlens.domain.ercot_impact_rfi import VERSION
 from gridlens.intelligence.ercot_impact_rfi import public_rfi_state
@@ -15,6 +16,13 @@ from gridlens.persistence.models import Evidence, Interpretation, Observation, P
 @compiles(JSONB, "sqlite")
 def sqlite_jsonb(element, compiler, **kw):
     return "JSON"
+
+
+@compiles(TextClause, "sqlite")
+def sqlite_jsonb_default(element, compiler, **kw):
+    # Keep this fixture independent of other SQLite test modules' compiler hooks.
+    sql = compiler.visit_textclause(element, **kw)
+    return sql[:-7] if sql in {"'[]'::jsonb", "'{}'::jsonb"} else sql
 
 
 @pytest.mark.parametrize("date_kind", ["publication", "event"])
