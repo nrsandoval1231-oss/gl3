@@ -109,7 +109,7 @@ def test_read_only_freezer_selects_only_source_cited_native_project(saved_db):
         assert candidate["source_evidence"][0]["observation_hash"] == "a" * 64
         assert candidate["source_evidence"][0]["evidence_hash"] == "b" * 64
         assert candidate["baseline_status"]["power_floor_300kw"] == (
-            "UNKNOWN_OR_NO_SOURCE_LINKED_TYPED_NEED"
+            "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS"
         )
         assert candidate["baseline_status"]["temporary_power_activity"] == (
             "UNKNOWN_OR_UNSUPPORTED_ACTIVITY"
