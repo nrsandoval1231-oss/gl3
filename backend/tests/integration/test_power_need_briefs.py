@@ -895,7 +895,6 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
         activity="Construction",
         timing="UNKNOWN",
         mw_status="UNKNOWN",
-        status="unknown",
         response=response,
     )
     assert [str(item["id"]) for item in page] == [str(need_id)]
@@ -912,7 +911,6 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
         activity="construction",
         timing="unknown",
         mw_status="unknown",
-        status="UNKNOWN",
     )
     assert group["total"] == 1
     assert str(group["items"][0]["id"]) == str(need_id)
@@ -924,7 +922,6 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
         activity="construction",
         timing="UNKNOWN",
         mw_status="UNKNOWN",
-        status="UNKNOWN",
         cohort_token=token,
     )
     assert str(detail["id"]) == str(need_id)
@@ -950,7 +947,6 @@ def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runti
             "activity": "construction",
             "timing": "UNKNOWN",
             "mw_status": "UNKNOWN",
-            "status": "UNKNOWN",
             "cohort_token": token,
         },
     )
@@ -2209,7 +2205,7 @@ def test_brief_request_service_and_worker_keep_saved_maps_current(
     event.listen(worker_factory, "after_commit", after_commit)
     try:
         question = "Which source confirms the construction stage?" if commercial else None
-        with factory.begin() as session:
+        with worker_factory.begin() as session:
             response = service.request_brief(session, need_id, question)
         assert response["status"] == "pending"
         verify_current()
