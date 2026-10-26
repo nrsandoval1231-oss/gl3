@@ -402,6 +402,160 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
                 )
             )
             session.flush()
+    _reuse_exact_project_company_for_named_people(session, list(claims.values()), current_by_claim)
+
+
+def _same_current_project_organization_source(
+    person_candidate: dict[str, Any],
+    company_candidate: dict[str, Any],
+    *,
+    person_project_id: UUID,
+    company_project_id: UUID,
+) -> tuple[str, str] | None:
+    """Find exact shared current support for a person-to-company project link.
+
+    This is deliberately narrower than identity resolution: it permits a local
+    company-link reuse only when both claims have the same exact organization,
+    project, and immutable source version, and that source also explicitly
+    assigns the named person an organization role.
+    """
+    if (
+        person_project_id != company_project_id
+        or person_candidate.get("suppressed")
+        or company_candidate.get("suppressed")
+        or person_candidate.get("correction_stale")
+        or company_candidate.get("correction_stale")
+        or not person_candidate.get("person_name")
+        or company_candidate.get("person_name")
+        or person_candidate.get("organization_relationship") != "DIRECT"
+        or company_candidate.get("organization_relationship") != "DIRECT"
+        or person_candidate.get("organization") != company_candidate.get("organization")
+    ):
+        return None
+
+    def current_citations(candidate: dict[str, Any], support: str) -> dict[str, tuple[str, str]]:
+        citations: dict[str, tuple[str, str]] = {}
+        for item in candidate.get("evidence", []):
+            evidence_id = str(item.get("id") or "")
+            content_hash = str(item.get("content_hash") or "")
+            if (
+                item.get("supports") == support
+                and item.get("current_support")
+                and evidence_id
+                and str(item.get("current_source_version_id")) == evidence_id
+                and content_hash
+            ):
+                citations[evidence_id] = (content_hash, str(item.get("quote") or ""))
+        return citations
+
+    person_org = current_citations(person_candidate, "project_organization")
+    company_org = current_citations(company_candidate, "project_organization")
+    person_role = current_citations(person_candidate, "organization_person_role")
+    for evidence_id, (content_hash, quote) in person_org.items():
+        if (
+            quote
+            and person_role.get(evidence_id, (None, None))[0] == content_hash
+            and person_role[evidence_id][1]
+            and company_org.get(evidence_id) == (content_hash, quote)
+        ):
+            return evidence_id, content_hash
+    return None
+
+
+def _reuse_exact_project_company_for_named_people(
+    session: Session,
+    claims: list[BuyingChainClaim],
+    current_by_claim: dict[UUID, dict[str, Any]],
+) -> None:
+    """Align a named person claim to its exact same-source project company.
+
+    This rebinds only an automatic project-scoped company link. It never merges
+    identities across projects and leaves reviewed/strong/membership links and
+    superseded identity history intact.
+    """
+    project_by_claim = {claim.id: claim.project_id for claim in claims}
+    for person_claim in claims:
+        person_candidate = current_by_claim.get(person_claim.id)
+        if person_candidate is None or not person_claim.person_name:
+            continue
+        peers = []
+        for peer_id, company_candidate in current_by_claim.items():
+            if peer_id == person_claim.id or company_candidate.get("person_name"):
+                continue
+            peer_project_id = project_by_claim.get(peer_id)
+            if peer_project_id is None:
+                peer_claim = session.get(BuyingChainClaim, peer_id)
+                peer_project_id = peer_claim.project_id if peer_claim is not None else None
+            if peer_project_id is None:
+                continue
+            exact_source = _same_current_project_organization_source(
+                person_candidate,
+                company_candidate,
+                person_project_id=person_claim.project_id,
+                company_project_id=peer_project_id,
+            )
+            if exact_source is not None:
+                peers.append((peer_id, exact_source))
+        if len(peers) != 1:
+            continue
+
+        company_claim_id, (evidence_id, source_hash) = peers[0]
+        source = session.get(BuyingChainEvidence, UUID(evidence_id))
+        if (
+            source is None
+            or source.project_id != person_claim.project_id
+            or source.content_hash != source_hash
+        ):
+            continue
+        company_links = session.scalars(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == company_claim_id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        ).all()
+        if len(company_links) != 1:
+            continue
+        company_link = company_links[0]
+        company_identity_id = company_link.company_identity_id
+        if (
+            company_identity_id is None
+            or session.get(CompanyIdentity, company_identity_id) is None
+            or company_link.source_evidence_id != source.id
+            or company_link.source_version_hash != source.content_hash
+        ):
+            continue
+
+        person_links = session.scalars(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == person_claim.id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        ).all()
+        if len(person_links) > 1:
+            continue
+        person_link = person_links[0] if person_links else None
+        if person_link is not None:
+            # Keep explicit review, strong identifier, and accepted membership
+            # decisions authoritative. Rebind only the fallback allocated by
+            # this same project-scoped identity pass.
+            if person_link.company_identity_id == company_identity_id:
+                continue
+            if person_link.basis != "project_scoped":
+                continue
+        link_claim_to_identity(
+            session,
+            person_claim,
+            "company",
+            company_identity_id,
+            source,
+            (
+                "Named project person and personless organization cite the exact "
+                "same current organization source on the same project."
+            ),
+            _project_scoped=True,
+        )
 
 
 def membership_supports_claim(

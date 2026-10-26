@@ -4693,6 +4693,314 @@ def test_tdlr_owner_contact_name_does_not_inherit_generic_owner_phone():
     )
 
 
+def test_tdlr_named_owner_reuses_exact_project_company_link_without_duplicate_contact_job(db):
+    from gridlens.intelligence.identity_reconciliation import (
+        _same_current_project_organization_source,
+        ensure_project_scoped_identity_links,
+    )
+    from gridlens.persistence.models import Job
+
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += "\nOwner contact: Jordan Smith\nOwner phone: (713) 555-0100"
+    case = (number, name, location, owner, excerpt)
+    with db.begin() as session:
+        project, _retained, _owner = _seed_tdlr_retained_project(session, case)
+        project.region_status = "ELIGIBLE"
+        result = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
+        organization = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and not item["person_name"]
+        )
+        person = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and item["person_name"] == "Jordan Smith"
+        )
+        assert (
+            _same_current_project_organization_source(
+                person,
+                organization,
+                person_project_id=project.id,
+                company_project_id=project.id,
+            )
+            is not None
+        )
+        assert person["company_identity_id"] == organization["company_identity_id"]
+        assert person["person_identity_id"] != person["company_identity_id"]
+        person_claim_id = UUID(str(person["id"]))
+        company_identity_id = UUID(str(organization["company_identity_id"]))
+
+        person_company_links = session.scalars(
+            select(BuyingChainIdentityLink)
+            .where(
+                BuyingChainIdentityLink.claim_id == person_claim_id,
+                BuyingChainIdentityLink.entity_type == "company",
+            )
+            .order_by(BuyingChainIdentityLink.created_at, BuyingChainIdentityLink.id)
+        ).all()
+        assert len(person_company_links) == 2
+        assert [link.state for link in person_company_links].count("superseded") == 1
+        current_person_company = next(
+            link for link in person_company_links if link.state == "current"
+        )
+        assert current_person_company.company_identity_id == company_identity_id
+
+        company_jobs = session.scalars(
+            select(Job).where(
+                Job.kind == "company_contact_discovery",
+                Job.target_id == company_identity_id,
+            )
+        ).all()
+        assert len(company_jobs) == 1
+        ensure_project_scoped_identity_links(session, [str(organization["id"]), str(person["id"])])
+        assert (
+            len(
+                session.scalars(
+                    select(Job).where(
+                        Job.kind == "company_contact_discovery",
+                        Job.target_id == company_identity_id,
+                    )
+                ).all()
+            )
+            == 1
+        )
+        assert (
+            len(
+                session.scalars(
+                    select(BuyingChainIdentityLink).where(
+                        BuyingChainIdentityLink.claim_id == person_claim_id,
+                        BuyingChainIdentityLink.entity_type == "company",
+                    )
+                ).all()
+            )
+            == 2
+        )
+
+
+@pytest.mark.parametrize("suppressed_link", ["person_company", "organization_company"])
+def test_tdlr_exact_company_identity_reuse_preserves_company_suppressions(
+    db, monkeypatch, suppressed_link
+):
+    import json
+
+    from gridlens.intelligence import identity_reconciliation
+    from gridlens.intelligence.contact_suppressions import (
+        company_suppression_key,
+        record_contact_suppression,
+    )
+    from gridlens.persistence.models import Job
+
+    real_reconcile = identity_reconciliation._reuse_exact_project_company_for_named_people
+    monkeypatch.setattr(
+        identity_reconciliation,
+        "_reuse_exact_project_company_for_named_people",
+        lambda *_args: None,
+    )
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += "\nOwner contact: Jordan Smith\nOwner phone: (713) 555-0100"
+    with db.begin() as session:
+        project, _retained, _owner = _seed_tdlr_retained_project(
+            session, (number, name, location, owner, excerpt)
+        )
+        project.region_status = "ELIGIBLE"
+        result = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
+        organization = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and not item["person_name"]
+        )
+        person = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and item["person_name"] == "Jordan Smith"
+        )
+        person_company_id = UUID(str(person["company_identity_id"]))
+        organization_company_id = UUID(str(organization["company_identity_id"]))
+        assert person_company_id != organization_company_id
+        suppressed_id = (
+            person_company_id if suppressed_link == "person_company" else organization_company_id
+        )
+        record_contact_suppression(
+            session,
+            scope="company",
+            subject_key=company_suppression_key(suppressed_id),
+            action="suppress",
+            expected_version=0,
+            reason="Privacy fixture: preserve company-scoped suppression across identity refresh.",
+            actor="test",
+            idempotency_key=f"identity-reuse-{suppressed_link}",
+        )
+
+        monkeypatch.setattr(
+            identity_reconciliation,
+            "_reuse_exact_project_company_for_named_people",
+            real_reconcile,
+        )
+        person_claim_id = UUID(str(person["id"]))
+        identity_reconciliation.ensure_project_scoped_identity_links(
+            session, [str(organization["id"]), str(person["id"])]
+        )
+        current_person_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == person_claim_id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert current_person_link is not None
+        assert current_person_link.company_identity_id == person_company_id
+
+        current_view = buying_chain_view(session, project.id)
+        history_view = buying_chain_view(session, project.id, history=True)
+        search_view = buying_chain_views(session, {project.id})[str(project.id)]
+        for view in (current_view, history_view, search_view):
+            suppressed = [
+                candidate for candidate in view["candidates"] if candidate.get("suppressed")
+            ]
+            assert suppressed
+            assert all(
+                "Jordan Smith" not in json.dumps(candidate, default=str)
+                and "(713) 555-0100" not in json.dumps(candidate, default=str)
+                for candidate in suppressed
+            )
+        expected_suppressed_claim = person if suppressed_link == "person_company" else organization
+        assert any(
+            candidate.get("suppressed")
+            for candidate in current_view["candidates"]
+            if str(candidate.get("id")) == str(expected_suppressed_claim["id"])
+        )
+
+        contact_jobs = session.scalars(
+            select(Job).where(
+                Job.kind == "company_contact_discovery",
+                Job.target_id.in_([person_company_id, organization_company_id]),
+            )
+        ).all()
+        assert len(contact_jobs) == 2
+
+
+def test_same_project_company_identity_alignment_rejects_other_project_source_or_name():
+    from gridlens.intelligence.identity_reconciliation import (
+        _same_current_project_organization_source,
+    )
+
+    person_candidate = {
+        "organization": "Acme Energy",
+        "organization_relationship": "DIRECT",
+        "person_name": "Jordan Smith",
+        "evidence": [
+            {
+                "id": "source-a",
+                "current_source_version_id": "source-a",
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": "project_organization",
+                "quote": "Owner: Acme Energy",
+            },
+            {
+                "id": "source-a",
+                "current_source_version_id": "source-a",
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": "organization_person_role",
+                "quote": "Owner contact: Jordan Smith",
+            },
+        ],
+    }
+    company_candidate = {
+        "organization": "Acme Energy",
+        "organization_relationship": "DIRECT",
+        "person_name": None,
+        "evidence": [
+            {
+                "id": "source-a",
+                "current_source_version_id": "source-a",
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": "project_organization",
+                "quote": "Owner: Acme Energy",
+            }
+        ],
+    }
+    assert _same_current_project_organization_source(
+        person_candidate,
+        company_candidate,
+        person_project_id=UUID(int=1),
+        company_project_id=UUID(int=1),
+    ) == ("source-a", "a" * 64)
+    assert (
+        _same_current_project_organization_source(
+            person_candidate,
+            company_candidate,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=2),
+        )
+        is None
+    )
+
+    other_source = {**company_candidate, "evidence": [dict(company_candidate["evidence"][0])]}
+    other_source["evidence"][0]["id"] = "source-b"
+    other_source["evidence"][0]["current_source_version_id"] = "source-b"
+    assert (
+        _same_current_project_organization_source(
+            person_candidate,
+            other_source,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+
+    refreshed_source = {
+        **company_candidate,
+        "evidence": [
+            {
+                **company_candidate["evidence"][0],
+                "content_hash": "b" * 64,
+            }
+        ],
+    }
+    assert (
+        _same_current_project_organization_source(
+            person_candidate,
+            refreshed_source,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+
+    other_name = {**company_candidate, "organization": "Acme Energy, Inc."}
+    assert (
+        _same_current_project_organization_source(
+            person_candidate,
+            other_name,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+    assert (
+        _same_current_project_organization_source(
+            {**person_candidate, "correction_stale": True},
+            company_candidate,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+    assert (
+        _same_current_project_organization_source(
+            {**person_candidate, "suppressed": True},
+            company_candidate,
+            person_project_id=UUID(int=1),
+            company_project_id=UUID(int=1),
+        )
+        is None
+    )
+
+
 @pytest.mark.parametrize(
     ("case", "url_number", "project_name", "location", "owner", "extra"),
     [
