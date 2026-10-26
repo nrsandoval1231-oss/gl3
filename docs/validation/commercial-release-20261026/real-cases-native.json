@@ -1,0 +1,102 @@
+[
+  {
+    "case_id": "A",
+    "project_id": "5796a14e-c301-4f3e-944e-9747ba613d15",
+    "need_id": "bd014849-c79f-442d-b861-81a23d438d5d",
+    "project_name": "PECOS COUNTY DATA CENTER",
+    "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+    "source_hash": "040886932c8b66144a8131841b8a642fa2f6b5e9c41c8df12a5c78838c597e7b",
+    "expected_evidence_id": "dda4787a-c1d5-47c3-9e59-3df667bb11d0",
+    "expected_need_rationale": [
+      "owner AMAZON DATA SERVICES, INC.",
+      "developer reported a start of 2026-08-01 and completion of 2026-12-01",
+      "MW, utility service date and the buyer are unknown"
+    ],
+    "expected_unknown_keys": [
+      "required_mw",
+      "facility_demand",
+      "start",
+      "duration",
+      "supply",
+      "gap",
+      "energization",
+      "procurement",
+      "utility_obstacle"
+    ],
+    "no_qualified_gap": true,
+    "expected_browse_view": "workspace",
+    "expected_project_heading": false,
+    "expected_detail_heading": "PECOS COUNTY DATA CENTER",
+    "expected_research_project_heading": false,
+    "source_excerpt": "Project: PECOS COUNTY DATA CENTER (Building A)\nLocation: 6000 TX-18, Fort Stockton, TX 79735 (Pecos County)\nRegistered: 2026-08-04\nDeveloper-reported start: 2026-08-01; completion: 2026-12-01\nEstimated cost: $300,000,000\nType of work: New Construction\nScope: New data center building.\nOwner: AMAZON DATA SERVICES, INC\nDesign firm: M. ARTHUR GENSLER & ASSOCIATES, INC.\nTABS status: Project Registered",
+    "selection_basis": "source-backed distinct physical-site candidate",
+    "baseline_status": {
+      "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+      "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+      "need_timing": "UNKNOWN",
+      "project_organization": "UNKNOWN_OR_NO_SOURCE_LINKED_ORGANIZATION",
+      "power_supply": "UNKNOWN",
+      "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+      "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+    },
+    "coverage": "PARTIAL",
+    "coverage_note": "Official TDLR source names the owner and registrant-estimated dates, but need MW, utility service, temporary-power relevance, residual gap, buying authority, and project contact remain unsupported or unknown."
+  },
+  {
+    "case_id": "B",
+    "project_id": "b8a992fc-b136-4267-8b60-98431c6fa4bf",
+    "need_id": "cf5c53c9-3d9f-4acf-9443-6e8987a97b16",
+    "project_name": "Texas W-1 permit 0919088",
+    "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+    "source_hash": "6f2a85d74b2b08192f24c618a6ce61b637c80c23c0c3c942e831e30fe037e633",
+    "expected_evidence_id": "ae4dcc63-1af3-44eb-bc80-cbec7e5448b4",
+    "expected_need_rationale": [
+      "Official drilling permit is an early production Signal; no power gap is required."
+    ],
+    "expected_unknown_keys": [
+      "required_mw",
+      "facility_demand",
+      "start",
+      "duration",
+      "supply",
+      "gap",
+      "energization",
+      "procurement",
+      "utility_obstacle"
+    ],
+    "no_qualified_gap": true,
+    "expected_browse_view": "workspace",
+    "expected_project_heading": false,
+    "expected_detail_heading": "DE V OPERATING, LLC",
+    "expected_detail_text": [
+      "JAGUAR WEST A 40-45, well 2801H",
+      "Buying authority is not established by this project association."
+    ],
+    "expected_research_project_heading": false,
+    "expected_opportunity_absent": true,
+    "expected_opportunity_text": "DE V OPERATING, LLC",
+    "company_name": "DE V OPERATING, LLC",
+    "source_excerpt": "row: 0919088\namendment_sequence: 99\noperator: DE V OPERATING, LLC\noperator_number: 102606\nlease: JAGUAR WEST A 40-45\nwell: 2801H\ncounty_code: 317\ntype: W-1 well permit \u2014 Drill\napplication_type: 01\ndate: 2026-10-09\napplication_received: 2026-10-01\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0919088: Drill; lease JAGUAR WEST A 40-45, well 2801H.\nSource segment provenance: [{\"filename\": \"daf420.dat\", \"ordinal\": 370, \"raw_sha256\": \"739881c07b4c78fc9d973236297663031f11548371c517a2b11c265bf529f85d\", \"sequence\": 99, \"source_url\": \"https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc\"}]",
+    "selection_basis": "source-backed distinct physical-site candidate",
+    "baseline_status": {
+      "power_floor_300kw": "UNKNOWN_OR_UNSUPPORTED_NEED_POWER_BASIS",
+      "temporary_power_activity": "UNKNOWN_OR_UNSUPPORTED_ACTIVITY",
+      "need_timing": "UNKNOWN",
+      "project_organization": "HAS_SOURCE_LINKED_CURRENT_PROJECT_ORGANIZATION",
+      "power_supply": "UNKNOWN",
+      "contact_research": "NOT_ADJUDICATED_AT_FREEZE_TIME",
+      "buying_chain_claim_history": "EXCLUDED_FROM_BASELINE_ADJUDICATION"
+    },
+    "coverage": "PARTIAL",
+    "coverage_note": "Official RRC record is an upstream W-1 drilling permit, not midstream compression/processing. No power gap is required; operator association does not establish buyer authority. Opportunities groups by operator and does not return the exact permit title in the searched list.",
+    "source_provenance": [
+      {
+        "filename": "daf420.dat",
+        "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+        "ordinal": 370,
+        "sequence": 99,
+        "raw_sha256": "739881c07b4c78fc9d973236297663031f11548371c517a2b11c265bf529f85d"
+      }
+    ]
+  }
+]

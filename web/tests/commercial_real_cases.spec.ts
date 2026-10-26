@@ -10,6 +10,15 @@ type CommercialCase = {
   company_name?: string
   source_url: string
   source_hash: string
+  expected_evidence_id?: string
+  expected_need_rationale?: string[]
+  expected_browse_view?: 'signals' | 'workspace'
+  expected_project_heading?: boolean
+  expected_detail_heading?: string
+  expected_detail_text?: string[]
+  expected_research_project_heading?: string | false
+  expected_opportunity_absent?: boolean
+  expected_opportunity_text?: string
   expected_unknown_keys: string[]
   expected_contact_responsibility?: string
   expected_contact_authority?: string
@@ -54,6 +63,7 @@ for (const item of cases) {
       project_id: string
       name: string
       tier: string
+      rationale?: string
       qualified_remaining_gap?: unknown
       intelligence_card?: {
         fields: { key: string; label: string; value: string | null; status: string }[]
@@ -67,7 +77,13 @@ for (const item of cases) {
     expect(need.project_id).toBe(item.project_id)
     expect(need.name).toContain(item.project_name)
     expect(card).toBeTruthy()
-    expect(card?.evidence.some(source => source.url === item.source_url && source.content_hash === item.source_hash && source.retained_evidence_id)).toBe(true)
+    expect(card?.evidence.some(source =>
+      source.url === item.source_url &&
+      source.content_hash === item.source_hash &&
+      source.retained_evidence_id &&
+      (!item.expected_evidence_id || source.retained_evidence_id === item.expected_evidence_id),
+    )).toBe(true)
+    for (const fragment of item.expected_need_rationale ?? []) expect(need.rationale ?? '').toContain(fragment)
     for (const key of item.expected_unknown_keys) {
       expect(card?.fields.find(field => field.key === key), `field ${key} is represented`).toBeTruthy()
       expect(card?.fields.find(field => field.key === key)?.value, `field ${key} remains unknown`).toBeNull()
@@ -86,20 +102,24 @@ for (const item of cases) {
       expect(card?.power_gap).toBeFalsy()
     }
 
-    const browseView = need.tier === 'Signal' ? 'signals' : 'workspace'
+    const browseView = item.expected_browse_view ?? (need.tier === 'Signal' ? 'signals' : 'workspace')
     await page.goto(`/?view=${browseView}&need=${encodeURIComponent(item.need_id)}`)
     const activeNavigation = page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: browseView === 'signals' ? 'Signals' : 'Opportunities', exact: true })
     await expect(activeNavigation).toHaveAttribute('aria-current', 'page')
     if (browseView === 'signals') await expect(page.getByRole('heading', { level: 1, name: 'Signals', exact: true })).toBeVisible()
     if (item.expected_signal_text) await expect(page.getByText(item.expected_signal_text, { exact: false })).toBeVisible()
-    await expect(page.getByRole('heading', { level: 2, name: item.project_name, exact: true })).toBeVisible()
+    if (item.expected_project_heading !== false) {
+      await expect(page.getByRole('heading', { level: 2, name: item.project_name, exact: true })).toBeVisible()
+    }
     const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
+    if (item.expected_detail_heading) await expect(detail.getByRole('heading', { level: 2, name: item.expected_detail_heading, exact: false })).toBeVisible()
+    for (const text of item.expected_detail_text ?? []) await expect(detail).toContainText(text)
     if (item.company_name) {
       await expect(detail.getByRole('heading', { name: item.company_name, exact: true })).toBeVisible()
       await expect(detail.getByText(/Loading company context/)).toHaveCount(0)
       await expect(detail.getByText(/Checking retained contacts/)).toHaveCount(0)
     }
-    await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-signals-desktop.png`), fullPage: true })
+    await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-${browseView}-desktop.png`), fullPage: true })
     await page.getByRole('button', { name: 'Evidence', exact: true }).click()
     const citation = page.getByRole('region', { name: 'Intelligence card sources' }).getByRole('link', { name: 'Open retained source' })
     await expect(citation).toHaveAttribute('href', item.source_url)
@@ -110,8 +130,14 @@ for (const item of cases) {
     await expect(opportunities).toHaveAttribute('aria-current', 'page')
     const opportunityView = page.getByRole('region', { name: 'Opportunities' })
     await expect(opportunityView).toBeVisible()
-    await expect(opportunityView).toContainText(item.project_name)
-    if (item.company_name) {
+    await opportunityView.getByRole('textbox', { name: 'Search workspace' }).fill(item.project_name)
+    if (item.expected_opportunity_absent) {
+      await expect(opportunityView).not.toContainText(item.project_name)
+      if (item.expected_opportunity_text) await expect(opportunityView).toContainText(item.expected_opportunity_text)
+    } else {
+      await expect(opportunityView).toContainText(item.project_name)
+    }
+    if (item.company_name && !item.expected_opportunity_absent) {
       await opportunityView.getByRole('button', { name: new RegExp(`${item.company_name}.*${item.project_name}`) }).click()
       const selectedOpportunity = page.getByRole('complementary', { name: 'Opportunity detail' })
       await expect(selectedOpportunity.getByRole('heading', { name: item.company_name, exact: true })).toBeVisible()
@@ -121,7 +147,9 @@ for (const item of cases) {
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-opportunities-desktop.png`), fullPage: true })
     await page.goto(`/?view=pursuits&researchNeed=${encodeURIComponent(item.need_id)}`)
     await expect(page.getByRole('heading', { level: 1, name: 'Research', exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { level: 2, name: item.project_name, exact: true })).toBeVisible()
+    if (item.expected_research_project_heading !== false) {
+      await expect(page.getByRole('heading', { level: 2, name: item.expected_research_project_heading ?? item.project_name, exact: false })).toBeVisible()
+    }
     const researchDetail = page.getByRole('region', { name: 'Selected automated research' })
     for (const text of item.expected_research_text ?? []) await expect(researchDetail).toContainText(text)
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-research-desktop.png`), fullPage: true })
