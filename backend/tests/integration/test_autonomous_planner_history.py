@@ -257,6 +257,83 @@ def test_archived_history_does_not_stop_current_planning_or_scheduling(
         assert session.get(PowerNeed, need_id).tier == "Signal"
 
 
+def _add_supported_neighbor(
+    session,
+    original_project,
+    original_interpretation,
+    source,
+    now,
+    *,
+    document_number,
+    site,
+    need_id,
+):
+    other_project = Project(
+        source_id=original_project.source_id,
+        external_id=document_number,
+        identity_key=f"austin-building-permits:{document_number}",
+        name=f"Synthetic site {document_number}",
+        location=site,
+        asset_type="data_center",
+        region_status="ELIGIBLE",
+    )
+    session.add(other_project)
+    session.flush()
+    valid_need = PowerNeed(
+        id=need_id,
+        project_id=other_project.id,
+        activity_key="electrical-construction",
+        tier="Signal",
+        rationale="Supported separate work scope; missing load and supply facts.",
+        supply="Unknown",
+    )
+    semantic_hash = hashlib.sha256((document_number + ":observation").encode()).hexdigest()
+    content_hash = hashlib.sha256((document_number + ":source").encode()).hexdigest()
+    observation = Observation(
+        source_id=other_project.source_id,
+        external_id=other_project.external_id,
+        title=f"Synthetic site {document_number} electrical building permit",
+        abstract=source.abstract,
+        content_hash=semantic_hash,
+        published_at=now.date(),
+        url="https://abc.austintexas.gov/permit/" + document_number,
+    )
+    session.add_all([valid_need, observation])
+    session.flush()
+    evidence = Evidence(
+        observation_id=observation.id,
+        title=observation.title,
+        abstract=observation.abstract,
+        content_hash=content_hash,
+        published_at=observation.published_at,
+        url=observation.url,
+        extraction_location="Synthetic distinct official project record",
+    )
+    session.add(evidence)
+    session.flush()
+    session.add_all(
+        [
+            NeedObservation(need_id=valid_need.id, observation_id=observation.id),
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=semantic_hash,
+                evaluator_version="synthetic-planner-regression",
+                status="accepted",
+                assessment={
+                    **original_interpretation.assessment,
+                    "semantic_hash": semantic_hash,
+                    "evidence_hash": content_hash,
+                    "evidence": {"id": str(evidence.id), "url": evidence.url},
+                    "project_identity_key": other_project.identity_key,
+                    "subject": other_project.name,
+                    "location": other_project.location,
+                },
+            ),
+        ]
+    )
+    return valid_need.id
+
+
 @pytest.mark.parametrize("entrypoint", ["shortlist", "fallback"])
 def test_oversized_current_group_is_isolated_while_valid_group_schedules(
     planner_runtime, monkeypatch, caplog, entrypoint
@@ -280,70 +357,16 @@ def test_oversized_current_group_is_isolated_while_valid_group_schedules(
         original_interpretation = session.scalar(
             select(Interpretation).where(Interpretation.observation_id == observation_id)
         )
-        other_project = Project(
-            source_id=original_project.source_id,
-            external_id="2026-900002 EP",
-            identity_key="austin-building-permits:2026-900002 EP",
-            name="Synthetic separate valid site",
-            location="813 CLAYTON LN, Austin, TX",
-            asset_type="data_center",
-            region_status="ELIGIBLE",
+        valid_id = _add_supported_neighbor(
+            session,
+            original_project,
+            original_interpretation,
+            source,
+            now,
+            document_number="2026-900002 EP",
+            site="813 CLAYTON LN, Austin, TX",
+            need_id=UUID(int=(1 << 128) - 1),
         )
-        session.add(other_project)
-        session.flush()
-        valid_need = PowerNeed(
-            id=UUID(int=(1 << 128) - 1),
-            project_id=other_project.id,
-            activity_key="electrical-construction",
-            tier="Signal",
-            rationale="Supported separate work scope; missing load and supply facts.",
-            supply="Unknown",
-        )
-        semantic_hash = hashlib.sha256(b"synthetic-valid-site-observation").hexdigest()
-        content_hash = hashlib.sha256(b"synthetic-valid-site-source").hexdigest()
-        observation = Observation(
-            source_id=other_project.source_id,
-            external_id=other_project.external_id,
-            title="Synthetic separate valid site electrical building permit",
-            abstract=source.abstract,
-            content_hash=semantic_hash,
-            published_at=now.date(),
-            url="https://abc.austintexas.gov/permit/2026-900002",
-        )
-        session.add_all([valid_need, observation])
-        session.flush()
-        evidence = Evidence(
-            observation_id=observation.id,
-            title=observation.title,
-            abstract=observation.abstract,
-            content_hash=content_hash,
-            published_at=observation.published_at,
-            url=observation.url,
-            extraction_location="Synthetic distinct official project record",
-        )
-        session.add(evidence)
-        session.flush()
-        session.add_all(
-            [
-                NeedObservation(need_id=valid_need.id, observation_id=observation.id),
-                Interpretation(
-                    observation_id=observation.id,
-                    content_hash=semantic_hash,
-                    evaluator_version="synthetic-planner-regression",
-                    status="accepted",
-                    assessment={
-                        **original_interpretation.assessment,
-                        "semantic_hash": semantic_hash,
-                        "evidence_hash": content_hash,
-                        "evidence": {"id": str(evidence.id), "url": evidence.url},
-                        "project_identity_key": other_project.identity_key,
-                        "subject": other_project.name,
-                        "location": other_project.location,
-                    },
-                ),
-            ]
-        )
-        valid_id = valid_need.id
     with factory() as session:
         # HTTP still fails closed rather than return a partial work group.
         with pytest.raises(HTTPException) as limited:
@@ -377,3 +400,142 @@ def test_oversized_current_group_is_isolated_while_valid_group_schedules(
         assert session.get(Pursuit, pursuit_id).snapshot == {
             "retained_archive_marker": "preserve historical receipt"
         }
+
+
+@pytest.mark.parametrize("version", ["historical", "current"])
+def test_oversized_source_text_excludes_complete_group_before_hydration(
+    planner_runtime, caplog, version
+):
+    factory, api, worker, ids, now = planner_runtime
+    bad_id, project_id, pursuit_id, evidence_id, observation_id = ids
+    with factory.begin() as session:
+        original_project = session.get(Project, project_id)
+        original_interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation_id)
+        )
+        source = session.get(Evidence, evidence_id)
+        # A clean BP sibling belongs to the same complete official work group.
+        sibling_id = _add_supported_neighbor(
+            session,
+            original_project,
+            original_interpretation,
+            source,
+            now,
+            document_number="2026-900001 BP",
+            site="811 CLAYTON LN, Austin, TX",
+            need_id=UUID(int=(1 << 128) - 2),
+        )
+        valid_id = _add_supported_neighbor(
+            session,
+            original_project,
+            original_interpretation,
+            source,
+            now,
+            document_number="2026-900002 EP",
+            site="813 CLAYTON LN, Austin, TX",
+            need_id=UUID(int=(1 << 128) - 1),
+        )
+        oversized_text = source.abstract + "\n" + "x" * api._MAX_OPPORTUNITY_SEARCH_FIELD_BYTES
+        oversized_hash = hashlib.sha256(oversized_text.encode()).hexdigest()
+        oversized = Evidence(
+            observation_id=observation_id,
+            content_hash=oversized_hash,
+            title=source.title,
+            abstract=oversized_text,
+            url=source.url,
+            extraction_location="Synthetic oversized retained text boundary",
+        )
+        session.add(oversized)
+        session.flush()
+        if version == "current":
+            observation = session.get(Observation, observation_id)
+            semantic_hash = hashlib.sha256(b"synthetic-current-large-source").hexdigest()
+            observation.abstract = oversized_text
+            observation.content_hash = semantic_hash
+            original_interpretation.content_hash = semantic_hash
+            original_interpretation.assessment = {
+                **original_interpretation.assessment,
+                "semantic_hash": semantic_hash,
+                "evidence_hash": oversized_hash,
+                "evidence": {"id": str(oversized.id), "url": oversized.url},
+            }
+    with factory() as session:
+        with pytest.raises(HTTPException) as limited:
+            api._commercial_triage_page(session, 50)
+        assert limited.value.status_code == 413
+    hydrated_evidence = []
+
+    def hydrated(row, _context):
+        hydrated_evidence.append(row.id)
+
+    event.listen(Evidence, "load", hydrated)
+    try:
+        planned = worker.planning_cards()
+    finally:
+        event.remove(Evidence, "load", hydrated)
+    assert [card["id"] for card in planned] == [str(valid_id)]
+    assert oversized.id not in hydrated_evidence
+    assert "resource=source_text_field_bytes" in caplog.text
+    with factory.begin() as session:
+        scheduled = schedule_questions(session, planned, grouped=True, now=now)
+        assert len(scheduled) == 1
+        assert scheduled[0].need_id == valid_id
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+        assert session.scalar(select(func.count()).select_from(Project)) == 3
+        assert not session.scalar(
+            select(PursuitResearchQuestion.id).where(
+                PursuitResearchQuestion.need_id.in_([bad_id, sibling_id])
+            )
+        )
+        assert session.get(PowerNeed, bad_id).tier == "Signal"
+        assert session.get(PowerNeed, sibling_id).tier == "Signal"
+        assert session.get(Pursuit, pursuit_id).snapshot == {
+            "retained_archive_marker": "preserve historical receipt"
+        }
+
+
+def test_aggregate_text_budget_is_applied_to_bounded_machine_chunks(planner_runtime, monkeypatch):
+    factory, api, worker, ids, now = planner_runtime
+    first_id, project_id, _pursuit_id, evidence_id, observation_id = ids
+    with factory.begin() as session:
+        second_id = _add_supported_neighbor(
+            session,
+            session.get(Project, project_id),
+            session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observation_id)
+            ),
+            session.get(Evidence, evidence_id),
+            now,
+            document_number="2026-900002 EP",
+            site="813 CLAYTON LN, Austin, TX",
+            need_id=UUID(int=(1 << 128) - 1),
+        )
+        second_project = session.get(PowerNeed, second_id).project_id
+    measured_sizes = []
+    with monkeypatch.context() as measurement:
+        measurement.setattr(api, "_MAX_OPPORTUNITY_SEARCH_COHORT_BYTES", 0)
+        with factory() as session:
+            for need_id, project in ((first_id, project_id), (second_id, second_project)):
+                diagnostics = {}
+                with pytest.raises(HTTPException):
+                    api._preflight_streamed_evidence_text(
+                        session, [need_id], [project], current_only=True, diagnostics=diagnostics
+                    )
+                assert diagnostics["resource"] == "source_text_scope_bytes"
+                measured_sizes.append(diagnostics["count"])
+    # Both complete projects fit separately; their combined overview does not.
+    monkeypatch.setattr(api, "_MAX_OPPORTUNITY_SEARCH_COHORT_BYTES", max(measured_sizes) + 1)
+    with factory() as session:
+        with pytest.raises(HTTPException) as limited:
+            api._commercial_triage_page(session, 50)
+        assert limited.value.status_code == 413
+    planned = worker.planning_cards()
+    assert {card["id"] for card in planned} == {str(first_id), str(second_id)}
+    with factory.begin() as session:
+        scheduled = schedule_questions(session, planned, grouped=True, now=now)
+        assert len(scheduled) == 1
+        assert scheduled[0].need_id in {first_id, second_id}
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert session.scalar(select(func.count()).select_from(Project)) == 2

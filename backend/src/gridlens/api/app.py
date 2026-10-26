@@ -8,14 +8,15 @@ from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any, Literal
+from typing import cast as cast_type
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
-from sqlalchemy import Date, Text, and_, cast, func, literal, or_, select, text, union_all
-from sqlalchemy.orm import joinedload
+from sqlalchemy import Date, Text, and_, case, cast, func, literal, or_, select, text, union_all
+from sqlalchemy.orm import Session, joinedload
 
 from gridlens.api.enrichment import router as enrichment_router
 from gridlens.api.intelligence import router as intelligence_router
@@ -951,7 +952,14 @@ def _preflight_opportunity_details(session, rows: list[dict]) -> None:
             raise HTTPException(413, "Opportunity has too many lifecycle rows for one response")
 
 
-def _preflight_streamed_evidence_text(session, need_ids: Any, project_ids: Any) -> None:
+def _preflight_streamed_evidence_text(
+    session,
+    need_ids: Any,
+    project_ids: Any,
+    *,
+    current_only: bool = False,
+    diagnostics: dict | None = None,
+) -> None:
     scopes = []
     if need_ids is not None and (not isinstance(need_ids, list) or need_ids):
         scopes.append(
@@ -997,12 +1005,34 @@ def _preflight_streamed_evidence_text(session, need_ids: Any, project_ids: Any) 
         )
         .group_by(evidence_scopes.c.scope)
     )
+    if current_only:
+        # Summary hydration uses only these exact current versions. Historical
+        # text stays in PostgreSQL until the selected complete group preflight.
+        query = query.where(
+            Interpretation.assessment["evidence_hash"].as_string() == Evidence.content_hash,
+            or_(
+                evidence_scopes.c.scope == "lifecycle",
+                Interpretation.assessment["semantic_hash"].as_string() == Observation.content_hash,
+            ),
+        )
     for _scope, max_field, total_bytes in session.execute(query):
         if max_field and max_field > _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES:
+            if diagnostics is not None:
+                diagnostics.update(
+                    resource="source_text_field_bytes",
+                    count=max_field,
+                    cap=_MAX_OPPORTUNITY_SEARCH_FIELD_BYTES,
+                )
             raise HTTPException(
                 413, "Retained evidence text exceeds the bounded processing field limit"
             )
         if total_bytes > _MAX_OPPORTUNITY_SEARCH_COHORT_BYTES:
+            if diagnostics is not None:
+                diagnostics.update(
+                    resource="source_text_scope_bytes",
+                    count=total_bytes,
+                    cap=_MAX_OPPORTUNITY_SEARCH_COHORT_BYTES,
+                )
             raise HTTPException(
                 413, "Retained evidence text exceeds the bounded processing cohort limit"
             )
@@ -3471,6 +3501,8 @@ def _opportunity_summary_projection(
     include_below_floor: bool,
     selected_need_ids: set[UUID] | None,
     diagnostics: dict[str, int] | None,
+    current_evidence_only: bool = False,
+    preflight_diagnostics: dict | None = None,
 ) -> list[dict]:
     """Stream compact candidate inputs; selected details use the regular projection."""
     from gridlens.domain.commercial_triage import PriorityInputAccumulator, _priority
@@ -3525,6 +3557,8 @@ def _opportunity_summary_projection(
         session,
         select(candidate_scope.c.id),
         select(candidate_scope.c.project_id),
+        current_only=current_evidence_only,
+        diagnostics=preflight_diagnostics,
     )
     cursor: UUID | None = None
     houston_project_ids: set[UUID] = set()
@@ -4958,9 +4992,13 @@ def _commercial_triage_page(
     )
 
 
-def _exclude_commercial_planner_group(session, identity, need_ids, count, cap, resource):
+def _exclude_commercial_planner_group(
+    session: Session, identity: str, need_ids: list[str], count: int, cap: int, resource: str
+) -> None:
     """Retain an observable whole-group exclusion without admitting partial facts."""
-    detail = _commercial_bound_error(identity, count, cap, resource).detail
+    detail = cast_type(
+        dict[str, Any], _commercial_bound_error(identity, count, cap, resource).detail
+    )
     session.info.setdefault("commercial_planner_exclusions", {})[identity] = {
         **detail,
         "need_ids": list(need_ids),
@@ -4972,6 +5010,148 @@ def _exclude_commercial_planner_group(session, identity, need_ids, count, cap, r
         count,
         cap,
     )
+
+
+def _commercial_machine_summaries(
+    session: Session, *, tier: str | None, include_below_floor: bool
+) -> list[dict]:
+    """Read bounded current inputs; isolate complete scopes before text hydration."""
+    from gridlens.domain.pursuit_screening import work_identity
+
+    # Only bounded metadata crosses the database boundary before source text is
+    # checked. Keys are hashes, so even a large allowed site string is not kept.
+    location = case(
+        (
+            func.octet_length(Project.location) <= _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES,
+            Project.location,
+        ),
+        else_=None,
+    )
+    candidate_query = (
+        select(
+            PowerNeed.id,
+            Project.id,
+            Project.source_id,
+            Project.external_id,
+            location,
+            func.greatest(
+                func.octet_length(func.coalesce(Project.name, "")),
+                func.octet_length(func.coalesce(Project.location, "")),
+            ),
+        )
+        .join(Project, PowerNeed.project_id == Project.id)
+        .where(PowerNeed.active.is_(True), Project.region_status == "ELIGIBLE")
+        .order_by(PowerNeed.id)
+    )
+    work_keys: dict[UUID, set[str]] = {}
+    primary_keys: dict[UUID, str] = {}
+    for need_id, _project_id, source_id, external_id, site, field_bytes in session.execute(
+        candidate_query
+    ).yield_per(128):
+        identity = work_identity(source_id, external_id, site or "")
+        work_keys[need_id] = {identity}
+        primary_keys[need_id] = identity
+        if field_bytes > _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES:
+            _exclude_commercial_planner_group(
+                session,
+                identity,
+                [str(need_id)],
+                field_bytes,
+                _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES,
+                "project_text_field_bytes",
+            )
+    if not work_keys:
+        return []
+    # Include every linked source identity conservatively. A bad sibling must
+    # never be dropped from an otherwise published exact-event work group.
+    identities = (
+        select(PowerNeed.id, Observation.source_id, Observation.external_id, location)
+        .join(Project, PowerNeed.project_id == Project.id)
+        .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+        .join(Observation, Observation.id == NeedObservation.observation_id)
+        .where(PowerNeed.active.is_(True), Project.region_status == "ELIGIBLE")
+        .distinct()
+    )
+    for need_id, source_id, external_id, site in session.execute(identities).yield_per(128):
+        if need_id in work_keys:
+            work_keys[need_id].add(work_identity(source_id, external_id, site or ""))
+
+    def excluded_ids() -> set[UUID]:
+        return {
+            UUID(need_id)
+            for diagnostic in session.info.get("commercial_planner_exclusions", {}).values()
+            for need_id in diagnostic["need_ids"]
+        }
+
+    def project_batch(need_ids: list[UUID]) -> list[dict]:
+        diagnostics: dict = {}
+        try:
+            return _opportunity_summary_projection(
+                session,
+                tier=tier,
+                search=None,
+                include_below_floor=include_below_floor,
+                selected_need_ids=set(need_ids),
+                diagnostics=None,
+                current_evidence_only=True,
+                preflight_diagnostics=diagnostics,
+            )
+        except HTTPException as exc:
+            if exc.status_code != 413 or not diagnostics:
+                raise
+            if len(need_ids) > 1:
+                midpoint = len(need_ids) // 2
+                return project_batch(need_ids[:midpoint]) + project_batch(need_ids[midpoint:])
+            need_id = need_ids[0]
+            _exclude_commercial_planner_group(
+                session,
+                primary_keys[need_id],
+                [str(need_id)],
+                diagnostics["count"],
+                diagnostics["cap"],
+                diagnostics["resource"],
+            )
+            return []
+
+    summaries: list[dict] = []
+    eligible_ids = sorted(work_keys.keys() - excluded_ids(), key=str)
+    # Selected summary reads are deliberately <=50: their existing SQL batch
+    # limit is preserved, and aggregate text limits apply per bounded chunk.
+    for start in range(0, len(eligible_ids), 50):
+        summaries.extend(project_batch(eligible_ids[start : start + 50]))
+
+    neighbors: dict[str, set[UUID]] = {}
+    for need_id, keys in work_keys.items():
+        for key in keys:
+            neighbors.setdefault(key, set()).add(need_id)
+    blocked = excluded_ids() & work_keys.keys()
+    remaining = set(blocked)
+    diagnostics_by_need = {
+        UUID(need_id): diagnostic
+        for diagnostic in session.info.get("commercial_planner_exclusions", {}).values()
+        for need_id in diagnostic["need_ids"]
+    }
+    while remaining:
+        seed = remaining.pop()
+        component = {seed}
+        frontier = [seed]
+        while frontier:
+            for identity in work_keys[frontier.pop()]:
+                additions = neighbors[identity] - component
+                component.update(additions)
+                frontier.extend(additions)
+        blocked.update(component)
+        remaining.difference_update(component)
+        diagnostic = diagnostics_by_need[seed]
+        _exclude_commercial_planner_group(
+            session,
+            primary_keys[seed],
+            sorted(str(need_id) for need_id in component),
+            diagnostic["resource_count"],
+            diagnostic["resource_cap"],
+            diagnostic["resource"],
+        )
+    return [summary for summary in summaries if summary["id"] not in blocked]
 
 
 def _commercial_current_triage_page(
@@ -5006,9 +5186,14 @@ def _commercial_current_triage_page(
             selection_metadata=selection_metadata,
         )
     else:
-        summaries = opportunity_projection(
-            session, tier=tier, summary_only=True, include_below_floor=include_below_floor
-        )
+        if isolate_resource_bounds:
+            summaries = _commercial_machine_summaries(
+                session, tier=tier, include_below_floor=include_below_floor
+            )
+        else:
+            summaries = opportunity_projection(
+                session, tier=tier, summary_only=True, include_below_floor=include_below_floor
+            )
         all_keyed_groups = grouped_need_groups(summaries)
         if requested_need_ids is not None:
             requested = {str(need_id) for need_id in requested_need_ids}
@@ -5140,6 +5325,27 @@ def _commercial_current_triage_page(
                 _exclude_commercial_planner_group(session, identity, group, count, cap, resource)
                 continue
             raise _commercial_bound_error(identity, count, cap, resource)
+        if isolate_resource_bounds:
+            diagnostics: dict[str, Any] = {}
+            try:
+                _preflight_streamed_evidence_text(
+                    session,
+                    list(group_need_ids),
+                    list(project_ids_for_group),
+                    diagnostics=diagnostics,
+                )
+            except HTTPException as exc:
+                if exc.status_code != 413 or not diagnostics:
+                    raise
+                _exclude_commercial_planner_group(
+                    session,
+                    identity,
+                    group,
+                    diagnostics["count"],
+                    diagnostics["cap"],
+                    diagnostics["resource"],
+                )
+                continue
         bounded_keyed_groups.append((identity, group))
         if include_saved_history:
             group_workspace_ids = [workspace_ids_by_need[need_id] for need_id in group_need_ids]
@@ -5162,49 +5368,54 @@ def _commercial_current_triage_page(
                 )
     selected_keyed_groups = bounded_keyed_groups
     selected_ids = {UUID(need_id) for _, group in selected_keyed_groups for need_id in group}
-    chains: dict[str, dict] = {}
-    selected = opportunity_projection(
-        session,
-        tier=tier,
-        include_below_floor=include_below_floor,
-        selected_need_ids=selected_ids,
-        include_operator_fact_refs=True,
-        buying_chain_results=chains,
-    )
-    missing_chains = {
-        item["project_id"] for item in selected if str(item["project_id"]) not in chains
-    }
-    if missing_chains:
-        chains.update(buying_chain_views(session, missing_chains))
-    cards = make_commercial_cards(selected, chains, chicago_today(), limit)
+
+    def build_current_cards(need_ids: set[UUID]) -> list[dict]:
+        chains: dict[str, dict] = {}
+        selected = opportunity_projection(
+            session,
+            tier=tier,
+            include_below_floor=include_below_floor,
+            selected_need_ids=need_ids,
+            include_operator_fact_refs=True,
+            buying_chain_results=chains,
+        )
+        missing_chains = {
+            item["project_id"] for item in selected if str(item["project_id"]) not in chains
+        }
+        if missing_chains:
+            chains.update(buying_chain_views(session, missing_chains))
+        return make_commercial_cards(selected, chains, chicago_today(), limit)
+
     if isolate_resource_bounds:
         bounded_cards: list[dict] = []
         page_bytes = 2  # JSON array delimiters; keep each machine page bounded too.
-        for card in cards:
-            card_bytes = len(json.dumps(card, default=str, separators=(",", ":")).encode("utf-8"))
-            if card_bytes + 2 > _MAX_COMMERCIAL_CARD_BYTES:
-                identity, group = next(
-                    (identity, group)
-                    for identity, group in selected_keyed_groups
-                    if str(card["id"]) in group
+        # Each complete group already passed the retained-text byte preflight.
+        # Render it before loading another group: otherwise fifty individually
+        # bounded groups could hydrate fifty times the allowed input at once.
+        for identity, group in selected_keyed_groups:
+            for card in build_current_cards({UUID(need_id) for need_id in group}):
+                card_bytes = len(
+                    json.dumps(card, default=str, separators=(",", ":")).encode("utf-8")
                 )
-                _exclude_commercial_planner_group(
-                    session,
-                    identity,
-                    group,
-                    card_bytes + 2,
-                    _MAX_COMMERCIAL_CARD_BYTES,
-                    "card_bytes",
-                )
-                continue
-            separator_bytes = int(bool(bounded_cards))
-            if page_bytes + separator_bytes + card_bytes > _MAX_COMMERCIAL_CARD_BYTES:
-                # The next current group is eligible for the next bounded page;
-                # it is not a failed group and its facts are never truncated.
-                break
-            bounded_cards.append(card)
-            page_bytes += separator_bytes + card_bytes
+                if card_bytes + 2 > _MAX_COMMERCIAL_CARD_BYTES:
+                    _exclude_commercial_planner_group(
+                        session,
+                        identity,
+                        group,
+                        card_bytes + 2,
+                        _MAX_COMMERCIAL_CARD_BYTES,
+                        "card_bytes",
+                    )
+                    continue
+                separator_bytes = int(bool(bounded_cards))
+                if page_bytes + separator_bytes + card_bytes > _MAX_COMMERCIAL_CARD_BYTES:
+                    # This complete current group is eligible for the next page;
+                    # it is not failed and its evidence is never truncated.
+                    return bounded_cards, grouped_total
+                bounded_cards.append(card)
+                page_bytes += separator_bytes + card_bytes
         return bounded_cards, grouped_total
+    cards = build_current_cards(selected_ids)
     encoded_size = len(json.dumps(cards, default=str, separators=(",", ":")).encode("utf-8"))
     if encoded_size > _MAX_COMMERCIAL_CARD_BYTES:
         identity = selected_keyed_groups[0][0] if selected_keyed_groups else "empty"
