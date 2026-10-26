@@ -2,6 +2,8 @@
 
 Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). This describes implementation boundaries and required acceptance; it does not certify a deployed candidate. Source files and migrations remain authoritative for exact runtime behavior.
 
+See the [path-level migration inventory](autonomous-migration-inventory.md) for each KEEP/TRANSFORM/REMOVE/ARCHIVE decision, removed-feature dependencies and verification obligations.
+
 ## Processing boundaries
 
 The existing API, Python worker and React application share PostgreSQL domain/evidence projections. Source adapters retrieve permitted artifacts; ingestion retains Source → Observation → immutable Evidence, conservative physical Project and separate PowerNeed. Company identity groups supported accounts without collapsing distinct project sites. Research and enrichment retain source-backed claims and unresolved outcomes; deterministic rules analyze activity-specific supply/demand, tier and gap. Explainable ranking and browse publication expose current accepted intelligence. Existing queued jobs, leases/fences, checkpoints and planner state support repeatable refresh independently of a user's browser or device.

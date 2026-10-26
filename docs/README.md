@@ -6,7 +6,7 @@ The owner-approved [Autonomous Intelligence Canon](product/AUTONOMOUS_INTELLIGEN
 |---|---|---|
 | Product scope, tiers, and qualification | [Autonomous Intelligence Canon](product/AUTONOMOUS_INTELLIGENCE_CANON.md) | [Supporting PRD](product/PRD.md), [Vertical lifecycle strategy](product/VERTICAL_LIFECYCLE_STRATEGY.md) |
 | UI and brand | [Current UI canon](design/UI_CANON.md) | [Pursuit Workspace contract](design/PURSUIT_WORKSPACE.md), [brand assets](design/BRAND_ASSETS.md), [UI migration inventory](design/UI_MIGRATION_20261020.md) |
-| Architecture and data flow | [Architecture overview](architecture/overview.md) | [Autonomous architecture and retention map](architecture/autonomous-intelligence.md), [data model](architecture/data-model.md) and focused architecture notes |
+| Architecture and data flow | [Architecture overview](architecture/overview.md) | [Autonomous architecture and retention map](architecture/autonomous-intelligence.md), [migration inventory](architecture/autonomous-migration-inventory.md), [data model](architecture/data-model.md) and focused architecture notes |
 | Source behavior and coverage | [Coverage](sources/coverage.md) | [Source notes](sources/) and [registry](../config/sources/registry.v1.json) |
 | Local setup and checks | [Repository README](../README.md) | [Local runtime](operations/local-runtime.md), [script guide](../scripts/README.md) |
 | Production observation and deployment boundary | [Operations status](operations/README.md) | [Sanitized dated receipt](operations/observations/2026-10-20-production-readonly.md) binds to the named ignored source receipts |
