@@ -1957,19 +1957,42 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             kind = correction_values.get("public_contact_kind") or "general"
             if isinstance(value, str) and value.strip():
                 retained_values.add((str(kind), value.strip()))
-        evidence_quotes = [str(row.get("quote") or "") for row in item.get("evidence", [])]
-        evidence_text = "\n".join(evidence_quotes)
-        for value in _EMAIL_VALUE.findall(evidence_text):
+        strings = []
+
+        def collect_strings(value, key="", out=strings):
+            if isinstance(value, str):
+                if key not in {
+                    "id",
+                    "claim_id",
+                    "project_id",
+                    "company_identity_id",
+                    "person_identity_id",
+                    "fingerprint",
+                    "evidence_id",
+                    "source_id",
+                    "retained_evidence_id",
+                }:
+                    out.append(value)
+            elif isinstance(value, dict):
+                for child_key, child in value.items():
+                    collect_strings(child, str(child_key), out)
+            elif isinstance(value, list):
+                for child in value:
+                    collect_strings(child, key, out)
+
+        collect_strings(item)
+        display_text = "\n".join(strings)
+        for value in _EMAIL_VALUE.findall(display_text):
             retained_values.add(("email", value.rstrip(".,;:)")))
-        for quote in evidence_quotes:
-            for line in quote.splitlines():
+        for text in strings:
+            for line in text.splitlines():
                 nanp_values = _NANP_PHONE_VALUE.findall(line)
                 phone_values = nanp_values or _PHONE_VALUE.findall(line)
                 for value in phone_values:
                     digits = re.sub(r"\D", "", value)
                     if 7 <= len(digits) <= 15:
                         retained_values.add(("phone", value.strip(" .,:;")))
-        for value in _PROFILE_VALUE.findall(evidence_text):
+        for value in _PROFILE_VALUE.findall(display_text):
             retained_values.add(("profile", value.rstrip(".,;:)")))
         if len(retained_values) > MAX_CONTACT_VALUES_PER_CANDIDATE:
             # Excessive retained contact-like strings make exact selective
@@ -2041,33 +2064,42 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             item[contact_field] = visible
         if hidden_values:
 
-            def scrub(value, hidden=tuple(hidden_values)):
+            def scrub(value, hidden=tuple(hidden_values), key=""):
                 if isinstance(value, str):
+                    if key in {
+                        "id",
+                        "claim_id",
+                        "project_id",
+                        "company_identity_id",
+                        "person_identity_id",
+                        "fingerprint",
+                        "correction_version",
+                        "version",
+                        "content_hash",
+                        "source_version_hash",
+                        "current_source_version_id",
+                        "retained_evidence_id",
+                        "source_id",
+                        "observed_at",
+                        "published_at",
+                        "created_at",
+                        "updated_at",
+                        "verified_at",
+                    }:
+                        return value
                     for term in hidden:
                         value = re.sub(re.escape(term), "[redacted]", value, flags=re.IGNORECASE)
                     return value
                 if isinstance(value, list):
-                    return [scrub(part, hidden) for part in value]
+                    return [scrub(part, hidden, key) for part in value]
                 if isinstance(value, dict):
-                    return {key: scrub(part, hidden) for key, part in value.items()}
+                    return {
+                        child_key: scrub(part, hidden, str(child_key))
+                        for child_key, part in value.items()
+                    }
                 return value
 
-            item["public_contacts"] = scrub(item.get("public_contacts", []))
-            item["reported_contacts"] = scrub(item.get("reported_contacts", []))
-            item["evidence"] = scrub(item.get("evidence", []))
-            item["reason"] = scrub(item.get("reason", ""))
-            item["correction_history"] = scrub(item.get("correction_history", []))
-            item["correction_history"] = [
-                {
-                    **row,
-                    "values": {
-                        key: value
-                        for key, value in row.get("values", {}).items()
-                        if key != "public_contact_value"
-                    },
-                }
-                for row in item.get("correction_history", [])
-            ]
+            item.update(scrub(item))
 
 
 def buying_chain_views(

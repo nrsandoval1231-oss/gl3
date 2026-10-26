@@ -881,6 +881,77 @@ def test_suppressed_email_is_redacted_from_surviving_phone_quote(contact_db, mon
     assert project_id not in {item["project_id"] for item in result["projects"]}
 
 
+def test_extracted_title_email_is_redacted_across_candidate_display_fields(contact_db, monkeypatch):
+    from copy import deepcopy
+
+    from gridlens.api import app as api_app
+    from gridlens.domain.opportunity_intelligence import contact_projection
+    from gridlens.ingestion.adapters.buying_chain_public import parse_document
+    from gridlens.intelligence.buying_chain import _apply_contact_privacy
+    from gridlens.intelligence.buying_chain_extraction import Extracted, extract_people
+
+    with contact_db() as session:
+        _company, project, claim, source = _seed_published_contact(session)
+        project.region_status = "ELIGIBLE"
+        project.region_state = "TX"
+        html = (
+            "<html><title>Team</title><body>"
+            "<h2>Avery Example, Procurement Manager hidden@example.test</h2>"
+            "</body></html>"
+        )
+        parsed = parse_document(
+            "https://example.test/team", html.encode(), "text/html; charset=utf-8"
+        )
+        extracted = extract_people(
+            parsed,
+            [Extracted("Synthetic Operator LLC", "asset_operator")],
+            project,
+            project_scoped=True,
+            today=source.observed_at.date(),
+            verified_official_roster=True,
+        )
+        assert extracted and extracted[0].title == "Procurement Manager hidden@example.test"
+        claim.title = extracted[0].title
+        claim.person_name = extracted[0].person_name
+        claim.public_contacts = []
+        claim.citations = [
+            citation for citation in claim.citations if citation["supports"] != "public_contact"
+        ]
+        source.excerpt = "\n".join(
+            line for line in source.excerpt.splitlines() if "avery@example.test" not in line
+        )
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=global_method_suppression_key("email", "hidden@example.test"),
+            action="suppress",
+            expected_version=0,
+            reason="privacy request",
+            actor="privacy-ops",
+            idempotency_key="suppress-title-embedded-email",
+        )
+        session.flush()
+        for view in (
+            buying_chain_view(session, project.id),
+            buying_chain_view(session, project.id, history=True),
+        ):
+            item = next(row for row in view["candidates"] if row["id"] == claim.id)
+            assert "hidden@example.test" not in str(item).casefold()
+            assert "[redacted]" in item["title"]
+            assert all("hidden@example.test" not in str(c) for c in contact_projection(view))
+            extended = deepcopy(item)
+            extended["future_display_extension"] = {"label": "hidden@example.test"}
+            _apply_contact_privacy(session, [extended])
+            assert "hidden@example.test" not in str(extended).casefold()
+        assert session.get(BuyingChainClaim, claim.id).title == extracted[0].title
+        session.commit()
+        project_id = project.id
+    monkeypatch.setattr(api_app, "SessionLocal", contact_db)
+    result = api_app.unified_search("hidden@example.test")
+    assert result["contacts"] == []
+    assert project_id not in {item["project_id"] for item in result["projects"]}
+
+
 def test_excessive_retained_contact_values_fail_closed(contact_db):
     from gridlens.intelligence.buying_chain import (
         MAX_CONTACT_VALUES_PER_CANDIDATE,
