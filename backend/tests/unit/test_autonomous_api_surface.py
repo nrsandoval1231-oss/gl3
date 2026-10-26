@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from gridlens.api.app import app
 
 RETIRED_OPERATOR_ROUTES = {
+    ("POST", "/api/contact-assertions/{claim_id}/corrections"),
     ("GET", "/api/needs/{need_id}/facts"),
     ("POST", "/api/needs/{need_id}/facts"),
     ("POST", "/api/needs/{need_id}/facts/{fact_version_id}/decision"),
@@ -104,3 +105,16 @@ def test_unified_search_requires_a_session():
 def test_retired_fact_write_route_is_not_dispatchable():
     response = TestClient(app).post("/api/needs/00000000-0000-0000-0000-000000000001/facts")
     assert response.status_code == 404
+
+
+def test_customer_api_mutations_are_limited_to_authentication():
+    mutations = {
+        (method.upper(), path)
+        for path, operations in app.openapi()["paths"].items()
+        for method in operations
+        if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+    }
+    assert mutations == {
+        ("POST", "/api/auth/login"),
+        ("POST", "/api/auth/logout"),
+    }

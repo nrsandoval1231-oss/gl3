@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, union
+from sqlalchemy import func, select, union
 from sqlalchemy.orm import Session
 
 from gridlens.domain.pursuit_research import fingerprint
@@ -35,6 +35,12 @@ from gridlens.intelligence.buying_chain_extraction import (
     extract_people,
 )
 from gridlens.intelligence.company_contacts import company_contacts, relevant_named_contact
+from gridlens.intelligence.enrichment_planner import (
+    ResearchCandidate,
+    rank_candidate,
+    research_digest,
+    should_schedule,
+)
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -45,8 +51,12 @@ from gridlens.persistence.models import (
     CompanyIdentity,
     CompanyProjectMembership,
     Evidence,
+    ExternalImportActivation,
+    ExternalImportBatch,
+    ExternalImportRow,
     Job,
     LogicalCall,
+    PlannerState,
     PowerNeed,
     Project,
 )
@@ -59,7 +69,6 @@ MAX_ANCHOR_PROJECTS = 16
 MAX_SECONDS = 35
 CONTACT_PLANNER_RETRY_DAYS = 7
 CONTACT_PLANNER_REFRESH_DAYS = 30
-MAX_COMPANY_SCAN_PER_PLAN = 500
 POLICY_VERSION = "company-contact-discovery-v12"
 
 
@@ -95,6 +104,42 @@ def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
             )
             .order_by(Project.id)
         ).all()
+    )
+
+
+def _active_import_rows(session: Session, company_id: UUID) -> list[tuple[ExternalImportRow, str]]:
+    """Bound active, matched imports used only as unverified research hints."""
+    rows = session.execute(
+        select(ExternalImportRow, ExternalImportBatch.content_hash)
+        .join(ExternalImportBatch, ExternalImportBatch.id == ExternalImportRow.batch_id)
+        .join(ExternalImportActivation, ExternalImportActivation.row_id == ExternalImportRow.id)
+        .where(
+            ExternalImportActivation.active.is_(True),
+            ExternalImportRow.match_status == "matched",
+            ExternalImportRow.company_match["status"].as_string() == "matched",
+            ExternalImportRow.company_match["candidate_id"].as_string() == str(company_id),
+        )
+        .order_by(ExternalImportRow.created_at.desc(), ExternalImportRow.id.desc())
+        .limit(100)
+    ).all()
+    return [(row, content_hash) for row, content_hash in rows]
+
+
+def _research_source_digest(session: Session, project: Project, company_id: UUID) -> str:
+    imports = _active_import_rows(session, company_id)
+    return fingerprint(
+        {
+            "anchor": _anchor_digest(session, project, company_id),
+            "imports": [
+                {
+                    "row_id": str(row.id),
+                    "batch_id": str(row.batch_id),
+                    "content_hash": content_hash,
+                    "normalized_hash": fingerprint(row.normalized or {}),
+                }
+                for row, content_hash in imports
+            ],
+        }
     )
 
 
@@ -159,16 +204,26 @@ def _checkpoint_outcome_time(checkpoint: dict, fallback: datetime, now: datetime
     return min(fallback, now)
 
 
+def _load_checkpoint(job: Job) -> dict:
+    try:
+        return json.loads(job.checkpoint or "{}")
+    except (TypeError, ValueError):
+        return {}
+
+
+def _outcome_time(job: Job, checkpoint: dict, now: datetime) -> datetime:
+    return _checkpoint_outcome_time(checkpoint, job.created_at, now)
+
+
 def _unresolved_retry_at(checkpoint: dict, outcome_at: datetime) -> datetime:
     retry_after = checkpoint.get("retry_after")
     if isinstance(retry_after, str):
         try:
             parsed = datetime.fromisoformat(retry_after.replace("Z", "+00:00"))
         except ValueError:
-            parsed = outcome_at + timedelta(days=CONTACT_PLANNER_RETRY_DAYS)
+            pass
         else:
             return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
-        return parsed
     reason = " ".join(
         str(value)
         for value in (
@@ -194,12 +249,75 @@ def _unresolved_retry_at(checkpoint: dict, outcome_at: datetime) -> datetime:
     return outcome_at + timedelta(days=days)
 
 
+def _contact_planner_due(jobs: list[Job], now: datetime) -> bool:
+    """Use persisted outcomes and bounded backoff; never let blockers occupy planner slots."""
+    ordered = sorted(
+        jobs,
+        key=lambda row: (_outcome_time(row, _load_checkpoint(row), now), str(row.id)),
+        reverse=True,
+    )
+    if not ordered:
+        return True
+    if any(
+        row.status in {"queued", "running"} and (row.lease_until is None or row.lease_until > now)
+        for row in ordered
+    ):
+        return False
+    latest = ordered[0]
+    checkpoint = _load_checkpoint(latest)
+    outcome_at = _outcome_time(latest, checkpoint, now)
+    status = str(checkpoint.get("status") or "").casefold()
+    if latest.status == "failed":
+        digest = checkpoint.get("request_digest")
+        failed_count = sum(
+            row.status == "failed"
+            and _load_checkpoint(row).get("request_digest") == digest
+            and now - _outcome_time(row, _load_checkpoint(row), now)
+            < timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
+            for row in ordered
+        )
+        if failed_count >= 2:
+            return now - outcome_at >= timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
+        return now - outcome_at >= timedelta(hours=(1, 6, 24)[min(max(failed_count - 1, 0), 2)])
+    if latest.status != "succeeded":
+        return True
+    if status in {"complete", "partial"}:
+        return now - outcome_at >= timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
+    if status == "unresolved":
+        return now >= _unresolved_retry_at(checkpoint, outcome_at)
+    return now - outcome_at >= timedelta(days=CONTACT_PLANNER_RETRY_DAYS)
+
+
+def _planner_retry_after(jobs: list[Job], now: datetime) -> datetime:
+    ordered = sorted(
+        jobs,
+        key=lambda row: (_outcome_time(row, _load_checkpoint(row), now), str(row.id)),
+        reverse=True,
+    )
+    if not ordered:
+        return now + timedelta(days=CONTACT_PLANNER_RETRY_DAYS)
+    latest = ordered[0]
+    checkpoint = _load_checkpoint(latest)
+    outcome_at = _outcome_time(latest, checkpoint, now)
+    if checkpoint.get("status") == "unresolved":
+        return _unresolved_retry_at(checkpoint, outcome_at)
+    if latest.status == "failed":
+        attempts = sum(
+            row.status == "failed"
+            and _load_checkpoint(row).get("request_digest") == checkpoint.get("request_digest")
+            for row in ordered
+        )
+        return outcome_at + timedelta(days=CONTACT_PLANNER_REFRESH_DAYS if attempts >= 2 else 1)
+    return outcome_at + timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
+
+
 def discover_company_contacts(
     session: Session,
     company_identity_id: UUID,
     *,
     candidate_urls: tuple[str, ...] | list[str] = (),
     now: datetime | None = None,
+    refresh_generation: str | None = None,
 ) -> dict:
     """Idempotently enqueue discovery; it intentionally performs no network I/O."""
     now = now or datetime.now(UTC)
@@ -237,24 +355,58 @@ def discover_company_contacts(
         and now - _outcome_time(latest_job, latest_checkpoint, now)
         >= timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
     )
+    needs = list(
+        session.scalars(
+            select(PowerNeed).where(
+                PowerNeed.project_id.in_([project.id for project in projects]),
+                PowerNeed.active.is_(True),
+            )
+        ).all()
+    )
+    latest_evidence_at = session.scalar(
+        select(func.max(Evidence.observed_at)).where(
+            Evidence.id.in_(
+                select(CompanyProjectMembership.source_evidence_id).where(
+                    CompanyProjectMembership.company_identity_id == company_identity_id,
+                    CompanyProjectMembership.state == "current",
+                )
+            )
+        )
+    )
+    input_digest = research_digest(
+        ResearchCandidate(
+            company_identity_id,
+            tuple(projects),
+            tuple(needs),
+            latest_evidence_at,
+            None,
+            None,
+            _research_source_digest(session, anchor, company_identity_id),
+        )
+    )
     digest = fingerprint(
         {
             "company_identity_id": str(company_identity_id),
             "candidate_urls": urls,
             "anchor": _anchor_digest(session, anchor, company_identity_id),
-            "refresh_epoch": now.date().toordinal() // 30,
+            "research_digest": input_digest,
             "refresh_due": refresh_due,
             "policy": POLICY_VERSION,
+            # Preserve legacy direct/API refreshes. Explicit planner generations
+            # remain stable across calendar bucket boundaries for fenced retries.
+            "refresh_epoch": (
+                None if refresh_generation is not None else now.date().toordinal() // 30
+            ),
+            "refresh_generation": refresh_generation,
         }
     )
     matching_failures = 0
     for job in existing:
-        try:
-            checkpoint = json.loads(job.checkpoint or "{}")
-        except (TypeError, ValueError):
-            continue
+        checkpoint = _load_checkpoint(job)
         if checkpoint.get("request_digest") == digest:
-            if job.status in {"queued", "running"}:
+            if job.status == "queued" or (
+                job.status == "running" and (job.lease_until is None or job.lease_until > now)
+            ):
                 return {
                     "status": checkpoint.get("status", job.status),
                     "job_id": str(job.id),
@@ -262,7 +414,7 @@ def discover_company_contacts(
                 }
             if job.status == "succeeded":
                 status = str(checkpoint.get("status") or "").casefold()
-                outcome_at = _checkpoint_outcome_time(checkpoint, job.created_at, now)
+                outcome_at = _outcome_time(job, checkpoint, now)
                 if status in {"complete", "partial"} and now - outcome_at < timedelta(
                     days=CONTACT_PLANNER_REFRESH_DAYS
                 ):
@@ -279,6 +431,10 @@ def discover_company_contacts(
                     }
         if checkpoint.get("request_digest") == digest and job.status == "failed":
             matching_failures += 1
+        if job.status == "running" and job.lease_until and job.lease_until <= now:
+            # A reclaimed job is safe to retry under its new fence; the stale
+            # worker cannot persist after the queue increments that fence.
+            continue
     if matching_failures >= 2:
         return {"status": "unresolved", "reason": "retries_exhausted", "job_id": None}
     job = Job(
@@ -289,6 +445,7 @@ def discover_company_contacts(
             {
                 "task_type": TASK_TYPE,
                 "request_digest": digest,
+                "research_digest": input_digest,
                 "payload": {
                     "company_identity_id": str(company_identity_id),
                     "candidate_urls": urls,
@@ -296,6 +453,8 @@ def discover_company_contacts(
                 },
                 "status": "queued",
                 "queued_at": now.isoformat(),
+                "refresh_generation": refresh_generation,
+                "refresh_due": refresh_due,
             },
             separators=(",", ":"),
         ),
@@ -308,6 +467,18 @@ def discover_company_contacts(
 def _known_contact_urls(session: Session, company_id: UUID, projects: list[Project]) -> list[str]:
     """Reuse only source-cited contact URLs or earlier checked company pages."""
     urls: list[str] = []
+    for row, _content_hash in _active_import_rows(session, company_id):
+        imported_fields = row.normalized if isinstance(row.normalized, dict) else {}
+        domain = imported_fields.get("domain")
+        if not isinstance(domain, str) or not domain or len(domain) > 253:
+            continue
+        try:
+            hint = validate_public_url(f"https://{domain}/")
+        except (TypeError, ValueError):
+            continue
+        parsed = urlsplit(hint)
+        if parsed.hostname and parsed.scheme == "https" and parsed.path in {"", "/"}:
+            urls.append(hint)
     for project in projects[:4]:
         view = buying_chain_view(session, project.id)
         for item in view["candidates"]:
@@ -348,102 +519,12 @@ def _known_contact_urls(session: Session, company_id: UUID, projects: list[Proje
     return valid
 
 
-def _job_time(value: datetime, now: datetime) -> datetime:
-    value = value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
-    return value if value <= now else now
-
-
-def _load_checkpoint(job: Job) -> dict:
-    try:
-        return json.loads(job.checkpoint or "{}")
-    except (TypeError, ValueError):
-        return {}
-
-
-def _outcome_time(job: Job, checkpoint: dict, now: datetime) -> datetime:
-    return _checkpoint_outcome_time(checkpoint, job.created_at, now)
-
-
-def _contact_planner_due(jobs: list[Job], now: datetime) -> bool:
-    """Apply outcome-aware backoff; completed searches refresh on a 30-day cadence."""
-    ordered = sorted(
-        jobs,
-        key=lambda row: (_job_time(row.created_at, now), str(row.id)),
-        reverse=True,
-    )
-    if not ordered:
-        return True
-    active = next((row for row in ordered if row.status in {"queued", "running"}), None)
-    if active:
-        return False
-    latest = ordered[0]
-    checkpoint = _load_checkpoint(latest)
-    outcome_at = _outcome_time(latest, checkpoint, now)
-    status = str(checkpoint.get("status") or "").casefold()
-    if latest.status == "failed":
-        digest = checkpoint.get("request_digest")
-        failed_count = sum(
-            row.status == "failed"
-            and _job_request_digest(row) == digest
-            and (now - _outcome_time(row, _load_checkpoint(row), now)).days
-            < CONTACT_PLANNER_REFRESH_DAYS
-            for row in ordered
-        )
-        if failed_count >= 2:
-            return now - outcome_at >= timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
-        backoff = (1, 6, 24)[min(max(failed_count - 1, 0), 2)]
-        return now - outcome_at >= timedelta(hours=backoff)
-    if latest.status != "succeeded":
-        return True
-    if status in {"complete", "partial"}:
-        return now - outcome_at >= timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
-    if status == "unresolved":
-        return now >= _unresolved_retry_at(checkpoint, outcome_at)
-    return now - outcome_at >= timedelta(days=CONTACT_PLANNER_RETRY_DAYS)
-
-
-def _job_request_digest(job: Job) -> str | None:
-    return _load_checkpoint(job).get("request_digest")
-
-
-def _planner_retry_after(jobs: list[Job], now: datetime) -> datetime:
-    ordered = sorted(
-        jobs,
-        key=lambda row: (_job_time(row.created_at, now), str(row.id)),
-        reverse=True,
-    )
-    if not ordered:
-        return now + timedelta(days=CONTACT_PLANNER_RETRY_DAYS)
-    latest = ordered[0]
-    checkpoint = _load_checkpoint(latest)
-    outcome_at = _outcome_time(latest, checkpoint, now)
-    if checkpoint.get("status") == "unresolved":
-        return _unresolved_retry_at(checkpoint, outcome_at)
-    if latest.status == "failed":
-        digest = checkpoint.get("request_digest")
-        attempts = sum(
-            row.status == "failed" and _job_request_digest(row) == digest for row in ordered
-        )
-        if attempts >= 2:
-            return outcome_at + timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
-        return outcome_at + timedelta(hours=1)
-    if checkpoint.get("status") in {"complete", "partial"}:
-        return outcome_at + timedelta(days=CONTACT_PLANNER_REFRESH_DAYS)
-    return outcome_at + timedelta(days=CONTACT_PLANNER_RETRY_DAYS)
-
-
 def plan_company_contact_jobs(
     session: Session, *, limit: int = 25, now: datetime | None = None
 ) -> int:
-    """Plan a bounded number of due companies without starving later identities.
-
-    Unresolvable companies receive an auditable terminal checkpoint and retry date.
-    They do not create network jobs, and they leave the next due company selectable.
-    """
+    """Queue highest-value due company research, reusing durable company identity."""
     if not 1 <= limit <= 100:
         raise ValueError("Contact planning limit must be 1..100")
-    now = now or datetime.now(UTC)
-    now = now.replace(tzinfo=UTC) if now.tzinfo is None else now.astimezone(UTC)
     eligible_projects = select(Project.id).where(
         Project.region_status == "ELIGIBLE",
         select(PowerNeed.id)
@@ -465,141 +546,224 @@ def plan_company_contact_jobs(
         )
     )
     candidates = union(membership_ids, claim_ids).subquery()
-    completed_checkpoint = or_(
-        Job.checkpoint.like('%"status":"complete"%'),
-        Job.checkpoint.like('%"status": "complete"%'),
-        Job.checkpoint.like('%"status":"partial"%'),
-        Job.checkpoint.like('%"status": "partial"%'),
-    )
-    unresolved_checkpoint = or_(
-        Job.checkpoint.like('%"status":"unresolved"%'),
-        Job.checkpoint.like('%"status": "unresolved"%'),
-    )
-    disabled_checkpoint = or_(
-        Job.checkpoint.ilike("%disabled%"),
-        Job.checkpoint.ilike("%unconfigured%"),
-        Job.checkpoint.ilike("%not enabled%"),
-        Job.checkpoint.ilike("%retries_exhausted%"),
-    )
-    not_due = (
-        select(Job.id)
-        .where(
-            Job.kind == JOB_KIND,
-            Job.target_id == candidates.c.company_id,
-            or_(
-                Job.status.in_(("queued", "running")),
-                and_(
-                    Job.status == "succeeded",
-                    Job.available_at > now,
-                    Job.checkpoint.like('%"planner_receipt":true%'),
-                ),
-                and_(
-                    Job.status == "succeeded",
-                    Job.created_at > now - timedelta(days=CONTACT_PLANNER_REFRESH_DAYS),
-                    completed_checkpoint,
-                ),
-                and_(
-                    Job.status == "succeeded",
-                    Job.created_at >= now - timedelta(days=CONTACT_PLANNER_RETRY_DAYS),
-                    unresolved_checkpoint,
-                    ~disabled_checkpoint,
-                ),
-                and_(
-                    Job.status == "succeeded",
-                    Job.created_at >= now - timedelta(days=CONTACT_PLANNER_REFRESH_DAYS),
-                    unresolved_checkpoint,
-                    disabled_checkpoint,
-                ),
-                and_(Job.status == "failed", Job.created_at >= now - timedelta(hours=1)),
-            ),
-        )
-        .exists()
-    )
-    ids = session.scalars(
-        select(candidates.c.company_id)
-        .where(~not_due)
-        .order_by(candidates.c.company_id)
-        .limit(min(MAX_COMPANY_SCAN_PER_PLAN, max(limit * 20, 100)))
-    ).all()
-    recent_jobs: dict[UUID, list[Job]] = {}
+    now = now or datetime.now(UTC)
+    now = now.replace(tzinfo=UTC) if now.tzinfo is None else now.astimezone(UTC)
+    page_size = min(limit * 4, 400)
+    cursor_key = "company-contact-discovery-cursor"
+    session.scalar(select(func.pg_advisory_xact_lock(0x43434F4E54414354)))
+    cursor_state = session.get(PlannerState, cursor_key, with_for_update=True)
+    if cursor_state is None:
+        cursor_state = PlannerState(planner_key=cursor_key)
+        session.add(cursor_state)
+        session.flush()
+    cursor_id = None
+    if cursor_state.cursor:
+        try:
+            cursor_id = UUID(cursor_state.cursor)
+        except ValueError:
+            cursor_id = None
+    page_statement = select(candidates.c.company_id)
+    if cursor_id is not None:
+        page_statement = page_statement.where(candidates.c.company_id > cursor_id)
+    ids = session.scalars(page_statement.order_by(candidates.c.company_id).limit(page_size)).all()
+    if not ids and cursor_id is not None:
+        ids = session.scalars(
+            select(candidates.c.company_id).order_by(candidates.c.company_id).limit(page_size)
+        ).all()
     if ids:
-        ranked_jobs = (
-            select(
-                Job.id.label("id"),
-                func.row_number()
-                .over(
-                    partition_by=Job.target_id,
-                    order_by=(Job.created_at.desc(), Job.id.desc()),
-                )
-                .label("position"),
-            )
-            .where(Job.kind == JOB_KIND, Job.target_id.in_(ids))
-            .subquery()
-        )
-        for job in session.scalars(
-            select(Job)
-            .join(ranked_jobs, ranked_jobs.c.id == Job.id)
-            .where(ranked_jobs.c.position <= 30)
-            .order_by(Job.target_id, Job.created_at.desc(), Job.id.desc())
-        ):
-            if job.target_id is not None:
-                recent_jobs.setdefault(job.target_id, []).append(job)
-    queued = 0
+        cursor_state.cursor = str(ids[-1])
+    ranked: list[tuple[int, str, UUID, ResearchCandidate, str, dict, str, str | None]] = []
     for company_id in ids:
-        history = recent_jobs.get(company_id, [])
-        if not _contact_planner_due(history, now):
-            retry_after = _planner_retry_after(history, now)
-            project = next(iter(_projects(session, company_id)), None)
-            if project is not None:
-                marker = Job(
-                    source_id=project.source_id,
-                    kind=JOB_KIND,
-                    target_id=company_id,
-                    status="succeeded",
-                    checkpoint=json.dumps(
-                        {
-                            "task_type": TASK_TYPE,
-                            "status": "unresolved",
-                            "reason": "planner_retry_backoff",
-                            "planned_at": now.isoformat(),
-                            "retry_after": retry_after.isoformat(),
-                            "planner_receipt": True,
-                        },
-                        separators=(",", ":"),
-                    ),
-                    available_at=retry_after,
-                    created_at=now,
+        projects = _projects(session, company_id)
+        anchor = _select_anchor_project(session, projects, company_id)
+        if anchor is None:
+            history = list(
+                session.scalars(
+                    select(Job)
+                    .where(Job.kind == JOB_KIND, Job.target_id == company_id)
+                    .order_by(Job.created_at.desc(), Job.id.desc())
+                    .limit(30)
                 )
-                session.add(marker)
+            )
+            if projects and _contact_planner_due(history, now):
+                retry_after = now + timedelta(days=CONTACT_PLANNER_RETRY_DAYS)
+                session.add(
+                    Job(
+                        source_id=projects[0].source_id,
+                        kind=JOB_KIND,
+                        target_id=company_id,
+                        status="succeeded",
+                        checkpoint=json.dumps(
+                            {
+                                "task_type": TASK_TYPE,
+                                "status": "unresolved",
+                                "reason": "no_current_source_backed_company_claim",
+                                "planned_at": now.isoformat(),
+                                "retry_after": retry_after.isoformat(),
+                                "planner_receipt": True,
+                            },
+                            separators=(",", ":"),
+                        ),
+                        available_at=retry_after,
+                        created_at=now,
+                    )
+                )
                 session.flush()
             continue
-        result = discover_company_contacts(session, company_id, now=now)
-        queued += result.get("status") == "queued" and not result.get("deduplicated", False)
-        if result.get("status") == "unresolved" and result.get("job_id") is None:
-            project = next(iter(_projects(session, company_id)), None)
-            if project is not None:
-                checkpoint = {
-                    "task_type": TASK_TYPE,
-                    "status": "unresolved",
-                    "reason": result.get("reason", "no_current_source_backed_company_claim"),
-                    "planned_at": now.isoformat(),
-                    "retry_after": (now + timedelta(days=CONTACT_PLANNER_RETRY_DAYS)).isoformat(),
-                    "planner_receipt": True,
-                }
-                marker = Job(
-                    source_id=project.source_id,
-                    kind=JOB_KIND,
-                    target_id=company_id,
-                    status="succeeded",
-                    checkpoint=json.dumps(checkpoint, separators=(",", ":")),
-                    available_at=datetime.fromisoformat(checkpoint["retry_after"]),
-                    created_at=now,
+        needs = list(
+            session.scalars(
+                select(PowerNeed).where(
+                    PowerNeed.project_id.in_([p.id for p in projects]), PowerNeed.active.is_(True)
                 )
-                session.add(marker)
-                session.flush()
-                recent_jobs.setdefault(company_id, []).insert(0, marker)
-        if queued >= limit:
-            break
+            ).all()
+        )
+        if not needs:
+            continue
+        latest = session.scalar(
+            select(func.max(Evidence.observed_at)).where(
+                Evidence.id.in_(
+                    select(CompanyProjectMembership.source_evidence_id).where(
+                        CompanyProjectMembership.company_identity_id == company_id,
+                        CompanyProjectMembership.state == "current",
+                    )
+                )
+            )
+        )
+        source_digest = _research_source_digest(session, anchor, company_id)
+        candidate = ResearchCandidate(
+            company_id,
+            tuple(projects),
+            tuple(needs),
+            latest,
+            None,
+            None,
+            source_digest,
+        )
+        digest = research_digest(candidate)
+        company_jobs = list(
+            session.scalars(
+                select(Job)
+                .where(Job.kind == JOB_KIND, Job.target_id == company_id)
+                .order_by(Job.created_at.desc(), Job.id.desc())
+                .limit(30)
+            )
+        )
+        matching_checkpoints = []
+        for existing_job in company_jobs:
+            existing_checkpoint = _load_checkpoint(existing_job)
+            if existing_checkpoint.get("research_digest") == digest:
+                matching_checkpoints.append((existing_job, existing_checkpoint))
+        # An active job deduplicates its current input generation. A new
+        # source-backed digest may be queued independently so changed evidence
+        # does not wait behind an obsolete worker lease.
+        if any(
+            job.status in {"queued", "running"}
+            and (job.lease_until is None or job.lease_until > now)
+            and _load_checkpoint(job).get("research_digest") == digest
+            for job in company_jobs
+        ):
+            continue
+        completed_values = []
+        failed_refreshes: list[tuple[datetime, str]] = []
+        for existing_job, existing_checkpoint in matching_checkpoints:
+            if existing_job.status == "failed" and isinstance(
+                existing_checkpoint.get("refresh_generation"), str
+            ):
+                try:
+                    queued_at = datetime.fromisoformat(existing_checkpoint["queued_at"])
+                    failed_refreshes.append((queued_at, existing_checkpoint["refresh_generation"]))
+                except (KeyError, TypeError, ValueError):
+                    pass
+            if existing_job.status != "succeeded" or not existing_checkpoint.get("completed_at"):
+                continue
+            try:
+                completed_values.append(datetime.fromisoformat(existing_checkpoint["completed_at"]))
+            except (TypeError, ValueError):
+                continue
+        completed_at = max(completed_values) if completed_values else None
+        candidate = ResearchCandidate(
+            company_id,
+            tuple(projects),
+            tuple(needs),
+            latest,
+            completed_at,
+            digest if matching_checkpoints else None,
+            source_digest,
+        )
+        due, due_reason = should_schedule(candidate, now=now, digest=digest)
+        history_due = _contact_planner_due(company_jobs, now)
+        latest_job = max(
+            company_jobs,
+            key=lambda job: (_outcome_time(job, _load_checkpoint(job), now), str(job.id)),
+            default=None,
+        )
+        if not due and history_due and latest_job is not None:
+            latest_status = _load_checkpoint(latest_job).get("status")
+            if latest_job.status == "failed":
+                due, due_reason = True, "failed_retry_due"
+            elif str(latest_status or "").casefold() == "unresolved":
+                due, due_reason = True, "unresolved_retry_due"
+        if (
+            due
+            and matching_checkpoints
+            and latest_job is not None
+            and latest_job.status == "failed"
+            and not history_due
+        ):
+            due = False
+        latest_completed_at = max(completed_values) if completed_values else None
+        latest_failed_refresh = max(failed_refreshes) if failed_refreshes else None
+        retry_generation = (
+            latest_failed_refresh[1]
+            if latest_failed_refresh
+            and (latest_completed_at is None or latest_failed_refresh[0] > latest_completed_at)
+            else None
+        )
+        if retry_generation and due_reason != "unresolved_retry_due":
+            due_reason = "stale_refresh_due"
+        if not due:
+            continue
+        rank = rank_candidate(candidate, now=now)
+        ranked.append(
+            (
+                -rank["score"],
+                str(company_id),
+                company_id,
+                candidate,
+                digest,
+                rank,
+                due_reason,
+                retry_generation,
+            )
+        )
+    queued = 0
+    for (
+        _neg_score,
+        _key,
+        company_id,
+        _candidate,
+        digest,
+        rank,
+        due_reason,
+        retry_generation,
+    ) in sorted(ranked):
+        refresh_generation = retry_generation or (
+            str(now.date().toordinal() // 30) if due_reason == "stale_refresh_due" else None
+        )
+        result = discover_company_contacts(
+            session, company_id, now=now, refresh_generation=refresh_generation
+        )
+        if result.get("status") == "queued" and not result.get("deduplicated", False):
+            job_id = result.get("job_id")
+            job = session.get(Job, UUID(job_id)) if isinstance(job_id, str) else None
+            if job is None:
+                continue
+            checkpoint = json.loads(job.checkpoint or "{}")
+            checkpoint.update(research_digest=digest, research_rank=rank)
+            job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+            queued += 1
+            if queued >= limit:
+                break
     return queued
 
 
@@ -759,6 +923,7 @@ def process_company_contact_discovery(
 ) -> dict:
     """Fetch outside a transaction, then persist only under the current fence."""
     now = now or datetime.now(UTC)
+    now = now.replace(tzinfo=UTC) if now.tzinfo is None else now.astimezone(UTC)
     local_deadline = time.monotonic() + MAX_SECONDS
     deadline = min(deadline, local_deadline) if deadline is not None else local_deadline
     with SessionLocal() as session:
@@ -968,6 +1133,7 @@ def process_company_contact_discovery(
         checkpoint.update(
             status=status,
             completed_at=now.isoformat(),
+            refresh_due=refresh_due,
             checked_urls=list(fetched),
             failures=failures,
             projects_checked=[str(anchor_id)] if anchor_id else [],

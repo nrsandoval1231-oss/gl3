@@ -26,6 +26,12 @@ Each stage must retain the current accepted result when retrieval, extraction, b
 
 Removing a public route does not authorize removing a persistence service that also ingests machine evidence. Conversely, retaining a legacy model does not justify exposing a manual workflow. Test the actual mounted API and browser flow as well as preserved read/assessment behavior.
 
+## Upstream intelligence imports and graph
+
+PR #125 adds immutable workbook/CSV staging and reversible import activation, canonical company/project graph reads, imported assertions, a durable incremental company scan cursor, and exact-scope power projections. These capabilities are retained. Import staging is an operations migration utility, never a customer fact-entry dependency; imported methods remain explicitly unverified and cannot award qualification or replace accepted source-backed contact methods. Historical contact corrections and relationship assertions remain readable with their original provenance, without public mutation routes or manual-only write services. The source-preserving additive migrations 0042–0044 are unchanged from upstream.
+
+The company scan reuses canonical identities and bounded queued jobs. Evidence/input digests, supported timing and research priorities guide refresh; they do not turn campus demand into a residual rental gap. Current-method checks, thirty-day refresh, retry intervals, per-planner locking and source failure receipts remain in force after integration.
+
 ## Commercial and operational controls
 
 TX/OK/NM physical-site eligibility, the inclusive 300 kW visibility floor, original Signal/Prospect/Lead gates and source scope apply at admission, indexed queries and exports. Company headquarters and source geography do not establish site eligibility. Facility load, activity-specific demand, committed suitable supply and residual gap remain distinct. Confidence, priority and commercial disposition are separate outputs with reasons and current citations.

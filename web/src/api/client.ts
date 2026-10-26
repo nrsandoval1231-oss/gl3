@@ -104,6 +104,9 @@ export type ResearchOverview = components['schemas']['ResearchOverviewOut']
 export type ResearchRoute = components['schemas']['ResearchRouteOut']
 export type ResearchQuestion = components['schemas']['ResearchQuestionOut']
 
+export type CompanyGraph = components['schemas']['CompanyGraphOut']
+export type CompanyGraphEvidence = components['schemas']['GraphEvidence']
+
 async function api<T>(path: string, init?: RequestInit, includeSafeDetail = false): Promise<T> {
   const response = await fetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })
   if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
@@ -234,6 +237,12 @@ export const client = {
     if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
     if (!response.ok) throw new Error(`Could not load contacts (${response.status}).`)
     return response.json()
+  },
+  companyGraph: async (companyIdentityId: string, signal?: AbortSignal): Promise<CompanyGraph> => {
+    const response = await fetch(`/api/companies/${encodeURIComponent(companyIdentityId)}/graph`, { credentials: 'same-origin', signal })
+    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    if (!response.ok) throw new Error(`Could not load company intelligence (${response.status}).`)
+    return response.json() as Promise<CompanyGraph>
   },
   customerAccountProjects: async (companyIdentityId: string, offset = 0, needOffset = 0, signal?: AbortSignal): Promise<CustomerProjectsPage> => {
     const params = new URLSearchParams({ limit: '25', offset: String(offset), need_limit: '25', need_offset: String(needOffset) })

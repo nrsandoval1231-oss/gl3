@@ -2,6 +2,8 @@
 
 Current implementation follows the owner-approved [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) and [current owner request](../../.agent/OWNER_REQUEST.md). The autonomous pipeline must operate independently of the user's device, but repository implementation and local checks do not prove deployed operation. Exact deployed images/schema, scheduler cadence, provider credentials/budgets, alerts and recovery remain subject to current environment verification.
 
+Current product routes for company graph, contacts, and power enrichment are read-only projections. Manual contact/company relationship correction, qualification, workflow-status, and ad hoc research queue writes are not supported user workflows. Preserve their historical assertions and correction receipts for audit and projection; do not direct operators to recreate them through an API, CLI, or database edit. Internal authorized workbook staging and autonomous worker scheduling remain separate mechanisms, with their own provenance and safeguards.
+
 Earlier October 24 release authorization and observations below are historical, candidate-specific context; they are not continuing authorization to deploy this surgery, spend provider credits, modify credentials or mutate production data. Use the [autonomous retention map](../architecture/autonomous-intelligence.md) and [Finish Contract](../../.agent/FINISH_CONTRACT.md) for current implementation and acceptance boundaries.
 
 ## Runtime and release procedure
@@ -14,12 +16,13 @@ The alternate `deploy/digitalocean/` proposal is not the actual production runbo
 
 ## Recovery and remaining limits
 
-Take a fresh on-host checkpoint through the established mechanism before cutover. Verify its archive, digest and required restoration/rollback evidence. Existing local retained-data rehearsals are evidence for their exact images/dumps only. One successful off-host copy does not establish scheduled retention. Production data corrections require attributed evidence, exact expected versions, dry-run results and reversible history.
+Take a fresh on-host checkpoint through the established mechanism before cutover. Verify its archive, digest and required restoration/rollback evidence. Existing local retained-data rehearsals are evidence for their exact images/dumps only. One successful off-host copy does not establish scheduled retention. Production data changes require separate authorization, attributed source evidence, dry-run results and reversible history. Human contact, relationship, qualification or workflow corrections are not supported product API/CLI operations; preserve existing correction receipts and history.
 
 [Security dispositions](hardening-security-20261024.md), [runtime/source findings](hardening-runtime-20261024.md), [credential/commercial boundaries](hardening-credentials-and-acceptance-20261024.md) and [current source follow-up](completion-source-findings-20261024.md) retain unresolved limits. Package audit success does not clear every runtime vendor finding. Historical key ownership and the original 446-record corpus remain unresolved; no new credential lookup or paid call is implied.
 
 ## Guides and historical evidence
 
+- [Historical Intelligence Sprint 1 guide](INTELLIGENCE_SPRINT1.md) and [candidate evidence report](../validation/intelligence-sprint1/REPORT.md): dated PR125 implementation notes, not current operating procedures, API support, deployment approval, provider authority, or a readiness claim.
 - [Runtime configuration](runtime-configuration.md), [local runtime](local-runtime.md), [local recovery](runtime-recovery.md), and [local restore drill](local-restore-drill.md).
 - [Delivery gates](../delivery/milestones.md), [production intelligence record](production-pipeline-20261023.md), and [prior readiness audit](readiness-audit-20261024.md).
 - [October 20 observation](observations/2026-10-20-production-readonly.md) and [archived former operations index](../../.agent/archive/COMPLETION-20261024/operations-README.md) preserve dated evidence and superseded unknowns.

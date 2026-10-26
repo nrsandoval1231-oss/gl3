@@ -69,6 +69,7 @@ def test_nsr_rate_limit_keeps_valid_prefix_and_defers_later_documents(monkeypatc
             return httpx.Response(200, headers={"content-type": "text/html"}, content=b"rows")
         return _pdf_response(200) if len(requested) == 2 else _pdf_response(429, "120")
 
+    request_started_at = datetime.now(UTC)
     records = adapter.retrieve(
         {"id": adapter.SOURCE_ID, "endpoint": adapter.LISTING_URL, "query": {"max_summaries": 3}},
         httpx.Client(transport=httpx.MockTransport(handler)),
@@ -76,10 +77,12 @@ def test_nsr_rate_limit_keeps_valid_prefix_and_defers_later_documents(monkeypatc
     assert len(requested) == 3  # listing, first success, second throttled; no third PDF request
     assert records[0]["permit"]["summary_fetched"] is True
     assert records[1]["presence_only"] is True
-    assert records[1]["_acquisition_diagnostics"] == {
-        "retry_after_seconds": 120,
-        "http_status": 429,
-    }
+    diagnostics = records[1]["_acquisition_diagnostics"]
+    assert diagnostics["retry_after_seconds"] == 120
+    assert diagnostics["http_status"] == 429
+    retry_at = datetime.fromisoformat(diagnostics["retry_after_at"])
+    assert request_started_at + timedelta(seconds=120) <= retry_at
+    assert retry_at <= datetime.now(UTC) + timedelta(seconds=120)
     assert records[2]["presence_only"] is True
     assert records[2]["rejected_record"]["error_code"] == "document_deferred"
 

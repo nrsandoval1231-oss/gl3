@@ -9,3 +9,5 @@ Preserve backend historical CallFactVersion/Decision, workflow-status events, Pu
 Earlier contact-recovery results and release reports remain dated evidence. Benchmark artifacts are not current accepted contacts and must not be blindly imported into the live graph. Contact verification, freshness, provider connectivity/licensing, paid budget, remote CI and actual cloud operation remain UNKNOWN until separately measured. Existing code defaults do not prove deployed environment values. No deployment or destructive data operation is claimed.
 
 The previous active state is preserved verbatim in [the governance archive](archive/AUTONOMOUS-20261026/README.md). Do not replay historical provider budgets, credentials, release authorizations or completion claims as current instructions.
+
+Upstream PR #125 (`d75a856`) was integrated during this work. Its workbook staging, source-preserving imports, read-only company graph, scoped power projection and incremental enrichment are retained; its manual contact/relationship corrections are retired under the canon. Its previous current-state record is preserved in the governance archive.

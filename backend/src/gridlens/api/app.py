@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy import Date, Text, and_, cast, func, literal, or_, select, text, union_all
 from sqlalchemy.orm import joinedload
 
+from gridlens.api.enrichment import router as enrichment_router
 from gridlens.api.intelligence import router as intelligence_router
 from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import (
@@ -112,6 +113,7 @@ from gridlens.settings import settings
 
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
 app.include_router(intelligence_router)
+app.include_router(enrichment_router)
 
 
 @app.exception_handler(CurrentOperatorInputBoundExceeded)
@@ -2190,7 +2192,6 @@ def pursuit_workspace(
         mw_min=mw_min,
         mw_max=mw_max,
         priority_segment=None,
-        status=None,
         search=search,
         industry_group=industry_group,
     )
@@ -2438,11 +2439,11 @@ from gridlens.intelligence.company_contacts import CompanyContacts  # noqa: E402
     dependencies=[Depends(require_session)],
 )
 def customer_account_contacts(company_identity_id: UUID):
-    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.intelligence.contact_assertions import project_contact_assertions
 
     with SessionLocal() as session:
         _begin_consistent_read(session)
-        return company_contacts(session, company_identity_id)
+        return project_contact_assertions(session, company_identity_id)
 
 
 @app.get(

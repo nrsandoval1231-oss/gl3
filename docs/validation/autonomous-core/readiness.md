@@ -6,7 +6,7 @@ Status: integration validation in progress. This report is not production accept
 
 The implementation starts at PR #124 (`edd409b13042d24d5d8ac7919411dc4b6f3145a5`). The [Autonomous Intelligence Canon](../../product/AUTONOMOUS_INTELLIGENCE_CANON.md) controls the reconciled [PRD](../../product/PRD.md), [architecture](../../architecture/autonomous-intelligence.md), and [path-level contradiction/retirement inventory](../../architecture/autonomous-migration-inventory.md). Original governing records remain in the lossless governance archive.
 
-The changes preserve PostgreSQL, existing ingestion adapters, physical-project identity, source/version attribution, historical facts/corrections, deterministic qualification and residual-gap arithmetic, TX/OK/NM eligibility, the 300 kW floor, authentication, and the seven-color G/L identity. No persistence model, migration, production data, or deployed environment has been changed by this work.
+The changes preserve PostgreSQL, existing ingestion adapters, physical-project identity, source/version attribution, historical facts/corrections, deterministic qualification and residual-gap arithmetic, TX/OK/NM eligibility, the 300 kW floor, authentication, and the seven-color G/L identity. PR #125 (`d75a856`) landed during implementation and is integrated here. Its additive persistence models and migrations 0042–0044 are preserved unchanged. This surgery adds no further schema migration; no production data or deployed environment was changed.
 
 ## Implementation delivered for validation
 
@@ -19,12 +19,12 @@ The changes preserve PostgreSQL, existing ingestion adapters, physical-project i
 
 ## Test evidence
 
-Final integrated results will replace this in-progress section. The initial baseline and focused builder checks do not substitute for the complete integrated gate.
+The first complete 2,971-test backend gate at `ce2b062` failed: 2,882 passed, 87 failed, one skipped and one setup error. Its [failure receipt](initial-integrated-gate.json) is retained. It exposed obsolete test contracts and a real workspace call-signature defect; fixes and a new complete run are required. Final integrated results will replace this in-progress section. The initial baseline and focused builder checks do not substitute for the complete integrated gate.
 
 - Baseline: lint/format/type checks passed; frontend build passed; 603 backend tests passed before the serial baseline was deliberately stopped for integration. Baseline browser checks passed 201 tests with one skip after installation-related launch failures were rerun.
-- Integrated unit checkpoint: 1,839 passed, one skipped, seven subtests passed. Full PostgreSQL regression and final browser acceptance remain pending here.
-- Fresh disposable PostgreSQL 18.6 migration, repeated upgrade, and Alembic drift check passed. Schema files remain unchanged.
-- Locked backend, frontend and brand dependency audits reported no known vulnerabilities. No lockfile changes are introduced.
+- Integrated unit checkpoint: 1,839 passed, one skipped, seven subtests passed. The subsequent browser checkpoint passed all 115 tests; real 390-pixel screenshots were inspected and retained under `screenshots/`. Full PostgreSQL regression and final post-upstream browser acceptance remain pending here.
+- Fresh disposable PostgreSQL 18.6 migration, repeated upgrade, and Alembic drift check passed. Schema files are unchanged relative to the incorporated upstream main; fresh/repeated/drift checks must also cover upstream revisions 0042–0044.
+- Locked backend, frontend and brand dependency audits reported no known vulnerabilities. Upstream PR #125 adds the locked openpyxl dependency; final dependency audit must cover that incorporated lockfile.
 - Brand structural validation passed for 216 assets and eight semantic AA contrast pairs; final UI screenshots remain separately required.
 - The [independent review ledger](independent-review.md) records findings, fix verification and its own limits. An initial review request for changes is not approval.
 
@@ -38,6 +38,6 @@ The ordinary TCEQ pending-permit worker check failed with a visible network erro
 
 ## Data safety, recovery and deployment gate
 
-No table/column drops, historical rewrites, production backfills, production migrations, merges, or deployments occurred. Existing append-only history remains readable. Schema retirement is intentionally deferred: leaving retained history tables is not retaining public manual workflows. This code release needs no new migration or recovery of deleted data. Worker rollback still requires checkpoint/status compatibility verification: an older queue must honor the new `retry_after_unrepresentable` hold before resuming affected sources. Retain the current worker or backport that hold behavior if the prior worker does not recognize it; do not silently release publisher retry holds.
+No table/column drops, historical rewrites, production backfills, production migrations, merges, or deployments occurred. Existing append-only history remains readable. Schema retirement is intentionally deferred: leaving retained history tables is not retaining public manual workflows. Relative to current upstream main this surgery needs no additional migration or recovery of deleted data. An installation still at schema 0041 must apply the retained upstream additive migrations 0042–0044 with its existing backup/recovery procedure; do not downgrade them destructively or discard imported rows. Worker rollback still requires checkpoint/status compatibility verification: an older queue must honor the new `retry_after_unrepresentable` hold before resuming affected sources. Retain the current worker or backport that hold behavior if the prior worker does not recognize it; do not silently release publisher retry holds.
 
 Before production release, independently validate the exact release images/configuration, backup and restore, real source network compatibility, worker/browse processes and heartbeat/retry health, contact/provider permissions and cost limits, and source/identity/contact coverage. Observe unattended scheduled operation and the retained launch gates rather than inferring them from local tests. Current direct-buyer yield, full live source coverage, seven consecutive daily cycles, and a reviewed real Lead remain unverified. Deployment is a separate acceptance gate.

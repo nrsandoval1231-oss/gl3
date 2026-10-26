@@ -83,3 +83,64 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 The historical v12 benchmark reported 4 of 20 companies with usable company methods (20%), 2 companies with named professionals, and zero direct buyer methods. Its production observation reported zero customer email/phone coverage among 235 eligible primary customers. These are historical baselines, not measurements of this candidate, current provider availability or production operation. Apollo access/licensing and current paid-provider budget require separate evidence; no free or authorized dataset is assumed.
 
 The controller must verify actual physical deletions, remaining imports/callers, mounted routes/OpenAPI, preserved historical reads/data, focused tests and full relevant gates against the integrated candidate. Unused manual code cannot be left behind merely by hiding the navigation. See the [retention map](autonomous-intelligence.md) and [Finish Contract](../../.agent/FINISH_CONTRACT.md).
+
+## Upstream PR125 change inventory (43 changed paths)
+
+These entries disposition every path introduced or changed by upstream PR125
+against base `3ce9e8a`. `KEEP` means preserve compatible, provenance-bearing
+capability/data. `TRANSFORM` means retain the autonomous/read-only or internal
+function while removing user-operated mutation. `ARCHIVE` means retain the dated
+plan/evidence without current authority. This table is a disposition map, not a
+claim that every integration gate has passed. The current Canon prevails where the
+upstream candidate exposed correction or manual workflow writers.
+
+| Changed path | Disposition | Canonical result |
+|---|---|---|
+| `.agent/CURRENT_STATE.md` | TRANSFORM | Root-owned integration state; it must report the exact integrated candidate and current gates, not inherit PR125's checklist as current readiness. |
+| `.agent/history/pre-sprint1-20261025-CURRENT_STATE.md` | ARCHIVE | Preserve the dated pre-sprint snapshot as historical context. |
+| `.agent/sprint1/PLAN.md` | ARCHIVE | Preserve original ownership/checklist history with a prominent nonauthoritative notice; the Canon supersedes manual correction and route requirements. |
+| `backend/migrations/versions/0042_external_imports.py` | KEEP | Retain additive import batches, raw-row provenance, matching/audit state and rollback history; no blind row deletion or promotion. |
+| `backend/migrations/versions/0043_company_graph_assertions.py` | KEEP | Retain graph assertion/correction history for provenance and historical reads; do not use it to restore manual relationship editing. |
+| `backend/migrations/versions/0044_enrichment_planner_cursor.py` | KEEP | Retain durable autonomous planner cursor state and its bounded scheduling behavior. |
+| `backend/pyproject.toml` | KEEP | Preserve dependencies needed by supported import/parsing and enrichment code; validate the locked environment separately. |
+| `backend/src/gridlens/api/app.py` | TRANSFORM | Keep authenticated supported reads and autonomous integrations; remove any manual contact, relationship, buying-chain correction or operator workflow write routes. |
+| `backend/src/gridlens/api/enrichment.py` | TRANSFORM | Keep GET-only graph, contact assertion and power enrichment projections; remove the contact-correction POST writer. |
+| `backend/src/gridlens/domain/company_graph.py` | TRANSFORM | Keep graph projection and historical correction-state interpretation; remove manual assertion/correction writer logic and writer-only source helpers. |
+| `backend/src/gridlens/domain/power_enrichment.py` | KEEP | Preserve exact-scope, evidence-bound scenarios, ranges, provenance and explicit unknown supply; no tier promotion or invented values. |
+| `backend/src/gridlens/ingestion/workbook_import.py` | KEEP | Preserve bounded preview, source-row provenance, mapping and conservative normalization; imported rows remain unverified and do not qualify needs. |
+| `backend/src/gridlens/intelligence/company_contact_discovery.py` | TRANSFORM | Keep scheduled, fair, bounded source research and refresh; remove manual correction/status flow and preserve outcome-aware retries. |
+| `backend/src/gridlens/intelligence/company_contacts.py` | TRANSFORM | Keep evidence-backed contact projection, freshness and verification distinctions; imported assertions remain separately labeled and unverified. |
+| `backend/src/gridlens/intelligence/company_graph.py` | KEEP | Keep read-only company/project graph projection with exact identity and evidence provenance. |
+| `backend/src/gridlens/intelligence/contact_assertions.py` | TRANSFORM | Keep assertion projection and provenance/status helpers; remove `correct_contact_assertion` and manual correction writes. |
+| `backend/src/gridlens/intelligence/enrichment_planner.py` | TRANSFORM | Keep durable autonomous planning, bounded cohorts and refresh reasons; no user queue writer or correction workflow. |
+| `backend/src/gridlens/intelligence/external_imports.py` | KEEP | Keep isolated staging, matching explanations, source-row retention and reversible batch history; imports never directly admit or qualify opportunities. |
+| `backend/src/gridlens/intelligence/project_enrichment.py` | KEEP | Preserve deterministic project power projection and audit bindings, including unknown values. |
+| `backend/src/gridlens/persistence/contact_models.py` | KEEP | Retain assertion and correction models/rows for historical provenance and readback; do not drop data because their writer is retired. |
+| `backend/src/gridlens/persistence/models.py` | KEEP | Keep additive import, graph, assertion and planner models; preserve current and historical records without destructive schema/data cleanup. |
+| `backend/tests/integration/test_enrichment_planner_persistence.py` | TRANSFORM | Preserve cursor persistence, fairness and autonomous retry coverage; remove tests that require manual relationship/correction writers. |
+| `backend/tests/integration/test_external_imports.py` | KEEP | Retain disposable-database coverage for preview/staging provenance, matching, replay and rollback. |
+| `backend/tests/integration/test_project_power_enrichment.py` | KEEP | Retain exact-scope evidence, interval, unknown-supply and nonpromotion regression coverage. |
+| `backend/tests/unit/test_company_graph.py` | TRANSFORM | Keep read projection and historical correction-state tests; remove manual graph assertion/correction writer expectations. |
+| `backend/tests/unit/test_contact_assertions.py` | TRANSFORM | Keep source/provenance projection and unverified-state tests; replace correction-writer tests with retired-route absence and data-preservation checks. |
+| `backend/tests/unit/test_enrichment_api.py` | TRANSFORM | Keep authenticated GET/read contract coverage; assert correction mutation routes are absent. |
+| `backend/tests/unit/test_enrichment_planner.py` | KEEP | Preserve autonomous planning order, category fairness, bounds and cursor behavior. |
+| `backend/tests/unit/test_power_enrichment.py` | KEEP | Preserve deterministic power range, phase boundary, evidence provenance and unknown semantics. |
+| `backend/tests/unit/test_workbook_import.py` | KEEP | Preserve parser limits, mappings, errors and conservative handling of capacity/date fields. |
+| `backend/uv.lock` | KEEP | Keep dependency lock synchronized with retained code; do not infer activation or provider authorization from package presence. |
+| `config/import-mappings/project-tracker.json` | KEEP | Preserve explicit source-column mapping and original-field distinction; mapping alone does not establish procurement authority. |
+| `docs/operations/INTELLIGENCE_SPRINT1.md` | ARCHIVE | Retain as the dated PR125 guide with a prominent notice; remove any current instruction to call manual correction writers. |
+| `docs/operations/README.md` | TRANSFORM | Keep current runtime/release safeguards, identify PR125 records as historical, and state that contact/graph correction and user queue writers are unsupported. |
+| `docs/validation/intelligence-sprint1/REPORT.md` | ARCHIVE | Preserve exact candidate/environment measurements with a nonauthoritative notice; do not treat them as current readiness or production evidence. |
+| `scripts/benchmark_intelligence.py` | KEEP | Retain as an internal, bounded benchmark utility; outputs are candidate/environment-specific, not current production claims. |
+| `scripts/import_intelligence.py` | KEEP | Retain isolated preview/staging/history/rollback operations with explicit disposable-database guards and audit preservation; no automatic production promotion. |
+| `web/src/api/client.ts` | TRANSFORM | Keep supported read clients; remove generated/manual contact correction and retired user workflow writers. |
+| `web/src/api/generated.ts` | TRANSFORM | Regenerate from the final authenticated GET-only contract; do not expose retired correction mutations in client types. |
+| `web/src/api/openapi.json` | TRANSFORM | Regenerate after route removal so retired manual correction operations are absent. |
+| `web/src/features/workspace/CompanyContacts.tsx` | KEEP | Keep source-backed contacts, explicit unknown/verification labels and isolated imported-unverified references; no correction controls. |
+| `web/src/features/workspace/CompanyGraph.tsx` | KEEP | Keep the read-only graph and source-linked relationship context, visibly distinguished as unverified where evidence does not establish it. |
+| `web/tests/company-intelligence.spec.ts` | TRANSFORM | Preserve graph/contact/search/mobile read coverage and verify manual correction controls/routes are absent. |
+
+Historical staging data and assertion/correction receipts remain part of the
+retention boundary. Schema changes are additive and require ordinary migration,
+drift, backup/restore and release verification; this inventory authorizes no
+production migration, data rewrite, provider spend or deployment.
