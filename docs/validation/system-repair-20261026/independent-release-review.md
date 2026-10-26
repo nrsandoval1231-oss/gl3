@@ -10,6 +10,8 @@ The latest owner directive conditionally authorizes merge and deployment **only 
 
 Baseline `29c4fe085cd261c19c4aeb7b1b4cca4dc538a006` is clean and application-source equivalent to accepted `b71306f`. The reviewer independently checked that source diff and [CI run 40267075523](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40267075523). Its exact head and successful conclusion match. Backend job logs independently retrieved through the GitHub connector report **3,101 passed, 1 skipped**, **120 browser regressions passed**, Ruff success and mypy success across **173 source files**. These checks do not establish commercial acceptance or the four real-corpus scenarios below.
 
+**Current reviewed source:** `75724eb1d893e8a9a5be020b221c8d0dea808834`. Source review permits freezing this candidate for final validation; no remaining implementation blocker was found after the corrections below. **Exact-candidate full engineering validation remains pending.** Earlier source-only readbacks and dated test runs do not substitute for that gate.
+
 ## Prospective commercial methodology
 
 The lead proposed the following coverage minimums before scoring; the independent reviewer accepted them with the definitions below. **These numbers are reviewed release minimums, not thresholds supplied by the owner, production-wide performance estimates or statistical confidence claims.** They require broad company attribution, useful named outreach for a majority of the sample, and a substantial set of project-specific actionable results while keeping precision and provenance strict.
@@ -50,6 +52,7 @@ At 14:03–14:08 UTC, the reviewer independently checked the full local API arti
 | Signal qualification | 25 of 25 |
 | Unknown activity MW, start, duration, supply and qualified remaining gap | 25 of 25 for every field |
 | Company routes supported by literal project-organization citations | 25 of 25 diagnostic records |
+| Unique primary company identity IDs in those routes | 21 |
 | Named owner representatives | 4 |
 | Published organization phone methods | 4 |
 | Person-bound published methods | 0 |
@@ -57,6 +60,8 @@ At 14:03–14:08 UTC, the reviewer independently checked the full local API arti
 | Named-professional methods meeting the minimum | 0 of 15 required |
 | Demonstrated distinct physical projects with supported power floor | 0 of 25 required |
 | Strict commercially actionable projects | 0 of 10 required |
+
+The reviewer caught and corrected the adjudication artifact's initial count of 25 unique primary companies: there are 25 project-route occurrences but only 21 distinct primary company IDs and organization strings. Four named representatives initially had separate automatic company links despite matching their organization peers. That measured identity split is distinct from four additional real companies; the final source repair below addresses narrowly supported alignment, but the original measurement is not silently rewritten as a post-repair result.
 
 The API contains 21 WATCH and four ACTION NOW dispositions. The latter are discovery-call priorities: their source-backed organization phone does not establish personal reachability, purchasing authority, activity demand or a remaining gap. All remain Signals. The existing backend reason explicitly calls for a discovery call to confirm the unknowns; the reviewer requested a visible list/table clarification because the bare ACTION NOW label under “Qualification” could otherwise overstate readiness. This does not change the commercial benchmark definitions.
 
@@ -82,7 +87,7 @@ The builder's durable receipt reports **45 tests passed**, repeat upgrade succes
 ## Four real-corpus browser gates
 
 1. **Data center:** a genuine persisted project exposes owner, gap or its explicit limits, timing, buying organization and cited contacts.
-2. **Midstream/compression/processing:** an actual project exposes supported power assertions, physical location, customer and rental relevance.
+2. **Midstream/compression/processing or similar infrastructure:** an actual project exposes supported power assertions, physical location, customer and rental relevance. An upstream drilling record may be a genuine diagnostic within this wording, but a permit alone does not establish demand or rental relevance.
 3. **Bridge power:** genuine evidence establishes delayed energization, temporary supply or a utility constraint; the product must not infer bridge demand solely from facility capacity.
 4. **Contact to action:** a source-backed relevant contact has a usable outreach action with correct attribution, freshness and verification limits.
 
@@ -96,7 +101,22 @@ Before release acceptance, provide the current production revision/schema/data i
 
 The independent reviewer will inspect the **final integrated candidate**, all 25 adjudications, the four browser receipts and production-readiness evidence before accepting or rejecting release. A changed source candidate requires the appropriate final engineering validation. Post-deployment service, commercial behavior, data-preservation and exact-revision receipts remain required after any authorized release. Pending access or missing evidence is a blocker, not an inferred pass.
 
-## Interim source and repair readback
+## Final source corrections and browser readback
+
+The current candidate supersedes the `8b25d88` source-only review and failed full gate described below. The reviewer verified exact integrated source equivalence for the final workbook reader and company-alignment guard.
+
+- **Contact retention and freshness:** the TDLR repair preserves OWNER-scoped names and literal organization phone labels, while retaining separate person and company method attribution. Previously checked contact URLs again precede new organization/import seeds. The native-refetch receipt advances existing buying-chain source freshness only after actual acquisition, exact source/project/hash checks and renewed job/source fencing. Retained-only replay cannot refresh those receipts; raw Evidence hash, observation date and text remain unchanged. Reviewed tests cover old parser representation, unchanged refresh, aged fetched/unfetched projects and stolen leases. The reviewer independently ran eight pure TDLR extraction checks; the builder reports twelve focused lifecycle checks. These are separate from the pending full gate.
+- **Bounded workbook hint consumption:** active, matched rows expose unverified URL seeds only. No hint becomes a contact assertion without the existing safe-fetch, publisher/relationship and literal-method checks. The reviewer reproduced a false JSONPath cap: the intended 100-item slice returned all 150 matching hints. The initial reader also hydrated full raw/report JSON before checking bytes. Integrated `9b7ad38` replaces that path with scalar SQL projections, a true 64-hint limit per row, UTF-8 target/full-item bounds before transfer, 100 considered rows, eight output URLs and explicit truncation. Oversized metadata does not abort unrelated company planning. A second independent read-only SQL reproduction, with an oversized multibyte target first among 151 matches, returned exactly 64 valid hints. The builder reports 19 import integration tests; `e0959d3` strengthens the byte-filter regression. Original source rows and activation state remain unchanged.
+- **Company alignment and privacy:** `a496cdb` aligns only a named person's automatic project-scoped company link to one personless peer sharing the exact project, current immutable source/version/hash, organization quote and supported person role. It retains superseded links and the separate person identity, and skips reviewed/strong links, ambiguity and policy-filtered subjects. Subsequent independent review found a blocking method-suppression leak: changing the company ID could revive a method suppressed under the old company key, even though the person was not fully suppressed. The coordinator's lead independently reproduced it in PostgreSQL. **`75724eb` closes this new alignment path conservatively:** any method-scope suppression ledger history disables this narrow alignment helper before it changes links, including controls for methods absent from the current source. Company-suppression tests also preserve the old link and redaction. Operational limitation: unrelated or reinstated method history can leave duplicate automatic company links unresolved; this guard does not disable the existing identity-resolution pipeline. The builder reports five focused passes. The reviewer independently ran the pure cross-project/source/name rejection test: one passed; an initial collection attempt lacked settings, and the successful rerun used dummy settings without a database connection.
+- **Visible commercial meaning:** Signals with ACTION NOW now display “Discovery call · Power need unconfirmed” in the opportunity table. Organization methods explicitly say company/owner-company route. The prior bare “Verified” timestamp is replaced by “Published method source checked,” accurately describing the native source observation rather than independent phone/mailbox verification.
+
+The reviewer inspected the corrected real D mobile screenshot and its source-bound manifest. It displays a named owner representative without a personal method, a separate owner-company phone action matching the official TDLR quote, unknown power/gap/timing and authority requiring confirmation. An initially stale screenshot and contradictory “D NOT RUN” receipt paragraph were identified and replaced in integrated `2ab11cf`; the test now asserts the corrected source-check wording. Under the prospectively agreed definition, D demonstrates truthful source-backed discovery contact-to-action. It does not close the named-person-method or strict commercial-actionability thresholds. No call or outreach occurred.
+
+The browser lane reports two successful A/D executions after the wording repairs, plus earlier A/B diagnostics and the historical Crusoe C bridge case. The independent reviewer inspected the retained source and screenshots but did not rerun these browser sessions. A remains partial because demand, power timing/gap and purchasing authority are unsupported. B remains an upstream-well diagnostic with unsupported demand/relevance, not a midstream case. C supports reported historical/in-use bridge power, not a current open purchase. **Four complete commercial browser gates have not passed**, and these mixed-revision diagnostic runs do not replace the final candidate's browser regression gate.
+
+The current [release and rollback plan](../commercial-release-20261026/deployment-and-rollback.md) correctly requires production inventory, logical restore proof and compatible rollback retaining populated 0045/0046 history. The reviewer found no issue in that plan; its required production observations remain unavailable. Commercial release is still **NOT ACCEPTED**.
+
+## Historical interim source and repair readback
 
 Application candidate reviewed: **`8b25d888211c90ed93b9188c698a89ec3f938277`**, including the complete source delta from baseline `29c4fe0`. **No remaining implementation blocker was found in this delta.** This accepts the source review, not full regression or commercial release. Exact-candidate full backend/browser gates and the commercial/production requirements above remain pending.
 
