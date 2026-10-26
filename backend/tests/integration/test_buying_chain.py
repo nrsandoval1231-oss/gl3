@@ -2588,20 +2588,6 @@ def test_api_auth_origin_unknown_project_and_url_bound(db, monkeypatch):
     )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def test_buying_chain_api_hides_identity_link_with_unsupported_citation(db, monkeypatch):
     api = import_module("gridlens.api.app")
     monkeypatch.setattr(api, "SessionLocal", db)
@@ -3254,8 +3240,6 @@ def test_correction_order_follows_expected_version_links_and_rejects_forks():
     assert _ordered_correction_chain("initial", [disconnected]) is None
 
 
-
-
 def test_identity_attachment_uses_expected_version_order_for_equal_timestamps(
     entity_type, subject_field, support
 ):
@@ -3330,8 +3314,6 @@ def test_identity_attachment_uses_expected_version_order_for_equal_timestamps(
 
     _attach_identity_ids(Session(), [{"candidates": [candidate]}])
     assert candidate[f"{entity_type}_identity_id"] == str(identity_id)
-
-
 
 
 def test_chicago_default_exact_id_fetch_and_contractors_without_supplied_url(db):
@@ -4863,8 +4845,6 @@ def test_company_contact_survives_retained_refresh_commit_and_api(db, monkeypatc
     response = client.get(f"/api/customer-accounts/{company_id}/contacts")
     assert response.status_code == 200
     assert response.json()["contacts"][0]["methods"][0]["href"] == "mailto:office@acme.example"
-
-
 
 
 def test_contact_recovery_requeues_legacy_success_once(db, monkeypatch):

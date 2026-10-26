@@ -35,9 +35,7 @@ RETIRED_OPERATOR_ROUTES = {
 
 def test_operator_workflow_routes_are_removed_from_public_api_and_openapi():
     registered = {
-        (method, route.path)
-        for route in app.routes
-        for method in getattr(route, "methods", ())
+        (method, route.path) for route in app.routes for method in getattr(route, "methods", ())
     }
     assert not (registered & RETIRED_OPERATOR_ROUTES)
 
@@ -50,9 +48,7 @@ def test_operator_workflow_routes_are_removed_from_public_api_and_openapi():
 
 def test_autonomous_research_request_and_status_routes_remain_available():
     registered = {
-        (method, route.path)
-        for route in app.routes
-        for method in getattr(route, "methods", ())
+        (method, route.path) for route in app.routes for method in getattr(route, "methods", ())
     }
     assert ("GET", "/api/commercial/triage/{need_id}/autonomous-research") in registered
     assert ("GET", "/api/search") in registered

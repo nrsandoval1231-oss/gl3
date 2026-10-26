@@ -102,8 +102,6 @@ def _state(factory):
         return state.input_revision, state.generation_id
 
 
-
-
 def test_initial_draft_batch_is_suppressed_but_mixed_late_draft_is_fenced(publication_db):
     factory = publication_db
     need_ids = _seed(factory, count=4)

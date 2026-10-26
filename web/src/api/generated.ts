@@ -1478,7 +1478,7 @@ export interface components {
             verification_status: string;
             /**
              * Confidence
-             * @default High: literal contact method in current retained evidence
+             * @default Literal method attributed to this company in current retained evidence; deliverability and authority unconfirmed
              */
             confidence: string;
             /**

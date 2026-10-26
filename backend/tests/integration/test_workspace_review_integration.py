@@ -444,10 +444,6 @@ def test_date_only_fact_correction_is_material_only_when_effective_window_change
         assert corrected_items == []
 
 
-
-
-
-
 def test_workspace_change_get_has_constant_query_count_with_acknowledged_history(runtime):
     client, factory, project_id, need_ids, observation_id = runtime
     now = datetime.now(UTC)

@@ -128,6 +128,7 @@ def chicago_today(now: datetime | None = None) -> date:
     current = now or evaluation_now(datetime.now(UTC))
     return current.astimezone(ZoneInfo("America/Chicago")).date()
 
+
 class EvidenceOut(BaseModel):
     id: UUID
     title: str
@@ -145,6 +146,7 @@ class EvidenceOut(BaseModel):
     assessment_current: bool = False
     permit_status: str | None = None
 
+
 class EvidenceContentOut(BaseModel):
     evidence_id: UUID
     content_hash: str
@@ -153,6 +155,7 @@ class EvidenceContentOut(BaseModel):
     total_chars: int
     content: str
     next_offset: int | None
+
 
 class LifecycleEventOut(BaseModel):
     state: str
@@ -164,10 +167,12 @@ class LifecycleEventOut(BaseModel):
     published_at: DateType | None = None
     event_date_label: str | None = None
 
+
 class AssociatedAccountEvidenceRefOut(BaseModel):
     namespace: Literal["retained-evidence", "buying-chain-evidence"]
     id: str
     retained_evidence_id: str | None = None
+
 
 class AssociatedAccountOut(BaseModel):
     company_identity_id: UUID
@@ -176,6 +181,7 @@ class AssociatedAccountOut(BaseModel):
     basis: str
     support_status: Literal["current"]
     evidence_refs: list[AssociatedAccountEvidenceRefOut]
+
 
 class OpportunityOut(BaseModel):
     intelligence_card: IntelligenceCard | None = None
@@ -245,6 +251,7 @@ class OpportunityOut(BaseModel):
     title_citations: list[dict[str, Any]] = Field(default_factory=list)
     evidence_count: int | None = None
 
+
 class PursuitWorkspaceItemOut(OpportunityOut):
     commercial_disposition: str
     commercial_reason: str
@@ -261,11 +268,13 @@ class PursuitWorkspaceItemOut(OpportunityOut):
     matching_project_count: int | None = None
     matching_need_count: int | None = None
 
+
 class PursuitWorkspaceCountsOut(BaseModel):
     action_now: int
     research: int
     watch: int
     reject: int
+
 
 class PursuitWorkspacePageOut(BaseModel):
     items: list[PursuitWorkspaceItemOut]
@@ -278,6 +287,7 @@ class PursuitWorkspacePageOut(BaseModel):
     count_unit: Literal["power needs", "company accounts"]
     disposition_count_unit: Literal["power needs"] = "power needs"
     changes_available: bool
+
 
 class CustomerAccountNeedOut(BaseModel):
     id: UUID
@@ -296,6 +306,7 @@ class CustomerAccountNeedOut(BaseModel):
     location: str | None = None
     rank_score: int | None = None
 
+
 class CustomerAccountOut(BaseModel):
     company_identity_id: UUID
     name: str
@@ -306,6 +317,7 @@ class CustomerAccountOut(BaseModel):
     last_evidence_update: datetime | None = None
     qualification_tiers: list[str]
     highest_priority_need: CustomerAccountNeedOut | None = None
+
 
 class CustomerAccountsPageOut(BaseModel):
     items: list[CustomerAccountOut]
@@ -369,9 +381,7 @@ class UnifiedSearchContactOut(BaseModel):
     organization: str
     methods: list[UnifiedSearchContactMethodOut]
     sources: list[UnifiedSearchContactEvidenceOut]
-    verification_status: Literal[
-        "Source linked; reachability and authority unconfirmed"
-    ]
+    verification_status: Literal["Source linked; reachability and authority unconfirmed"]
 
 
 class UnifiedSearchOpportunityOut(BaseModel):
@@ -399,6 +409,7 @@ class UnifiedSearchOut(BaseModel):
     opportunities: list[UnifiedSearchOpportunityOut]
     opportunities_status: Literal["current", "qualification_pending"]
 
+
 class CustomerProjectOut(BaseModel):
     id: UUID
     name: str
@@ -408,6 +419,7 @@ class CustomerProjectOut(BaseModel):
     needs: list[CustomerAccountNeedOut]
     need_next_offset: int | None = None
 
+
 class CustomerProjectsPageOut(BaseModel):
     items: list[CustomerProjectOut]
     total: int
@@ -415,6 +427,7 @@ class CustomerProjectsPageOut(BaseModel):
     offset: int
     next_offset: int | None = None
     account: CustomerAccountOut | None = None
+
 
 class UnresolvedCustomerProjectOut(BaseModel):
     project_id: UUID
@@ -426,11 +439,13 @@ class UnresolvedCustomerProjectOut(BaseModel):
     no_eligible_need: bool
     reason: str
 
+
 class UnresolvedCustomerProjectsPageOut(BaseModel):
     items: list[UnresolvedCustomerProjectOut]
     total: int
     limit: int
     offset: int
+
 
 class WorkspaceChangeCountsOut(BaseModel):
     discovered: int
@@ -439,12 +454,14 @@ class WorkspaceChangeCountsOut(BaseModel):
     closed: int
     review_exception: int
 
+
 class WorkspaceChangeNeedOut(BaseModel):
     id: UUID
     name: str
     location: str | None
     active: bool
     tier: str
+
 
 class WorkspaceChangeSourceOut(BaseModel):
     title: str
@@ -454,11 +471,13 @@ class WorkspaceChangeSourceOut(BaseModel):
     retrieved_at: datetime | None
     content_hash: str
 
+
 class WorkspaceChangeSourceExceptionOut(BaseModel):
     source_id: str
     status: str
     error: str | None
     parse_failures: int
+
 
 class WorkspaceChangeItemOut(BaseModel):
     event_key: str
@@ -483,6 +502,7 @@ class WorkspaceChangeItemOut(BaseModel):
     confirmed_at: datetime | None = None
     source_reference: str | None = None
 
+
 class WorkspaceChangesOut(BaseModel):
     items: list[WorkspaceChangeItemOut]
     counts: WorkspaceChangeCountsOut
@@ -497,6 +517,7 @@ class WorkspaceChangesOut(BaseModel):
     token: str
     source_health_exceptions: list[WorkspaceChangeSourceExceptionOut]
 
+
 class WorkspaceHistoricalEvidenceOut(BaseModel):
     title: str
     url: str
@@ -504,6 +525,7 @@ class WorkspaceHistoricalEvidenceOut(BaseModel):
     event_date: date | None
     retrieved_at: datetime
     content_hash: str
+
 
 class WorkspaceHistoricalNeedOut(BaseModel):
     id: UUID
@@ -521,6 +543,7 @@ class WorkspaceHistoricalNeedOut(BaseModel):
     updated_at: datetime
     evidence: list[WorkspaceHistoricalEvidenceOut]
 
+
 class OpportunityGroupPageOut(BaseModel):
     items: list[OpportunityOut]
     total: int
@@ -528,6 +551,7 @@ class OpportunityGroupPageOut(BaseModel):
     offset: int
     next_offset: int | None
     cohort_token: str
+
 
 class OpportunityMapWindowOut(BaseModel):
     items: list[OpportunityOut]
@@ -538,6 +562,7 @@ class OpportunityMapWindowOut(BaseModel):
     group_total_count: int
     cohort_token: str
     decision_counts: dict[str, int]
+
 
 _BROWSE_FILTER_NAMES = {
     "geography",
@@ -571,13 +596,16 @@ _PRIORITY_SEGMENT_LABELS = {
     8: "Other opportunity",
 }
 
+
 def _opportunity_priority_segment(item: dict[str, Any]) -> int | None:
     value = item.get("_priority_segment")
     return value if isinstance(value, int) else None
 
+
 def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
     segment = _opportunity_priority_segment(item)
     return _PRIORITY_SEGMENT_LABELS.get(segment) if segment is not None else None
+
 
 def _validate_browse_query(request: Request) -> None:
     allowed = _BROWSE_QUERY_NAMES
@@ -595,6 +623,7 @@ def _validate_browse_query(request: Request) -> None:
                 "supported": sorted(allowed),
             },
         )
+
 
 def _normalized_browse_filters(
     *,
@@ -701,6 +730,7 @@ def _normalized_browse_filters(
         "status": status,
     }
 
+
 def _filter_opportunity_summaries(
     items: list[dict[str, Any]], filters: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -770,17 +800,20 @@ def _filter_opportunity_summaries(
         selected.append(item)
     return selected
 
+
 class CommercialTriagePageOut(CommercialTriageOut):
     limit: int | None = None
     offset: int | None = None
     grouped_total: int | None = None
     next_offset: int | None = None
 
+
 class CommercialTriageHistoryPageOut(CommercialTriageHistoryOut):
     total: int | None = None
     limit: int | None = None
     offset: int | None = None
     next_offset: int | None = None
+
 
 _MAX_OPPORTUNITY_EVIDENCE_ROWS = 500
 _MAX_OPPORTUNITY_LIFECYCLE_ROWS = 500
@@ -794,6 +827,7 @@ _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS = 500
 _MAX_COMMERCIAL_CARD_NOTES = 500
 _MAX_SAVED_SNAPSHOT_BYTES = 1_000_000
 _MAX_COMMERCIAL_HISTORY_PAGE_BYTES = 2_000_000
+
 
 def _signal_display_metadata(
     decisions: list[SignalDecision],
@@ -863,6 +897,7 @@ def _signal_display_metadata(
         "signal_display_decision_state": state,
     }
 
+
 def _bounded_opportunity_payload(items: list[dict]) -> list[dict]:
     encoded_size = len(json.dumps(items, default=str, separators=(",", ":")).encode("utf-8"))
     if encoded_size > _MAX_OPPORTUNITY_PAGE_BYTES:
@@ -876,15 +911,18 @@ def _bounded_opportunity_payload(items: list[dict]) -> list[dict]:
             raise HTTPException(413, "Opportunity has too many lifecycle rows for one response")
     return items
 
+
 def _bounded_opportunity_map_window_payload(payload: dict[str, Any]) -> dict[str, Any]:
     encoded_size = len(json.dumps(payload, default=str, separators=(",", ":")).encode("utf-8"))
     if encoded_size > _MAX_OPPORTUNITY_PAGE_BYTES:
         raise HTTPException(413, "Opportunity map window exceeds the complete response byte budget")
     return payload
 
+
 def _begin_consistent_read(session) -> None:
     """Pin multi-query reads to one PostgreSQL cohort snapshot."""
     session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+
 
 def _preflight_opportunity_details(session, rows: list[dict]) -> None:
     need_ids = [UUID(str(row["id"])) for row in rows]
@@ -921,6 +959,7 @@ def _preflight_opportunity_details(session, rows: list[dict]) -> None:
             )
         if lifecycle_counts.get(UUID(str(row["project_id"])), 0) > _MAX_OPPORTUNITY_LIFECYCLE_ROWS:
             raise HTTPException(413, "Opportunity has too many lifecycle rows for one response")
+
 
 def _preflight_streamed_evidence_text(session, need_ids: Any, project_ids: Any) -> None:
     scopes = []
@@ -978,6 +1017,7 @@ def _preflight_streamed_evidence_text(session, need_ids: Any, project_ids: Any) 
                 413, "Retained evidence text exceeds the bounded processing cohort limit"
             )
 
+
 def _commercial_bound_error(identity: str, count: int, cap: int, resource: str) -> HTTPException:
     return HTTPException(
         413,
@@ -993,6 +1033,7 @@ def _commercial_bound_error(identity: str, count: int, cap: int, resource: str) 
             ),
         },
     )
+
 
 def _check_saved_history_bounds(row: Any, note_count: int) -> None:
     snapshot = row.snapshot or {}
@@ -1024,9 +1065,11 @@ def _check_saved_history_bounds(row: Any, note_count: int) -> None:
                     row.identity_key, len(value), _MAX_COMMERCIAL_CARD_NOTES, f"saved_{key}"
                 )
 
+
 class BriefStatementOut(BaseModel):
     text: str
     evidence_id: str
+
 
 class BriefContentOut(BaseModel):
     event_summary: list[BriefStatementOut]
@@ -1035,12 +1078,14 @@ class BriefContentOut(BaseModel):
     next_step: str
     commercial_question: str | None = None
 
+
 class BriefCitationOut(BaseModel):
     evidence_id: str
     title: str
     url: str
     publisher: str
     excerpt: str
+
 
 class BriefOut(BaseModel):
     status: str
@@ -1062,6 +1107,7 @@ class PowerNeedTitleOut(BaseModel):
     model: str | None = None
     error: str | None = None
     job_id: str | None = None
+
 
 class HealthSourceOut(BaseModel):
     id: str
@@ -1134,6 +1180,7 @@ class HealthSourceOut(BaseModel):
     coverage_limitation: str | None = None
     pending_collection_lanes: list[str] | None = None
 
+
 class HealthOut(BaseModel):
     sources: list[HealthSourceOut]
     backlog: int
@@ -1143,11 +1190,13 @@ class HealthOut(BaseModel):
     collection_freshness: str = "UNKNOWN"
     planners: dict[str, dict] = Field(default_factory=dict)
 
+
 class ChangeSourceOut(BaseModel):
     id: UUID
     title: str
     url: str
     published_at: date | None
+
 
 class ChangeOut(BaseModel):
     kind: str
@@ -1155,6 +1204,7 @@ class ChangeOut(BaseModel):
     url: str
     published_at: date | None
     sources: list[ChangeSourceOut]
+
 
 class ProjectChangeOut(BaseModel):
     kind: str
@@ -1167,6 +1217,7 @@ class ProjectChangeOut(BaseModel):
     source_date: date | None
     detected_at: datetime
 
+
 class ProjectStateOut(BaseModel):
     project_id: UUID
     identity_key: str
@@ -1178,20 +1229,22 @@ class ProjectStateOut(BaseModel):
     unresolved: list[str]
     disclosure: str
 
+
 class LoginBody(BaseModel):
     password: SecretStr
+
 
 class LoginOut(BaseModel):
     authenticated: bool
     expires_at: int
 
+
 class SessionOut(BaseModel):
     authenticated: bool
 
+
 class LogoutOut(BaseModel):
     authenticated: bool
-
-
 
 
 class IngestionItemOut(BaseModel):
@@ -1224,16 +1277,19 @@ class IngestionItemOut(BaseModel):
     reported_power_facts: list[str] = Field(default_factory=list)
     permit_status: str | None = None
 
+
 class IngestionPageOut(BaseModel):
     items: list[IngestionItemOut]
     total: int
     limit: int
     offset: int
 
+
 @app.get("/openapi.json", include_in_schema=False)
 def private_openapi(request: Request):
     require_session(request)
     return app.openapi()
+
 
 @app.post("/api/auth/login", response_model=LoginOut)
 def login(body: LoginBody, request: Request, response: Response):
@@ -1255,6 +1311,7 @@ def login(body: LoginBody, request: Request, response: Response):
     )
     return {"authenticated": True, "expires_at": expires}
 
+
 @app.post("/api/auth/logout", response_model=LogoutOut)
 def logout(request: Request, response: Response):
     require_same_origin(request)
@@ -1268,14 +1325,17 @@ def logout(request: Request, response: Response):
     )
     return {"authenticated": False}
 
+
 @app.get("/api/auth/session", response_model=SessionOut)
 def auth_session(request: Request):
     return {"authenticated": bool(request.cookies.get("gridlens_session")) and _valid(request)}
+
 
 def _valid(request: Request) -> bool:
     from gridlens.security import valid_token
 
     return valid_token(request.cookies.get("gridlens_session"))
+
 
 def _assessment_for_evidence(
     interpretation: Interpretation | None, observation: Observation, evidence: Evidence
@@ -1297,6 +1357,7 @@ def _assessment_for_evidence(
     ):
         return None
     return assessment
+
 
 @app.get("/api/health", response_model=HealthOut, dependencies=[Depends(require_session)])
 def health():
@@ -1769,10 +1830,12 @@ def health():
             ),
         }
 
+
 @app.get("/health/live")
 def process_liveness():
     """Report API process liveness without depending on database connectivity."""
     return {"api_process": "LIVE"}
+
 
 @app.get("/health/ready")
 def runtime_readiness():
@@ -1784,6 +1847,7 @@ def runtime_readiness():
         raise HTTPException(503, "Database or queue is unavailable") from exc
     return {"readiness": "READY"}
 
+
 def _ingestion_filters(source_id: str | None, vertical: str | None):
     predicates = []
     if source_id:
@@ -1793,6 +1857,7 @@ def _ingestion_filters(source_id: str | None, vertical: str | None):
             or_(*(Source.industries.contains([tag]) for tag in vertical_source_tags(vertical)))
         )
     return predicates
+
 
 @app.get(
     "/api/ingestion",
@@ -1899,6 +1964,7 @@ def ingestion(
                 }
             )
         return {"items": items, "total": total, "limit": limit, "offset": offset}
+
 
 @app.get(
     "/api/opportunities",
@@ -2082,6 +2148,7 @@ def opportunities(
             response.headers["X-Next-Offset"] = str(offset + len(page))
         return _bounded_opportunity_payload(output)
 
+
 @app.get(
     "/api/opportunities/workspace",
     response_model=PursuitWorkspacePageOut,
@@ -2181,6 +2248,7 @@ def pursuit_workspace(
             raise HTTPException(413, "Commercial workspace page exceeds the response byte budget")
         return payload
 
+
 @app.get(
     "/api/customer-accounts",
     response_model=CustomerAccountsPageOut,
@@ -2197,6 +2265,7 @@ def customer_accounts(
     with SessionLocal() as session:
         _begin_consistent_read(session)
         return account_queue(session, search=search, limit=limit, offset=offset)
+
 
 @app.get(
     "/api/search",
@@ -2304,9 +2373,7 @@ def unified_search(
                     candidate.get("organization"),
                     json.dumps(candidate.get("public_contacts", []), ensure_ascii=False),
                 ]
-                if not any(
-                    normalized_term in str(value or "").casefold() for value in fields
-                ):
+                if not any(normalized_term in str(value or "").casefold() for value in fields):
                     continue
                 contacts.append(
                     {
@@ -2357,6 +2424,7 @@ def unified_search(
             "opportunities_status": opportunities_status,
         }
 
+
 @app.get(
     "/api/customer-accounts/unresolved",
     response_model=UnresolvedCustomerProjectsPageOut,
@@ -2374,6 +2442,7 @@ def unresolved_customer_projects(
         _begin_consistent_read(session)
         return unresolved_projects(session, search=search, limit=limit, offset=offset)
 
+
 from gridlens.intelligence.company_contacts import CompanyContacts  # noqa: E402
 
 
@@ -2388,6 +2457,7 @@ def customer_account_contacts(company_identity_id: UUID):
     with SessionLocal() as session:
         _begin_consistent_read(session)
         return company_contacts(session, company_identity_id)
+
 
 @app.get(
     "/api/customer-accounts/{company_identity_id}/projects",
@@ -2418,7 +2488,9 @@ def customer_account_projects(
         except LookupError as exc:
             raise HTTPException(404, str(exc)) from exc
 
+
 _OPPORTUNITY_MAP_WINDOW_LIMIT = 200
+
 
 @app.get(
     "/api/opportunities/map-window",
@@ -2580,8 +2652,10 @@ def opportunity_map_window(
             }
         )
 
+
 _RANK_BATCH_SIZE = 50
 _RANK_TOKEN_MARK = ".rank."
+
 
 def _rank_opportunity_summaries(items: list[dict], ranks: dict[str, dict]) -> list[dict]:
     """Apply canonical descending rank with the input order as the stable tie-breaker."""
@@ -2589,6 +2663,7 @@ def _rank_opportunity_summaries(items: list[dict], ranks: dict[str, dict]) -> li
         items,
         key=lambda item: -ranks.get(str(item["id"]), {}).get("rank_score", -1),
     )
+
 
 def _rank_cohort_token(base: str, ordered: list[dict], ranks: dict[str, dict]) -> str:
     """A rank cohort token: the membership token plus a digest of the ranked order.
@@ -2606,8 +2681,10 @@ def _rank_cohort_token(base: str, ordered: list[dict], ranks: dict[str, dict]) -
     ).hexdigest()[:32]
     return f"{base}{_RANK_TOKEN_MARK}{digest}"
 
+
 def _membership_token(token: str | None) -> str | None:
     return token.split(_RANK_TOKEN_MARK, 1)[0] if token else token
+
 
 def _cohort_ranks(session, items: list[dict], tier: str | None) -> dict[str, dict]:
     """Rank the cohort from the canonical detail projection, in bounded batches.
@@ -2630,6 +2707,7 @@ def _cohort_ranks(session, items: list[dict], tier: str | None) -> dict[str, dic
                 key: detail[key] for key in ("rank_score", "rank_reasons", "rank_version")
             }
     return ranks
+
 
 def _opportunity_evidence_search_matches(
     session, items: list[dict], search: str | None
@@ -2841,6 +2919,7 @@ def _opportunity_evidence_search_matches(
             states[key] = (tail, found)
     return {key: found for key, (_tail, found) in states.items()}
 
+
 @app.get(
     "/api/opportunity-groups/{group_id}",
     response_model=OpportunityGroupPageOut,
@@ -2994,6 +3073,7 @@ def opportunity_group_page(
         }
         _bounded_opportunity_payload(output_items)
         return result
+
 
 @app.get(
     "/api/opportunities/needs/{need_id}",
@@ -3154,10 +3234,12 @@ def opportunity_need_detail(
         detail["workflow_status"] = summary.get("workflow_status", "UNKNOWN")
         return detail
 
+
 def _compact_detail_evidence(detail: dict[str, Any]) -> None:
     """Compact default source abstracts while leaving raw records addressable by ID."""
     for evidence in detail.get("evidence", []):
         evidence["abstract"] = compact_source_excerpt(evidence.get("abstract"))
+
 
 @app.get(
     "/api/evidence/{evidence_id}/content",
@@ -3188,11 +3270,13 @@ def evidence_content(
             "next_offset": end if end < len(content) else None,
         }
 
+
 def _csv_cell(value: Any) -> str:
     text = "" if value is None else str(value)
     if text.lstrip(" \t\r\n\x00\x0b\x0c\x1b\x7f").startswith(("=", "+", "-", "@")):
         return "'" + text
     return text
+
 
 @app.get(
     "/api/opportunities/export.csv",
@@ -3395,8 +3479,10 @@ def export_opportunities_csv(
         },
     )
 
+
 _BROWSE_SUMMARY_BATCH_SIZE = 128
 _BROWSE_BUYING_CHAIN_PROJECT_BATCH_SIZE = 32
+
 
 def _opportunity_summary_projection(
     session,
@@ -3882,6 +3968,7 @@ def _opportunity_summary_projection(
                 summary["title_company_role"] = title_company_role
     return summaries
 
+
 def _opportunity_title_company(chain: dict) -> tuple[str | None, str | None]:
     owner_occupant = next(
         (
@@ -3896,6 +3983,7 @@ def _opportunity_title_company(chain: dict) -> tuple[str | None, str | None]:
     if owner_occupant:
         return owner_occupant, "permit-listed owner / occupant"
     return None, None
+
 
 def opportunity_projection(
     session,
@@ -4519,11 +4607,13 @@ def opportunity_projection(
                 ]
     return result
 
+
 class SignalDecisionCountsOut(BaseModel):
     show: int
     review: int
     hold: int
     unadjudicated: int
+
 
 @app.get(
     "/api/signals/decisions",
@@ -4562,6 +4652,7 @@ def signal_decision_counts():
                     counts[decision.casefold() if decision else "unadjudicated"] += 1
     return counts
 
+
 def _change_sources(session, event: ChangeEvent) -> list[dict]:
     if event.buying_chain_evidence_id is not None:
         stored_ids = (event.new_state or {}).get("buying_chain_evidence_ids")
@@ -4579,6 +4670,7 @@ def _change_sources(session, event: ChangeEvent) -> list[dict]:
         for source in sources
         if source is not None
     ]
+
 
 @app.get("/api/changes", response_model=list[ChangeOut], dependencies=[Depends(require_session)])
 def changes():
@@ -4613,6 +4705,7 @@ def changes():
             for event, evidence, buying in rows
         ]
 
+
 @app.get(
     "/api/opportunities/workspace/changes",
     response_model=WorkspaceChangesOut,
@@ -4642,6 +4735,7 @@ def workspace_change_briefing(
         result["baseline_reviewed_at"] = baseline.reviewed_at if baseline else None
         result["first_use"] = baseline is None
         return result
+
 
 @app.get(
     "/api/opportunities/needs/{need_id}/history",
@@ -4696,6 +4790,7 @@ def workspace_historical_need(need_id: UUID):
             ],
         }
 
+
 @app.get(
     "/api/projects/{project_id}/state",
     response_model=ProjectStateOut,
@@ -4710,6 +4805,7 @@ def project_state_endpoint(project_id: UUID):
         if state is None:
             raise HTTPException(404, "Project not found")
         return state
+
 
 @app.get(
     "/api/projects/{project_id}/changes",
@@ -4747,7 +4843,6 @@ def project_changes_endpoint(project_id: UUID, limit: int = Query(default=100, g
         ]
 
 
-
 @app.get(
     "/api/projects/{project_id}/buying-chain",
     response_model=BuyingChainOut,
@@ -4761,6 +4856,7 @@ def project_buying_chain(project_id: UUID, history: bool = False):
             return result
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
+
 
 @app.get(
     "/api/power-needs/{need_id}/brief",
@@ -4801,7 +4897,6 @@ def get_power_need_title(need_id: UUID):
         return title_view(row, fingerprint)
 
 
-
 # Historical commercial snapshots remain readable for audit and continuity.
 from gridlens.domain.pursuits import (  # noqa: E402
     PursuitOut,
@@ -4819,6 +4914,7 @@ from gridlens.persistence.models import Pursuit, PursuitCallNote  # noqa: E402
 def pursuits(include_dropped: bool = False, offset: int = Query(default=0, ge=0, le=10000)):
     with SessionLocal() as session:
         return list_pursuits(session, include_dropped=include_dropped, offset=offset)
+
 
 @app.get(
     "/api/pursuits/{pursuit_id}", response_model=PursuitOut, dependencies=[Depends(require_session)]
@@ -5028,10 +5124,12 @@ def _commercial_triage_page(
         )
     return cards, grouped_total
 
+
 def _commercial_triage_cards(session, limit: int) -> list[dict]:
     """Return the legacy complete shortlist shape used by research callers."""
     cards, _grouped_total = _commercial_triage_page(session, limit)
     return cards
+
 
 def _commercial_triage_payload(
     session,
@@ -5173,8 +5271,10 @@ def _commercial_triage_payload(
         )
     return payload
 
+
 class _EvaluationAttemptExpired(Exception):
     """The request crossed its canonical clock interval before commit."""
+
 
 @app.get(
     "/api/commercial/triage",
@@ -5187,6 +5287,7 @@ def commercial_triage(
 ):
     with SessionLocal() as session:
         return _commercial_triage_payload(session, limit, offset, saved_selection=True)
+
 
 @app.get(
     "/api/commercial/triage/{need_id}/autonomous-research",
@@ -5277,6 +5378,7 @@ def _commercial_history_item(row: Any, notes: list[dict]) -> dict:
         "notes": notes,
         "versions": normalized_versions,
     }
+
 
 @app.get(
     "/api/commercial/triage/history",
@@ -5484,6 +5586,7 @@ def commercial_triage_history(
             )
         return result
 
+
 @app.get(
     "/api/commercial/triage/history/{pursuit_id}",
     response_model=CommercialTriageHistoryItem,
@@ -5564,6 +5667,7 @@ def commercial_triage_history_detail(pursuit_id: UUID):
                 row.identity_key, size, _MAX_COMMERCIAL_CARD_BYTES, "history_detail_bytes"
             )
         return result
+
 
 @app.get(
     "/api/opportunity-intelligence",

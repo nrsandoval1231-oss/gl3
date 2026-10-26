@@ -4,6 +4,7 @@ Operator fact drafting, decisions, and workflow status are retired public
 workflows. These tests seed historical records directly, then exercise only the
 supported autonomous evidence and commercial read paths.
 """
+
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from uuid import uuid4
@@ -229,8 +230,13 @@ def _seed_historical_fact(
             effective_from=effective_from or now - timedelta(days=1),
             effective_until=effective_until or now + timedelta(days=500),
             content_hash=canonical_hash(
-                {"need_id": str(need_id), "project_id": str(project_id), "type": fact_type,
-                 "value": clean, "source_reference": str(uuid4())}
+                {
+                    "need_id": str(need_id),
+                    "project_id": str(project_id),
+                    "type": fact_type,
+                    "value": clean,
+                    "source_reference": str(uuid4()),
+                }
             ),
             recorded_by="historical fixture",
         )
@@ -423,9 +429,7 @@ def test_historical_fact_conflict_and_withdrawn_source_preserve_audit_history(ru
 def test_historical_supply_closure_is_current_need_scoped_and_historical(runtime):
     _client, factory, need_id, project_id, pursuit_id = runtime
     _seed_current_source(factory, need_id, project_id)
-    _seed_historical_fact(
-        factory, need_id, project_id, pursuit_id, "demand", {"mw": "22"}
-    )
+    _seed_historical_fact(factory, need_id, project_id, pursuit_id, "demand", {"mw": "22"})
     _seed_historical_fact(
         factory,
         need_id,

@@ -266,8 +266,6 @@ def test_old_retained_boston_voltage_is_excluded_but_keeps_historical_hash_bindi
         )
 
 
-
-
 def test_optional_projection_does_not_churn_or_erase_saved_snapshot(saved_db):
     from copy import deepcopy
 

@@ -960,8 +960,6 @@ def test_ordinary_maintainer_publishes_first_generation_for_opportunities(saved_
 
 
 @pytest.mark.parametrize("count", [4, 101])
-
-
 def test_worker_startup_publishes_flushed_ingestion_before_each_commit(saved_db, monkeypatch):
     import gridlens.jobs.worker as worker
 
@@ -1431,8 +1429,6 @@ def test_structured_ingestion_bulk_commit_keeps_authenticated_maps_current(saved
         assert (
             current_generation(reader).input_revision == reader.get(BrowseState, 1).input_revision
         )
-
-
 
 
 def test_worker_heartbeat_does_not_repair_another_transaction_backlog(saved_db, monkeypatch):
@@ -2164,53 +2160,9 @@ def test_saved_commercial_page_avoids_population_projection(saved_db, monkeypatc
     assert actual == expected
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @pytest.mark.parametrize("boundary_kind", ["effective_from", "effective_until"])
-
-
-
-
 @pytest.mark.parametrize("boundary_kind", ["utc_midnight", "chicago_midnight", "host_midnight"])
-
-
-
-
-
-
-
-
-
-
 @pytest.mark.parametrize("fallback", ["missing", "stale_revision", "policy", "expired", "disabled"])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def test_commercial_selection_matches_canonical_complete_group_priority(saved_db):
     """Tuple minima, Austin cross-project work, UUID ties and all page offsets."""
     from gridlens.domain.commercial_triage import (

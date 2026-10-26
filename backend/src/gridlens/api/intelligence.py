@@ -52,8 +52,6 @@ from gridlens.settings import settings
 router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
 
 
-
-
 class CommercialAssessmentCitationOut(BaseModel):
     evidence_id: str
     evidence_hash: str
@@ -62,6 +60,7 @@ class CommercialAssessmentCitationOut(BaseModel):
     field: Literal["title", "abstract"]
     start: int
     end: int
+
 
 class CommercialAssessmentFactSupportOut(BaseModel):
     fact_id: str
@@ -72,12 +71,14 @@ class CommercialAssessmentFactSupportOut(BaseModel):
     unavailable_reason: str | None = None
     citation: CommercialAssessmentCitationOut | None = None
 
+
 class CommercialAssessmentSupportOut(BaseModel):
     status: Literal["current", "saved", "unavailable", "stale"]
     reason: str | None = None
     document_coverage: str | None = None
     source_collection_status: str | None = None
     selected_facts: list[CommercialAssessmentFactSupportOut]
+
 
 class IntelligenceHistoryOut(BaseModel):
     job_id: UUID
@@ -99,6 +100,7 @@ class IntelligenceHistoryOut(BaseModel):
     created_at: datetime | None
     completed_at: datetime | None
 
+
 class IntelligenceTaskOut(BaseModel):
     task_type: str
     question_id: str | None
@@ -107,6 +109,7 @@ class IntelligenceTaskOut(BaseModel):
     provider: str | None
     pinned_model: str | None
 
+
 class IntelligenceTasksOut(BaseModel):
     items: list[IntelligenceTaskOut]
     mode: str
@@ -114,11 +117,14 @@ class IntelligenceTasksOut(BaseModel):
     provider_configuration: dict[str, bool]
     note: str
 
+
 class IntelligenceHistoryPageOut(BaseModel):
     items: list[IntelligenceHistoryOut]
 
+
 class IntelligenceJobOut(IntelligenceHistoryOut):
     pass
+
 
 class IntelligenceOperationsOut(BaseModel):
     window_days: int
@@ -137,14 +143,17 @@ class IntelligenceOperationsOut(BaseModel):
     commercial_review_receipt: dict[str, Any]
     owner_review_notes_30d: int
 
+
 class IntelligenceWatchOut(BaseModel):
     item: dict[str, Any] | None = None
+
 
 def _session_factory():
     # Follows the API module factory so integration tests can use isolated DBs.
     from gridlens.api import app as api_module
 
     return api_module.SessionLocal
+
 
 def _job_status(job: Job, checkpoint: dict[str, Any]) -> str:
     status = checkpoint.get("status")
@@ -165,6 +174,7 @@ def _job_status(job: Job, checkpoint: dict[str, Any]) -> str:
     if status == "dispatching":
         return "running"
     return {"succeeded": "completed", "failed": "failed"}.get(job.status, job.status)
+
 
 def _job_view(job: Job) -> dict[str, Any]:
     try:
@@ -195,6 +205,7 @@ def _job_view(job: Job) -> dict[str, Any]:
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "completed_at": checkpoint.get("completed_at"),
     }
+
 
 def _commercial_assessment_support(
     session, *, need_id: UUID, checkpoint: dict[str, Any], job_status: str
@@ -419,6 +430,7 @@ def _commercial_assessment_support(
     except (KeyError, TypeError, ValueError):
         return {**empty, "reason": "SAVED_PACKAGE_VALIDATION_FAILED"}
 
+
 def _history_view(
     session, need_id: UUID, limit: int, task_type: str | None = None
 ) -> list[dict[str, Any]]:
@@ -561,6 +573,7 @@ def _history_view(
                     candidate["source_id"] = source_ids.get(str(candidate.get("evidence_id")))
     return items
 
+
 @router.get("/tasks", response_model=IntelligenceTasksOut, dependencies=[Depends(require_session)])
 def intelligence_tasks():
     task_rows = []
@@ -633,12 +646,14 @@ def intelligence_tasks():
         "note": "Configuration metadata only. GET does not call providers or verify credentials.",
     }
 
+
 @router.get(
     "/operations", response_model=IntelligenceOperationsOut, dependencies=[Depends(require_session)]
 )
 def intelligence_operations():
     with _session_factory()() as session:
         return operations_view(session)
+
 
 @router.get(
     "/needs/{need_id}/history",
@@ -654,11 +669,6 @@ def need_intelligence_history(
         if session.get(PowerNeed, need_id) is None:
             raise HTTPException(404, "Power need not found")
         return {"items": _history_view(session, need_id, limit, task_type=task_type)}
-
-
-
-
-
 
 
 @router.get(

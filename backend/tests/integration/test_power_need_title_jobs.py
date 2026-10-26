@@ -406,9 +406,7 @@ def test_default_disabled_and_authenticated_read_boundary(title_runtime, monkeyp
     assert get_response.json()["status"] == request.json()["status"] == "disabled"
     unauthenticated = TestClient(api.app, base_url="https://testserver")
     assert unauthenticated.get(f"/api/power-needs/{need_id}/title").status_code == 401
-    assert (
-        unauthenticated.post(f"/api/power-needs/{need_id}/title", json={}).status_code == 405
-    )
+    assert unauthenticated.post(f"/api/power-needs/{need_id}/title", json={}).status_code == 405
 
 
 def test_metadata_only_evidence_fails_without_provider_reservation(title_runtime, monkeypatch):

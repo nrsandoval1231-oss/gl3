@@ -5303,7 +5303,7 @@
           "confidence": {
             "type": "string",
             "title": "Confidence",
-            "default": "High: literal contact method in current retained evidence"
+            "default": "Literal method attributed to this company in current retained evidence; deliverability and authority unconfirmed"
           },
           "phone_type": {
             "type": "string",
