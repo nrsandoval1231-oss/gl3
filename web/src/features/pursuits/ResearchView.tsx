@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { client, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
+import { client, type Opportunity, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
 import { projectTitle } from '../opportunities/projectCards'
 import { AutonomousResearch } from './AutonomousResearch'
 import '../../styles/research.css'
 
-function gapLabel(item: WorkspaceNeed) {
+function gapLabel(item: WorkspaceNeed | Opportunity) {
   const value = item.qualified_remaining_gap
   if (!value || typeof value !== 'object') return 'Not established'
   const low = value.remaining_mw_min, high = value.remaining_mw_max
@@ -29,6 +29,8 @@ export function ResearchView() {
   const [reload, setReload] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [detail, setDetail] = useState<{ needId: string; value?: Opportunity; error?: string; loading: boolean } | null>(null)
+  const [detailRetry, setDetailRetry] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -40,9 +42,31 @@ export function ResearchView() {
     return () => controller.abort()
   }, [search, offset, reload])
 
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null)
+      return
+    }
+    const controller = new AbortController()
+    setDetail({ needId: selectedId, loading: true })
+    void client.opportunityNeed(selectedId, undefined, controller.signal)
+      .then(value => {
+        if (!controller.signal.aborted && value.id === selectedId) setDetail({ needId: selectedId, value, loading: false })
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) setDetail({ needId: selectedId, error: cause instanceof Error ? cause.message : 'Selected research detail is unavailable.', loading: false })
+      })
+    return () => controller.abort()
+  }, [selectedId, detailRetry])
+
   const items = page?.items ?? []
-  const selected = items.find(item => item.id === selectedId)
-  const selectedCompany = selected?.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? selected?.commercial_organization ?? selected?.title_company
+  const listedSelection = items.find(item => item.id === selectedId)
+  const selectedDetail = detail?.needId === selectedId ? detail : null
+  const selected = selectedDetail?.value ?? listedSelection
+  const selectedDetailLoading = Boolean(selectedId) && (!selectedDetail || selectedDetail.loading)
+  const selectedDetailError = selectedDetail?.error ?? (selectedDetail?.value && !selectedDetail.value.intelligence_card ? 'The selected detail did not include retained intelligence.' : undefined)
+  const selectedDetailUnavailable = Boolean(selectedDetailError)
+  const selectedCompany = selected?.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? (selected && 'commercial_organization' in selected && typeof selected.commercial_organization === 'string' ? selected.commercial_organization : undefined) ?? selected?.title_company
   const gapLabels = new Set((selected?.intelligence_card?.research_gaps ?? []).map(field => field.label.trim().toLocaleLowerCase()))
   const choose = (id: string) => {
     setSelectedId(id)
@@ -70,7 +94,7 @@ export function ResearchView() {
     history.replaceState(history.state, '', `/?${params}`)
   }
 
-  return <main className={`research-view ${selected ? 'has-selection' : ''}`} aria-label="Automated research">
+  return <main className={`research-view ${selectedId ? 'has-selection' : ''}`} aria-label="Automated research">
     <section className="research-list" aria-label="Research opportunities">
       <header><div><p className="wh-kicker">Autonomous intelligence</p><h1>Research</h1><p>Source-backed research progress, verified buying contacts and known gaps across current opportunities.</p></div></header>
       <label className="research-search">Search opportunities<input aria-label="Search research opportunities" value={search} onChange={event => changeSearch(event.target.value)} placeholder="Company, project or location"/></label>
@@ -90,16 +114,23 @@ export function ResearchView() {
       <footer><span>{page ? `${page.offset + 1}–${page.offset + items.length} of ${page.total}` : '—'}</span><button disabled={!page?.offset || loading} onClick={() => changeOffset(Math.max(0, offset - 25))}>Previous</button><button disabled={!page?.next_offset || loading} onClick={() => changeOffset(page?.next_offset ?? 0)}>Next</button></footer>
     </section>
     <section className="research-detail" aria-label="Selected automated research">
-      {selected ? <>
+      {selected || selectedId ? <>
+        {!selected && <button className="research-back" type="button" onClick={clearSelection}>Back to opportunities</button>}
+        {!selected && selectedDetailLoading && <p role="status">Loading selected opportunity detail…</p>}
+        {!selected && selectedDetailError && <p role="alert">Selected opportunity detail is unavailable. Contact and source evidence could not be loaded. <button type="button" onClick={() => setDetailRetry(value => value + 1)}>Retry detail</button></p>}
+        {selected && <>
         <button className="research-back" type="button" onClick={clearSelection}>Back to opportunities</button>
         <div className="research-detail-heading"><p className="wh-kicker">{selected.location ?? 'Location unknown'}</p><h2>{selected.intelligence_card?.fields.find(field => field.key === 'project' && field.value)?.value ?? projectTitle(selected)}</h2><p><strong>Company:</strong> {selectedCompany ?? 'Unknown'}</p><p>{selected.activity.replaceAll('-', ' ')} · {gapLabel(selected)} potential remaining gap · {selected.start_window ?? 'Timing unknown'} · {selected.duration ?? 'Duration unknown'}</p>
           <dl><div><dt>Priority</dt><dd>{selected.rank_score == null ? 'Not available' : selected.rank_score}</dd></div><div><dt>Confidence</dt><dd>Not provided</dd></div><div><dt>Last intelligence update</dt><dd>{selected.intelligence_card?.last_intelligence_update ? new Date(selected.intelligence_card.last_intelligence_update).toLocaleString() : 'Unknown'}</dd></div></dl>
         </div>
-        <section className="research-contacts"><h3>Business contacts</h3>
-          {(selected.intelligence_card?.contacts ?? []).length ? selected.intelligence_card!.contacts.map(contact => <article key={contact.claim_id}><strong>{contact.name ?? contact.company}</strong><p>{contact.title ?? contact.role} · {contact.responsibility} · {contact.purchasing_authority}</p>{(contact.methods ?? []).map((method, index) => <p key={`${method.kind}-${index}`}>{method.kind}: {safeContactHref(method) ? <a href={safeContactHref(method)}>{method.value}</a> : method.value}</p>)}<p>Evidence assessed {contact.verified_at ? new Date(contact.verified_at).toLocaleDateString() : 'date unknown'}</p>{(contact.sources ?? []).map((source, index) => <p key={index}><a href={source.url ?? undefined} target="_blank" rel="noreferrer">{source.title}</a> · {source.verification_status} · {source.source_date ?? 'Source date unknown'}</p>)}</article>) : <p>No source-backed business contact is currently available. Buyer identity and contact methods remain unknown.</p>}
+        <section className="research-contacts" aria-label="Business contacts"><h3>Business contacts</h3>
+          {selectedDetailLoading && <p role="status">Loading retained contact and source details…</p>}
+          {selectedDetailError && <p role="alert">Contact and source detail is unavailable. No conclusion about missing contacts can be drawn from this read. <button type="button" onClick={() => setDetailRetry(value => value + 1)}>Retry contact detail</button></p>}
+          {!selectedDetailLoading && !selectedDetailError && (selected.intelligence_card?.contacts ?? []).length ? selected.intelligence_card!.contacts.map(contact => <article key={contact.claim_id}><strong>{contact.name ?? contact.company}</strong><p>{contact.title ?? contact.role} · {contact.responsibility} · {contact.purchasing_authority}</p>{(contact.methods ?? []).map((method, index) => <p key={`${method.kind}-${index}`}>{method.kind}: {safeContactHref(method) ? <a href={safeContactHref(method)}>{method.value}</a> : method.value}</p>)}<p>Evidence assessed {contact.verified_at ? new Date(contact.verified_at).toLocaleDateString() : 'date unknown'}</p>{(contact.sources ?? []).map((source, index) => <p key={index}><a href={source.url ?? undefined} target="_blank" rel="noreferrer">{source.title}</a> · {source.verification_status} · {source.source_date ?? 'Source date unknown'}</p>)}</article>) : !selectedDetailLoading && !selectedDetailError && <p>No source-backed business contact is currently available. Buyer identity and contact methods remain unknown.</p>}
         </section>
-        <section className="research-gaps"><h3>Unknowns and open research gaps</h3>{(selected.intelligence_card?.research_gaps ?? []).length ? <ul>{selected.intelligence_card!.research_gaps.map(field => <li key={field.key}><strong>{field.label}:</strong> {field.value ?? 'Unknown'} · {field.status}. {field.basis}</li>)}</ul> : <p>No explicit research gaps are available.</p>}{(selected.missing_facts ?? []).filter(value => !gapLabels.has(value.trim().toLocaleLowerCase())).length > 0 && <ul>{(selected.missing_facts ?? []).filter(value => !gapLabels.has(value.trim().toLocaleLowerCase())).map(value => <li key={value}>{value}</li>)}</ul>}</section>
+        <section className="research-gaps"><h3>Unknowns and open research gaps</h3>{selectedDetailLoading && <p role="status">Loading retained gap evidence…</p>}{selectedDetailError && <p role="alert">Research gap detail is unavailable.</p>}{!selectedDetailLoading && !selectedDetailUnavailable && ((selected.intelligence_card?.research_gaps ?? []).length ? <ul>{selected.intelligence_card!.research_gaps.map(field => <li key={field.key}><strong>{field.label}:</strong> {field.value ?? 'Unknown'} · {field.status}. {field.basis}</li>)}</ul> : <p>No explicit research gaps are available.</p>)}{!selectedDetailLoading && !selectedDetailUnavailable && (selected.missing_facts ?? []).filter(value => !gapLabels.has(value.trim().toLocaleLowerCase())).length > 0 && <ul>{(selected.missing_facts ?? []).filter(value => !gapLabels.has(value.trim().toLocaleLowerCase())).map(value => <li key={value}>{value}</li>)}</ul>}</section>
         <AutonomousResearch key={selected.id} needId={selected.id}/>
+        </>}
       </> : <div className="research-empty"><h2>Select an opportunity</h2><p>Research history and contact evidence are shown for the selected opportunity. No status, timing, gap, or contact is inferred when evidence is missing.</p></div>}
     </section>
   </main>

@@ -228,11 +228,29 @@ for (const item of cases) {
     if (item.expected_research_project_heading !== false) {
       await expect(page.getByRole('heading', { level: 2, name: item.expected_research_project_heading ?? item.project_name, exact: false })).toBeVisible()
     }
+    if (item.expected_contact_route) {
+      const expected = item.expected_contact_route
+      const researchContacts = page.getByRole('region', { name: 'Business contacts' })
+      const researchCompanyLink = researchContacts.locator(`a[href="${expected.company_href}"]`)
+      await expect(researchCompanyLink, 'Research hydrates the sourced owner-company route for the selected need').toHaveCount(1)
+      const researchCompany = researchCompanyLink.locator('xpath=ancestor::article[1]')
+      await expect(researchCompany.locator('strong')).toHaveText(expected.company_name)
+      await expect(researchContacts.locator(`a[href="${expected.source_url}"]`).first(), 'Research keeps the contact source citation').toHaveAttribute('href', expected.source_url)
+      const researchRepresentative = researchContacts.locator('article').filter({ hasText: expected.representative_name })
+      await expect(researchRepresentative).toHaveCount(1)
+      await expect(researchRepresentative.locator('a[href^="tel:"]'), 'Research does not infer a personal phone line').toHaveCount(0)
+    }
     const researchDetail = page.getByRole('region', { name: 'Selected automated research' })
     for (const text of item.expected_research_text ?? []) await expect(researchDetail).toContainText(text)
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-research-desktop.png`), fullPage: true })
 
     await page.setViewportSize({ width: 390, height: 844 })
+    if (item.expected_contact_route) {
+      const expected = item.expected_contact_route
+      const researchContacts = page.getByRole('region', { name: 'Business contacts' })
+      await expect(researchContacts.locator(`a[href="${expected.company_href}"]`), 'the same company method remains present at mobile width').toHaveCount(1)
+      await expect(researchContacts.locator(`a[href="${expected.source_url}"]`).first()).toHaveAttribute('href', expected.source_url)
+    }
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-research-mobile.png`), fullPage: true })
     const globalSearch = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
     await globalSearch.fill(item.project_name)

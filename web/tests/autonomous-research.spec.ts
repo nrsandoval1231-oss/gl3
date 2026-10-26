@@ -40,7 +40,9 @@ test('Research shows source-backed contacts, separate priority and confidence, e
       })),
     },
   }
-  await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: { ...workspace, items: [longNeed] } }))
+  const longThinNeed = { ...longNeed, title_company: longCompany, intelligence_card: undefined }
+  await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: { ...workspace, items: [longThinNeed] } }))
+  await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: longNeed }))
   const writes: string[] = []
   await page.route('**/api/**', async route => {
     if (route.request().method() !== 'GET' && !route.request().url().includes('/api/auth/session')) writes.push(`${route.request().method()} ${route.request().url()}`)
@@ -64,6 +66,81 @@ test('Research shows source-backed contacts, separate priority and confidence, e
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: test.info().outputPath('mobile-research.png'), fullPage: true })
   expect(writes).toEqual([])
+})
+
+test('Research reports contact detail unavailable when the selected need read fails', async ({ page }) => {
+  await install(page)
+  let detailReads = 0
+  await page.route('**/api/opportunities/needs/need-demo**', route => {
+    detailReads += 1
+    return detailReads === 1
+      ? route.fulfill({ status: 503, json: { detail: 'detail unavailable' } })
+      : route.fulfill({ json: need })
+  })
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  const contacts = page.getByRole('region', { name: 'Business contacts' })
+  await expect(contacts.getByText(/No conclusion about missing contacts can be drawn/)).toBeVisible()
+  await expect(contacts.getByText('No source-backed business contact is currently available.')).toHaveCount(0)
+  await expect(contacts.getByText('Morgan Lee')).toHaveCount(0)
+  await contacts.getByRole('button', { name: 'Retry contact detail' }).click()
+  await expect(contacts.getByRole('link', { name: 'morgan@example.test' })).toHaveAttribute('href', 'mailto:morgan@example.test')
+})
+
+test('Research treats a successful detail response without an intelligence card as unavailable', async ({ page }) => {
+  await install(page)
+  await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: { ...need, intelligence_card: null } }))
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  const contacts = page.getByRole('region', { name: 'Business contacts' })
+  await expect(contacts.getByText(/No conclusion about missing contacts can be drawn/)).toBeVisible()
+  await expect(contacts.getByText('No source-backed business contact is currently available.')).toHaveCount(0)
+  await expect(contacts.getByRole('button', { name: 'Retry contact detail' })).toBeVisible()
+})
+
+test('Research does not show a prior project contact after a rapid selection change', async ({ page }) => {
+  await install(page)
+  const secondNeed = {
+    ...need,
+    id: 'need-two', project_id: 'project-two', name: 'Lakeshore commissioning', browse_title: 'Lakeshore commissioning',
+    commercial_organization: 'Second Energy',
+    intelligence_card: {
+      ...need.intelligence_card,
+      need_id: 'need-two', project_id: 'project-two',
+      fields: need.intelligence_card.fields.map(field => field.key === 'customer' ? { ...field, value: 'Second Energy' } : field.key === 'project' ? { ...field, value: 'Lakeshore commissioning' } : field),
+      contacts: [{ ...need.intelligence_card.contacts[0], claim_id: 'contact-two', company: 'Second Energy', name: null, methods: [{ kind: 'phone', value: '+13125550188', href: 'tel:+13125550188' }] }],
+    },
+  }
+  await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: { ...workspace, items: [need, secondNeed] } }))
+  let releaseFirst: (() => void) | undefined
+  let markFirstStarted: (() => void) | undefined
+  let markFirstFinished: (() => void) | undefined
+  const firstHeld = new Promise<void>(resolve => { releaseFirst = resolve })
+  const firstStarted = new Promise<void>(resolve => { markFirstStarted = resolve })
+  const firstFinished = new Promise<void>(resolve => { markFirstFinished = resolve })
+  await page.route('**/api/opportunities/needs/**', async route => {
+    const pathname = new URL(route.request().url()).pathname
+    if (pathname.endsWith('/need-demo')) {
+      markFirstStarted?.()
+      await firstHeld
+      try { await route.fulfill({ json: need }) } catch { /* the selected request was aborted */ }
+      markFirstFinished?.()
+      return
+    }
+    if (pathname.endsWith('/need-two')) return route.fulfill({ json: secondNeed })
+    await route.fallback()
+  })
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  await firstStarted
+  await page.getByRole('button', { name: /Second Energy/ }).click()
+  const contacts = page.getByRole('region', { name: 'Business contacts' })
+  await expect(contacts.getByRole('link', { name: '+13125550188' })).toHaveAttribute('href', 'tel:+13125550188')
+  await expect(contacts.getByText('Morgan Lee')).toHaveCount(0)
+  releaseFirst?.()
+  await firstFinished
+  await expect(contacts.getByRole('link', { name: '+13125550188' })).toBeVisible()
+  await expect(contacts.getByText('Morgan Lee')).toHaveCount(0)
 })
 
 test('Research hides the previous cohort while a new search loads or fails', async ({ page }) => {
