@@ -110,5 +110,39 @@
       "source_rows_written": 0,
       "production_matching_performed": false
     }
+  },
+  "cross_workbook_candidate_analysis": {
+    "project_or_mixed_rows_with_project_name": 4455,
+    "exact_normalized_row_groups": 1,
+    "exact_normalized_row_references": 66,
+    "exact_group_references_by_file": {
+      "1-DC-Leads.xlsx": 40,
+      "3-texas-dc-leads.xlsx": 9,
+      "4-Cleanview.xlsx": 17
+    },
+    "exact_group_normalized_fields": ["project_name"],
+    "exact_group_has_company_state_site_or_power_claim": false,
+    "shared_project_name_state_groups": 233,
+    "shared_project_name_state_row_references": 467,
+    "shared_project_name_state_company_groups": 186,
+    "shared_project_name_state_company_row_references": 372,
+    "groups_with_cross_file_value_disagreement": 67,
+    "disagreements_by_field": {
+      "company_name": 51,
+      "facility_demand_mw": 24
+    },
+    "disagreements_resolved": false,
+    "automatic_merges": 0,
+    "interpretation": "Project-name/state and company-name equality are hints only; no physical-site identity or merge is established."
+  },
+  "local_austin_verifier_corpus": {
+    "database": "gridlens_verify_austin_20261026",
+    "migration_revision": "0041_evidence_packages",
+    "projects": 6,
+    "evidence_rows": 171,
+    "power_needs": 6,
+    "company_identities": 0,
+    "used_as_production_snapshot": false,
+    "production_matching_performed": false
   }
 }
