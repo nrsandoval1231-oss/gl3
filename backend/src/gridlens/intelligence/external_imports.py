@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import re
 from difflib import SequenceMatcher
 from typing import Any, TypedDict
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, insert, literal_column, select, update
@@ -46,6 +47,10 @@ MAX_METADATA_REPARSE_BYTES = 16 * 1024 * 1024
 MAX_METADATA_REPARSE_HINTS = 100_000
 MAX_METADATA_REPARSE_REVISIONS = 10
 MAX_METADATA_HINTS_IN_RESULT = 100
+MAX_COMPANY_HYPERLINK_ROWS = 100
+MAX_COMPANY_HYPERLINK_URLS = 8
+MAX_COMPANY_HYPERLINK_BYTES = 16 * 1024 * 1024
+_PUBLIC_HOST_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
 _ACTIVITY_SPECIFIC_POWER_HEADER = re.compile(
     r"(?:temporary|rental|construction|commissioning).*(?:demand|load|power)|"
@@ -137,8 +142,7 @@ def _is_hyperlink_sidecar(key: str, value: Any, *, sidecar_keys: set[str]) -> bo
         and isinstance(value, dict)
         and bool(value)
         and all(
-            isinstance(column, str) and isinstance(target, str)
-            for column, target in value.items()
+            isinstance(column, str) and isinstance(target, str) for column, target in value.items()
         )
     )
 
@@ -149,6 +153,210 @@ def _is_http_url(value: str) -> bool:
     except ValueError:
         return False
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def _public_http_url(value: Any) -> str | None:
+    """Return a syntactically public HTTP(S) URL without resolving or fetching it."""
+    if not isinstance(value, str) or not value or len(value) > 2048:
+        return None
+    if any(ord(char) < 33 or ord(char) == 127 for char in value):
+        return None
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or not host
+        or parsed.username
+        or parsed.password
+    ):
+        return None
+    if port is not None and port != (443 if parsed.scheme.lower() == "https" else 80):
+        return None
+    host = host.rstrip(".").lower()
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        try:
+            host = host.encode("idna").decode("ascii")
+        except UnicodeError:
+            return None
+        labels = host.split(".")
+        if len(labels) < 2 or any(not _PUBLIC_HOST_LABEL.fullmatch(label) for label in labels):
+            return None
+        if (
+            labels[-1].isdigit()
+            or host == "localhost"
+            or any(
+                host == suffix or host.endswith("." + suffix)
+                for suffix in (
+                    "local",
+                    "internal",
+                    "test",
+                    "example",
+                    "invalid",
+                    "home",
+                    "lan",
+                    "onion",
+                )
+            )
+        ):
+            return None
+        authority = host
+    else:
+        if not address.is_global:
+            return None
+        authority = address.compressed
+        if address.version == 6:
+            authority = f"[{authority}]"
+    if port is not None:
+        authority = f"{authority}:{port}"
+    return urlunsplit((parsed.scheme.lower(), authority, parsed.path or "/", parsed.query, ""))
+
+
+def company_hyperlink_hints(session: Session, company_id: UUID | str) -> dict[str, Any]:
+    """Return bounded, unverified workbook URL hints for active matched rows of one company."""
+    company_uuid = UUID(str(company_id))
+    latest_event = (
+        select(
+            ExternalImportEvent.batch_id.label("batch_id"),
+            ExternalImportEvent.id.label("event_id"),
+            ExternalImportEvent.details.label("details"),
+        )
+        .where(ExternalImportEvent.action == "metadata_reparsed")
+        .distinct(ExternalImportEvent.batch_id)
+        .order_by(
+            ExternalImportEvent.batch_id,
+            ExternalImportEvent.created_at.desc(),
+            ExternalImportEvent.id.desc(),
+        )
+        .subquery()
+    )
+    row_hints = func.jsonb_path_query_array(
+        latest_event.c.details,
+        literal_column(
+            "'$.hyperlink_hints[*] ? (@.sheet == $sheet && "
+            "@.row_number == $row_number) [0 to 99]'::jsonpath"
+        ),
+        func.jsonb_build_object(
+            "sheet", ExternalImportRow.sheet, "row_number", ExternalImportRow.row_number
+        ),
+    )
+    records = session.execute(
+        select(
+            ExternalImportRow,
+            ExternalImportBatch,
+            latest_event.c.event_id,
+            latest_event.c.details["parser_revision"].astext.label("parser_revision"),
+            latest_event.c.details["metadata_fingerprint"].astext.label("metadata_fingerprint"),
+            row_hints.label("row_hints"),
+        )
+        .join(ExternalImportBatch, ExternalImportBatch.id == ExternalImportRow.batch_id)
+        .join(ExternalImportActivation, ExternalImportActivation.row_id == ExternalImportRow.id)
+        .outerjoin(latest_event, latest_event.c.batch_id == ExternalImportBatch.id)
+        .where(
+            ExternalImportActivation.active.is_(True),
+            ExternalImportRow.match_status == "matched",
+            ExternalImportRow.company_match["status"].astext == "matched",
+            ExternalImportRow.company_match["candidate_id"].astext == str(company_uuid),
+        )
+        .order_by(
+            ExternalImportBatch.content_hash,
+            ExternalImportRow.sheet,
+            ExternalImportRow.row_number,
+            ExternalImportRow.id,
+        )
+        .limit(MAX_COMPANY_HYPERLINK_ROWS + 1)
+    ).all()
+    rows_truncated = len(records) > MAX_COMPANY_HYPERLINK_ROWS
+    records = records[:MAX_COMPANY_HYPERLINK_ROWS]
+    sources: list[dict[str, Any]] = []
+    urls: set[str] = set()
+    consumed_bytes = 0
+    urls_truncated = False
+    metadata_hints_may_be_truncated = False
+    for row, batch, event_id, parser_revision, metadata_fingerprint, event_hints in records:
+        if event_id is not None:
+            hints = event_hints or []
+            metadata_hints_may_be_truncated = metadata_hints_may_be_truncated or len(hints) == 100
+            source_revision = parser_revision
+            source_fingerprint = metadata_fingerprint
+        else:
+            hints = []
+            sidecar_keys = _metadata_sidecar_keys(batch.report).get(row.sheet, set())
+            for key, container in row.raw.items():
+                if _is_hyperlink_sidecar(key, container, sidecar_keys=sidecar_keys):
+                    hints.extend(
+                        {
+                            "column": column,
+                            "target": target,
+                            "verification_status": "UNVERIFIED_SOURCE_HINT",
+                        }
+                        for column, target in container.items()
+                    )
+            source_revision = batch.report.get("hyperlink_metadata_parser_revision")
+            source_fingerprint = None
+        stable_hints = []
+        for hint in hints:
+            if not isinstance(hint, dict):
+                continue
+            target = hint.get("target")
+            if not isinstance(target, str):
+                continue
+            consumed_bytes += len(target.encode("utf-8"))
+            if consumed_bytes > MAX_COMPANY_HYPERLINK_BYTES:
+                raise ValueError("company hyperlink hints exceed the bounded reader byte budget")
+            stable_hints.append(
+                {
+                    "column": hint.get("column"),
+                    "target": target,
+                    "verification_status": hint.get("verification_status"),
+                }
+            )
+            candidate = _public_http_url(target)
+            if candidate and hint.get("verification_status") == "UNVERIFIED_SOURCE_HINT":
+                urls.add(candidate)
+        sources.append(
+            {
+                "batch_hash": batch.content_hash,
+                "row_id": str(row.id),
+                "sheet": row.sheet,
+                "row_number": row.row_number,
+                "parser_revision": source_revision,
+                "metadata_fingerprint": source_fingerprint,
+                "hints": sorted(
+                    stable_hints, key=lambda item: (str(item["column"]), item["target"])
+                ),
+            }
+        )
+    ordered_urls = sorted(urls)
+    if len(ordered_urls) > MAX_COMPANY_HYPERLINK_URLS:
+        urls_truncated = True
+        ordered_urls = ordered_urls[:MAX_COMPANY_HYPERLINK_URLS]
+    fingerprint_payload = json.dumps(
+        {
+            "company_id": str(company_uuid),
+            "sources": sources,
+            "rows_truncated": rows_truncated,
+            "urls_truncated": urls_truncated,
+            "metadata_hints_may_be_truncated": metadata_hints_may_be_truncated,
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return {
+        "urls": ordered_urls,
+        "fingerprint": hashlib.sha256(fingerprint_payload.encode("utf-8")).hexdigest(),
+        "verification_status": "UNVERIFIED_SOURCE_HINT",
+        "rows_considered": len(records),
+        "rows_truncated": rows_truncated,
+        "urls_truncated": urls_truncated,
+        "metadata_hints_may_be_truncated": metadata_hints_may_be_truncated,
+    }
 
 
 def _raw_without_hyperlink_metadata(
@@ -222,14 +430,10 @@ def _append_metadata_reparse_if_unchanged(
         "hyperlink_metadata_sidecar_keys",
     }
     original_report = {
-        key: value
-        for key, value in batch.report.items()
-        if key not in metadata_report_fields
+        key: value for key, value in batch.report.items() if key not in metadata_report_fields
     }
     replay_report = {
-        key: value
-        for key, value in preview.report.items()
-        if key not in metadata_report_fields
+        key: value for key, value in preview.report.items() if key not in metadata_report_fields
     }
     if original_report != replay_report:
         raise ValueError("metadata-only replay changed workbook mapping or parser report")
@@ -261,9 +465,7 @@ def _append_metadata_reparse_if_unchanged(
             raise ValueError("metadata-only replay changed original raw or normalized row data")
 
     parser_revision, hints = _hyperlink_metadata(preview)
-    metadata_payload = json.dumps(
-        hints, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    )
+    metadata_payload = json.dumps(hints, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     metadata_fingerprint = hashlib.sha256(metadata_payload.encode("utf-8")).hexdigest()
     stored_sidecars = [
         {
@@ -318,7 +520,9 @@ def _append_metadata_reparse_if_unchanged(
     if not isinstance(parser_revision, str) or not 1 <= len(parser_revision) <= 120:
         raise ValueError("hyperlink metadata parser revision is invalid")
     revision_count = session.scalar(
-        select(func.count()).select_from(ExternalImportEvent).where(
+        select(func.count())
+        .select_from(ExternalImportEvent)
+        .where(
             ExternalImportEvent.batch_id == batch.id,
             ExternalImportEvent.action == "metadata_reparsed",
         )
@@ -1231,9 +1435,7 @@ def _result(
                         if _is_http_url(target)
                         else "UNVERIFIED_UNSUPPORTED_HYPERLINK_TARGET"
                     ),
-                    "parser_revision": batch.report.get(
-                        "hyperlink_metadata_parser_revision"
-                    ),
+                    "parser_revision": batch.report.get("hyperlink_metadata_parser_revision"),
                     "event_id": None,
                 }
                 for key, container in row.raw.items()
@@ -1262,12 +1464,15 @@ def _result(
                     ),
                 }
             )
-    rolled_back = session.scalar(
-        select(ExternalImportEvent.id).where(
-            ExternalImportEvent.batch_id == batch.id,
-            ExternalImportEvent.action == "rolled_back",
+    rolled_back = (
+        session.scalar(
+            select(ExternalImportEvent.id).where(
+                ExternalImportEvent.batch_id == batch.id,
+                ExternalImportEvent.action == "rolled_back",
+            )
         )
-    ) is not None
+        is not None
+    )
     return {
         "batch_id": str(batch.id),
         "filename": batch.filename,

@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from uuid import uuid4
 
 import pytest
 from openpyxl import Workbook
@@ -18,6 +19,7 @@ from gridlens.ingestion.workbook_import import (
 from gridlens.intelligence.external_imports import (
     _is_hyperlink_sidecar,
     _metadata_sidecar_keys,
+    company_hyperlink_hints,
     import_history,
     reconcile_preview,
     rollback_import,
@@ -309,9 +311,7 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
             "Citation Three",
         ]
         sheet.append(headers)
-        sheet.append(
-            ["raw"] * 10 + ["Unmatched Project", "TX", "Link", "Email", "Malformed"]
-        )
+        sheet.append(["raw"] * 10 + ["Unmatched Project", "TX", "Link", "Email", "Malformed"])
         sheet["M2"].hyperlink = "https://example.gov/permits/123"
         sheet["N2"].hyperlink = "mailto:permits@example.gov"
         sheet["O2"].hyperlink = "https://["
@@ -401,6 +401,27 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
             "https://example.gov/permits/123"
         )
 
+        # The shared reader selects only the current row snapshot for an active,
+        # exactly matched company. Returned workbook targets remain unverified.
+        matched_company_id = uuid4()
+        original_row.company_match = {
+            "status": "matched",
+            "candidate_id": str(matched_company_id),
+        }
+        original_row.match_status = "matched"
+        session.get(ExternalImportActivation, original_row.id).active = True
+        session.flush()
+        hint_result = company_hyperlink_hints(session, matched_company_id)
+        assert hint_result["urls"] == ["https://example.gov/permits/123"]
+        assert hint_result["verification_status"] == "UNVERIFIED_SOURCE_HINT"
+        assert len(hint_result["fingerprint"]) == 64
+        assert (
+            company_hyperlink_hints(session, matched_company_id)["fingerprint"]
+            == (hint_result["fingerprint"])
+        )
+        session.get(ExternalImportActivation, original_row.id).active = False
+        session.flush()
+
         exact_replay = stage_import(session, current_preview, actor="metadata-reviewer")
         assert exact_replay["metadata_reparse_receipts"] == reparsed["metadata_reparse_receipts"]
         assert session.scalar(select(func.count()).select_from(ExternalImportEvent)) == 2
@@ -461,9 +482,7 @@ def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverif
                     if not _is_hyperlink_sidecar(
                         key,
                         value,
-                        sidecar_keys=current_sidecar_keys.get(
-                            current_preview.rows[0].sheet, set()
-                        ),
+                        sidecar_keys=current_sidecar_keys.get(current_preview.rows[0].sheet, set()),
                     )
                 }
             }
