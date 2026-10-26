@@ -10,7 +10,8 @@ Status: HOLD. The owner authorizes PR126 merge and production deployment only af
 4. Take a fresh logical backup and prove restoration in isolation. Verify evidence, privacy suppressions, corrections, source versions and import-event history. An available DigitalOcean infrastructure backup alone is not a logical restore rehearsal.
 5. Validate upgrade from the observed production revision through `0046_import_meta_reparse` against the restored copy. Compare retained row contents and constraints, repeat the upgrade, and verify application compatibility before production execution.
 6. After all gates pass, finalize and merge PR126, build immutable artifacts from the merged SHA, migrate through the established procedure, and start compatible API, worker and web services. Do not activate paid providers or promote unverified workbook assertions as part of migration.
-7. Verify authenticated services, scheduled work, retry/fencing, source health, suppression behavior, retained data counts and desktop/mobile commercial scenarios. Record the deployed SHA and observed results. A frontend HTML response from a health-looking URL does not prove backend readiness.
+7. Rebuild required saved-browse projections using the exact deployed API/worker artifact before accepting traffic readiness. Verify the published generation matches the runtime policy fingerprint, input revision and validity window; matching database counts alone is insufficient. A local mixed-source browser setup produced an expected 503 because an older-backend projection fingerprint differed from the current API.
+8. Verify authenticated services, scheduled work, retry/fencing, source health, suppression behavior, retained data counts and desktop/mobile commercial scenarios. Record the deployed SHA and observed results. A frontend HTML response from a health-looking URL does not prove backend readiness.
 
 ## Workbook boundary
 
