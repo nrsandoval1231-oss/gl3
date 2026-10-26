@@ -1,6 +1,6 @@
 # Real source corpus assessment
 
-Date: 2026-10-26. Scope: retained public-source evidence and benchmark readiness for the commercial release. No production database, provider, or workbook data was written or activated.
+Date: 2026-10-26. Scope: retained public-source evidence and benchmark readiness for the commercial release. No production database or paid provider was used. Workbook rows remain in isolated staging; only the retained Crusoe source was ingested into its isolated candidate database.
 
 ## Frozen eligibility result
 
@@ -19,6 +19,16 @@ The restored isolated Austin verifier database `gridlens_verify_austin_20261026`
 
 An isolated working clone named `gridlens_release_corpus` was created from the actual workbook staging database before activation work. Read-only verification confirms it contains the same four batches, 4,520 retained rows, and 4,520 inactive activation records, with zero canonical projects, power needs, or evidence records. It remains staging-only while the genuine public-source cohort is researched and frozen.
 
+## Native retained-source case
+
+The publisher-linked Crusoe 2025 Impact Report was checked against its pinned SHA-256 (`38ca3db4c94206be9e8b2ee1e3b5fa1239b00948c50b3ac0e102e6d7f1773619`) and imported from the retained local PDF through the existing fenced `retained_import` worker in the separate isolated database `gridlens_release_corpus_test`. The adapter ran with model processing disabled and made no paid calls. It created one source observation, one evidence record, one accepted interpretation, one Signal, one active `bridge-power` need, and one project:
+
+| Project | Project ID | Source-backed assertion | Explicit unknowns |
+| --- | --- | --- | --- |
+| Abilene Stargate campus, near Abilene, TX | `ed50a4a7-ad0b-441f-91fe-48b76c6dc760` | Crusoe reports natural-gas turbines provide temporary bridge power while grid upgrades catch up. The adapter retains this as an in-use configuration and says it is not an open purchase. Direct publisher-linked PDF at [the retained source URL](https://cdn.prod.website-files.com/6855c1aa175582ee23e0aa19/6aa975443d2a8405e214f067_Crusoe_2025_Impact%20Report2_web_optimized.pdf); extracted spans PDF pp. 2, 15–16, and 19. | Required MW, need start/end dates, duration, utility-ready date, committed supply, residual gap, project-connected contact, business contact method, and buying authority are unknown. The 300 kW floor is not established. |
+
+The need is persisted as `Signal` with `required_mw`, `start_window`, and `duration` null and supply `Unknown`. Regional status is `ELIGIBLE` for TX only; this does not satisfy the power floor or commercial opportunity criteria. This is a real bridge-power scenario for browsing and source-grounded research, but it is not an actionable, qualified opportunity and does not add to the frozen 25-project eligible cohort.
+
 ## Frozen workbook candidate sample
 
 Before contact research, a deterministic 25-row workbook sample was frozen in [frozen-workbook-candidates.json](frozen-workbook-candidates.json). It contains 13 TX, 6 OK, and 6 NM source-row assertions. Selection required a non-empty normalized project name, territory state, valid coordinate pair, no parser errors, and a project row; candidates were deduplicated by normalized project name/state and duplicate coordinates rounded to five decimal places. A stable SHA-256 ranking selected within each state stratum. The algorithm did not inspect contact or commercial outcomes. Each row includes workbook content hash, batch ID, sheet, row, and staged row ID.
@@ -36,13 +46,13 @@ No eligible-opportunity cohort was frozen for scoring. The separate 25-row workb
 | Measure | Result |
 | --- | --- |
 | Requested distinct eligible projects | 25 |
-| Accessible retained source records examined | 81 retained JEV records; 3,380 staged project rows |
+| Accessible retained source records examined | 81 retained JEV records; 3,380 staged project rows; 1 newly imported retained report |
 | TX/OK/NM data-center candidates retained | 2 (1 withdrawn; 1 lacks supported power floor and timing) |
 | Frozen workbook source-row candidate sample | 25 (unverified; 13 TX, 6 OK, 6 NM) |
 | Frozen eligible genuine-opportunity cohort | 0 |
 | Staged territory rows | 518 rows / 517 normalized project-name/state groups; all inactive, no retained source URL targets |
 | Scored projects | 0 |
-| DC / midstream / utility-bridge / contact-to-action scenarios | Not benchmarked |
+| DC-owner/gap, midstream, utility-bridge, and contact-to-action | One source-grounded bridge-power Signal; remaining scenario coverage not benchmarked |
 | Contact discovery, independent verification, buyer relevance | Unknown / not measured |
 | Production writes or paid calls | None |
 
