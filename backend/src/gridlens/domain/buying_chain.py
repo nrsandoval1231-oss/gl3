@@ -124,23 +124,6 @@ class BuyingChainOut(BaseModel):
     research_job: BuyingChainResearchJobOut | None = None
 
 
-class BuyingEnrichBody(BaseModel):
-    source_urls: list[str] = Field(default_factory=list, max_length=MAX_SOURCE_URLS)
-
-
-class BuyingChainCorrectionBody(BaseModel):
-    expected_version: str = Field(min_length=1, max_length=80)
-    idempotency_key: str = Field(min_length=8, max_length=120)
-    action: str = Field(pattern="^(correct|retract)$")
-    values: dict[str, str | None] = Field(default_factory=dict)
-    source_evidence_id: UUID | None = None
-    source_hash: str | None = Field(default=None, min_length=64, max_length=64)
-    reason: str = Field(min_length=3, max_length=1000)
-    reported_contact: bool = False
-    identity_type: str | None = Field(default=None, pattern="^(company|person)$")
-    identity_id: UUID | None = None
-
-
 class BuyingChainIdentityReferenceOut(BaseModel):
     type: Literal["company", "person"]
     id: UUID
