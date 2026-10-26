@@ -42,14 +42,14 @@ The failed-refresh finding is **corrected in code** by `3960f33`, included in so
 - Ordinary terminal ingestion failures are no longer indefinitely blocked by the queue. Unrepresentable publisher Retry-After values have a separate hold state; representable deadlines remain scheduled.
 - Planner connection acquisition is inside its failure/retry boundary, and PostgreSQL session advisory locking coordinates replicas.
 - Search normalizes opportunity navigation IDs, omits raw stored project tiers, and reports unavailable saved company/opportunity projections separately from direct project/contact results. The UI rejects stale query results and reports pending projections.
-- Manual write routes and mounted request schemas were removed. Historical fact, note, correction and membership evidence tables and read-side projections remain. There were no persistence-model or migration changes in the reviewed diff.
-- Old operator statuses do not appear in the new classification, ranking or research-planning decisions. Legacy public browse/map/export status query filters remained during review; retiring that obsolete API behavior does not require deleting historical status rows.
+- Manual write routes and mounted request schemas were removed. Historical fact, note, correction and membership evidence tables and read-side projections remain. The original surgery diff had no persistence-model or migration changes; the later upstream additive migrations are accounted for above.
+- Old operator statuses do not appear in the new classification, ranking or research-planning decisions. Legacy public browse/map/export status query filters found during review were subsequently removed by `a07ae91`, without deleting historical status rows.
 
 ## Evidence integrity and scope
 
 The existing exact-source qualification gates, TX/OK/NM physical-site eligibility, 300 kW commercial floor, unknown-versus-zero distinction and residual-gap interval subtraction were preserved. Contact methods continue to depend on retained current citation support. Contact labels distinguish source attribution from deliverability and purchasing authority. Owner-first presentation does not merge separate physical projects or establish new power claims.
 
-Historical fact/correction replay and immutable-row fixtures remain in the integration suite; replacing retired writer tests must not be mistaken for permission to discard those records. Four unreferenced manual request classes were reported for cleanup; historical output contracts remain useful.
+Historical fact/correction replay and immutable-row fixtures remain in the integration suite; replacing retired writer tests must not be mistaken for permission to discard those records. Four unreferenced manual request classes reported for cleanup were removed by `5ca68b9`; historical output contracts remain useful.
 
 ## Independent verification and limits
 
@@ -76,4 +76,8 @@ uv run pytest tests/unit/test_enrichment_api.py \
 
 ## Acceptance state
 
-All identified blocking findings have corrective code read back through source candidate `24f3985`. **Exact-candidate backend and browser regression verification remain pending; final acceptance is not yet granted.** The earlier full run at `8df3231` was interrupted and is not a passing gate. Coordinator-reported results from earlier heads are not substituted for the restarted final gate. Production deployment remains on hold: this review does not establish live TCEQ coverage, verified actionable-contact yield, paid-provider readiness, or deployed behavior.
+**Local implementation and regression acceptance is granted for source `24f3985d8b6f3c71d4fb415d4abcea8836d04694`.** All identified blocking findings have corrective code independently read back. The reviewer fetched [GitHub Actions run 40255316876](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40255316876), verified its exact source SHA and successful backend, web and brand-assets jobs, and read the backend job's raw test summaries: **3,048 passed, 1 skipped** from 3,049 collected tests; **120 browser tests passed**. A source diff against that SHA is empty for `backend`, `web`, `scripts`, `config`, `tools` and `.github`; subsequent review-document changes do not alter that tested source.
+
+The reviewer also inspected the local final-gate manifest and four pytest logs in `/tmp/gridlens-final-gate`: the same candidate, all four exit codes zero, and 763 + 761 + 762 + 762 = **3,048 passed**, with one optional local-access-probe skip and seven passing subtests. The interrupted `8df3231` run is not used as acceptance evidence. The coordinator additionally reports fresh/repeated/drift schema checks, seeded 0041→0044 evidence preservation, and all three dependency audits passing; those are coordinator evidence, not reviewer-executed checks.
+
+**Production deployment remains on hold.** Four browser cases requiring a live corpus remain blocked. The passing local and CI regressions do not establish live TCEQ acquisition through the required proxy, paid-provider readiness, current territory coverage, sustained daily autonomous cycles, a real qualified Lead, verified actionable-contact yield, or deployed behavior. This acceptance covers the reviewed implementation and exact-source regression results only.
