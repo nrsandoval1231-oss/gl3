@@ -1,12 +1,23 @@
 from datetime import UTC, datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
+from openpyxl import Workbook
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from gridlens.ingestion.workbook_import import ImportPreview, ImportRow
+from gridlens.ingestion.workbook_import import (
+    HYPERLINK_METADATA_PARSER_REVISION,
+    ImportPreview,
+    ImportRow,
+    read_workbook,
+)
 from gridlens.intelligence.external_imports import (
+    _is_hyperlink_sidecar,
+    _metadata_sidecar_keys,
     import_history,
     reconcile_preview,
     rollback_import,
@@ -279,6 +290,267 @@ def test_stage_is_replay_safe_explainable_and_reversible_without_canonical_write
             for activation in session.scalars(select(ExternalImportActivation))
         )
         assert import_history(session)[0]["batch_id"] == first["batch_id"]
+
+
+def test_same_file_parser_metadata_reparse_is_append_only_idempotent_and_unverified(
+    import_db, monkeypatch
+):
+    with TemporaryDirectory() as temporary_directory:
+        workbook_path = Path(temporary_directory) / "linked-projects.xlsx"
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Projects"
+        repeated_reserved_header = "__workbook_hyperlinks__"
+        headers = [repeated_reserved_header] * 10 + [
+            "Project Name",
+            "State",
+            "Citation",
+            "Citation Two",
+            "Citation Three",
+        ]
+        sheet.append(headers)
+        sheet.append(
+            ["raw"] * 10 + ["Unmatched Project", "TX", "Link", "Email", "Malformed"]
+        )
+        sheet["M2"].hyperlink = "https://example.gov/permits/123"
+        sheet["N2"].hyperlink = "mailto:permits@example.gov"
+        sheet["O2"].hyperlink = "https://["
+        workbook.save(workbook_path)
+
+        current_preview = read_workbook(workbook_path)
+        current_sidecar_keys = _metadata_sidecar_keys(current_preview.report)
+        legacy_report = dict(current_preview.report)
+        legacy_report.pop("hyperlink_metadata_parser_revision")
+        legacy_report.pop("hyperlink_metadata_sidecar_keys")
+        legacy_rows = [
+            row.model_copy(
+                update={
+                    "raw": {
+                        key: value
+                        for key, value in row.raw.items()
+                        if not _is_hyperlink_sidecar(
+                            key,
+                            value,
+                            sidecar_keys=current_sidecar_keys.get(row.sheet, set()),
+                        )
+                    }
+                }
+            )
+            for row in current_preview.rows
+        ]
+        legacy_preview = ImportPreview(
+            filename=current_preview.filename,
+            content_hash=current_preview.content_hash,
+            rows=legacy_rows,
+            report=legacy_report,
+        )
+
+    with import_db.begin() as session:
+        original = stage_import(session, legacy_preview, actor="initial-importer")
+        original_row = session.scalar(select(ExternalImportRow))
+        original_raw = dict(original_row.raw)
+        original_normalized = dict(original_row.normalized)
+        original_batch = session.get(ExternalImportBatch, original_row.batch_id)
+        original_report = dict(original_batch.report)
+        assert original["active_count"] == 0
+        assert original_row.raw["Citation"] == "Link"
+        assert not any(
+            _is_hyperlink_sidecar(
+                key,
+                value,
+                sidecar_keys=current_sidecar_keys.get(original_row.sheet, set()),
+            )
+            for key, value in original_row.raw.items()
+        )
+
+        reparsed = stage_import(session, current_preview, actor="metadata-reviewer")
+        assert reparsed["batch_id"] == original["batch_id"]
+        assert reparsed["active_count"] == 0
+        assert reparsed["recovered_unverified_hyperlink_hint_count"] == 3
+        receipt = reparsed["metadata_reparse_receipts"][0]
+        assert receipt["actor"] == "metadata-reviewer"
+        assert receipt["source_content_hash"] == current_preview.content_hash
+        assert receipt["parser_revision"] == HYPERLINK_METADATA_PARSER_REVISION
+        assert receipt["hyperlink_hints"] == [
+            {
+                "sheet": "Projects",
+                "row_number": 2,
+                "column": "Citation",
+                "url": "https://example.gov/permits/123",
+                "target": "https://example.gov/permits/123",
+                "verification_status": "UNVERIFIED_SOURCE_HINT",
+            },
+            {
+                "sheet": "Projects",
+                "row_number": 2,
+                "column": "Citation Two",
+                "url": None,
+                "target": "mailto:permits@example.gov",
+                "verification_status": "UNVERIFIED_UNSUPPORTED_HYPERLINK_TARGET",
+            },
+            {
+                "sheet": "Projects",
+                "row_number": 2,
+                "column": "Citation Three",
+                "url": None,
+                "target": "https://[",
+                "verification_status": "UNVERIFIED_UNSUPPORTED_HYPERLINK_TARGET",
+            },
+        ]
+        assert reparsed["rows"][0]["unverified_hyperlink_hints"][0]["url"] == (
+            "https://example.gov/permits/123"
+        )
+
+        exact_replay = stage_import(session, current_preview, actor="metadata-reviewer")
+        assert exact_replay["metadata_reparse_receipts"] == reparsed["metadata_reparse_receipts"]
+        assert session.scalar(select(func.count()).select_from(ExternalImportEvent)) == 2
+
+        with pytest.raises(IntegrityError):
+            with session.begin_nested():
+                session.add(
+                    ExternalImportEvent(
+                        batch_id=original_row.batch_id,
+                        action="metadata_reparsed",
+                        actor="malformed-reviewer",
+                        details={
+                            "kind": "metadata_reparse",
+                            "parser_revision": "invalid-hash-type",
+                            "metadata_fingerprint": int("2" * 64),
+                            "source_content_hash": "a" * 64,
+                            "target_count": 1,
+                            "hyperlink_hints": [],
+                        },
+                    )
+                )
+                session.flush()
+
+        changed_display_row = current_preview.rows[0].model_copy(
+            update={"raw": {**current_preview.rows[0].raw, "Project Name": "Changed display"}}
+        )
+        changed_display = current_preview.model_copy(
+            update={"rows": [changed_display_row, *current_preview.rows[1:]]}
+        )
+        with pytest.raises(ValueError, match="changed original raw or normalized row data"):
+            stage_import(session, changed_display, actor="metadata-reviewer")
+
+        changed_target_raw = dict(current_preview.rows[0].raw)
+        sidecar_key = next(
+            key
+            for key, value in changed_target_raw.items()
+            if _is_hyperlink_sidecar(
+                key,
+                value,
+                sidecar_keys=current_sidecar_keys.get(current_preview.rows[0].sheet, set()),
+            )
+        )
+        changed_target_sidecar = dict(changed_target_raw[sidecar_key])
+        changed_target_sidecar["Citation"] = "https://example.gov/permits/changed"
+        changed_target_raw[sidecar_key] = changed_target_sidecar
+        changed_target_row = current_preview.rows[0].model_copy(update={"raw": changed_target_raw})
+        changed_target = current_preview.model_copy(
+            update={"rows": [changed_target_row, *current_preview.rows[1:]]}
+        )
+        with pytest.raises(ValueError, match="parser revision produced different"):
+            stage_import(session, changed_target, actor="metadata-reviewer")
+
+        removed_target_row = current_preview.rows[0].model_copy(
+            update={
+                "raw": {
+                    key: value
+                    for key, value in current_preview.rows[0].raw.items()
+                    if not _is_hyperlink_sidecar(
+                        key,
+                        value,
+                        sidecar_keys=current_sidecar_keys.get(
+                            current_preview.rows[0].sheet, set()
+                        ),
+                    )
+                }
+            }
+        )
+        removed_targets = current_preview.model_copy(
+            update={"rows": [removed_target_row, *current_preview.rows[1:]]}
+        )
+        with pytest.raises(ValueError, match="parser revision produced different"):
+            stage_import(session, removed_targets, actor="metadata-reviewer")
+
+        import gridlens.intelligence.external_imports as external_imports_module
+
+        monkeypatch.setattr(
+            external_imports_module, "HYPERLINK_METADATA_PARSER_REVISION", "future-v3"
+        )
+        future_preview = current_preview.model_copy(deep=True)
+        future_report = dict(future_preview.report)
+        future_report["hyperlink_metadata_parser_revision"] = "future-v3"
+        future_preview.report = future_report
+        future_replay = stage_import(session, future_preview, actor="metadata-reviewer")
+        assert future_replay["metadata_reparse_receipts"] == reparsed["metadata_reparse_receipts"]
+        assert session.scalar(select(func.count()).select_from(ExternalImportEvent)) == 2
+
+        future_b_raw = dict(future_preview.rows[0].raw)
+        future_b_key = next(
+            key
+            for key, value in future_b_raw.items()
+            if _is_hyperlink_sidecar(
+                key,
+                value,
+                sidecar_keys=current_sidecar_keys.get(future_preview.rows[0].sheet, set()),
+            )
+        )
+        future_b_sidecar = dict(future_b_raw[future_b_key])
+        future_b_sidecar["Citation"] = "https://example.gov/permits/future-b"
+        future_b_raw[future_b_key] = future_b_sidecar
+        future_b_row = future_preview.rows[0].model_copy(update={"raw": future_b_raw})
+        future_b_preview = future_preview.model_copy(
+            update={"rows": [future_b_row, *future_preview.rows[1:]]}
+        )
+        future_b_result = stage_import(session, future_b_preview, actor="metadata-reviewer")
+        assert len(future_b_result["metadata_reparse_receipts"]) == 2
+        assert session.scalar(select(func.count()).select_from(ExternalImportEvent)) == 3
+        with pytest.raises(ValueError, match="parser revision produced different"):
+            stage_import(session, future_preview, actor="metadata-reviewer")
+
+        stored = session.scalar(select(ExternalImportRow))
+        batch = session.get(ExternalImportBatch, stored.batch_id)
+        assert stored.raw == original_raw
+        assert stored.normalized == original_normalized
+        assert batch.report == original_report
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 0
+        assert not session.scalar(select(ExternalImportActivation.active))
+
+        rolled_back = rollback_import(session, original["batch_id"], actor="reviewer")
+        assert rolled_back["active_count"] == 0
+        after_rollback_replay = stage_import(session, future_b_preview, actor="metadata-reviewer")
+        assert after_rollback_replay["status"] == "rolled_back"
+        assert after_rollback_replay["active_count"] == 0
+        assert session.scalar(select(func.count()).select_from(ExternalImportEvent)) == 4
+        history = import_history(session)
+        assert history[0]["recovered_unverified_hyperlink_hint_count"] == 6
+
+
+def test_fresh_hyperlink_stage_replay_does_not_add_a_reparse_event(import_db):
+    with TemporaryDirectory() as temporary_directory:
+        workbook_path = Path(temporary_directory) / "fresh-linked-projects.xlsx"
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Projects"
+        sheet.append(["Project Name", "State", "Citation"])
+        sheet.append(["Unmatched Project", "TX", "Link"])
+        sheet["C2"].hyperlink = "https://example.gov/permits/fresh"
+        workbook.save(workbook_path)
+        preview = read_workbook(workbook_path)
+
+    with import_db.begin() as session:
+        first = stage_import(session, preview, actor="initial-importer")
+        assert first["rows"][0]["unverified_hyperlink_hints"][0]["url"] == (
+            "https://example.gov/permits/fresh"
+        )
+        replay = stage_import(session, preview, actor="initial-importer")
+        assert replay["batch_id"] == first["batch_id"]
+        assert replay["metadata_reparse_receipts"] == []
+        assert session.scalar(select(func.count()).select_from(ExternalImportEvent)) == 1
 
 
 def test_name_only_and_conflicting_project_signals_remain_proposals(import_db):

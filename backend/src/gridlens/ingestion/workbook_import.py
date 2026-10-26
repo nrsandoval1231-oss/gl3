@@ -27,6 +27,7 @@ _OOXML_MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 _OOXML_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 _OOXML_PACKAGE_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 _HYPERLINK_METADATA_KEY = "__workbook_hyperlinks__"
+HYPERLINK_METADATA_PARSER_REVISION = "xlsx-ooxml-hyperlinks-v2"
 
 CANONICAL_FIELDS = (
     "company_name",
@@ -665,6 +666,7 @@ def read_workbook(
 
     rows: list[ImportRow] = []
     sheets: list[dict[str, Any]] = []
+    hyperlink_sidecar_keys: dict[str, set[str]] = defaultdict(set)
     duplicate_index: dict[str, list[tuple[str, int]]] = defaultdict(list)
     probable_index: dict[str, list[tuple[str, int, str]]] = defaultdict(list)
     truncated = False
@@ -792,6 +794,7 @@ def read_workbook(
                     else f"_extra_column_{index + 1}": target
                     for index, target in cell_hyperlinks.items()
                 }
+                hyperlink_sidecar_keys[sheet_name].add(hyperlink_key)
             if not any(value is not None and value != "" for value in raw.values()):
                 continue
             project_name_headers = {
@@ -907,5 +910,9 @@ def read_workbook(
             "row_limit": MAX_ROWS,
             "file_size_limit_bytes": MAX_FILE_BYTES,
             "formulas_evaluated": False,
+            "hyperlink_metadata_parser_revision": HYPERLINK_METADATA_PARSER_REVISION,
+            "hyperlink_metadata_sidecar_keys": {
+                sheet: sorted(keys) for sheet, keys in sorted(hyperlink_sidecar_keys.items())
+            },
         },
     )

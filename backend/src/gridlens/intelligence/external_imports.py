@@ -10,9 +10,12 @@ from typing import Any, TypedDict
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, insert, literal_column, select, update
 from sqlalchemy.orm import Session
 
+from gridlens.ingestion.workbook_import import (
+    HYPERLINK_METADATA_PARSER_REVISION,
+)
 from gridlens.intelligence.company_graph import _buying_evidence_current, _retained_current
 from gridlens.persistence.models import (
     BuyingChainEvidence,
@@ -39,6 +42,10 @@ MAX_PROBABLE_PROJECTS_PER_COMPANY = 100
 MAX_PROBABLE_COMPANY_PROJECTS = 500
 MAX_PROBABLE_NAME_SCANS = 1000
 MAX_PROJECT_CANDIDATE_DETAILS = 20
+MAX_METADATA_REPARSE_BYTES = 16 * 1024 * 1024
+MAX_METADATA_REPARSE_HINTS = 100_000
+MAX_METADATA_REPARSE_REVISIONS = 10
+MAX_METADATA_HINTS_IN_RESULT = 100
 
 _ACTIVITY_SPECIFIC_POWER_HEADER = re.compile(
     r"(?:temporary|rental|construction|commissioning).*(?:demand|load|power)|"
@@ -111,6 +118,229 @@ def _preview_fingerprint(preview: Any) -> str:
     ]
     payload = json.dumps(row_data, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _metadata_sidecar_keys(report: dict[str, Any]) -> dict[str, set[str]]:
+    value = report.get("hyperlink_metadata_sidecar_keys", {})
+    if not isinstance(value, dict):
+        return {}
+    return {
+        str(sheet): {key for key in keys if isinstance(key, str)}
+        for sheet, keys in value.items()
+        if isinstance(keys, list)
+    }
+
+
+def _is_hyperlink_sidecar(key: str, value: Any, *, sidecar_keys: set[str]) -> bool:
+    return bool(
+        key in sidecar_keys
+        and isinstance(value, dict)
+        and bool(value)
+        and all(
+            isinstance(column, str) and isinstance(target, str)
+            for column, target in value.items()
+        )
+    )
+
+
+def _is_http_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def _raw_without_hyperlink_metadata(
+    raw: dict[str, Any], *, sidecar_keys: set[str]
+) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in raw.items()
+        if not _is_hyperlink_sidecar(key, value, sidecar_keys=sidecar_keys)
+    }
+
+
+def _hyperlink_metadata(preview: Any) -> tuple[str | None, list[dict[str, Any]]]:
+    revision = preview.report.get("hyperlink_metadata_parser_revision")
+    sidecar_keys_by_sheet = _metadata_sidecar_keys(preview.report)
+    hints: list[dict[str, Any]] = []
+    hint_bytes = 0
+    for row in preview.rows:
+        metadata = {
+            key: value
+            for key, value in row.raw.items()
+            if _is_hyperlink_sidecar(
+                key, value, sidecar_keys=sidecar_keys_by_sheet.get(row.sheet, set())
+            )
+        }
+        for container in metadata.values():
+            if not isinstance(container, dict):
+                raise ValueError("hyperlink metadata must be a column-to-URL object")
+            for column, target in container.items():
+                if not isinstance(column, str) or not isinstance(target, str):
+                    raise ValueError("hyperlink metadata contains an invalid target")
+                hint_bytes += len(target.encode("utf-8"))
+                if len(hints) >= MAX_METADATA_REPARSE_HINTS:
+                    raise ValueError("recovered hyperlink metadata exceeds its target-count budget")
+                if hint_bytes > MAX_METADATA_REPARSE_BYTES:
+                    raise ValueError("recovered hyperlink metadata exceeds its staging byte budget")
+                hints.append(
+                    {
+                        "sheet": row.sheet,
+                        "row_number": row.row_number,
+                        "column": column,
+                        "url": target if _is_http_url(target) else None,
+                        "target": target,
+                        "verification_status": (
+                            "UNVERIFIED_SOURCE_HINT"
+                            if _is_http_url(target)
+                            else "UNVERIFIED_UNSUPPORTED_HYPERLINK_TARGET"
+                        ),
+                    }
+                )
+    if not hints:
+        return revision, []
+    if revision != HYPERLINK_METADATA_PARSER_REVISION:
+        raise ValueError("hyperlink metadata was not produced by the current workbook parser")
+    serialized = json.dumps(hints, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if len(serialized.encode("utf-8")) > MAX_METADATA_REPARSE_BYTES:
+        raise ValueError("recovered hyperlink metadata exceeds its staging byte budget")
+    return revision, hints
+
+
+def _append_metadata_reparse_if_unchanged(
+    session: Session,
+    batch: ExternalImportBatch,
+    preview: Any,
+    *,
+    actor: str,
+) -> None:
+    """Append hyperlink hints only when every original staged row remains byte-stable."""
+    metadata_report_fields = {
+        "hyperlink_metadata_parser_revision",
+        "hyperlink_metadata_sidecar_keys",
+    }
+    original_report = {
+        key: value
+        for key, value in batch.report.items()
+        if key not in metadata_report_fields
+    }
+    replay_report = {
+        key: value
+        for key, value in preview.report.items()
+        if key not in metadata_report_fields
+    }
+    if original_report != replay_report:
+        raise ValueError("metadata-only replay changed workbook mapping or parser report")
+    stored_rows = list(
+        session.scalars(
+            select(ExternalImportRow)
+            .where(ExternalImportRow.batch_id == batch.id)
+            .order_by(ExternalImportRow.sheet, ExternalImportRow.row_number)
+        )
+    )
+    incoming_rows = sorted(preview.rows, key=lambda row: (row.sheet, row.row_number))
+    sidecar_keys_by_sheet = _metadata_sidecar_keys(preview.report)
+    if len(stored_rows) != len(incoming_rows):
+        raise ValueError("metadata-only replay changed the original workbook row set")
+    for stored, incoming in zip(stored_rows, incoming_rows, strict=True):
+        if (
+            stored.sheet != incoming.sheet
+            or stored.row_number != incoming.row_number
+            or stored.row_kind != incoming.row_kind
+            or _raw_without_hyperlink_metadata(
+                stored.raw, sidecar_keys=sidecar_keys_by_sheet.get(incoming.sheet, set())
+            )
+            != _raw_without_hyperlink_metadata(
+                incoming.raw, sidecar_keys=sidecar_keys_by_sheet.get(incoming.sheet, set())
+            )
+            or stored.normalized != incoming.normalized
+            or stored.errors != incoming.errors
+        ):
+            raise ValueError("metadata-only replay changed original raw or normalized row data")
+
+    parser_revision, hints = _hyperlink_metadata(preview)
+    metadata_payload = json.dumps(
+        hints, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    metadata_fingerprint = hashlib.sha256(metadata_payload.encode("utf-8")).hexdigest()
+    stored_sidecars = [
+        {
+            key: value
+            for key, value in stored.raw.items()
+            if _is_hyperlink_sidecar(
+                key, value, sidecar_keys=sidecar_keys_by_sheet.get(stored.sheet, set())
+            )
+        }
+        for stored in stored_rows
+    ]
+    incoming_sidecars = [
+        {
+            key: value
+            for key, value in incoming.raw.items()
+            if _is_hyperlink_sidecar(
+                key, value, sidecar_keys=sidecar_keys_by_sheet.get(incoming.sheet, set())
+            )
+        }
+        for incoming in incoming_rows
+    ]
+    stored_parser_revision = batch.report.get("hyperlink_metadata_parser_revision")
+    if stored_parser_revision == parser_revision and stored_sidecars != incoming_sidecars:
+        raise ValueError("the same parser revision produced different workbook hyperlink metadata")
+    existing_revision = session.scalar(
+        select(ExternalImportEvent).where(
+            ExternalImportEvent.batch_id == batch.id,
+            ExternalImportEvent.action == "metadata_reparsed",
+            ExternalImportEvent.details["kind"].astext == "metadata_reparse",
+            ExternalImportEvent.details["parser_revision"].astext == parser_revision,
+        )
+    )
+    if existing_revision is not None:
+        if existing_revision.details.get("metadata_fingerprint") != metadata_fingerprint:
+            raise ValueError("this parser revision produced different hyperlink metadata")
+        return
+    existing_fingerprint = session.scalar(
+        select(ExternalImportEvent).where(
+            ExternalImportEvent.batch_id == batch.id,
+            ExternalImportEvent.action == "metadata_reparsed",
+            ExternalImportEvent.details["metadata_fingerprint"].astext == metadata_fingerprint,
+        )
+    )
+    if existing_fingerprint is not None:
+        return
+    if stored_sidecars == incoming_sidecars and (
+        any(stored_sidecars) or stored_parser_revision == parser_revision
+    ):
+        return
+    if not hints:
+        return
+    if not isinstance(parser_revision, str) or not 1 <= len(parser_revision) <= 120:
+        raise ValueError("hyperlink metadata parser revision is invalid")
+    revision_count = session.scalar(
+        select(func.count()).select_from(ExternalImportEvent).where(
+            ExternalImportEvent.batch_id == batch.id,
+            ExternalImportEvent.action == "metadata_reparsed",
+        )
+    )
+    if revision_count >= MAX_METADATA_REPARSE_REVISIONS:
+        raise ValueError("workbook metadata reparse revision limit reached")
+    session.add(
+        ExternalImportEvent(
+            batch_id=batch.id,
+            action="metadata_reparsed",
+            actor=actor,
+            details={
+                "kind": "metadata_reparse",
+                "source_content_hash": batch.content_hash,
+                "parser_revision": parser_revision,
+                "metadata_fingerprint": metadata_fingerprint,
+                "target_count": len(hints),
+                "hyperlink_hints": hints,
+            },
+        )
+    )
+    session.flush()
 
 
 _FREE_EMAIL_DOMAINS = {
@@ -932,6 +1162,43 @@ def _result(
         or 0
     )
     serialized: list[dict[str, Any]] = []
+    metadata_events = session.execute(
+        select(
+            ExternalImportEvent.id,
+            ExternalImportEvent.actor,
+            ExternalImportEvent.created_at,
+            ExternalImportEvent.details["source_content_hash"].astext.label("source_content_hash"),
+            ExternalImportEvent.details["parser_revision"].astext.label("parser_revision"),
+            ExternalImportEvent.details["metadata_fingerprint"].astext.label(
+                "metadata_fingerprint"
+            ),
+            ExternalImportEvent.details["target_count"].as_integer().label("target_count"),
+            func.jsonb_path_query_array(
+                ExternalImportEvent.details,
+                literal_column("'$.hyperlink_hints[0 to 99]'::jsonpath"),
+            ).label("hyperlink_hints"),
+        )
+        .where(
+            ExternalImportEvent.batch_id == batch.id,
+            ExternalImportEvent.action == "metadata_reparsed",
+        )
+        .order_by(ExternalImportEvent.created_at, ExternalImportEvent.id)
+    ).all()
+    sidecar_keys_by_sheet = _metadata_sidecar_keys(batch.report)
+    hints_by_row: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    for event in metadata_events:
+        for hint in event.hyperlink_hints or []:
+            key = (str(hint.get("sheet") or ""), int(hint.get("row_number") or 0))
+            hints_by_row.setdefault(key, []).append(
+                {
+                    "url": hint["url"],
+                    "target": hint["target"],
+                    "column": hint["column"],
+                    "verification_status": hint["verification_status"],
+                    "parser_revision": event.parser_revision,
+                    "event_id": str(event.id),
+                }
+            )
     if include_rows:
         rows = list(
             session.scalars(
@@ -953,26 +1220,54 @@ def _result(
             if rows
             else {}
         )
-        serialized = [
-            {
-                "row_id": str(row.id),
-                "sheet": row.sheet,
-                "row_number": row.row_number,
-                "row_kind": row.row_kind,
-                "status": row.match_status,
-                "active": activations.get(row.id, False),
-                "company_match": row.company_match,
-                "project_match": row.project_match,
-                "errors": row.errors,
-            }
-            for row in rows
-        ]
-    rolled_back = any(
-        event.action == "rolled_back"
-        for event in session.scalars(
-            select(ExternalImportEvent).where(ExternalImportEvent.batch_id == batch.id)
+        for row in rows:
+            raw_hints = [
+                {
+                    "url": target if _is_http_url(target) else None,
+                    "target": target,
+                    "column": column,
+                    "verification_status": (
+                        "UNVERIFIED_SOURCE_HINT"
+                        if _is_http_url(target)
+                        else "UNVERIFIED_UNSUPPORTED_HYPERLINK_TARGET"
+                    ),
+                    "parser_revision": batch.report.get(
+                        "hyperlink_metadata_parser_revision"
+                    ),
+                    "event_id": None,
+                }
+                for key, container in row.raw.items()
+                if _is_hyperlink_sidecar(
+                    key,
+                    container,
+                    sidecar_keys=sidecar_keys_by_sheet.get(row.sheet, set()),
+                )
+                for column, target in container.items()
+            ]
+            row_hints = [*hints_by_row.get((row.sheet, row.row_number), []), *raw_hints]
+            serialized.append(
+                {
+                    "row_id": str(row.id),
+                    "sheet": row.sheet,
+                    "row_number": row.row_number,
+                    "row_kind": row.row_kind,
+                    "status": row.match_status,
+                    "active": activations.get(row.id, False),
+                    "company_match": row.company_match,
+                    "project_match": row.project_match,
+                    "errors": row.errors,
+                    "unverified_hyperlink_hints": row_hints[:MAX_METADATA_HINTS_IN_RESULT],
+                    "unverified_hyperlink_hints_truncated": (
+                        len(row_hints) > MAX_METADATA_HINTS_IN_RESULT
+                    ),
+                }
+            )
+    rolled_back = session.scalar(
+        select(ExternalImportEvent.id).where(
+            ExternalImportEvent.batch_id == batch.id,
+            ExternalImportEvent.action == "rolled_back",
         )
-    )
+    ) is not None
     return {
         "batch_id": str(batch.id),
         "filename": batch.filename,
@@ -997,6 +1292,23 @@ def _result(
         },
         "rows": serialized,
         "rows_truncated": include_rows and row_count > len(serialized),
+        "metadata_reparse_receipts": [
+            {
+                "event_id": str(event.id),
+                "actor": event.actor,
+                "source_content_hash": event.source_content_hash,
+                "parser_revision": event.parser_revision,
+                "metadata_fingerprint": event.metadata_fingerprint,
+                "target_count": event.target_count,
+                "created_at": event.created_at.isoformat() if event.created_at else None,
+                "hyperlink_hints": event.hyperlink_hints or [],
+                "hyperlink_hints_truncated": event.target_count > len(event.hyperlink_hints or []),
+            }
+            for event in metadata_events
+        ],
+        "recovered_unverified_hyperlink_hint_count": sum(
+            event.target_count for event in metadata_events
+        ),
     }
 
 
@@ -1030,6 +1342,7 @@ def stage_import(session: Session, preview: Any, *, actor: str) -> dict[str, Any
             raise ValueError(
                 "this file content was already staged with a different normalized preview"
             )
+        _append_metadata_reparse_if_unchanged(session, existing, preview, actor=actor)
         return _result(session, existing, include_rows=True)
 
     normalized_rows = [dict(row.normalized) for row in preview.rows]
@@ -1147,7 +1460,11 @@ def stage_import(session: Session, preview: Any, *, actor: str) -> dict[str, Any
             batch_id=batch.id,
             action="staged",
             actor=actor,
-            details={"row_count": len(preview.rows), "source_content_hash": preview.content_hash},
+            details={
+                "kind": "initial_stage",
+                "row_count": len(preview.rows),
+                "source_content_hash": preview.content_hash,
+            },
         )
     )
     session.flush()
