@@ -29,6 +29,7 @@
       "Duration unknown",
       "Buyer identity and contact methods remain unknown"
     ],
-    "expected_evidence_id": "c44f81f0-32f6-4dbf-b8f8-10714625d3eb"
+    "expected_evidence_id": "c44f81f0-32f6-4dbf-b8f8-10714625d3eb",
+    "expected_opportunity_absent": false
   }
 ]

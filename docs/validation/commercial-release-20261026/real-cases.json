@@ -60,7 +60,7 @@
     },
     "expected_tier": "Signal",
     "expected_commercial_disposition": "ACTION NOW",
-    "expected_opportunity_absent": true,
+    "expected_opportunity_absent": false,
     "contact_refresh_database": "gridlens_release_contacts_pipeline",
     "contact_refresh_evidence_id": "76a3dd62-1d17-4d64-af86-83fdbdcc008e"
   },
@@ -151,7 +151,8 @@
       "Duration unknown",
       "Buyer identity and contact methods remain unknown"
     ],
-    "expected_evidence_id": "c44f81f0-32f6-4dbf-b8f8-10714625d3eb"
+    "expected_evidence_id": "c44f81f0-32f6-4dbf-b8f8-10714625d3eb",
+    "expected_opportunity_absent": false
   },
   {
     "case_id": "D",
