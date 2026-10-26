@@ -33,6 +33,12 @@ A named corporate professional is not automatically directly assigned to a proje
 
 Coverage denominators are projects. Unique companies, people and methods must also be reported. A corporate contact reused across projects needs each project's buying-organization linkage and does not satisfy the direct-project gate merely because the company owns those sites. The sample should cover data centers, oil/gas, utilities, construction, commissioning and bridge-power use cases where genuine sources support them; overlapping use cases do not create extra projects. The frozen cohort manifest must document selection, exclusions, evidence provenance and any representativeness limits.
 
+## Separate retained-candidate diagnostic
+
+The coordinator additionally requested a frozen 25-row diagnostic drawn from retained actual workbook candidates in an isolated clone. The reviewer accepts this as useful failure measurement, **not as the 25-opportunity release cohort**. Report its dataset kind, exact source-row IDs/provenance, activation state, missing primary citations, supported versus unverified fields, planner outcomes/retries, costs and canonical counts separately. Retain failed candidates rather than replacing them with favorable results. Do not promote unverified assertions or invent a published generation to make the existing benchmark execute.
+
+The restored staging inventory is coordinator evidence: four batches and 4,520 inactive rows survive, while original XLSX files are unavailable in the resumed filesystem. Retained display text `Link` is not a dereferenceable source URL. Whether the missing original cells contained hyperlink targets must not be invented from that display text. The six-project Austin acquisition and fixture databases do not supply the requested qualifying denominator. Candidate failure rates cannot be relabeled as verified-opportunity contact coverage or used to close the release gate.
+
 ## Four real-corpus browser gates
 
 1. **Data center:** a genuine persisted project exposes owner, gap or its explicit limits, timing, buying organization and cited contacts.
