@@ -1,0 +1,339 @@
+{
+  "observed_at": "2026-10-26T12:23:57.536109+00:00",
+  "environment": "isolated local Docker gridlens-surgery-postgres retained volume",
+  "operation": "read-only table counts; no row values exported",
+  "database_inventory": [
+    {
+      "database": "gridlens",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_benchmark_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_brief_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_contact_refresh_retry_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_contact_regression_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_debug_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_evidence_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_final_migrations",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_final_migrations_0041",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 1,
+        "observations": 1,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_gate_0",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_gate_0_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_gate_1",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_gate_1_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_gate_2",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_gate_2_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_gate_3",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_gate_3_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_lead",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_lead_test",
+      "counts": {
+        "projects": 1,
+        "company_identities": 0,
+        "power_needs": 1,
+        "evidence": 1,
+        "observations": 1
+      }
+    },
+    {
+      "database": "gridlens_legacy_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_pipeline_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_planner_core",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_planner_core_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_questions_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_release_browser",
+      "counts": {
+        "projects": 6,
+        "company_identities": 0,
+        "power_needs": 6,
+        "evidence": 171,
+        "observations": 171,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_release_browser_test",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_release_contacts",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_release_contacts_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_release_corpus",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 4,
+        "external_import_rows": 4520,
+        "external_import_activations": 4520
+      }
+    },
+    {
+      "database": "gridlens_repair_contact",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_contact_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_exceptions",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_exceptions_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_fresh_20261026",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_repair_governance",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_governance_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_power",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_power_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_upgrade_20261026",
+      "counts": {
+        "projects": 6,
+        "company_identities": 0,
+        "power_needs": 6,
+        "evidence": 171,
+        "observations": 171,
+        "external_import_batches": 0,
+        "external_import_rows": 0,
+        "external_import_activations": 0
+      }
+    },
+    {
+      "database": "gridlens_repair_workbook",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_repair_workbook_actual_test",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0,
+        "external_import_batches": 4,
+        "external_import_rows": 4520,
+        "external_import_activations": 4520
+      }
+    },
+    {
+      "database": "gridlens_repair_workbook_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_saved_regression_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_upstream_contact_test",
+      "counts": {}
+    },
+    {
+      "database": "gridlens_verify_austin_20261026",
+      "counts": {
+        "projects": 6,
+        "company_identities": 0,
+        "power_needs": 6,
+        "evidence": 171,
+        "observations": 171
+      }
+    },
+    {
+      "database": "gridlens_verify_autonomous_20261026",
+      "counts": {
+        "projects": 0,
+        "company_identities": 0,
+        "power_needs": 0,
+        "evidence": 0,
+        "observations": 0
+      }
+    }
+  ],
+  "findings": [
+    "No retained 1817-project/532-company production snapshot found in complete local database inventory.",
+    "The actual Austin acquisition persists as six projects and 171 evidence records; clones are not additional projects.",
+    "Four actual workbook batches and 4520 source rows persist in isolated staging; imported rows do not establish independently sourced eligible projects.",
+    "Source workbook bytes are absent in resumed executor; prior reparse and hashes remain dated receipts."
+  ],
+  "production_access": "not accessed by this inventory",
+  "paid_calls": 0,
+  "source_mutations": 0
+}
