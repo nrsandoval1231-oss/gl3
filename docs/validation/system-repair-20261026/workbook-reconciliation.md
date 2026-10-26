@@ -43,4 +43,12 @@ A separate local Austin verifier database exists at migration revision `0041_evi
 
 The operation used a database transaction enforced read-only at connection level. It did not stage imports, activate rows, promote claims, or write to production. No paid source or enrichment call was used.
 
+## Isolated local staging validation
+
+After reconciliation, the four actual workbooks were staged in a newly created loopback database named `gridlens_repair_workbook_actual_test`, migrated to `0044_enrichment_planner_cursor`. The staging CLI required this exact database name and the worktree imported the existing tracker mapping. This database is local and unverified; this operation made no production write, activation, or promotion.
+
+The stage contains 4 batches and 4,520 immutable source rows. Replaying all four files returned the same batch IDs and row totals, with no duplicate batches or rows. For every staged row, file hash, sheet, row number, row kind, raw source fields, normalized fields, and parse errors matched a fresh parser read. The original raw cells remain only in the local test database; this report contains counts and verification results, not cell values. Both parse-error rows retained their source fields.
+
+Staged row statuses were 4,388 unmatched, 2 invalid, and 130 ignored. The ignored rows were 77 metadata rows, 52 summary rows, and one empty-normalized mixed row; none had normalized assertions or project/company candidates. All 4,520 staged activation records were inactive. The database still had 0 canonical projects, 0 company identities, and 0 power needs. No rollback was invoked because no staged row was active; reversal and suppression remain covered by focused integration tests.
+
 Count-only machine-readable results are in [workbook-reconciliation-counts.json](workbook-reconciliation-counts.json). The parser and focused reconciliation tests passed: 35 tests; Ruff and module Mypy checks passed.

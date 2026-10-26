@@ -252,5 +252,79 @@
     "company_identities": 0,
     "used_as_production_snapshot": false,
     "production_matching_performed": false
+  },
+  "actual_staging_validation": {
+    "database_name": "gridlens_repair_workbook_actual_test",
+    "host_class": "loopback_local_test",
+    "fresh_database": true,
+    "migration_revision": "0044_enrichment_planner_cursor",
+    "files_staged": 4,
+    "batches_after_replay": 4,
+    "source_rows_after_replay": 4520,
+    "activation_records": 4520,
+    "active_rows": 0,
+    "event_rows": 4,
+    "row_kinds": {
+      "project": 3380,
+      "mixed": 1011,
+      "summary": 52,
+      "metadata": 77
+    },
+    "match_statuses": {
+      "unmatched": 4388,
+      "invalid": 2,
+      "ignored": 130
+    },
+    "ignored_rows_by_kind": {
+      "metadata": 77,
+      "summary": 52,
+      "mixed_empty_normalized": 1
+    },
+    "replay_idempotent_batch_ids_and_row_counts": true,
+    "all_source_row_provenance_and_values_equal_fresh_parser": true,
+    "original_source_fields_retained_on_all_rows": true,
+    "parse_error_rows_retained_with_source_fields": 2,
+    "ignored_assertion_violations": 0,
+    "canonical_rows": {
+      "projects": 0,
+      "company_identities": 0,
+      "power_needs": 0
+    },
+    "rollback_invoked": false,
+    "production_write": false,
+    "activation_or_promotion": false,
+    "paid_calls": 0,
+    "raw_source_values_in_report": false,
+    "raw_source_values_retained_only_in_local_database": true,
+    "per_file": [
+      {
+        "filename": "1-DC-Leads.xlsx",
+        "rows_staged": 2077,
+        "source_hash_matches": true,
+        "batch_id_stable_on_replay": true,
+        "row_count_stable_on_replay": true
+      },
+      {
+        "filename": "2-US_Data_Center_Project_Tracker_August_2026.xlsx",
+        "rows_staged": 1072,
+        "source_hash_matches": true,
+        "batch_id_stable_on_replay": true,
+        "row_count_stable_on_replay": true
+      },
+      {
+        "filename": "3-texas-dc-leads.xlsx",
+        "rows_staged": 486,
+        "source_hash_matches": true,
+        "batch_id_stable_on_replay": true,
+        "row_count_stable_on_replay": true
+      },
+      {
+        "filename": "4-Cleanview.xlsx",
+        "rows_staged": 885,
+        "source_hash_matches": true,
+        "batch_id_stable_on_replay": true,
+        "row_count_stable_on_replay": true
+      }
+    ]
   }
 }
