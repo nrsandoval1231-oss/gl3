@@ -1,0 +1,15 @@
+[WebServer] INFO:     Started server process [76199]
+[WebServer] INFO:     Waiting for application startup.
+[WebServer] INFO:     Application startup complete.
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+[WebServer] (node:76233) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:76260) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [commercial-real] › tests/commercial_real_cases.spec.ts:64:3 › persisted real case A retains citations and unknowns across commercial views (12.0s)
+  ✓  2 [commercial-real] › tests/commercial_real_cases.spec.ts:64:3 › persisted real case B retains citations and unknowns across commercial views (11.7s)
+
+  2 passed (38.2s)

@@ -27,7 +27,8 @@
       "Not established potential remaining gap",
       "Timing unknown",
       "Duration unknown",
-      "Buyer identity and contact methods remain unknown"
+      "General company contact path",
+      "Requires confirmation for this power package"
     ],
     "expected_evidence_id": "c44f81f0-32f6-4dbf-b8f8-10714625d3eb",
     "expected_opportunity_absent": false
