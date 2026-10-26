@@ -1,0 +1,82 @@
+{
+  "status": "CLEAN_TARGETED_CHECKS_PASSED; LOCAL_FULL_PARTITIONS_INVALIDATED",
+  "observed_at": "2026-10-26T15:26:23.078132+00:00",
+  "clean_backend_source": "899e288",
+  "clean_worktree": "/workspace/gl3-release/backend-gate",
+  "clean_settings": {
+    "company_contact_discovery_enabled": true,
+    "autonomous_research_enabled": true,
+    "browser_env_file_present": false
+  },
+  "passed_checks": [
+    {
+      "log": "/tmp/gridlens-release-gate/clean-contact-final899.log",
+      "sha256": "ffc9428ac2d0776f6df26134174c4668c5fd322ba292dbb5430fc813a6c86f55",
+      "summary": "7 passed, 101 deselected, 1 warning in 34.84s"
+    },
+    {
+      "log": "/tmp/gridlens-release-gate/clean-import-final899.log",
+      "sha256": "cf6ef15b914c4425a0128a4e60a061961917d1d34410f304ba75106744910af1",
+      "summary": "21 passed in 51.46s"
+    }
+  ],
+  "independent_privacy_proof": {
+    "source": "75724eb",
+    "path": "/workspace/gl3-release/identity-proof/backend/tests/integration/test_identity_method_privacy_proof.py",
+    "result": "1 passed,1 known Starlette deprecation warning in5.09s",
+    "database": "gridlens_identity_privacy_proof_test",
+    "old_candidate_reproduction": "a496cdb reproduced suppressed phone revival in4.4s before the guard fix"
+  },
+  "invalid_local_full_attempt": {
+    "source": "75724eb",
+    "collected_nodes": 3138,
+    "partition_nodes": [
+      785,
+      785,
+      784,
+      784
+    ],
+    "status": "INTERRUPTED_INVALID_HARNESS_NOT_A_RELEASE_GATE",
+    "reason": "Browser setup wrote a fail-closed backend .env in the shared worktree, so pytest loaded company discovery/research disabled instead of default/CI settings. Those settings produced zero discovery jobs. Backend tests were moved to a separate clean worktree; no product default or assertion was weakened.",
+    "partition_receipts": [
+      {
+        "partition": 0,
+        "source_commit": "75724eb",
+        "selected_nodeids": 785,
+        "started_at": "2026-10-26T14:49:26.651413+00:00",
+        "completed_at": "2026-10-26T15:00:08.382581+00:00",
+        "exit_code": 2
+      },
+      {
+        "partition": 1,
+        "source_commit": "75724eb",
+        "selected_nodeids": 785,
+        "started_at": "2026-10-26T14:49:26.512651+00:00",
+        "completed_at": "2026-10-26T15:00:10.311364+00:00",
+        "exit_code": 2
+      },
+      {
+        "partition": 2,
+        "source_commit": "75724eb",
+        "selected_nodeids": 784,
+        "started_at": "2026-10-26T14:49:26.663313+00:00",
+        "completed_at": "2026-10-26T15:00:18.031332+00:00",
+        "exit_code": 2
+      },
+      {
+        "partition": 3,
+        "source_commit": "75724eb",
+        "selected_nodeids": 784,
+        "started_at": "2026-10-26T14:49:26.598381+00:00",
+        "completed_at": "2026-10-26T15:00:10.095448+00:00",
+        "exit_code": 2
+      }
+    ],
+    "full_suite_authority": "Exact-source GitHub CI899e288 full suite; root retains original workflow job logs."
+  },
+  "other_failures_before_test_fixes": [
+    "The first clean targeted run retained one old candidate_urls assertion; the accepted test-only change now expects the untrusted cited URL and preserves promotion checks.",
+    "The first clean import run observed the random UUID/transaction-timestamp selection flake; selecting the newly queued job ID explicitly removed it."
+  ],
+  "scope": "Targeted results are not added to full-suite pass totals. All databases are isolated local test databases; no production or paid API operation."
+}
