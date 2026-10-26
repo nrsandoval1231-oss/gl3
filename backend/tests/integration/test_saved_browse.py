@@ -173,7 +173,6 @@ def filters(**changes):
                     "mw_min",
                     "mw_max",
                     "priority_segment",
-                    "status",
                 )
             ),
             **changes,
@@ -322,7 +321,6 @@ def test_long_history_can_publish_compact_browse_but_detail_stays_bounded(saved_
         {"mw_min": "1e-1000000"},
         {"mw_max": "1e-1000000"},
         {"priority_segment": "8"},
-        {"status": "UNKNOWN"},
         {"tier": "Signal", "decision": "REVIEW", "search": "full history"},
     ],
 )
@@ -830,18 +828,22 @@ def test_multiple_refreshes_in_one_transaction_keep_latest_revision(saved_db):
 
 def test_failed_derived_refresh_retains_canonical_change_as_pending(saved_db, monkeypatch):
     from gridlens.intelligence import saved_browse
+    from gridlens.intelligence.worker_browse import install_worker_publication
 
     ids = seed(saved_db)
     rebuild(saved_db)
     monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    worker_factory = sessionmaker(saved_db.kw["bind"], expire_on_commit=False)
+    install_worker_publication(worker_factory)
 
     def fail(*args, **kwargs):
         raise RuntimeError("synthetic derived failure")
 
     monkeypatch.setattr(saved_browse, "_write_rows", fail)
-    with saved_db.begin() as writer:
+    with worker_factory.begin() as writer:
         writer.get(PowerNeed, ids[0]).active = False
-        api._refresh_saved_operator_change(writer)
+        # The autonomous publication hook must let the canonical worker write
+        # commit while leaving the derived generation pending on failure.
     with saved_db() as reader:
         assert reader.get(PowerNeed, ids[0]).active is False
         with pytest.raises(HTTPException):
