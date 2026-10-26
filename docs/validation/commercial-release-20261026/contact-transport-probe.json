@@ -1,0 +1,37 @@
+{
+  "observed_at": "2026-10-26T15:14:33.545512+00:00",
+  "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+  "results": [
+    {
+      "status": "failed",
+      "exception_type": "ConnectError",
+      "mode": "existing_pinned_public_retriever",
+      "elapsed_seconds": 5.15,
+      "repeat_error_detail": "ConnectError: [Errno 111] Connection refused"
+    },
+    {
+      "http_status": 200,
+      "bytes": 16285,
+      "sha256": "17b2ca4aa6e46f77a7c9cd4f6db3e13253152579ee76ced45f182128ef78c283",
+      "mode": "configured_proxy_http_get",
+      "elapsed_seconds": 1.94
+    },
+    {
+      "mode": "pinned_public_ip_with_configured_proxy",
+      "status": "failed",
+      "exception_type": "ConnectError",
+      "detail": "TLS certificate verification failed: IP address mismatch. HTTPX proxy path did not preserve the required original-host certificate identity for the IP-pinned URL.",
+      "elapsed_seconds": 0.08
+    }
+  ],
+  "boundary": "Read-only public-source diagnostic; no provider call or production mutation. Does not change SSRF guards or prove production transport behavior.",
+  "interpretation": "One official TDLR page is available through the configured HTTP proxy but inaccessible through the existing secure direct-IP public retriever in this workspace. This demonstrates a local transport limitation, not that the public page or its contacts are absent. It does not prove all 20 recorded timeout outcomes share this cause, nor establish production egress behavior.",
+  "preserved_guards": [
+    "Public-address validation and destination IP pinning",
+    "Original-host TLS verification",
+    "No redirects",
+    "Bounded time and response bytes"
+  ],
+  "changes": "No application transport change was made. TLS verification was not disabled and IP pinning was not removed. Arbitrary untrusted URL retrieval must not be replaced with an unpinned proxy fetch.",
+  "remaining_requirement": "An execution environment supporting the existing secure direct public-IP transport, or an independently validated proxy transport that preserves destination pinning and original-host TLS verification."
+}
