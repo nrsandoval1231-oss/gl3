@@ -6,7 +6,7 @@ Reviewer: Astra independent reviewer. Methodology recorded: **2026-10-26 12:17 U
 
 The latest owner directive conditionally authorizes merge and deployment **only after all commercial P0, real-corpus browser, engineering and production-safety gates pass**. It supersedes the earlier blanket release prohibition, but does not turn pending gates into approval. The prior [engineering review](independent-review.md) remains a separate historical receipt.
 
-**Release decision: NOT ACCEPTED — commercial and production-readiness evidence is pending.** This is an evidence hold, not a rejection of the previously accepted engineering baseline. No production mutation, paid-provider call, merge or deployment was performed by this reviewer.
+**Release decision: NOT ACCEPTED — the measured commercial thresholds are not met, and production-readiness evidence is incomplete.** This does not revoke the previously accepted engineering baseline. No production mutation, paid-provider call, merge or deployment was performed by this reviewer.
 
 Baseline `29c4fe085cd261c19c4aeb7b1b4cca4dc538a006` is clean and application-source equivalent to accepted `b71306f`. The reviewer independently checked that source diff and [CI run 40267075523](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40267075523). Its exact head and successful conclusion match. Backend job logs independently retrieved through the GitHub connector report **3,101 passed, 1 skipped**, **120 browser regressions passed**, Ruff success and mypy success across **173 source files**. These checks do not establish commercial acceptance or the four real-corpus scenarios below.
 
@@ -40,6 +40,44 @@ The coordinator additionally requested a frozen 25-row diagnostic drawn from ret
 The restored staging inventory is coordinator evidence: four batches and 4,520 inactive rows survive, while original XLSX files are unavailable in the resumed filesystem. Retained display text `Link` is not a dereferenceable source URL. Whether the missing original cells contained hyperlink targets must not be invented from that display text. The six-project Austin acquisition and fixture databases do not supply the requested qualifying denominator. Candidate failure rates cannot be relabeled as verified-opportunity contact coverage or used to close the release gate.
 
 The subsequent native manifest in `20bd427` freezes **25 source-linked project records: 21 Texas upstream-well records and four Texas data-center records**, selected before the follow-up contact evaluation. This is a different diagnostic from the workbook sample. The reviewer inspected its selection and reporting code: selection is outcome-blind, and the manifest explicitly leaves physical-site distinctness unverified where source locations are county-level. Its `cohort_complete` flag means the requested record count was selected; it does not mean 25 distinct power-eligible commercial opportunities were established. Source-linked typed fields and retained historical citations still require current-source and claim-level adjudication before any commercial coverage numerator is accepted.
+
+## Independent commercial result
+
+At 14:03–14:08 UTC, the reviewer independently checked the full local API artifact against the frozen manifest. The raw API SHA-256 is `b086886de475517bce520ddf11abd0f8713232236e24fedb2f2c13fa295780f2`; the manifest SHA-256 is `caf580c68b3ecb425e97ac44f0b53ae413e06f63baf6c5a2d00880ec9d9197ec`. The 25 project IDs match exactly. All 25 need and buying-chain responses and both intelligence batches returned 200. This was an isolated authenticated API readback, not production access or a password-login test.
+
+| Independent observation | Result |
+|---|---:|
+| Signal qualification | 25 of 25 |
+| Unknown activity MW, start, duration, supply and qualified remaining gap | 25 of 25 for every field |
+| Company routes supported by literal project-organization citations | 25 of 25 diagnostic records |
+| Named owner representatives | 4 |
+| Published organization phone methods | 4 |
+| Person-bound published methods | 0 |
+| Direct-project person methods meeting the minimum | 0 of 10 required |
+| Named-professional methods meeting the minimum | 0 of 15 required |
+| Demonstrated distinct physical projects with supported power floor | 0 of 25 required |
+| Strict commercially actionable projects | 0 of 10 required |
+
+The API contains 21 WATCH and four ACTION NOW dispositions. The latter are discovery-call priorities: their source-backed organization phone does not establish personal reachability, purchasing authority, activity demand or a remaining gap. All remain Signals. The existing backend reason explicitly calls for a discovery call to confirm the unknowns; the reviewer requested a visible list/table clarification because the bare ACTION NOW label under “Qualification” could otherwise overstate readiness. This does not change the commercial benchmark definitions.
+
+The reviewer independently fetched all four exact official TDLR project pages through bounded HTTPS requests at **14:07 UTC**. All four organization names, representative names and organization phones match the API. Each raw OWNER section contains `Owner Name`, `Owner Address`, `Owner Phone` and `Contact Name`; none contains an explicit person-bound phone/email label. These checks confirm correct organization-route attribution, not successful phone reachability or buying authority.
+
+| TDLR project | Independently retained raw HTML SHA-256 |
+|---|---|
+| [TABS2027002808](https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808) | `17b2ca4aa6e46f77a7c9cd4f6db3e13253152579ee76ced45f182128ef78c283` |
+| [TABS2026026954](https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954) | `6ef6d5a13dcd98429fc02defb0d93471e07231f951a94b8b57bc1a5368469ee0` |
+| [TABS2027000611](https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611) | `d0c7f38c88236a56590628f82ac5fb2f9c0c566d0d41f5000761622e48f96caa` |
+| [TABS2027002672](https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672) | `c9f66e3e71e889fc7a049ef773cb140909068096114d7873e1e51582a44f5f22` |
+
+The lead's worker receipt reports 25 completed retained-evidence jobs, 20 unresolved company-discovery timeouts and five deferred/interrupted attempts, with no successful company-discovery URL checks and no paid calls. These follow-up outcomes do not erase the four native-permit phone routes, but they do not demonstrate successful broader contact discovery. The reviewer found no invented positive MW, residual gap, personal-phone attribution or purchasing authority in the checked API projections. Source attribution in this diagnostic is not independent population-wide identity accuracy.
+
+## Workbook migration and replay review
+
+Reviewed `653f837`, integrated as `646fafd`, extends the existing immutable import event ledger with `metadata_reparsed`. The independent reviewer checked exact source equivalence after integration. Separate partial uniqueness preserves the original staging/rollback semantics and makes metadata revision/fingerprint replay idempotent. Required JSON types, hashes, count bounds and array/count agreement fail closed. Generated sidecars are explicitly identified by parser metadata; original display cells, normalized data, row identities, errors and non-metadata report fields must remain unchanged. Unsupported targets are retained as unverified unsupported targets and are never fetched. This creates no canonical project, qualification or activation changes.
+
+Review reproduced and closed fresh-stage replay failure, generated-key collision handling, mixed/malformed target handling, removal of all prior targets, and same-revision drift masked by equality to original raw metadata. The migration retains both immutable triggers and refuses downgrade before DDL once metadata receipts exist. Application rollback must retain a compatible schema or use a separately verified pre-reparse backup; it must not delete audit receipts.
+
+The builder's durable receipt reports **45 tests passed**, repeat upgrade success and guarded downgrade. The reviewer independently opened **read-only** PostgreSQL connections to the original actual staging database and migrated clone: all columns of **four batches, 4,520 rows, 4,520 activations and four original lifecycle events are exactly equal**. Both retain the immutable row/event triggers and zero canonical projects, power needs or evidence records. The source remains at `0045_contact_suppressions`; the clone is at `0046_import_meta_reparse` with the documented single test-only metadata receipt. Final fresh-schema, drift and full-candidate gates remain separate requirements. No actual workbook hyperlinks were recovered because the original attachments remain unavailable.
 
 ## Four real-corpus browser gates
 
