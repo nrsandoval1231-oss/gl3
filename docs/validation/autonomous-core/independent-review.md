@@ -62,6 +62,14 @@ uv run pytest tests/unit/test_autonomous_api_surface.py \
 
 No reviewer database tests, destructive mutations, provider calls or deployment actions were performed. Full backend/browser/integration results belong to the coordinator's isolated final gate and must identify its exact commit. This review does not establish live contact yield, live TCEQ acquisition, paid-provider readiness, or production deployment. The reported Austin local acquisition and TCEQ transport limitation are separate acquisition evidence, not a full live-coverage proof.
 
+On assembled source `8df3231`, the reviewer also ran **48 passing non-database tests** covering enrichment-route authentication, research ranking, power-enrichment arithmetic/scope, workbook parsing, and the public mutation allowlist:
+
+```text
+uv run pytest tests/unit/test_enrichment_api.py \
+  tests/unit/test_enrichment_planner.py tests/unit/test_power_enrichment.py \
+  tests/unit/test_workbook_import.py tests/unit/test_autonomous_api_surface.py -q
+```
+
 ## Acceptance state
 
 The three original findings and global text-preflight limitation have corrective code read back through `8df3231`. **The newly identified failed-refresh retry defect and exact-candidate full regression verification remain pending.** Coordinator-reported results from earlier heads are not substituted for the final gate. Production deployment remains on hold: this review does not establish live TCEQ coverage, verified actionable-contact yield, paid-provider readiness, or deployed behavior.
