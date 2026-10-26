@@ -1,3 +1,29 @@
+# Current frontier: repaired source validation
+
+C14 source559 PASS/CI40206125623 PASS -> mergedPR122/controlled release ->
+C19 primary185backfill/C20preservation/C21finiteactivation -> C24/C25boundedPASS.
+These production snapshots remain distinct from source changes below.
+
+C27 strict person-card architecture DONE -> C28R1/C29/C30/C31 historicalPASS ->
+C32 exact1f17d21 independent FIX -> C28R2 truthful counts/reasons -> C35 refresh
+supersession and deterministic replay correction DONE. Failed/interrupted local
+attempts retained; no unreviewed architecture expansion. Frozen backend14bff7...
+and unchanged two C31 web files: root full gate 3029 passed, 3 skipped, 11 warnings, 7 subtests passed in 800.71s (0:13:20); static/API/web gatesPASS.
+C34 fresh retained/native proof and C36 Cua desktop/mobile/reload plus post-UI
+original11tables/1154IDs PASS. Three literal actual-company emails,0paidcalls;
+official-known-URL proof, not another20/185coverage result. AuthorityUNKNOWN.
+C37 public evidence prepared before integrated freeze. C38 distinctSol independent
+review READY on new exactcandidate; C39 follow-onPR/remoteCI depends on acceptance.
+PR122merged, so a follow-on continuation is necessary. New source not deployed.
+
+Production559 finite250call/$2.50 ceiling unchanged,1activecall. Frozenprimary185
+coverage14/185; firstautomatic25 separate. Later18:12/18:14 operationalsnapshot
+235searches/470credits is historical, no later coverage inferred. Lead/Prospect
+N/A, TXonly. ProductionUIUNKNOWN/commercialP0OPEN. No newprovider/recharge/outreach.
+New source cutover requires a separately reviewed recovery/readiness boundary.
+
+Historical graph and original freeze:
+
 # P0 company contact intelligence continuation
 
 Owner mission: continue PR122; automatic discovery, sourced actionable contacts,

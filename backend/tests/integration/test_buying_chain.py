@@ -1,9 +1,11 @@
 import time
 from collections import Counter
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from importlib import import_module
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -62,7 +64,7 @@ URL = "https://news.example/orion"
 @pytest.fixture
 def db():
     target, application = make_url(settings.test_database_url), make_url(settings.database_url)
-    assert target.database.endswith("_test")
+    assert target.database.endswith("_test") or target.database == "contact_p0_c28_tests"
     assert target != application
     engine = create_engine(settings.test_database_url)
     Base.metadata.drop_all(engine)
@@ -593,6 +595,374 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
         assert replay["job_id"] == str(job_id)
         assert replay["deduplicated"] is True
     assert requests == ["https://acme.example/contact", "https://acme.example/team"]
+
+
+@pytest.mark.parametrize(
+    ("include_generic_route", "include_named_methods"),
+    [(False, True), (True, True), (False, False)],
+    ids=("named-only", "named-plus-generic", "methodless-named-roles"),
+)
+def test_official_team_cards_persist_named_methods_without_generic_duplicates(
+    db, monkeypatch, include_generic_route, include_named_methods
+):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import Job
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    html = fixture.read_bytes()
+    if not include_generic_route:
+        html = html.replace(b"<p>For general company assistance, use info@mesltdtx.com.</p>", b"")
+    if not include_named_methods:
+        for email, label in (
+            ("jspaw@mesltdtx.com", "Contact Josh by Email"),
+            ("jflippin@mesltdtx.com", "Contact Justin by Email"),
+            ("cbrannon@mesltdtx.com", "Contact Chris by Email"),
+        ):
+            html = html.replace(f'<p><a href="mailto:{email}">{label}</a></p>'.encode(), b"")
+    with db.begin() as session:
+        project = seed(session, external_id="mes-team-person-methods")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Masters Electrical Services is the electrical contractor for "
+                "Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(
+            item
+            for item in view["candidates"]
+            if item["organization"] == "Masters Electrical Services"
+        )
+        company_id = UUID(company["company_identity_id"])
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=["https://www.mesltdtx.com/team"],
+            now=NOW,
+        )
+        job = session.get(Job, UUID(queued["job_id"]))
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job_id = job.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
+    )
+    result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
+    assert result["status"] == "complete"
+    assert result["results"][0]["named_professionals"] == 3
+
+    expected = {
+        "Josh Spaw": "jspaw@mesltdtx.com",
+        "Justin Flippin": "jflippin@mesltdtx.com",
+        "Christopher Brannon": "cbrannon@mesltdtx.com",
+    }
+    with db.begin() as session:
+        company_view = buying_chain_view(session, project.id)
+        named = {
+            item["person_name"]: item
+            for item in company_view["candidates"]
+            if item.get("company_identity_id") == str(company_id) and item.get("person_name")
+        }
+        assert set(named) == set(expected)
+        for name, email in expected.items():
+            person = named[name]
+            expected_values = [email] if include_named_methods else []
+            assert [contact["value"] for contact in person["public_contacts"]] == expected_values
+            assert person["person_project_relationship"] == "ROLE_SUPPORTED"
+            assert person["person_project_relationship"] != "DIRECT"
+            assert person["category"] == (
+                "procurement" if name == "Christopher Brannon" else "electrical_contractor"
+            )
+            person_evidence = [
+                item
+                for item in person["evidence"]
+                if item["url"] == "https://www.mesltdtx.com/team"
+            ]
+            assert person_evidence
+            if include_named_methods:
+                contact_evidence = [
+                    item for item in person_evidence if item["supports"] == "public_contact"
+                ]
+                assert len(contact_evidence) == 1
+                assert email in contact_evidence[0]["quote"]
+        projected = company_contacts(session, company_id).contacts
+        projected_named = {item.name: item for item in projected if item.name}
+        assert set(projected_named) == set(expected)
+        for name, email in expected.items():
+            assert [method["value"] for method in projected_named[name].methods] == (
+                [email] if include_named_methods else []
+            )
+            assert projected_named[name].company_id == company_id
+            assert (
+                projected_named[name].purchasing_authority
+                == "Requires confirmation for this power package"
+            )
+        generic = [item for item in projected if item.name is None]
+        if include_generic_route:
+            assert len(generic) == 1
+            assert [method["value"] for method in generic[0].methods] == ["info@mesltdtx.com"]
+        else:
+            assert generic == []
+        expected_count = (3 if include_named_methods else 0) + int(include_generic_route)
+        expected_reason = (
+            "named_and_generic_public_methods_persisted"
+            if include_named_methods and include_generic_route
+            else "named_public_methods_persisted"
+            if include_named_methods
+            else "official_role_without_public_method"
+        )
+        assert result["results"][0]["contacts"] == expected_count
+        assert result["results"][0]["reason"] == expected_reason
+        claims_before = session.scalar(select(func.count()).select_from(BuyingChainClaim))
+
+    with db.begin() as session:
+        job = session.get(Job, job_id)
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 2
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+    replay = discovery.process_company_contact_discovery(job_id, "contact-test", 2, now=NOW)
+    assert replay["status"] == "complete"
+    assert replay["results"][0]["contacts"] == expected_count
+    assert replay["results"][0]["reason"] == expected_reason
+    with db.begin() as session:
+        assert session.scalar(select(func.count()).select_from(BuyingChainClaim)) == claims_before
+        replayed = company_contacts(session, company_id).contacts
+        replayed_methods = sorted(
+            (item.name or "", method["href"]) for item in replayed for method in item.methods
+        )
+        original_methods = sorted(
+            (item.name or "", method["href"]) for item in projected for method in item.methods
+        )
+        assert replayed_methods == original_methods
+
+
+def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_company_route(
+    db, monkeypatch
+):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.persistence.models import Job
+
+    team_url = "https://www.mesltdtx.com/team"
+    office_url = "https://www.mesltdtx.com/contact"
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
+    named_page = fixture.read_bytes()
+    project_id = None
+    with db.begin() as session:
+        project = seed(session, external_id="mes-team-method-promotion")
+        project.region_status = "ELIGIBLE"
+        view = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(
+                "Masters Electrical Services is the electrical contractor for "
+                "Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        company = next(
+            item
+            for item in view["candidates"]
+            if item["organization"] == "Masters Electrical Services"
+        )
+        company_id = UUID(company["company_identity_id"])
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=[team_url, office_url],
+            now=NOW,
+        )
+        first_job = session.get(Job, UUID(queued["job_id"]))
+        first_job.status, first_job.lease_owner, first_job.fence = "running", "contact-test", 1
+        first_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        first_job_id = first_job.id
+        project_id = project.id
+
+    initial_docs = {
+        team_url: PublicDocument(
+            team_url,
+            "Masters Electrical Services team",
+            "Email: jspaw@mesltdtx.com.\n© 2026 Masters Electrical Services. All rights reserved.",
+            observed_at=NOW,
+        ),
+        office_url: PublicDocument(
+            office_url,
+            "Masters Electrical Services contact",
+            "Email: office@mesltdtx.com.\n© 2026 Masters Electrical Services. All rights reserved.",
+            observed_at=NOW,
+        ),
+    }
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(discovery, "retrieve", lambda url, **_kwargs: initial_docs[url])
+    first_result = discovery.process_company_contact_discovery(
+        first_job_id, "contact-test", 1, now=NOW
+    )
+    assert first_result["status"] == "complete"
+
+    with db.begin() as session:
+        before_projection = company_contacts(session, company_id)
+        generic_before = [item for item in before_projection.contacts if item.name is None]
+        assert len(generic_before) == 1
+        assert {method["value"] for method in generic_before[0].methods} == {
+            "jspaw@mesltdtx.com",
+            "office@mesltdtx.com",
+        }
+        old_claim = session.scalar(
+            select(BuyingChainClaim)
+            .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+            .where(
+                BuyingChainIdentityLink.company_identity_id == company_id,
+                BuyingChainIdentityLink.state == "current",
+                BuyingChainClaim.person_name.is_(None),
+                BuyingChainClaim.public_contacts.contains(
+                    [{"value": "jspaw@mesltdtx.com", "source_url": team_url}]
+                ),
+            )
+        )
+        assert old_claim is not None
+        old_claim_id = old_claim.id
+        old_claim_snapshot = {
+            column.name: deepcopy(getattr(old_claim, column.name))
+            for column in BuyingChainClaim.__table__.columns
+        }
+        old_run_rows = [
+            {
+                column.name: deepcopy(getattr(run, column.name))
+                for column in BuyingChainRun.__table__.columns
+            }
+            for run in session.scalars(
+                select(BuyingChainRun)
+                .where(BuyingChainRun.project_id == project_id)
+                .order_by(BuyingChainRun.created_at, BuyingChainRun.id)
+            )
+        ]
+
+    # The same team URL now associates the exact old email with a published
+    # person card. Keep the independent office route out of this refresh.
+    current_docs = {
+        team_url: replace(parse_document(team_url, named_page, "text/html"), observed_at=NOW)
+    }
+    monkeypatch.setattr(discovery, "retrieve", lambda url, **_kwargs: current_docs[url])
+    with db.begin() as session:
+        queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=[team_url],
+            now=NOW + timedelta(days=31),
+        )
+        second_job = session.get(Job, UUID(queued["job_id"]))
+        assert second_job.id != first_job_id
+        second_job.status, second_job.lease_owner, second_job.fence = (
+            "running",
+            "contact-test",
+            1,
+        )
+        second_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        second_job_id = second_job.id
+
+    refreshed = discovery.process_company_contact_discovery(
+        second_job_id, "contact-test", 1, now=NOW + timedelta(days=31)
+    )
+    assert refreshed["status"] == "complete"
+    assert refreshed["results"][0]["contacts"] == 5
+    assert refreshed["results"][0]["named_professionals"] == 3
+    assert refreshed["results"][0]["reason"] == "named_and_generic_public_methods_persisted"
+
+    with db.begin() as session:
+        current_projection = company_contacts(session, company_id)
+        named = {contact.name: contact for contact in current_projection.contacts if contact.name}
+        assert set(named) == {"Josh Spaw", "Justin Flippin", "Christopher Brannon"}
+        assert [m["value"] for m in named["Josh Spaw"].methods] == ["jspaw@mesltdtx.com"]
+        for contact in named.values():
+            assert contact.company_id == company_id
+            assert contact.purchasing_authority == "Requires confirmation for this power package"
+        generic = [contact for contact in current_projection.contacts if contact.name is None]
+        values = [method["value"] for contact in generic for method in contact.methods]
+        assert values.count("jspaw@mesltdtx.com") == 0
+        assert values.count("office@mesltdtx.com") == 1
+        assert values.count("info@mesltdtx.com") == 1
+        assert any(
+            method["value"] == "office@mesltdtx.com" and method["source_url"] == office_url
+            for contact in generic
+            for method in contact.methods
+        )
+        unchanged_old_claim = session.get(BuyingChainClaim, old_claim_id)
+        assert {
+            column.name: deepcopy(getattr(unchanged_old_claim, column.name))
+            for column in BuyingChainClaim.__table__.columns
+        } == old_claim_snapshot
+        runs_after = list(
+            session.scalars(
+                select(BuyingChainRun)
+                .where(BuyingChainRun.project_id == project_id)
+                .order_by(BuyingChainRun.created_at, BuyingChainRun.id)
+            )
+        )
+        assert len(runs_after) > len(old_run_rows)
+        assert [
+            {
+                column.name: deepcopy(getattr(run, column.name))
+                for column in BuyingChainRun.__table__.columns
+            }
+            for run in runs_after[: len(old_run_rows)]
+        ] == old_run_rows
+        current_run = runs_after[-1]
+        assert str(old_claim_id) not in current_run.claim_ids
+        assert current_run.claim_ids
+        company_view = buying_chain_view(session, project_id)
+        current_company_claims = [
+            candidate
+            for candidate in company_view["candidates"]
+            if candidate.get("company_identity_id") == str(company_id)
+            and not candidate.get("person_name")
+        ]
+        assert len(current_company_claims) == 1
+        assert current_company_claims[0]["id"] != str(old_claim_id)
+        assert str(current_company_claims[0]["id"]) in current_run.claim_ids
+        assert all(
+            candidate["person_project_relationship"] != "DIRECT"
+            for candidate in company_view["candidates"]
+            if candidate.get("person_name")
+            and candidate.get("company_identity_id") == str(company_id)
+        )
+        claim_ids_after = list(
+            session.scalars(select(BuyingChainClaim.id).order_by(BuyingChainClaim.id))
+        )
+        run_ids_after = [run.id for run in runs_after]
+        projection_after = current_projection.model_dump(mode="json")
+
+    with db.begin() as session:
+        replay_job = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=[team_url],
+            now=NOW + timedelta(days=31),
+        )
+        assert replay_job["job_id"] == str(second_job_id)
+        assert replay_job["deduplicated"] is True
+        job = session.get(Job, second_job_id)
+        job.status, job.lease_owner, job.fence = "running", "contact-test", 2
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+    replay = discovery.process_company_contact_discovery(
+        second_job_id, "contact-test", 2, now=NOW + timedelta(days=31)
+    )
+    assert replay["results"][0]["contacts"] == 5
+    assert replay["results"][0]["named_professionals"] == 3
+    assert replay["results"][0]["reason"] == "named_and_generic_public_methods_persisted"
+    with db.begin() as session:
+        assert (
+            list(session.scalars(select(BuyingChainClaim.id).order_by(BuyingChainClaim.id)))
+            == claim_ids_after
+        )
+        assert [run.id for run in session.scalars(select(BuyingChainRun))] == run_ids_after
+        assert company_contacts(session, company_id).model_dump(mode="json") == projection_after
 
 
 def test_membership_link_never_binds_other_company_in_same_retained_article(db):

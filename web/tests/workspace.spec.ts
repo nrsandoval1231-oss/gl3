@@ -1425,12 +1425,16 @@ test('utility service status stays distinct from an energization date and facili
 for (const width of [1280, 390]) {
   test(`unified intelligence card preserves evidence, verified actions and research at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 })
-    const source = { reference: 'evidence:test', title: 'Official project notice', url: 'https://example.test/project', source_date: '2026-10-20', retained_evidence_id: 'test', content_hash: 'a'.repeat(64), passage: 'Example Owner is developing the site.', extraction_method: 'Official notice', verification_status: 'Current retained support' }
+    const source = { reference: 'evidence:test', title: 'Official project notice', url: 'https://example.test/project', source_date: '2026-10-20', assessed_at: '2026-10-22T12:00:00Z', retained_evidence_id: 'test', content_hash: 'a'.repeat(64), passage: 'Example Owner is developing the site.', extraction_method: 'Official notice', verification_status: 'Current retained support' }
     const card = {
       policy_version: 'opportunity-intelligence-v1', need_id: need.id, project_id: need.project_id,
       input_fingerprint: 'a'.repeat(64), qualification: 'Signal', disposition: 'RESEARCH',
       fields: [{ key: 'customer', label: 'Customer / end user', section: 'identity', value: 'Example Owner', status: 'Verified', basis: 'Current owner relationship.', sources: [source] }],
-      contacts: [{ claim_id: 'party', company: 'Example Owner', name: null, title: null, role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url }], sources: [source] }],
+      contacts: [
+        { claim_id: 'party', company: 'Example Owner', name: null, title: null, role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', verified_at: '2026-10-24T18:04:00Z', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url, verified_at: '2026-10-25T18:04:00Z' }], sources: [source] },
+        { claim_id: 'role-only', company: 'Example Owner', name: 'Jordan Lee', title: 'Facilities Director', role: 'facilities', responsibility: 'Verified organizational responsibility', purchasing_authority: 'Requires confirmation for this power package', verified_at: '2026-10-24T18:04:00Z', methods: [], sources: [source] },
+        { claim_id: 'unknown-date', company: 'Example Owner', name: 'Taylor Unknown', title: 'Operations Director', role: 'operations', responsibility: 'Verified organizational responsibility', purchasing_authority: 'Requires confirmation for this power package', verified_at: '2026-10-24T18:04:00Z', methods: [{ kind: 'email', value: 'unknown@example.test', href: 'mailto:unknown@example.test', verified_at: 'invalid-date' }], sources: [] },
+      ],
       next_contact_path: 'Confirm power procurement with the company office.', next_action: 'Verify the activity-specific power window.',
       research_gaps: [{ key: 'start', label: 'Power needed', section: 'power', value: null, status: 'Research in progress', basis: 'No supported date yet.', research_category: 'timing', research_status: 'NOT_SCHEDULED', sources: [] }],
       completeness: { supported: 1, total: 2, percent: 50, basis: 'Independent of qualification' },
@@ -1478,7 +1482,23 @@ for (const width of [1280, 390]) {
     await expect(priority).toContainText('Known industrial asset')
     await expect(panel.getByText('Example Owner', { exact: true }).first()).toBeVisible()
     await expect(panel.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
-    await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)
+    const emailLinks = panel.locator('a[href^="mailto:"]')
+    await expect(emailLinks).toHaveCount(1)
+    await expect(emailLinks).toHaveAttribute('href', 'mailto:unknown@example.test')
+    const methodContact = panel.locator('.ic-contact').first()
+    await methodContact.getByText('Responsibility, authority & evidence').click()
+    await expect(methodContact).toContainText('Verified 10/25/2026')
+    await expect(methodContact).not.toContainText('Verified 10/24/2026')
+    await expect(methodContact).toContainText('Requires confirmation for this power package.')
+    await expect(methodContact).not.toContainText('Purchasing authority confirmed')
+    const roleContact = panel.locator('.ic-contact').nth(1)
+    await roleContact.getByText('Responsibility, authority & evidence').click()
+    await expect(roleContact).toContainText('Role/source checked 10/22/2026')
+    await expect(roleContact).not.toContainText('Verified 10/24/2026')
+    const unknownDateContact = panel.locator('.ic-contact').nth(2)
+    await unknownDateContact.getByText('Responsibility, authority & evidence').click()
+    await expect(unknownDateContact).not.toContainText('Verified 10/24/2026')
+    await expect(unknownDateContact).not.toContainText('Role/source checked')
     await expect(page.locator('.wh-completeness')).toContainText('1/2')
     await panel.getByRole('button', { name: 'Research missing information' }).click()
     await expect.poll(() => researchBody).toEqual({ force: false, complete_intelligence: true })

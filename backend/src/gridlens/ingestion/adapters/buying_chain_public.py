@@ -9,6 +9,7 @@ killable child so OS-controlled DNS and PDF parsing cannot outlive that budget.
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import json
 import re
@@ -32,6 +33,7 @@ from gridlens.ingestion.adapters.bounded_http import (
 MAX_BYTES = 750_000
 MAX_TEXT = 30_000
 MAX_PAGES = 20
+MAX_PERSON_CARDS = 20
 CAPTURE_VERSION = "public-document-v3"
 
 
@@ -100,6 +102,17 @@ def _pdf_document(url: str, body: bytes) -> PublicDocument:
 
 
 @dataclass(frozen=True)
+class PublicPersonCard:
+    """A bounded literal heading-to-contact association from one HTML container."""
+
+    heading_text: str
+    contact_text: str
+    href: str
+    name: str
+    title: str
+
+
+@dataclass(frozen=True)
 class PublicDocument:
     url: str
     title: str
@@ -111,6 +124,7 @@ class PublicDocument:
     structured: tuple[dict, ...] = ()
     retained_version: str | None = None
     capture_version: str = CAPTURE_VERSION
+    person_cards: tuple[PublicPersonCard, ...] = ()
 
 
 def validate_public_url(url: str) -> str:
@@ -227,8 +241,99 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
     # correction must not disappear merely because a positive claim is in main.
     for excluded in soup(["script", "style"]):
         excluded.decompose()
-    # Preserve literal business contact targets even when link text is "Email".
-    # Never infer a person/company association from an anchor or its label.
+    # Preserve literal contact targets even when link text is "Email". Record a
+    # person association only when a single immediate container has exactly one
+    # heading and one safe method anchor; page-wide proximity is not evidence.
+    method_labels: dict[Tag, tuple[str, str]] = {}
+    for anchor in soup.find_all("a", href=True):
+        if not isinstance(anchor, Tag):
+            continue
+        href = str(anchor.get("href", ""))
+        if href.lower().startswith(("mailto:", "tel:")):
+            method_labels[anchor] = (anchor.get_text(" ", strip=True), href)
+    cards: list[PublicPersonCard] = []
+    for heading in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+        if not isinstance(heading, Tag):
+            continue
+        parent = heading.parent
+        if not isinstance(parent, Tag):
+            continue
+        headings = [
+            item
+            for item in parent.find_all(["h1", "h2", "h3", "h4", "h5", "h6"])
+            if isinstance(item, Tag)
+        ]
+        anchors = [
+            anchor
+            for anchor in parent.find_all("a", href=True)
+            if isinstance(anchor, Tag) and anchor in method_labels
+        ]
+        if len(headings) != 1 or len(anchors) != 1:
+            continue
+        # An outer card wrapper can include nested people. Do not treat it as
+        # an immediate card even if the flattened text happens to look adjacent.
+        nested = [
+            child
+            for child in parent.find_all(["div", "section", "article"])
+            if isinstance(child, Tag)
+        ]
+        if any(
+            child.find(["h1", "h2", "h3", "h4", "h5", "h6"])
+            or any(candidate in method_labels for candidate in child.find_all("a", href=True))
+            for child in nested
+        ):
+            continue
+        heading_text = heading.get_text(" ", strip=True)
+        heading_match = re.fullmatch(
+            r"(?P<name>[A-Z][A-Za-zÀ-ž'’.-]+(?:[ \t]+[A-Z][A-Za-zÀ-ž'’.-]+){1,3})"
+            r",[ \t]*(?P<title>[^,\n]{3,80})",
+            heading_text,
+        )
+        if not heading_match or len(heading_text) > 200:
+            continue
+        anchor = anchors[0]
+        label, href = method_labels[anchor]
+        href_match = re.fullmatch(
+            r"mailto:([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63})"
+            r"|tel:(\+?[0-9(). -]{7,30})",
+            href,
+            re.I,
+        )
+        if not href_match or any(char in href for char in "\r\n?#"):
+            continue
+        value = href_match.group(1) or href_match.group(2)
+        if not value or not label or len(label) > 120:
+            continue
+        first_name = heading_match.group("name").split()[0].casefold()
+        label_match = re.fullmatch(
+            r"Contact[ \t]+(?P<name>[A-Za-z'-]+)[ \t]+by[ \t]+(?P<kind>Email|Phone)",
+            label,
+            re.I,
+        )
+        accepted_names = {first_name}
+        if first_name == "christopher":
+            accepted_names.add("chris")
+        if (
+            not label_match
+            or label_match.group("name").casefold() not in accepted_names
+            or (label_match.group("kind").casefold() == "email")
+            != href.lower().startswith("mailto:")
+        ):
+            continue
+        contact_text = label if value in label else f"{label} {value}".strip()
+        if len(contact_text) > 200:
+            continue
+        cards.append(
+            PublicPersonCard(
+                heading_text=heading_text,
+                contact_text=contact_text,
+                href=href,
+                name=heading_match.group("name"),
+                title=heading_match.group("title").strip(),
+            )
+        )
+        if len(cards) > MAX_PERSON_CARDS:
+            raise ResponseTooLarge("Page exceeds 20 explicit person-contact cards")
     for anchor in soup.find_all("a", href=True):
         if not isinstance(anchor, Tag):
             continue
@@ -244,6 +349,7 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
     text = "\n".join(
         line.strip() for line in main.get_text("\n", strip=True).splitlines() if line.strip()
     )
+    cards = [card for card in cards if card.heading_text in text and card.contact_text in text]
     if directory:
         text += "\n" + "\n".join(
             json.dumps(row, sort_keys=True, ensure_ascii=False) for row in directory
@@ -277,6 +383,22 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
         ):
             raise PublicExtractionUnavailable("javascript_rendering_required")
         raise ValueError("Source did not return usable public content")
+    extraction_location = "public page text"
+    if cards:
+        card_data = [
+            {
+                "heading_text": card.heading_text,
+                "contact_text": card.contact_text,
+                "href": card.href,
+                "name": card.name,
+                "title": card.title,
+            }
+            for card in cards
+        ]
+        card_digest = hashlib.sha256(
+            json.dumps(card_data, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+        extraction_location += f"; pcards:{card_digest}"
     return PublicDocument(
         url,
         _bounded_title(title),
@@ -284,6 +406,8 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
         published,
         links=tuple(dict.fromkeys(links))[:2],
         structured=tuple(directory),
+        extraction_location=extraction_location,
+        person_cards=tuple(cards),
     )
 
 

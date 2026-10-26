@@ -1,0 +1,948 @@
+{
+  "scope": "Separate automatic follow-up cohort; do not add these outcomes to the frozen 185-company census.",
+  "read_only_observation_at_utc": "2026-10-25T17:12:18.438144+00:00",
+  "planner_last_success_at_utc": "2026-10-25T17:07:16.791246+00:00",
+  "planner_next_retry_at_utc": "2026-10-25T18:07:16.791246+00:00",
+  "planner_consecutive_failures": 0,
+  "jobs_observed": 25,
+  "jobs_succeeded": 25,
+  "completed_firecrawl_search_calls": 25,
+  "distinct_company_targets": 25,
+  "overlap_with_primary_185_company_ids": 0,
+  "companies_with_published_methods": 2,
+  "unique_company_methods": 30,
+  "unique_email_methods": 28,
+  "unique_phone_methods": 2,
+  "named_professionals_without_methods": 3,
+  "direct_person_methods": 0,
+  "jobs": [
+    {
+      "job_id": "10a5beda-56f1-4d5c-a20b-334690d25d3f",
+      "company_id": "05c5d76f-1b82-4791-86a7-5c8c76304414",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:11:16.132072+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "0e5357d2-1ba3-4c34-b13c-d45592c21b3c",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "16e4b3a8-d357-4ccd-8a28-f51e2805f368",
+      "company_id": "02f35206-fc37-472d-9c67-ee8b9c940014",
+      "source_id": "austin-building-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:09:20.928356+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "6c1740c9-58d2-4bb2-9c88-071bb41a7912",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "30175c76-bd24-4c5d-8718-76ca7ab31498",
+      "company_id": "015624a3-5228-4492-b972-5edf489a2df7",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:07:35.143616+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "f9f86cf0-7e8e-47f8-95cd-7a21f931c50b",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "3559997f-2544-4768-a84e-a2ce67e9186e",
+      "company_id": "02cefd5a-cd3f-48e4-8bde-aa07fe8924bb",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:09:09.777925+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "3aebf6d5-d0b0-4962-9e81-e3665c687636",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "4254e864-aeb7-4a01-acc9-7b58ad80d780",
+      "company_id": "01708007-d4cc-4a9c-be89-aa63071e970a",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:07:45.871212+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "543ca12b-99d5-4ca3-be42-2bda6be85757",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "4ab58fd4-9952-40b6-a858-46eef4bb9467",
+      "company_id": "0357891e-8d25-4bd8-b4c7-c2ffc0df0673",
+      "source_id": "austin-building-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:09:55.519306+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "1eb216da-1319-4214-989e-6cf2c0d8d5b6",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "5e972403-2060-4018-915c-9c22528357bd",
+      "company_id": "080d8642-719f-4451-94aa-d88c17158bd7",
+      "source_id": "austin-building-permits",
+      "status": "succeeded",
+      "discovery_status": "complete",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:12:00.273502+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "69806b68-7470-4835-aa71-a86dd3d5bf38",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [
+        {
+          "company": "Masters Electrical Services, Ltd",
+          "name": "Josh Spaw",
+          "title": "Project Manager",
+          "role": "electrical contractor",
+          "responsibility": "Inferred likely role",
+          "verification_status": "Source verified; reachability and authority unconfirmed",
+          "verified_at": null,
+          "methods": [],
+          "sources": [
+            {
+              "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13788842",
+              "source_date": "2026-10-21",
+              "assessed_at": "2026-10-24T12:37:45.228683+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            }
+          ]
+        },
+        {
+          "company": "Masters Electrical Services, Ltd",
+          "name": "Justin Flippin",
+          "title": "Project Manager",
+          "role": "electrical contractor",
+          "responsibility": "Inferred likely role",
+          "verification_status": "Source verified; reachability and authority unconfirmed",
+          "verified_at": null,
+          "methods": [],
+          "sources": [
+            {
+              "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13788842",
+              "source_date": "2026-10-21",
+              "assessed_at": "2026-10-24T12:37:45.228683+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            }
+          ]
+        },
+        {
+          "company": "Masters Electrical Services, Ltd",
+          "name": null,
+          "title": null,
+          "role": "electrical contractor",
+          "responsibility": "General company contact path",
+          "verification_status": "Source verified; reachability and authority unconfirmed",
+          "verified_at": "2026-10-25T17:12:00.273502+00:00",
+          "methods": [
+            {
+              "kind": "email",
+              "value": "info@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/contact",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "gweddle@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "aweddle@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "aspaw@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "mmeeley@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "jvillanueva@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "areiley@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "jaweddle@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "jweddle@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "mriley@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "rspaw@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "cmergele@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "jspaw@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "jflippin@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "mhallmark@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "dweddle@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "cbrannon@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "pwinchester@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "lharper@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "tnoll@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "mbarillet@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "egarza@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "bgauthier@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "kspaw@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "jpawelek@mesltdtx.com",
+              "source_url": "https://www.mesltdtx.com/team",
+              "verified_at": "2026-10-25T17:12:00.273502+00:00"
+            }
+          ],
+          "sources": [
+            {
+              "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13788842",
+              "source_date": "2026-10-21",
+              "assessed_at": "2026-10-24T12:37:45.228683+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/contact",
+              "assessed_at": "2026-10-25T17:12:06.652948+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            },
+            {
+              "url": "https://www.mesltdtx.com/team",
+              "assessed_at": "2026-10-25T17:12:08.541942+00:00"
+            }
+          ]
+        }
+      ],
+      "research_required": true
+    },
+    {
+      "job_id": "6057acef-da5c-47ba-a128-1fafe3331c13",
+      "company_id": "0513da16-de18-4ad8-8d7b-d993f1aacb4b",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:10:51.967979+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "cfef6ee6-0b96-4661-984a-8cdd732a05d5",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "64141ea8-9848-4a2f-ad6a-91cc12fb7df8",
+      "company_id": "019c180f-2f83-4f1f-b34b-c8ef316cc03e",
+      "source_id": "austin-building-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:08:13.336658+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "a49de309-4130-4f41-aaf6-f507602cd784",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "6b8ac442-f351-4bbb-a41e-bfd73a02d06e",
+      "company_id": "04390e98-d0f8-42b4-96bc-cf7fb1439ea2",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:10:30.150600+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "45be7632-8a63-4643-b504-b3136e8a0cdb",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "87928fc2-39d0-4f05-aab1-83b3da86a02e",
+      "company_id": "02751d0f-7646-4c98-99c1-f0b518ce5976",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "complete",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:08:47.190460+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "c4888001-d39e-4cdd-b4ac-1b63fa9935bf",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [
+        {
+          "company": "EOG RESOURCES, INC.",
+          "name": "Gregory T. Miller",
+          "title": "VP, Supply Chain",
+          "role": "procurement",
+          "responsibility": "Inferred likely role",
+          "verification_status": "Source verified; reachability and authority unconfirmed",
+          "verified_at": null,
+          "methods": [],
+          "sources": [
+            {
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "source_date": "2026-10-14",
+              "assessed_at": "2026-10-25T12:32:53.230718+00:00"
+            },
+            {
+              "url": "https://www.eogresources.com/company/leadership/",
+              "assessed_at": "2026-10-25T17:08:53.759063+00:00"
+            }
+          ]
+        },
+        {
+          "company": "EOG RESOURCES, INC.",
+          "name": null,
+          "title": null,
+          "role": "asset operator",
+          "responsibility": "General company contact path",
+          "verification_status": "Source verified; reachability and authority unconfirmed",
+          "verified_at": "2026-10-25T12:41:31.267760+00:00",
+          "methods": [
+            {
+              "kind": "phone",
+              "value": "(713) 651-7000",
+              "source_url": "https://www.eogresources.com/company/contacts/",
+              "verified_at": "2026-10-25T17:08:47.190460+00:00"
+            },
+            {
+              "kind": "phone",
+              "value": "(877) 363-3647",
+              "source_url": "https://www.eogresources.com/company/contacts/",
+              "verified_at": "2026-10-25T17:08:47.190460+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "info@eogresources.com",
+              "source_url": "https://www.eogresources.com/company/owners/",
+              "verified_at": "2026-10-25T17:08:47.190460+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "jibinquiry@eogresources.com",
+              "source_url": "https://www.eogresources.com/company/owners/",
+              "verified_at": "2026-10-25T17:08:47.190460+00:00"
+            },
+            {
+              "kind": "email",
+              "value": "EOGR1099@eogresources.com",
+              "source_url": "https://www.eogresources.com/company/owners/",
+              "verified_at": "2026-10-25T17:08:47.190460+00:00"
+            }
+          ],
+          "sources": [
+            {
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+              "source_date": "2026-10-14",
+              "assessed_at": "2026-10-25T12:32:53.230718+00:00"
+            },
+            {
+              "url": "https://www.eogresources.com/company/contacts/",
+              "assessed_at": "2026-10-25T17:08:52.094289+00:00"
+            },
+            {
+              "url": "https://www.eogresources.com/company/contacts/",
+              "assessed_at": "2026-10-25T17:08:52.094289+00:00"
+            },
+            {
+              "url": "https://www.eogresources.com/company/owners/",
+              "assessed_at": "2026-10-25T17:08:56.408764+00:00"
+            },
+            {
+              "url": "https://www.eogresources.com/company/owners/",
+              "assessed_at": "2026-10-25T17:08:56.408764+00:00"
+            },
+            {
+              "url": "https://www.eogresources.com/company/owners/",
+              "assessed_at": "2026-10-25T17:08:56.408764+00:00"
+            }
+          ]
+        }
+      ],
+      "research_required": true
+    },
+    {
+      "job_id": "8b1e2ce0-a8d4-4d4e-984d-f27192cb66a2",
+      "company_id": "03587426-90e7-4181-b189-75c66e2693f4",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:10:08.456210+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "f035cba4-f72b-417c-bdd7-3b2983276d74",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "989872a5-e3fe-47b7-9384-65788be392ec",
+      "company_id": "04fc35d1-0d66-4bf2-820b-442bfc1f78d3",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:10:42.799536+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "e7a0c947-7f82-4bca-b73f-a64e16fdab85",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "9d0bd63d-3324-4cd6-9685-a237b0c8c2fe",
+      "company_id": "028fae2d-510f-4729-a33a-089253e18b33",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:08:58.936930+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "44e1f7c0-e86e-4e47-ae05-6a85558a5e25",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "a376c910-f3e1-4b68-b0fc-0158c299d580",
+      "company_id": "0594bd1b-edfa-4e1c-b168-a398ee50e680",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:11:04.036337+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "fd239dc5-4c85-43d6-bf13-c2d1837abea2",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "a5296141-67d5-4917-ad5d-5cbbef6ee222",
+      "company_id": "067f2c5f-3c02-4135-96bc-9ecff22d47ca",
+      "source_id": "austin-building-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:11:37.783953+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "c7979f48-0cc3-4c9b-8eaf-8fd719da3b54",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "abbd4163-820e-493e-83b2-81426895cbd8",
+      "company_id": "03f23899-c67f-4be3-8fa6-473af9da33d9",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:10:19.677737+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "1f241456-2212-4436-95db-95be06098914",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "ae1b533a-6ce4-4368-ae56-e920a80efd3e",
+      "company_id": "0302d989-bba8-4e10-8e6c-5f676c03eeeb",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:09:33.035891+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "1ef8978f-eb40-460a-a786-0cd4930fbac1",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "b1b4abc3-9c24-413e-9949-5026e58db479",
+      "company_id": "032f68dc-4276-430c-983f-fee6c14fdede",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:09:44.649588+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "df14d22a-aaa8-4d48-a9a9-eb922c4dadba",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "b3e17d5d-4bb7-4305-9acd-7bf79ce3ca4a",
+      "company_id": "07f66162-ea75-49e4-b8fe-28a8f02dd398",
+      "source_id": "austin-building-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:11:50.225911+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "bc80ca96-2ba3-4357-9b1d-115792664ce4",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "c06151ec-92ef-49b5-a4a2-eb4352c2384f",
+      "company_id": "05c7210e-8057-492b-adb0-9f0f21724667",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:11:27.363415+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "002b1806-bedd-4fd2-ab3c-62b1b46c99ff",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "e59cb5d5-b004-471d-8888-1bdc9b4a4099",
+      "company_id": "00060448-163a-420b-9c1d-bfa682fe1d77",
+      "source_id": "austin-building-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:07:23.177643+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "d6575547-cb71-457e-9445-a72d1d5a3d28",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "ec3e7226-7479-46f5-88a0-76a0f5a8c720",
+      "company_id": "0258de95-0a47-420d-a397-7ccf57348200",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:08:36.601897+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "ff7f7038-e2f8-424b-8cb5-20dbff600851",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "f94064b6-208d-4073-b706-2c70d1acd6c1",
+      "company_id": "024673fb-46e6-4ee1-abbd-341e9d683c4e",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:08:25.378955+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "efabeeb7-e7c1-42d0-9b16-12dcf0b2d0a7",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    },
+    {
+      "job_id": "fc3772c9-6214-40e6-bd85-b0ce3f25b8e8",
+      "company_id": "017938a3-eedd-4062-a046-35fca461dc38",
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "discovery_status": "unresolved",
+      "created_at": "2026-10-25T17:07:17.066954+00:00",
+      "completed_at": "2026-10-25T17:07:59.364485+00:00",
+      "attempts": 1,
+      "calls": [
+        {
+          "id": "2b2499c2-a8da-4228-8293-d80e2973f213",
+          "provider": "firecrawl",
+          "task_type": "FIRECRAWL_SEARCH_V2",
+          "status": "COMPLETED",
+          "reservation_usd": "0.010000"
+        }
+      ],
+      "contacts": [],
+      "research_required": true
+    }
+  ],
+  "unknown_or_quarantined_calls_observed": 0,
+  "identity_note": "Distinct targets and zero overlap are by canonical company ID. One automatic record is a separate legacy identity associated with EOG public-domain routes; no name-based merge was made."
+}
