@@ -3,12 +3,26 @@ from __future__ import annotations
 import csv
 import json
 from datetime import date
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from openpyxl import Workbook
 
 from gridlens.ingestion import workbook_import
 from gridlens.ingestion.workbook_import import read_workbook
+
+
+def _replace_hyperlink_reference(path, original: str, replacement: str) -> None:
+    temp_path = path.with_suffix(".rewrite.xlsx")
+    with ZipFile(path) as source, ZipFile(temp_path, "w", ZIP_DEFLATED) as rewritten:
+        for entry in source.infolist():
+            contents = source.read(entry.filename)
+            if entry.filename == "xl/worksheets/sheet1.xml":
+                contents = contents.replace(
+                    f'ref="{original}"'.encode(), f'ref="{replacement}"'.encode(), 1
+                )
+            rewritten.writestr(entry, contents)
+    temp_path.replace(path)
 
 
 def test_multisheet_import_maps_mixed_rows_and_reports_duplicates(tmp_path):
@@ -177,6 +191,52 @@ def test_excel_hyperlink_metadata_budget_fails_visible(tmp_path, monkeypatch):
     with pytest.raises(
         ValueError, match="relationship metadata exceeds its configured byte budget"
     ):
+        read_workbook(path)
+
+
+def test_excel_range_hyperlink_is_preserved_on_each_bounded_cell(tmp_path):
+    path = tmp_path / "range-source-link.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source"])
+    sheet.append(["North Site", "Link"])
+    sheet.append(["South Site", None])
+    sheet["B2"].hyperlink = "https://example.gov/projects/two-sites"
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B2:B3")
+
+    preview = read_workbook(path)
+
+    expected = "https://example.gov/projects/two-sites"
+    assert preview.rows[0].raw["__workbook_hyperlinks__"]["Source"] == expected
+    assert preview.rows[1].raw["__workbook_hyperlinks__"]["Source"] == expected
+
+
+def test_excel_huge_range_hyperlink_fails_before_expansion(tmp_path):
+    path = tmp_path / "huge-range-source-link.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source"])
+    sheet.append(["North Site", "Link"])
+    sheet["B2"].hyperlink = "https://example.gov/projects/all-rows"
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B2:B100002")
+
+    with pytest.raises(ValueError, match="configured target budget"):
+        read_workbook(path)
+
+
+def test_excel_malformed_range_hyperlink_fails_clearly(tmp_path):
+    path = tmp_path / "malformed-range-source-link.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source"])
+    sheet.append(["North Site", "Link"])
+    sheet["B2"].hyperlink = "https://example.gov/projects/malformed"
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B2:Binvalid")
+
+    with pytest.raises(ValueError, match="malformed external hyperlink cell range"):
         read_workbook(path)
 
 

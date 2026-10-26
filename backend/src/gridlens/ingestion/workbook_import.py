@@ -20,7 +20,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from openpyxl import load_workbook  # type: ignore[import-untyped]
-from openpyxl.utils.cell import coordinate_to_tuple, get_column_letter
+from openpyxl.utils.cell import get_column_letter, range_boundaries
 from pydantic import BaseModel, ConfigDict
 
 _OOXML_MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -594,15 +594,34 @@ def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
                         rel_id = element.attrib.get(f"{{{_OOXML_REL_NS}}}id")
                         target_url = external_targets.get(rel_id or "")
                         if ref and target_url:
-                            _row_number, column_number = coordinate_to_tuple(ref)
-                            if column_number <= MAX_COLUMNS:
-                                target_count += 1
+                            try:
+                                min_column, min_row, max_column, max_row = range_boundaries(ref)
+                            except ValueError as exc:
+                                raise ValueError(
+                                    "Workbook contains a malformed external hyperlink cell range"
+                                ) from exc
+                            if None in {min_column, min_row, max_column, max_row}:
+                                raise ValueError(
+                                    "Workbook contains an unsupported external hyperlink cell range"
+                                )
+                            assert min_column and min_row and max_column and max_row
+                            max_column = min(max_column, MAX_COLUMNS)
+                            if min_column <= max_column:
+                                mapped_targets = (max_column - min_column + 1) * (
+                                    max_row - min_row + 1
+                                )
+                                target_count += mapped_targets
                                 if target_count > MAX_HYPERLINK_TARGETS:
                                     raise ValueError(
                                         "Workbook contains more external hyperlinks than its "
                                         "configured target budget"
                                     )
-                                sheet_hyperlinks[ref] = target_url
+                                for row_number in range(min_row, max_row + 1):
+                                    for column_number in range(min_column, max_column + 1):
+                                        cell_ref = (
+                                            f"{get_column_letter(column_number)}{row_number}"
+                                        )
+                                        sheet_hyperlinks[cell_ref] = target_url
                     element.clear()
                     if len(stack) > 1:
                         stack[-2].remove(element)
