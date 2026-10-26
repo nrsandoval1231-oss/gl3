@@ -240,6 +240,22 @@ def test_excel_malformed_range_hyperlink_fails_clearly(tmp_path):
         read_workbook(path)
 
 
+def test_excel_reversed_range_cannot_reduce_budget_before_large_range(tmp_path):
+    path = tmp_path / "reversed-range-source-links.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Project Name", "Source 1", "Source 2"])
+    sheet.append(["North Site", "Link", "Link"])
+    sheet["B2"].hyperlink = "https://example.gov/projects/reversed"
+    sheet["C2"].hyperlink = "https://example.gov/projects/large"
+    workbook.save(path)
+    _replace_hyperlink_reference(path, "B2", "B1000000:B2")
+    _replace_hyperlink_reference(path, "C2", "C2:C100002")
+
+    with pytest.raises(ValueError, match="invalid external hyperlink cell range"):
+        read_workbook(path)
+
+
 def test_large_contact_csv_stays_bounded_and_keeps_all_rows(tmp_path):
     path = tmp_path / "contacts.csv"
     with path.open("w", newline="", encoding="utf-8") as handle:

@@ -604,7 +604,13 @@ def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
                                 raise ValueError(
                                     "Workbook contains an unsupported external hyperlink cell range"
                                 )
-                            assert min_column and min_row and max_column and max_row
+                            if not (
+                                1 <= min_row <= max_row <= 1_048_576
+                                and 1 <= min_column <= max_column <= 16_384
+                            ):
+                                raise ValueError(
+                                    "Workbook contains an invalid external hyperlink cell range"
+                                )
                             max_column = min(max_column, MAX_COLUMNS)
                             if min_column <= max_column:
                                 mapped_targets = (max_column - min_column + 1) * (
