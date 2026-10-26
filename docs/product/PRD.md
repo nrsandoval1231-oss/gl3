@@ -27,7 +27,7 @@ The canonical vertical/asset lifecycle doctrine is [Vertical Lifecycle Intellige
 
 ## Autonomous application experience
 
-The [UI canon](../design/UI_CANON.md) and [workspace contract](../design/PURSUIT_WORKSPACE.md) retain the seven-color G/L brand, compact horizontal navigation, dense table and detail composition. Primary user surfaces are Opportunities, automated Research, emerging Signals and unified search. Source administration and diagnostics are internal. No call logging, manual fact drafting, operator statuses, qualification controls, correction forms, notes or administrative pursuit logging belong in the user-facing application or its public mutation API. Evidence tiers remain independently searchable; backend attribution and immutable audit history survive retirement of manual workflows.
+The [UI canon](../design/UI_CANON.md) and [workspace contract](../design/PURSUIT_WORKSPACE.md) retain the seven-color G/L brand, compact horizontal navigation, dense table and detail composition. Primary user surfaces are Opportunities, automated Research, emerging Signals and unified search. Source administration and diagnostics are internal. No call logging, manual fact drafting, operator statuses, qualification controls, correction forms, notes or administrative pursuit logging belong in the user-facing application or its public mutation API. Evidence tiers remain independently searchable; backend attribution and immutable audit history survive retirement of routine manual workflows. Exceptional internal correction, suppression and privacy services remain supported with reason/actor/version/idempotency audit, durable scope across refresh, and no qualification override.
 
 ## October 22, 2026 regional operating mandate
 
@@ -161,7 +161,7 @@ The short morning list is a convenience. All active records remain searchable an
 
 29. **Contacts and next action.** Surface sourced business contact information when available, including when and where it was found. Never fabricate an email, phone number, named buyer, or verified responsibility. Every visible opportunity provides a specific next question or action based on its missing facts and timing.
 
-30. **Autonomous refresh and retained audit.** Automatically investigate missing facts and re-evaluate changed evidence through deterministic rules. Expose sources, freshness, conflicts and explicit unknowns. Retire user call logs, notes, fact drafts, corrections, status and manual qualification controls and their public mutation routes. Preserve prior attributed facts, decisions and audit records as backend evidence; their retention does not authorize new manual workflow.
+30. **Autonomous refresh and retained audit.** Automatically investigate missing facts and re-evaluate changed evidence through deterministic rules. Expose sources, freshness, conflicts and explicit unknowns. Retire user call logs, notes, fact drafts, corrections, status and manual qualification controls and their public mutation routes. Preserve prior attributed facts, decisions and audit records as backend evidence. Exceptional correction, suppression and privacy services remain available internally with explicit actor/reason, expected versions, replay protection and immutable history. Such controls cannot fabricate source verification or bypass deterministic qualification, and routine use stays autonomous.
 
 ### User experience
 

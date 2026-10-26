@@ -1,0 +1,26 @@
+# GL3 commercial repair manifest — October 26, 2026
+
+Authority: [Autonomous Intelligence Canon](../../product/AUTONOMOUS_INTELLIGENCE_CANON.md) and [current owner scope](../../../.agent/OWNER_REQUEST.md). This is an implementation/acceptance manifest, not a completed benchmark or deployment receipt.
+
+The retained starting candidate is `7e5179f` on PR126. Main/upstream PR125 is `d75a856`; PR124 canon work and active PR123 are preserved. PR123 head `d7adda9836b3de4ae624a41d6a3b49365a23885c` overlaps public staff-card extraction, literal person/method association, named/generic receipts, relevant Purchasing Manager role and freshness/revision handling. Port useful attributed behavior without overwriting that public branch or importing its historical deployment/budget claims as current authority.
+
+| Lane | Exclusive implementation ownership | Required evidence |
+|---|---|---|
+| Adaptive contacts | `company_contact_discovery.py`, `enrichment_planner.py`, public buying-chain adapter/extraction and corresponding tests | Missing-buyer/method priority, adaptive bounded depth, retained/learned source reuse, low-yield stop, provenance/freshness, durable retries and paid gates closed |
+| Exceptional controls | Contact/graph/correction services, stable suppression persistence, shared contact projection overlays and internal CLI | Actor/reason/source/expected-version/idempotency audit, concurrent/replay conflicts, refresh-resistant suppression across all structured reads, explicit reinstatement, no qualification shortcut |
+| Workbook reconciliation | Workbook parser/import service and read-only reconciliation CLI/report plus tests | Original file/sheet/row/field provenance, exact/probable/ambiguous/unmatched explanations, distinct physical sites, no writes/promotion, capacity/date/gap unknown guardrails |
+| Power and output | Scoped power projection, existing intelligence-card output and tests | Source-supported need/gap/timing, honest confidence/verification labels, latest contact dates, readable existing UI, no redesign |
+| Governance | Canon, compatible product/design/agent controls and this manifest | Exceptional-control clarification, current ownership and truthful acceptance boundaries |
+| Root integration | Accessible actual corpus/workbooks, benchmark script/report, migrations, full gates, independent Astra review and PR | Exact candidate hashes, actual observed denominators, no paid/provider or production mutation, no merge/deployment |
+
+Four Luna low builders are actually dispatched in isolated `/workspace/gl3-repair/{contact,exceptions,workbook,power}` worktrees from the retained candidate. The lead owns a separate governance worktree. These assignments do not assert code completion or test success; final controller receipts provide those results.
+
+## Actual-data acceptance boundary
+
+The requested benchmark is 25 actual eligible physical projects with current published projections and conservative identity deduplication before the limit. Report actual project/company counts, source-backed gap/timing coverage, usable business methods, relevant named professionals, buyer methods/authority, freshness and known cost separately. Preserve unknown values and zero denominators explicitly. Historic PR122/PR123/PR125 cohorts and synthetic tests remain separate evidence.
+
+At mission start no accessible production credentials/snapshot or the four named Windows workbooks were found in the workspace; only six retained actual Austin projects (171 evidence records, zero canonical company identities) and synthetic parser fixtures were available to the root controller. A read-only production workspace request returned 401, and connected Drive searches found none of the four named files. These checks are recorded separately by the controller in `docs/validation/system-repair-20261026/input-availability.json`. The four expected workbook names are `Cleanview.xlsx`, `DC Leads.xlsx`, `texas dc leads.xlsx` and `US_Data_Center_Project_Tracker_August_2026.xlsx`. Their historical Windows location is not evidence that they are mounted here. Actual 25-project coverage and workbook reconciliation remain BLOCKED until an accessible corpus is found. Continue code and isolated fixture verification; never manufacture remaining projects or workbook rows.
+
+## Release boundary
+
+No paid API execution or activation, production data write, merge or deployment is authorized. New local fixture databases are disposable and separately named per lane. Preserve schemas, source evidence, historical corrections and account/project identities; any required migration is additive and separately checked for fresh/repeated/upgrade/drift behavior. Full integrated validation and independent review must cover the final exact candidate. This manifest makes no production readiness, contact coverage or deployment claim.
