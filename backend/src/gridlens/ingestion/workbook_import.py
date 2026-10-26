@@ -487,9 +487,7 @@ def _iter_sources(path: Path):
     if suffix == ".csv":
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.reader(handle)
-            yield "CSV", (
-                (index, tuple(row), {}) for index, row in enumerate(reader, start=1)
-            )
+            yield "CSV", ((index, tuple(row), {}) for index, row in enumerate(reader, start=1))
     elif suffix in {".xlsx", ".xlsm"}:
         workbook = load_workbook(path, read_only=True, data_only=False)
         try:
@@ -634,9 +632,7 @@ def _xlsx_hyperlink_targets(path: Path) -> dict[str, dict[str, str]]:
                                     )
                                 for row_number in range(min_row, max_row + 1):
                                     for column_number in range(min_column, max_column + 1):
-                                        cell_ref = (
-                                            f"{get_column_letter(column_number)}{row_number}"
-                                        )
+                                        cell_ref = f"{get_column_letter(column_number)}{row_number}"
                                         sheet_hyperlinks[cell_ref] = target_url
                     element.clear()
                     if len(stack) > 1:

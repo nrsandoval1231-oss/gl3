@@ -256,9 +256,7 @@ def test_excel_reversed_range_cannot_reduce_budget_before_large_range(tmp_path):
         read_workbook(path)
 
 
-def test_excel_hyperlink_range_target_bytes_are_bounded_before_expansion(
-    tmp_path, monkeypatch
-):
+def test_excel_hyperlink_range_target_bytes_are_bounded_before_expansion(tmp_path, monkeypatch):
     path = tmp_path / "large-expanded-target.xlsx"
     workbook = Workbook()
     sheet = workbook.active
