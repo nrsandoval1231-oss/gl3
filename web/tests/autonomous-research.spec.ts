@@ -47,6 +47,40 @@ test('Research shows source-backed contacts, separate priority and confidence, e
   expect(writes).toEqual([])
 })
 
+test('Research hides the previous cohort while a new search loads or fails', async ({ page }) => {
+  await install(page)
+  let releaseFailure: (() => void) | undefined
+  const blocked = new Promise<void>(resolve => { releaseFailure = resolve })
+  await page.route('**/api/opportunities/workspace?**', route => {
+    const query = new URL(route.request().url()).searchParams.get('search')
+    if (query === 'Missing') return blocked.then(() => route.fulfill({ status: 503, json: { detail: 'cohort unavailable' } }))
+    return route.fulfill({ json: workspace })
+  })
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
+  const search = page.getByRole('textbox', { name: 'Search research opportunities' })
+  await search.fill('Missing')
+  await expect(page.getByText('Loading current opportunities…')).toBeVisible()
+  await expect(page.locator('.research-opportunity-list').getByRole('button', { name: /Ridgeview/ })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toHaveCount(0)
+  releaseFailure?.()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByText('No opportunities match this search.')).toHaveCount(0)
+})
+
+test('Back to opportunities clears the selected research URL across reloads', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await install(page)
+  await page.goto('/?view=pursuits')
+  await page.getByRole('button', { name: /Ridgeview Energy/ }).click()
+  await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to opportunities' }).click()
+  expect(new URL(page.url()).searchParams.has('researchNeed')).toBe(false)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Select an opportunity' })).toBeVisible()
+})
+
 test('global search groups projects, companies and verified contacts and opens a matching need', async ({ page }) => {
   await install(page)
   await page.route('**/api/search?**', route => route.fulfill({ json: {

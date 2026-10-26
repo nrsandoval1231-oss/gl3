@@ -22,7 +22,7 @@ export function ResearchView() {
 
   useEffect(() => {
     const controller = new AbortController()
-    setLoading(true); setError('')
+    setPage(null); setLoading(true); setError('')
     void client.workspace({ search, sort: 'priority', offset, cohort_token: undefined }, controller.signal)
       .then(value => { if (!controller.signal.aborted) setPage(value) })
       .catch((cause: unknown) => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Research opportunities are unavailable.') })
@@ -38,11 +38,30 @@ export function ResearchView() {
     params.set('view', 'pursuits'); params.set('researchNeed', id)
     history.replaceState(history.state, '', `/?${params}`)
   }
+  const clearSelection = () => {
+    setSelectedId('')
+    const params = new URLSearchParams(location.search)
+    params.delete('researchNeed')
+    history.replaceState(history.state, '', `/?${params}`)
+  }
+  const changeSearch = (value: string) => {
+    setSearch(value); setOffset(0); setPage(null); setSelectedId(''); setLoading(true); setError('')
+    const params = new URLSearchParams(location.search)
+    params.delete('researchNeed')
+    if (value) params.set('q', value); else params.delete('q')
+    history.replaceState(history.state, '', `/?${params}`)
+  }
+  const changeOffset = (value: number) => {
+    setOffset(value); setPage(null); setSelectedId(''); setLoading(true); setError('')
+    const params = new URLSearchParams(location.search)
+    params.delete('researchNeed')
+    history.replaceState(history.state, '', `/?${params}`)
+  }
 
   return <main className={`research-view ${selected ? 'has-selection' : ''}`} aria-label="Automated research">
     <section className="research-list" aria-label="Research opportunities">
       <header><div><p className="wh-kicker">Autonomous intelligence</p><h1>Research</h1><p>Source-backed research progress, verified buying contacts and known gaps across current opportunities.</p></div></header>
-      <label className="research-search">Search opportunities<input aria-label="Search research opportunities" value={search} onChange={event => { setSearch(event.target.value); setOffset(0) }} placeholder="Company, project or location"/></label>
+      <label className="research-search">Search opportunities<input aria-label="Search research opportunities" value={search} onChange={event => changeSearch(event.target.value)} placeholder="Company, project or location"/></label>
       {error && <p role="alert">{error} <button onClick={() => setReload(value => value + 1)}>Retry</button></p>}
       {loading && <p role="status">Loading current opportunities…</p>}
       {!loading && !error && items.length === 0 && <p>No opportunities match this search.</p>}
@@ -56,11 +75,11 @@ export function ResearchView() {
           <small>{freshness ? `Research updated ${new Date(freshness).toLocaleDateString()}` : 'Research freshness unknown'} · Confidence: not provided</small>
         </button></li>
       })}</ul>
-      <footer><span>{page ? `${page.offset + 1}–${page.offset + items.length} of ${page.total}` : '—'}</span><button disabled={!page?.offset || loading} onClick={() => setOffset(Math.max(0, offset - 25))}>Previous</button><button disabled={!page?.next_offset || loading} onClick={() => setOffset(page?.next_offset ?? 0)}>Next</button></footer>
+      <footer><span>{page ? `${page.offset + 1}–${page.offset + items.length} of ${page.total}` : '—'}</span><button disabled={!page?.offset || loading} onClick={() => changeOffset(Math.max(0, offset - 25))}>Previous</button><button disabled={!page?.next_offset || loading} onClick={() => changeOffset(page?.next_offset ?? 0)}>Next</button></footer>
     </section>
     <section className="research-detail" aria-label="Selected automated research">
       {selected ? <>
-        <button className="research-back" type="button" onClick={() => setSelectedId('')}>Back to opportunities</button>
+        <button className="research-back" type="button" onClick={clearSelection}>Back to opportunities</button>
         <div className="research-detail-heading"><p className="wh-kicker">{selected.location ?? 'Location unknown'}</p><h2>{selected.intelligence_card?.fields.find(field => field.key === 'project' && field.value)?.value ?? projectTitle(selected)}</h2><p>{selected.activity.replaceAll('-', ' ')} · {gapLabel(selected)} potential remaining gap · {selected.start_window ?? 'Timing unknown'} · {selected.duration ?? 'Duration unknown'}</p>
           <dl><div><dt>Priority</dt><dd>{selected.rank_score == null ? 'Not available' : selected.rank_score}</dd></div><div><dt>Confidence</dt><dd>Not provided</dd></div><div><dt>Last intelligence update</dt><dd>{selected.intelligence_card?.last_intelligence_update ? new Date(selected.intelligence_card.last_intelligence_update).toLocaleString() : 'Unknown'}</dd></div></dl>
         </div>
