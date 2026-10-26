@@ -751,7 +751,17 @@ def test_live_registry_comparison_does_not_hide_omitted_fields(
     import gridlens.jobs.worker as worker
 
     factory = source_db
-    now = datetime.now(UTC)
+    # This tests registry drift, not elapsed scheduling time. Otherwise the
+    # receipt setup can cross an hourly slot before health() evaluates it.
+    now = datetime(2026, 10, 26, 12, 59, 59, tzinfo=UTC)
+
+    class FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now.astimezone(tz) if tz is not None else now.replace(tzinfo=None)
+
+    monkeypatch.setattr(api, "datetime", FixedClock)
+    monkeypatch.setattr(worker, "datetime", FixedClock)
     original = definition()
     if drift == "cadence_removed":
         original["cadence_hours"] = 1
