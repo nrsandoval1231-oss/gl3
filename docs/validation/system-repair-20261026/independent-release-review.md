@@ -10,7 +10,7 @@ The latest owner directive conditionally authorizes merge and deployment **only 
 
 Baseline `29c4fe085cd261c19c4aeb7b1b4cca4dc538a006` is clean and application-source equivalent to accepted `b71306f`. The reviewer independently checked that source diff and [CI run 40267075523](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40267075523). Its exact head and successful conclusion match. Backend job logs independently retrieved through the GitHub connector report **3,101 passed, 1 skipped**, **120 browser regressions passed**, Ruff success and mypy success across **173 source files**. These checks do not establish commercial acceptance or the four real-corpus scenarios below.
 
-**Current reviewed source:** `75724eb1d893e8a9a5be020b221c8d0dea808834`. Source review permits freezing this candidate for final validation; no remaining implementation blocker was found after the corrections below. **Exact-candidate full engineering validation remains pending.** Earlier source-only readbacks and dated test runs do not substitute for that gate.
+**Current reviewed application source:** `da64f0613df3212db100b9c732b11bd1b9a6cecd`. Backend verification is accepted for tree `15d841cede446686d033b83b07d1e8a4a3ed2879`; the hydrated frontend tree is `7c3060721aeac7dfca90b50386d229e65843cd00`. **Engineering implementation/regression review is accepted for these exact components.** The final Research contact readback closes the last implementation finding. Commercial release remains rejected independently of engineering results.
 
 ## Prospective commercial methodology
 
@@ -62,6 +62,8 @@ At 14:03–14:08 UTC, the reviewer independently checked the full local API arti
 | Strict commercially actionable projects | 0 of 10 required |
 
 The reviewer caught and corrected the adjudication artifact's initial count of 25 unique primary companies: there are 25 project-route occurrences but only 21 distinct primary company IDs and organization strings. Four named representatives initially had separate automatic company links despite matching their organization peers. That measured identity split is distinct from four additional real companies; the final source repair below addresses narrowly supported alignment, but the original measurement is not silently rewritten as a post-repair result.
+
+The reviewer separately compared the post-alignment API artifact, SHA-256 `2d960aab1de060104236ead787d81b9bb277f6017853955e266acbc29d5b3368`, with the preserved original artifact and frozen manifest. All 25 project IDs are unchanged. There are now 21 company IDs across all current candidates; each of the four representatives shares its owner-company ID, with its person ID unchanged. Public-contact payloads are exactly unchanged: four organization methods and zero person methods. MW, start, duration and gap values also remain unchanged. The builder's separate replay receipt reports retained Evidence preservation and stable job counts; the reviewer checked those receipts but did not perform the re-enrichment writes. This identity correction does not improve the failed commercial numerators.
 
 The API contains 21 WATCH and four ACTION NOW dispositions. The latter are discovery-call priorities: their source-backed organization phone does not establish personal reachability, purchasing authority, activity demand or a remaining gap. All remain Signals. The existing backend reason explicitly calls for a discovery call to confirm the unknowns; the reviewer requested a visible list/table clarification because the bare ACTION NOW label under “Qualification” could otherwise overstate readiness. This does not change the commercial benchmark definitions.
 
@@ -116,6 +118,39 @@ The browser lane reports two successful A/D executions after the wording repairs
 
 The current [release and rollback plan](../commercial-release-20261026/deployment-and-rollback.md) correctly requires production inventory, logical restore proof and compatible rollback retaining populated 0045/0046 history. The reviewer found no issue in that plan; its required production observations remain unavailable. Commercial release is still **NOT ACCEPTED**.
 
+## Final engineering verification
+
+The reviewer independently fetched raw GitHub job logs and run/job metadata for [run 40346684189](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346684189) and [run 40346674353](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40346674353). Both completed successfully at exact commit `899e2889b3a1b7dedbfb74c7addbfee484f545c0`.
+
+| Independently checked evidence | Result |
+|---|---|
+| Backend job 121655360226 | 3,138 passed, 1 skipped, 8 warnings; 483.89 seconds |
+| Backend job 121655323153 | 3,138 passed, 1 skipped, 8 warnings; 820.09 seconds |
+| Browser regression/authentication in those CI runs | 121 passed in each run, before the later frontend repairs |
+| Static, migration and dependency steps | Ruff/format, mypy 173 source files, fresh/repeat upgrade, schema drift, backend/brand/web audits, web typecheck/build and brand checks succeeded |
+
+The one backend skip is the optional NC local access-probe test: its retained local HTML artifact was absent. The repeated runs are corroboration, not additive test counts. Git tree checks establish that all backend source, migrations and tests in the reviewed integrated candidate are identical to the passing `899e288` backend tree; scripts and CI configuration are unchanged as well.
+
+The failed `75724eb` CI gate is superseded: independently retrieved logs showed 3,133 passes, four failures and one skip. Subsequent corrections select newly queued jobs explicitly rather than using random UUID ordering when transaction timestamps tie, and emit the model's PostgreSQL-specific JSONB CHECK only for PostgreSQL DDL. The migration and PostgreSQL CHECK text are unchanged. The reviewer independently ran the two formerly failing SQLite checks and the DDL test (three passes), then the strengthened actual-model-constraint test (one pass). A separate compilation using a shallow copy of the actual model constraint confirmed its presence for PostgreSQL and omission for SQLite. Cancelled/intermediate runs are not acceptance evidence.
+
+The contaminated local full partition attempt is invalid: a shared browser environment disabled discovery/research during backend testing. It is explicitly excluded. The reviewer verified hashes and summaries of the later clean targeted logs: seven contact checks and 21 import checks passed. These are separate targeted counts, not additional full-suite passes.
+
+The final frontend source adds selected-need hydration to Research. Independent image review found that the pre-fix D Research page falsely reported no contacts while the same persisted project's detail/company views displayed a cited owner phone. Research had treated thin workspace rows as full intelligence. The fix reuses the existing authenticated need-detail GET, guards selection/aborted responses, distinguishes failed or missing-card reads from absent evidence, and supports retry. New tests cover thin rows, read failure, missing cards and delayed selection responses; real-case assertions require the actual company method/source in Research on desktop and mobile, with no personal-phone inference. **This finding is closed.** The reviewer independently inspected the final D Research mobile image: it now shows the method-free named representative separately from the cited owner-company phone, retains source references and assessment/update dates, and keeps power/timing/authority unknowns explicit. The final C Research image shows Crusoe as a source-backed general company path with no email/phone and authority requiring confirmation. Thin list summaries can still omit company/freshness details that are available in the selected full card; this under-display is not counted as improved commercial coverage.
+
+The browser lane's final execution reported **124/124 regression tests passed in 2.5 minutes** on frontend tree `7c3060721aeac7dfca90b50386d229e65843cd00`, plus successful typecheck/build and nine focused Research checks. The full 124-test result was retained only as terminal evidence reported by that lane; no raw full-suite log or JSON/HTML archive exists, and the reviewer does not claim an independent raw-log check for that run. The [final browser receipt](../commercial-release-20261026/browser-operations.md) states this limitation explicitly.
+
+The reviewer independently read the committed raw final real-case logs and provenance, and inspected the corrected C/D screenshots:
+
+| Final actual run | Result | Raw log SHA-256 |
+|---|---|---|
+| [A/B](../commercial-release-20261026/browser-logs/actual-A-B-final-root.txt) | 2 passed, 38.2 seconds | `649ba3a0fd9e972eb39925ca6ef504dec6787400c23f0209c316bc607a8c4dcc` |
+| [C](../commercial-release-20261026/browser-logs/actual-C-final-root.txt) | 1 passed, 16.9 seconds | `b678c0433ee8a4ce871dbbe08663013cd38e16661b317f137790f21ce9684bfa` |
+| [A/D](../commercial-release-20261026/browser-logs/actual-A-D-final-root.txt) | 2 passed, 36.0 seconds | `51b95686cfe6e10443413ba4c62356592df55c8da6d1bab1566be7bb5b8d2eda` |
+
+These are four distinct cases, with A exercised in two cohorts. They used the reviewed final frontend and actual backend tree `15d841cede446686d033b83b07d1e8a4a3ed2879`, importing `/workspace/gl3/backend/src/gridlens/api/app.py`. Disposable projections match the backend's saved-browse policy suffix `2ffc4b9473c3c2d3f87e06a2`. No source master or production database was changed. Workers and provider execution were disabled for UI checks, so these checks do not prove autonomous production scheduling or commercial outreach readiness. The browser was Playwright's headless Chromium, not a new native-Chrome production session.
+
+Frontend validation is tracked by its exact tree rather than attributed to the earlier CI frontend. The local frontend runner's API checkout differs from `899e288` by the PostgreSQL DDL conditional and backend tests. That conditional preserves PostgreSQL constraint behavior, but it also changes the source-derived saved-browse policy hash. Therefore the final real-case API and projection build must both use backend `899e288`; an old-source projection rejected by the current API is not evidence that a project or contact is absent. No freshness/cohort guard may be disabled to make a browser check pass.
+
 ## Historical interim source and repair readback
 
 Application candidate reviewed: **`8b25d888211c90ed93b9188c698a89ec3f938277`**, including the complete source delta from baseline `29c4fe0`. **No remaining implementation blocker was found in this delta.** This accepts the source review, not full regression or commercial release. Exact-candidate full backend/browser gates and the commercial/production requirements above remain pending.
@@ -133,3 +168,5 @@ The last parser resource finding is **closed** in integrated `5578048`, retained
 Independent retained-source checks confirmed the Oracle Project Jupiter announcement describes a **proposed** utility agreement for late-stage construction, initial commissioning and emergency backup, while Searchlight reports buildings without power and unresolved supply arrangements. Neither supplies temporary MW, a residual gap, supply dates/duration or an actionable buyer method. The retained Crusoe impact-report PDF explicitly describes Abilene natural-gas turbines providing temporary bridge power while grid upgrades catch up; this establishes a reported bridge configuration, not current unsatisfied procurement or temporary demand equal to campus capacity. These are useful real research cases, not a substitute for the frozen qualified cohort or contact gates.
 
 The reviewer independently matched the retained Oracle, Searchlight and Crusoe raw hashes to the source lane's receipts and checked the quoted passages in the actual HTML/PDF bodies. Oracle SHA-256: `c8443f3ea5ed8018bd5d85d54471f05b68dafa543d53b02cc95d359cb6c419fe`; Searchlight: `ae1b80e1c2d99e0328cfd0ff7e79b067cf33e0e04dd00250cd6ac0832537e56d`; Crusoe: `38ca3db4c94206be9e8b2ee1e3b5fa1239b00948c50b3ac0e102e6d7f1773619`. Retrieval timestamps and public URLs belong to the source-candidate receipt. No commercial threshold or production-readiness gate is closed by these checks alone.
+
+**Final independent decision:** accept the reviewed local engineering implementation/regression evidence; reject commercial release and deployment. The qualified 25-project denominator, named/direct contact and actionability minima, complete A/B commercial validation, authenticated production inventory and logical backup/restore readiness are not established. No merge or deployment is authorized by this receipt.
