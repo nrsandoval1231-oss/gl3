@@ -10,16 +10,26 @@ from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.houston_permits import HEADERS, INDEX, parse_report, retrieve
 
 
-def workbook(*, duplicate=False, conflict=False, footer=True):
+def workbook(
+    *,
+    duplicate=False,
+    conflict=False,
+    footer=True,
+    serial_dates=False,
+    date_system=1900,
+    event_date="2026/09/09",
+    week_start="2026/09/07",
+    week_end="2026/09/14",
+):
     rows = [
         ["Web eReport"],
-        ["From: 2026/09/07 "],
-        ["To : 2026/09/14 "],
+        [f"From: {week_start} "],
+        [f"To : {week_end} "],
         [],
         HEADERS,
         [
             "77002",
-            "2026/09/09",
+            event_date,
             "Building Pmt",
             "123",
             "1 Example Road",
@@ -43,15 +53,19 @@ def workbook(*, duplicate=False, conflict=False, footer=True):
         )
     strings = [value for row in rows for value in row]
     ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
-    sheet = "".join(
-        "<row>"
-        + "".join(
-            f'<c r="{chr(65 + j)}{i + 1}" t="s"><v>{strings.index(value)}</v></c>'
-            for j, value in enumerate(row)
-        )
-        + "</row>"
-        for i, row in enumerate(rows)
-    )
+    sheet_rows = []
+    for i, row in enumerate(rows):
+        cells = []
+        for j, value in enumerate(row):
+            ref = f"{chr(65 + j)}{i + 1}"
+            if serial_dates and i == 5 and j == 1:
+                epoch = date(1904, 1, 1) if date_system == 1904 else date(1899, 12, 30)
+                serial = (date.fromisoformat(event_date.replace("/", "-")) - epoch).days
+                cells.append(f'<c r="{ref}"><v>{serial}</v></c>')
+            else:
+                cells.append(f'<c r="{ref}" t="s"><v>{strings.index(value)}</v></c>')
+        sheet_rows.append("<row>" + "".join(cells) + "</row>")
+    sheet = "".join(sheet_rows)
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as z:
         z.writestr(
@@ -64,7 +78,49 @@ def workbook(*, duplicate=False, conflict=False, footer=True):
             "xl/worksheets/sheet1.xml",
             f'<worksheet xmlns="{ns}"><sheetData>{sheet}</sheetData></worksheet>',
         )
+        workbook_properties = '<workbookPr date1904="1"/>' if date_system == 1904 else ""
+        z.writestr(
+            "xl/workbook.xml",
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            f"{workbook_properties}</workbook>",
+        )
     return out.getvalue()
+
+
+@pytest.mark.parametrize("date_system", [1900, 1904])
+def test_report_accepts_excel_serial_permit_dates(date_system):
+    end, rows = parse_report(
+        workbook(serial_dates=True, date_system=date_system),
+        INDEX,
+        today=date(2026, 9, 30),
+    )
+    assert end == date(2026, 9, 14)
+    assert rows[0]["event_date"] == "2026-09-09"
+
+
+def test_report_accepts_listing_date_at_either_week_boundary():
+    end, rows = parse_report(
+        workbook(event_date="2026/09/14"),
+        INDEX,
+        today=date(2026, 9, 30),
+        listed_week_start=date(2026, 9, 14),
+    )
+    assert end == date(2026, 9, 14)
+    assert rows[0]["event_date"] == "2026-09-14"
+
+
+def test_report_rejects_unrelated_listing_date_and_nonweekly_interval():
+    with pytest.raises(SourceParseError, match="listed sale week"):
+        parse_report(
+            workbook(),
+            INDEX,
+            today=date(2026, 9, 30),
+            listed_week_start=date(2026, 9, 8),
+        )
+    with pytest.raises(SourceParseError, match="date interval"):
+        parse_report(
+            workbook(week_end="2026/09/15"), INDEX, today=date(2026, 9, 30)
+        )
 
 
 def test_report_duplicates_are_exact_only_and_preserve_unknowns():

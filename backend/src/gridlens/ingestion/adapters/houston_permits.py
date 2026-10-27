@@ -7,13 +7,14 @@ import io
 import json
 import re
 import zipfile
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from xml.etree import ElementTree as ET
 
 import httpx
 from bs4 import BeautifulSoup
+from openpyxl.utils.datetime import MAC_EPOCH, WINDOWS_EPOCH, from_excel
 
 from gridlens.ingestion.adapters.bounded_http import read_bounded_response
 from gridlens.ingestion.adapters.federal_register import SourceParseError
@@ -22,6 +23,21 @@ INDEX = "https://www.houstonpermittingcenter.org/sold-permits-search"
 HOST = "www.houstonpermittingcenter.org"
 NS = {"x": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 HEADERS = ["Zip Code", "Permit Date", "Permit Type", "Project No", "Address", "Comments"]
+
+
+def _permit_date(value: str, epoch: datetime) -> date:
+    try:
+        return datetime.strptime(value, "%Y/%m/%d").date()
+    except ValueError as exc:
+        if not re.fullmatch(r"\d{1,6}", value):
+            raise SourceParseError("Houston permit date is malformed") from exc
+        try:
+            converted = from_excel(int(value), epoch=epoch)
+        except (OverflowError, TypeError, ValueError) as exc:
+            raise SourceParseError("Houston permit serial date is invalid") from exc
+        if not isinstance(converted, datetime):
+            raise SourceParseError("Houston permit serial date is invalid") from None
+        return converted.date()
 
 
 def parse_report(
@@ -46,6 +62,16 @@ def parse_report(
                 "".join(si.itertext()) for si in ET.fromstring(archive.read("xl/sharedStrings.xml"))
             ]
             sheet = ET.fromstring(archive.read("xl/worksheets/sheet1.xml"))
+            workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+            workbook_properties = workbook.find("x:workbookPr", NS)
+            date1904 = (
+                workbook_properties is not None
+                and workbook_properties.get("date1904") in {
+                    "1",
+                    "true",
+                }
+            )
+            date_epoch = MAC_EPOCH if date1904 else WINDOWS_EPOCH
         rows = []
         for row in sheet.findall(".//x:row", NS):
             values = [""] * 6
@@ -64,11 +90,9 @@ def parse_report(
             raise SourceParseError("Houston workbook headers or row bounds changed")
         start = datetime.strptime(rows[1][0].strip(), "From: %Y/%m/%d").date()
         end = datetime.strptime(rows[2][0].strip(), "To : %Y/%m/%d").date()
-        if not 0 < (end - start).days <= 8 or end > today:
+        if (end - start).days != 7 or end > today:
             raise SourceParseError("Houston report date interval is invalid")
-        if listed_week_start is not None and (
-            start != listed_week_start or end != listed_week_start + timedelta(days=7)
-        ):
+        if listed_week_start is not None and listed_week_start not in {start, end}:
             raise SourceParseError("Houston listed sale week disagrees with workbook period")
         output = []
         seen: dict[str, list[str]] = {}
@@ -89,8 +113,8 @@ def parse_report(
             if footer_seen:
                 raise SourceParseError("Houston data appears after report footer")
             zipcode, stamp, kind, project, address, description = values
-            issued = datetime.strptime(stamp, "%Y/%m/%d").date()
-            if not start <= issued < end or not all((project, address, kind, description)):
+            issued = _permit_date(stamp, date_epoch)
+            if not start <= issued <= end or not all((project, address, kind, description)):
                 raise SourceParseError("Houston report has incomplete or out-of-window row")
             identity = f"{project}:{kind}:{issued.isoformat()}"
             if identity in seen:
@@ -136,7 +160,7 @@ def parse_report(
                         "status": "Unknown",
                         "issuance_event": "sold",
                         "report_period_start": start.isoformat(),
-                        "report_period_end_exclusive": end.isoformat(),
+                        "report_period_end": end.isoformat(),
                         "class": "Unknown",
                         "work": "",
                         "cost": "",
@@ -207,7 +231,8 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             end, records = parse_report(
                 workbook, links[report_date], today=today, listed_week_start=report_date
             )
-            if (end - report_date).days != 7:
+            start = date.fromisoformat(records[0]["permit"]["report_period_start"])
+            if (end - start).days != 7 or report_date not in {start, end}:
                 raise SourceParseError("Houston workbook dates disagree with listing")
             for record in records:
                 key = record["document_number"]
