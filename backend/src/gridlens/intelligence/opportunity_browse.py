@@ -31,6 +31,19 @@ _EMPTY_DESCRIPTION = re.compile(
 )
 _RRC_SOURCE_ID = "texas-rrc-drilling-permits"
 _RRC_OPERATOR_PLACEHOLDERS = {"n/a", "na", "none", "null", "unknown", "unavailable"}
+_OIL_GAS_CONTEXT = re.compile(
+    r"\b(?:oilfield|oil field|oil well|gas well|oil production|gas production|"
+    r"upstream oil|upstream gas|natural gas gathering|gas gathering system|"
+    r"associated gas|saltwater disposal|produced water|swd facility|"
+    r"crude oil pipeline|oil transmission pipeline|natural gas liquids|ngl processing|"
+    r"gas processing plant|oilfield electrification|oil and gas field electrification)\b",
+    re.I,
+)
+_NON_OIL_GAS_CONTEXT = re.compile(
+    r"\b(?:municipal|water utility|electric utility|public utility|"
+    r"air separation|industrial gas|gas distribution utility|local distribution)\b",
+    re.I,
+)
 
 
 def normalized(value: Any) -> str:
@@ -146,12 +159,81 @@ def add_browse_evidence(item: dict[str, Any], evidence: dict[str, Any]) -> None:
             candidates = item.setdefault("_browse_company_candidates", {}).setdefault(key, [])
             candidates.append(match.group(2).strip())
         if evidence.get("source_id") == _RRC_SOURCE_ID:
+            # Keep only literal, typed RRC fields needed for a useful well
+            # identity. Opaque child bytes remain evidence and are never parsed.
+            rrc_values: dict[str, list[str]] = {}
             for line in abstract.splitlines():
-                operator_match = re.fullmatch(r"\s*operator\s*:\s*(.*?)\s*", line, re.I)
-                if operator_match:
-                    value = operator_match.group(1).strip()
+                rrc_match = re.fullmatch(
+                    r"\s*(operator|operator_number|lease|well|county_code|status|date|permit_issue_date|amended_date)\s*:\s*(.*?)\s*",
+                    line,
+                    re.I,
+                )
+                if rrc_match:
+                    key, value = rrc_match.group(1).casefold(), rrc_match.group(2).strip()
                     if value and normalized(value) not in _RRC_OPERATOR_PLACEHOLDERS:
-                        item.setdefault("_browse_rrc_operator_candidates", []).append(value)
+                        rrc_values.setdefault(key, []).append(value)
+            for operator in rrc_values.get("operator", []):
+                item.setdefault("_browse_rrc_operator_candidates", []).append(operator)
+            rrc_fields = {
+                key: values[0] for key, values in rrc_values.items() if len(set(values)) == 1
+            }
+            if rrc_fields and not any(len(set(values)) > 1 for values in rrc_values.values()):
+                record = {
+                    **rrc_fields,
+                    "evidence_id": evidence.get("id"),
+                    "source_id": _RRC_SOURCE_ID,
+                    "document_number": evidence.get("document_number"),
+                }
+                item.setdefault("_browse_rrc_records", []).append(record)
+        elif evidence.get("source_id") == "texas-tdlr-tabs-data-centers":
+            fields: dict[str, str] = {}
+            for line in abstract.splitlines():
+                tdlr_match = re.fullmatch(
+                    r"\s*(Project|Registered|Owner|TABS status):\s*(.*?)\s*", line
+                )
+                if tdlr_match:
+                    key, value = tdlr_match.group(1), tdlr_match.group(2).strip()
+                    if value and value.casefold() not in {"unknown", "not stated", "none"}:
+                        fields[key] = value
+                timing_match = re.fullmatch(
+                    r"\s*Developer-reported start:\s*(\d{4}-\d{2}-\d{2}|unknown);\s*"
+                    r"completion:\s*(\d{4}-\d{2}-\d{2}|unknown)\s*",
+                    line,
+                    re.I,
+                )
+                if timing_match:
+                    if timing_match.group(1).casefold() != "unknown":
+                        fields["reported_start_date"] = timing_match.group(1)
+                    if timing_match.group(2).casefold() != "unknown":
+                        fields["reported_completion_date"] = timing_match.group(2)
+            if fields:
+                item.setdefault("_browse_tdlr_records", []).append(
+                    {
+                        "source_id": "texas-tdlr-tabs-data-centers",
+                        "evidence_id": evidence.get("id"),
+                        "document_number": evidence.get("document_number"),
+                        "project": fields.get("Project"),
+                        "registered": fields.get("Registered"),
+                        "owner": fields.get("Owner"),
+                        "status": fields.get("TABS status"),
+                        "reported_start_date": fields.get("reported_start_date"),
+                        "reported_completion_date": fields.get("reported_completion_date"),
+                    }
+                )
+        context_text = " ".join((str(evidence.get("title") or ""), abstract))
+        context_matches = sorted(
+            {match.group(0).casefold() for match in _OIL_GAS_CONTEXT.finditer(context_text)}
+        )
+        if context_matches and not _NON_OIL_GAS_CONTEXT.search(context_text):
+            item.setdefault("_browse_oil_gas_relationship", []).append(
+                {
+                    "verified": True,
+                    "source_id": evidence.get("source_id"),
+                    "evidence_id": evidence.get("id"),
+                    "document_number": evidence.get("document_number"),
+                    "matched_context": context_matches,
+                }
+            )
     candidates = item.setdefault("_browse_action_candidates", [])
     if candidates and any(_permit_work_title(value) for value in candidates if value):
         return
@@ -271,6 +353,19 @@ def project_title(item: dict[str, Any]) -> str:
     if title_company and title_role:
         return f"{title_company} · {title_role}"
     rrc_operators = item.get("_browse_rrc_operator_candidates", [])
+    rrc_records = item.get("_browse_rrc_records", [])
+    identities = {
+        (normalized(row.get("operator")), normalized(row.get("lease")), normalized(row.get("well")))
+        for row in rrc_records
+        if row.get("operator") and row.get("lease") and row.get("well")
+    }
+    if len(identities) == 1:
+        row = next(
+            row
+            for row in rrc_records
+            if row.get("operator") and row.get("lease") and row.get("well")
+        )
+        return f"{row['operator']} · {row['lease']} · Well {row['well']}"
     unique_rrc_operators = {
         normalized(value): value for value in rrc_operators if normalized(value)
     }

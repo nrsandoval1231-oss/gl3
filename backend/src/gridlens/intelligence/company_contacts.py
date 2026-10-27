@@ -26,6 +26,8 @@ from gridlens.persistence.models import (
 
 class CompanyContact(IntelligenceContact):
     company_id: UUID
+    company_identity_id: str | None = None
+    person_identity_id: str | None = None
     project_ids: list[UUID] = Field(default_factory=list)
     verification_status: str = "Source verified; reachability and authority unconfirmed"
     confidence: str = (
@@ -87,6 +89,7 @@ def project_contacts(company_id: UUID, views: dict) -> CompanyContacts:
             for c in view.get("candidates", [])
             if str(c.get("company_identity_id")) == str(company_id)
         ]
+        candidate_by_claim = {str(candidate.get("id")): candidate for candidate in candidates}
         for contact in contact_projection({"candidates": candidates}):
             if not contact.methods and not relevant_named_professional(contact):
                 continue
@@ -102,6 +105,12 @@ def project_contacts(company_id: UUID, views: dict) -> CompanyContacts:
                 grouped[key] = CompanyContact(
                     **contact.model_dump(),
                     company_id=company_id,
+                    company_identity_id=str(company_id),
+                    person_identity_id=(
+                        str(candidate_by_claim.get(contact.claim_id, {}).get("person_identity_id"))
+                        if candidate_by_claim.get(contact.claim_id, {}).get("person_identity_id")
+                        else None
+                    ),
                     project_ids=[project_id],
                     confidence=(
                         "Literal method attributed to this company in current retained evidence; "

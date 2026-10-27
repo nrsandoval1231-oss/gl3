@@ -809,6 +809,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             "pursuit_research",
             "buying_chain_research",
             "company_contact_discovery",
+            "rrc_well_research",
         }
         uses_public_acquisition = (
             kind in public_acquisition_kinds
@@ -857,6 +858,11 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             from gridlens.intelligence.monitoring import process_monitor_job
 
             process_monitor_job(job_id, WORKER_ID, fence, enabled=settings.monitoring_enabled)
+            return True
+        if kind == "rrc_well_research":
+            from gridlens.intelligence.rrc_well_research import process_rrc_well_job
+
+            process_rrc_well_job(job_id, WORKER_ID, fence, deadline=deadline)
             return True
         if kind == "signal_adjudication":
             from gridlens.intelligence.signal_adjudication import process_signal_adjudication_job
@@ -1584,6 +1590,14 @@ def _worker_lane_specs(
                     (stop_event, "company_contacts", plan_company_contact_jobs),
                 )
             )
+        if settings.rrc_well_research_enabled:
+            lanes.append(
+                (
+                    "gridlens-planner-rrc-wells",
+                    _planner_lane,
+                    (stop_event, "rrc_wells", plan_rrc_well_jobs),
+                )
+            )
     if settings.monitoring_enabled:
         lanes.append(
             (
@@ -1790,6 +1804,15 @@ def plan_company_contact_jobs() -> int:
     if not settings.company_contact_discovery_enabled:
         return 0
     from gridlens.intelligence.company_contact_discovery import plan_company_contact_jobs as plan
+
+    with SessionLocal.begin() as session:
+        return plan(session)
+
+
+def plan_rrc_well_jobs() -> int:
+    if not settings.rrc_well_research_enabled:
+        return 0
+    from gridlens.intelligence.rrc_well_research import plan_rrc_well_jobs as plan
 
     with SessionLocal.begin() as session:
         return plan(session)

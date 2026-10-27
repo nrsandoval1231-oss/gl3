@@ -1,0 +1,1447 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+
+
+
+
+
+
+
+
+
+
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8;"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=5, IE=8, IE=9, IE=10" />
+    <link rel="stylesheet" type="text/css" href="/EWA/styles/ogm_style3.css;jsessionid=SANITIZED">
+
+    <script type="text/javascript">
+      var dojoConfig = {
+      parseOnLoad: true,
+      isDebug: false,
+
+      has: {
+      "dojo-debug-messages": false
+      },
+
+      packages:
+       [ { name:"rrcGisModules", location:location.pathname.replace(/\/[^/]+$/, '') + '/gis/javascript'} ]
+
+      };
+    </script>
+
+    <script type="text/javascript" src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.3compact"></script>
+    <script type="text/javascript">
+      require(["dojo/parser", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/query",
+               "dojo/dom-construct", "dojo/NodeList-manipulate", "dojo/dom-attr", "dojo/dom",
+               "dojo/_base/connect", "dojo/_base/event"]);
+    </script>
+
+    <title>Drilling Permit (W-1) Query</title>
+  </head>
+
+  <body>
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr><td>
+
+
+
+
+
+<script type="text/javascript">
+function openHelp(obj) {
+
+  var help = '/EWA/help/' + obj;
+  //alert(help+', '+obj);
+
+  hold = window.open(help, 'popupWindow',
+                     'resizable=yes,menubar=yes,scrollbars=yes,width=500,height=400,x=1,y=1,screenx=1,screeny=1');
+  hold.focus();
+  return false;
+}
+</script>
+
+<!-- System Header -->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td class="MainHeader"><img src="/EWA/commonuiImages/rrc_online_header.gif;jsessionid=SANITIZED"></td>
+    <td class="MainHeader" align="right" nowrap>&nbsp;</td>
+    <td class="MainHeader"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+  </tr>
+  <tr><td colspan="3" style="height: 3px;" class="BorderLines"/></tr>
+</table>
+
+<!--Application Header-->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td class="AppHeader"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+    <td class="AppHeader">Oil & Gas Data Query</td>
+  </tr>
+</table>
+
+<!-- Top Nav Level 2 -->
+<!--Navigation Table Level 2 and 3 -->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr><td colspan="2" style="height: 2px;" class="BorderLines"/></tr>
+  <!--Level 2 navigation row-->
+  <tr>
+    <td class="AppNavMain" width="1%"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED" height="1px"></td>
+    <td class="AppNavMain">
+      <table border="0" cellpadding="0" cellspacing="0">
+        <tr>
+          <!-- Main -->
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <td class="AppNavMainSelected">
+            <a href="/EWA/ewaMain.do;jsessionid=SANITIZED">Query Menu</a>
+          </td>
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <!--Help-->
+          <td class="AppNavMain">
+
+            <a href="#" onclick="openHelp('DP_TOC.htm');">Help</a>
+          </td>
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <!--Help END-->
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr><td colspan="2" style="height: 1px;" class="BorderLines"/></tr>
+</table>
+
+</td></tr>
+    </table>
+
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr valign="top">
+        <td style="width: 100%;" class="ContentArea">
+          <span id="messageArea">
+
+
+
+
+
+<!-- /tiles/messages.jsp BEGIN -->
+
+
+
+
+<!-- /tiles/messages.jsp END -->
+</span>
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" src="/EWA/js/ewaPageUtils.js"></script>
+
+<form name="drillingPermitsQueryActionForm" method="post" action="/EWA/drillingPermitDetailAction.do;jsessionid=SANITIZED">
+
+
+
+  <input type="hidden" name="outputFileName" value="">
+
+    <input type="hidden" name="detailRecord.idHndlr.inputValue" value="499388208">
+    <input type="hidden" name="detailRecord.approvedDtHndlr.inputValue" value="09/24/2026">
+    <input type="hidden" name="detailRecord.submittedDtHndlr.inputValue" value="08/21/2026">
+    <input type="hidden" name="detailRecord.statusNoHndlr.inputValue" value="918069">
+    <input type="hidden" name="detailRecord.apiNoHndlr.inputValue" value="31747395">
+    <input type="hidden" name="detailRecord.operatorNameHndlr.inputValue" value="PIONEER NATURAL RES. USA, INC.">
+    <input type="hidden" name="detailRecord.operatorNoHndlr.inputValue" value="665748">
+    <input type="hidden" name="detailRecord.leaseNameHndlr.inputValue" value="GLASSCOCK-DICKENSON 44C">
+    <input type="hidden" name="detailRecord.wellNoHndlr.inputValue" value="3H">
+    <input type="hidden" name="detailRecord.districtCodeHndlr.inputValue" value="08">
+    <input type="hidden" name="detailRecord.countyCodeHndlr.inputValue" value="317">
+    <input type="hidden" name="detailRecord.countyNameHndlr.inputValue" value="MARTIN">
+    <input type="hidden" name="detailRecord.wellboreProfileCodesHndlr.inputValue" value="Horizontal">
+    <input type="hidden" name="detailRecord.filingPurposeCodeHndlr.inputValue" value="01">
+    <input type="hidden" name="detailRecord.amendHndlr.booleanValue" value="false">
+    <input type="hidden" name="detailRecord.totalDepthHndlr.inputValue" value="10389">
+    <input type="hidden" name="detailRecord.currentQueueCodeHndlr.inputValue" value="APP">
+    <input type="hidden" name="detailRecord.statusSeqNoHndlr.inputValue" value="99">
+    <input type="hidden" name="detailRecord.statusCodeHndlr.inputValue" value="A">
+    <input type="hidden" name="detailRecord.effectiveDtHndlr.inputValue" value="09/24/2026">
+    <input type="hidden" name="detailRecord.filingMethodCodeHndlr.inputValue" value="DPEF">
+    <input type="hidden" name="detailRecord.completionCodeHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.spudDtHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.statDtHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.surfaceCasingDtHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.fieldNameHndlr.inputValue" value="SPRABERRY (TREND AREA)">
+    <input type="hidden" name="detailRecord.wellTypeCodeHndlr.inputValue" value="B">
+    <input type="hidden" name="detailRecord.completionDtHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.fieldValidatedDtHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.permittedFieldIdHndlr.inputValue" value="1828212">
+    <input type="hidden" name="detailRecord.nearestTownDistanceHndlr.inputValue" value="9.7">
+    <input type="hidden" name="detailRecord.nearestTownDirectionHndlr.inputValue" value="NW">
+    <input type="hidden" name="detailRecord.nearestTownHndlr.inputValue" value="STANTON">
+    <input type="hidden" name="detailRecord.surfaceLocationCodeHndlr.inputValue" value="L">
+    <input type="hidden" name="detailRecord.sectionHndlr.inputValue" value="44">
+    <input type="hidden" name="detailRecord.blockNumberHndlr.inputValue" value="37 T1N">
+    <input type="hidden" name="detailRecord.surveyNameHndlr.inputValue" value="T&amp;P RR CO/ALLEN, C T">
+    <input type="hidden" name="detailRecord.abstractNumberHndlr.inputValue" value="926">
+    <input type="hidden" name="detailRecord.perpCountyHndlr.inputValue" value="317">
+    <input type="hidden" name="detailRecord.sectionLine1DistanceHndlr.inputValue" value="570.0">
+    <input type="hidden" name="detailRecord.sectionLine1DirectionHndlr.inputValue" value="N">
+    <input type="hidden" name="detailRecord.sectionLine2DistanceHndlr.inputValue" value="1330.0">
+    <input type="hidden" name="detailRecord.sectionLine2DirectionHndlr.inputValue" value="E">
+    <input type="hidden" name="detailRecord.caseDocketNoHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.operatorAddressHndlr.inputValue" value="AMBER MCFADDEN
+PO BOX 3178
+MIDLAND, TX 79702-0000">
+    <input type="hidden" name="detailRecord.nearestLeaseDistanceHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.totalAcresHndlr.inputValue" value="1079.7">
+    <input type="hidden" name="detailRecord.swrExceptionsHndlr.inputValue" value="SWR 37 Lease Line">
+    <input type="hidden" name="detailRecord.displayExceptionsHndlr.booleanValue" value="true">
+    <input type="hidden" name="detailRecord.pdfLinksFlagwordHndlr.inputValue" value="53">
+    <input type="hidden" name="detailRecord.swrSubsectCodeHndlr.inputValue" value="H2A">
+    <input type="hidden" name="detailRecord.swr36FlagHndlr.booleanValue" value="false">
+    <input type="hidden" name="detailRecord.developMineralsHndlr.booleanValue" value="true">
+    <input type="hidden" name="detailRecord.pooledUnitHndlr.booleanValue" value="false">
+    <input type="hidden" name="detailRecord.unitizedDocketNoHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.tractDtHndlr.inputValue" value="&lt;n/a&gt;">
+    <input type="hidden" name="detailRecord.leaseSectionLine1DistanceHndlr.inputValue" value="570.0">
+    <input type="hidden" name="detailRecord.leaseSectionLine1DirectionHndlr.inputValue" value="N">
+    <input type="hidden" name="detailRecord.leaseSectionLine2DistanceHndlr.inputValue" value="1330.0">
+    <input type="hidden" name="detailRecord.leaseSectionLine2DirectionHndlr.inputValue" value="E">
+    <input type="hidden" name="detailRecord.fieldNumberHndlr.inputValue" value="85280300">
+    <input type="hidden" name="detailRecord.wellboreProfileNamesHndlr.inputValue" value="Horizontal">
+    <input type="hidden" name="detailRecord.psaFlagHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.allocationFlagHndlr.inputValue" value="Y">
+    <input type="hidden" name="detailRecord.stackedLateralFlagHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.stackedLateralStatusNoHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.latLongTypeCodeHndlr.inputValue" value="1">
+    <input type="hidden" name="detailRecord.latDegreesSHndlr.inputValue" value="32.148117">
+    <input type="hidden" name="detailRecord.latMinutesSHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.latSecondsSHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.longDegreesSHndlr.inputValue" value="-101.956058">
+    <input type="hidden" name="detailRecord.longMinutesSHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.longSecondsSHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.statePlaneZoneCodeHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.statePlaneXHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.statePlaneYHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.locationTownshipHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.locationLotHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.locationPorcionHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.locationShareHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.locationLeagueHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.locationLaborHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.locationTractHndlr.inputValue" value="">
+    <input type="hidden" name="detailRecord.offLeasePntrnPtFlagHndlr.booleanValue" value="false">
+    <input type="hidden" name="detailRecord.offLeaseSurfLocFlagHndlr.booleanValue" value="false">
+    <input type="hidden" name="detailRecord.casesNumberHndlr.inputValue" value="">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <input type="hidden" name="methodToCall" value="searchByUniversalDocNo">
+
+
+
+
+
+
+  <input type="hidden" name="actionManager.recordCountHndlr.inputValue" value="3">
+  <input type="hidden" name="actionManager.currentIndexHndlr.inputValue" value="2">
+
+
+    <input type="hidden" name="actionManager.actionRcrd[0].actionDisplayNmHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[0].hostHndlr.inputValue" value="webapps2.rrc.texas.gov:443">
+    <input type="hidden" name="actionManager.actionRcrd[0].contextPathHndlr.inputValue" value="/EWA">
+    <input type="hidden" name="actionManager.actionRcrd[0].actionHndlr.inputValue" value="/drillingPermitsQueryAction.do">
+    <input type="hidden" name="actionManager.actionRcrd[0].actionParameterHndlr.inputValue" value="methodToCall">
+    <input type="hidden" name="actionManager.actionRcrd[0].actionMethodHndlr.inputValue" value="returnToSearch">
+    <input type="hidden" name="actionManager.actionRcrd[0].pagerParameterKeyHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[0].actionParametersHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[0].returnIndexHndlr.inputValue" value="0">
+
+    <input type="hidden" name="actionManager.actionRcrd[0].argRcrdParameters(searchArgs.paramValue)" value="|1001=918069|1005=beginsWith|1008=beginsWith|1012=beginsWith|1015=beginsWith">
+
+
+    <input type="hidden" name="actionManager.actionRcrd[1].actionDisplayNmHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[1].hostHndlr.inputValue" value="webapps2.rrc.texas.gov:443">
+    <input type="hidden" name="actionManager.actionRcrd[1].contextPathHndlr.inputValue" value="/EWA">
+    <input type="hidden" name="actionManager.actionRcrd[1].actionHndlr.inputValue" value="/drillingPermitsQueryAction.do">
+    <input type="hidden" name="actionManager.actionRcrd[1].actionParameterHndlr.inputValue" value="methodToCall">
+    <input type="hidden" name="actionManager.actionRcrd[1].actionMethodHndlr.inputValue" value="search">
+    <input type="hidden" name="actionManager.actionRcrd[1].pagerParameterKeyHndlr.inputValue" value="pager.paramValue">
+    <input type="hidden" name="actionManager.actionRcrd[1].actionParametersHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[1].returnIndexHndlr.inputValue" value="0">
+
+    <input type="hidden" name="actionManager.actionRcrd[1].argRcrdParameters(pager.paramValue)" value="|1=1|2=10|3=1|4=0|5=1|6=10">
+    <input type="hidden" name="actionManager.actionRcrd[1].argRcrdParameters(searchArgs.paramValue)" value="|1001=918069|1005=beginsWith|1008=beginsWith|1012=beginsWith|1015=beginsWith">
+
+
+    <input type="hidden" name="actionManager.actionRcrd[2].actionDisplayNmHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[2].hostHndlr.inputValue" value="webapps2.rrc.texas.gov:443">
+    <input type="hidden" name="actionManager.actionRcrd[2].contextPathHndlr.inputValue" value="/EWA">
+    <input type="hidden" name="actionManager.actionRcrd[2].actionHndlr.inputValue" value="/drillingPermitDetailAction.do">
+    <input type="hidden" name="actionManager.actionRcrd[2].actionParameterHndlr.inputValue" value="methodToCall">
+    <input type="hidden" name="actionManager.actionRcrd[2].actionMethodHndlr.inputValue" value="searchByUniversalDocNo">
+    <input type="hidden" name="actionManager.actionRcrd[2].pagerParameterKeyHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[2].actionParametersHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[2].returnIndexHndlr.inputValue" value="1">
+
+    <input type="hidden" name="actionManager.actionRcrd[2].argRcrdParameters(detailRecord.parameters)" value="|100=499388208|1001=09%2F24%2F2026|1002=08%2F21%2F2026|1003=918069|1004=31747395|1005=PIONEER+NATURAL+RES.+USA%2C+INC.|1006=665748|1007=GLASSCOCK-DICKENSON+44C|1008=3H|1009=08|1010=317|1011=MARTIN|1012=Horizontal|1013=01|1014=N|1015=10389|1016=APP|1017=99|1018=A|1019=09%2F24%2F2026|1020=DPEF|1025=SPRABERRY+%28TREND+AREA%29|1026=B|1029=1828212|1030=9.7|1031=NW|1032=STANTON|1033=L|1034=44|1035=37+T1N|1036=T%26P+RR+CO%2FALLEN%2C+C+T|1037=926|1038=317|1039=570.0|1040=N|1041=1330.0|1042=E|1044=AMBER+MCFADDEN%0APO+BOX+3178%0AMIDLAND%2C+TX+79702-0000|1046=1079.7|1047=SWR+37+Lease+Line|1048=Y|1049=53|1050=H2A|1051=N|1052=Y|1053=N|1060=%3Cn%2Fa%3E|1061=570.0|1062=N|1063=1330.0|1064=E|1065=85280300|1067=Horizontal|1069=Y|1072=1|1073=32.148117|1076=-101.956058|1089=N|1090=N">
+
+
+
+
+  <table class="ewaPage">
+    <tr>
+      <td>
+        <h2>
+          Form W-1
+          <input type="button" name="unused" value="Return" onclick="returnToCaller('/EWA/drillingPermitsQueryAction.do?methodToCall=search&pager.pageSize=10&pager.offset=0&searchArgs.paramValue=|1001=918069|1005=beginsWith|1008=beginsWith|1012=beginsWith|1015=beginsWith&rrcActionMan=SANITIZED" style="float: right;">
+        </h2>
+
+
+           To Print Directional or Horizontal Wellbore Information use (View W-1D or W-1H) links.
+
+
+      </td>
+    </tr>
+    <tr>
+      <td>
+
+
+
+
+
+
+
+
+
+<table class="TabBox2" cellpadding="4" width="100%">
+  <tr>
+    <td width="15%">
+      <table class="GroupBox1" cellpadding="4" width="100%">
+        <tr>
+          <td style="white-space: nowrap;">
+            <strong>Status #: </strong>
+            918069
+             - 99
+          </td>
+        </tr>
+        <tr>
+          <td style="white-space: nowrap;">
+            <strong>API #: </strong>
+            317-47395
+          </td>
+        </tr>
+      </table>
+    </td>
+    <td width="35%">
+      <table class="GroupBox1" cellpadding="4" width="100%">
+        <tr>
+          <td style="white-space: nowrap;">
+            <strong>Operator: </strong>
+            665748 -
+            PIONEER NATURAL RES. USA, INC.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong>Issued: </strong>09/24/2026,
+
+            <strong>Filed: </strong>
+
+
+                Online
+
+
+
+          </td>
+        </tr>
+      </table>
+    </td>
+
+    <td width="30%">
+      <table class="GroupBox1" cellpadding="4" width="100%">
+        <tr>
+          <td>
+            <strong>Lease Name: </strong>
+            GLASSCOCK-DICKENSON 44C
+          </td>
+        </tr>
+        <tr>
+          <td style="white-space: nowrap;">
+            <strong>Well #: </strong>3H,
+            <strong>District: </strong>08,
+            <strong>County: </strong>MARTIN
+          </td>
+        </tr>
+      </table>
+    </td>
+
+    <td width="20%">
+      <table class="GroupBox1" cellpadding="4" width="100%">
+        <tr>
+          <td style="white-space: nowrap;">
+            <strong>Filing Purpose: </strong>
+            New Drill
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong>Wellbore Profiles: </strong>
+            Horizontal
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <tr>
+    <td colspan="4">
+      <table class="GroupBox1" cellpadding="4" width="100%">
+        <tr>
+          <td align="center">
+            Exception Admin Approved. 37(h)(2)(A). Publication; Service List. (09/24/2026 02:21:45 PM)
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table class="TabBox2" cellpadding="4" width="100%">
+          <tr>
+            <td style="width:10%; white-space: nowrap;">
+              <strong>
+                Status: Approved
+              </strong>
+            </td>
+
+
+              <td style="width:90%; text-align: center;">
+
+
+
+                  <a href="#" onclick="window.open('drillingPermitDetailAction.do;jsessionid=SANITIZED?methodToCall=generateW1Pdf&docNo=499388208&rrcActionMan=SANITIZED"><img src="/EWA/images/smallpdf3.gif;jsessionid=SANITIZED" border="0" alt="View this form in Adobe Pdf Format">
+                    View Current W-1</a>
+
+
+
+
+
+
+
+                  <a href="#" onclick="window.open('drillingPermitDetailAction.do;jsessionid=SANITIZED?methodToCall=generateW1HPdf&docNo=499388208&rrcActionMan=SANITIZED"><img src="/EWA/images/smallpdf3.gif;jsessionid=SANITIZED" border="0" alt="View this form in Adobe Pdf Format">
+                    View Current W-1H</a>
+
+
+
+                  &nbsp;&nbsp;
+
+
+                  <a href="#" onclick="window.open('drillingPermitDetailAction.do;jsessionid=SANITIZED?methodToCall=generatePermitPdf&docNo=499388208&rrcActionMan=SANITIZED"><img src="/EWA/images/smallpdf3.gif;jsessionid=SANITIZED" border="0" alt="View this form in Adobe Pdf Format">
+                    View Current Permit</a>
+
+
+
+
+
+                  &nbsp;&nbsp;
+
+
+                  <a href="#" onclick="window.open('drillingPermitDetailAction.do;jsessionid=SANITIZED?methodToCall=generateFormationPdf&docNo=499388208&rrcActionMan=SANITIZED"><img src="/EWA/images/smallpdf3.gif;jsessionid=SANITIZED" border="0" alt="View this form in Adobe Pdf Format">
+                    View SWR 13 Formations</a>
+
+              </td>
+
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+
+
+    <tr>
+      <td>
+        <table class="TabBox2" cellpadding="4" width="100%">
+          <tr><th align="left">General / Location Information</th></tr>
+
+          <tr><td><strong>Basic Information:</strong></td></tr>
+          <tr>
+            <td>
+              <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                <tr>
+                  <th>Filing Purpose</th>
+                  <th>Wellbore Profiles</th>
+                  <th>Lease Name</th>
+                  <th>Well #</th>
+                  <th>SWR</th>
+                  <th>Total Depth</th>
+                  <th>Horizontal Wellbore</th>
+                  <th>Stacked Lateral Parent Well DP #</th>
+                </tr>
+                <tr>
+                  <td>New Drill</td>
+                  <td>Horizontal</td>
+                  <td>GLASSCOCK-DICKENSON 44C</td>
+                  <td>3H</td>
+                  <td>SWR 37 Lease Line</td>
+                  <td>10389</td>
+                  <td>Allocation</td>
+                  <td></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr><td><strong>Surface Location Information:</strong></td></tr>
+          <tr>
+            <td>
+              <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                <tr>
+                  <th>API #</th>
+                  <th>Distance from Nearest Town</th>
+                  <th>Direction from Nearest Town</th>
+                  <th>Nearest Town</th>
+                  <th>Surface Location Type</th>
+                </tr>
+                <tr>
+                  <td>
+                    317-47395
+                    &nbsp;
+                    <a href="https://gis.rrc.texas.gov/GISViewer/index.html?api=31747395" target="blank"><!--href="http://gis2.rrc.state.tx.us/public/startit.htm?api=${dpDetailRcrd.apiNo}">-->
+                      <img src="images/txmap4.gif;jsessionid=SANITIZED" height="20" width="20" border="0" alt="Click here to search API Number."></a>
+                  </td>
+                  <td>9.7 miles</td>
+                  <td>NW</td>
+                  <td>STANTON</td>
+                  <td>Land</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr><td>
+                  <TABLE border="0" cellpadding="4" cellspacing="0" class="GroupBox1">
+
+                   <TR>
+                    <TD>
+                     <b>GPS Coordinates - Datum:&nbsp;</b>NAD 27&nbsp;
+                   </TD>
+                   </TR>
+
+
+                   <TR>
+                    <TD>
+                    <b>Latitude:&nbsp;</b>32.148117&nbsp;
+                    <b>Longitude:&nbsp;</b>-101.956058&nbsp;
+                   </TD>
+                   </TR>
+
+
+
+
+                   </TABLE>
+              </td>
+              </tr>
+          <tr><td><strong>Survey/Legal Location Information:</strong></td></tr>
+          <tr>
+            <td>
+              <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                <tr>
+                  <th>Section</th>
+                  <th>Block</th>
+                  <th>Survey</th>
+                  <th>Abstract #</th>
+                  <th>County</th>
+                </tr>
+                <tr>
+                  <td>44</td>
+                  <td>37 T1N</td>
+                  <td>T&amp;P RR CO/ALLEN, C T</td>
+                  <td>926</td>
+                  <td>MARTIN</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                <tr>
+                  <th>Township</th>
+                  <th>League</th>
+                  <th>Labor</th>
+                  <th>Porcion</th>
+                  <th>Share</th>
+                  <th>Tract</th>
+                  <th>Lot</th>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr><td><strong>Perpendicular surface location from two nearest designated lines:</strong></td></tr>
+          <tr>
+            <td>
+              <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                <tr>
+                  <th>Perpendiculars</th>
+                  <th>Distance</th>
+                  <th>Direction</th>
+                  <th>Distance</th>
+                  <th>Direction</th>
+                </tr>
+                <tr>
+                  <td>Survey Perpendiculars</td>
+                  <td>
+
+                      570.0
+                      feet
+
+                  </td>
+                  <td>N</td>
+                  <td>
+
+                      1330.0
+                      feet
+
+                  </td>
+                  <td>E</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+
+            <tr><td><strong>Permit Restrictions:</strong></td></tr>
+            <tr>
+              <td>
+                <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                  <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                  </tr>
+
+                    <tr>
+                      <td>29</td>
+                      <td>This well must comply to the new SWR 3.13 requirements concerning the isolation of any potential flow zones and zones with corrosive formation fluids.  See approved permit for those formations that have been identified for the county in which you are drilling the well in.</td>
+                    </tr>
+
+                </table>
+              </td>
+            </tr>
+
+
+          <tr><th align="left">Fields</th></tr>
+          <tr>
+            <td>
+              <table class="GroupBox1" cellpadding="4" border="1">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<tr>
+  <th>District</th>
+  <th>Field Name</th>
+  <th>Field #</th>
+  <th>Completion Depth</th>
+  <th>Lease Name</th>
+  <th>Well #</th>
+  <th>Well Type</th>
+  <th>Acres</th>
+  <th>Distance to nearest well</th>
+
+    <TH>Distance to nearest Lease Line from Surface Location</TH>
+
+
+
+
+  <th>SWR</th>
+
+     <th>Off-lease Surface Location</th>
+
+
+     <th>Off-lease Penetration Point</th>
+
+  <th>Pooled/Unitized</th>
+
+      <th>Horizontal Ownership Interval </th>
+
+</tr>
+<tr>
+  <td rowspan="2" valign="top">08</td>
+  <td valign="top">
+    SPRABERRY (TREND AREA)
+
+      <br/><strong>Primary Field</strong>
+
+  </td>
+  <td valign="top">85280300</td>
+  <td valign="top">10389</td>
+  <td valign="top">GLASSCOCK-DICKENSON 44C</td>
+  <td valign="top">3H</td>
+  <td valign="top">Oil or Gas Well</td>
+  <td valign="top">1079.7</td>
+  <td valign="top">
+
+      1.0
+      feet
+
+  </td>
+
+  <td valign="top">
+
+    570
+      feet
+
+
+  </td>
+
+
+  <td valign="top">SWR 37 Lease Line</td>
+
+     <td valign="top">N</td>
+
+
+     <td valign="top">N</td>
+
+  <td valign="top">N</td>
+
+      <td valign="top">
+      </td>
+
+</tr>
+
+
+
+
+                  <tr>
+                    <td colspan="11">
+                      <table width="100%">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<tr>
+  <td>
+    <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+      <tr>
+        <th>Perpendiculars</th>
+        <th>Distance</th>
+        <th>Direction</th>
+        <th>Distance</th>
+        <th>Direction</th>
+      </tr>
+      <tr>
+      <!-- td>Surface Lease Lines</td-->
+
+
+
+
+         <td>Surface Lease Lines</td>
+
+
+        <td>
+
+            570.0 feet
+
+        </td>
+        <td>
+          N
+        </td>
+        <td>
+
+            1330.0 feet
+
+        </td>
+        <td>E</td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <tr>
+    <td>
+      <table class="GroupBox1" cellpadding="4" border="0" width="100%">
+
+
+
+
+            <tr>
+              <td>
+                <table>
+
+
+
+              <tr>
+              <td align="left"><strong>Nearest Distance from the First/Last Take Point (Heel/Toe) to a Lease Line:</strong></td>
+              <td>1&nbsp;feet</td>
+              </tr>
+              <tr>
+              <td align="left"><strong>Nearest Perpendicular Distance from Any Take Point to a Lease Line: </strong></td>
+              <td>115&nbsp;feet</td>
+              </tr>
+
+
+                   </table>
+                   <table>
+                    <tr>
+                      <td><strong>Section:</strong>
+                      8</td>
+                      <td>&nbsp;</td>
+                      <td><strong>Block:37 T1S</strong></td>
+                      <td>&nbsp;</td>
+                      <td><strong>Survey:</strong>T&amp;P RR CO/CRUDUP, R L
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Abstract #:</strong>
+                      1045</td>
+                      <td>&nbsp;</td>
+                      <td>&nbsp;</td>
+                      <td><strong>County:</strong>
+                      MARTIN</td>
+                    </tr>
+           </table>
+          </td>
+        </tr>
+
+            <tr>
+              <td>
+                <table width="100%" border="1" cellpadding="4" class="DataGrid">
+                  <tr>
+                    <th><div align="left"><strong>Name</strong></div></th>
+                    <th colspan="2"><strong>Profile</strong></th>
+                    <th><strong>Distance </strong></th>
+                    <th><strong>Direction </strong></th>
+                    <th><strong>Distance </strong></th>
+                    <th><strong>Direction </strong></th>
+                  </tr>
+
+                  <tr>
+                    <td rowspan="2" valign="top"><strong>TH1</strong></td>
+                    <td rowspan="2" valign="top">Terminus Point</td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<td>Lease</td>
+
+
+
+
+    <td>100.0 feet</td>
+    <td>from the S line and</td>
+    <td>115.0 feet</td>
+    <td>from the E line</td>
+
+
+
+
+
+
+                  </tr>
+
+                  <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<td>Survey</td>
+
+
+
+
+    <td>100.0 feet</td>
+    <td>from the S line and</td>
+    <td>1487.0 feet</td>
+    <td>from the E line</td>
+
+
+
+
+
+
+                  </tr>
+
+
+
+
+
+                    <tr>
+                      <td valign="top">&nbsp;</td>
+                      <td>Penetration Point</td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<td>Lease</td>
+
+
+
+
+    <td>15.0 feet</td>
+    <td>from the N line and</td>
+    <td>1505.0 feet</td>
+    <td>from the E line</td>
+
+
+
+
+
+
+
+                    </tr>
+
+                </table>
+                <hr noshade/>
+              </td>
+            </tr>
+
+
+      </table>
+    </td>
+  </tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                      </table>
+                    </td>
+                  </tr>
+
+              </table>
+            </td>
+          </tr>
+
+
+            <tr><th align="left">Exceptions</th></tr>
+            <tr>
+              <td>
+                <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                  <tr>
+                    <th>Field</th>
+                    <th>Exception</th>
+                    <th>Historical Docket/Case #</th>
+                    <th>Resolution</th>
+                    <th>CASES #</th>
+                  </tr>
+
+
+
+
+                          <tr>
+                            <td>SPRABERRY (TREND AREA)</td>
+                            <td>SWR 37 Lease Line</td>
+
+
+                             <td></td>
+
+
+
+                                     <td></td>
+
+
+                             <td></td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          </tr>
+
+
+
+
+
+
+                </table>
+              </td>
+            </tr>
+
+
+
+            <tr><th align="left">Comments</th></tr>
+            <tr>
+              <td>
+                <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                  <tr>
+                    <th>Remark</th>
+                    <th>Date Entered</th>
+                    <th>Entered By</th>
+                  </tr>
+
+                    <tr>
+                      <td>Commission Staff expresses no opinion as to whether a 100% ownership interest in each of the leases alone or in combination with a &#034;production sharing agreement&#034; confers the right to drill across lease/unit lines or whether a pooling agreement is also required.  However, until that issue is directly addressed and ruled upon by a Texas court of competent jurisdiction it appears that a 100% interest in each of the leases and a production sharing agreement constitute a sufficient colorable claim to the right to drill a horizontal well as proposed to authorize the removal of the regulatory bar and the issuance of a drilling permit by the Commission, assuming the proposed well is in compliance with all other relevant Commission requirements.      Issuance of the permit is not an endorsement or approval of the applicant&#039;s stated method of allocating production proceeds among component leases or units.  All production must be reported to the Commission as production from the lease or pooled unit on which the wellhead is located and reported production volume must be determined by actual measurement of hydrocarbon volumes prior to leaving that tract and may not be based on allocation or estimation.  Payment of royalties is a contractual matter between the lessor and lessee.  Interpreting the leases and determining whether the proposed proceeds allocation comports with the relevant leases is not a matter within Commission jurisdiction but a matter for the parties to the lease and, if necessary, a Texas court of competent jurisdiction.      The foregoing  statements are not, and should not be construed as, a final opinion or decision of the Railroad Commission.</td>
+                      <td style="white-space: nowrap;">08/19/2026 02:33:04 PM</td>
+                      <td style="white-space: nowrap;"></td>
+                    </tr>
+
+                    <tr>
+                      <td>There have been problems identified with this permit (see problem letter attachment). Notification sent.</td>
+                      <td style="white-space: nowrap;">08/26/2026 04:46:26 PM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>Changed well count to 21 per RRC records. THe Glasscock 5A well has no production within this allocation unit.</td>
+                      <td style="white-space: nowrap;">08/26/2026 05:01:54 PM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>There have been problems identified with this permit (see problem letter attachment). Notification sent.</td>
+                      <td style="white-space: nowrap;">08/26/2026 05:10:14 PM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>Problems identified with this permit are resolved.</td>
+                      <td style="white-space: nowrap;">08/27/2026 09:43:09 AM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>There have been problems identified with this permit (see problem letter attachment). Notification sent.</td>
+                      <td style="white-space: nowrap;">08/27/2026 09:43:15 AM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>Problems identified with this permit are resolved.</td>
+                      <td style="white-space: nowrap;">08/28/2026 11:25:38 AM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>A revised P-16 has been submitted.</td>
+                      <td style="white-space: nowrap;">08/28/2026 11:26:03 AM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>The SWR 38 has been overridden per the P-16.</td>
+                      <td style="white-space: nowrap;">08/28/2026 11:28:28 AM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>Publisher&#039;s affidavit and tear sheets attached.</td>
+                      <td style="white-space: nowrap;">09/11/2026 04:47:55 PM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                    <tr>
+                      <td>Exception Admin Approved. 37(h)(2)(A). Publication; Service List.</td>
+                      <td style="white-space: nowrap;">09/24/2026 02:21:45 PM</td>
+                      <td style="white-space: nowrap;">RRC STAFF</td>
+                    </tr>
+
+                </table>
+              </td>
+            </tr>
+
+
+
+            <tr><th align="left">Attachments</th></tr>
+            <tr>
+              <td>
+                <table class="GroupBox1" cellpadding="4" border="1" width="100%">
+                  <tr>
+                    <th>Attachment Type</th>
+                    <th>File Path</th>
+                    <th>Associated Fields and/or Plats</th>
+                  </tr>
+
+
+                      <tr>
+                        <td>Due Diligence Letter</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9735242">
+                            Glasscock-Dickenson_SWR 37 Due Diligence Letter Updated_8.18.26.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+
+
+                      <tr>
+                        <td>Service List</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9735247">
+                            RULE 37 GLASSCOCK-DICKENSON 44C 3H-SERVICE LIST.csv
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>PLAT #1 (Paper Size: LGL)</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9737442">
+                            Glasscock-Dickenson 44C 3H FINAL RRC PLAT_8.13.26.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                            SPRABERRY (TREND AREA)<br/>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>As Submitted W-1</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9741765">
+                            AsSubmittedW1-8-21-2026.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>Permit Problem Letter</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9757915">
+                            problem_letter_8-26-2026.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>Permit Problem Letter</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9757968">
+                            problem_letter_8-26-2026.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+
+
+                      <tr>
+                        <td>Permit Problem Letter</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9758805">
+                            problem_letter_8-27-2026.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>P-16</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9762255">
+                            REV 918069 GLASSCOCK-DICKENSON 44C 3H_P-16_8.14.26.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>Notice of Application</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9763304">
+                            NOA-918069-PUB-ORG-226.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>Publishing Instructions</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9763305">
+                            PUBLISH-INSTRCTS-918069--924.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>NOA Certified Service Lis</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9763312">
+                            918069 serv list.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>Affidavit of Publication</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9801080">
+                            GLASSCOCK-DICKENSON 44C 3H_AFFIDAVIT OF PUBLICATION_9.11.26.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>As Approved W-1</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9836382">
+                            AsApprovedW1-9-24-2026.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+
+                      <tr>
+                        <td>As Approved Permit</td>
+                        <td>
+                          <a target="blank" href="https://webapps.rrc.texas.gov/dpimages/r/9836383">
+                            AsApprovedPermit-9-24-2026.pdf
+                          </a>
+                        </td>
+                        <td>
+
+                        </td>
+                      </tr>
+
+
+                </table>
+              </td>
+            </tr>
+
+
+          <tr>
+            <td>
+              <table style="white-space: nowrap; text-align: center; width:99%; margin: auto;">
+                <tr>
+                  <td>
+                    <input type="button" name="unused" value="Return" onclick="returnToCaller('/EWA/drillingPermitsQueryAction.do?methodToCall=search&pager.pageSize=10&pager.offset=0&searchArgs.paramValue=|1001=918069|1005=beginsWith|1008=beginsWith|1012=beginsWith|1015=beginsWith&rrcActionMan=SANITIZED" style="float: right;">
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+
+        </td>
+      </tr>
+    </table>
+
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr><td><table style="width: 100%" class="MainFooter">
+  <tr><td style="width: 100%;" class="BorderLines"></td></tr>
+  <tr>
+    <td style="width: 100%; height: 100%;" align="center" class="MainFooter">
+      <a target="_blank" href="http://www.rrc.texas.gov/site-policies/">Disclaimer</a> |
+      <a target="_blank" href="http://www.rrc.texas.gov">RRC Home</a> |
+      <a href="mailto:helpdesk@rrc.texas.gov?subject=Oil & Gas Queries">Contact</a>
+    </td>
+  </tr>
+</table>
+</td></tr>
+    </table>
+  </body>
+</html>

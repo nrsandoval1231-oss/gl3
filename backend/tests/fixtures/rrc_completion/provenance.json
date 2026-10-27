@@ -1,0 +1,26 @@
+{
+  "listing.html": {
+    "original_sha256": "4c728a37af6f66156ca19b2f2f44d4e51f6d5c3f7c61f13048c45db5ae80d32f",
+    "fixture_sha256": "7eb432eb251e8a438c537e321477bddd44cf0e5ce3edf173b7dd65bdd650cbbd",
+    "source_host": "https://webapps.rrc.texas.gov/CMPL/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  },
+  "new-well-138740.html": {
+    "original_sha256": "05c3fe7c5213bca64d362894a6d94b5174d3fe07940635c6c629013b5f40d8d4",
+    "fixture_sha256": "ffb33a959abab9bcdc1649d45161f3fd5110ce3b2e394b8bc729bce5418f4ab0",
+    "source_host": "https://webapps.rrc.texas.gov/CMPL/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  },
+  "recompletion-273201.html": {
+    "original_sha256": "fb351b1f0523eb6e934cb79f1101f5f8bab4dd644f7b48d74b862fc05733d069",
+    "fixture_sha256": "91bc2282eccacdf11eb2052d9c76cf3bb06d82e2853cf391b32419978b61f374",
+    "source_host": "https://webapps.rrc.texas.gov/CMPL/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  },
+  "no-packets.html": {
+    "original_sha256": "6937f72046d6e59bd5ad89703228b26ca1c73e481f697205fe429014df0669f2",
+    "fixture_sha256": "7e756f7cfb1fd05c830b7ee000b20f0f4d8c42ce6a62f5a8219da242059835f2",
+    "source_host": "https://webapps.rrc.texas.gov/CMPL/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  }
+}

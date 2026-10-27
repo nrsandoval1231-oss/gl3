@@ -1,0 +1,32 @@
+{
+  "search-form.html": {
+    "original_sha256": "e53cb9e8e1f1f04a78520f95e5ab674d236a874539fb8f9cb1d1f12144bdd20b",
+    "fixture_sha256": "b98123bf735751fbe2a14206dca602c04b44bc869d2eb092b79a7e985308652a",
+    "source_host": "https://webapps2.rrc.texas.gov/EWA/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  },
+  "search-result.html": {
+    "original_sha256": "cef399799e73b437cc64865b11dd0e986ab8aab44ecd06ed9f16f8b7b00d5e05",
+    "fixture_sha256": "d75920666258ba6072e3c5b240671c4307fb8f7edb9dca5787858625b6822285",
+    "source_host": "https://webapps2.rrc.texas.gov/EWA/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  },
+  "detail.html": {
+    "original_sha256": "f3c8c78ea63c8645e379d926e6b39eeefc585f03d1d86b5f0bb33ac50a22aa6a",
+    "fixture_sha256": "be6962d77eb6d81c6042d7dc5126d0e98062b3e2299aa2cb340ee579e86290db",
+    "source_host": "https://webapps2.rrc.texas.gov/EWA/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  },
+  "oxy-918877-detail.html": {
+    "original_sha256": "c7b54e67d1ab0db4dbdb8969418d4166922441c9260bffb937065f88eec6b9eb",
+    "fixture_sha256": "e866f8adb7d770ff978dbfd63f7c407c999c3aaab9485e7476f3184904084dee",
+    "source_host": "https://webapps2.rrc.texas.gov/EWA/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  },
+  "oxy-918878-detail.html": {
+    "original_sha256": "bfc262cb22476bb0f12c2a45c37b2ef42e3a165914d99e58b80d2ef9259477ba",
+    "fixture_sha256": "0f92635e1e4673a56431af315de09c78a9e978cbf0b0fc7c54abcfe81ca808a7",
+    "source_host": "https://webapps2.rrc.texas.gov/EWA/",
+    "normalization": "actual capture; transient public session/action state sanitized, trailing whitespace and outer blank lines removed; source fields unchanged; indentation tabs expanded to spaces"
+  }
+}

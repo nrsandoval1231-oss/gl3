@@ -1,0 +1,1010 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+
+
+
+
+
+
+
+
+
+
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8;"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=5, IE=8, IE=9, IE=10" />
+    <link rel="stylesheet" type="text/css" href="/EWA/styles/ogm_style3.css;jsessionid=SANITIZED">
+
+    <script type="text/javascript">
+      var dojoConfig = {
+      parseOnLoad: true,
+      isDebug: false,
+
+      has: {
+      "dojo-debug-messages": false
+      },
+
+      packages:
+       [ { name:"rrcGisModules", location:location.pathname.replace(/\/[^/]+$/, '') + '/gis/javascript'} ]
+
+      };
+    </script>
+
+    <script type="text/javascript" src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.3compact"></script>
+    <script type="text/javascript">
+      require(["dojo/parser", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/query",
+               "dojo/dom-construct", "dojo/NodeList-manipulate", "dojo/dom-attr", "dojo/dom",
+               "dojo/_base/connect", "dojo/_base/event"]);
+    </script>
+
+    <title>Drilling Permit (W-1) Query</title>
+  </head>
+
+  <body>
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr><td>
+
+
+
+
+
+<script type="text/javascript">
+function openHelp(obj) {
+
+  var help = '/EWA/help/' + obj;
+  //alert(help+', '+obj);
+
+  hold = window.open(help, 'popupWindow',
+                     'resizable=yes,menubar=yes,scrollbars=yes,width=500,height=400,x=1,y=1,screenx=1,screeny=1');
+  hold.focus();
+  return false;
+}
+</script>
+
+<!-- System Header -->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td class="MainHeader"><img src="/EWA/commonuiImages/rrc_online_header.gif;jsessionid=SANITIZED"></td>
+    <td class="MainHeader" align="right" nowrap>&nbsp;</td>
+    <td class="MainHeader"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+  </tr>
+  <tr><td colspan="3" style="height: 3px;" class="BorderLines"/></tr>
+</table>
+
+<!--Application Header-->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td class="AppHeader"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+    <td class="AppHeader">Oil & Gas Data Query</td>
+  </tr>
+</table>
+
+<!-- Top Nav Level 2 -->
+<!--Navigation Table Level 2 and 3 -->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr><td colspan="2" style="height: 2px;" class="BorderLines"/></tr>
+  <!--Level 2 navigation row-->
+  <tr>
+    <td class="AppNavMain" width="1%"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED" height="1px"></td>
+    <td class="AppNavMain">
+      <table border="0" cellpadding="0" cellspacing="0">
+        <tr>
+          <!-- Main -->
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <td class="AppNavMainSelected">
+            <a href="/EWA/ewaMain.do;jsessionid=SANITIZED">Query Menu</a>
+          </td>
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <!--Help-->
+          <td class="AppNavMain">
+
+            <a href="#" onclick="openHelp('DP_TOC.htm');">Help</a>
+          </td>
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <!--Help END-->
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr><td colspan="2" style="height: 1px;" class="BorderLines"/></tr>
+</table>
+
+</td></tr>
+    </table>
+
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr valign="top">
+        <td style="width: 100%;" class="ContentArea">
+          <span id="messageArea">
+
+
+
+
+
+<!-- /tiles/messages.jsp BEGIN -->
+
+
+
+
+<!-- /tiles/messages.jsp END -->
+</span>
+
+
+
+
+
+
+
+
+<script type="text/javascript" src="/EWA/js/ewaPageUtils.js"></script>
+
+<script type="text/javascript">
+  function doSearch() {
+    document.forms["drillingPermitsQueryActionForm"].elements["methodToCall"].value = "search";
+    document.forms["drillingPermitsQueryActionForm"].submit();
+  }
+  function doSort(columnName, direction) {
+    ewaDoSort(document.forms["drillingPermitsQueryActionForm"], "searchArgs", columnName, direction);
+  }
+  function genDrillingPermitsCSVRpt() {
+    document.forms["drillingPermitsQueryActionForm"].methodToCall.value = "genDrillingPermitsCSVRpt";
+    document.forms["drillingPermitsQueryActionForm"].submit();
+  }
+</script>
+
+<form name="drillingPermitsQueryActionForm" method="post" action="/EWA/drillingPermitsQueryAction.do;jsessionid=SANITIZED">
+
+  <input type="hidden" name="searchArgs.orderByColumnName" value="">
+
+    <input type="hidden" name="searchArgs.orderByHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.universalDocNoHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.permitStatusNoHndlr.inputValue" value="918069">
+    <input type="hidden" name="searchArgs.apiNoHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.districtCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.countyCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.operatorNameWildcardHndlr.inputValue" value="beginsWith">
+    <input type="hidden" name="searchArgs.operatorNameHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.operatorNoHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.leaseNameWildcardHndlr.inputValue" value="beginsWith">
+    <input type="hidden" name="searchArgs.leaseNameHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.leaseNoHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.wellNoHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.fieldNameWildcardHndlr.inputValue" value="beginsWith">
+    <input type="hidden" name="searchArgs.fieldNameHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.fieldNoHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.surveyNameWildcardHndlr.inputValue" value="beginsWith">
+    <input type="hidden" name="searchArgs.surveyNameHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.wellTypeCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.totalDepthHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.filingPurposeCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.statusCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.wellboreProfileCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.wellLocationCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.completionStatusCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.approvedDtFromHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.approvedDtToHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.submittedDtFromHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.submittedDtToHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.npzFlagHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.ammendmentFlagHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.swrExceptionCodeHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.psaFlagHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.allocationFlagHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.stackedLateralFlagHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.offLeasePntrnPtFlagHndlr.inputValue" value="">
+    <input type="hidden" name="searchArgs.offLeaseSurfLocFlagHndlr.inputValue" value="">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <input type="hidden" name="methodToCall" value="search">
+
+
+
+
+
+
+  <input type="hidden" name="actionManager.recordCountHndlr.inputValue" value="2">
+  <input type="hidden" name="actionManager.currentIndexHndlr.inputValue" value="1">
+
+
+    <input type="hidden" name="actionManager.actionRcrd[0].actionDisplayNmHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[0].hostHndlr.inputValue" value="webapps2.rrc.texas.gov:443">
+    <input type="hidden" name="actionManager.actionRcrd[0].contextPathHndlr.inputValue" value="/EWA">
+    <input type="hidden" name="actionManager.actionRcrd[0].actionHndlr.inputValue" value="/drillingPermitsQueryAction.do">
+    <input type="hidden" name="actionManager.actionRcrd[0].actionParameterHndlr.inputValue" value="methodToCall">
+    <input type="hidden" name="actionManager.actionRcrd[0].actionMethodHndlr.inputValue" value="returnToSearch">
+    <input type="hidden" name="actionManager.actionRcrd[0].pagerParameterKeyHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[0].actionParametersHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[0].returnIndexHndlr.inputValue" value="0">
+
+    <input type="hidden" name="actionManager.actionRcrd[0].argRcrdParameters(searchArgs.paramValue)" value="|1001=918069|1005=beginsWith|1008=beginsWith|1012=beginsWith|1015=beginsWith">
+
+
+    <input type="hidden" name="actionManager.actionRcrd[1].actionDisplayNmHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[1].hostHndlr.inputValue" value="webapps2.rrc.texas.gov:443">
+    <input type="hidden" name="actionManager.actionRcrd[1].contextPathHndlr.inputValue" value="/EWA">
+    <input type="hidden" name="actionManager.actionRcrd[1].actionHndlr.inputValue" value="/drillingPermitsQueryAction.do">
+    <input type="hidden" name="actionManager.actionRcrd[1].actionParameterHndlr.inputValue" value="methodToCall">
+    <input type="hidden" name="actionManager.actionRcrd[1].actionMethodHndlr.inputValue" value="search">
+    <input type="hidden" name="actionManager.actionRcrd[1].pagerParameterKeyHndlr.inputValue" value="pager.paramValue">
+    <input type="hidden" name="actionManager.actionRcrd[1].actionParametersHndlr.inputValue" value="">
+    <input type="hidden" name="actionManager.actionRcrd[1].returnIndexHndlr.inputValue" value="0">
+
+    <input type="hidden" name="actionManager.actionRcrd[1].argRcrdParameters(pager.paramValue)" value="|1=1|2=10|3=1|4=0|5=1|6=10">
+    <input type="hidden" name="actionManager.actionRcrd[1].argRcrdParameters(searchArgs.paramValue)" value="|1001=918069|1005=beginsWith|1008=beginsWith|1012=beginsWith|1015=beginsWith">
+
+
+
+
+  <table class="ewaPage">
+    <tr>
+      <td>
+        <h2 class="style5">
+          Drilling Permit (W-1) Query Results
+        </h2>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table style="width:100%; margin: auto;" class="TabBox2">
+
+          <tr>
+            <td>
+              <table style="white-space: nowrap; width:98%; margin: auto;">
+                <tr>
+                  <td>
+                    <p><b>Search Criteria:</b></p>
+                    <p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <strong>Permit/Status No.:</strong>
+
+
+
+
+
+
+
+
+
+
+
+
+        918069
+
+
+    <br/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</p>
+                  </td>
+
+                  <td align="right" valign="bottom">
+                    <input type="button" name="unused" value="Return" onclick="returnToCaller('/EWA/drillingPermitsQueryAction.do?methodToCall=returnToSearch&searchArgs.paramValue=|1001=918069|1005=beginsWith|1008=beginsWith|1012=beginsWith|1015=beginsWith&rrcActionMan=SANITIZED" style="float: right;">
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table style="white-space: normal; width:98%; text-align: center; margin: auto;"
+       class="DataGrid" border="1" cellpadding="4" cellspacing="0" bordercolor="#666666">
+  <tr>
+    <td colspan="14" height="25" class="PagerBanner">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <table style="width:100%; white-space: nowrap;">
+    <tr>
+      <td style="text-align: left; border-style:none; font-weight: bold">
+        1 results
+      </td>
+      <td style="text-align: center; border-style:none;">
+
+
+            Page: 1 of 1 <!-- Simple case, single page output -->
+
+
+
+
+      </td>
+
+      <!-- Page size control -->
+      <td style="text-align: right; border-style:none;">
+        <label>
+          Page Size:
+          <select name="pager.pageSize" onchange="doSearch()"><option value="-1">View All</option></select>
+        </label>
+      </td>
+
+    </tr>
+  </table>
+
+
+
+    </td>
+  </tr>
+
+  <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('API_SEQUENCE_NUMBER','ASC')">API NO.</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('DISTRICT','ASC')">District</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('LEASE_NAME','ASC')">Lease</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('WELL_NUMBER','ASC')">Well Number</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('ORGANIZATION_NAME','ASC')">Permitted Operator</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('COUNTY_NAME','ASC')">County</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('APPROVED_DATE','ASC')">Status Date</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('STATUS_NUMBER','ASC')">Status Number</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('PROFILE_CODES','ASC')">Wellbore Profiles</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('FILING_PURPOSE_CODE','ASC')">Filing Purpose</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('IS_AMENDMENT','ASC')">Amend</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('TOTAL_DEPTH','ASC')">Total Depth</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('STACKED_LAT_STATUS_NO','ASC')">Stacked Lateral Parent Well DP #</a>
+
+
+
+</th>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<th style='text-align:center'>
+
+  <a href="Javascript:doSort('CURRENT_STATE_CODE','ASC')">Status</a>
+
+
+
+</th>
+
+
+  </tr>
+
+
+    <tr>
+      <td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <table>
+    <tr>
+      <td width="50%">
+
+
+        <a href="leaseDetailAction.do;jsessionid=SANITIZED?searchType=apiNo&selTab=4096&apiNo=31747395&distCode=08&leaseNo=&methodToCall=displayLeaseDetail&rrcActionMan=SANITIZED" title="Lease detail for API number 31747395">31747395</a>
+      </td>
+
+      <td>
+        <select name="propertyValue" onchange="gotoRelatedLink(this.value)" id="apiRelatedLinks:31747395"><option value="" selected="selected">Links</option>
+          <option value="{&quot;url&quot;: &quot;https://rrcsearch3.neubus.com/esd3-rrc/api.php?function=GetImage&amp;api_no=31747395&amp;rrcActionMan=SANITIZED&quot;, &quot;newWindow&quot;: true}">Images</option>
+<option value="{&quot;url&quot;: &quot;https://gis.rrc.texas.gov/GISViewer/index.html?api=31747395&amp;rrcActionMan=SANITIZED&quot;, &quot;newWindow&quot;: true}">GIS Viewer</option>
+<option value="{&quot;url&quot;: &quot;https://webapps.rrc.texas.gov/CMPL/ewaSearchAction.do?methodToCall=searchByApiNo&amp;apiNo=31747395&amp;relatedLink=Y&amp;rrcActionMan=SANITIZED&quot;, &quot;newWindow&quot;: false}">Completion</option></select>
+      </td>
+    </tr>
+  </table>
+
+
+
+
+
+      </td>
+
+      <td style="text-align:center">08</td>
+      <td>
+
+        <a href="drillingPermitDetailAction.do;jsessionid=SANITIZED?methodToCall=searchByUniversalDocNo&amp;universalDocNo=499388208&amp;rrcActionMan=SANITIZED">
+          GLASSCOCK-DICKENSON 44C
+
+        </a>
+      </td>
+      <td style="white-space: nowrap; text-align:center">3H</td>
+      <td>PIONEER NATURAL RES. USA, INC.(665748)</td>
+      <td>MARTIN</td>
+      <td>
+        Submitted: 08/21/2026
+
+          Approved: 09/24/2026
+
+      </td>
+      <td>918069</td>
+      <td>Horizontal</td>
+      <td>New Drill</td>
+      <td>N</td>
+      <td>10389</td>
+      <td></td>
+      <td>APPROVED</td>
+    </tr>
+
+
+</table>
+</td>
+          </tr>
+
+          <tr>
+            <td>
+              <table style="white-space: nowrap; text-align: center; width:99%; margin: auto;">
+                <tr>
+                  <td align="left">
+                    <input type="button" name="unused" value="Download" onclick="genDrillingPermitsCSVRpt();" style="float: left;">
+                  </td>
+                  <td align="right">
+                    <input type="button" name="unused" value="Return" onclick="returnToCaller('/EWA/drillingPermitsQueryAction.do?methodToCall=returnToSearch&searchArgs.paramValue=|1001=918069|1005=beginsWith|1008=beginsWith|1012=beginsWith|1015=beginsWith&rrcActionMan=SANITIZED" style="float: right;">
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+
+        </td>
+      </tr>
+    </table>
+
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr><td><table style="width: 100%" class="MainFooter">
+  <tr><td style="width: 100%;" class="BorderLines"></td></tr>
+  <tr>
+    <td style="width: 100%; height: 100%;" align="center" class="MainFooter">
+      <a target="_blank" href="http://www.rrc.texas.gov/site-policies/">Disclaimer</a> |
+      <a target="_blank" href="http://www.rrc.texas.gov">RRC Home</a> |
+      <a href="mailto:helpdesk@rrc.texas.gov?subject=Oil & Gas Queries">Contact</a>
+    </td>
+  </tr>
+</table>
+</td></tr>
+    </table>
+  </body>
+</html>
