@@ -1,0 +1,279 @@
+{
+  "observed_at": "2026-10-27T06:02:40.729521+00:00",
+  "requests": 21,
+  "records": [
+    {
+      "permit": "0919088",
+      "project_id": "b8a992fc-b136-4267-8b60-98431c6fa4bf",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=919088",
+      "returncode": 0,
+      "bytes": 22695,
+      "sha256": "5c177ca8b0d7565b4fce3b6de4dc7d54814663968195786ffdf40bb06af07bab",
+      "api_numbers": [
+        "31747557"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0919088.txt"
+    },
+    {
+      "permit": "0919206",
+      "project_id": "73ef209c-771c-4a53-874f-4115dc5e2c4f",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=919206",
+      "returncode": 0,
+      "bytes": 22693,
+      "sha256": "5384b67de59818b7a25431c0cd675b7a0df50e6d85697bd06eefd0b185e49a3e",
+      "api_numbers": [
+        "37140575"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0919206.txt"
+    },
+    {
+      "permit": "0909805",
+      "project_id": "c4ce4c53-6492-4559-bef0-d169acb9809c",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=909805",
+      "returncode": 0,
+      "bytes": 26573,
+      "sha256": "7362469993d0babf9a9859b74b0046babd6f7a379e2003f4f2903aa845c794de",
+      "api_numbers": [
+        "30137511"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0909805.txt"
+    },
+    {
+      "permit": "0918168",
+      "project_id": "0572fe0f-ccf1-48b7-8d8c-28968c9d4c02",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918168",
+      "returncode": 0,
+      "bytes": 22692,
+      "sha256": "2f0503b584877a4ec2c38e540c43d6dd7e0bb65ec512b2a1d8409bcc9bf09b07",
+      "api_numbers": [
+        "23536785"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918168.txt"
+    },
+    {
+      "permit": "0918384",
+      "project_id": "0cace1de-6940-419f-9f6b-681f79b53db4",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918384",
+      "returncode": 0,
+      "bytes": 22696,
+      "sha256": "e61b31b487ea442275895d61a83a92cc1a067b120d7bd2fe9be6ae807bf5de1c",
+      "api_numbers": [
+        "48546434"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918384.txt"
+    },
+    {
+      "permit": "0917768",
+      "project_id": "8aa5f54e-ca13-42f9-bf0e-6268d3c5eea6",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=917768",
+      "returncode": 0,
+      "bytes": 22708,
+      "sha256": "4dfe0e2b8119eb8ea299bab9e78c23266cb59f280579b27c726f7c13b2895249",
+      "api_numbers": [
+        "41931950"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0917768.txt"
+    },
+    {
+      "permit": "0918542",
+      "project_id": "75d8efeb-697b-47c4-8128-7ff34528c4b5",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918542",
+      "returncode": 0,
+      "bytes": 22692,
+      "sha256": "47eac8494c2b95b2cc1484867dc3026e974ce2db17a8b4a1841b8a8de47a8520",
+      "api_numbers": [
+        "12739241"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918542.txt"
+    },
+    {
+      "permit": "0917670",
+      "project_id": "e8bc4fa7-d197-4d26-8473-1810fe00f14b",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=917670",
+      "returncode": 0,
+      "bytes": 22692,
+      "sha256": "2a1c4bd5958f3d9d4d123986b02641d79573fa7282dd2b98fb767e771ac7c076",
+      "api_numbers": [
+        "32948536"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0917670.txt"
+    },
+    {
+      "permit": "0918881",
+      "project_id": "091a69e2-96fe-4b2d-b589-97508151767b",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918881",
+      "returncode": 0,
+      "bytes": 22707,
+      "sha256": "ca1b2bd3df5a0f2879dc81c2e470f226a32de7f8aaa8bcd2414d317695d0976c",
+      "api_numbers": [
+        "41931960"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918881.txt"
+    },
+    {
+      "permit": "0918265",
+      "project_id": "27fea4ee-84f1-4aee-871e-a18368691db8",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918265",
+      "returncode": 0,
+      "bytes": 26510,
+      "sha256": "1e7aa1082168c274fb0bc13e0dbd9e833ea39ee65cc7b60440dea9ecae00d2cc",
+      "api_numbers": [
+        "13544314"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918265.txt"
+    },
+    {
+      "permit": "0918684",
+      "project_id": "7789f456-e1dd-4bb1-96b4-ead89fd374ba",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918684",
+      "returncode": 0,
+      "bytes": 22716,
+      "sha256": "165f8eb10242442d4094d2c69143a8e153ee2b67c3e54de719d67e25f046654a",
+      "api_numbers": [
+        "30137979"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918684.txt"
+    },
+    {
+      "permit": "0918560",
+      "project_id": "2b4d71c3-4c04-437e-8717-7477e40a6ba4",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918560",
+      "returncode": 0,
+      "bytes": 22699,
+      "sha256": "22da51e499f813877f2886852b7832f9d4b1d7ebf38b979e76416e783c5187fc",
+      "api_numbers": [
+        "12739247"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918560.txt"
+    },
+    {
+      "permit": "0909522",
+      "project_id": "f188b62e-5df6-46e6-a521-f60bd21e536f",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=909522",
+      "returncode": 0,
+      "bytes": 26546,
+      "sha256": "38ca7cb0b5208a893ca77f4293d2ca2c3202afdd454a507377f75654416564a1",
+      "api_numbers": [
+        "30137483"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0909522.txt"
+    },
+    {
+      "permit": "0919327",
+      "project_id": "d5aaeaf1-fccd-4677-8022-035a49e494a6",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=919327",
+      "returncode": 0,
+      "bytes": 22714,
+      "sha256": "1080c60f485a810fd3c96509a1e51656f62c6686cca66d799ee111cd0cfbea13",
+      "api_numbers": [
+        "38942358"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0919327.txt"
+    },
+    {
+      "permit": "0918882",
+      "project_id": "b19efaea-1633-4ccc-92cf-c4618349cb76",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918882",
+      "returncode": 0,
+      "bytes": 22710,
+      "sha256": "e24a64bc1341679a2375c5cfbf86cdc23c3dd8b5d8c525aff21c90e6d0d08300",
+      "api_numbers": [
+        "40530992"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918882.txt"
+    },
+    {
+      "permit": "0915570",
+      "project_id": "22540dc9-9e76-4a5c-91b1-527b1ed300e0",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=915570",
+      "returncode": 0,
+      "bytes": 22700,
+      "sha256": "548b8a349eece8343d6fc597cde8d7fc32be05ee4b22e28b60129da472d1ef8c",
+      "api_numbers": [
+        "32948367"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0915570.txt"
+    },
+    {
+      "permit": "0918069",
+      "project_id": "5ddb20b5-e5f1-4c00-970f-8aec2b34b279",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918069",
+      "returncode": 0,
+      "bytes": 22701,
+      "sha256": "9fc40715010879a3c744a0341a9e16963897f73e2d956bf141e6cadce3d89031",
+      "api_numbers": [
+        "31747395"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918069.txt"
+    },
+    {
+      "permit": "0917656",
+      "project_id": "c8956043-159e-4c2d-8995-baed952c8170",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=917656",
+      "returncode": 0,
+      "bytes": 22698,
+      "sha256": "9eeb6c81c0d3734c40cea7751e42c37292a9700cafec10dfd690913a7ed96fce",
+      "api_numbers": [
+        "32948551"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0917656.txt"
+    },
+    {
+      "permit": "0919153",
+      "project_id": "c0b23ecf-7e2b-4f33-a457-57d764ee1e9d",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=919153",
+      "returncode": 0,
+      "bytes": 22685,
+      "sha256": "73b11627b831e0209e03989c62791a51cf46ac3d3a4255449e91148819a36b44",
+      "api_numbers": [
+        "46143823"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0919153.txt"
+    },
+    {
+      "permit": "0919092",
+      "project_id": "3d03a65e-5607-4fa7-9eef-854d2c671ce2",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=919092",
+      "returncode": 0,
+      "bytes": 22694,
+      "sha256": "36d084ce1d1f842246e6a99fda940b055b186bcf544e926cec89ef732be7cb49",
+      "api_numbers": [
+        "31747560"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0919092.txt"
+    },
+    {
+      "permit": "0918254",
+      "project_id": "e6bb9662-31d0-48f1-b33d-9ca8e0a7397e",
+      "url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918254",
+      "returncode": 0,
+      "bytes": 22715,
+      "sha256": "0e597f1b59177e2fa2fcd38f84fbc23e6d47a1844a7f03c44a2f0d836c4e607c",
+      "api_numbers": [
+        "32948587"
+      ],
+      "source_title": "Drilling Permit (W-1) Query",
+      "text_path": "/tmp/gl3-frozen-rrc-queries/0918254.txt"
+    }
+  ]
+}

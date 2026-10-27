@@ -1,0 +1,173 @@
+{
+  "kind": "actual_official_capture_worker_replay",
+  "network_requests": 0,
+  "scope": "isolated local candidate; no live-worker/production proof",
+  "jobs": [
+    {
+      "permit": "0918069",
+      "job_status": "succeeded",
+      "request_count": 4,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/EWA/drillingPermitsQueryAction.do"
+        },
+        {
+          "method": "POST",
+          "path": "/EWA/drillingPermitsQueryAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/EWA/drillingPermitDetailAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/CMPL/ewaSearchAction.do"
+        }
+      ],
+      "api_number": "4231747395",
+      "events": [],
+      "source_url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitDetailAction.do?methodToCall=searchByUniversalDocNo&universalDocNo=499388208",
+      "source_hash": "f3c8c78ea63c8645e379d926e6b39eeefc585f03d1d86b5f0bb33ac50a22aa6a",
+      "evidence_id": "a264b34e-bbc5-4004-af37-41e38ce28cca",
+      "completion_research": {
+        "content_hash": "6937f72046d6e59bd5ad89703228b26ca1c73e481f697205fe429014df0669f2",
+        "source_url": "https://webapps.rrc.texas.gov/CMPL/ewaSearchAction.do?methodToCall=searchByApiNo&apiNo=31747395&relatedLink=Y",
+        "status": "no_packets_returned"
+      },
+      "historical_completion_events": [],
+      "native_content_hash": "58b1132ffa8d97713e07588363f56d0ec86cfbaee9f11d8f12ee410ea3e6d60b",
+      "input_hashes": {
+        "form": "e53cb9e8e1f1f04a78520f95e5ab674d236a874539fb8f9cb1d1f12144bdd20b",
+        "results": "cef399799e73b437cc64865b11dd0e986ab8aab44ecd06ed9f16f8b7b00d5e05",
+        "detail": "f3c8c78ea63c8645e379d926e6b39eeefc585f03d1d86b5f0bb33ac50a22aa6a"
+      }
+    },
+    {
+      "permit": "0918877",
+      "job_status": "succeeded",
+      "request_count": 6,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/EWA/drillingPermitsQueryAction.do"
+        },
+        {
+          "method": "POST",
+          "path": "/EWA/drillingPermitsQueryAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/EWA/drillingPermitDetailAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/CMPL/ewaSearchAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/CMPL/ewaSearchAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/CMPL/ewaSearchAction.do"
+        }
+      ],
+      "api_number": "4216538299",
+      "events": [],
+      "source_url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitDetailAction.do?methodToCall=searchByUniversalDocNo&universalDocNo=499482144",
+      "source_hash": "c7b54e67d1ab0db4dbdb8969418d4166922441c9260bffb937065f88eec6b9eb",
+      "evidence_id": "e38cff9f-1f84-4030-997e-496496ac7431",
+      "completion_research": {
+        "content_hash": "4c728a37af6f66156ca19b2f2f44d4e51f6d5c3f7c61f13048c45db5ae80d32f",
+        "source_url": "https://webapps.rrc.texas.gov/CMPL/ewaSearchAction.do?methodToCall=searchByApiNo&apiNo=16538299&relatedLink=Y",
+        "status": "bounded_packets_checked"
+      },
+      "historical_completion_events": [
+        {
+          "date": "2015-04-19",
+          "kind": "historical_completion",
+          "label": "Completion reported (historical)",
+          "source": "texas-rrc-completion-packet",
+          "evidence_refs": []
+        },
+        {
+          "date": "2016-06-02",
+          "kind": "historical_recompletion",
+          "label": "Recompletion reported (historical)",
+          "source": "texas-rrc-completion-packet",
+          "evidence_refs": []
+        }
+      ],
+      "native_content_hash": "0e3593223e93ae2d84f49a70e4f4a3f4f62cb5c0ae0cf1dcc6ae9b040686b9fa",
+      "input_hashes": {
+        "form": "e53cb9e8e1f1f04a78520f95e5ab674d236a874539fb8f9cb1d1f12144bdd20b",
+        "results": "0a67f8e28997ab38da9e9ff660f502bf0da05b15c77d4fe701e7dc9f12bc3bc7",
+        "detail": "c7b54e67d1ab0db4dbdb8969418d4166922441c9260bffb937065f88eec6b9eb"
+      }
+    },
+    {
+      "permit": "0918878",
+      "job_status": "succeeded",
+      "request_count": 6,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/EWA/drillingPermitsQueryAction.do"
+        },
+        {
+          "method": "POST",
+          "path": "/EWA/drillingPermitsQueryAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/EWA/drillingPermitDetailAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/CMPL/ewaSearchAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/CMPL/ewaSearchAction.do"
+        },
+        {
+          "method": "GET",
+          "path": "/CMPL/ewaSearchAction.do"
+        }
+      ],
+      "api_number": "4216538299",
+      "events": [],
+      "source_url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitDetailAction.do?methodToCall=searchByUniversalDocNo&universalDocNo=499482145",
+      "source_hash": "bfc262cb22476bb0f12c2a45c37b2ef42e3a165914d99e58b80d2ef9259477ba",
+      "evidence_id": "2e74a863-abd4-47eb-b06f-e42cd6d946fd",
+      "completion_research": {
+        "content_hash": "4c728a37af6f66156ca19b2f2f44d4e51f6d5c3f7c61f13048c45db5ae80d32f",
+        "source_url": "https://webapps.rrc.texas.gov/CMPL/ewaSearchAction.do?methodToCall=searchByApiNo&apiNo=16538299&relatedLink=Y",
+        "status": "bounded_packets_checked"
+      },
+      "historical_completion_events": [
+        {
+          "date": "2015-04-19",
+          "kind": "historical_completion",
+          "label": "Completion reported (historical)",
+          "source": "texas-rrc-completion-packet",
+          "evidence_refs": []
+        },
+        {
+          "date": "2016-06-02",
+          "kind": "historical_recompletion",
+          "label": "Recompletion reported (historical)",
+          "source": "texas-rrc-completion-packet",
+          "evidence_refs": []
+        }
+      ],
+      "native_content_hash": "7a10fb36b0df17104acfa72afd7a59ef82f1127e9336a4b36045983f6ef158c3",
+      "input_hashes": {
+        "form": "e53cb9e8e1f1f04a78520f95e5ab674d236a874539fb8f9cb1d1f12144bdd20b",
+        "results": "116824ea9b73bfede0b1034c789099ff16620479b371091a5681e430366c9d76",
+        "detail": "bfc262cb22476bb0f12c2a45c37b2ef42e3a165914d99e58b80d2ef9259477ba"
+      }
+    }
+  ]
+}

@@ -1,69 +1,95 @@
 import { expect, test } from '@playwright/test'
 import { needB } from './fixtures/dashboard'
 
-test('dashboard preserves account table, tab history, truthful gaps, and responsive detail', async ({ page }, testInfo) => {
+const makeProjects = () => Array.from({ length: 26 }, (_, i) => ({
+  id: `project-${i}`, project_id: `project-${i}`, name: `Site development ${i + 1}`, company: `Fixture Customer ${i + 1}`,
+  location: 'Austin, TX', sector: 'data_centers', asset_type: 'data_center_campus', priority_score: null,
+  representative_need_id: `need-${i}`, need_count: 1,
+  needs: [{ id: `need-${i}`, project_id: `project-${i}`, activity: 'construction', browse_title: `Site development ${i + 1}`, location: 'Austin, TX' }],
+  event: { kind: 'construction_notice', label: 'Construction notice', date: '2026-10-20', source: 'Synthetic fixture', evidence_refs: [] },
+  contact: [], power_summary: 'Power relevance requires project-specific confirmation.', next_action: 'Review the source-backed project details.', updated_at: '2026-10-20T10:00:00Z',
+}))
+
+test('project results preserve detail history, truthful gaps, and responsive navigation', async ({ page }, testInfo) => {
   page.on('pageerror', error => { throw error })
   const requests: URL[] = []
-  const rows = Array.from({ length: 26 }, (_, i) => ({ ...needB, id: `need-${i}`, project_id: `project-${i}`, company_identity_id: `company-${i}`, account_name: `Fixture Customer ${i + 1}`, commercial_organization: `Fixture Customer ${i + 1}`, name: `Site development ${i + 1}`, browse_title: `Site development ${i + 1}`, project_count: 2, need_count: 3, required_mw: '250', rank_score: 82 - i, start_window: 'Not established', intelligence_card: { ...needB.intelligence_card, need_id: `need-${i}`, project_id: `project-${i}`, fields: needB.intelligence_card.fields.map(f => ({ ...f, value: f.key === 'customer' ? `Fixture Customer ${i + 1}` : f.key === 'project' ? `Site development ${i + 1}` : f.value })) } }))
+  const projects = makeProjects()
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') {
+    if (url.pathname === '/api/opportunities/projects') {
       requests.push(url)
       const offset = Number(url.searchParams.get('offset') || 0)
-      return route.fulfill({ json: { items: rows.slice(offset, offset + 25), total: 26, offset, limit: 25, next_offset: offset ? null : 25, cohort_token: 'dashboard-fixture', count_unit: 'company accounts', counts: { action_now: 0, research: 26, watch: 0, reject: 0 }, changes_available: false } })
+      const needId = url.searchParams.get('need_id')
+      if (needId) {
+        const project = projects.find(item => item.needs.some(need => need.id === needId))
+        return route.fulfill({ json: { items: project ? [project] : [], total: project ? 1 : 0, offset: 0, limit: 1, cohort_token: 'dashboard-project-detail-fixture', generation: 'synthetic', count_unit: 'projects', results_scope: 'discovery' } })
+      }
+      return route.fulfill({ json: { items: projects.slice(offset, offset + 25), total: projects.length, offset, limit: 25, cohort_token: 'dashboard-project-fixture', generation: 1, count_unit: 'projects' } })
     }
-    if (url.pathname.startsWith('/api/opportunities/needs/')) return route.fulfill({ json: rows.find(row => url.pathname.endsWith(row.id)) })
-    if (url.pathname.endsWith('/changes')) return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    if (/\/(title|brief)$/.test(url.pathname)) return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
-    return route.fulfill({ status: 503, json: { detail: 'Not supplied by this layout fixture' } })
+    if (url.pathname.startsWith('/api/opportunities/needs/')) {
+      const id = url.pathname.split('/').at(-1)!
+      return route.fulfill({ json: { ...needB, id, tier: 'Lead', commercial_next_action: 'Confirm the power package and expected timing.', name: projects.find(project => project.representative_need_id === id)?.name ?? 'Synthetic project', project_id: id.replace('need-', 'project-') } })
+    }
+    return route.fulfill({ status: 503, json: { detail: 'Not supplied by this project results fixture' } })
   })
-  await page.setViewportSize({ width: 1648, height: 928 })
   await page.goto('/?view=workspace')
-  await page.locator('.opportunity-select').first().click()
-  await expect(page.locator('.wh-detail h2')).toHaveText('Fixture Customer 1')
-  await expect(page.locator('.opportunity-select')).toHaveCount(25)
-  await expect(page.locator('.opportunity-table tbody tr').first()).not.toContainText('250')
-  await expect(page.locator('.wh-customer-metrics')).toContainText('Unavailable')
+  await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
+  await expect(page.getByText('26 projects')).toBeVisible()
+  await expect(page.locator('.project-card')).toHaveCount(25)
+  await expect(page.locator('.project-card').first()).toContainText('Construction notice')
+  await expect(page.locator('.project-card').first()).toContainText('Contact not yet verified')
+  await expect(page.locator('.brand-kpi')).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Project type' }).getByRole('button')).toHaveText(['All', 'Oil & Gas', 'Data Centers'])
+
+  await page.locator('.project-card').first().getByRole('button', { name: 'View project details' }).click()
+  await expect(page).toHaveURL(/need=need-0/)
+  await expect(page.locator('.wh-detail h2')).toBeVisible()
+  await expect(page.locator('.wh-detail h2')).toHaveText('Site development 1')
+  await expect(page.locator('.wh-detail')).toContainText('Fixture Customer 1')
+  await expect(page.locator('.wh-detail')).toContainText('Construction notice · 2026-10-20')
+  await expect(page.locator('.wh-detail')).not.toContainText('Not yet verified')
+  await expect(page.locator('.wh-customer-metrics')).toHaveCount(0)
+  await expect(page.locator('.wh-detail')).toContainText('Review the source-backed project details.')
+  await expect(page.locator('.wh-detail')).not.toContainText('Canonical rank score')
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
+  await page.locator('.wh-tabs .wh-more-tabs summary').click()
   await page.locator('.wh-tabs').getByRole('button', { name: 'Research', exact: true }).click()
   await page.goBack()
   await expect(page.getByRole('button', { name: 'Evidence', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.goForward()
-  await expect(page.locator('.wh-tabs').getByRole('button', { name: 'Research', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.wh-tabs .wh-more-tabs button[aria-pressed="true"]')).toHaveText('Research')
   await page.reload()
-  await expect(page.locator('.wh-detail h2')).toHaveText('Fixture Customer 1')
+  await expect(page.locator('.wh-detail h2')).toBeVisible()
+  await expect(page.locator('.wh-customer-metrics')).toHaveCount(0)
   await page.getByRole('button', { name: 'Overview', exact: true }).click()
-  await page.evaluate(() => document.fonts.ready)
-  for (const [width, height] of [[1648,928],[1440,900],[1280,800],[768,1024],[390,844]]) {
+
+  for (const [width, height] of [[1280,800],[768,1024],[390,844]]) {
     await page.setViewportSize({ width, height })
-    if (width === 768) await page.locator('.wh-detail').scrollIntoViewIfNeeded()
-    else await page.evaluate(() => window.scrollTo(0, 0))
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-    await page.screenshot({ path: testInfo.outputPath(`fixture-dashboard-${width}x${height}.png`) })
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+    await page.screenshot({ path: testInfo.outputPath(`project-results-${width}x${height}.png`) })
   }
-  await page.getByRole('button', { name: 'Back to power needs', exact: true }).click()
-  await expect(page.locator('.opportunity-select').first()).toBeVisible()
-  await expect(page.locator('.wh-sort select')).toBeInViewport()
-  const tools = await page.locator('.wh-tools > summary').boundingBox()
-  expect(tools!.x + tools!.width).toBeLessThanOrEqual(390)
-  await page.screenshot({ path: testInfo.outputPath('fixture-dashboard-mobile-list.png') })
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.getByRole('textbox', { name: 'Search workspace' }).fill('customer')
-  await expect.poll(() => requests.at(-1)?.searchParams.get('search')).toBe('customer')
-  await page.locator('.wh-sort select').selectOption('project')
-  await expect.poll(() => requests.at(-1)?.searchParams.get('sort')).toBe('project')
-  await page.getByRole('navigation', { name: 'Quick filters' }).getByRole('button', { name: /Watch/ }).click()
-  await expect.poll(() => requests.at(-1)?.searchParams.get('disposition')).toBe('WATCH')
-  await page.getByRole('navigation', { name: 'Customer account pages' }).getByRole('button', { name: 'Next' }).click()
-  await expect(page.locator('.opportunity-select')).toHaveCount(1)
-  await page.goBack()
-  await expect(page.locator('.opportunity-select')).toHaveCount(25)
-  await page.goto('/?view=workspace&need=need-0')
-  await page.reload()
-  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-  await page.getByRole('button', { name: 'Back to power needs', exact: true }).click()
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
+  await expect(page.locator('.project-card')).toHaveCount(25)
+
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.locator('.project-card').first().getByRole('button', { name: 'View project details' }).click()
+  await expect(page).toHaveURL(/need=need-0/)
+  await page.getByRole('textbox', { name: 'Search opportunities' }).fill('customer')
   await expect(page).not.toHaveURL(/need=/)
-  await expect(page.locator('.opportunity-select')).toHaveCount(25)
+  await expect(page.locator('.wh-detail')).toHaveCount(0)
+
+  await page.getByRole('textbox', { name: 'Search opportunities' }).fill('customer')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('search')).toBe('customer')
+  await page.getByRole('button', { name: 'Oil & Gas', exact: true }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('sector')).toBe('oil_gas')
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('cohort_token')).toBe('dashboard-project-fixture')
+  await expect(page.locator('.project-card')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Previous' }).click()
+  await expect(page.locator('.project-card')).toHaveCount(25)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/?view=workspace&need=need-1')
+  await expect(page.locator('.wh-detail h2')).toHaveText('Site development 2')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
 })

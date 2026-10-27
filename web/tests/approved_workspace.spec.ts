@@ -53,7 +53,7 @@ test('approved intelligence workspace preserves evidence, research status, selec
   })
 
   await page.setViewportSize({ width: 1280, height: 720 })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&accountBrowse=1')
   await expect(page.locator('.wh-list')).toBeVisible()
   for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport)
@@ -64,6 +64,10 @@ test('approved intelligence workspace preserves evidence, research status, selec
     await page.keyboard.press('Enter')
     await expect(account).toHaveAttribute('open', '')
     await expect(signOut).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('button', { name: 'Research' })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('button', { name: 'Signals' })).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(page.getByRole('button', { name: 'Technical diagnostics' })).toBeFocused()
     await page.keyboard.press('Tab')

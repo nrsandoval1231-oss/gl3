@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "scope": "unmocked authenticated isolated real-source database",
+  "width": 768,
+  "height": 1024,
+  "unfiltered_project_cards": 25,
+  "detail_heading": "CHINE 101HA \u00b7 Well 101HA",
+  "detail_in_viewport": true,
+  "back_control_in_viewport": true,
+  "list_hidden_on_detail": true,
+  "horizontal_overflow": false,
+  "back_preserves_sector": true,
+  "outreach": false,
+  "workspace_application_source_revision": "e2d00edec5cb9bdf5cdccc0f43a22aae8d782e61"
+}

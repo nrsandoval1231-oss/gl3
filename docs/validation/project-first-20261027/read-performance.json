@@ -1,0 +1,106 @@
+{
+  "scope": "warm authenticated local HTTP reads on isolated real-source replay; not production latency or scale proof",
+  "requests_measured": 40,
+  "prepared_generation_rows": 1727,
+  "cases": [
+    {
+      "case": "default",
+      "samples": 10,
+      "count_unit": "projects",
+      "total": 0,
+      "median_ms": 8.67,
+      "p95_ms": 10.51,
+      "maximum_ms": 10.51,
+      "samples_ms": [
+        10.51,
+        9.22,
+        9.11,
+        7.77,
+        8.62,
+        8.43,
+        8.71,
+        8.89,
+        7.94,
+        7.89
+      ]
+    },
+    {
+      "case": "oil_gas",
+      "samples": 10,
+      "count_unit": "projects",
+      "total": 1722,
+      "median_ms": 198.83,
+      "p95_ms": 259.4,
+      "maximum_ms": 259.4,
+      "samples_ms": [
+        198.84,
+        200.4,
+        198.82,
+        204.21,
+        199.08,
+        196.87,
+        197.59,
+        197.17,
+        198.6,
+        259.4
+      ]
+    },
+    {
+      "case": "data_centers",
+      "samples": 10,
+      "count_unit": "projects",
+      "total": 4,
+      "median_ms": 93.46,
+      "p95_ms": 130.41,
+      "maximum_ms": 130.41,
+      "samples_ms": [
+        93.35,
+        93.58,
+        92.96,
+        92.38,
+        94.57,
+        95.24,
+        93.2,
+        93.8,
+        92.75,
+        130.41
+      ]
+    },
+    {
+      "case": "prepared_need_detail",
+      "samples": 10,
+      "count_unit": "projects",
+      "total": 1,
+      "median_ms": 78.98,
+      "p95_ms": 120.46,
+      "maximum_ms": 120.46,
+      "samples_ms": [
+        80.18,
+        78.23,
+        76.47,
+        75.97,
+        120.46,
+        93.24,
+        78.67,
+        86.81,
+        78.87,
+        79.09
+      ]
+    }
+  ],
+  "counts_before": {
+    "jobs": 1739,
+    "logical_calls": 0,
+    "observations": 1734,
+    "evidence": 1741
+  },
+  "counts_after": {
+    "jobs": 1739,
+    "logical_calls": 0,
+    "observations": 1734,
+    "evidence": 1741
+  },
+  "unchanged_job_provider_and_evidence_counts": true,
+  "outreach": false,
+  "workspace_application_source_revision": "e2d00edec5cb9bdf5cdccc0f43a22aae8d782e61"
+}

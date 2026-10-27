@@ -1,0 +1,132 @@
+{
+  "kind": "engineering_validation_receipt",
+  "observed_at": "2026-10-27T07:26:43.394659+00:00",
+  "application_source_revision": "e2d00edec5cb9bdf5cdccc0f43a22aae8d782e61",
+  "foundation_revision": "14513dd596a515c45c9e2938b27a9d9812dda5fc",
+  "source_trees": {
+    "backend": "d3bfe578e9dc92097daf84e2dcf5a1911dbc5213",
+    "web": "953fe737b160bfc34ed7c70d01cfac7d83356172"
+  },
+  "backend_full_baseline": {
+    "passed": 3223,
+    "skipped": 1,
+    "subtests_passed": 7,
+    "duration_seconds": 906.55,
+    "environment": "migrated isolated application DB and separate disposable test DB",
+    "scope": "full run before final narrow prepared-detail/review repairs; not claimed as exact repair-head run"
+  },
+  "backend_repair_scope": {
+    "passed": 6,
+    "command": "pytest tests/integration/test_project_results.py tests/integration/test_rrc_well_research.py -q",
+    "scope": "selected need context, privacy, bounded scheduling, disabled jobs and delayed publisher restriction"
+  },
+  "frontend_full_baseline": {
+    "passed": 128,
+    "scope": "prepared Overview before final narrow attribution/cohort formatting repairs"
+  },
+  "frontend_repair_scope": {
+    "passed": 7,
+    "command": "playwright test tests/project_results.spec.ts tests/dashboard.spec.ts --project=regression --workers=2"
+  },
+  "static": {
+    "ruff": "passed",
+    "format": "passed",
+    "mypy_source_modules": 181,
+    "typescript": "passed",
+    "frontend_build": "passed",
+    "generated_openapi": "updated"
+  },
+  "migrations": {
+    "new_migration": false,
+    "current_head": "0046_import_meta_reparse",
+    "upgrade_repeat": "passed",
+    "metadata_drift": "none detected"
+  },
+  "independent_review": {
+    "model": "gpt-6-astra",
+    "engineering": "ACCEPTED",
+    "commercial": "NOT_ACCEPTED",
+    "production_release": "NOT_APPROVED"
+  },
+  "ci": {
+    "experience": [
+      {
+        "conclusion": "success",
+        "databaseId": 40464646425,
+        "headSha": "e2d00edec5cb9bdf5cdccc0f43a22aae8d782e61",
+        "name": "CI",
+        "status": "completed",
+        "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40464646425"
+      },
+      {
+        "conclusion": "",
+        "databaseId": 40464641231,
+        "headSha": "e2d00edec5cb9bdf5cdccc0f43a22aae8d782e61",
+        "name": "CI",
+        "status": "in_progress",
+        "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40464641231"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 40463593283,
+        "headSha": "5f4f11688fc7aa7d7b6bb8da131f39377b45e3f5",
+        "name": "CI",
+        "status": "completed",
+        "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40463593283"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 40463487168,
+        "headSha": "5f4f11688fc7aa7d7b6bb8da131f39377b45e3f5",
+        "name": "CI",
+        "status": "completed",
+        "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40463487168"
+      }
+    ],
+    "foundation": [
+      {
+        "conclusion": "success",
+        "databaseId": 40464646705,
+        "headSha": "14513dd596a515c45c9e2938b27a9d9812dda5fc",
+        "name": "CI",
+        "status": "completed",
+        "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40464646705"
+      },
+      {
+        "conclusion": "",
+        "databaseId": 40464639716,
+        "headSha": "14513dd596a515c45c9e2938b27a9d9812dda5fc",
+        "name": "CI",
+        "status": "in_progress",
+        "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40464639716"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 40463487619,
+        "headSha": "3dec15145f40526490e2e4706bb28225daa74c84",
+        "name": "CI",
+        "status": "completed",
+        "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40463487619"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 40463485080,
+        "headSha": "3dec15145f40526490e2e4706bb28225daa74c84",
+        "name": "CI",
+        "status": "completed",
+        "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40463485080"
+      }
+    ],
+    "verification_note": "Root independently confirmed successful completed PR-trigger CI for exact foundation and application source commits. Other run entries retain their earlier observation status."
+  },
+  "release": {
+    "production_changed": false,
+    "paid_activation": false,
+    "outreach": false,
+    "blockers": [
+      "Production authenticated/host access and backup/rollback readiness unobserved",
+      "Native W-1 httpx transport receives publisher policy redirect",
+      "Frozen25 does not establish qualified commercial opportunities"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "kind": "actual_native_source_capture_replay",
+  "measured_at": "2026-10-27T06:01:29.554095+00:00",
+  "scope": "isolated local database; no production or live-worker acceptance",
+  "inputs": {
+    "texas-rrc-drilling-permits": {
+      "records": 1730,
+      "sha256": "afe257089d6cb3030fb33379ebfbad1be7c91aaca67e277bd649ea6299a66689"
+    },
+    "texas-tdlr-tabs-data-centers": {
+      "records": 4,
+      "sha256": "e05ee324d35543a48a84582cdbd2aec9bce8904b15a0617ae87a89eef7ffcbce"
+    }
+  },
+  "ingestion_jobs": [
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "status": "succeeded",
+      "error": null
+    },
+    {
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "status": "succeeded",
+      "error": null
+    }
+  ],
+  "retained_jobs_attempted": 1727,
+  "job_outcomes": {
+    "succeeded": 1729,
+    "queued": 1
+  },
+  "counts": {
+    "projects": 1727,
+    "power_needs": 1727,
+    "evidence": 1734,
+    "observations": 1734,
+    "logical_calls": 0
+  },
+  "network_requests_during_replay": 0,
+  "qualification": "Signals require independent temporary-demand, power-floor and site adjudication"
+}

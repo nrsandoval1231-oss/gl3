@@ -1,0 +1,21 @@
+{
+  "kind": "actual_source_cached_contact_privacy_check",
+  "database": "isolated restore clone only",
+  "production": false,
+  "company": "EG AI CORP",
+  "canonical_phone_suppression_removes_cached_call": true,
+  "all_nested_actions_filtered": true,
+  "independent_methodless_person_preserved": true,
+  "generation_rebuilt_after_suppression": false,
+  "same_generation": "ceadc99a-2d7e-4f32-926f-408084dd58bf",
+  "immutable_source_counts_before": {
+    "evidence": 1741,
+    "observations": 1734
+  },
+  "immutable_source_counts_after": {
+    "evidence": 1741,
+    "observations": 1734
+  },
+  "outreach": false,
+  "provider_calls": 0
+}

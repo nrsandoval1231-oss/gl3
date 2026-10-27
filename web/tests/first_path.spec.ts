@@ -39,6 +39,12 @@ async function signIn(page: import('@playwright/test').Page) {
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
 }
 
+async function openSecondaryRoute(page: import('@playwright/test').Page, name: 'Research' | 'Signals') {
+  const menu = page.locator('.wh-account')
+  if (await menu.getAttribute('open') === null) await menu.locator('summary').click()
+  await menu.getByRole('button', { name, exact: true }).click()
+}
+
 test('authenticated desktop browse, detail, back, and search use a live Signal', async ({ page }) => {
   await expect((await page.request.get('/api/health')).status()).toBe(401)
   await signIn(page)
@@ -98,7 +104,7 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
   })
   expect(inbox.status).toBe(200)
   expect(inbox.page.total, 'local retained evidence must populate the ingestion inbox').toBeGreaterThan(0)
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveCount(3)
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveCount(1)
   await page.locator('.wh-account summary').click()
   await page.getByRole('button', { name: 'Technical diagnostics' }).click()
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
@@ -134,7 +140,7 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
   ])
   await expect(page.locator('.wh-ingestion-row').first()).toContainText(inbox.page.items[0].title)
   await sourceFilter.selectOption('el-paso-new-commercial-permits')
-  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Research' }).click()
+  await openSecondaryRoute(page, 'Research')
   await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
   await expect(page.getByText(/Source-backed research progress/)).toBeVisible()
   await page.goBack()
@@ -240,7 +246,7 @@ test('retained out-of-region permits remain inspectable without active Signals',
   await expect(page.locator('.wh-source-row').filter({ hasText: 'georgia-air-draft-title-v' })).toContainText('Disabled')
   await expect(page.locator('.wh-source-row').filter({ hasText: 'chicago-building-permits' })).toContainText('Disabled')
 
-  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await openSecondaryRoute(page, 'Signals')
   await page.getByText('Geography, industry, activity, timing, size and priority filters').click()
   await page.getByLabel('Geography', { exact: true }).fill('Georgia')
   await expect(page.locator('.wh-empty')).toContainText('No Signals match these filters.')

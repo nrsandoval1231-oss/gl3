@@ -1,0 +1,45 @@
+{
+  "observed_at": "2026-10-27T05:40:53.481345+00:00",
+  "production": {
+    "droplet_id": 609407604,
+    "status": "active",
+    "backup_ids": [
+      251385344,
+      250317208
+    ],
+    "workspace_http_status": 401,
+    "api_health_http_status": 401,
+    "configured_secrets": 0,
+    "configured_outbound_identities": 0,
+    "ssh_identity_available": false,
+    "connected_browser_tool_available": false,
+    "host_execution_tool_available": false,
+    "deployed_commit": null,
+    "schema": null,
+    "fresh_backup_restore_verified": false,
+    "deployment_performed": false
+  },
+  "local_initial_database": {
+    "schema": "0007_signal_decisions",
+    "projects": 0,
+    "evidence": 0,
+    "power_needs": 0,
+    "sources": 13
+  },
+  "live_sources": [
+    {
+      "path": "/tmp/gl3-eg-rice-live.html",
+      "source": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+      "bytes": 16285,
+      "sha256": "17b2ca4aa6e46f77a7c9cd4f6db3e13253152579ee76ced45f182128ef78c283"
+    },
+    {
+      "path": "/tmp/gl3-rrc-live-records.json",
+      "source": "Existing official RRC current and preceding month retrieval adapter",
+      "bytes": 9680522,
+      "sha256": "afe257089d6cb3030fb33379ebfbad1be7c91aaca67e277bd649ea6299a66689",
+      "records": 1730,
+      "pioneer_records": 144
+    }
+  ]
+}

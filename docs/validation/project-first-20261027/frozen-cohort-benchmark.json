@@ -1,0 +1,1850 @@
+{
+  "kind": "frozen_actual_source_record_benchmark",
+  "measured_at": "2026-10-27T07:06:07.002983+00:00",
+  "scope": "isolated source-capture replay, not production or live scheduled-operation proof",
+  "manifest_sha256": "caf580c68b3ecb425e97ac44f0b53ae413e06f63baf6c5a2d00880ec9d9197ec",
+  "selection_frozen_before_outcomes": true,
+  "requested_projects": 25,
+  "source_records_present": 25,
+  "identity_assertions_exact_match": 24,
+  "identity_assertions_denominator": 25,
+  "identity_conflicts": [
+    {
+      "permit": "0909522",
+      "expected": {
+        "operator": "ADMIRAL PERMIAN OPERATING LLC",
+        "operator_number": "100158",
+        "lease": "LATRELLE UNIT",
+        "well": "301BC"
+      },
+      "official_row": [
+        "30137483 Links Images GIS Viewer Completion",
+        "08",
+        "LATRELLE",
+        "301BC",
+        "ADMIRAL PERMIAN OPERATING LLC(100158)",
+        "LOVING",
+        "Submitted: 07/28/2025        \r\n         \r\n          Approved: 08/12/2025",
+        "909522",
+        "Horizontal",
+        "New Drill",
+        "N",
+        "11500",
+        "",
+        "APPROVED"
+      ],
+      "identity_fields_match": {
+        "operator_and_number": true,
+        "lease": false,
+        "well": true
+      }
+    }
+  ],
+  "qualified_projects": 0,
+  "projects_with_company_routes": 4,
+  "projects_with_named_people": 4,
+  "projects_with_person_bound_methods": 0,
+  "verified_purchasing_authority": 0,
+  "purchasing_authority_outcomes": {
+    "Requires confirmation for this power package": 4
+  },
+  "milestone_kinds": {
+    "permit_issued": 19,
+    "developer_reported_planned_start": 4,
+    "permit_amended": 2
+  },
+  "unique_company_routes": 4,
+  "current_spud_or_completion_coverage": 0,
+  "typed_permit_or_planned_milestone_projects": 25,
+  "supported_power_gap_projects": 0,
+  "qualified_commercial_actionability_projects": 0,
+  "commercial_acceptance": "NOT_MET: no supported eligible 300kW temporary-power cohort; source records are Signals",
+  "counts": {
+    "projects": 1727,
+    "power_needs": 1727,
+    "observations": 1734,
+    "evidence": 1741,
+    "logical_calls": 0
+  },
+  "read_measures": [
+    {
+      "case": "qualified_default",
+      "total_projects": 0,
+      "returned_projects": 0,
+      "query_count": 3,
+      "elapsed_ms": 4.12,
+      "response_bytes": 248,
+      "results_scope": "qualified",
+      "items": null
+    },
+    {
+      "case": "oil_gas",
+      "total_projects": 1722,
+      "returned_projects": 25,
+      "query_count": 2,
+      "elapsed_ms": 180.76,
+      "response_bytes": 68833,
+      "results_scope": "discovery",
+      "items": null
+    },
+    {
+      "case": "data_centers",
+      "total_projects": 4,
+      "returned_projects": 4,
+      "query_count": 3,
+      "elapsed_ms": 136.35,
+      "response_bytes": 17999,
+      "results_scope": "discovery",
+      "items": null
+    },
+    {
+      "case": "pioneer",
+      "total_projects": 144,
+      "returned_projects": 25,
+      "query_count": 2,
+      "elapsed_ms": 126.61,
+      "response_bytes": 70544,
+      "results_scope": "discovery",
+      "items": null
+    },
+    {
+      "case": "same_well_duplicate_permits",
+      "total_projects": 9,
+      "returned_projects": 9,
+      "query_count": 2,
+      "elapsed_ms": 117.03,
+      "response_bytes": 27615,
+      "results_scope": "discovery",
+      "items": [
+        {
+          "id": "decb8a1c-662c-4467-ba51-25bd58c878fd",
+          "project_id": "decb8a1c-662c-4467-ba51-25bd58c878fd",
+          "project_ids": [
+            "decb8a1c-662c-4467-ba51-25bd58c878fd"
+          ],
+          "asset_identity": null,
+          "representative_need_id": "cd4c0d89-6ee6-430a-a672-0ecc9a7b930f",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 212",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 58,
+          "needs": [
+            {
+              "id": "cd4c0d89-6ee6-430a-a672-0ecc9a7b930f",
+              "project_id": "decb8a1c-662c-4467-ba51-25bd58c878fd",
+              "name": "Texas W-1 permit 0919407",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 212",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 1,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0919407",
+                "event": {
+                  "date": "2026-10-21",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "c7a75c7b-4e3b-43e0-81f0-a67ef1cb424e"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 212",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "212",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-10-21"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": null,
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 1,
+          "event": {
+            "date": "2026-10-21",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "c7a75c7b-4e3b-43e0-81f0-a67ef1cb424e"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:47:23.706254+00:00"
+        },
+        {
+          "id": "6a02a7f4-380e-43ce-b9e4-ee883e233ddc",
+          "project_id": "6a02a7f4-380e-43ce-b9e4-ee883e233ddc",
+          "project_ids": [
+            "6a02a7f4-380e-43ce-b9e4-ee883e233ddc"
+          ],
+          "asset_identity": null,
+          "representative_need_id": "fe2cb0c3-53a3-4cee-b711-ee21ce27ec55",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 214",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 58,
+          "needs": [
+            {
+              "id": "fe2cb0c3-53a3-4cee-b711-ee21ce27ec55",
+              "project_id": "6a02a7f4-380e-43ce-b9e4-ee883e233ddc",
+              "name": "Texas W-1 permit 0919405",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 214",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 1,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0919405",
+                "event": {
+                  "date": "2026-10-21",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "34f41f2c-739b-4ee5-82cc-778177eea4b7"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 214",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "214",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-10-21"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": null,
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 1,
+          "event": {
+            "date": "2026-10-21",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "34f41f2c-739b-4ee5-82cc-778177eea4b7"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:47:23.271586+00:00"
+        },
+        {
+          "id": "dd50fde2-689c-41d1-82a1-f1b6665b2d9e",
+          "project_id": "dd50fde2-689c-41d1-82a1-f1b6665b2d9e",
+          "project_ids": [
+            "dd50fde2-689c-41d1-82a1-f1b6665b2d9e"
+          ],
+          "asset_identity": null,
+          "representative_need_id": "1dd8d990-dcae-48b0-b717-14f1e390c643",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 701",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 58,
+          "needs": [
+            {
+              "id": "1dd8d990-dcae-48b0-b717-14f1e390c643",
+              "project_id": "dd50fde2-689c-41d1-82a1-f1b6665b2d9e",
+              "name": "Texas W-1 permit 0919175",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 701",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 1,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0919175",
+                "event": {
+                  "date": "2026-10-08",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "2ddecb51-4c1b-4f77-b07f-8d9295651a93"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 701",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "701",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-10-08"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": null,
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 1,
+          "event": {
+            "date": "2026-10-08",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "2ddecb51-4c1b-4f77-b07f-8d9295651a93"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:46:38.872018+00:00"
+        },
+        {
+          "id": "533bc54e-040c-40f7-a36f-0405868ed4b4",
+          "project_id": "533bc54e-040c-40f7-a36f-0405868ed4b4",
+          "project_ids": [
+            "533bc54e-040c-40f7-a36f-0405868ed4b4"
+          ],
+          "asset_identity": null,
+          "representative_need_id": "d426405f-a1a1-4928-adfc-e7036b1b6ec7",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 401",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 58,
+          "needs": [
+            {
+              "id": "d426405f-a1a1-4928-adfc-e7036b1b6ec7",
+              "project_id": "533bc54e-040c-40f7-a36f-0405868ed4b4",
+              "name": "Texas W-1 permit 0919173",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 401",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 1,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0919173",
+                "event": {
+                  "date": "2026-10-08",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "b313bbc0-764c-48e6-b841-bdab5c81a197"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 401",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "401",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-10-08"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": null,
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 1,
+          "event": {
+            "date": "2026-10-08",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "b313bbc0-764c-48e6-b841-bdab5c81a197"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:46:38.380582+00:00"
+        },
+        {
+          "id": "c7623221-f69b-4101-8335-d0322be8b70e",
+          "project_id": "c7623221-f69b-4101-8335-d0322be8b70e",
+          "project_ids": [
+            "c7623221-f69b-4101-8335-d0322be8b70e"
+          ],
+          "asset_identity": null,
+          "representative_need_id": "7b5de9cb-9a69-45b2-be30-3c0395c0bebf",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 302 R",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 50,
+          "needs": [
+            {
+              "id": "7b5de9cb-9a69-45b2-be30-3c0395c0bebf",
+              "project_id": "c7623221-f69b-4101-8335-d0322be8b70e",
+              "name": "Texas W-1 permit 0918902",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 302 R",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 1,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0918902",
+                "event": {
+                  "date": "2026-09-25",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "b57d35ca-311d-4a13-8e91-87d3571aa9de"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 302 R",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "302 R",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-09-25"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": null,
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 1,
+          "event": {
+            "date": "2026-09-25",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "b57d35ca-311d-4a13-8e91-87d3571aa9de"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:45:47.670202+00:00"
+        },
+        {
+          "id": "fad5f133-167b-4c62-9645-872ade62b871",
+          "project_id": "fad5f133-167b-4c62-9645-872ade62b871",
+          "project_ids": [
+            "fad5f133-167b-4c62-9645-872ade62b871"
+          ],
+          "asset_identity": null,
+          "representative_need_id": "c2841bed-9758-4e75-a2e4-c517ee9af87b",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 302 R",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 50,
+          "needs": [
+            {
+              "id": "c2841bed-9758-4e75-a2e4-c517ee9af87b",
+              "project_id": "fad5f133-167b-4c62-9645-872ade62b871",
+              "name": "Texas W-1 permit 0918901",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 302 R",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 1,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0918901",
+                "event": {
+                  "date": "2026-09-25",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "5c2224ab-21a4-4b47-a297-268c5d7b82c4"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 302 R",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "302 R",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-09-25"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": null,
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 1,
+          "event": {
+            "date": "2026-09-25",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "5c2224ab-21a4-4b47-a297-268c5d7b82c4"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:45:47.483294+00:00"
+        },
+        {
+          "id": "1d7ac12d-6a6a-45c8-b49f-9a7ffecf400d",
+          "project_id": "1d7ac12d-6a6a-45c8-b49f-9a7ffecf400d",
+          "project_ids": [
+            "1d7ac12d-6a6a-45c8-b49f-9a7ffecf400d"
+          ],
+          "asset_identity": null,
+          "representative_need_id": "b1567ffe-e9ed-42f8-9cc6-25471f022b17",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 607 R",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 50,
+          "needs": [
+            {
+              "id": "b1567ffe-e9ed-42f8-9cc6-25471f022b17",
+              "project_id": "1d7ac12d-6a6a-45c8-b49f-9a7ffecf400d",
+              "name": "Texas W-1 permit 0918900",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 607 R",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 1,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0918900",
+                "event": {
+                  "date": "2026-09-25",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "fd1371b3-9bcd-45f5-a465-089e67aa6c90"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 607 R",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "607 R",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-09-25"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": null,
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 1,
+          "event": {
+            "date": "2026-09-25",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "fd1371b3-9bcd-45f5-a465-089e67aa6c90"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:45:47.270106+00:00"
+        },
+        {
+          "id": "6e65f6f5-2a30-486e-b753-5924497a9394",
+          "project_id": "6e65f6f5-2a30-486e-b753-5924497a9394",
+          "project_ids": [
+            "6e65f6f5-2a30-486e-b753-5924497a9394"
+          ],
+          "asset_identity": null,
+          "representative_need_id": "d4a9ad19-e86e-4577-90ea-db55e8387e16",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 607 R",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 50,
+          "needs": [
+            {
+              "id": "d4a9ad19-e86e-4577-90ea-db55e8387e16",
+              "project_id": "6e65f6f5-2a30-486e-b753-5924497a9394",
+              "name": "Texas W-1 permit 0918899",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 607 R",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 1,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0918899",
+                "event": {
+                  "date": "2026-09-25",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "3711861a-1f74-4084-ab3c-49990dac7e35"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 607 R",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "607 R",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-09-25"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": null,
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 1,
+          "event": {
+            "date": "2026-09-25",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "3711861a-1f74-4084-ab3c-49990dac7e35"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:45:47.042613+00:00"
+        },
+        {
+          "id": "5e17ad90-cb54-5a10-ac0a-57d416968fe1",
+          "project_id": "ba149ff2-b2c3-4fcd-9556-327690c363c5",
+          "project_ids": [
+            "ba149ff2-b2c3-4fcd-9556-327690c363c5",
+            "dd1481c3-2803-4748-962b-5e719c36977c"
+          ],
+          "asset_identity": {
+            "kind": "us_well_api",
+            "value": "4216538299",
+            "source": "Texas Railroad Commission official well record",
+            "evidence_refs": [
+              "2e74a863-abd4-47eb-b06f-e42cd6d946fd",
+              "6f06cfee-5a7b-4b8b-bc3e-b7edd157e942",
+              "abfd1cdc-dd56-440e-8513-80857e233c8e"
+            ],
+            "identity_validated": true
+          },
+          "representative_need_id": "8644c82c-e355-4da4-942e-966f6b9d5c7c",
+          "name": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 604 R",
+          "company": "OXY USA WTP LP",
+          "location": "GAINES County, TX",
+          "sector": "oil_gas",
+          "asset_type": "upstream_well",
+          "priority_score": 50,
+          "needs": [
+            {
+              "id": "8644c82c-e355-4da4-942e-966f6b9d5c7c",
+              "project_id": "ba149ff2-b2c3-4fcd-9556-327690c363c5",
+              "name": "Texas W-1 permit 0918878",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 604 R",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 4,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0918878",
+                "event": {
+                  "date": "2026-09-24",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "9fe93936-6233-43bc-ad06-0729b48c45f9"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 604 R",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "county": "GAINES",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "604 R",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-09-24",
+                  "historical_completion_date": "2015-04-19",
+                  "historical_recompletion_date": "2016-06-02"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": {
+                  "kind": "us_well_api",
+                  "value": "4216538299",
+                  "source": "Texas Railroad Commission official well record",
+                  "evidence_refs": [
+                    "2e74a863-abd4-47eb-b06f-e42cd6d946fd",
+                    "6f06cfee-5a7b-4b8b-bc3e-b7edd157e942",
+                    "abfd1cdc-dd56-440e-8513-80857e233c8e"
+                  ],
+                  "identity_validated": true
+                },
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            },
+            {
+              "id": "d4deb576-0025-4d2f-a15b-e4ec7e9fd011",
+              "project_id": "dd1481c3-2803-4748-962b-5e719c36977c",
+              "name": "Texas W-1 permit 0918877",
+              "browse_title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 604 R",
+              "asset_type": "upstream_well",
+              "tier": "Signal",
+              "location": "RRC county code 165, Texas",
+              "activity": "well-permit",
+              "commercial_preview": {
+                "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "disposition": "WATCH",
+                "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+                "organization": "OXY USA WTP LP",
+                "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?"
+              },
+              "evidence_count": 4,
+              "priority_segment": 7,
+              "priority_label": "Oil and gas activity",
+              "project_metadata": {
+                "name": "Texas W-1 permit 0918877",
+                "event": {
+                  "date": "2026-09-24",
+                  "kind": "permit_issued",
+                  "label": "Permit issued",
+                  "source": "texas-rrc-drilling-permits",
+                  "evidence_refs": [
+                    "27dcc751-76e6-40f6-95d1-c307996160ca"
+                  ]
+                },
+                "owner": null,
+                "title": "OXY USA WTP LP \u00b7 WEST SEMINOLE SA UNIT \u00b7 Well 604 R",
+                "sector": "oil_gas",
+                "oil_gas": {
+                  "lease": "WEST SEMINOLE SA UNIT",
+                  "county": "GAINES",
+                  "status": "Approved",
+                  "operator": "OXY USA WTP LP",
+                  "county_code": "165",
+                  "well_number": "604 R",
+                  "operator_number": "630555",
+                  "permit_issue_date": "2026-09-24",
+                  "historical_completion_date": "2015-04-19",
+                  "historical_recompletion_date": "2016-06-02"
+                },
+                "location": "GAINES County, TX",
+                "operator": "OXY USA WTP LP",
+                "data_center": null,
+                "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+                "asset_identity": {
+                  "kind": "us_well_api",
+                  "value": "4216538299",
+                  "source": "Texas Railroad Commission official well record",
+                  "evidence_refs": [
+                    "a505e37a-4b65-43ef-b06a-83ff97315789",
+                    "e38cff9f-1f84-4030-997e-496496ac7431",
+                    "eeefb039-36a0-45a2-b059-4569801746e7"
+                  ],
+                  "identity_validated": true
+                },
+                "power_summary_kind": "unknown"
+              },
+              "contact_actions": [],
+              "contact_people": []
+            }
+          ],
+          "need_count": 2,
+          "event": {
+            "date": "2026-09-24",
+            "kind": "permit_issued",
+            "label": "Permit issued",
+            "source": "texas-rrc-drilling-permits",
+            "evidence_refs": [
+              "9fe93936-6233-43bc-ad06-0729b48c45f9"
+            ]
+          },
+          "contact": [],
+          "contact_people": [],
+          "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+          "power_summary_kind": "unknown",
+          "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+          "updated_at": "2026-10-27T05:45:43.058135+00:00"
+        }
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919088",
+      "project_id": "a170fe79-c240-407f-83cc-3cdfbd36b094",
+      "present": true,
+      "name": "DE V OPERATING, LLC \u00b7 JAGUAR WEST A 40-45 \u00b7 Well 2801H",
+      "company": "DE V OPERATING, LLC",
+      "location": "MARTIN County, TX",
+      "event": {
+        "date": "2026-10-09",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "57fe93ac-7efe-45ee-bdf7-26a02fecc760"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027002808",
+      "project_id": "2123d078-8077-451f-b389-b98ed9249a0f",
+      "present": true,
+      "name": "EG AI RICE CAMPUS DATA CENTER",
+      "company": "EG AI CORP",
+      "location": "800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)",
+      "event": {
+        "date": "2026-11-06",
+        "kind": "developer_reported_planned_start",
+        "label": "Developer-reported planned start",
+        "source": "texas-tdlr-tabs-data-centers",
+        "evidence_refs": [
+          "e531ff17-2cd5-42d6-9268-6448eb040378"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [
+        {
+          "href": "tel:2816029714",
+          "kind": "call",
+          "name": null,
+          "role": "owner developer",
+          "title": null,
+          "company": "EG AI CORP",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+          "responsibility": "General company contact path",
+          "purchasing_authority": "Requires confirmation for this power package",
+          "label": "Call EG AI CORP",
+          "route_kind": "company_route"
+        }
+      ],
+      "named_people": [
+        {
+          "name": "LUIS DIAZ",
+          "role": "owner developer",
+          "title": null,
+          "company": "EG AI CORP",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+          "responsibility": "Verified project responsibility",
+          "purchasing_authority": "Requires confirmation for this power package"
+        }
+      ],
+      "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919206",
+      "project_id": "b0f2d173-e928-4d26-afd2-dd882d59074d",
+      "present": true,
+      "name": "HIGHMARK ENERGY OPERATING, LLC \u00b7 EXITO \u00b7 Well 3H",
+      "company": "HIGHMARK ENERGY OPERATING, LLC",
+      "location": "PECOS County, TX",
+      "event": {
+        "date": "2026-10-16",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "b8302eed-5ba1-4936-9100-ba420356e922"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2026026954",
+      "project_id": "b216aa77-8f71-4d1d-a767-c7335c2420cb",
+      "present": true,
+      "name": "PECOS COUNTY DATA CENTER",
+      "company": "AMAZON DATA SERVICES, INC",
+      "location": "6000 TX-18, Fort Stockton, TX 79735 (Pecos County)",
+      "event": {
+        "date": "2026-08-01",
+        "kind": "developer_reported_planned_start",
+        "label": "Developer-reported planned start",
+        "source": "texas-tdlr-tabs-data-centers",
+        "evidence_refs": [
+          "a5dd9283-192a-43ed-b0ab-4b2dbda47ae2"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [
+        {
+          "href": "tel:2062664064",
+          "kind": "call",
+          "name": null,
+          "role": "owner developer",
+          "title": null,
+          "company": "AMAZON DATA SERVICES, INC",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+          "responsibility": "General company contact path",
+          "purchasing_authority": "Requires confirmation for this power package",
+          "label": "Call AMAZON DATA SERVICES, INC",
+          "route_kind": "company_route"
+        }
+      ],
+      "named_people": [
+        {
+          "name": "Kali Dickerson",
+          "role": "owner developer",
+          "title": null,
+          "company": "AMAZON DATA SERVICES, INC",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+          "responsibility": "Verified project responsibility",
+          "purchasing_authority": "Requires confirmation for this power package"
+        }
+      ],
+      "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0909805",
+      "project_id": "f19e88c1-ae3e-49bf-a5d9-d37c86e07b1d",
+      "present": true,
+      "name": "ANADARKO E&P ONSHORE LLC \u00b7 BEARTOOTH 54-1-34 UNIT \u00b7 Well 21H",
+      "company": "ANADARKO E&P ONSHORE LLC",
+      "location": "LOVING County, TX",
+      "event": {
+        "date": "2026-10-05",
+        "kind": "permit_amended",
+        "label": "Permit amended",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "9f43d7d6-ac0a-4c3b-abef-dd7bcdb7101c"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027000611",
+      "project_id": "dce30d26-efe2-4b79-bce2-392dd32d46ab",
+      "present": true,
+      "name": "Beacon Point Data Center Project",
+      "company": "Beacon Point DC LLC aka Lon Hill Infrastructure LLC",
+      "location": "4650 FM 1694, ROBSTOWN, TX 78380, Corpus Christi, TX 78380 (Nueces County)",
+      "event": {
+        "date": "2026-09-28",
+        "kind": "developer_reported_planned_start",
+        "label": "Developer-reported planned start",
+        "source": "texas-tdlr-tabs-data-centers",
+        "evidence_refs": [
+          "9cf4f543-95f3-41ff-8162-35c132276c93"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [
+        {
+          "href": "tel:3052246427",
+          "kind": "call",
+          "name": null,
+          "role": "owner developer",
+          "title": null,
+          "company": "Beacon Point DC LLC aka Lon Hill Infrastructure LLC",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611",
+          "responsibility": "General company contact path",
+          "purchasing_authority": "Requires confirmation for this power package",
+          "label": "Call Beacon Point DC LLC aka Lon Hill Infrastructure LLC",
+          "route_kind": "company_route"
+        }
+      ],
+      "named_people": [
+        {
+          "name": "Sean Glennan",
+          "role": "owner developer",
+          "title": null,
+          "company": "Beacon Point DC LLC aka Lon Hill Infrastructure LLC",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611",
+          "responsibility": "Verified project responsibility",
+          "purchasing_authority": "Requires confirmation for this power package"
+        }
+      ],
+      "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918168",
+      "project_id": "4b8fe736-2e2a-4780-92cc-e5aa819e4841",
+      "present": true,
+      "name": "HIBERNIA RESOURCES IV, LLC \u00b7 CAMRYN D \u00b7 Well 4H",
+      "company": "HIBERNIA RESOURCES IV, LLC",
+      "location": "IRION County, TX",
+      "event": {
+        "date": "2026-09-01",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "7988dd60-c2d0-4dbf-a211-a923bb28f254"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-tdlr-tabs-data-centers",
+      "external_id": "TABS-TABS2027002672",
+      "project_id": "b1f77ad7-b4d0-4f76-b6c7-f830cbf59bd2",
+      "present": true,
+      "name": "DAL130 - Data Center",
+      "company": "Circle T Owner LP",
+      "location": "13572 N. Main Street, Westlake, TX 76262 (Tarrant County)",
+      "event": {
+        "date": "2026-12-01",
+        "kind": "developer_reported_planned_start",
+        "label": "Developer-reported planned start",
+        "source": "texas-tdlr-tabs-data-centers",
+        "evidence_refs": [
+          "b0ecdf90-f134-48a4-8c35-14196240cfd5"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [
+        {
+          "href": "tel:5717311698",
+          "kind": "call",
+          "name": null,
+          "role": "owner developer",
+          "title": null,
+          "company": "Circle T Owner LP",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+          "responsibility": "General company contact path",
+          "purchasing_authority": "Requires confirmation for this power package",
+          "label": "Call Circle T Owner LP",
+          "route_kind": "company_route"
+        }
+      ],
+      "named_people": [
+        {
+          "name": "Zaid Arzate",
+          "role": "owner developer",
+          "title": null,
+          "company": "Circle T Owner LP",
+          "source_url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+          "responsibility": "Verified project responsibility",
+          "purchasing_authority": "Requires confirmation for this power package"
+        }
+      ],
+      "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918384",
+      "project_id": "c38f1b1b-7d90-4af3-8e05-e9dedd06bddd",
+      "present": true,
+      "name": "NEWPORT OPERATING, LLC \u00b7 GRAY, NOBLE MRS. \u00b7 Well 33",
+      "company": "NEWPORT OPERATING, LLC",
+      "location": "WICHITA County, TX",
+      "event": {
+        "date": "2026-09-09",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "0ee94963-2215-4cff-ad8b-ddc84c26022d"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917768",
+      "project_id": "b43b8d06-3b64-434e-a508-58f65440ed3a",
+      "present": true,
+      "name": "SILVER HILL ENERGY OPERATING LLC \u00b7 BULLITT B \u00b7 Well 3H",
+      "company": "SILVER HILL ENERGY OPERATING LLC",
+      "location": "SHELBY County, TX",
+      "event": {
+        "date": "2026-09-11",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "241c1472-7f2d-4be4-8164-12357dfa60f1"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918542",
+      "project_id": "96c1154b-5a55-4e48-ac7a-9db61cb18b5a",
+      "present": true,
+      "name": "MURPHY EXPL. & PROD. CO. - USA \u00b7 KONE \u00b7 Well 105H",
+      "company": "MURPHY EXPL. & PROD. CO. - USA",
+      "location": "DIMMIT County, TX",
+      "event": {
+        "date": "2026-09-11",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "998bf7ed-2b3f-416c-b3b9-f3e59a1cf435"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917670",
+      "project_id": "b5130b30-d726-4050-b33b-52725692fd17",
+      "present": true,
+      "name": "DIAMONDBACK E&P LLC \u00b7 RUTTER 1-12 C \u00b7 Well 1WA",
+      "company": "DIAMONDBACK E&P LLC",
+      "location": "MIDLAND County, TX",
+      "event": {
+        "date": "2026-09-03",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "542800d8-cbf5-49f9-ad66-5cd875476a6c"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918881",
+      "project_id": "fa8a182b-5faa-4414-a4a0-31d7a40ef20e",
+      "present": true,
+      "name": "ROCKCLIFF ENERGY OPERATING III \u00b7 NEILSON RANCH B \u00b7 Well 3H",
+      "company": "ROCKCLIFF ENERGY OPERATING III",
+      "location": "SHELBY County, TX",
+      "event": {
+        "date": "2026-10-23",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "3466eef3-8cc3-466d-80ed-e6787406fd33"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918265",
+      "project_id": "d71e1d18-8f55-4abb-9498-39fd484986e7",
+      "present": true,
+      "name": "DIAMONDBACK E&P LLC \u00b7 ROSE MARIE 4-40 B \u00b7 Well 2H",
+      "company": "DIAMONDBACK E&P LLC",
+      "location": "ECTOR County, TX",
+      "event": {
+        "date": "2026-09-10",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "74ea4323-754c-4084-97fc-d4319f0dd503"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918684",
+      "project_id": "ddc90284-5675-4d5d-a714-5b1868324920",
+      "present": true,
+      "name": "PERMIAN RESOURCES OPERATING, LLC \u00b7 LOS VAQUEROS UNIT 2 \u00b7 Well 1H",
+      "company": "PERMIAN RESOURCES OPERATING, LLC",
+      "location": "LOVING County, TX",
+      "event": {
+        "date": "2026-09-24",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "d31f043a-5c8f-4ac6-863b-4aa0e5027b95"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918560",
+      "project_id": "bb924942-19c4-43c5-8495-22ad1b8ab4f1",
+      "present": true,
+      "name": "INEOS USA OIL & GAS LLC \u00b7 ANDERSON-STONE DIM HC3 \u00b7 Well E 3H",
+      "company": "INEOS USA OIL & GAS LLC",
+      "location": "DIMMIT County, TX",
+      "event": {
+        "date": "2026-09-14",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "29aecb97-46a8-42d5-b30b-a227f6e7a9aa"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0909522",
+      "project_id": "52176916-014b-4c61-b956-af929df15557",
+      "present": true,
+      "name": "ADMIRAL PERMIAN OPERATING LLC \u00b7 LATRELLE UNIT \u00b7 Well 301BC",
+      "company": "ADMIRAL PERMIAN OPERATING LLC",
+      "location": "LOVING County, TX",
+      "event": {
+        "date": "2026-09-14",
+        "kind": "permit_amended",
+        "label": "Permit amended",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "9a5c8513-b20e-46b1-92f6-863ddd51a942"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919327",
+      "project_id": "cc7469d2-1de2-4062-ac17-f86dc4e8806b",
+      "present": true,
+      "name": "BLUE ARROW OPERATING, LLC \u00b7 STATE ROCK RIVER 30-19 D \u00b7 Well 1SB",
+      "company": "BLUE ARROW OPERATING, LLC",
+      "location": "REEVES County, TX",
+      "event": {
+        "date": "2026-10-19",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "601605a9-1918-428d-8c2e-2e61b2d898ff"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918882",
+      "project_id": "6c35dcd2-e35d-48ca-960f-4d257defbf12",
+      "present": true,
+      "name": "ROCKCLIFF ENERGY OPERATING III \u00b7 OLYMPIA FIELDS OS B \u00b7 Well 3HB",
+      "company": "ROCKCLIFF ENERGY OPERATING III",
+      "location": "SAN AUGUSTINE County, TX",
+      "event": {
+        "date": "2026-10-05",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "9fd2c972-883a-4e6e-b751-44305b9bca2b"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0915570",
+      "project_id": "6650433c-d410-43b9-9322-f1894a3e47b9",
+      "present": true,
+      "name": "COG OPERATING LLC \u00b7 COUNTRY MAC A8 \u00b7 Well 703LH",
+      "company": "COG OPERATING LLC",
+      "location": "MIDLAND County, TX",
+      "event": {
+        "date": "2026-09-09",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "69155cd7-e3c6-4c14-b8c5-b0b27e3416c7"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918069",
+      "project_id": "89c1c76a-28e6-462f-95d1-e7fb1bfc74c3",
+      "present": true,
+      "name": "PIONEER NATURAL RES. USA, INC. \u00b7 GLASSCOCK-DICKENSON 44C \u00b7 Well 3H",
+      "company": "PIONEER NATURAL RES. USA, INC.",
+      "location": "MARTIN County, TX",
+      "event": {
+        "date": "2026-09-24",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "3b5df480-e947-4f82-83ff-93d0f5a6e72b"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0917656",
+      "project_id": "6778b11c-8d39-44c8-94c6-0b4d77bb564d",
+      "present": true,
+      "name": "DIAMONDBACK E&P LLC \u00b7 PEGGY 20 N \u00b7 Well U 2WB",
+      "company": "DIAMONDBACK E&P LLC",
+      "location": "MIDLAND County, TX",
+      "event": {
+        "date": "2026-09-11",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "dbafdecf-1fa1-421a-ae7d-b5fba66fbd21"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919153",
+      "project_id": "32c904a4-c17c-4895-83e4-f70c22ebfd03",
+      "present": true,
+      "name": "MEWBOURNE OIL COMPANY \u00b7 HALF TON 2/17 D \u00b7 Well N101DM",
+      "company": "MEWBOURNE OIL COMPANY",
+      "location": "UPTON County, TX",
+      "event": {
+        "date": "2026-10-22",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "c68bd5f3-bfea-431c-8d04-5729534ecd84"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0919092",
+      "project_id": "579a711a-acff-4162-9ab1-f4ed60d1a339",
+      "present": true,
+      "name": "DE V OPERATING, LLC \u00b7 JAGUAR WEST E 40-45 \u00b7 Well 4205H",
+      "company": "DE V OPERATING, LLC",
+      "location": "MARTIN County, TX",
+      "event": {
+        "date": "2026-10-09",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "25856ece-3df8-43ce-bfa6-017b0c0f7403"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "external_id": "0918254",
+      "project_id": "8777ae2c-3f95-461b-850d-7b386a133ebe",
+      "present": true,
+      "name": "CHEVRON U. S. A. INC. \u00b7 CMC NIGHTSHADE 17/5 UNIT \u00b7 Well 1744JM",
+      "company": "CHEVRON U. S. A. INC.",
+      "location": "MIDLAND County, TX",
+      "event": {
+        "date": "2026-09-10",
+        "kind": "permit_issued",
+        "label": "Permit issued",
+        "source": "texas-rrc-drilling-permits",
+        "evidence_refs": [
+          "c13e7495-d529-4de0-81fa-2b17e362784b"
+        ]
+      },
+      "tiers": [
+        "Signal"
+      ],
+      "required_mw": [
+        null
+      ],
+      "need_start": [
+        null
+      ],
+      "contact_routes": [],
+      "named_people": [],
+      "power_summary": "Oil and gas asset identified; power demand and timing are not established by permit evidence.",
+      "power_summary_kind": "unknown"
+    }
+  ],
+  "outside_cohort": "OXY 0918877/0918878 same-API historical completion/recompletion does not improve frozen25 current milestone coverage"
+}
