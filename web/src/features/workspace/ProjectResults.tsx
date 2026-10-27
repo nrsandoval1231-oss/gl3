@@ -90,6 +90,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
       <h2 className="customer-group-heading"><button className="customer-group-toggle" type="button" aria-expanded={Boolean(expanded[group.id])} onClick={() => toggleGroup(group)}>
         <span><strong className="customer-group-name">{group.name}</strong><small>{group.role === 'operator' ? 'Operator' : group.role === 'customer' ? 'Customer' : 'Operator/customer unresolved'}{group.operator_number ? ` · Operator ${group.operator_number}` : ''}</small></span>
         <span className="customer-group-count">{group.project_count} {group.project_count === 1 ? 'project' : 'projects'}</span>
+        <svg className="customer-group-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 18 6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button></h2>
       {expanded[group.id] && <div className="customer-group-projects">
         {childErrors[group.id] && <p role="alert">{childErrors[group.id]} <button type="button" onClick={() => loadGroupProjects(group, 0)}>Reload projects</button></p>}

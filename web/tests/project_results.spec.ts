@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { resolve } from 'node:path'
 
 // Synthetic mocked contract fixtures only; this does not claim real corpus validation.
 const sample = {
@@ -188,6 +189,35 @@ test('synthetic delayed child response cannot repopulate results after a search 
   releaseChild?.()
   await expect(page.getByRole('heading', { name: 'Old search project', exact: true })).toHaveCount(0)
   await expect(page.locator('.project-card')).toHaveCount(0)
+})
+
+test('operator group disclosure is visible and tappable on desktop and mobile', async ({ page }) => {
+  const screenshotRoot = resolve(process.cwd(), '..', '.artifacts', 'release-operator-customer-20261027')
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ json: projectPage }))
+  await page.goto('/')
+  const groupButton = page.getByRole('button', { name: /Example Energy/ })
+  const chevron = groupButton.locator('.customer-group-chevron')
+  await expect(groupButton).toHaveAttribute('aria-expanded', 'false')
+  await expect(chevron).toBeVisible()
+  await expect.poll(() => groupButton.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44)
+  await expect.poll(() => chevron.evaluate(element => getComputedStyle(element).transform)).toBe('none')
+  await page.screenshot({ path: resolve(screenshotRoot, 'group-closed-desktop.png'), fullPage: true })
+
+  await groupButton.click()
+  await expect(groupButton).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('heading', { name: 'Example Compressor Station', exact: true })).toBeVisible()
+  await expect.poll(() => chevron.evaluate(element => getComputedStyle(element).transform)).not.toBe('none')
+  await page.screenshot({ path: resolve(screenshotRoot, 'group-open-desktop.png'), fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+  await page.screenshot({ path: resolve(screenshotRoot, 'group-open-mobile.png'), fullPage: true })
+  await groupButton.click()
+  await expect(groupButton).toHaveAttribute('aria-expanded', 'false')
+  await expect.poll(() => chevron.evaluate(element => getComputedStyle(element).transform)).toBe('none')
+  await page.screenshot({ path: resolve(screenshotRoot, 'group-closed-mobile.png'), fullPage: true })
 })
 
 test('synthetic detail reloads the selected project by exact need and fails closed until retry', async ({ page }) => {
