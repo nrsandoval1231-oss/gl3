@@ -1,6 +1,6 @@
 # GridLens — Autonomous Commercial Intelligence Canon
-Status: OWNER-APPROVED · 2026-10-25 · exceptional-control clarification 2026-10-26
-Authority: This document supersedes conflicting product, workflow, UI, and agent instructions throughout this repository. Historical documents are records, not active requirements where they conflict.
+Status: OWNER-APPROVED · 2026-10-25 · exceptional-control clarification 2026-10-26 · project-first UX amendment 2026-10-27
+Authority: This document supersedes conflicting product, workflow, UI, and agent instructions throughout this repository. The later owner-approved [Project-First Results Canon](PROJECT_FIRST_RESULTS_CANON.md) controls the current opportunity surface and vertical-specific field presentation. Historical documents are records, not active requirements where they conflict.
 
 ## Product truth
 GridLens is an autonomous commercial intelligence engine for constrained and temporary power. It discovers projects, resolves project/company identity, investigates power needs, determines evidence-supported residual power gaps, identifies buying chains, enriches business contact details, ranks opportunities, and continuously refreshes intelligence. The user opens the application to see which projects matter, why, and whom to contact. The user is not a data-entry operator.
@@ -10,7 +10,7 @@ GridLens is an autonomous commercial intelligence engine for constrained and tem
 - Do not reintroduce these routine workflows under new names, tabs, dialogs, or routes. Preserve exceptional correction, suppression and privacy controls through audited internal operations/services. They must not become a prerequisite to discovery, enrichment, qualification or daily use.
 - Primary surfaces: actionable Opportunities, automated Research, emerging Signals, and search. Operations/diagnostics may remain internal, not a user workflow.
 - Every opportunity should expose company/project, physical location, power need, plausible residual gap, timing/duration, priority, decision-maker and verified business email/phone where available, explanation, sources, freshness, and explicit unknowns.
-- Preserve the approved seven-color G/L brand and horizontal-navigation, dense-table/detail-panel composition. Mobile must be genuinely usable.
+- Preserve the approved seven-color G/L brand and compact navigation. Display **project-first, minimal actionable results** rather than the prior dense account table, four KPI tiles, placeholder totals or raw technical workflows. The primary market filters are All / Oil & Gas / Data Centers. Mobile must be genuinely usable; the project-first UX canon is authoritative for layout and sector fields.
 
 ## Autonomous pipeline
 DISCOVER → RESOLVE → RESEARCH → ENRICH → ANALYZE → SCORE → PUBLISH → REFRESH.
