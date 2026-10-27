@@ -64,13 +64,10 @@ def parse_report(
             sheet = ET.fromstring(archive.read("xl/worksheets/sheet1.xml"))
             workbook = ET.fromstring(archive.read("xl/workbook.xml"))
             workbook_properties = workbook.find("x:workbookPr", NS)
-            date1904 = (
-                workbook_properties is not None
-                and workbook_properties.get("date1904") in {
-                    "1",
-                    "true",
-                }
-            )
+            date1904 = workbook_properties is not None and workbook_properties.get("date1904") in {
+                "1",
+                "true",
+            }
             date_epoch = MAC_EPOCH if date1904 else WINDOWS_EPOCH
         rows = []
         for row in sheet.findall(".//x:row", NS):

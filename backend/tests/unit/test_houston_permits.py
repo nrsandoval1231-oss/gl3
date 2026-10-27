@@ -103,12 +103,8 @@ def test_report_accepts_excel_serial_permit_dates(date_system):
 
 
 def test_serial_and_text_dates_have_the_same_semantic_hash_and_duplicate_identity():
-    _, text_rows = parse_report(
-        workbook(), INDEX, today=date(2026, 9, 30)
-    )
-    _, serial_rows = parse_report(
-        workbook(serial_dates=True), INDEX, today=date(2026, 9, 30)
-    )
+    _, text_rows = parse_report(workbook(), INDEX, today=date(2026, 9, 30))
+    _, serial_rows = parse_report(workbook(serial_dates=True), INDEX, today=date(2026, 9, 30))
     assert serial_rows[0]["source_hash"] == text_rows[0]["source_hash"]
     _, duplicate_rows = parse_report(
         workbook(serial_dates=True, duplicate=True), INDEX, today=date(2026, 9, 30)
@@ -122,9 +118,10 @@ def test_serial_and_text_dates_have_the_same_semantic_hash_and_duplicate_identit
         "1 Example Road",
         "New data center construction",
     ]
-    assert text_rows[0]["source_hash"] == hashlib.sha256(
-        json.dumps(legacy_material, ensure_ascii=False).encode()
-    ).hexdigest()
+    assert (
+        text_rows[0]["source_hash"]
+        == hashlib.sha256(json.dumps(legacy_material, ensure_ascii=False).encode()).hexdigest()
+    )
 
 
 def test_report_accepts_listing_date_at_either_week_boundary():
@@ -147,9 +144,7 @@ def test_report_rejects_unrelated_listing_date_and_nonweekly_interval():
             listed_week_start=date(2026, 9, 8),
         )
     with pytest.raises(SourceParseError, match="date interval"):
-        parse_report(
-            workbook(week_end="2026/09/15"), INDEX, today=date(2026, 9, 30)
-        )
+        parse_report(workbook(week_end="2026/09/15"), INDEX, today=date(2026, 9, 30))
 
 
 def _retrieval_client(start, end, first, second):
