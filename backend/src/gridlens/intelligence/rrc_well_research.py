@@ -8,7 +8,8 @@ from time import monotonic
 from uuid import UUID
 
 import httpx
-from sqlalchemy import exists, func, select
+from sqlalchemy import DateTime, case, cast, exists, func, literal, select
+from sqlalchemy.dialects.postgresql import JSONB
 
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
@@ -32,13 +33,28 @@ REFRESH_DAYS = 7
 
 
 def _access_cooldown(session, now: datetime) -> bool:
+    checkpoint = cast(
+        case(
+            (func.pg_input_is_valid(Job.checkpoint, literal("jsonb")), Job.checkpoint),
+            else_="{}",
+        ),
+        JSONB,
+    )
+    raw_observed_at = checkpoint["access_restricted_at"].astext
+    observed_at = case(
+        (
+            func.pg_input_is_valid(raw_observed_at, literal("timestamptz")),
+            cast(raw_observed_at, DateTime(timezone=True)),
+        ),
+        else_=Job.created_at,
+    )
     return bool(
         session.scalar(
             select(Job.id)
             .where(
                 Job.kind == KIND,
                 Job.source_id == SOURCE,
-                Job.created_at >= now - timedelta(days=1),
+                observed_at >= now - timedelta(days=1),
                 Job.checkpoint.contains('"status":"access_restricted"'),
             )
             .limit(1)
@@ -318,7 +334,11 @@ def process_rrc_well_job(
         with SessionLocal.begin() as session:
             job = assert_fence(session, job_id, worker_id, fence)
             checkpoint = json.loads(job.checkpoint or "{}")
-            checkpoint.update(status="access_restricted", source_claims_admitted=False)
+            checkpoint.update(
+                status="access_restricted",
+                source_claims_admitted=False,
+                access_restricted_at=datetime.now(UTC).isoformat(),
+            )
             job.checkpoint = _canonical(checkpoint)
             job.status, job.error, job.lease_owner, job.lease_until = "succeeded", None, None, None
         return

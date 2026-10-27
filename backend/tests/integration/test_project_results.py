@@ -61,7 +61,12 @@ def _seed_project_metadata(factory):
                     "sector": category,
                     "title": f"Asset {index}",
                     "operator": "Same Operator",
-                    "event": None,
+                    "event": {
+                        "kind": "permit_issued",
+                        "label": "Permit issued",
+                        "date": f"2026-10-{index + 1:02d}",
+                    },
+                    "power_summary": f"Distinct prepared power context {index}",
                     "asset_identity": identity,
                 },
                 "contact_actions": [
@@ -86,6 +91,7 @@ def _seed_project_metadata(factory):
                     }
                 ],
                 "contacts": [{"email": "suppressed@example.invalid"}],
+                "commercial_preview": {"next_action": f"Distinct action {index}"},
             }
         return company_id
 
@@ -111,6 +117,12 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         assert scoped["items"][0]["need_count"] == 3
         assert scoped["results_scope"] == "discovery"
         assert page(session, need_id=uuid4())["items"] == []
+        lower_need = grouped["needs"][-1]
+        selected = page(session, need_id=UUID(lower_need["id"]), limit=1)["items"][0]
+        assert selected["representative_need_id"] == lower_need["id"]
+        assert selected["event"] == lower_need["project_metadata"]["event"]
+        assert selected["power_summary"] == lower_need["project_metadata"]["power_summary"]
+        assert selected["next_action"] == lower_need["commercial_preview"]["next_action"]
         assert "contacts" not in grouped["needs"][0]
         assert "suppressed@example.invalid" not in repr(full["items"])
         second = page(

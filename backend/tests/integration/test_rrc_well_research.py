@@ -217,6 +217,7 @@ def test_publisher_policy_redirect_stops_retries_and_defers_other_queued_researc
                 lease_owner="fixture",
                 fence=1,
                 lease_until=datetime.now(UTC) + timedelta(minutes=5),
+                created_at=datetime.now(UTC) - timedelta(days=2),
                 checkpoint=json.dumps(
                     {
                         "policy": research.POLICY,

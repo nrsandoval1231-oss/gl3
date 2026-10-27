@@ -45,6 +45,7 @@ def page(
         "term": term,
         "limit": limit,
         "offset": min(offset, generation.row_count),
+        "selected_need": need_id,
     }
     if need_id is not None:
         filters.append("need_id = :need_id")
@@ -101,7 +102,8 @@ def page(
               ORDER BY {order} LIMIT :limit OFFSET :offset
             )
             SELECT p.asset_key, p.project_ids,
-              (array_agg(b.compact ORDER BY b.rank_score DESC, b.updated_at DESC, b.need_id))[1]
+              (array_agg(b.compact ORDER BY (b.need_id = :selected_need) DESC NULLS LAST,
+                        b.rank_score DESC, b.updated_at DESC, b.need_id))[1]
                   AS representative,
               jsonb_agg(
                 b.compact ORDER BY b.rank_score DESC, b.updated_at DESC, b.need_id
