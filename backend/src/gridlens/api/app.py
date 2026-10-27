@@ -615,7 +615,33 @@ def _validate_browse_query(request: Request) -> None:
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
             raise HTTPException(422, "search must be at most 250 characters")
-    elif request.url.path == "/api/opportunities/export.csv":
+    elif request.url.path == "/api/opportunities/groups":
+        allowed = {"search", "sector", "limit", "offset", "cohort_token", "sort"}
+        search = request.query_params.get("search")
+        if search is not None and len(search) > 250:
+            raise HTTPException(422, "search must be at most 250 characters")
+    else:
+        path_parts = request.url.path.split("/")
+        is_customer_group_projects = (
+            len(path_parts) == 6
+            and path_parts[:4] == ["", "api", "opportunities", "groups"]
+            and bool(path_parts[4])
+            and path_parts[5] == "projects"
+        )
+        if is_customer_group_projects:
+            allowed = {
+                "search",
+                "sector",
+                "limit",
+                "offset",
+                "cohort_token",
+                "sort",
+                "parent_cohort_token",
+            }
+            search = request.query_params.get("search")
+            if search is not None and len(search) > 250:
+                raise HTTPException(422, "search must be at most 250 characters")
+    if request.url.path == "/api/opportunities/export.csv":
         allowed = (allowed - {"offset", "sort"}) | {"industry_group"}
     elif request.url.path == "/api/opportunities/map-window":
         allowed = _BROWSE_FILTER_NAMES | {"tier", "search", "decision"}
