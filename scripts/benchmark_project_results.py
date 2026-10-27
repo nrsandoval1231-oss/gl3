@@ -161,7 +161,20 @@ def main():
         "projects_with_person_bound_methods": sum(
             any(route.get("name") for route in row["contact_routes"]) for row in present
         ),
-        "verified_purchasing_authority": 0,
+        "verified_purchasing_authority": sum(
+            any(
+                route.get("purchasing_authority_verified") is True
+                and route.get("authority_evidence_refs")
+                for route in row["contact_routes"]
+            )
+            for row in present
+        ),
+        "purchasing_authority_outcomes": dict(
+            Counter(
+                route.get("purchasing_authority") or "Not established"
+                for route in routes
+            )
+        ),
         "milestone_kinds": dict(
             Counter(row["event"]["kind"] for row in present if row["event"])
         ),

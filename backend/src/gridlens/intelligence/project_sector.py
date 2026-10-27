@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from gridlens.domain.opportunity_intelligence import normalize_gap
 from gridlens.intelligence.rrc_counties import county_label
 
 _RRC = "texas-rrc-drilling-permits"
@@ -418,6 +419,39 @@ def result_metadata(compact: dict[str, Any]) -> dict[str, Any]:
     power_summary = _first(compact, "power_summary", "power_relevance_summary")
     if not power_summary and isinstance(card, dict):
         power_summary = _first(card, "power_summary", "power_relevance_summary")
+    if not power_summary:
+        gap = normalize_gap(compact)
+        if gap:
+            power_summary = (
+                f"Supported residual power gap: {gap['remaining_mw_min']}–"
+                f"{gap['remaining_mw_max']} MW."
+            )
+            if gap.get("start_window"):
+                power_summary += f" Power needed {gap['start_window']}."
+            if gap.get("duration"):
+                power_summary += f" Duration: {gap['duration']}."
+        elif compact.get("tier") in {"Prospect", "Lead"} and compact.get("required_mw"):
+            power_summary = (
+                f"Activity-specific requirement: {compact['required_mw']}. "
+                "Suitable supply and residual gap require supported evidence."
+            )
+        elif isinstance(card, dict):
+            facility = next(
+                (
+                    field
+                    for field in card.get("fields", [])
+                    if isinstance(field, dict)
+                    and field.get("key") == "facility_demand"
+                    and field.get("value")
+                    and field.get("status") in {"Source-reported", "Evidence-supported"}
+                ),
+                None,
+            )
+            if facility:
+                power_summary = (
+                    f"Reported facility demand: {facility['value']}; "
+                    "temporary demand and residual gap are not established."
+                )
     if sector == "oil_gas" and oil_gas:
         power_summary = power_summary or (
             "Oil and gas asset identified; power demand and timing are not established "

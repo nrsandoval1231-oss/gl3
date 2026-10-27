@@ -387,3 +387,44 @@ def test_original_permit_issue_and_later_amendment_keep_distinct_dates_and_label
     assert result["event"]["kind"] == "permit_amended"
     assert result["event"]["label"] == "Permit amended"
     assert result["event"]["date"] == "2026-09-15"
+
+
+def test_existing_canonical_lead_gap_supplies_power_summary_without_a_new_summary_field():
+    result = result_metadata(
+        {
+            "asset_type": "data_center",
+            "tier": "Lead",
+            "qualification_version": "supported-v1",
+            "required_mw": "5 MW",
+            "start_window": "2026-11-01",
+            "duration": "90 days",
+            "qualified_remaining_gap": {
+                "required_mw_min": "5",
+                "required_mw_max": "5",
+                "available_mw_min": "2",
+                "available_mw_max": "2",
+                "remaining_mw_min": "3",
+                "remaining_mw_max": "3",
+            },
+        }
+    )
+    assert "Supported residual power gap: 3–3 MW" in result["power_summary"]
+    assert "2026-11-01" in result["power_summary"]
+    assert "not established" not in result["power_summary"]
+
+
+def test_reported_facility_demand_is_distinct_from_temporary_demand_and_gap():
+    result = result_metadata(
+        {
+            "asset_type": "data_center",
+            "tier": "Signal",
+            "intelligence_card": {
+                "fields": [
+                    {"key": "facility_demand", "value": "800 MW", "status": "Source-reported"},
+                ]
+            },
+        }
+    )
+    assert result["power_summary"] == (
+        "Reported facility demand: 800 MW; temporary demand and residual gap are not established."
+    )
