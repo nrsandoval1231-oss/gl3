@@ -436,6 +436,228 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         assert company_contacts(session, company_id).contacts == []
 
 
+def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db, monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.domain.evaluation_clock import evaluate_at
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.intelligence.contact_suppressions import (
+        method_suppression_key,
+        record_contact_suppression,
+    )
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="rrc-p5-contact")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence).join(Observation).where(Observation.external_id == "rrc-p5-contact")
+        )
+        assert evidence is not None
+        evidence.abstract = "DE V Operating, LLC is the operator; operator_number: 102606."
+        evidence.title = "RRC operator 102606 drilling permit"
+        identity = CompanyIdentity(rrc_operator_number="102606")
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="asset_operator",
+                organization_name="DE V OPERATING, LLC",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_rrc_operator_number_v1",
+                operator_number="102606",
+                state="current",
+            )
+        )
+        native_projects = discovery._projects(session, identity.id)
+        native_anchor = discovery._select_anchor_project(session, native_projects, identity.id)
+        assert native_anchor is not None
+        assert discovery._search_name(session, native_anchor, identity.id) == "DE V OPERATING, LLC"
+        queued = discovery.discover_company_contacts(session, identity.id)
+        job = session.get(Job, UUID(queued["job_id"]))
+        assert job is not None
+        job.status = "running"
+        job.lease_owner = "rrc-p5-test"
+        job.fence = 1
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        job.created_at = NOW
+        job_id, company_id, project_id = job.id, identity.id, project.id
+
+    observed_at = datetime(2026, 10, 27, 20, 0, tzinfo=UTC)
+    process_at = datetime(2026, 10, 28, 12, 0, tzinfo=UTC)
+    snapshot = {
+        "index_url": "https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/operator-information/oil-gas-directory-operator-contact/",
+        "source_url": "https://www.rrc.texas.gov/media/rnckkl2o/oil-and-gas-directory-10-27-26.xlsx",
+        "filename_date": "2026-10-27",
+        "workbook_header_timestamp": "10/27/2026 12:01:48 PM",
+        "workbook_header_date": "2026-10-27",
+        "landing_freshness_statement": "Information available in this query is updated nightly.",
+        "observed_at": observed_at.isoformat(),
+        "raw_sha256": "a" * 64,
+        "operators": {
+            "102606": [
+                {
+                    "operator_number": "102606",
+                    "organization": "DE V Operating, LLC",
+                    "normal_phone": "8179283260",
+                    "status": "Active",
+                    "row_number": 1857,
+                }
+            ]
+        },
+    }
+    paid_search_attempts = []
+    directory_attempts = []
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    monkeypatch.setattr(
+        discovery,
+        "load_current_directory",
+        lambda **_kwargs: directory_attempts.append(True) or snapshot,
+    )
+    monkeypatch.setattr(
+        discovery,
+        "_search_official_urls",
+        lambda *_args: paid_search_attempts.append(True) or [],
+    )
+    monkeypatch.setattr(
+        discovery,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("no URL retrieval expected in native P5 fallback"),
+    )
+
+    result = discovery.process_company_contact_discovery(
+        job_id, "rrc-p5-test", 1, now=process_at, deadline=time.monotonic() + 10
+    )
+
+    assert directory_attempts == [True], result
+    assert result["status"] == "complete", result["results"]
+    assert len(paid_search_attempts) == 1  # Stubbed; no paid provider invocation.
+    with db.begin() as session:
+        projected = company_contacts(session, company_id)
+        methods = [method for contact in projected.contacts for method in contact.methods]
+        assert [(method["kind"], method["value"]) for method in methods] == [
+            ("phone", "8179283260")
+        ]
+        assert not any(contact.name for contact in projected.contacts)
+        assert projected.research_required is True
+        evidence = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project_id,
+                BuyingChainEvidence.url == snapshot["source_url"],
+            )
+        )
+        assert evidence is not None
+        assert evidence.observed_at == observed_at
+        assert evidence.last_seen_at == observed_at  # Cache replay did not refresh provenance.
+        assert evidence.published_at == date(2026, 10, 27)
+        assert "Workbook SHA-256: " + "a" * 64 in evidence.excerpt
+        assert "Phone: 8179283260" in evidence.excerpt
+        assert "Emergency: 2545597845" not in evidence.excerpt
+        assert "timezone unspecified" in evidence.excerpt
+        view = buying_chain_view(session, project_id)
+        company = next(
+            candidate
+            for candidate in view["candidates"]
+            if candidate.get("company_identity_id") == str(company_id)
+            and not candidate.get("person_name")
+        )
+        assert company["public_contacts"]
+        assert company["public_contacts"][0]["value"] == "8179283260"
+        assert any(
+            citation.get("url") == snapshot["source_url"]
+            and citation.get("quote") == "Phone: 8179283260"
+            for citation in company["evidence"]
+        )
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=method_suppression_key(company_id, None, "phone", "8179283260"),
+            action="suppress",
+            expected_version=0,
+            reason="Privacy fixture: preserve suppression across native directory refresh.",
+            actor="test",
+            idempotency_key="rrc-p5-method-suppression",
+        )
+        with evaluate_at(process_at):
+            projected_after_suppression = company_contacts(session, company_id)
+        assert not any(
+            method["value"] == "8179283260"
+            for contact in projected_after_suppression.contacts
+            for method in contact.methods
+        )
+
+
+def test_rrc_directory_retrieval_policy_queues_once_and_deduplicates(db, monkeypatch):
+    import json
+    import threading
+
+    import gridlens.intelligence.company_contact_discovery as discovery
+    import gridlens.jobs.worker as worker
+    from gridlens.persistence.models import CompanyProjectMembership, Job
+    from gridlens.settings import settings
+
+    monkeypatch.setattr(settings, "worker_auto_refresh", True)
+    monkeypatch.setattr(settings, "company_contact_discovery_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_enabled", False)
+    monkeypatch.setattr(settings, "autonomous_research_enabled", False)
+    monkeypatch.setattr(settings, "rrc_well_research_enabled", False)
+    monkeypatch.setattr(settings, "monitoring_enabled", False)
+    lane_names = {name for name, *_ in worker._worker_lane_specs(threading.Event(), {})}
+    assert "gridlens-planner-company-contacts" in lane_names
+
+    with db.begin() as session:
+        project = seed(session, external_id="rrc-policy-contact")
+        project.region_status = "ELIGIBLE"
+        evidence = session.scalar(
+            select(Evidence)
+            .join(Observation)
+            .where(Observation.external_id == "rrc-policy-contact")
+        )
+        assert evidence is not None
+        evidence.abstract = "DE V Operating, LLC is the operator; operator_number: 102606."
+        identity = CompanyIdentity(rrc_operator_number="102606")
+        session.add(identity)
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="asset_operator",
+                organization_name="DE V OPERATING, LLC",
+                source_id="test",
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="typed_rrc_operator_number_v1",
+                operator_number="102606",
+                state="current",
+            )
+        )
+        monkeypatch.setattr(discovery, "NATIVE_RRC_DIRECTORY_POLICY", "legacy-contact-policy")
+        assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 1
+        old_job = session.scalar(
+            select(Job).where(Job.kind == discovery.JOB_KIND, Job.target_id == identity.id)
+        )
+        assert old_job is not None
+        old_digest = json.loads(old_job.checkpoint)["research_digest"]
+
+        assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 0
+        monkeypatch.setattr(discovery, "NATIVE_RRC_DIRECTORY_POLICY", "rrc-p5-directory-v1")
+        assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 1
+        jobs = session.scalars(
+            select(Job)
+            .where(Job.kind == discovery.JOB_KIND, Job.target_id == identity.id)
+            .order_by(Job.created_at, Job.id)
+        ).all()
+        assert len(jobs) == 2
+        new_digest = json.loads(jobs[-1].checkpoint)["research_digest"]
+        assert new_digest != old_digest
+        assert json.loads(jobs[-1].checkpoint)["payload"]["candidate_urls"] == []
+        assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 0
+
+
 def test_unverified_company_page_links_are_never_followed(db, monkeypatch):
     import json
 
