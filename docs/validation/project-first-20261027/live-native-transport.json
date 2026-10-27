@@ -1,0 +1,11 @@
+{
+  "kind": "live_official_native_httpx_transport_probe",
+  "permit": "0918069",
+  "observed_at": "2026-10-27T06:26:58.754822+00:00",
+  "database_writes": 0,
+  "paid_calls": 0,
+  "status": "blocked",
+  "error_class": "SourceParseError",
+  "reason": "RRC detail form left the reviewed official host or path",
+  "request_count": 1
+}

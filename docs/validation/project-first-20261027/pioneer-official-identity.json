@@ -1,0 +1,70 @@
+{
+  "observed_at": "2026-10-27T05:43:21.352196+00:00",
+  "permit": "0918069",
+  "api_state_county_well": "42-317-47395",
+  "operator": "PIONEER NATURAL RES. USA, INC.",
+  "operator_number": "665748",
+  "lease": "GLASSCOCK-DICKENSON 44C",
+  "well": "3H",
+  "county": "MARTIN",
+  "state": "TX",
+  "permit_issue_date": "2026-09-24",
+  "spud_date": null,
+  "drilling_completed_date": null,
+  "well_completed_date": null,
+  "first_production_date": null,
+  "coordinate_reference_system": "NAD27",
+  "latitude": 32.148117,
+  "longitude": -101.956058,
+  "notes": [
+    "Dates absent from returned official records must remain null.",
+    "No Packet records found in official completion search, not evidence that no completion occurred.",
+    "Coordinates must not be labeled WGS84 without conversion."
+  ],
+  "sources": [
+    {
+      "raw_path": "/tmp/gl3-pioneer-query-live.html",
+      "text_path": "/tmp/gl3-pioneer-query-live.txt",
+      "raw_sha256": "cef399799e73b437cc64865b11dd0e986ab8aab44ecd06ed9f16f8b7b00d5e05",
+      "bytes": 22701,
+      "title": "Drilling Permit (W-1) Query"
+    },
+    {
+      "raw_path": "/tmp/gl3-pioneer-detail-linked.html",
+      "text_path": "/tmp/gl3-pioneer-detail-linked.txt",
+      "raw_sha256": "f3c8c78ea63c8645e379d926e6b39eeefc585f03d1d86b5f0bb33ac50a22aa6a",
+      "bytes": 57450,
+      "title": "Drilling Permit (W-1) Query"
+    },
+    {
+      "raw_path": "/tmp/gl3-pioneer-lease-linked.html",
+      "text_path": "/tmp/gl3-pioneer-lease-linked.txt",
+      "raw_sha256": "c86314c8a717974a18c41bcc424433bd95754f6cd3feda77405103cd01cb5890",
+      "bytes": 26181,
+      "title": "Lease Detail"
+    },
+    {
+      "raw_path": "/tmp/gl3-pioneer-wellbore-linked.html",
+      "text_path": "/tmp/gl3-pioneer-wellbore-linked.txt",
+      "raw_sha256": "6fcb06c7d8483766b3b5257bbb6f7800153d5ee75e36fc15619a96ad763f87ba",
+      "bytes": 27922,
+      "title": "Lease Detail"
+    },
+    {
+      "raw_path": "/tmp/gl3-pioneer-api-linked.html",
+      "text_path": "/tmp/gl3-pioneer-api-linked.txt",
+      "raw_sha256": "344232a2c38372f48b8ddbf812f673e0e455f9d13ca39743aca5fea852042f34",
+      "bytes": 17248,
+      "title": "Wellbore Query Results"
+    },
+    {
+      "raw_path": "/tmp/gl3-pioneer-completion-linked.html",
+      "text_path": "/tmp/gl3-pioneer-completion-linked.txt",
+      "raw_sha256": "6937f72046d6e59bd5ad89703228b26ca1c73e481f697205fe429014df0669f2",
+      "bytes": 19516,
+      "title": "Oil & Gas Data Query"
+    }
+  ],
+  "official_query_url": "https://webapps2.rrc.texas.gov/EWA/drillingPermitsQueryAction.do?methodToCall=search&searchArgs.permitStatusNoHndlr.inputValue=918069",
+  "official_completion_query_url": "https://webapps.rrc.texas.gov/CMPL/ewaSearchAction.do?methodToCall=searchByApiNo&apiNo=31747395&relatedLink=Y"
+}

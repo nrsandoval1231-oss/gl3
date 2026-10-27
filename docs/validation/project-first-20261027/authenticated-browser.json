@@ -1,0 +1,95 @@
+{
+  "kind": "unmocked_authenticated_local_source_capture_UI",
+  "production": false,
+  "login_status": 200,
+  "route_interception": false,
+  "contact_outreach": false,
+  "checks": [
+    {
+      "case": "oil-gas",
+      "width": 390,
+      "overflow": false,
+      "count": "1722 projects",
+      "firstCard": "upstream well\nOil & Gas\nSignal\nCHINE 101HA \u00b7 Well 101HA\n\nCRESCENT ENERGY OPERATING, LLC \u00b7 MCMULLEN County, TX\n\nPermit issued \u00b7 2026-10-21\n\nMonitoring for verified power demand.\n\nContact not yet verified\nView project details"
+    },
+    {
+      "case": "oil-gas",
+      "width": 768,
+      "overflow": false,
+      "count": "1722 projects",
+      "firstCard": "upstream well\nOil & Gas\nSignal\nCHINE 101HA \u00b7 Well 101HA\n\nCRESCENT ENERGY OPERATING, LLC \u00b7 MCMULLEN County, TX\n\nPermit issued \u00b7 2026-10-21\n\nMonitoring for verified power demand.\n\nContact not yet verified\nView project details"
+    },
+    {
+      "case": "oil-gas",
+      "width": 1440,
+      "overflow": false,
+      "count": "1722 projects",
+      "firstCard": "upstream well\nOil & Gas\nSignal\nCHINE 101HA \u00b7 Well 101HA\n\nCRESCENT ENERGY OPERATING, LLC \u00b7 MCMULLEN County, TX\n\nPermit issued \u00b7 2026-10-21\n\nMonitoring for verified power demand.\n\nContact not yet verified\nView project details"
+    },
+    {
+      "case": "eg-ai",
+      "width": 390,
+      "overflow": false,
+      "count": "1 project",
+      "firstCard": "data center\nData Centers\nSignal\nDiscovery call \u00b7 Power need unconfirmed\nEG AI RICE CAMPUS DATA CENTER\n\nEG AI CORP \u00b7 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)\n\nDeveloper-reported planned start \u00b7 2026-11-06\n\nDiscuss project power plans with EG AI CORP.\n\nLUIS DIAZ \u00b7 Listed owner contact \u00b7 EG AI CORP\n\nVerified project responsibility\n\nNo verified direct method\nSource\nCall EG AI CORP\nView project details"
+    },
+    {
+      "case": "eg-ai",
+      "width": 768,
+      "overflow": false,
+      "count": "1 project",
+      "firstCard": "data center\nData Centers\nSignal\nDiscovery call \u00b7 Power need unconfirmed\nEG AI RICE CAMPUS DATA CENTER\n\nEG AI CORP \u00b7 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)\n\nDeveloper-reported planned start \u00b7 2026-11-06\n\nDiscuss project power plans with EG AI CORP.\n\nLUIS DIAZ \u00b7 Listed owner contact \u00b7 EG AI CORP\n\nVerified project responsibility\n\nNo verified direct method\nSource\nCall EG AI CORP\nView project details"
+    },
+    {
+      "case": "eg-ai",
+      "width": 1440,
+      "overflow": false,
+      "count": "1 project",
+      "firstCard": "data center\nData Centers\nSignal\nDiscovery call \u00b7 Power need unconfirmed\nEG AI RICE CAMPUS DATA CENTER\n\nEG AI CORP \u00b7 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)\n\nDeveloper-reported planned start \u00b7 2026-11-06\n\nDiscuss project power plans with EG AI CORP.\n\nLUIS DIAZ \u00b7 Listed owner contact \u00b7 EG AI CORP\n\nVerified project responsibility\n\nNo verified direct method\nSource\nCall EG AI CORP\nView project details"
+    },
+    {
+      "case": "pioneer-loaded-detail",
+      "width": 390,
+      "overflow": false,
+      "heading": "GLASSCOCK-DICKENSON 44C \u00b7 Well 3H",
+      "detail": "Opportunities\nupstream well\nOil & Gas\nSignal\nGLASSCOCK-DICKENSON 44C \u00b7 Well 3H\n\nPIONEER NATURAL RES. USA, INC. \u00b7 MARTIN County, TX\n\nPermit issued \u00b7 2026-09-24\n\nMonitoring for verified power demand.\n\nNo current verified contact method is available.\n\nView sources\nOverview\nBuying Chain\nEvidence\nPower Analysis\nMore"
+    },
+    {
+      "case": "pioneer-loaded-detail",
+      "width": 768,
+      "overflow": false,
+      "heading": "GLASSCOCK-DICKENSON 44C \u00b7 Well 3H",
+      "detail": "Opportunities\nupstream well\nOil & Gas\nSignal\nGLASSCOCK-DICKENSON 44C \u00b7 Well 3H\n\nPIONEER NATURAL RES. USA, INC. \u00b7 MARTIN County, TX\n\nPermit issued \u00b7 2026-09-24\n\nMonitoring for verified power demand.\n\nNo current verified contact method is available.\n\nView sources\nOverview\nBuying Chain\nEvidence\nPower Analysis\nMore"
+    },
+    {
+      "case": "pioneer-loaded-detail",
+      "width": 1440,
+      "overflow": false,
+      "heading": "GLASSCOCK-DICKENSON 44C \u00b7 Well 3H",
+      "detail": "Opportunities\nupstream well\nOil & Gas\nSignal\nGLASSCOCK-DICKENSON 44C \u00b7 Well 3H\n\nPIONEER NATURAL RES. USA, INC. \u00b7 MARTIN County, TX\n\nPermit issued \u00b7 2026-09-24\n\nMonitoring for verified power demand.\n\nNo current verified contact method is available.\n\nView sources\nOverview\nBuying Chain\nEvidence\nPower Analysis\nMore"
+    },
+    {
+      "case": "eg-ai-loaded-detail",
+      "width": 390,
+      "overflow": false,
+      "heading": "EG AI RICE CAMPUS DATA CENTER",
+      "detail": "Opportunities\ndata center\nData Centers\nSignal\nEG AI RICE CAMPUS DATA CENTER\n\nEG AI CORP \u00b7 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)\n\nDeveloper-reported planned start \u00b7 2026-11-06\n\nDiscuss project power plans with EG AI CORP.\n\nCall EG AI CORP\nLUIS DIAZ\nListed owner contact \u00b7 EG AI CORP\nVerified project responsibility\nSource\nNo verified direct method\nView sources\nOverview\nBuying Chain\nEvidence\nPower Analysis\nMore"
+    },
+    {
+      "case": "eg-ai-loaded-detail",
+      "width": 768,
+      "overflow": false,
+      "heading": "EG AI RICE CAMPUS DATA CENTER",
+      "detail": "Opportunities\ndata center\nData Centers\nSignal\nEG AI RICE CAMPUS DATA CENTER\n\nEG AI CORP \u00b7 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)\n\nDeveloper-reported planned start \u00b7 2026-11-06\n\nDiscuss project power plans with EG AI CORP.\n\nCall EG AI CORP\nLUIS DIAZ\nListed owner contact \u00b7 EG AI CORP\nVerified project responsibility\nSource\nNo verified direct method\nView sources\nOverview\nBuying Chain\nEvidence\nPower Analysis\nMore"
+    },
+    {
+      "case": "eg-ai-loaded-detail",
+      "width": 1440,
+      "overflow": false,
+      "heading": "EG AI RICE CAMPUS DATA CENTER",
+      "detail": "Opportunities\ndata center\nData Centers\nSignal\nEG AI RICE CAMPUS DATA CENTER\n\nEG AI CORP \u00b7 800 NW MCKINNEY ST, Rice, TX 75155 (Navarro County)\n\nDeveloper-reported planned start \u00b7 2026-11-06\n\nDiscuss project power plans with EG AI CORP.\n\nCall EG AI CORP\nLUIS DIAZ\nListed owner contact \u00b7 EG AI CORP\nVerified project responsibility\nSource\nNo verified direct method\nView sources\nOverview\nBuying Chain\nEvidence\nPower Analysis\nMore"
+    }
+  ],
+  "page_errors": [],
+  "workspace_application_source_revision": "e2d00edec5cb9bdf5cdccc0f43a22aae8d782e61"
+}

@@ -1,0 +1,653 @@
+[
+  {
+    "permit": "0919088",
+    "expected": {
+      "operator": "DE V OPERATING, LLC",
+      "operator_number": "102606",
+      "lease": "JAGUAR WEST A 40-45",
+      "well": "2801H"
+    },
+    "official_row": [
+      "31747557 Links Images GIS Viewer Completion",
+      "08",
+      "JAGUAR WEST A 40-45",
+      "2801H",
+      "DE V OPERATING, LLC(102606)",
+      "MARTIN",
+      "Submitted: 10/01/2026        \r\n         \r\n          Approved: 10/09/2026",
+      "919088",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "10605",
+      "919086",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0919206",
+    "expected": {
+      "operator": "HIGHMARK ENERGY OPERATING, LLC",
+      "operator_number": "385847",
+      "lease": "EXITO",
+      "well": "3H"
+    },
+    "official_row": [
+      "37140575 Links Images GIS Viewer Completion",
+      "08",
+      "EXITO",
+      "3H",
+      "HIGHMARK ENERGY OPERATING, LLC(385847)",
+      "PECOS",
+      "Submitted: 10/07/2026        \r\n         \r\n          Approved: 10/16/2026",
+      "919206",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "9600",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0909805",
+    "expected": {
+      "operator": "ANADARKO E&P ONSHORE LLC",
+      "operator_number": "020528",
+      "lease": "BEARTOOTH 54-1-34 UNIT",
+      "well": "21H"
+    },
+    "official_row": [
+      "30137511 Links Images GIS Viewer Completion",
+      "08",
+      "BEARTOOTH 54-1-34 UNIT",
+      "21H",
+      "ANADARKO E&P ONSHORE LLC(020528)",
+      "LOVING",
+      "Submitted: 08/12/2025        \r\n         \r\n          Approved: 08/13/2025",
+      "909805",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "12000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918168",
+    "expected": {
+      "operator": "HIBERNIA RESOURCES IV, LLC",
+      "operator_number": "101969",
+      "lease": "CAMRYN D",
+      "well": "4H"
+    },
+    "official_row": [
+      "23536785 Links Images GIS Viewer Completion",
+      "7C",
+      "CAMRYN D",
+      "4H",
+      "HIBERNIA RESOURCES IV, LLC(101969)",
+      "IRION",
+      "Submitted: 08/25/2026        \r\n         \r\n          Approved: 09/01/2026",
+      "918168",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "9000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918384",
+    "expected": {
+      "operator": "NEWPORT OPERATING, LLC",
+      "operator_number": "607883",
+      "lease": "GRAY, NOBLE MRS.",
+      "well": "33"
+    },
+    "official_row": [
+      "48546434 Links Images GIS Viewer Completion",
+      "09",
+      "GRAY, NOBLE MRS.",
+      "33",
+      "NEWPORT OPERATING, LLC(607883)",
+      "WICHITA",
+      "Submitted: 09/02/2026        \r\n         \r\n          Approved: 09/09/2026",
+      "918384",
+      "Vertical",
+      "New Drill",
+      "N",
+      "1350",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0917768",
+    "expected": {
+      "operator": "SILVER HILL ENERGY OPERATING LLC",
+      "operator_number": "781863",
+      "lease": "BULLITT B",
+      "well": "3H"
+    },
+    "official_row": [
+      "41931950 Links Images GIS Viewer Completion",
+      "06",
+      "BULLITT B",
+      "3H",
+      "SILVER HILL ENERGY OPERATING LLC(781863)",
+      "SHELBY",
+      "Submitted: 08/10/2026        \r\n         \r\n          Approved: 09/11/2026",
+      "917768",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "12500",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918542",
+    "expected": {
+      "operator": "MURPHY EXPL. & PROD. CO. - USA",
+      "operator_number": "594675",
+      "lease": "KONE",
+      "well": "105H"
+    },
+    "official_row": [
+      "12739241 Links Images GIS Viewer Completion",
+      "01",
+      "KONE",
+      "105H",
+      "MURPHY EXPL. & PROD. CO. - USA(594675)",
+      "DIMMIT",
+      "Submitted: 09/09/2026        \r\n         \r\n          Approved: 09/11/2026",
+      "918542",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "9000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0917670",
+    "expected": {
+      "operator": "DIAMONDBACK E&P LLC",
+      "operator_number": "217012",
+      "lease": "RUTTER 1-12 C",
+      "well": "1WA"
+    },
+    "official_row": [
+      "32948536 Links Images GIS Viewer Completion",
+      "08",
+      "RUTTER 1-12 C",
+      "1WA",
+      "DIAMONDBACK E&P LLC(217012)",
+      "MIDLAND",
+      "Submitted: 08/05/2026        \r\n         \r\n          Approved: 09/03/2026",
+      "917670",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "12500",
+      "917669",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918881",
+    "expected": {
+      "operator": "ROCKCLIFF ENERGY OPERATING III",
+      "operator_number": "103732",
+      "lease": "NEILSON RANCH B",
+      "well": "3H"
+    },
+    "official_row": [
+      "41931960 Links Images GIS Viewer Completion",
+      "06",
+      "NEILSON RANCH B",
+      "3H",
+      "ROCKCLIFF ENERGY OPERATING III(103732)",
+      "SHELBY",
+      "Submitted: 09/22/2026        \r\n         \r\n          Approved: 10/23/2026",
+      "918881",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "16000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918265",
+    "expected": {
+      "operator": "DIAMONDBACK E&P LLC",
+      "operator_number": "217012",
+      "lease": "ROSE MARIE 4-40 B",
+      "well": "2H"
+    },
+    "official_row": [
+      "13544314 Links Images GIS Viewer Completion",
+      "08",
+      "ROSE MARIE 4-40 B",
+      "2H",
+      "DIAMONDBACK E&P LLC(217012)",
+      "ECTOR",
+      "Submitted: 08/28/2026        \r\n         \r\n          Approved: 09/10/2026",
+      "918265",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "13000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918684",
+    "expected": {
+      "operator": "PERMIAN RESOURCES OPERATING, LLC",
+      "operator_number": "100852",
+      "lease": "LOS VAQUEROS UNIT 2",
+      "well": "1H"
+    },
+    "official_row": [
+      "30137979 Links Images GIS Viewer Completion",
+      "08",
+      "LOS VAQUEROS UNIT 2",
+      "1H",
+      "PERMIAN RESOURCES OPERATING, LLC(100852)",
+      "LOVING",
+      "Submitted: 09/15/2026        \r\n         \r\n          Approved: 09/24/2026",
+      "918684",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "13000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918560",
+    "expected": {
+      "operator": "INEOS USA OIL & GAS LLC",
+      "operator_number": "424176",
+      "lease": "ANDERSON-STONE DIM HC3",
+      "well": "E  3H"
+    },
+    "official_row": [
+      "12739247 Links Images GIS Viewer Completion",
+      "01",
+      "ANDERSON-STONE DIM HC3",
+      "E  3H",
+      "INEOS USA OIL & GAS LLC(424176)",
+      "DIMMIT",
+      "Submitted: 09/09/2026        \r\n         \r\n          Approved: 09/14/2026",
+      "918560",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "7300",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0909522",
+    "expected": {
+      "operator": "ADMIRAL PERMIAN OPERATING LLC",
+      "operator_number": "100158",
+      "lease": "LATRELLE UNIT",
+      "well": "301BC"
+    },
+    "official_row": [
+      "30137483 Links Images GIS Viewer Completion",
+      "08",
+      "LATRELLE",
+      "301BC",
+      "ADMIRAL PERMIAN OPERATING LLC(100158)",
+      "LOVING",
+      "Submitted: 07/28/2025        \r\n         \r\n          Approved: 08/12/2025",
+      "909522",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "11500",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": false,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0919327",
+    "expected": {
+      "operator": "BLUE ARROW OPERATING, LLC",
+      "operator_number": "101375",
+      "lease": "STATE ROCK RIVER 30-19 D",
+      "well": "1SB"
+    },
+    "official_row": [
+      "38942358 Links Images GIS Viewer Completion",
+      "08",
+      "STATE ROCK RIVER 30-19 D",
+      "1SB",
+      "BLUE ARROW OPERATING, LLC(101375)",
+      "REEVES",
+      "Submitted: 10/13/2026        \r\n         \r\n          Approved: 10/19/2026",
+      "919327",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "9400",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918882",
+    "expected": {
+      "operator": "ROCKCLIFF ENERGY OPERATING III",
+      "operator_number": "103732",
+      "lease": "OLYMPIA FIELDS OS B",
+      "well": "3HB"
+    },
+    "official_row": [
+      "40530992 Links Images GIS Viewer Completion",
+      "06",
+      "OLYMPIA FIELDS OS B",
+      "3HB",
+      "ROCKCLIFF ENERGY OPERATING III(103732)",
+      "SAN AUGUSTINE",
+      "Submitted: 09/22/2026        \r\n         \r\n          Approved: 10/05/2026",
+      "918882",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "16000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0915570",
+    "expected": {
+      "operator": "COG OPERATING LLC",
+      "operator_number": "166150",
+      "lease": "COUNTRY MAC A8",
+      "well": "703LH"
+    },
+    "official_row": [
+      "32948367 Links Images GIS Viewer Completion",
+      "08",
+      "COUNTRY MAC A8",
+      "703LH",
+      "COG OPERATING LLC(166150)",
+      "MIDLAND",
+      "Submitted: 05/12/2026        \r\n         \r\n          Approved: 09/09/2026",
+      "915570",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "10000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918069",
+    "expected": {
+      "operator": "PIONEER NATURAL RES. USA, INC.",
+      "operator_number": "665748",
+      "lease": "GLASSCOCK-DICKENSON 44C",
+      "well": "3H"
+    },
+    "official_row": [
+      "31747395 Links Images GIS Viewer Completion",
+      "08",
+      "GLASSCOCK-DICKENSON 44C",
+      "3H",
+      "PIONEER NATURAL RES. USA, INC.(665748)",
+      "MARTIN",
+      "Submitted: 08/21/2026        \r\n         \r\n          Approved: 09/24/2026",
+      "918069",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "10389",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0917656",
+    "expected": {
+      "operator": "DIAMONDBACK E&P LLC",
+      "operator_number": "217012",
+      "lease": "PEGGY 20 N",
+      "well": "U  2WB"
+    },
+    "official_row": [
+      "32948551 Links Images GIS Viewer Completion",
+      "08",
+      "PEGGY 20 N",
+      "U  2WB",
+      "DIAMONDBACK E&P LLC(217012)",
+      "MIDLAND",
+      "Submitted: 08/05/2026        \r\n         \r\n          Approved: 09/11/2026",
+      "917656",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "13000",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0919153",
+    "expected": {
+      "operator": "MEWBOURNE OIL COMPANY",
+      "operator_number": "562560",
+      "lease": "HALF TON 2/17 D",
+      "well": "N101DM"
+    },
+    "official_row": [
+      "46143823 Links Images GIS Viewer Completion",
+      "7C",
+      "HALF TON 2/17 D",
+      "N101DM",
+      "MEWBOURNE OIL COMPANY(562560)",
+      "UPTON",
+      "Submitted: 10/05/2026        \r\n         \r\n          Approved: 10/22/2026",
+      "919153",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "11546",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0919092",
+    "expected": {
+      "operator": "DE V OPERATING, LLC",
+      "operator_number": "102606",
+      "lease": "JAGUAR WEST E 40-45",
+      "well": "4205H"
+    },
+    "official_row": [
+      "31747560 Links Images GIS Viewer Completion",
+      "08",
+      "JAGUAR WEST E 40-45",
+      "4205H",
+      "DE V OPERATING, LLC(102606)",
+      "MARTIN",
+      "Submitted: 10/01/2026        \r\n         \r\n          Approved: 10/09/2026",
+      "919092",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "10605",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  },
+  {
+    "permit": "0918254",
+    "expected": {
+      "operator": "CHEVRON U. S. A. INC.",
+      "operator_number": "148113",
+      "lease": "CMC NIGHTSHADE 17/5 UNIT",
+      "well": "1744JM"
+    },
+    "official_row": [
+      "32948587 Links Images GIS Viewer Completion",
+      "08",
+      "CMC NIGHTSHADE 17/5 UNIT",
+      "1744JM",
+      "CHEVRON U. S. A. INC.(148113)",
+      "MIDLAND",
+      "Submitted: 08/28/2026        \r\n         \r\n          Approved: 09/10/2026",
+      "918254",
+      "Horizontal",
+      "New Drill",
+      "N",
+      "10800",
+      "",
+      "APPROVED"
+    ],
+    "identity_fields_match": {
+      "operator_and_number": true,
+      "lease": true,
+      "well": true
+    },
+    "comparison_method": "Exact normalized cell equality; whitespace/case only; no inferred aliases"
+  }
+]

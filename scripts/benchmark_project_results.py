@@ -95,6 +95,9 @@ def main():
                     "contact_routes": item["contact"] if item else [],
                     "named_people": item["contact_people"] if item else [],
                     "power_summary": item["power_summary"] if item else None,
+                    "power_summary_kind": item.get("power_summary_kind")
+                    if item
+                    else None,
                 }
             )
         counts = {
@@ -140,6 +143,23 @@ def main():
             )
     present = [row for row in rows if row["present"]]
     routes = [route for row in present for route in row["contact_routes"]]
+    identity_path = (
+        ROOT
+        / "docs/validation/project-first-20261027/frozen-rrc-identity-comparison.json"
+    )
+    identity_rows = (
+        json.loads(identity_path.read_text()) if identity_path.exists() else []
+    )
+    identity_matches = sum(
+        bool(row.get("identity_fields_match"))
+        and all(row["identity_fields_match"].values())
+        for row in identity_rows
+    )
+    tdlr_present = sum(
+        row["source_id"] == "texas-tdlr-tabs-data-centers"
+        and bool(row["company"] and row["location"])
+        for row in present
+    )
     result = {
         "kind": "frozen_actual_source_record_benchmark",
         "measured_at": datetime.now(UTC).isoformat(),
@@ -150,6 +170,20 @@ def main():
         ],
         "requested_projects": 25,
         "source_records_present": len(present),
+        "identity_assertions_exact_match": identity_matches + tdlr_present
+        if identity_rows
+        else None,
+        "identity_assertions_denominator": 25,
+        "identity_conflicts": [
+            {
+                "permit": row["permit"],
+                "expected": row["expected"],
+                "official_row": row["official_row"],
+                "identity_fields_match": row["identity_fields_match"],
+            }
+            for row in identity_rows
+            if not all(row.get("identity_fields_match", {}).values())
+        ],
         "qualified_projects": sum(
             any(tier in {"Prospect", "Lead"} for tier in row["tiers"])
             for row in present
@@ -185,6 +219,19 @@ def main():
                 and row["event"]["kind"]
                 in {"spud", "well_completion", "drilling_completion"}
             )
+            for row in present
+        ),
+        "typed_permit_or_planned_milestone_projects": sum(
+            bool(row["event"]) for row in present
+        ),
+        "supported_power_gap_projects": sum(
+            row["power_summary_kind"] == "supported_gap" for row in present
+        ),
+        "qualified_commercial_actionability_projects": sum(
+            row["power_summary_kind"] == "supported_gap"
+            and bool(row["contact_routes"])
+            and any(tier in {"Prospect", "Lead"} for tier in row["tiers"])
+            and any(row["need_start"])
             for row in present
         ),
         "commercial_acceptance": "NOT_MET: no supported eligible 300kW temporary-power cohort; source records are Signals",

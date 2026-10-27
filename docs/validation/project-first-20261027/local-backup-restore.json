@@ -1,0 +1,71 @@
+{
+  "kind": "isolated_candidate_backup_restore_rehearsal",
+  "observed_at": "2026-10-27T06:43:16.898904+00:00",
+  "production": false,
+  "critical_retained_tables_match": true,
+  "databases": {
+    "gridlens_issue128_local": {
+      "projects": {
+        "count": 1727,
+        "sha256": "62fc2024aedeb4a4a1a3a10e8fb42f76513cfe923c2871b5cc3a4857c145885c"
+      },
+      "power_needs": {
+        "count": 1727,
+        "sha256": "981fd8b420ebc540c0750dc086c378c138fdf5975cbc35d97d9e2e7b32e33682"
+      },
+      "observations": {
+        "count": 1734,
+        "sha256": "921b6beff19a7520f3cac62374ab588aae5ecbe55f56f8995ddc8ed416346103"
+      },
+      "evidence": {
+        "count": 1741,
+        "sha256": "51e217fd4f2d71272723b1c462036d7d07856e573af13665f2c8a061d455c04f"
+      },
+      "contact_suppressions": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "buying_chain_claims": {
+        "count": 1731,
+        "sha256": "dff7c569b3f865dd9cc4215c641b24f069196333e6157b9c9ad9f5abeb73538d"
+      },
+      "buying_chain_identity_links": {
+        "count": 1739,
+        "sha256": "b8059ec4a73f43154d00f8ce84555a8868a76149b0140b40a4ab8463403ec685"
+      },
+      "schema": "0046_import_meta_reparse"
+    },
+    "gridlens_issue128_restore": {
+      "projects": {
+        "count": 1727,
+        "sha256": "62fc2024aedeb4a4a1a3a10e8fb42f76513cfe923c2871b5cc3a4857c145885c"
+      },
+      "power_needs": {
+        "count": 1727,
+        "sha256": "981fd8b420ebc540c0750dc086c378c138fdf5975cbc35d97d9e2e7b32e33682"
+      },
+      "observations": {
+        "count": 1734,
+        "sha256": "921b6beff19a7520f3cac62374ab588aae5ecbe55f56f8995ddc8ed416346103"
+      },
+      "evidence": {
+        "count": 1741,
+        "sha256": "51e217fd4f2d71272723b1c462036d7d07856e573af13665f2c8a061d455c04f"
+      },
+      "contact_suppressions": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "buying_chain_claims": {
+        "count": 1731,
+        "sha256": "dff7c569b3f865dd9cc4215c641b24f069196333e6157b9c9ad9f5abeb73538d"
+      },
+      "buying_chain_identity_links": {
+        "count": 1739,
+        "sha256": "b8059ec4a73f43154d00f8ce84555a8868a76149b0140b40a4ab8463403ec685"
+      },
+      "schema": "0046_import_meta_reparse"
+    }
+  },
+  "backup_sha256": "92180008b2189c8455b4d67641bb6a2db38f0ab5106f401d38faf4dbe3acb353"
+}
