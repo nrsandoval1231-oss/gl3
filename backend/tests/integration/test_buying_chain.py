@@ -6374,13 +6374,18 @@ def test_named_nonbuyer_contact_does_not_suppress_missing_buyer_search(db, monke
     from gridlens.persistence.models import Job
 
     fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mes_team_person_cards.html"
-    html = fixture.read_bytes().replace(
-        b"      <div>\n"
-        b"        <h3>Christopher Brannon, Purchasing Manager</h3>\n"
-        b'        <p><a href="mailto:cbrannon@mesltdtx.com">Contact Chris by Email</a></p>\n'
-        b"      </div>\n",
-        b"",
+    html = (
+        fixture.read_bytes()
+        .replace(b"\r\n", b"\n")
+        .replace(
+            b"      <div>\n"
+            b"        <h3>Christopher Brannon, Purchasing Manager</h3>\n"
+            b'        <p><a href="mailto:cbrannon@mesltdtx.com">Contact Chris by Email</a></p>\n'
+            b"      </div>\n",
+            b"",
+        )
     )
+    assert b"Christopher Brannon, Purchasing Manager" not in html
     with db.begin() as session:
         project = seed(session, external_id="named-nonbuyer-search")
         project.region_status = "ELIGIBLE"

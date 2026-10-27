@@ -275,14 +275,29 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
             WHERE n.nspname=current_schema() AND t.tgname='invalidate_browse'
         """)
         ).all()
-        assert set(tables) == set(INPUT_TABLES)
+        assert set(tables) == set(INPUT_TABLES) - {"buying_chain_identity_links"}
+        identity_triggers = session.scalars(
+            text("""
+            SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+            JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname=current_schema() AND c.relname='buying_chain_identity_links'
+                AND NOT t.tgisinternal
+            """)
+        ).all()
+        assert set(identity_triggers) == {
+            "invalidate_browse_identity_link_insert",
+            "invalidate_browse_identity_link_update",
+            "invalidate_browse_identity_link_delete",
+            "invalidate_browse_identity_link_truncate",
+        }
         # Exercise every table without creating/deleting canonical evidence.
         revision = session.scalar(select(BrowseState.input_revision))
         for table in INPUT_TABLES:
             session.execute(text(f"DELETE FROM {table} WHERE false"))
-        # Note row DML is live-only; its TRUNCATE trigger remains conservative.
+        # Empty identity-link batches are no-ops; pursuit call-note writes are
+        # live overlays and their TRUNCATE trigger remains conservative.
         assert (
-            session.scalar(select(BrowseState.input_revision)) == revision + len(INPUT_TABLES) - 1
+            session.scalar(select(BrowseState.input_revision)) == revision + len(INPUT_TABLES) - 2
         )
         session.rollback()
 

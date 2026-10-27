@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -82,13 +83,26 @@ def _ledger_states(session: Session, keys: set[tuple[str, str]]) -> dict[tuple[s
     """Load one request/cohort snapshot; corrupt chains remain suppressed."""
     if not keys:
         return {}
-    rows = session.scalars(
-        select(ContactSuppression)
-        .where(tuple_(ContactSuppression.scope, ContactSuppression.subject_key).in_(keys))
-        .order_by(
-            ContactSuppression.scope, ContactSuppression.subject_key, ContactSuppression.version
-        )
-    ).all()
+    # Pass the bounded cohort as one JSON value and expand it server-side,
+    # avoiding PostgreSQL's bind parameter ceiling for large projects.
+    payload = json.dumps(
+        [{"scope": scope, "subject_key": subject} for scope, subject in sorted(keys)]
+    )
+    statement = text(
+        "SELECT suppression.id, suppression.scope, suppression.subject_key, "
+        "suppression.expected_version, suppression.version, suppression.action, "
+        "suppression.reason, suppression.actor, suppression.idempotency_key, "
+        "suppression.created_at FROM contact_suppressions AS suppression "
+        "JOIN jsonb_to_recordset(CAST(:requested_keys AS jsonb)) "
+        "AS requested(scope text, subject_key text) "
+        "ON requested.scope = suppression.scope "
+        "AND requested.subject_key = suppression.subject_key "
+        "ORDER BY suppression.scope, suppression.subject_key, suppression.version"
+    )
+    rows = [
+        ContactSuppression(**dict(row._mapping))
+        for row in session.execute(statement, {"requested_keys": payload})
+    ]
     grouped: dict[tuple[str, str], list[ContactSuppression]] = {}
     for row in rows:
         key = (row.scope, row.subject_key)

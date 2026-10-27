@@ -23,13 +23,24 @@ def page(
     token: str | None = None,
     sort: str = "priority",
     need_id: UUID | None = None,
+    include_signals: bool = False,
+    project_ids: list[UUID] | None = None,
 ) -> dict[str, Any]:
     """Return physical projects, consolidating only validated well API identities."""
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
     generation = current_generation(session)
     term = (search or "").strip().casefold()
-    cohort_payload = [str(generation.id), generation.digest, sector, sort, term, str(need_id or "")]
+    cohort_payload = [
+        str(generation.id),
+        generation.digest,
+        sector,
+        sort,
+        term,
+        str(need_id or ""),
+        include_signals,
+        sorted(str(value) for value in project_ids or []),
+    ]
     cohort_digest = hashlib.sha256(
         json.dumps(cohort_payload, separators=(",", ":")).encode()
     ).hexdigest()
@@ -50,6 +61,9 @@ def page(
     if need_id is not None:
         filters.append("need_id = :need_id")
         params["need_id"] = need_id
+    if project_ids:
+        filters.append("project_id = ANY(CAST(:project_ids AS uuid[]))")
+        params["project_ids"] = project_ids
     if term:
         filters.append(
             "(strpos(search_text, :term) > 0 OR "
@@ -60,7 +74,7 @@ def page(
         filters.append("compact #>> '{project_metadata,sector}' = 'oil_gas'")
     elif sector == "data_centers":
         filters.append("compact #>> '{project_metadata,sector}' = 'data_centers'")
-    discovery = bool(term or sector != "all" or need_id is not None)
+    discovery = bool(term or sector != "all" or need_id is not None or include_signals)
     if not discovery:
         # A useful contact route does not qualify an unsupported permit Signal.
         # Search and explicit sector exploration retain those early discoveries.
@@ -200,21 +214,21 @@ def page(
                     ),
                 }
             )
-        project_ids = [str(project_id) for project_id in row["project_ids"]]
+        asset_project_ids = [str(project_id) for project_id in row["project_ids"]]
         representative_project_id = compact.get("project_id")
-        if representative_project_id not in project_ids:
-            representative_project_id = project_ids[0]
+        if representative_project_id not in asset_project_ids:
+            representative_project_id = asset_project_ids[0]
         asset_identity = meta.get("asset_identity")
         public_id = (
             str(uuid5(NAMESPACE_URL, f"gridlens:{row['asset_key']}"))
             if row["asset_key"].startswith("api:")
-            else project_ids[0]
+            else asset_project_ids[0]
         )
         items.append(
             {
                 "id": public_id,
                 "project_id": representative_project_id,
-                "project_ids": project_ids,
+                "project_ids": asset_project_ids,
                 "asset_identity": asset_identity,
                 "representative_need_id": compact.get("id"),
                 "name": name,

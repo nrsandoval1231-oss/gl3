@@ -34,6 +34,20 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
     const json = (body: unknown, headers: Record<string, string> = {}) =>
       route.fulfill({ contentType: 'application/json', headers, body: JSON.stringify(body) })
     if (path === '/api/auth/session') return json({ authenticated: true })
+    if (path === '/api/opportunities/groups') {
+      const params = new URL(route.request().url()).searchParams
+      const query = (params.get('search') ?? '').toLocaleLowerCase()
+      const projects = items.map(item => ({ id: item.project_id ?? item.id, project_id: item.project_id ?? item.id, name: item.name, company: item.title_company ?? null, location: item.location, sector: item.asset_type === 'data_center' ? 'data_centers' : item.asset_type ? 'oil_gas' : null, asset_type: item.asset_type ?? null, priority_score: null, representative_need_id: item.id, needs: [{ id: item.id, project_id: item.project_id ?? item.id, name: item.name, browse_title: item.name, activity: item.activity, location: item.location, tier: item.tier, commercial_preview: { disposition: item.intelligence_card?.disposition ?? 'RESEARCH' } }], need_count: 1, event: { kind: 'permit_issued', label: 'Permit issued', date: '2026-09-30', source: 'Synthetic fixture', evidence_refs: [] }, contact: [], contact_people: [], power_summary: item.rationale, next_action: item.next_action, updated_at: stamp })).filter(project => !query || `${project.name} ${project.company ?? ''} ${project.location ?? ''}`.toLocaleLowerCase().includes(query))
+      const groups = [...new Map(projects.map(project => [project.company ?? project.name, project])).values()].map(project => ({ id: `group-${project.id}`, name: project.company ?? project.name, role: project.company ? 'operator' : 'unresolved', operator_number: null, project_count: projects.filter(item => (item.company ?? item.name) === (project.company ?? project.name)).length, need_count: 1, priority_score: null, sectors: [project.sector].filter(Boolean) }))
+      const offset = Number(params.get('offset') ?? 0), limit = 25
+      return json({ items: groups.slice(offset, offset + limit), total: groups.length, count_unit: 'operators and customers', limit, offset, cohort_token: 'group-fixture', generation: 1 })
+    }
+    if (path.startsWith('/api/opportunities/groups/') && path.endsWith('/projects')) {
+      expect(new URL(route.request().url()).searchParams.get('parent_cohort_token')).toBe('group-fixture')
+      const groupId = path.split('/')[4]
+      const projects = items.map(item => ({ id: item.project_id ?? item.id, project_id: item.project_id ?? item.id, name: item.name, company: item.title_company ?? null, location: item.location, sector: item.asset_type === 'data_center' ? 'data_centers' : item.asset_type ? 'oil_gas' : null, asset_type: item.asset_type ?? null, priority_score: null, representative_need_id: item.id, needs: [{ id: item.id, project_id: item.project_id ?? item.id, name: item.name, browse_title: item.name, activity: item.activity, location: item.location, tier: item.tier, commercial_preview: { disposition: item.intelligence_card?.disposition ?? 'RESEARCH' } }], need_count: 1, event: { kind: 'permit_issued', label: 'Permit issued', date: '2026-09-30', source: 'Synthetic fixture', evidence_refs: [] }, contact: [], contact_people: [], power_summary: item.rationale, next_action: item.next_action, updated_at: stamp })).filter(project => `group-${project.project_id}` === groupId)
+      return json({ items: projects, total: projects.length, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'child-fixture', generation: 1 })
+    }
     if (path === '/api/opportunities/projects') {
       const params = new URL(route.request().url()).searchParams
       const query = (params.get('search') ?? '').toLocaleLowerCase()
@@ -81,13 +95,15 @@ test('project-first results keep geographically unknown projects reachable and r
   await mock(page, [opportunity('a', 'Austin, TX'), opportunity('d', null)])
   await page.goto('/environment')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Test project d' })).toBeVisible()
+  await page.getByRole('button', { name: /Test project d/ }).click()
+  await expect(page.getByRole('heading', { name: 'Test project d', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: /Test project a/ }).click()
   await page.locator('.project-card').filter({ has: page.getByRole('heading', { name: 'Test project a' }) }).getByRole('button', { name: 'View project details' }).click()
   await expect(page.locator('.project-first-detail h2')).toHaveText('Test project a')
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Test evidence 2' })).toBeVisible()
   await page.getByRole('button', { name: /Back to power needs/ }).click()
-  await expect(page.getByRole('heading', { name: 'Test project d' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Test project d', exact: true })).toBeVisible()
   await page.goForward()
   await expect(page.locator('.project-first-detail h2')).toHaveText('Test project a')
 })
@@ -111,7 +127,7 @@ test('legacy environment URL reaches project results without workspace or map re
   await page.goto('/environment')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Test project dc' })).toBeVisible()
-  expect(requests).toContain('/api/opportunities/projects')
+  expect(requests).toContain('/api/opportunities/groups')
   expect(requests).not.toContain('/api/opportunities/workspace')
   expect(requests).not.toContain('/api/opportunities/map-window')
 })
@@ -184,7 +200,7 @@ test('Back and Forward wait for the matching page before restoring each queue po
 test('section navigation keeps Opportunities and Signals searches independent through reload and history', async ({ page }) => {
   const requests: URL[] = []
   await mock(page, [opportunity('alpha', 'Austin, TX')])
-  page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/projects') requests.push(url) })
+  page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/groups') requests.push(url) })
   await page.goto('/?view=workspace&q=alpha')
   await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('alpha')
   await openSecondaryRoute(page, 'Signals')

@@ -1,5 +1,5 @@
 # GridLens — Autonomous Commercial Intelligence Canon
-Status: OWNER-APPROVED · 2026-10-25 · exceptional-control clarification 2026-10-26 · project-first UX amendment 2026-10-27
+Status: OWNER-APPROVED · 2026-10-25 · exceptional-control clarification 2026-10-26 · operator/customer hierarchy amendment 2026-10-27
 Authority: This document supersedes conflicting product, workflow, UI, and agent instructions throughout this repository. The later owner-approved [Project-First Results Canon](PROJECT_FIRST_RESULTS_CANON.md) controls the current opportunity surface and vertical-specific field presentation. Historical documents are records, not active requirements where they conflict.
 
 ## Product truth
@@ -10,7 +10,7 @@ GridLens is an autonomous commercial intelligence engine for constrained and tem
 - Do not reintroduce these routine workflows under new names, tabs, dialogs, or routes. Preserve exceptional correction, suppression and privacy controls through audited internal operations/services. They must not become a prerequisite to discovery, enrichment, qualification or daily use.
 - Primary surfaces: actionable Opportunities, automated Research, emerging Signals, and search. Operations/diagnostics may remain internal, not a user workflow.
 - Every opportunity should expose company/project, physical location, power need, plausible residual gap, timing/duration, priority, decision-maker and verified business email/phone where available, explanation, sources, freshness, and explicit unknowns.
-- Preserve the approved seven-color G/L brand and compact navigation. Display **project-first, minimal actionable results** rather than the prior dense account table, four KPI tiles, placeholder totals or raw technical workflows. The primary market filters are All / Oil & Gas / Data Centers. Mobile must be genuinely usable; the project-first UX canon is authoritative for layout and sector fields.
+- Preserve the approved seven-color G/L brand and compact navigation. Display **operator/customer groups with nested wells/projects and minimal actionable results** rather than the prior dense account table, four KPI tiles, placeholder totals or raw technical workflows. The primary market filters are All / Oil & Gas / Data Centers. Mobile must be genuinely usable; the results canon with its latest operator/customer amendment is authoritative for layout and sector fields.
 
 ## Autonomous pipeline
 DISCOVER → RESOLVE → RESEARCH → ENRICH → ANALYZE → SCORE → PUBLISH → REFRESH.

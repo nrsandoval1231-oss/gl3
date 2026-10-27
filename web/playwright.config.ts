@@ -10,7 +10,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [['line'], ['html', { open: 'never' }]] : 'list',
-  use: { baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1280, height: 900 }, trace: 'retain-on-failure' },
+  use: { baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1280, height: 900 }, locale: 'en-US', timezoneId: 'UTC', trace: 'retain-on-failure' },
   projects: [
     { name: 'regression', testIgnore: [...liveAcceptance, ...commercialRealCases] },
     // These checks require retained real-source records and an active worker.

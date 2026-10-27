@@ -14,9 +14,24 @@ test('project results preserve detail history, truthful gaps, and responsive nav
   page.on('pageerror', error => { throw error })
   const requests: URL[] = []
   const projects = makeProjects()
+  const groups = projects.map(project => ({ id: `group-${project.id}`, name: project.company, role: 'customer', operator_number: null, project_count: 1, need_count: 1, priority_score: null, sectors: ['data_centers'] }))
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (url.pathname === '/api/opportunities/groups') {
+      requests.push(url)
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      const matching = groups.filter(group => `${group.name} ${projects.find(project => `group-${project.id}` === group.id)?.name}`.toLowerCase().includes(search))
+      const offset = Number(url.searchParams.get('offset') || 0)
+      return route.fulfill({ json: { items: matching.slice(offset, offset + 25), total: matching.length, offset, limit: 25, cohort_token: 'dashboard-group-cohort', generation: 1, count_unit: 'operators and customers' } })
+    }
+    if (url.pathname.startsWith('/api/opportunities/groups/')) {
+      const groupId = url.pathname.split('/')[4]
+      const project = projects.find(item => `group-${item.id}` === groupId)
+      const parentToken = url.searchParams.get('parent_cohort_token')
+      expect(parentToken).toBe('dashboard-group-cohort')
+      return route.fulfill({ json: { items: project ? [project] : [], total: project ? 1 : 0, offset: 0, limit: 25, cohort_token: 'dashboard-project-cohort', generation: 1, count_unit: 'projects' } })
+    }
     if (url.pathname === '/api/opportunities/projects') {
       requests.push(url)
       const offset = Number(url.searchParams.get('offset') || 0)
@@ -35,8 +50,10 @@ test('project results preserve detail history, truthful gaps, and responsive nav
   })
   await page.goto('/?view=workspace')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
-  await expect(page.getByText('26 projects')).toBeVisible()
-  await expect(page.locator('.project-card')).toHaveCount(25)
+  await expect(page.locator('.project-results-count')).toHaveText('26 operator/customer groups')
+  await expect(page.locator('.customer-group-toggle').first()).toBeVisible()
+  await page.locator('.customer-group-toggle').first().click()
+  await expect(page.locator('.project-card')).toHaveCount(1)
   await expect(page.locator('.project-card').first()).toContainText('Construction notice')
   await expect(page.locator('.project-card').first()).toContainText('Contact not yet verified')
   await expect(page.locator('.brand-kpi')).toHaveCount(0)
@@ -70,9 +87,10 @@ test('project results preserve detail history, truthful gaps, and responsive nav
     await page.screenshot({ path: testInfo.outputPath(`project-results-${width}x${height}.png`) })
   }
   await page.getByRole('button', { name: /Back to power needs/ }).click()
-  await expect(page.locator('.project-card')).toHaveCount(25)
+  await expect(page.locator('.customer-group')).toHaveCount(25)
 
   await page.setViewportSize({ width: 1280, height: 800 })
+  await page.locator('.customer-group-toggle').first().click()
   await page.locator('.project-card').first().getByRole('button', { name: 'View project details' }).click()
   await expect(page).toHaveURL(/need=need-0/)
   await page.getByRole('textbox', { name: 'Search opportunities' }).fill('customer')
@@ -84,10 +102,10 @@ test('project results preserve detail history, truthful gaps, and responsive nav
   await page.getByRole('button', { name: 'Oil & Gas', exact: true }).click()
   await expect.poll(() => requests.at(-1)?.searchParams.get('sector')).toBe('oil_gas')
   await page.getByRole('button', { name: 'Next' }).click()
-  await expect.poll(() => requests.at(-1)?.searchParams.get('cohort_token')).toBe('dashboard-project-fixture')
-  await expect(page.locator('.project-card')).toHaveCount(1)
+  await expect.poll(() => requests.at(-1)?.searchParams.get('cohort_token')).toBe('dashboard-group-cohort')
+  await expect(page.locator('.customer-group')).toHaveCount(1)
   await page.getByRole('button', { name: 'Previous' }).click()
-  await expect(page.locator('.project-card')).toHaveCount(25)
+  await expect(page.locator('.customer-group')).toHaveCount(25)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/?view=workspace&need=need-1')
   await expect(page.locator('.wh-detail h2')).toHaveText('Site development 2')

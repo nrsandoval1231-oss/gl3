@@ -30,10 +30,12 @@ def test_default_jeti_transport_reaches_configured_runtime_proxy(monkeypatch):
     proxy = ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
     thread = Thread(target=proxy.serve_forever, daemon=True)
     thread.start()
-    monkeypatch.setenv("HTTPS_PROXY", f"http://127.0.0.1:{proxy.server_port}")
-    monkeypatch.setenv("NO_PROXY", "")
+    # Environment variable names are case-insensitive on Windows, so clear
+    # lowercase variants before setting uppercase values.
     monkeypatch.delenv("https_proxy", raising=False)
     monkeypatch.delenv("no_proxy", raising=False)
+    monkeypatch.setenv("HTTPS_PROXY", f"http://127.0.0.1:{proxy.server_port}")
+    monkeypatch.setenv("NO_PROXY", "")
     # Keep this transport regression entirely on loopback, including its
     # destination, so the suite's external-network prohibition still applies.
     local_url = "https://127.0.0.2/open-data/v1/tables/jeti"

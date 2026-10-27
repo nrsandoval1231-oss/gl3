@@ -1233,6 +1233,28 @@ class BrowseGeneration(Base):
     counts: Mapped[dict] = mapped_column(JSONB)
 
 
+class BrowseRecoveryStage(Base):
+    """CAS receipt for a deliberately unpublished retained-data rebuild."""
+
+    __tablename__ = "browse_recovery_stages"
+    generation_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("browse_generations.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    expected_input_revision: Mapped[int] = mapped_column(BigInteger)
+    expected_full_revision: Mapped[int] = mapped_column(BigInteger)
+    expected_generation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    expected_prepared_generation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    policy_version: Mapped[str] = mapped_column(String(100))
+    digest: Mapped[str] = mapped_column(String(64))
+    integrity_digest: Mapped[str] = mapped_column(String(64))
+    row_count: Mapped[int] = mapped_column(Integer)
+    membership_count: Mapped[int] = mapped_column(Integer)
+    unresolved_count: Mapped[int] = mapped_column(Integer)
+    staged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class BrowseRow(Base):
     """Saved canonical inputs and compact output; never a qualification authority."""
 
