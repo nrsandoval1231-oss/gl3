@@ -11,17 +11,58 @@ from openpyxl import Workbook
 from gridlens.ingestion.adapters.rrc_operator_directory import (
     CACHE_TTL_SECONDS,
     _reset_cache_for_tests,
+    is_rrc_directory_workbook_url,
     load_current_directory,
     parse_directory_workbook,
     select_directory_link,
 )
-from gridlens.intelligence.company_contact_discovery import _rrc_directory_contact
+from gridlens.intelligence.company_contact_discovery import (
+    _rrc_directory_contact,
+    _split_native_directory_urls,
+)
 
 NOW = datetime(2026, 10, 27, 19, 0, tzinfo=UTC)
 INDEX_URL = (
     "https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/"
     "operator-information/oil-gas-directory-operator-contact/"
 )
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "https://www.rrc.texas.gov/media/rnckkl2o/oil-and-gas-directory-10-27-26.xlsx",
+            True,
+        ),
+        (
+            "https://www.rrc.texas.gov/media/rnckkl2o/oil-and-gas-directory-10-27-26-txt.txt",
+            False,
+        ),
+        (
+            "https://www.rrc.texas.gov/media/rnckkl2o/oil-and-gas-directory-10-27-26.xlsx?x=1",
+            False,
+        ),
+        (
+            "https://evil.example/media/rnckkl2o/oil-and-gas-directory-10-27-26.xlsx",
+            False,
+        ),
+    ],
+)
+def test_native_p5_workbook_predicate_only_accepts_canonical_fixed_host(url, expected):
+    assert is_rrc_directory_workbook_url(url) is expected
+
+
+def test_native_candidate_split_preserves_non_p5_hints_and_requires_rrc_identity():
+    p5_url = "https://www.rrc.texas.gov/media/rnckkl2o/oil-and-gas-directory-10-27-26.xlsx"
+    generic_urls = [f"https://company.example/page-{index}" for index in range(4)]
+    candidates = [p5_url, *generic_urls]
+
+    filtered, has_native_intent = _split_native_directory_urls(candidates, native_eligible=True)
+    assert filtered == generic_urls
+    assert has_native_intent is True
+    assert _split_native_directory_urls(candidates, native_eligible=False) == (candidates, False)
+    assert _split_native_directory_urls([p5_url], native_eligible=True) == ([], True)
 
 
 def _workbook(

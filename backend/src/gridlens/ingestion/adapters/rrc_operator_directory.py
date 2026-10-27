@@ -81,6 +81,24 @@ def _validated_directory_url(url: str) -> str:
     return normalized
 
 
+def is_rrc_directory_workbook_url(url: str) -> bool:
+    """Return whether a URL is the canonical fixed-host P5 workbook artifact."""
+    try:
+        normalized = validate_public_url(url)
+        parsed = urlsplit(url)
+    except (TypeError, ValueError):
+        return False
+    return (
+        normalized == url
+        and parsed.scheme == "https"
+        and parsed.hostname == HOST
+        and parsed.port is None
+        and not parsed.query
+        and not parsed.fragment
+        and _FILE_PATH.fullmatch(parsed.path) is not None
+    )
+
+
 def select_directory_link(html: bytes, index_url: str = INDEX_URL) -> dict[str, str | None]:
     """Select the unique latest dated XLSX link from the exact official page."""
     _validated_directory_url(index_url)

@@ -437,6 +437,8 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
 
 
 def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db, monkeypatch):
+    import json
+
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.domain.evaluation_clock import evaluate_at
     from gridlens.intelligence.company_contacts import company_contacts
@@ -511,6 +513,7 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
         },
     }
     directory_attempts = []
+    generic_retrievals = []
     monkeypatch.setattr(discovery, "SessionLocal", db)
     monkeypatch.setattr(
         discovery,
@@ -529,11 +532,12 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
             "paid search SDK reached while intelligence is disabled"
         ),
     )
-    monkeypatch.setattr(
-        discovery,
-        "retrieve",
-        lambda *_args, **_kwargs: pytest.fail("no URL retrieval expected in native P5 fallback"),
-    )
+
+    def generic_retrieve(url, **_kwargs):
+        generic_retrievals.append(url)
+        return PublicDocument(url, "Unrelated news", "An unrelated article.")
+
+    monkeypatch.setattr(discovery, "retrieve", generic_retrieve)
 
     result = discovery.process_company_contact_discovery(
         job_id, "rrc-p5-test", 1, now=process_at, deadline=time.monotonic() + 10
@@ -584,6 +588,56 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
             and citation.get("quote") == "Phone: 8179283260"
             for citation in company["evidence"]
         )
+        assert snapshot["source_url"] in discovery._known_contact_urls(
+            session, company_id, discovery._projects(session, company_id)
+        )
+        refresh_at = process_at + timedelta(days=1)
+        refresh_queued = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=[snapshot["source_url"]],
+            refresh_generation="p5-native-refresh-regression",
+            now=refresh_at,
+        )
+        refresh_job = session.get(Job, UUID(refresh_queued["job_id"]))
+        assert refresh_job is not None
+        refresh_checkpoint = json.loads(refresh_job.checkpoint)
+        assert refresh_checkpoint["payload"]["candidate_urls"] == []
+        assert refresh_checkpoint["payload"]["native_directory_intent"] is True
+        refresh_job.status = "running"
+        refresh_job.lease_owner = "rrc-p5-refresh-test"
+        refresh_job.fence += 1
+        refresh_job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+        refresh_fence = refresh_job.fence
+        refresh_job_id = refresh_job.id
+        original_seen_at = evidence.last_seen_at
+
+    monkeypatch.setattr(
+        discovery,
+        "_known_contact_urls",
+        lambda *_args: [snapshot["source_url"]],
+    )
+    refreshed = discovery.process_company_contact_discovery(
+        refresh_job_id,
+        "rrc-p5-refresh-test",
+        refresh_fence,
+        now=refresh_at,
+        deadline=time.monotonic() + 10,
+    )
+    assert refreshed["status"] == "complete", refreshed
+    assert directory_attempts == [True, True]
+    assert generic_retrievals == []
+    assert not any(failure["url"] == "firecrawl:search" for failure in refreshed["failures"])
+    with db.begin() as session:
+        refreshed_evidence = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project_id,
+                BuyingChainEvidence.url == snapshot["source_url"],
+            )
+        )
+        assert refreshed_evidence is not None
+        assert refreshed_evidence.observed_at == observed_at
+        assert refreshed_evidence.last_seen_at == original_seen_at == observed_at
         record_contact_suppression(
             session,
             scope="method",
@@ -594,7 +648,7 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
             actor="test",
             idempotency_key="rrc-p5-method-suppression",
         )
-        with evaluate_at(process_at):
+        with evaluate_at(refresh_at):
             projected_after_suppression = company_contacts(session, company_id)
         assert not any(
             method["value"] == "8179283260"

@@ -24,7 +24,10 @@ from gridlens.ingestion.adapters.buying_chain_public import (
     retrieve,
     validate_public_url,
 )
-from gridlens.ingestion.adapters.rrc_operator_directory import load_current_directory
+from gridlens.ingestion.adapters.rrc_operator_directory import (
+    is_rrc_directory_workbook_url,
+    load_current_directory,
+)
 from gridlens.intelligence.buying_chain import (
     _entity_key,
     _retained_evidence_current_for_project,
@@ -177,6 +180,15 @@ def _native_contact_retrieval_policy(session: Session, company_id: UUID) -> str 
         if isinstance(number, str) and re.fullmatch(r"\d{6}", number)
         else None
     )
+
+
+def _split_native_directory_urls(
+    urls: list[str], *, native_eligible: bool
+) -> tuple[list[str], bool]:
+    if not native_eligible:
+        return urls, False
+    native_urls = [url for url in urls if is_rrc_directory_workbook_url(url)]
+    return [url for url in urls if not is_rrc_directory_workbook_url(url)], bool(native_urls)
 
 
 def _contact_research_gaps(session: Session, company_id: UUID) -> tuple[bool, bool]:
@@ -460,11 +472,19 @@ def discover_company_contacts(
     now: datetime | None = None,
     refresh_generation: str | None = None,
     research_profile: str | None = None,
+    native_directory_intent: bool = False,
 ) -> dict:
     """Idempotently enqueue discovery; it intentionally performs no network I/O."""
     now = now or datetime.now(UTC)
     now = now.replace(tzinfo=UTC) if now.tzinfo is None else now.astimezone(UTC)
     urls = list(dict.fromkeys(validate_public_url(url) for url in candidate_urls))
+    native_eligible = _native_contact_retrieval_policy(session, company_identity_id) is not None
+    urls, discovered_native_intent = _split_native_directory_urls(
+        urls, native_eligible=native_eligible
+    )
+    native_directory_intent = native_eligible and (
+        native_directory_intent or discovered_native_intent
+    )
     if len(urls) > MAX_CANDIDATE_URLS:
         raise ValueError(f"At most {MAX_CANDIDATE_URLS} candidate URLs are allowed")
     projects = _projects(session, company_identity_id)
@@ -537,44 +557,42 @@ def discover_company_contacts(
         raise ValueError("Unsupported company contact research profile")
     research_candidate = replace(research_candidate, research_profile=selected_profile)
     input_digest = research_digest(research_candidate)
-    digest = fingerprint(
-        {
-            "company_identity_id": str(company_identity_id),
-            "candidate_urls": urls,
-            "anchor": _anchor_digest(session, anchor, company_identity_id),
-            "research_digest": input_digest,
-            "research_profile": selected_profile,
-            "refresh_due": refresh_due,
-            "policy": POLICY_VERSION,
-            # Preserve legacy direct/API refreshes. Explicit planner generations
-            # remain stable across calendar bucket boundaries for fenced retries.
-            "refresh_epoch": (
-                None if refresh_generation is not None else now.date().toordinal() // 30
-            ),
-            "refresh_generation": refresh_generation,
-        }
-    )
+    digest_inputs = {
+        "company_identity_id": str(company_identity_id),
+        "candidate_urls": urls,
+        "anchor": _anchor_digest(session, anchor, company_identity_id),
+        "research_digest": input_digest,
+        "research_profile": selected_profile,
+        "refresh_due": refresh_due,
+        "policy": POLICY_VERSION,
+        # Preserve legacy direct/API refreshes. Explicit planner generations
+        # remain stable across calendar bucket boundaries for fenced retries.
+        "refresh_epoch": (None if refresh_generation is not None else now.date().toordinal() // 30),
+        "refresh_generation": refresh_generation,
+    }
+    if native_directory_intent:
+        digest_inputs["native_directory_intent"] = True
+    digest = fingerprint(digest_inputs)
     # Successful enrichment changes its own gap/profile inputs. Keep a separate
     # source/request identity so an immediate replay can reuse that outcome,
     # without hiding new evidence, changed needs, or newly missing contacts.
-    source_request_digest = fingerprint(
-        {
-            "research": research_digest(
-                replace(
-                    research_candidate,
-                    missing_buyer_relevant_method=False,
-                    missing_contact_method=False,
-                    research_profile=STANDARD_RESEARCH_PROFILE,
-                )
-            ),
-            "candidate_urls": urls,
-            "refresh_epoch": None
-            if refresh_generation is not None
-            else now.date().toordinal() // 30,
-            "refresh_generation": refresh_generation,
-            "policy": POLICY_VERSION,
-        }
-    )
+    source_request_inputs = {
+        "research": research_digest(
+            replace(
+                research_candidate,
+                missing_buyer_relevant_method=False,
+                missing_contact_method=False,
+                research_profile=STANDARD_RESEARCH_PROFILE,
+            )
+        ),
+        "candidate_urls": urls,
+        "refresh_epoch": None if refresh_generation is not None else now.date().toordinal() // 30,
+        "refresh_generation": refresh_generation,
+        "policy": POLICY_VERSION,
+    }
+    if native_directory_intent:
+        source_request_inputs["native_directory_intent"] = True
+    source_request_digest = fingerprint(source_request_inputs)
     matching_failures = 0
     for job in existing:
         checkpoint = _load_checkpoint(job)
@@ -637,6 +655,7 @@ def discover_company_contacts(
                 "payload": {
                     "company_identity_id": str(company_identity_id),
                     "candidate_urls": urls,
+                    **({"native_directory_intent": True} if native_directory_intent else {}),
                     "refresh_due": refresh_due,
                     "research_profile": selected_profile,
                 },
@@ -979,12 +998,16 @@ def plan_company_contact_jobs(
         refresh_generation = retry_generation or (
             str(now.date().toordinal() // 30) if due_reason == "stale_refresh_due" else None
         )
+        candidate_urls = _known_contact_urls(session, company_id, list(_candidate.projects))
+        native_eligible = _native_contact_retrieval_policy(session, company_id) is not None
+        candidate_urls, native_directory_intent = _split_native_directory_urls(
+            candidate_urls, native_eligible=native_eligible
+        )
         result = discover_company_contacts(
             session,
             company_id,
-            candidate_urls=_known_contact_urls(session, company_id, list(_candidate.projects))[
-                :MAX_CANDIDATE_URLS
-            ],
+            candidate_urls=candidate_urls[:MAX_CANDIDATE_URLS],
+            native_directory_intent=native_directory_intent,
             now=now,
             refresh_generation=refresh_generation,
             research_profile=_candidate.research_profile,
@@ -1262,8 +1285,23 @@ def process_company_contact_discovery(
         refresh_due = payload.get("refresh_due") is True
         urls = payload.get("candidate_urls", [])
         projects = _projects(session, company_id)
-        if not urls:
-            urls = _known_contact_urls(session, company_id, projects)[:MAX_CANDIDATE_URLS]
+        identity = session.get(CompanyIdentity, company_id)
+        operator_number = identity.rrc_operator_number if identity else None
+        native_eligible = _native_contact_retrieval_policy(session, company_id) is not None
+        native_directory_intent = native_eligible and payload.get("native_directory_intent") is True
+        urls, payload_native_intent = _split_native_directory_urls(
+            urls if isinstance(urls, list) else [], native_eligible=native_eligible
+        )
+        native_directory_intent = native_directory_intent or payload_native_intent
+        if not payload.get("candidate_urls"):
+            known_urls = _known_contact_urls(session, company_id, projects)
+            known_urls, known_native_intent = _split_native_directory_urls(
+                known_urls, native_eligible=native_eligible
+            )
+            native_directory_intent = native_directory_intent or known_native_intent
+            urls = known_urls[:MAX_CANDIDATE_URLS]
+        else:
+            urls = urls[:MAX_CANDIDATE_URLS]
         anchor = _select_anchor_project(session, projects, company_id)
         anchor_id = anchor.id if anchor else None
         expected_digest = _anchor_digest(session, anchor, company_id) if anchor else None
@@ -1275,13 +1313,17 @@ def process_company_contact_discovery(
             already_named and not refresh_due and not missing_buyer_relevant_method
         )
         organization = _search_name(session, anchor, company_id) if anchor else None
-        identity = session.get(CompanyIdentity, company_id)
-        operator_number = identity.rrc_operator_number if identity else None
 
     fetched: dict[str, PublicDocument] = {}
     failures: list[dict[str, str]] = []
     discovery_reason: str | None = None
-    if not urls and not reuse_named_contact and organization and anchor_id is not None:
+    if (
+        not urls
+        and not native_directory_intent
+        and not reuse_named_contact
+        and organization
+        and anchor_id is not None
+    ):
         try:
             urls = _search_official_urls(
                 job_id,
