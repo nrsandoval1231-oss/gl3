@@ -1,6 +1,6 @@
 {
   "kind": "engineering_validation_receipt",
-  "observed_at": "2026-10-27T07:13:08.040506+00:00",
+  "observed_at": "2026-10-27T07:26:43.394659+00:00",
   "application_source_revision": "e2d00edec5cb9bdf5cdccc0f43a22aae8d782e61",
   "foundation_revision": "14513dd596a515c45c9e2938b27a9d9812dda5fc",
   "source_trees": {
@@ -51,11 +51,11 @@
   "ci": {
     "experience": [
       {
-        "conclusion": "",
+        "conclusion": "success",
         "databaseId": 40464646425,
         "headSha": "e2d00edec5cb9bdf5cdccc0f43a22aae8d782e61",
         "name": "CI",
-        "status": "in_progress",
+        "status": "completed",
         "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40464646425"
       },
       {
@@ -85,11 +85,11 @@
     ],
     "foundation": [
       {
-        "conclusion": "",
+        "conclusion": "success",
         "databaseId": 40464646705,
         "headSha": "14513dd596a515c45c9e2938b27a9d9812dda5fc",
         "name": "CI",
-        "status": "in_progress",
+        "status": "completed",
         "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40464646705"
       },
       {
@@ -116,7 +116,8 @@
         "status": "completed",
         "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/40463485080"
       }
-    ]
+    ],
+    "verification_note": "Root independently confirmed successful completed PR-trigger CI for exact foundation and application source commits. Other run entries retain their earlier observation status."
   },
   "release": {
     "production_changed": false,
