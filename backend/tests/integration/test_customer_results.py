@@ -93,6 +93,19 @@ def _seed_group_cohort(factory):
                     else {}
                 ),
             }
+            if index == 0:
+                # This asset has a canonical identity membership, while the
+                # other 61 assets with RRC 12345 do not. The official RRC
+                # identifier should still place all 62 under one operator.
+                session.add(
+                    BrowseCustomerMembership(
+                        generation_id=generation.id,
+                        company_identity_id=owner_identity.id,
+                        project_id=row.project_id,
+                        organization_name="Different Canonical Operator Label",
+                        role="asset_operator",
+                    )
+                )
             if index == 62:
                 for position, identity in enumerate(conflicted_identities):
                     session.add(

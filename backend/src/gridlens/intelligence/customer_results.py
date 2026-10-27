@@ -115,22 +115,22 @@ def _ctes(where: str) -> str:
       SELECT a.*, sm.company_id, sm.organization_name, sm.role AS membership_role,
              uc.organization_name AS unresolved_name,
         CASE WHEN uc.asset_key IS NOT NULL THEN 'conflict:' || a.asset_key
-             WHEN sm.company_id IS NOT NULL THEN 'company:' || sm.company_id
              WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'
                THEN 'rrc:' || r.operator_number
+             WHEN sm.company_id IS NOT NULL THEN 'company:' || sm.company_id
              ELSE 'unresolved:' || a.asset_key END AS group_key,
         CASE WHEN uc.asset_key IS NOT NULL
              THEN coalesce(nullif(r.project_title, ''), nullif(r.browse_title, ''),
                   'Unresolved project')
-             WHEN sm.company_id IS NOT NULL THEN sm.organization_name
              WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'
                THEN coalesce(nullif(r.operator_name, ''), 'RRC operator ' || r.operator_number)
+             WHEN sm.company_id IS NOT NULL THEN sm.organization_name
              ELSE coalesce(nullif(r.project_title, ''), nullif(r.browse_title, ''),
                     'Unresolved project') END AS group_name,
         CASE WHEN uc.asset_key IS NOT NULL THEN 'unresolved'
+             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$' THEN 'operator'
              WHEN sm.company_id IS NOT NULL AND lower(sm.role) LIKE '%operator%'
              THEN 'operator' WHEN sm.company_id IS NOT NULL THEN 'customer'
-             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$' THEN 'operator'
              ELSE 'unresolved' END AS group_role,
         coalesce(nullif(r.sector, ''), 'unknown') AS sector
       FROM assets a JOIN representatives r USING (asset_key)
