@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from openpyxl import Workbook
@@ -30,11 +30,13 @@ def _workbook(
     emergency_only: bool = False,
     status: str = "Active",
     alter_header: bool = False,
+    country: str = "USA",
+    header_timestamp: str = "10/27/2026 12:01:48 PM",
 ) -> bytes:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Oil and Gas Directory"
-    sheet.append(["10/27/2026 12:01:48 PM"])
+    sheet.append([header_timestamp])
     sheet.append([None, None, "Railroad Commission of Texas Oil & Gas P5"])
     sheet.append(
         [
@@ -66,7 +68,7 @@ def _workbook(
             "DALLAS",
             "TX",
             "75001",
-            "USA",
+            country,
             phone,
             "8179289999",
             "No",
@@ -167,11 +169,26 @@ def test_parse_workbook_keeps_raw_hash_and_dates_separate_from_observation():
         {
             "operator_number": "102606",
             "organization": "DE V Operating, LLC",
+            "country": "USA",
             "normal_phone": "8179283260",
             "status": "Active",
             "row_number": 4,
         }
     ]
+
+
+@pytest.mark.parametrize(
+    "header_timestamp",
+    ["01/01/2020 12:00:00 PM", "11/01/2030 12:00:00 PM"],
+)
+def test_parse_workbook_rejects_stale_or_far_future_publisher_dates(header_timestamp):
+    source_url = "https://www.rrc.texas.gov/media/rnckkl2o/oil-and-gas-directory-10-27-26.xlsx"
+    with pytest.raises(ValueError, match="publisher date"):
+        parse_directory_workbook(
+            _workbook(header_timestamp=header_timestamp),
+            source_url,
+            NOW,
+        )
 
 
 def test_parse_workbook_never_retains_emergency_field_and_rejects_duplicates():
@@ -200,6 +217,7 @@ def test_contact_adapter_requires_exact_operator_brand_active_status_and_normal_
     assert method["quote"] == "Phone: 8179283260"
     assert doc.published_at.isoformat() == "2026-10-27"
     assert doc.observed_at == NOW
+    assert "Country: USA" in doc.text
     assert "Emergency: 8179289999" not in doc.text
     assert "Workbook SHA-256:" in doc.text
     assert "timezone unspecified" in doc.text
@@ -213,6 +231,41 @@ def test_contact_adapter_requires_exact_operator_brand_active_status_and_normal_
 
     snapshot = parse_directory_workbook(_workbook(emergency_only=True), source_url, NOW)
     assert _rrc_directory_contact(snapshot, "102606", "DE V OPERATING, LLC") is None
+
+
+def test_contact_adapter_requires_explicit_supported_country():
+    source_url = "https://www.rrc.texas.gov/media/rnckkl2o/oil-and-gas-directory-10-27-26.xlsx"
+    for country in ("", "Mexico", "GB"):
+        snapshot = parse_directory_workbook(
+            _workbook(country=country),
+            source_url,
+            NOW,
+        )
+        assert _rrc_directory_contact(snapshot, "102606", "DE V OPERATING, LLC") is None
+
+
+def test_non_rrc_research_digest_matches_legacy_shape(monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.domain.pursuit_research import fingerprint
+
+    anchor = {"anchor": "unchanged"}
+    hints = {"urls": [], "fingerprint": "ignored-without-urls"}
+    imports = []
+    monkeypatch.setattr(discovery, "_anchor_digest", lambda *_args: anchor)
+    monkeypatch.setattr(discovery, "_company_hyperlink_hints", lambda *_args: hints)
+    monkeypatch.setattr(discovery, "_active_import_rows", lambda *_args: imports)
+    session = type("Session", (), {"get": lambda *_args: None})()
+
+    expected_legacy = fingerprint(
+        {
+            "anchor": anchor,
+            "hyperlink_hints": None,
+            "imports": [],
+        }
+    )
+    actual = discovery._research_source_digest(session, object(), "not-an-rrc-id")
+
+    assert actual == expected_legacy
 
 
 def test_parse_workbook_rejects_unknown_status_and_changed_headers():
@@ -232,10 +285,16 @@ def test_directory_snapshot_cache_preserves_original_observation(monkeypatch):
 
     calls = []
     snapshots = [
-        {"operators": {}, "observed_at": NOW.isoformat(), "raw_sha256": "a" * 64},
+        {
+            "operators": {},
+            "observed_at": NOW.isoformat(),
+            "workbook_header_date": "2026-10-27",
+            "raw_sha256": "a" * 64,
+        },
         {
             "operators": {},
             "observed_at": "2026-10-28T19:00:00+00:00",
+            "workbook_header_date": "2026-10-28",
             "raw_sha256": "b" * 64,
         },
     ]
@@ -246,15 +305,25 @@ def test_directory_snapshot_cache_preserves_original_observation(monkeypatch):
 
     _reset_cache_for_tests()
     monkeypatch.setattr(directory, "run_isolated", retrieve)
-    first = load_current_directory(deadline=time.monotonic() + 100)
-    second = load_current_directory(deadline=time.monotonic() + 100)
+    first = load_current_directory(deadline=time.monotonic() + 100, now=NOW)
+    second = load_current_directory(deadline=time.monotonic() + 100, now=NOW)
 
     assert len(calls) == 1
     assert first["observed_at"] == second["observed_at"] == NOW.isoformat()
     assert second["raw_sha256"] == first["raw_sha256"]
 
+    with pytest.raises(ValueError, match="publisher date"):
+        load_current_directory(
+            deadline=time.monotonic() + 100,
+            now=NOW + timedelta(days=31),
+        )
+    assert len(calls) == 1  # The cache hit was rejected without another download.
+
     directory._cached_at = directory.time.monotonic() - CACHE_TTL_SECONDS - 1
-    refreshed = load_current_directory(deadline=time.monotonic() + 100)
+    refreshed = load_current_directory(
+        deadline=time.monotonic() + 100,
+        now=datetime(2026, 10, 28, 19, 0, tzinfo=UTC),
+    )
     assert len(calls) == 2
     assert refreshed["observed_at"] == "2026-10-28T19:00:00+00:00"
     _reset_cache_for_tests()

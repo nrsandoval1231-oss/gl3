@@ -145,30 +145,28 @@ def _research_source_digest(session: Session, project: Project, company_id: UUID
     imports = _active_import_rows(session, company_id)
     hyperlink_hints = _company_hyperlink_hints(session, company_id)
     hint_urls = hyperlink_hints.get("urls") or []
-    return fingerprint(
-        {
-            "anchor": _anchor_digest(session, project, company_id),
-            # This is a bounded retrieval-policy version, not new evidence.
-            # It creates one new native-only discovery generation for exact
-            # RRC identities when the free P5 directory path is introduced.
-            "native_contact_retrieval_policy": _native_contact_retrieval_policy(
-                session, company_id
-            ),
-            # Unsupported/malformed metadata does not create a new research
-            # generation. A newly recoverable public URL does, including a
-            # same-bytes parser-only import reparse.
-            "hyperlink_hints": (hyperlink_hints.get("fingerprint") if hint_urls else None),
-            "imports": [
-                {
-                    "row_id": str(row.id),
-                    "batch_id": str(row.batch_id),
-                    "content_hash": content_hash,
-                    "normalized_hash": fingerprint(row.normalized or {}),
-                }
-                for row, content_hash in imports
-            ],
-        }
-    )
+    digest_inputs = {
+        "anchor": _anchor_digest(session, project, company_id),
+        # Unsupported/malformed metadata does not create a new research
+        # generation. A newly recoverable public URL does, including a
+        # same-bytes parser-only import reparse.
+        "hyperlink_hints": (hyperlink_hints.get("fingerprint") if hint_urls else None),
+        "imports": [
+            {
+                "row_id": str(row.id),
+                "batch_id": str(row.batch_id),
+                "content_hash": content_hash,
+                "normalized_hash": fingerprint(row.normalized or {}),
+            }
+            for row, content_hash in imports
+        ],
+    }
+    # This is a bounded retrieval-policy version, not new evidence. Keep the
+    # legacy digest shape exactly unchanged for every non-RRC company.
+    native_policy = _native_contact_retrieval_policy(session, company_id)
+    if native_policy is not None:
+        digest_inputs["native_contact_retrieval_policy"] = native_policy
+    return fingerprint(digest_inputs)
 
 
 def _native_contact_retrieval_policy(session: Session, company_id: UUID) -> str | None:
@@ -1094,6 +1092,9 @@ def _rrc_directory_contact(
         or row.get("status") not in {"Active", "ActiveExtension"}
     ):
         return None
+    country = str(row.get("country") or "").strip().upper()
+    if country not in {"US", "USA"}:
+        return None
     phone = str(row.get("normal_phone") or "").strip()
     if not re.fullmatch(r"(?:\+?1[ .-]?)?(?:\(?[2-9]\d{2}\)?[ .-]?){2}\d{4}", phone):
         return None
@@ -1122,6 +1123,7 @@ def _rrc_directory_contact(
             "Railroad Commission of Texas — Oil & Gas P5 directory row",
             f"Org Number: {operator_number}",
             f"Org Name: {row['organization']}",
+            f"Country: {country}",
             quote,
             f"P5 Status: {row['status']}",
             f"Workbook header timestamp: {header_timestamp} (timezone unspecified)",

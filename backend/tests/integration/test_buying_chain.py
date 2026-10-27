@@ -502,6 +502,7 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
                 {
                     "operator_number": "102606",
                     "organization": "DE V Operating, LLC",
+                    "country": "USA",
                     "normal_phone": "8179283260",
                     "status": "Active",
                     "row_number": 1857,
@@ -509,7 +510,6 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
             ]
         },
     }
-    paid_search_attempts = []
     directory_attempts = []
     monkeypatch.setattr(discovery, "SessionLocal", db)
     monkeypatch.setattr(
@@ -517,10 +517,17 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
         "load_current_directory",
         lambda **_kwargs: directory_attempts.append(True) or snapshot,
     )
+    import gridlens.ingestion.adapters.pursuit_acquisition as acquisition
+    from gridlens.persistence.models import LogicalCall, LogicalCallBudget
+    from gridlens.settings import settings
+
+    monkeypatch.setattr(settings, "intelligence_enabled", False)
     monkeypatch.setattr(
-        discovery,
-        "_search_official_urls",
-        lambda *_args: paid_search_attempts.append(True) or [],
+        acquisition,
+        "discover_urls",
+        lambda *_args, **_kwargs: pytest.fail(
+            "paid search SDK reached while intelligence is disabled"
+        ),
     )
     monkeypatch.setattr(
         discovery,
@@ -533,9 +540,15 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
     )
 
     assert directory_attempts == [True], result
-    assert result["status"] == "complete", result["results"]
-    assert len(paid_search_attempts) == 1  # Stubbed; no paid provider invocation.
+    assert result["status"] == "partial", result["results"]
+    assert result["results"][0]["reason"] == "generic_public_methods_persisted"
+    assert any(
+        failure["url"] == "firecrawl:search" and failure["reason"] == "LegacyCallBlocked"
+        for failure in result["failures"]
+    )
     with db.begin() as session:
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCallBudget)) == 0
         projected = company_contacts(session, company_id)
         methods = [method for contact in projected.contacts for method in contact.methods]
         assert [(method["kind"], method["value"]) for method in methods] == [
@@ -647,14 +660,14 @@ def test_rrc_directory_retrieval_policy_queues_once_and_deduplicates(db, monkeyp
         monkeypatch.setattr(discovery, "NATIVE_RRC_DIRECTORY_POLICY", "rrc-p5-directory-v1")
         assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 1
         jobs = session.scalars(
-            select(Job)
-            .where(Job.kind == discovery.JOB_KIND, Job.target_id == identity.id)
-            .order_by(Job.created_at, Job.id)
+            select(Job).where(Job.kind == discovery.JOB_KIND, Job.target_id == identity.id)
         ).all()
         assert len(jobs) == 2
-        new_digest = json.loads(jobs[-1].checkpoint)["research_digest"]
+        new_jobs = [job for job in jobs if job.id != old_job.id]
+        assert len(new_jobs) == 1
+        new_digest = json.loads(new_jobs[0].checkpoint)["research_digest"]
         assert new_digest != old_digest
-        assert json.loads(jobs[-1].checkpoint)["payload"]["candidate_urls"] == []
+        assert json.loads(new_jobs[0].checkpoint)["payload"]["candidate_urls"] == []
         assert discovery.plan_company_contact_jobs(session, limit=1, now=NOW) == 0
 
 

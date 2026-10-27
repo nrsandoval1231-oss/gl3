@@ -17,12 +17,12 @@ import socket
 import threading
 import time
 import zipfile
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from urllib.parse import urljoin, urlsplit
 from xml.etree import ElementTree as ET
 
 import httpx
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from gridlens.ingestion.adapters.bounded_http import read_bounded_response, run_isolated
 from gridlens.ingestion.adapters.buying_chain_public import validate_public_url
@@ -38,6 +38,9 @@ MAX_ZIP_ENTRIES = 100
 MAX_EXPANDED_BYTES = 25_000_000
 MAX_ROWS = 20_000
 CACHE_TTL_SECONDS = 24 * 60 * 60
+MAX_PUBLISHER_AGE_DAYS = 30
+# Workbook timestamps omit a timezone; permit one calendar day of source/UTC skew.
+FUTURE_PUBLISHER_DATE_TOLERANCE_DAYS = 1
 _FILE_PATH = re.compile(
     r"^/media/[a-z0-9]+/oil-and-gas-directory-(\d{2}-\d{2}-\d{2})\.xlsx$",
     re.I,
@@ -82,7 +85,8 @@ def select_directory_link(html: bytes, index_url: str = INDEX_URL) -> dict[str, 
     """Select the unique latest dated XLSX link from the exact official page."""
     _validated_directory_url(index_url)
     soup = BeautifulSoup(html, "html.parser")
-    title = soup.title.get_text(" ", strip=True) if soup.title else ""
+    title_element = soup.find("title")
+    title = title_element.get_text(" ", strip=True) if isinstance(title_element, Tag) else ""
     page_text = " ".join(soup.get_text(" ", strip=True).split())
     if (
         not re.search(r"Oil\s*&\s*Gas Directory", title, re.I)
@@ -90,8 +94,10 @@ def select_directory_link(html: bytes, index_url: str = INDEX_URL) -> dict[str, 
     ):
         raise ValueError("Official RRC operator directory page identity changed")
     candidates: dict[str, tuple[str, str]] = {}
-    for anchor in soup.find_all("a", href=True):
-        href = anchor.get("href")
+    for anchor_element in soup.find_all("a", href=True):
+        if not isinstance(anchor_element, Tag):
+            continue
+        href = anchor_element.get("href")
         if not isinstance(href, str):
             continue
         absolute = urljoin(index_url, href)
@@ -106,7 +112,7 @@ def select_directory_link(html: bytes, index_url: str = INDEX_URL) -> dict[str, 
             file_date = datetime.strptime(match.group(1), "%m-%d-%y").date()
         except ValueError:
             continue
-        label = anchor.get_text(" ", strip=True).casefold()
+        label = anchor_element.get_text(" ", strip=True).casefold()
         if "excel" not in label and not urlsplit(absolute).path.casefold().endswith(".xlsx"):
             continue
         candidates[absolute] = (file_date.isoformat(), label)
@@ -219,22 +225,24 @@ def parse_directory_workbook(body: bytes, source_url: str, observed_at: datetime
     if not 4 <= len(rows) <= MAX_ROWS + 3:
         raise ValueError("RRC directory workbook row count is outside supported bounds")
     parsed_rows: dict[int, list[str]] = {}
-    for row in rows:
-        row_number = row.get("r")
-        if not row_number or not row_number.isdecimal():
+    for xml_row in rows:
+        row_reference = xml_row.get("r")
+        if not row_reference or not row_reference.isdecimal():
             raise ValueError("RRC directory workbook contains an invalid row number")
-        number = int(row_number)
-        if number in parsed_rows:
+        parsed_row_number = int(row_reference)
+        if parsed_row_number in parsed_rows:
             raise ValueError("RRC directory workbook contains duplicate row numbers")
         values = [""] * len(_HEADER)
-        for cell in row:
+        for cell in xml_row:
             reference = cell.get("r", "")
             match = re.fullmatch(r"([A-N])(\d+)", reference)
-            if not match or int(match.group(2)) != number:
+            if not match or int(match.group(2)) != parsed_row_number:
                 raise ValueError("RRC directory workbook contains an unexpected cell")
             values[ord(match.group(1)) - ord("A")] = _cell_value(cell, shared_strings)
-        parsed_rows[number] = values
-    header_rows = [number for number, values in parsed_rows.items() if tuple(values) == _HEADER]
+        parsed_rows[parsed_row_number] = values
+    header_rows = [
+        parsed_number for parsed_number, values in parsed_rows.items() if tuple(values) == _HEADER
+    ]
     if header_rows != [3]:
         raise ValueError("RRC directory workbook headers changed")
 
@@ -243,11 +251,17 @@ def parse_directory_workbook(body: bytes, source_url: str, observed_at: datetime
         header_datetime = datetime.strptime(header_timestamp, "%m/%d/%Y %I:%M:%S %p")
     except ValueError as exc:
         raise ValueError("RRC directory workbook header timestamp changed") from exc
+    observed_utc = (
+        observed_at.replace(tzinfo=UTC)
+        if observed_at.tzinfo is None
+        else observed_at.astimezone(UTC)
+    )
+    _validate_publisher_date(header_datetime.date(), observed_utc)
     operators: dict[str, list[dict[str, str | int]]] = {}
-    for row_number in sorted(parsed_rows):
-        if row_number <= 3:
+    for organization_row_number in sorted(parsed_rows):
+        if organization_row_number <= 3:
             continue
-        values = parsed_rows[row_number]
+        values = parsed_rows[organization_row_number]
         if not any(values):
             continue
         operator_number, organization = values[0].strip(), values[1].strip()
@@ -260,14 +274,15 @@ def parse_directory_workbook(body: bytes, source_url: str, observed_at: datetime
         status = values[13].strip()
         if status not in _STATUSES:
             raise ValueError("RRC directory workbook contains an unsupported P5 status")
-        row = {
+        operator_row: dict[str, str | int] = {
             "operator_number": operator_number,
             "organization": organization,
+            "country": values[9].strip(),
             "normal_phone": values[10].strip(),
             "status": status,
-            "row_number": row_number,
+            "row_number": organization_row_number,
         }
-        operators.setdefault(operator_number, []).append(row)
+        operators.setdefault(operator_number, []).append(operator_row)
 
     stamp = (
         observed_at.replace(tzinfo=UTC)
@@ -285,6 +300,31 @@ def parse_directory_workbook(body: bytes, source_url: str, observed_at: datetime
         "raw_sha256": hashlib.sha256(body).hexdigest(),
         "operators": operators,
     }
+
+
+def _validate_publisher_date(published_date: date, reference_at: datetime) -> None:
+    """Bound source-date age and allow one day for the publisher's unknown timezone."""
+    reference_utc = (
+        reference_at.replace(tzinfo=UTC)
+        if reference_at.tzinfo is None
+        else reference_at.astimezone(UTC)
+    )
+    age_days = (reference_utc.date() - published_date).days
+    if age_days > MAX_PUBLISHER_AGE_DAYS:
+        raise ValueError("RRC directory publisher date is stale")
+    if age_days < -FUTURE_PUBLISHER_DATE_TOLERANCE_DAYS:
+        raise ValueError("RRC directory publisher date is too far in the future")
+
+
+def _validate_snapshot_publisher_date(snapshot: dict, reference_at: datetime) -> None:
+    try:
+        published_date = date.fromisoformat(str(snapshot["workbook_header_date"]))
+        observed_at = datetime.fromisoformat(str(snapshot["observed_at"]))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("RRC directory publisher date metadata is invalid") from exc
+    if observed_at.tzinfo is None:
+        raise ValueError("RRC directory observation timestamp is missing timezone")
+    _validate_publisher_date(published_date, reference_at)
 
 
 def _public_ip(host: str) -> str:
@@ -334,7 +374,7 @@ def _retrieve_directory_direct() -> dict:
     return snapshot
 
 
-def load_current_directory(*, deadline: float) -> dict:
+def load_current_directory(*, deadline: float, now: datetime | None = None) -> dict:
     """Return an immutable-source snapshot cached for at most 24 hours.
 
     Cache reads retain the original source observation time; reuse never marks
@@ -350,6 +390,7 @@ def load_current_directory(*, deadline: float) -> dict:
             and _cached_at is not None
             and time.monotonic() - _cached_at < CACHE_TTL_SECONDS
         ):
+            _validate_snapshot_publisher_date(_cached_snapshot, now or datetime.now(UTC))
             return copy.deepcopy(_cached_snapshot)
         snapshot = run_isolated(
             "gridlens.ingestion.adapters.rrc_operator_directory:_retrieve_directory_direct",
@@ -359,6 +400,7 @@ def load_current_directory(*, deadline: float) -> dict:
         )
         if not isinstance(snapshot, dict) or not isinstance(snapshot.get("operators"), dict):
             raise ValueError("RRC directory retrieval returned an invalid snapshot")
+        _validate_snapshot_publisher_date(snapshot, now or datetime.now(UTC))
         _cached_snapshot = snapshot
         _cached_at = time.monotonic()
         return copy.deepcopy(snapshot)
