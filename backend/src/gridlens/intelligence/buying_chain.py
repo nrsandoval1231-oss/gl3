@@ -56,6 +56,7 @@ from gridlens.intelligence.buying_chain_extraction import (
     project_document_match,
 )
 from gridlens.intelligence.project_identity import normalized_identity
+from gridlens.intelligence.saved_history_privacy import MAX_HISTORY_KEYS, _add_keys
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -1951,7 +1952,6 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
         method_suppression_key,
         person_suppression_key,
     )
-    from gridlens.intelligence.saved_history_privacy import MAX_HISTORY_KEYS, _add_keys
 
     claim_ids = [item["id"] for item in candidates]
     claim_rows = session.execute(
@@ -2023,24 +2023,45 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
         if lineage_row.person_identity_id is not None:
             person_ids_by_pair[identity_pair].add(lineage_row.person_identity_id)
     fail_closed_claims: set[UUID] = {
-        claim_id for claim_id, pair in cohort_claims.items() if pair in lineage_overflow_pairs
+        item["id"]
+        for item in candidates
+        if (pair := cohort_claims.get(item["id"])) in lineage_overflow_pairs
     }
     candidate_scope: dict[UUID, tuple[set[UUID], str]] = {}
     values_by_claim: dict[UUID, list[tuple[str, str]]] = {}
-    keys: set[tuple[str, str]] = set()
+    unresolved_claims: set[UUID] = set()
+    missing_scope_claims: set[UUID] = set()
+    overflow_projects: set[UUID] = set()
+    keys_by_project: dict[UUID, set[tuple[str, str]]] = defaultdict(set)
     for item in candidates:
         pair = cohort_claims.get(item["id"])
+        project_id = pair[0] if pair else None
+        if project_id is None:
+            fail_closed_claims.add(item["id"])
+            unresolved_claims.add(item["id"])
+            continue
+        if pair is None or not pair[1]:
+            fail_closed_claims.add(item["id"])
+            missing_scope_claims.add(item["id"])
+            continue
+        if pair in lineage_overflow_pairs:
+            candidate_scope[item["id"]] = (set(), item.get("person_name") or "")
+            values_by_claim[item["id"]] = []
+            continue
+        candidate_keys: set[tuple[str, str]] = set()
         company_ids = company_ids_by_pair.get(pair, set()) if pair else set()
         name = item.get("person_name") or ""
         candidate_scope[item["id"]] = (company_ids, name)
         for company_id in company_ids:
-            _add_keys(keys, (("company", company_suppression_key(company_id)),))
+            _add_keys(candidate_keys, (("company", company_suppression_key(company_id)),))
             if name:
-                _add_keys(keys, (("person", person_suppression_key(company_id, name)),))
+                _add_keys(candidate_keys, (("person", person_suppression_key(company_id, name)),))
         pair = cohort_claims.get(item["id"])
         historical_person_ids = person_ids_by_pair.get(pair, set()) if pair else set()
         for linked_person_id in historical_person_ids:
-            _add_keys(keys, (("person", global_person_suppression_key(linked_person_id)),))
+            _add_keys(
+                candidate_keys, (("person", global_person_suppression_key(linked_person_id)),)
+            )
         retained_values: set[tuple[str, str]] = set()
         for contact_field in ("public_contacts", "reported_contacts"):
             for contact in item.get(contact_field, []):
@@ -2088,20 +2109,43 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             continue
         values_by_claim[item["id"]] = list(retained_values)
         for kind, value in retained_values:
-            _add_keys(keys, (("method", global_method_suppression_key(kind, value)),))
+            _add_keys(candidate_keys, (("method", global_method_suppression_key(kind, value)),))
             for company_id in company_ids:
                 _add_keys(
-                    keys, (("method", method_suppression_key(company_id, name, kind, value)),)
+                    candidate_keys,
+                    (("method", method_suppression_key(company_id, name, kind, value)),),
                 )
-    if len(keys) > MAX_HISTORY_KEYS:
-        fail_closed_claims.update(item["id"] for item in candidates)
-        states = {}
-    else:
-        states = _ledger_states(session, keys)
+        project_keys = keys_by_project[project_id]
+        if project_id in overflow_projects:
+            fail_closed_claims.add(item["id"])
+            values_by_claim[item["id"]] = []
+            continue
+        combined = project_keys | candidate_keys
+        if len(combined) > MAX_HISTORY_KEYS:
+            overflow_projects.add(project_id)
+            continue
+        project_keys.update(candidate_keys)
+    if overflow_projects:
+        fail_closed_claims.update(
+            item["id"]
+            for item in candidates
+            if (pair := cohort_claims.get(item["id"])) is not None and pair[0] in overflow_projects
+        )
+        for project_id in overflow_projects:
+            keys_by_project.pop(project_id, None)
+    all_keys: set[tuple[str, str]] = set()
+    for project_keys in keys_by_project.values():
+        all_keys.update(project_keys)
+    states = _ledger_states(session, all_keys)
     for item in candidates:
-        company_ids, name = candidate_scope[item["id"]]
-        pair = cohort_claims.get(item["id"])
-        historical_person_ids = person_ids_by_pair.get(pair, set()) if pair else set()
+        if item["id"] in unresolved_claims or item["id"] in missing_scope_claims:
+            company_ids, name = set(), item.get("person_name") or ""
+            pair = None
+            historical_person_ids = set()
+        else:
+            company_ids, name = candidate_scope[item["id"]]
+            pair = cohort_claims.get(item["id"])
+            historical_person_ids = person_ids_by_pair.get(pair, set()) if pair else set()
         suppressed_subject = (
             item["id"] in fail_closed_claims
             or bool(

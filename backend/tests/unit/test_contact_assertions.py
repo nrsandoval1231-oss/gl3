@@ -575,6 +575,248 @@ def test_method_suppression_redacts_current_and_history_buying_chain_reads(conta
             assert all(not contact.methods for contact in contact_projection(view))
 
 
+def test_contact_privacy_key_budget_is_per_project_and_preserves_suppression(contact_db):
+    from gridlens.intelligence.buying_chain import _apply_contact_privacy
+    from gridlens.intelligence.saved_history_privacy import MAX_HISTORY_KEYS
+
+    with contact_db() as session:
+        company, project, seed, source = _seed_published_contact(session)
+        # Each project stays under the cap, while their aggregate exceeds it.
+        candidates = []
+        projects = [project]
+        for index in range(10):
+            other = Project(
+                identity_key=f"privacy-budget-{uuid4()}",
+                name=f"Privacy project {index}",
+                location="Dallas, TX",
+                source_id=project.source_id,
+                external_id=f"privacy-budget-{uuid4()}",
+            )
+            session.add(other)
+            session.flush()
+            projects.append(other)
+        for project_index, target_project in enumerate(projects):
+            for index in range(MAX_HISTORY_KEYS // 10 + 1):
+                claim = BuyingChainClaim(
+                    project_id=target_project.id,
+                    entity_key=f"privacy-{project_index}-{index}",
+                    fingerprint=uuid4().hex,
+                    policy_version=seed.policy_version,
+                    organization=seed.organization,
+                    person_name=f"Subject {project_index}-{index}",
+                    title="Project Operations",
+                    category=seed.category,
+                    organization_relationship=seed.organization_relationship,
+                    person_organization_relationship=seed.person_organization_relationship,
+                    person_project_relationship=seed.person_project_relationship,
+                    evidence_strength=seed.evidence_strength,
+                    reason=seed.reason,
+                    citations=[],
+                    public_contacts=[
+                        {"kind": "email", "value": f"person{project_index}-{index}@example.test"}
+                    ],
+                    observed_at=seed.observed_at + timedelta(seconds=index + project_index),
+                )
+                session.add(claim)
+                session.flush()
+                candidate_company = CompanyIdentity()
+                session.add(candidate_company)
+                session.flush()
+                session.add(
+                    BuyingChainIdentityLink(
+                        claim_id=claim.id,
+                        entity_type="company",
+                        company_identity_id=candidate_company.id,
+                        person_identity_id=None,
+                        reason="Test lineage",
+                        basis="project_scoped",
+                        source_evidence_id=source.id,
+                        source_version_hash=source.content_hash,
+                        state="current",
+                    )
+                )
+                candidates.append(
+                    {
+                        "id": claim.id,
+                        "person_name": claim.person_name,
+                        "title": claim.title,
+                        "reason": "Project contact",
+                        "public_contacts": claim.public_contacts,
+                        "reported_contacts": [],
+                        "correction_history": [],
+                        "evidence": [],
+                    }
+                )
+        target = candidates[0]
+        target_email = target["public_contacts"][0]["value"]
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=global_method_suppression_key("email", target_email),
+            action="suppress",
+            expected_version=0,
+            reason="project privacy budget regression",
+            actor="privacy-ops",
+            idempotency_key="project-privacy-budget-method",
+        )
+        session.flush()
+        statements = []
+        from sqlalchemy import event
+
+        event.listen(session.bind, "before_cursor_execute", lambda *_args: statements.append(1))
+        _apply_contact_privacy(session, candidates)
+        assert target["public_contacts"] == []
+        assert all(candidate.get("suppressed") is not True for candidate in candidates)
+        assert len(statements) < 20
+
+
+def test_contact_privacy_overflow_fails_closed_only_for_oversized_project(contact_db, monkeypatch):
+    import gridlens.intelligence.buying_chain as buying_chain_module
+    import gridlens.intelligence.saved_history_privacy as saved_privacy
+    from gridlens.intelligence.buying_chain import _apply_contact_privacy
+
+    monkeypatch.setattr(saved_privacy, "MAX_HISTORY_KEYS", 4)
+    monkeypatch.setattr(buying_chain_module, "MAX_HISTORY_KEYS", 4)
+    with contact_db() as session:
+        _company, project, seed, source = _seed_published_contact(session)
+        oversized_project = Project(
+            identity_key=f"privacy-overflow-{uuid4()}",
+            name="Oversized privacy project",
+            location="Dallas, TX",
+            source_id=project.source_id,
+            external_id=f"privacy-overflow-{uuid4()}",
+        )
+        session.add(oversized_project)
+        session.flush()
+        candidates = []
+        target_projects = [project]
+        for project_index in range(3):
+            separate_project = Project(
+                identity_key=f"privacy-overflow-small-{uuid4()}",
+                name=f"Small privacy project {project_index}",
+                location="Dallas, TX",
+                source_id=project.source_id,
+                external_id=f"privacy-overflow-small-{uuid4()}",
+            )
+            session.add(separate_project)
+            session.flush()
+            target_projects.append(separate_project)
+        for target_project, count in ((project, 1), (oversized_project, 3)):
+            for index in range(count):
+                claim = BuyingChainClaim(
+                    project_id=target_project.id,
+                    entity_key=f"overflow-{index}-{uuid4()}",
+                    fingerprint=uuid4().hex,
+                    policy_version=seed.policy_version,
+                    organization=seed.organization,
+                    person_name=f"Overflow {target_project.id}-{index}",
+                    title="Project Operations",
+                    category=seed.category,
+                    organization_relationship=seed.organization_relationship,
+                    person_organization_relationship=seed.person_organization_relationship,
+                    person_project_relationship=seed.person_project_relationship,
+                    evidence_strength=seed.evidence_strength,
+                    reason=seed.reason,
+                    citations=[],
+                    public_contacts=[{"kind": "email", "value": f"p{index}@example.test"}],
+                    observed_at=seed.observed_at + timedelta(seconds=index),
+                )
+                session.add(claim)
+                session.flush()
+                candidate_company = CompanyIdentity()
+                session.add(candidate_company)
+                session.flush()
+                session.add(
+                    BuyingChainIdentityLink(
+                        claim_id=claim.id,
+                        entity_type="company",
+                        company_identity_id=candidate_company.id,
+                        person_identity_id=None,
+                        reason="Test lineage",
+                        basis="project_scoped",
+                        source_evidence_id=source.id,
+                        source_version_hash=source.content_hash,
+                        state="current",
+                    )
+                )
+                candidates.append(
+                    {
+                        "id": claim.id,
+                        "person_name": claim.person_name,
+                        "title": claim.title,
+                        "reason": "Project contact",
+                        "public_contacts": claim.public_contacts,
+                        "reported_contacts": [],
+                        "correction_history": [],
+                        "evidence": [],
+                    }
+                )
+        small_claim = BuyingChainClaim(
+            project_id=target_projects[1].id,
+            entity_key="small-independent-subject",
+            fingerprint=uuid4().hex,
+            policy_version=seed.policy_version,
+            organization=seed.organization,
+            person_name="Independent Small Subject",
+            title="Project Operations",
+            category=seed.category,
+            organization_relationship=seed.organization_relationship,
+            person_organization_relationship=seed.person_organization_relationship,
+            person_project_relationship=seed.person_project_relationship,
+            evidence_strength=seed.evidence_strength,
+            reason=seed.reason,
+            citations=[],
+            public_contacts=[{"kind": "email", "value": "small@example.test"}],
+            observed_at=seed.observed_at,
+        )
+        session.add(small_claim)
+        session.flush()
+        candidates.insert(
+            0,
+            {
+                "id": small_claim.id,
+                "person_name": small_claim.person_name,
+                "title": small_claim.title,
+                "reason": "Project contact",
+                "public_contacts": small_claim.public_contacts,
+                "reported_contacts": [],
+                "correction_history": [],
+                "evidence": [],
+            },
+        )
+        _apply_contact_privacy(session, candidates)
+        small_candidate = candidates[0]
+        oversized_candidates = candidates[1:]
+        assert small_candidate.get("suppressed") is not True
+        assert all(candidate.get("suppressed") is True for candidate in oversized_candidates)
+
+
+def test_missing_entity_scope_recursively_redacts_display_fields(contact_db):
+    from gridlens.intelligence.buying_chain import _apply_contact_privacy
+
+    with contact_db() as session:
+        _company, _project, claim, _source = _seed_published_contact(session)
+        claim.entity_key = ""
+        session.flush()
+        candidate = {
+            "id": claim.id,
+            "person_name": "Avery Example",
+            "title": "Project Operations",
+            "organization": "Hidden Person <hidden@example.test>",
+            "reason": "Call 512-555-0100 about Avery Example",
+            "public_contacts": [],
+            "reported_contacts": [],
+            "correction_history": [],
+            "evidence": [],
+            "future_extension": {"text": "Avery Example, hidden@example.test"},
+        }
+        _apply_contact_privacy(session, [candidate])
+        assert candidate["suppressed"] is True
+        assert "hidden@example.test" not in str(candidate).casefold()
+        assert "Avery Example" not in str(candidate)
+        assert "512-555-0100" not in str(candidate)
+
+
 def test_global_method_suppression_applies_without_company_identity_link(contact_db):
     with contact_db() as session:
         _company, project, claim, _source = _seed_published_contact(session)
@@ -1186,8 +1428,12 @@ def test_excessive_retained_contact_values_fail_closed(contact_db):
     )
 
     with contact_db() as session:
+        _company, project, claim, _source = _seed_published_contact(session)
+        claim.entity_key = "oversized-values"
+        claim.citations = []
+        session.flush()
         candidate = {
-            "id": uuid4(),
+            "id": claim.id,
             "person_name": "Synthetic Person",
             "title": "Synthetic Role",
             "reason": "Synthetic reason",
@@ -1237,15 +1483,18 @@ def test_privacy_metadata_does_not_consume_candidate_contact_budget(contact_db):
             },
         }
         _apply_contact_privacy(session, [candidate])
-        assert candidate.get("suppressed") is not True
-        assert candidate["person_name"] == "Synthetic Person"
-        assert candidate["title"] == "Synthetic Role"
+        assert candidate.get("suppressed") is True
 
 
 def test_extraction_location_is_scanned_and_redacted(contact_db):
     from gridlens.intelligence.buying_chain import _apply_contact_privacy
 
     with contact_db() as session:
+        _company, project, claim, source = _seed_published_contact(session)
+        claim.entity_key = "privacy-location"
+        claim.title = "Project Operations"
+        claim.citations = []
+        session.flush()
         key = global_method_suppression_key("email", "hidden@example.test")
         record_contact_suppression(
             session,
@@ -1258,7 +1507,7 @@ def test_extraction_location_is_scanned_and_redacted(contact_db):
             idempotency_key="provenance-email-hide",
         )
         candidate = {
-            "id": uuid4(),
+            "id": claim.id,
             "person_name": "Avery Example",
             "title": "Project Operations",
             "public_contacts": [],
@@ -1275,6 +1524,10 @@ def test_phone_scanner_keeps_international_and_nanp_matches_on_same_line(contact
     from gridlens.intelligence.buying_chain import _apply_contact_privacy
 
     with contact_db() as session:
+        _company, project, claim, _source = _seed_published_contact(session)
+        claim.entity_key = "privacy-phone"
+        claim.citations = []
+        session.flush()
         key = global_method_suppression_key("phone", "+44 20 7946 0958")
         record_contact_suppression(
             session,
@@ -1287,7 +1540,7 @@ def test_phone_scanner_keeps_international_and_nanp_matches_on_same_line(contact
             idempotency_key="uk-phone-hide",
         )
         candidate = {
-            "id": uuid4(),
+            "id": claim.id,
             "person_name": "Avery Example",
             "title": "Project Operations",
             "public_contacts": [],
