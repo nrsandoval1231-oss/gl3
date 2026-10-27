@@ -1,6 +1,6 @@
 # Customer accounts and commercial project browsing
 
-The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs current behavior; the compatible earlier [customer directive](../product/CUSTOMER_INTELLIGENCE_DIRECTIVE.md) makes a company the primary commercial browsing unit. A physical `Project` and its separate `PowerNeed` records keep their existing identities, qualification, evidence, notes, and history. A permit remains evidence. An applicant, electrician, or other contractor does not become the customer by default.
+The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs current behavior; the compatible earlier [customer directive](../product/CUSTOMER_INTELLIGENCE_DIRECTIVE.md) established company-first browsing at that time, but [the later project-first results canon](../product/PROJECT_FIRST_RESULTS_CANON.md) makes the physical project/asset the primary user-visible browsing unit. Company-first grouping is now a secondary account drilldown, while its identity and join machinery remain retained. A physical `Project` and its separate `PowerNeed` records keep their existing identities, qualification, evidence, notes, and history. A permit remains evidence. An applicant, electrician, or other contractor does not become the customer by default.
 
 ## Identity and responsibility
 
@@ -14,7 +14,7 @@ TDLR TABS retained owner extraction binds the literal `Owner:` field to the sele
 
 Without a separate supported company identifier or attributed identity review, these owner claims use project-scoped company identities. Shared owner names and addresses do not consolidate distinct TABS buildings; an `aka` string is preserved literally and does not establish legal equivalence. Source publication dates remain null when absent, and registration, developer-reported start, and completion dates keep their separate meanings.
 
-## Published account summaries
+## Published account summaries — retained as secondary account drilldown
 
 Customer and unresolved-identity summaries belong to the existing `BrowseGeneration`. Maintenance validates current citations and responsibility before publication. `BrowseCustomerMembership` joins compact `BrowseRow` needs by generation and project. Ambiguous or unsupported customers remain project-specific research items rather than a combined unknown company.
 
@@ -34,7 +34,7 @@ Authenticated `/api/customer-accounts`, `/api/customer-accounts/{id}/projects`, 
 
 Need detail exposes a nullable `associated_account` from the selected project's current accepted, unambiguous responsibility support. It includes the organization UUID, role, basis, and evidence references. This association does not establish the purchaser or alter `intelligence_card.customer`. The UI checks related account links against current detail and clears mismatched or retracted context.
 
-The UI extends the approved [navy/white workspace](../design/UI_CANON.md). It uses company names and commercial next actions in the queue, nested projects and separate needs, and the existing intelligence card. Estimates, conflicts, unknown supply, dates, and contact authority retain their evidence status. Source documents stay collapsed until requested.
+The prior account-first UI is historical. The current interface follows [the project-first results canon](../product/PROJECT_FIRST_RESULTS_CANON.md) while preserving the approved [navy/white workspace brand](../design/UI_CANON.md). The account queue remains a secondary drilldown and must not determine the default opportunity card granularity. Distinct projects or wells are displayed individually with company and need relationships nested in details. Estimates, conflicts, unknown supply, dates, and contact authority retain their evidence status. Source documents stay collapsed until requested.
 
 ## Intelligence and authority
 
