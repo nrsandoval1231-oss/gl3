@@ -1,7 +1,7 @@
 # GRIDLENS GL3 — MASTER BUILDER DIRECTIVE
 ## Canonical Customer Intelligence, Project Consolidation & Autonomous Enrichment
 
-**Current authority:** the owner-approved [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes manual workflow and older harness requirements. Compatible company/project identity, source provenance and commercial safeguards below remain in force.
+**Current authority:** the owner-approved [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes manual workflow and older harness requirements. The later [Project-First Results Canon](PROJECT_FIRST_RESULTS_CANON.md) supersedes this document's company-first default browsing prescription; retain its compatible backend company identity, enrichment and evidence requirements. Compatible company/project identity, source provenance and commercial safeguards below remain in force.
 
 **Repository:** `https://github.com/nrsandoval1231-oss/gl3`
 
