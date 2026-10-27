@@ -1,10 +1,16 @@
-import { expect, test, type Route } from '@playwright/test'
+import { expect, test, type Route, type Page } from '@playwright/test'
 import type { Opportunity } from '../src/api/client'
 import { projectCards, projectTitle, serverProjectCards, signalDecisionCards, signalDisplayDecision } from '../src/features/opportunities/projectCards'
 
 const apiRoute = `http://127.0.0.1:${process.env.GRIDLENS_WEB_PORT ?? '5173'}/api/**`
 
 const zilkerDescription = '2026/10/02 - 2026/10/04 - Weekend 1 | 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.'
+
+async function openSecondaryRoute(page: Page, name: 'Research' | 'Signals') {
+  const menu = page.locator('.wh-account')
+  if (await menu.getAttribute('open') === null) await menu.locator('summary').click()
+  await menu.getByRole('button', { name, exact: true }).click()
+}
 
 function serverOpportunityPage(records: Opportunity[], selectedDecision = 'ALL', search = '') {
   const groups = new Map<string, Opportunity[]>()
@@ -489,7 +495,7 @@ test('active first-page tier click preserves ready metadata and closes its detai
   const csv = page.getByRole('link', { name: 'Download filtered CSV' })
   await expect(csv).toBeVisible()
   await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
-  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await openSecondaryRoute(page, 'Signals')
   await expect(page.getByText('1 project groups · 1 records')).toBeVisible()
   await expect(csv).toBeVisible()
   await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
@@ -498,7 +504,7 @@ test('active first-page tier click preserves ready metadata and closes its detai
 
   await page.locator('[data-opportunity-id="active-tier-ready"]').click()
   await expect(page.locator('.wh-record-identity h2')).toBeVisible()
-  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await openSecondaryRoute(page, 'Signals')
   await expect(page.locator('[data-opportunity-id="active-tier-ready"]')).toBeVisible()
   await expect(csv).toBeVisible()
   await expect(page.locator('.wh-paging button').nth(1)).toBeEnabled()
@@ -541,11 +547,12 @@ test('active first-page tier click while loading lets the matching request settl
   })
   try {
     await page.goto('/?tier=Signals')
+    await page.locator('.wh-account summary').click()
     await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
     await expect.poll(() => requestCount).toBeGreaterThan(0)
     await expect(page.getByText('Loading current Signal cohort…')).toBeVisible()
     const initialCount = await page.evaluate(() => (window as Window & { signalFetchStarts?: number }).signalFetchStarts)
-    await page.getByRole('button', { name: 'Signals' }).click()
+    await openSecondaryRoute(page, 'Signals')
     releaseRequest?.()
     await expect(page.locator('[data-opportunity-id="active-tier-pending"]')).toBeVisible()
     await expect(page.getByText('Loading current Signal cohort…')).toHaveCount(0)
@@ -581,7 +588,7 @@ test('active tier click from a later page fetches first-page data before showing
 
   await page.goto('/?tier=Signals&offset=25')
   await expect(page.locator('[data-opportunity-id="active-tier-later-page"]')).toBeVisible()
-  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await openSecondaryRoute(page, 'Signals')
   await expect(page.locator('[data-opportunity-id="active-tier-first-page"]')).toBeVisible()
   await expect(page.locator('[data-opportunity-id="active-tier-later-page"]')).toHaveCount(0)
   await expect(page.getByText('1 project groups · 1 records')).toBeVisible()
@@ -650,6 +657,7 @@ test('active decision and unchanged activity filter during page load preserve th
   })
   try {
     await page.goto('/?tier=Signals&activity=event-power')
+    await page.locator('.wh-account summary').click()
     await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
     await expect.poll(() => requestStarted).toBe(true)
     await page.getByRole('navigation', { name: 'Filter by evidence decision' }).getByRole('button', { name: /All/ }).click()
@@ -760,9 +768,11 @@ test('technical diagnostics are secondary to the commercial navigation and load 
   })
   try {
     await page.goto('/?view=ingestion')
-    await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveCount(3)
-    await expect.poll(() => requestStarted).toBe(true)
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveCount(1)
     await page.locator('.wh-account summary').click()
+    await expect(page.locator('.wh-account').getByRole('button', { name: 'Research' })).toBeVisible()
+    await expect(page.locator('.wh-account').getByRole('button', { name: 'Signals' })).toBeVisible()
+    await expect.poll(() => requestStarted).toBe(true)
     await page.getByRole('button', { name: 'Technical diagnostics' }).click()
     releaseRequest?.()
     await expect(page.getByText('Loading current Signal cohort…')).toHaveCount(0)
@@ -1664,7 +1674,7 @@ test('Signal decisions do not filter Lead or Prospect cohorts', async ({ page })
   await expect.poll(() => requests.some(url => url.searchParams.get('tier') === 'Lead' && (url.searchParams.get('decision') === 'ALL' || !url.searchParams.has('decision')))).toBe(true)
   await expect(page.getByRole('navigation', { name: 'Filter by evidence decision' })).toHaveCount(0)
   expect(new URL(page.url()).searchParams.get('decision')).toBe('ALL')
-  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await openSecondaryRoute(page, 'Signals')
   await expect(page.getByLabel('Qualification tier')).toHaveValue('Signal')
   await page.goto('/?tier=Prospects&decision=SHOW')
   await expect.poll(() => requests.some(url => url.searchParams.get('tier') === 'Prospect' && (url.searchParams.get('decision') === 'ALL' || !url.searchParams.has('decision')))).toBe(true)

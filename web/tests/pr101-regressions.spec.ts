@@ -13,7 +13,6 @@ const need = {
 } as const
 
 const workspaceResponse = (items: readonly unknown[] = [need]) => ({ items, total: items.length, counts: { action_now: 0, research: items.length, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'workspace-token', count_unit: 'power needs', changes_available: false })
-const emptyChanges = { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: '2026-10-20T12:00:00Z', baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] }
 
 async function authenticated(page: import('@playwright/test').Page) {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
@@ -78,13 +77,11 @@ test('secondary technical diagnostics keeps the filtered inbox URL and readback 
   await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('25')
 })
 
-test('queue keeps commercial disposition separate from qualification and scopes briefing counts', async ({ page }) => {
+test('default landing hides the legacy queue and briefing controls', async ({ page }) => {
   await authenticated(page)
-  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: workspaceResponse() }))
-  await page.route('**/api/opportunities/workspace/changes?*', route => route.fulfill({ json: emptyChanges }))
+  await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic', results_scope: 'qualified' } }))
   await page.goto('/')
-  await expect(page.locator('.wh-queue-meta')).toContainText('Signal')
-  await expect(page.locator('.wh-queue-meta')).toContainText('RESEARCH')
-  await page.locator('.wh-tools > summary').click()
-  await expect(page.locator('.wh-briefing-scope')).toContainText('ignore the selected disposition')
+  await expect(page.locator('.wh-queue-meta')).toHaveCount(0)
+  await expect(page.locator('.wh-briefing-scope')).toHaveCount(0)
+  await expect(page.getByText(/No qualified power opportunities yet/)).toBeVisible()
 })

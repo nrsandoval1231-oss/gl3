@@ -47,6 +47,10 @@ export type GlobalSearchResult = {
 export type Opportunity = components['schemas']['OpportunityOut']
 export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
 export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
+export type ProjectResultNeed = { id: string; project_id?: string; name?: string | null; browse_title?: string | null; location?: string | null; activity?: string | null; tier?: 'Signal' | 'Prospect' | 'Lead' | null; commercial_preview?: { disposition?: string | null; reason?: string | null; next_question?: string | null; next_action?: string | null; organization?: string | null } }
+export type ProjectResultContactPerson = { record_type?: 'contact_person'; company_identity_id?: string | null; person_identity_id?: string | null; company?: string | null; name?: string | null; title?: string | null; role?: string | null; responsibility?: string | null; purchasing_authority?: string | null; source_url?: string | null }
+export type ProjectResult = { id: string; project_id: string; project_ids?: string[]; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; updated_at: string | null }
+export type ProjectResultsPage = { items: ProjectResult[]; total: number; count_unit: 'projects'; limit: number; offset: number; cohort_token: string; generation: string; results_scope?: 'qualified' | 'discovery' }
 export type CustomerAccount = components['schemas']['CustomerAccountOut']
 export type CustomerProjectsPage = components['schemas']['CustomerProjectsPageOut']
 export type UnresolvedCustomerProjectsPage = components['schemas']['UnresolvedCustomerProjectsPageOut']
@@ -221,6 +225,15 @@ async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, sig
 }
 
 export const client = {
+  projectResults: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: string; need_id?: string }, signal?: AbortSignal): Promise<ProjectResultsPage> => {
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
+    const response = await fetch(`/api/opportunities/projects?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    if (response.status === 409) throw new OpportunityCohortChangedError()
+    if (!response.ok) throw new Error(`Could not load projects (${response.status}).`)
+    return response.json() as Promise<ProjectResultsPage>
+  },
   search: (query: string, signal?: AbortSignal) => api<GlobalSearchResult>(`/api/search?${new URLSearchParams({ q: query, limit: '20' })}`, { signal }),
   workspace: async (filters: WorkspaceFilters = {}, signal?: AbortSignal): Promise<WorkspacePage> => {
     const params = new URLSearchParams({ limit: '25' })

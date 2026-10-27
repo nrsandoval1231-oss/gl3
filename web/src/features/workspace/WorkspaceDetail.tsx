@@ -1,6 +1,6 @@
 import { CompanyContacts } from "./CompanyContacts"
 import { IntelligenceCard } from "./IntelligenceCard"
-import type { Opportunity, WorkspaceNeed } from '../../api/client'
+import type { Opportunity, ProjectResult, WorkspaceNeed } from '../../api/client'
 import { client } from '../../api/client'
 import { useEffect, useRef, useState } from 'react'
 import { projectTitle } from '../opportunities/projectCards'
@@ -26,6 +26,7 @@ type Props = {
   error: string
   tab: WorkspaceTab
   associationNotice?: string
+  projectFirst?: boolean
   onTab: (tab: WorkspaceTab) => void
   onBack: () => void
   onRetry: () => void
@@ -35,8 +36,15 @@ function associatedAccountBasisLabel(basis: string) {
     ? 'Supported by retained RRC operator evidence.'
     : 'Supported by current retained evidence.'
 }
+function briefProjectReason(value: string | null | undefined) {
+  const text = value?.trim()
+  if (!text) return 'A retained source identifies this project. Review current evidence for power demand and timing.'
+  const sentenceEnd = text.search(/[.!?](?:\s|$)/)
+  const brief = sentenceEnd > 70 ? text.slice(0, sentenceEnd + 1) : text
+  return brief.length > 240 ? `${brief.slice(0, 237).trimEnd()}…` : brief
+}
 
-export function WorkspaceDetail({ item, pending, loading, error, tab, associationNotice, onTab, onBack, onRetry }: Props) {
+export function WorkspaceDetail({ item, pending, loading, error, tab, associationNotice, projectFirst = false, onTab, onBack, onRetry }: Props) {
   const [shareState, setShareState] = useState('')
   const [sourceFilter, setSourceFilter] = useState('All sources')
   const [deepEvidence, setDeepEvidence] = useState<Record<string, { content: string; total: number; next: number | null; loading: boolean; error: string }>>({})
@@ -66,6 +74,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
     </aside>
   }
+  if (projectFirst && tab === 'Overview') return <PreparedProjectOverview item={item} onBack={onBack} onTab={onTab} />
 
   const evidence = item.evidence ?? []
   const cardEvidence = item.intelligence_card?.evidence ?? []
@@ -73,11 +82,13 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
   const visibleEvidence = sourceFilter === 'All sources' ? evidence : evidence.filter(source => (source.source_origin || source.source_id) === sourceFilter)
   const visibleCardEvidence = sourceFilter === 'All sources' ? cardEvidence : cardEvidence.filter(source => source.reference === sourceFilter)
   const customer = item.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? null
-  const displayOrganization = item.associated_account?.name ?? customer
+  const displayOrganization = projectFirst ? (item.commercial_organization || item.title_company || customer) : (item.associated_account?.name ?? customer)
   const intelligenceProject = item.intelligence_card?.fields.find(field => field.key === 'project' && field.value)?.value ?? null
   const intelligenceLocation = item.intelligence_card?.fields.find(field => field.key === 'location' && field.value)?.value ?? null
   const company = item.commercial_organization || item.title_company
-  const displayTitle = intelligenceProject || item.browse_title || projectTitle(item)
+  const rawDisplayTitle = intelligenceProject || item.browse_title || projectTitle(item)
+  const displayTitle = company && rawDisplayTitle.startsWith(`${company} · `) ? rawDisplayTitle.slice(company.length + 3) : rawDisplayTitle
+  const displayHeading = projectFirst ? displayTitle : (displayOrganization || displayTitle)
   const displayLocation = intelligenceLocation || item.location || 'Location unknown'
   const gap = qualifiedGap(item.qualified_remaining_gap)
   const unknowns = [...new Set([
@@ -149,19 +160,20 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
   }
 
   return <aside className="wh-detail" aria-label="Opportunity detail">
-    <div className="wh-detail-head"><p className="wh-kicker">Customer Intelligence</p>
-      <div className="wh-identity-toolbar"><div className="wh-breadcrumb"><button className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button><span aria-hidden="true">/</span><span>{displayOrganization || 'Project'}</span><span aria-hidden="true">/</span><span>{displayTitle}</span></div><div className="wh-record-actions"><button className="wh-share" onClick={() => void copyShareLink()}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.7 6.3 8.1 8.9m0 2.2 4.6 2.6"/><circle cx="14.8" cy="5.1" r="2.1"/><circle cx="5.3" cy="10" r="2.1"/><circle cx="14.8" cy="14.9" r="2.1"/></svg>Share</button><button className="wh-primary-action" onClick={openResearch}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg>Research</button>{shareState && <span role="status">{shareState}</span>}</div></div>
+    <div className={`wh-detail-head ${projectFirst ? 'project-first-detail-head' : ''}`}><p className="wh-kicker">{projectFirst ? 'Project details' : 'Customer Intelligence'}</p>
+      <div className="wh-identity-toolbar"><div className="wh-breadcrumb"><button className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button><span aria-hidden="true">/</span><span>{displayOrganization || 'Project'}</span><span aria-hidden="true">/</span><span>{displayTitle}</span></div><div className="wh-record-actions"><button className="wh-share" onClick={() => void copyShareLink()}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.7 6.3 8.1 8.9m0 2.2 4.6 2.6"/><circle cx="14.8" cy="5.1" r="2.1"/><circle cx="5.3" cy="10" r="2.1"/><circle cx="14.8" cy="14.9" r="2.1"/></svg>Share</button>{!projectFirst && <button className="wh-primary-action" onClick={openResearch}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg>Research</button>}{shareState && <span role="status">{shareState}</span>}</div></div>
       <div className="wh-record-hero">
         <span className="wh-customer-monogram" aria-hidden="true">{(displayOrganization || displayTitle).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span>
         <div className="wh-record-identity">
-          <h2>{displayOrganization || displayTitle}</h2>
-          {displayOrganization && <p className="wh-record-project">{displayTitle}</p>}
+          <h2>{displayHeading}</h2>
+          {displayOrganization && <p className="wh-record-project">{displayOrganization}</p>}
           <p className="wh-record-subtitle">{displayLocation} · {item.activity.replaceAll('-', ' ')}</p>
         </div>
 
       </div>
-      {item.associated_account && <p className="wh-group-context"><strong>Current account association:</strong> {item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p>}
-      {item.associated_account && <CompanyContacts companyId={item.associated_account.company_identity_id}/>}
+      {!projectFirst && item.associated_account && <p className="wh-group-context"><strong>Current account association:</strong> {item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p>}
+      {!projectFirst && item.associated_account && <CompanyContacts companyId={item.associated_account.company_identity_id}/>}
+      {projectFirst && item.associated_account && <details className="project-account-relationship"><summary>Account relationship and contacts</summary><p>{item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p><CompanyContacts companyId={item.associated_account.company_identity_id}/></details>}
       {associationNotice && <p role="status" className="wh-integrity">{associationNotice}</p>}
       {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
       {item.signal_evidence_state === 'planning_status_unknown' && <p className="wh-integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}
@@ -169,20 +181,30 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
       {item.group_total_filtered && item.group_total_filtered > 1 && <p className="wh-group-context">Part of a group with {item.group_total_filtered} retained records. Each record and its evidence remain separate and available.</p>}
       {hasConflict(item.conflict_state) && <p role="status" className="wh-integrity">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}
     </div>
-    <section className="wh-customer-metrics" aria-label="Customer intelligence metrics">
+    {!projectFirst && <section className="wh-customer-metrics" aria-label="Customer intelligence metrics">
       <div><strong>{metrics[1].value}</strong><span>Estimated Power Gap</span><small>{metrics[1].basis}</small></div>
       <div><strong>{metrics[2].value}</strong><span>Target Need Date</span></div>
       <div><strong>Unavailable</strong><span>Confidence Score</span></div>
-    </section>
+    </section>}
     <nav ref={tabsRef} className="wh-tabs" aria-label="Opportunity detail">
-      {([['Overview', 'Overview'], ['Buying chain', 'Buying Chain'], ['Evidence', 'Evidence'], ['Power gap', 'Power Analysis'], ['Research', 'Research']] as const).map(([value, label]) => <button key={value} aria-label={label} aria-pressed={value === tab} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{label}</button>)}
-      <details className="wh-more-tabs"><summary>More</summary><div>{(['Timeline', 'Unknowns'] as const).map(value => <button key={value} aria-pressed={value === tab} onClick={() => onTab(value)}>{value === 'Unknowns' ? 'Research Gaps' : value}</button>)}</div></details>
+      {(projectFirst ? ([['Overview', 'Overview'], ['Buying chain', 'Buying Chain'], ['Evidence', 'Evidence'], ['Power gap', 'Power Analysis']] as const) : ([['Overview', 'Overview'], ['Buying chain', 'Buying Chain'], ['Evidence', 'Evidence'], ['Power gap', 'Power Analysis'], ['Research', 'Research']] as const)).map(([value, label]) => <button key={value} aria-label={label} aria-pressed={value === tab} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{label}</button>)}
+      <details className="wh-more-tabs"><summary>More</summary><div>{(['Timeline', 'Unknowns', ...(projectFirst ? ['Research' as const] : [])] as const).map(value => <button key={value} aria-pressed={value === tab} onClick={() => onTab(value)}>{value === 'Unknowns' ? 'Research Gaps' : value}</button>)}</div></details>
     </nav>
-    {tab === 'Overview' && <div className="wh-overview"><h3>Opportunity Summary</h3><p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment summary is available.'}</p>{item.intelligence_card ? <IntelligenceCard key={item.id} card={item.intelligence_card} opportunityName={displayTitle} customer={customer} location={item.location} activity={item.activity.replaceAll('-', ' ')} tier={item.tier} why={item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment rationale is available.'} nextAction={item.commercial_next_action || item.next_action || item.commercial_next_question || 'Review retained evidence and confirm the unresolved details.'} onResearch={openResearch} /> : <div className="wh-summary-columns">
+    {tab === 'Overview' && <div className={`wh-overview ${projectFirst ? 'project-first-overview' : ''}`}>
+      {projectFirst ? <>
+        <h3>Project overview</h3>
+        {item.tier === 'Signal' && (item.commercial_disposition ?? item.intelligence_card?.disposition) === 'WATCH' ? <p>Monitoring for verified power demand.</p> : <p>{briefProjectReason(item.commercial_reason || item.assessment_reason || item.rationale)}</p>}
+        {item.tier !== 'Signal' && (item.commercial_next_action || item.next_action || item.commercial_next_question) && <p><strong>Next step:</strong> {item.commercial_next_action || item.next_action || item.commercial_next_question}</p>}
+        <dl className="project-detail-facts"><div><dt>Qualification</dt><dd>{item.tier}</dd></div><div><dt>Power demand</dt><dd>{item.required_mw || item.intelligence_card?.fields.find(field => field.key === 'facility_demand')?.value || 'Not yet verified'}</dd></div><div><dt>Power timing</dt><dd>{item.start_window || 'Not yet verified'}</dd></div><div><dt>Supply</dt><dd>{item.supply && item.supply !== 'Unknown' ? item.supply : 'Not yet verified'}</dd></div></dl>
+        {item.tier === 'Signal' && (item.commercial_disposition ?? item.intelligence_card?.disposition) === 'ACTION NOW' && <p className="project-discovery-action">Discovery call · Power need unconfirmed</p>}
+        {item.intelligence_card?.contacts.slice(0, 2).map(person => { const methods = (person.methods ?? []).filter(method => /^(tel:|mailto:|https?:\/\/)/i.test(method.href ?? '')); const role = (person.role || '').toLowerCase().replaceAll('_', ' '); const title = person.title || (role === 'owner developer' || role === 'owner/developer' ? 'Listed owner contact' : person.role); return <div className="project-detail-contact" key={person.claim_id}><strong>{person.name || person.company}</strong>{(title || person.company) && <span>{[title, person.name ? person.company : null].filter(Boolean).join(' · ')}</span>}{person.responsibility && <span>{person.responsibility}</span>}{methods.length ? methods.map(method => <a key={`${method.kind}:${method.href}`} href={method.href}>{method.kind === 'phone' || method.kind === 'tel' ? `Call ${person.company || person.name || 'contact'}` : method.kind === 'email' ? `Email ${person.name || person.company || 'contact'}` : `Contact ${person.company || person.name || 'organization'}`}</a>) : <span>No verified direct method</span>}</div>})}
+        {item.evidence?.[0] && <p className="project-detail-source">Latest retained source: <a href={item.evidence[0].url ?? undefined} target="_blank" rel="noreferrer">{item.evidence[0].title}</a>{item.evidence[0].published_at ? ` · ${item.evidence[0].published_at}` : ''}</p>}
+        <button type="button" className="project-view-sources" onClick={() => onTab('Evidence')}>View sources</button>
+      </> : <><h3>Opportunity Summary</h3><p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment summary is available.'}</p>{item.intelligence_card ? <IntelligenceCard key={item.id} card={item.intelligence_card} opportunityName={displayTitle} customer={customer} location={item.location} activity={item.activity.replaceAll('-', ' ')} tier={item.tier} why={item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment rationale is available.'} nextAction={item.commercial_next_action || item.next_action || item.commercial_next_question || 'Review retained evidence and confirm the unresolved details.'} onResearch={openResearch} /> : <div className="wh-summary-columns">
       <section><h3>Project &amp; customer details</h3><dl><div><dt>Project</dt><dd>{displayTitle}</dd></div>{customer && <div><dt>Customer / end user</dt><dd>{customer}</dd></div>}<div><dt>Power activity</dt><dd>{item.activity.replaceAll('-', ' ')}</dd></div><div><dt>Location</dt><dd>{item.location ?? 'Unknown'}</dd></div></dl></section>
       <section><h3>Key contacts &amp; buying chain</h3><p>No current verified contact is available in the intelligence summary.</p>{item.project_id && <button onClick={() => onTab('Buying chain')}>Review buying chain</button>}</section>
       <section><h3>Why this opportunity matters</h3><p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment rationale is available.'}</p><h4>Recommended next action</h4><p>{item.commercial_next_action || item.next_action || item.commercial_next_question || 'Review retained evidence and confirm the unresolved details.'}</p><button onClick={() => onTab('Research')}>Research</button></section>
-    </div>}</div>}
+    </div>}</>}</div>}
     <div className="wh-detail-content">
       {<details className="wh-record-metadata"><summary>Qualification &amp; provenance</summary>        <div className="wh-record-qualification"><span className="wh-tier-badge">{item.tier} · {item.commercial_disposition ?? item.intelligence_card?.disposition ?? 'Disposition unavailable'}</span><span>{item.intelligence_card?.last_intelligence_update ? `Evidence updated ${new Date(item.intelligence_card.last_intelligence_update).toLocaleDateString()}` : 'Evidence update date unavailable'}</span></div>
         {item.intelligence_card && <div className="wh-completeness"><span>Intelligence completeness</span><strong>{item.intelligence_card.completeness.supported}/{item.intelligence_card.completeness.total}</strong><progress aria-label="Intelligence completeness" max={item.intelligence_card.completeness.total} value={item.intelligence_card.completeness.supported}/></div>}</details>}
@@ -252,6 +274,80 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
       {tab === 'Research' && <AutonomousResearch key={item.id} needId={item.id} />}
       {tab === 'Unknowns' && <><ul>{unknowns.map(value => <li key={value}>{value}</li>)}</ul>{item.intelligence_card?.research_gaps.map(field => <p key={field.key}><strong>{field.label}:</strong> {field.value ?? field.basis} · {field.status}{field.research_status ? ` · ${field.research_status.replaceAll('_', ' ').toLowerCase()}` : ''}</p>)}{item.tier === 'Signal' && item.commercial_size_status === 'unknown' && <p>Activity size unknown. Retained for investigation; the 300 kW minimum is inclusive.</p>}</>}
     </div>
+  </aside>
+}
+
+function PreparedProjectOverview({ item, onBack, onTab }: { item: WorkspaceDetailItem; onBack: () => void; onTab: (tab: WorkspaceTab) => void }) {
+  const [retry, setRetry] = useState(0)
+  const [state, setState] = useState<{ needId: string; loading: boolean; project: ProjectResult | null; error: string }>({ needId: '', loading: true, project: null, error: '' })
+  useEffect(() => {
+    const needId = item.id
+    const controller = new AbortController()
+    setState({ needId, loading: true, project: null, error: '' })
+    client.projectResults({ need_id: needId, sector: 'all', limit: 1, offset: 0, sort: 'priority' }, controller.signal)
+      .then(page => {
+        if (controller.signal.aborted) return
+        const project = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
+        if (!project) throw new Error('Current project details could not be matched to this power need.')
+        setState({ needId, loading: false, project, error: '' })
+      })
+      .catch(() => { if (!controller.signal.aborted) setState({ needId, loading: false, project: null, error: 'Current project details are unavailable. Try again.' }) })
+    return () => controller.abort()
+  }, [item.id, retry])
+
+  const current = state.needId === item.id ? state : null
+  const project = current?.project ?? null
+  const selectedNeed = project?.needs.find(need => need.id === item.id)
+  const company = project?.company?.trim() || null
+  const title = project && company && project.name.startsWith(`${company} · `) ? project.name.slice(company.length + 3) : project?.name
+  const contacts = (project?.contact ?? []).filter(contact => /^(tel:|mailto:|https?:\/\/)/i.test(contact.href ?? ''))
+  const people = (project?.contact_people ?? []).filter(person => Boolean(person.name?.trim()))
+  const tier = selectedNeed?.tier ?? null
+  const disposition = selectedNeed?.commercial_preview?.disposition
+  const signalAction = tier === 'Signal' && disposition === 'WATCH'
+    ? 'Monitoring for verified power demand.'
+    : tier === 'Signal' && disposition === 'ACTION NOW'
+      ? contacts.some(contact => contact.kind === 'call' || contact.kind === 'phone' || contact.kind === 'tel') && company
+        ? `Discuss project power plans with ${company}.`
+        : 'Discovery call · Power need unconfirmed'
+      : project?.next_action
+  const powerSummary = project?.power_summary?.trim()
+  const showPowerSummary = Boolean(powerSummary && (project?.power_summary_kind ? project.power_summary_kind !== 'unknown' : !/power .*(unknown|unverified|confirm|verify)|not yet verified/i.test(powerSummary)))
+  const powerSummaryLabel = project?.power_summary_kind === 'supported_gap' ? 'Supported power gap' : project?.power_summary_kind === 'activity_requirement' ? 'Activity requirement' : project?.power_summary_kind === 'facility_demand' ? 'Facility demand' : project?.power_summary_kind === 'source_context' ? 'Power context' : null
+  const asset = project?.asset_type?.replaceAll('_', ' ')
+  const location = project?.location?.trim()
+  const loading = !current || current.loading
+  const error = current?.error
+
+  return <aside className="wh-detail project-first-detail" aria-label="Opportunity detail">
+    <header className="project-first-overview-head">
+      <button type="button" className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button>
+      {loading ? <p role="status">Loading current project details…</p> : error ? <p role="alert">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></p> : project && <>
+        <div className="project-first-identity-line"><div>{asset && <span className="project-asset-type">{asset}</span>}{project.sector && <span className="project-sector-label">{project.sector === 'oil_gas' ? 'Oil & Gas' : 'Data Centers'}</span>}</div>{tier && <span className="project-tier">{tier}</span>}</div>
+        <h2>{title}</h2>
+        {(company || location) && <p className="project-owner-location">{[company, location].filter(Boolean).join(' · ')}</p>}
+        {project.event?.label && <p className="project-detail-milestone">{project.event.label}{project.event.date ? ` · ${project.event.date}` : ''}</p>}
+        {showPowerSummary && <p className="project-detail-power">{powerSummaryLabel && <strong>{powerSummaryLabel}: </strong>}{powerSummary}</p>}
+        {signalAction && <p className={tier === 'Signal' ? 'project-discovery-action' : 'project-detail-next-action'}>{signalAction}</p>}
+        {contacts.length > 0 && <section className="project-detail-contact-actions" aria-label="Verified project contact methods">{contacts.map((contact, index) => <a key={`${contact.kind}-${contact.href}-${index}`} href={contact.href!}>{contact.label}</a>)}</section>}
+        {people.map((person, index) => {
+          const role = (person.role ?? '').toLowerCase().replaceAll('_', ' ')
+          const label = person.title?.trim() || (role === 'owner developer' || role === 'owner/developer' ? 'Listed owner contact' : 'Source-listed project contact')
+          const personCompany = person.company?.trim()
+          const source = /^https?:\/\//i.test(person.source_url ?? '') ? person.source_url : null
+          return <section className="project-detail-contact" key={`${person.person_identity_id ?? person.name}-${index}`}><strong>{person.name}</strong><span>{label}{personCompany ? ` · ${personCompany}` : ''}</span>{person.responsibility && <span>{person.responsibility}</span>}{source && <a href={source} target="_blank" rel="noreferrer">Source</a>}<span>No verified direct method</span></section>
+        })}
+        {contacts.length === 0 && people.length === 0 && <p className="project-contact-unavailable">No current verified contact method is available.</p>}
+        <button type="button" className="project-view-sources" onClick={() => onTab('Evidence')}>View sources</button>
+      </>}
+    </header>
+    <nav className="wh-tabs project-first-detail-tabs" aria-label="Project details">
+      <button type="button" aria-pressed="true" className="active">Overview</button>
+      <button type="button" onClick={() => onTab('Buying chain')}>Buying Chain</button>
+      <button type="button" onClick={() => onTab('Evidence')}>Evidence</button>
+      <button type="button" onClick={() => onTab('Power gap')}>Power Analysis</button>
+      <details className="wh-more-tabs"><summary>More</summary><div><button type="button" onClick={() => onTab('Timeline')}>Timeline</button><button type="button" onClick={() => onTab('Unknowns')}>Research Gaps</button><button type="button" onClick={() => onTab('Research')}>Research</button></div></details>
+    </nav>
   </aside>
 }
 

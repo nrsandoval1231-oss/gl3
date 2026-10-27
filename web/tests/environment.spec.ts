@@ -19,6 +19,12 @@ const opportunity = (id: string, location: string | null): Opportunity => ({
   missing_facts: ['Activity-specific load (MW)'], asset_type: 'data_center', evidence: [evidence(1), evidence(2)],
 } as Opportunity)
 
+async function openSecondaryRoute(page: Page, name: 'Research' | 'Signals') {
+  const menu = page.locator('.wh-account')
+  if (await menu.getAttribute('open') === null) await menu.locator('summary').click()
+  await menu.getByRole('button', { name, exact: true }).click()
+}
+
 async function mock(page: Page, items: Opportunity[], opportunities?: (route: Route) => Promise<void>, mapWindow?: (route: Route) => Promise<void>) {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -28,6 +34,13 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
     const json = (body: unknown, headers: Record<string, string> = {}) =>
       route.fulfill({ contentType: 'application/json', headers, body: JSON.stringify(body) })
     if (path === '/api/auth/session') return json({ authenticated: true })
+    if (path === '/api/opportunities/projects') {
+      const params = new URL(route.request().url()).searchParams
+      const query = (params.get('search') ?? '').toLocaleLowerCase()
+      const projects = items.map(item => ({ id: item.project_id ?? item.id, project_id: item.project_id ?? item.id, name: item.name, company: item.title_company ?? null, location: item.location, sector: item.asset_type === 'data_center' ? 'data_centers' : item.asset_type ? 'oil_gas' : null, asset_type: item.asset_type ?? null, priority_score: null, representative_need_id: item.id, needs: [{ id: item.id, project_id: item.project_id ?? item.id, name: item.name, browse_title: item.name, activity: item.activity, location: item.location, tier: item.tier, commercial_preview: { disposition: item.intelligence_card?.disposition ?? 'RESEARCH' } }], need_count: 1, event: { kind: 'permit_issued', label: 'Permit issued', date: '2026-09-30', source: 'Synthetic fixture', evidence_refs: [] }, contact: [], contact_people: [], power_summary: item.rationale, next_action: item.next_action, updated_at: stamp })).filter(project => !query || `${project.name} ${project.company ?? ''} ${project.location ?? ''}`.toLocaleLowerCase().includes(query))
+      const offset = Number(params.get('offset') ?? 0), limit = 25
+      return json({ items: projects.slice(offset, offset + limit), total: projects.length, count_unit: 'projects', limit, offset, cohort_token: 'project-fixture', generation: 1 })
+    }
     if (path === '/api/opportunities/workspace') {
       const params = new URL(route.request().url()).searchParams
       const offset = Number(params.get('offset') ?? 0), limit = 25
@@ -64,19 +77,19 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
   })
 }
 
-test('canonical queue keeps geographically unknown records reachable and restores selected need', async ({ page }) => {
+test('project-first results keep geographically unknown projects reachable and restore selected need', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX'), opportunity('d', null)])
   await page.goto('/environment')
-  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Test project d/ })).toBeVisible()
-  await page.getByRole('button', { name: /Test project a/ }).click()
-  await expect(page.locator('.wh-record-identity h2')).toHaveText('Test project a')
+  await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Test project d' })).toBeVisible()
+  await page.locator('.project-card').filter({ has: page.getByRole('heading', { name: 'Test project a' }) }).getByRole('button', { name: 'View project details' }).click()
+  await expect(page.locator('.project-first-detail h2')).toHaveText('Test project a')
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Test evidence 2' })).toBeVisible()
   await page.getByRole('button', { name: /Back to power needs/ }).click()
-  await expect(page.getByRole('button', { name: /Test project d/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Test project d' })).toBeVisible()
   await page.goForward()
-  await expect(page.locator('.wh-record-identity h2')).toHaveText('Test project a')
+  await expect(page.locator('.project-first-detail h2')).toHaveText('Test project a')
 })
 
 test('legacy action deep link restores selected need without retired call preparation', async ({ page }) => {
@@ -84,28 +97,30 @@ test('legacy action deep link restores selected need without retired call prepar
   const writes: string[] = []
   page.on('request', request => { if (request.method() === 'POST') writes.push(request.url()) })
   await page.goto('/environment?view=environment&mode=action&state=Texas&need=a')
-  await expect(page.locator('.wh-record-identity h2')).toHaveText('Test project a')
+  await expect(page.locator('.project-first-detail h2')).toHaveText('Test project a')
+  await page.locator('.wh-account summary').click()
   await expect(page.getByRole('button', { name: 'Research', exact: true }).first()).toBeVisible()
   await expect(page.getByLabel('Call note')).toHaveCount(0)
   expect(writes).toEqual([])
 })
 
-test('legacy environment URL reaches the canonical queue without map requests', async ({ page }) => {
+test('legacy environment URL reaches project results without workspace or map requests', async ({ page }) => {
   const requests: string[] = []
   await mock(page, [opportunity('a', 'Austin, TX'), opportunity('dc', 'Washington, DC')])
   page.on('request', request => requests.push(new URL(request.url()).pathname))
   await page.goto('/environment')
-  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Test project dc/ })).toBeVisible()
-  expect(requests).toContain('/api/opportunities/workspace')
+  await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Test project dc' })).toBeVisible()
+  expect(requests).toContain('/api/opportunities/projects')
+  expect(requests).not.toContain('/api/opportunities/workspace')
   expect(requests).not.toContain('/api/opportunities/map-window')
 })
 
-test('canonical queue uses bounded server pagination instead of map-window data', async ({ page }) => {
+test('secondary account browsing uses bounded server pagination instead of map-window data', async ({ page }) => {
   const requests: URL[] = []
   await mock(page, Array.from({ length: 60 }, (_, i) => opportunity(`n${i}`, 'Austin, TX')))
   page.on('request', request => requests.push(new URL(request.url())))
-  await page.goto('/environment')
+  await page.goto('/?view=workspace&accountBrowse=1')
   await expect(page.getByText('Showing 1–25 of 60')).toBeVisible()
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(page.getByText('Showing 26–50 of 60')).toBeVisible()
@@ -134,7 +149,7 @@ test('Back and Forward wait for the matching page before restoring each queue po
     await route.fulfill({ json: { items: items.slice(offset, offset + 25), total: 60, counts: { action_now: 0, research: 0, watch: 0, reject: 0 }, offset, limit: 25, next_offset: offset < 50 ? offset + 25 : null, cohort_token: 'workspace-fixture', count_unit: 'power needs', changes_available: false } })
   })
   try {
-    await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&accountBrowse=1')
     await expect(page.getByText('Showing 1–25 of 60')).toBeVisible()
     const first = page.locator('[data-need-row="history-7"]')
     await first.focus()
@@ -169,41 +184,41 @@ test('Back and Forward wait for the matching page before restoring each queue po
 test('section navigation keeps Opportunities and Signals searches independent through reload and history', async ({ page }) => {
   const requests: URL[] = []
   await mock(page, [opportunity('alpha', 'Austin, TX')])
-  page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/workspace') requests.push(url) })
+  page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/projects') requests.push(url) })
   await page.goto('/?view=workspace&q=alpha')
-  await expect(page.getByRole('textbox', { name: 'Search workspace' })).toHaveValue('alpha')
-  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('alpha')
+  await openSecondaryRoute(page, 'Signals')
   await page.getByRole('textbox', { name: 'Search projects' }).fill('beta')
   await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('beta')
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'Search workspace' })).toHaveValue('alpha')
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('alpha')
   expect(new URL(page.url()).searchParams.get('q')).toBe('alpha')
   expect(new URL(page.url()).searchParams.has('decision')).toBe(false)
   await expect.poll(() => requests.at(-1)?.searchParams.get('search')).toBe('alpha')
   await page.reload()
-  await expect(page.getByRole('textbox', { name: 'Search workspace' })).toHaveValue('alpha')
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('alpha')
   await page.goBack()
   await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue('beta')
   await page.goForward()
-  await expect(page.getByRole('textbox', { name: 'Search workspace' })).toHaveValue('alpha')
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('alpha')
   expect(new URL(page.url()).searchParams.get('q')).toBe('alpha')
 })
 
 test('Research navigation keeps Opportunities search and selection state independent', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX')])
   await page.goto('/?view=workspace&q=a')
-  await page.getByRole('button', { name: 'Research', exact: true }).click()
+  await openSecondaryRoute(page, 'Research')
   await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /WATCH|ACTION NOW|REJECT/i })).toHaveCount(0)
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'Search workspace' })).toHaveValue('a')
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('a')
   expect(new URL(page.url()).searchParams.has('disposition')).toBe(false)
   expect(new URL(page.url()).searchParams.has('researchNeed')).toBe(false)
   await page.reload()
-  await expect(page.getByRole('navigation', { name: 'Filter opportunities by category' }).getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('navigation', { name: 'Project type' }).getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
   await page.goForward()
-  await expect(page.getByRole('textbox', { name: 'Search workspace' })).toHaveValue('a')
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('a')
   expect(new URL(page.url()).searchParams.has('disposition')).toBe(false)
 })
