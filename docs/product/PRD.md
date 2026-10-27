@@ -3,7 +3,7 @@
 **Version:** 1.1 · autonomous amendment 2026-10-26
 **Date:** September 24, 2026
 **Product owner:** Nick Sandoval
-**Status:** Supporting requirements; subordinate to the owner-approved [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md)
+**Status:** Supporting requirements; subordinate to the owner-approved [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) and later [Project-First Results Canon](PROJECT_FIRST_RESULTS_CANON.md) for the public UX.
 **Scope:** Texas, Oklahoma and New Mexico power-need discovery, daily ingestion, and evidence-based qualification
 **Numbered requirements:** 42
 
@@ -27,7 +27,7 @@ The canonical vertical/asset lifecycle doctrine is [Vertical Lifecycle Intellige
 
 ## Autonomous application experience
 
-The [UI canon](../design/UI_CANON.md) and [workspace contract](../design/PURSUIT_WORKSPACE.md) retain the seven-color G/L brand, compact horizontal navigation, dense table and detail composition. Primary user surfaces are Opportunities, automated Research, emerging Signals and unified search. Source administration and diagnostics are internal. No call logging, manual fact drafting, operator statuses, qualification controls, correction forms, notes or administrative pursuit logging belong in the user-facing application or its public mutation API. Evidence tiers remain independently searchable; backend attribution and immutable audit history survive retirement of routine manual workflows. Exceptional internal correction, suppression and privacy services remain supported with reason/actor/version/idempotency audit, durable scope across refresh, and no qualification override.
+The [Project-First Results Canon](PROJECT_FIRST_RESULTS_CANON.md) and amended [UI canon](../design/UI_CANON.md) retain the approved seven-color G/L brand with compact project-first opportunities and domain filters **All | Oil & Gas | Data Centers**. The older dense account table, four KPI blocks and default exposed research/operations views are superseded. Autonomous Research and Signals remain accessible as secondary capabilities, with unified search. Source administration and diagnostics are internal. No call logging, manual fact drafting, operator statuses, qualification controls, correction forms, notes or administrative pursuit logging belong in the user-facing application or its public mutation API. Evidence tiers remain independently searchable; backend attribution and immutable audit history survive retirement of routine manual workflows. Exceptional internal correction, suppression and privacy services remain supported with reason/actor/version/idempotency audit, durable scope across refresh, and no qualification override.
 
 ## October 22, 2026 regional operating mandate
 
