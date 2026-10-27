@@ -31,6 +31,21 @@ DAILY_JOB_LIMIT = 24
 REFRESH_DAYS = 7
 
 
+def _access_cooldown(session, now: datetime) -> bool:
+    return bool(
+        session.scalar(
+            select(Job.id)
+            .where(
+                Job.kind == KIND,
+                Job.source_id == SOURCE,
+                Job.created_at >= now - timedelta(days=1),
+                Job.checkpoint.contains('"status":"access_restricted"'),
+            )
+            .limit(1)
+        )
+    )
+
+
 def _canonical(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
 
@@ -124,6 +139,8 @@ def plan_rrc_well_jobs(session, *, now: datetime | None = None) -> int:
     if source is None or not source.enabled or not source.registry_enabled:
         return 0
     session.execute(select(Source.id).where(Source.id == SOURCE).with_for_update())
+    if _access_cooldown(session, now):
+        return 0
     active = (
         session.scalar(
             select(func.count())
@@ -252,7 +269,10 @@ def process_rrc_well_job(
 ) -> None:
     from gridlens.ingestion.adapters.rrc_completion import retrieve_completion_history
     from gridlens.ingestion.adapters.rrc_drilling import reconstruct_retained_record
-    from gridlens.ingestion.adapters.rrc_well_lifecycle import retrieve_w1_detail
+    from gridlens.ingestion.adapters.rrc_well_lifecycle import (
+        RrcAccessRestricted,
+        retrieve_w1_detail,
+    )
 
     with SessionLocal() as session:
         job = assert_fence(session, job_id, worker_id, fence)
@@ -262,6 +282,7 @@ def process_rrc_well_job(
             or source is None
             or not source.enabled
             or not source.registry_enabled
+            or _access_cooldown(session, datetime.now(UTC))
         ):
             job.status, job.error, job.lease_owner, job.lease_until = (
                 "succeeded",
@@ -270,7 +291,7 @@ def process_rrc_well_job(
                 None,
             )
             checkpoint = json.loads(job.checkpoint or "{}")
-            checkpoint.update(status="disabled", acquisition_performed=False)
+            checkpoint.update(status="disabled_or_access_deferred", acquisition_performed=False)
             job.checkpoint = _canonical(checkpoint)
             session.commit()
             return
@@ -291,7 +312,16 @@ def process_rrc_well_job(
             observation.abstract, permit_number=project.external_id, observed_at=observed_at
         )
     research_deadline = min(deadline or float("inf"), monotonic() + 35)
-    facts = retrieve_w1_detail(record, deadline=research_deadline)
+    try:
+        facts = retrieve_w1_detail(record, deadline=research_deadline)
+    except RrcAccessRestricted:
+        with SessionLocal.begin() as session:
+            job = assert_fence(session, job_id, worker_id, fence)
+            checkpoint = json.loads(job.checkpoint or "{}")
+            checkpoint.update(status="access_restricted", source_claims_admitted=False)
+            job.checkpoint = _canonical(checkpoint)
+            job.status, job.error, job.lease_owner, job.lease_until = "succeeded", None, None, None
+        return
     try:
         completion = retrieve_completion_history(facts["identity"], deadline=research_deadline)
     except (ValueError, OSError, TimeoutError, httpx.HTTPError) as exc:

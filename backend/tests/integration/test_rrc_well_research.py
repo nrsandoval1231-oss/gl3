@@ -188,3 +188,60 @@ def test_disabling_source_or_feature_after_planning_prevents_acquisition(saved_d
             job = session.get(Job, job_id)
             assert job.status == "succeeded"
             assert json.loads(job.checkpoint)["acquisition_performed"] is False
+
+
+def test_publisher_policy_redirect_stops_retries_and_defers_other_queued_research(
+    saved_db, monkeypatch
+):
+    import gridlens.ingestion.adapters.rrc_drilling as native
+    import gridlens.ingestion.adapters.rrc_well_lifecycle as adapter
+
+    ids = seed(saved_db, count=3)
+    monkeypatch.setattr(research, "SessionLocal", saved_db)
+    monkeypatch.setattr(settings, "rrc_well_research_enabled", True)
+    monkeypatch.setattr(native, "reconstruct_retained_record", lambda *_a, **_k: {})
+    attempts = []
+
+    def restricted(*_args, **_kwargs):
+        attempts.append(1)
+        raise adapter.RrcAccessRestricted("Publisher policy destination")
+
+    monkeypatch.setattr(adapter, "retrieve_w1_detail", restricted)
+    for pid, oid in ids[:2]:
+        with saved_db.begin() as session:
+            job = Job(
+                source_id=research.SOURCE,
+                kind=research.KIND,
+                target_id=pid,
+                status="running",
+                lease_owner="fixture",
+                fence=1,
+                lease_until=datetime.now(UTC) + timedelta(minutes=5),
+                checkpoint=json.dumps(
+                    {
+                        "policy": research.POLICY,
+                        "native_content_hash": session.get(Observation, oid).content_hash,
+                    }
+                ),
+            )
+            session.add(job)
+            session.flush()
+            job_id = job.id
+        research.process_rrc_well_job(job_id, "fixture", 1)
+    assert len(attempts) == 1
+    with saved_db.begin() as session:
+        assert research.plan_rrc_well_jobs(session) == 0
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+        assert all(
+            not project.identity_facts.get("rrc_official_well")
+            for project in session.scalars(select(Project))
+        )
+        statuses = [json.loads(job.checkpoint)["status"] for job in session.scalars(select(Job))]
+        assert "access_restricted" in statuses
+        assert "disabled_or_access_deferred" in statuses
+        assert (
+            research.plan_rrc_well_jobs(
+                session, now=datetime.now(UTC) + timedelta(days=1, seconds=1)
+            )
+            == 1
+        )

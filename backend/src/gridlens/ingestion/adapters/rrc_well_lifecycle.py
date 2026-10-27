@@ -27,6 +27,10 @@ _PERMIT = re.compile(r"\d{7}\Z")
 _OPERATOR = re.compile(r"\d{6}\Z")
 
 
+class RrcAccessRestricted(SourceParseError):
+    """Publisher explicitly returned its site-policy/access destination."""
+
+
 @dataclass(frozen=True)
 class WellIdentity:
     api_number: str | None
@@ -303,6 +307,10 @@ def parse_completion_packet(
 def _official_url(base: str, action: str) -> str:
     url = urljoin(base, action)
     parsed = urlsplit(url)
+    if parsed.hostname in {"www.rrc.state.tx.us", "www.rrc.texas.gov"} and parsed.path.startswith(
+        "/site-policies/"
+    ):
+        raise RrcAccessRestricted("RRC returned its publisher site-policy destination")
     if (
         parsed.scheme != "https"
         or parsed.netloc != "webapps2.rrc.texas.gov"
