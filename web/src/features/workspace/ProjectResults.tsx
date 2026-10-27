@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { client, OpportunityCohortChangedError, type ProjectResult, type ProjectResultsPage } from '../../api/client'
+import { useEffect, useRef, useState } from 'react'
+import { client, OpportunityCohortChangedError, type OpportunityGroup, type OpportunityGroupsPage, type ProjectResult, type ProjectResultsPage } from '../../api/client'
 
 type Props = { selectedNeedId?: string; onNeed: (need: { id: string }) => void; onBrowseChange?: () => void }
 export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props) {
@@ -7,26 +7,35 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const [initialRoute] = useState(readRoute)
   const [search, setSearch] = useState(initialRoute.search)
   const [sector, setSector] = useState(initialRoute.sector)
-  const [page, setPage] = useState<ProjectResultsPage | null>(null)
+  const [page, setPage] = useState<OpportunityGroupsPage | null>(null)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [children, setChildren] = useState<Record<string, ProjectResultsPage | null>>({})
+  const [childErrors, setChildErrors] = useState<Record<string, string>>({})
+  const [childLoading, setChildLoading] = useState<Record<string, boolean>>({})
+  const [childOffsets, setChildOffsets] = useState<Record<string, number>>({})
   const [offset, setOffset] = useState(initialRoute.offset)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
+  const childRequests = useRef(new Map<string, AbortController>())
+  const childEpoch = useRef(0)
+  const resetChildRequests = () => { childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear(); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}) }
   useEffect(() => {
     const onPop = () => { const route = readRoute(); setSearch(route.search); setSector(route.sector); setOffset(route.offset) }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
   useEffect(() => {
-    const controller = new AbortController(); setLoading(true); setError(''); setPage(null)
+    childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear()
+    const controller = new AbortController(); setLoading(true); setError(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({})
     const cohort = new URLSearchParams(location.search).get('cohort_token') ?? undefined
-    client.projectResults({ search, sector, limit: 25, offset, cohort_token: cohort, sort: 'priority' }, controller.signal).then(value => { setPage(value); setLoading(false) }).catch((e: Error) => {
+    client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort: 'priority' }, controller.signal).then(value => { setPage(value); setLoading(false) }).catch((e: Error) => {
       if (controller.signal.aborted) return
       if (e instanceof OpportunityCohortChangedError) {
         setPage(null)
         setError('')
-        setNotice('Project results changed. Reloaded from the first page.')
+        setNotice('Results changed. Reloaded from the first page.')
         updateUrl(search, sector)
         setOffset(0)
         if (offset === 0) setRetryKey(value => value + 1)
@@ -41,23 +50,60 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     const next = new URLSearchParams({ view: 'workspace' }); if (nextSearch) next.set('q', nextSearch); if (nextSector !== 'all') next.set('sector', nextSector); if (nextOffset) next.set('offset', String(nextOffset)); if (cohort) next.set('cohort_token', cohort)
     history.replaceState(history.state, '', `/?${next}`)
   }
-  const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers') => { if (selectedNeedId) onBrowseChange?.(); setNotice(''); setSearch(q); setSector(s); setOffset(0); updateUrl(q, s) }
-  const cards = page?.items ?? []
+  const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers') => { resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); setNotice(''); setSearch(q); setSector(s); setOffset(0); updateUrl(q, s) }
+  const groups = page?.items ?? []
+  const toggleGroup = (group: OpportunityGroup) => {
+    if (expanded[group.id]) { setExpanded(current => ({ ...current, [group.id]: false })); return }
+    setExpanded(current => ({ ...current, [group.id]: true }))
+    if (children[group.id] || childLoading[group.id]) return
+    loadGroupProjects(group, 0)
+  }
+  const loadGroupProjects = (group: OpportunityGroup, childOffset: number, cohortToken?: string) => {
+    setChildLoading(current => ({ ...current, [group.id]: true })); setChildErrors(current => ({ ...current, [group.id]: '' }))
+    childRequests.current.get(group.id)?.abort()
+    const controller = new AbortController(); childRequests.current.set(group.id, controller)
+    const epoch = childEpoch.current
+    client.groupProjects(group.id, { search, sector, limit: 25, offset: childOffset, cohort_token: cohortToken, parent_cohort_token: page?.cohort_token, sort: 'priority' }, controller.signal).then(value => {
+      if (controller.signal.aborted || epoch !== childEpoch.current) return
+      setChildren(current => ({ ...current, [group.id]: value })); setChildOffsets(current => ({ ...current, [group.id]: childOffset })); setChildLoading(current => ({ ...current, [group.id]: false }))
+    }).catch((e: Error) => {
+      if (controller.signal.aborted || epoch !== childEpoch.current) return
+      if (e instanceof OpportunityCohortChangedError) {
+        resetChildRequests(); setPage(null); setNotice('Project results changed. Reloaded from the first page.')
+        setOffset(0); updateUrl(search, sector)
+        if (offset === 0) setRetryKey(value => value + 1)
+      } else setChildErrors(current => ({ ...current, [group.id]: e.message }))
+      setChildLoading(current => ({ ...current, [group.id]: false }))
+    })
+  }
   return <section className="project-results" aria-label="Project opportunities">
     <header className="project-results-header"><div><h1>Search opportunities</h1></div>
       <label><span className="project-search-label">Search opportunities</span><input aria-label="Search opportunities" placeholder="Project, operator, well or location" value={search} onChange={e => setFilter(e.target.value, sector)}/></label>
     </header>
     <nav className="project-sector-tabs" aria-label="Project type">{([['all','All'],['oil_gas','Oil & Gas'],['data_centers','Data Centers']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={sector === value} onClick={() => setFilter(search, value)}>{label}</button>)}</nav>
-    <div className="project-results-count" aria-live="polite">{page ? `${page.total} ${page.total === 1 ? 'project' : 'projects'}` : loading ? 'Loading projects…' : 'Projects unavailable'}</div>
+    <div className="project-results-count" aria-live="polite">{page ? `${page.total} operator/customer ${page.total === 1 ? 'group' : 'groups'}` : loading ? 'Loading operator/customer groups…' : 'Operator/customer groups unavailable'}</div>
     {notice && <p role="status" className="project-results-notice">{notice}</p>}
     {error && <p role="alert">{error} <button onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
-    {loading && <p role="status">Loading projects…</p>}
-    {!loading && !error && !cards.length && <p className="project-empty">{page?.results_scope === 'qualified' ? 'No qualified power opportunities yet. Choose Oil & Gas or Data Centers, or search, to explore early project signals.' : 'No projects match this search.'}</p>}
-    {!loading && !error && <div className="project-card-list">{cards.map(project => <ProjectCard key={project.id} project={project} selectedNeedId={selectedNeedId} onNeed={onNeed}/>)}</div>}
-    {page && page.total > page.limit && <footer className="project-paging"><span>{page && !loading && !error ? `${page.offset + (cards.length ? 1 : 0)}–${page.offset + cards.length} of ${page.total}` : ''}</span><button disabled={!page || loading || Boolean(error) || page.offset === 0} onClick={() => { const n = Math.max(0, (page?.offset ?? 0) - 25); setOffset(n); updateUrl(search, sector, n, page?.cohort_token) }}>Previous</button><button disabled={!page || loading || Boolean(error) || page.offset + cards.length >= page.total} onClick={() => { const n = (page?.offset ?? 0) + 25; setOffset(n); updateUrl(search, sector, n, page?.cohort_token) }}>Next</button></footer>}
+    {loading && <p role="status">Loading operator/customer groups…</p>}
+    {!loading && !error && !groups.length && <p className="project-empty">No operator/customer groups match this search.</p>}
+    {!loading && !error && <div className="customer-group-list">{groups.map(group => <section key={group.id} className="customer-group" aria-label={`${group.name} customer group`}>
+      <h2 className="customer-group-heading"><button className="customer-group-toggle" type="button" aria-expanded={Boolean(expanded[group.id])} onClick={() => toggleGroup(group)}>
+        <span><strong className="customer-group-name">{group.name}</strong><small>{group.role === 'operator' ? 'Operator' : group.role === 'customer' ? 'Customer' : 'Operator/customer unresolved'}{group.operator_number ? ` · Operator ${group.operator_number}` : ''}</small></span>
+        <span className="customer-group-count">{group.project_count} {group.project_count === 1 ? 'project' : 'projects'}</span>
+      </button></h2>
+      {expanded[group.id] && <div className="customer-group-projects">
+        {childErrors[group.id] && <p role="alert">{childErrors[group.id]} <button type="button" onClick={() => loadGroupProjects(group, 0)}>Reload projects</button></p>}
+        {childLoading[group.id] && <p role="status">Loading projects…</p>}
+        {!childLoading[group.id] && !childErrors[group.id] && children[group.id] && <>
+          <div className="project-card-list">{children[group.id]!.items.map(project => <ProjectCard key={project.id} project={project} selectedNeedId={selectedNeedId} onNeed={onNeed} nested/>)}</div>
+          {children[group.id]!.total > children[group.id]!.limit && <footer className="project-paging"><span>{(childOffsets[group.id] ?? 0) + 1}–{(childOffsets[group.id] ?? 0) + children[group.id]!.items.length} of {children[group.id]!.total} projects</span><button disabled={childLoading[group.id] || (childOffsets[group.id] ?? 0) === 0} onClick={() => loadGroupProjects(group, Math.max(0, (childOffsets[group.id] ?? 0) - 25), children[group.id]?.cohort_token)}>Previous</button><button disabled={childLoading[group.id] || (childOffsets[group.id] ?? 0) + children[group.id]!.items.length >= children[group.id]!.total} onClick={() => loadGroupProjects(group, (childOffsets[group.id] ?? 0) + 25, children[group.id]?.cohort_token)}>Next</button></footer>}
+        </>}
+      </div>}
+    </section>)}</div>}
+    {page && page.total > page.limit && <footer className="project-paging"><span>{page && !loading && !error ? `${page.offset + (groups.length ? 1 : 0)}–${page.offset + groups.length} of ${page.total} operator/customer groups` : ''}</span><button disabled={!page || loading || Boolean(error) || page.offset === 0} onClick={() => { const n = Math.max(0, (page?.offset ?? 0) - 25); setOffset(n); updateUrl(search, sector, n, page?.cohort_token) }}>Previous</button><button disabled={!page || loading || Boolean(error) || page.offset + groups.length >= page.total} onClick={() => { const n = (page?.offset ?? 0) + 25; setOffset(n); updateUrl(search, sector, n, page?.cohort_token) }}>Next</button></footer>}
   </section>
 }
-function ProjectCard({ project, selectedNeedId, onNeed }: { project: ProjectResult; selectedNeedId?: string; onNeed: Props['onNeed'] }) {
+function ProjectCard({ project, selectedNeedId, onNeed, nested = false }: { project: ProjectResult; selectedNeedId?: string; onNeed: Props['onNeed']; nested?: boolean }) {
   const primary = project.representative_need_id ?? project.needs[0]?.id
   const representative = project.needs.find(need => need.id === primary) ?? project.needs[0]
   const disposition = representative?.commercial_preview?.disposition
@@ -75,7 +121,7 @@ function ProjectCard({ project, selectedNeedId, onNeed }: { project: ProjectResu
   return <article className="project-card" aria-current={selectedNeedId && project.needs.some(need => need.id === selectedNeedId) ? 'true' : undefined}>
     <div className="project-card-top"><span>{project.asset_type?.replaceAll('_', ' ') ?? (project.sector === 'oil_gas' ? 'Oil & Gas project' : project.sector === 'data_centers' ? 'Data center project' : 'Project')}</span>{project.sector && <span>{project.sector === 'oil_gas' ? 'Oil & Gas' : 'Data Centers'}</span>}</div>
     {representative?.tier && <div className="project-qualification"><span className="project-tier">{representative.tier}</span>{representative.tier === 'Signal' && disposition === 'ACTION NOW' && <span>Discovery call · Power need unconfirmed</span>}</div>}
-    <h2>{displayName}</h2>{(project.company || project.location) && <p className="project-company">{[project.company, project.location].filter(Boolean).join(' · ')}</p>}
+    {nested ? <h3>{displayName}</h3> : <h2>{displayName}</h2>}{(project.company || project.location) && <p className="project-company">{[project.company, project.location].filter(Boolean).join(' · ')}</p>}
     {eventLabel && <p className="project-event">{eventLabel}</p>}
     {showPowerSummary && <p>{project.power_summary}</p>}
     {nextAction && <p className="project-next">{nextAction}</p>}

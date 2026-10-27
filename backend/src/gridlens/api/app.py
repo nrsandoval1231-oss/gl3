@@ -2027,6 +2027,66 @@ def project_opportunities(
 
 
 @app.get(
+    "/api/opportunities/groups",
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
+)
+def customer_opportunity_groups(
+    search: str | None = None,
+    sector: Literal["all", "oil_gas", "data_centers"] = "all",
+    limit: Annotated[int, Query(ge=1, le=50)] = 25,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
+    sort: Literal["priority", "updated"] = "priority",
+):
+    from gridlens.intelligence.customer_results import groups
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        return groups(
+            session,
+            search=search,
+            sector=sector,
+            limit=limit,
+            offset=offset,
+            token=cohort,
+            sort=sort,
+        )
+
+
+@app.get(
+    "/api/opportunities/groups/{group_id}/projects",
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
+)
+def customer_group_projects(
+    group_id: str,
+    search: str | None = None,
+    parent_cohort: Annotated[str | None, Query(alias="parent_cohort_token")] = None,
+    sector: Literal["all", "oil_gas", "data_centers"] = "all",
+    limit: Annotated[int, Query(ge=1, le=50)] = 25,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
+    sort: Literal["priority", "updated"] = "priority",
+):
+    from gridlens.intelligence.customer_results import group_projects
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        payload = group_projects(
+            session,
+            group_id,
+            search=search,
+            sector=sector,
+            limit=limit,
+            offset=offset,
+            token=cohort,
+            parent_token=parent_cohort,
+            sort=sort,
+        )
+        _bounded_opportunity_payload(payload["items"])
+        return payload
+
+
+@app.get(
     "/api/opportunities",
     response_model=list[OpportunityOut],
     dependencies=[Depends(require_session), Depends(_validate_browse_query)],

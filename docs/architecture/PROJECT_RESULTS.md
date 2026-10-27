@@ -1,12 +1,16 @@
-# Prepared project results
+# Prepared operator/customer and project results
 
-The [project-first results canon](../product/PROJECT_FIRST_RESULTS_CANON.md) governs ordinary browsing. The existing company, project, power-need, evidence and qualification models remain canonical. Account browsing is secondary (`accountBrowse=1`); permits remain evidence.
+The [results canon with its operator/customer amendment](../product/PROJECT_FIRST_RESULTS_CANON.md) governs ordinary browsing. The existing company, project, power-need, evidence and qualification models remain canonical. Operator/customer groups are primary; their nested projects preserve the existing physical-asset read contract. Permits remain evidence.
 
-## Read contract
+## Grouped read contract
+
+Authenticated `GET /api/opportunities/groups` groups the complete matching prepared cohort by canonical company identity or supported RRC operator number. Names alone never merge groups. `GET /api/opportunities/groups/{group_id}/projects` paginates the group’s distinct physical assets with their own contacts and evidence. Outer and child pagination are bounded and bind generation, filters and group scope; changed cohorts discard both parent and child state. No retrieval or research runs during either GET.
+
+## Physical-project read contract
 
 Authenticated `GET /api/opportunities/projects` reads the current saved `BrowseGeneration`. It accepts bounded `search`, `sector=all|oil_gas|data_centers`, `sort=priority|updated`, `limit` (1–50), `offset`, `cohort_token`, and optional canonical `need_id`.
 
-Default All without search returns projects with a published Prospect or Lead. Explicit sector exploration and search also admit clearly labeled Signals; a company phone alone never qualifies a power opportunity. Exact `need_id` reads return the containing physical asset, including related needs, and support direct links to a Signal without changing qualification.
+The grouped default All view includes every matching source-backed operator/customer and its projects, with Signals clearly labeled by explicit owner choice. The legacy standalone project read remains qualified by default unless `include_signals` is requested. Explicit sector exploration and search admit clearly labeled Signals; a company phone alone never qualifies a power opportunity. Exact `need_id` reads return the containing physical asset, including related needs, and support direct links to a Signal without changing qualification.
 
 `total` and `count_unit=projects` describe the same filtered physical-asset groups as the list. The cohort token binds generation, filter/search, sort and exact-need scope. Nonzero offsets require that token; a changed generation or scope fails closed. SQL counts/ranks scalar groups across the cohort and aggregates compact JSON only for the requested page. The API enforces the existing response-byte budget. No source, model, qualification repair or research acquisition occurs in a project GET.
 
