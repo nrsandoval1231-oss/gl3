@@ -419,9 +419,11 @@ def result_metadata(compact: dict[str, Any]) -> dict[str, Any]:
     power_summary = _first(compact, "power_summary", "power_relevance_summary")
     if not power_summary and isinstance(card, dict):
         power_summary = _first(card, "power_summary", "power_relevance_summary")
+    power_summary_kind = "source_context" if power_summary else "unknown"
     if not power_summary:
         gap = normalize_gap(compact)
         if gap:
+            power_summary_kind = "supported_gap"
             power_summary = (
                 f"Supported residual power gap: {gap['remaining_mw_min']}–"
                 f"{gap['remaining_mw_max']} MW."
@@ -431,6 +433,7 @@ def result_metadata(compact: dict[str, Any]) -> dict[str, Any]:
             if gap.get("duration"):
                 power_summary += f" Duration: {gap['duration']}."
         elif compact.get("tier") in {"Prospect", "Lead"} and compact.get("required_mw"):
+            power_summary_kind = "activity_requirement"
             power_summary = (
                 f"Activity-specific requirement: {compact['required_mw']}. "
                 "Suitable supply and residual gap require supported evidence."
@@ -448,6 +451,7 @@ def result_metadata(compact: dict[str, Any]) -> dict[str, Any]:
                 None,
             )
             if facility:
+                power_summary_kind = "facility_demand"
                 power_summary = (
                     f"Reported facility demand: {facility['value']}; "
                     "temporary demand and residual gap are not established."
@@ -473,6 +477,7 @@ def result_metadata(compact: dict[str, Any]) -> dict[str, Any]:
         "data_center": data_center,
         "event": event,
         "power_summary": power_summary,
+        "power_summary_kind": power_summary_kind,
         "location": (
             f"{county_label(str(oil_gas.get('county_code')))} County, TX"
             if oil_gas

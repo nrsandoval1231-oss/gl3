@@ -409,6 +409,7 @@ def test_existing_canonical_lead_gap_supplies_power_summary_without_a_new_summar
         }
     )
     assert "Supported residual power gap: 3–3 MW" in result["power_summary"]
+    assert result["power_summary_kind"] == "supported_gap"
     assert "2026-11-01" in result["power_summary"]
     assert "not established" not in result["power_summary"]
 
@@ -428,3 +429,4 @@ def test_reported_facility_demand_is_distinct_from_temporary_demand_and_gap():
     assert result["power_summary"] == (
         "Reported facility demand: 800 MW; temporary demand and residual gap are not established."
     )
+    assert result["power_summary_kind"] == "facility_demand"

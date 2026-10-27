@@ -4627,6 +4627,7 @@ export interface operations {
         parameters: {
             query?: {
                 search?: string | null;
+                need_id?: string | null;
                 sector?: "all" | "oil_gas" | "data_centers";
                 limit?: number;
                 offset?: number;

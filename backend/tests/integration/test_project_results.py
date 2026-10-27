@@ -1,7 +1,7 @@
 """PostgreSQL project-first projection and authenticated route contracts."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
@@ -105,6 +105,12 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         assert len(grouped["project_ids"]) == 2
         assert grouped["asset_identity"]["value"] == "4216538299"
         assert grouped["id"] not in grouped["project_ids"]
+        assert grouped["project_id"] in grouped["project_ids"]
+        scoped = page(session, need_id=UUID(grouped["needs"][0]["id"]), limit=1)
+        assert scoped["total"] == 1 and scoped["items"][0]["id"] == grouped["id"]
+        assert scoped["items"][0]["need_count"] == 3
+        assert scoped["results_scope"] == "discovery"
+        assert page(session, need_id=uuid4())["items"] == []
         assert "contacts" not in grouped["needs"][0]
         assert "suppressed@example.invalid" not in repr(full["items"])
         second = page(

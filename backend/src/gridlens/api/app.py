@@ -611,7 +611,7 @@ def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
 def _validate_browse_query(request: Request) -> None:
     allowed = _BROWSE_QUERY_NAMES
     if request.url.path == "/api/opportunities/projects":
-        allowed = {"search", "sector", "limit", "offset", "cohort_token", "sort"}
+        allowed = {"search", "sector", "limit", "offset", "cohort_token", "sort", "need_id"}
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
             raise HTTPException(422, "search must be at most 250 characters")
@@ -1999,6 +1999,7 @@ def ingestion(
 )
 def project_opportunities(
     search: str | None = None,
+    need_id: UUID | None = None,
     sector: Literal["all", "oil_gas", "data_centers"] = "all",
     limit: Annotated[int, Query(ge=1, le=50)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -2009,7 +2010,7 @@ def project_opportunities(
 
     with SessionLocal() as session:
         _begin_consistent_read(session)
-        return project_page(
+        payload = project_page(
             session,
             search=search,
             sector=sector,
@@ -2017,7 +2018,12 @@ def project_opportunities(
             offset=offset,
             token=cohort,
             sort=sort,
+            need_id=need_id,
         )
+        _bounded_opportunity_payload(payload["items"])
+        if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
+            raise HTTPException(413, "Project results exceed the response byte budget")
+        return payload
 
 
 @app.get(

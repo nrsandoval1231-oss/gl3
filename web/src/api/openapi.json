@@ -528,6 +528,23 @@
             }
           },
           {
+            "name": "need_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Need Id"
+            }
+          },
+          {
             "name": "sector",
             "in": "query",
             "required": false,

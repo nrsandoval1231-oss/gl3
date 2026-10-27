@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from typing import Any
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from fastapi import HTTPException
 from sqlalchemy import text
@@ -22,13 +22,14 @@ def page(
     offset: int = 0,
     token: str | None = None,
     sort: str = "priority",
+    need_id: UUID | None = None,
 ) -> dict[str, Any]:
     """Return physical projects, consolidating only validated well API identities."""
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
     generation = current_generation(session)
     term = (search or "").strip().casefold()
-    cohort_payload = [str(generation.id), generation.digest, sector, sort, term]
+    cohort_payload = [str(generation.id), generation.digest, sector, sort, term, str(need_id or "")]
     cohort_digest = hashlib.sha256(
         json.dumps(cohort_payload, separators=(",", ":")).encode()
     ).hexdigest()
@@ -45,6 +46,9 @@ def page(
         "limit": limit,
         "offset": min(offset, generation.row_count),
     }
+    if need_id is not None:
+        filters.append("need_id = :need_id")
+        params["need_id"] = need_id
     if term:
         filters.append(
             "(strpos(search_text, :term) > 0 OR "
@@ -55,7 +59,7 @@ def page(
         filters.append("compact #>> '{project_metadata,sector}' = 'oil_gas'")
     elif sector == "data_centers":
         filters.append("compact #>> '{project_metadata,sector}' = 'data_centers'")
-    discovery = bool(term or sector != "all")
+    discovery = bool(term or sector != "all" or need_id is not None)
     if not discovery:
         # A useful contact route does not qualify an unsupported permit Signal.
         # Search and explicit sector exploration retain those early discoveries.
@@ -195,6 +199,9 @@ def page(
                 }
             )
         project_ids = [str(project_id) for project_id in row["project_ids"]]
+        representative_project_id = compact.get("project_id")
+        if representative_project_id not in project_ids:
+            representative_project_id = project_ids[0]
         asset_identity = meta.get("asset_identity")
         public_id = (
             str(uuid5(NAMESPACE_URL, f"gridlens:{row['asset_key']}"))
@@ -204,7 +211,7 @@ def page(
         items.append(
             {
                 "id": public_id,
-                "project_id": public_id,
+                "project_id": representative_project_id,
                 "project_ids": project_ids,
                 "asset_identity": asset_identity,
                 "representative_need_id": compact.get("id"),
@@ -220,6 +227,7 @@ def page(
                 "contact": contact,
                 "contact_people": compact.get("contact_people") or [],
                 "power_summary": meta.get("power_summary") or compact.get("power_summary"),
+                "power_summary_kind": meta.get("power_summary_kind") or "unknown",
                 "next_action": (compact.get("commercial_preview") or {}).get("next_action"),
                 "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
             }
