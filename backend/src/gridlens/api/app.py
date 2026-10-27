@@ -610,7 +610,12 @@ def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
 
 def _validate_browse_query(request: Request) -> None:
     allowed = _BROWSE_QUERY_NAMES
-    if request.url.path == "/api/opportunities/export.csv":
+    if request.url.path == "/api/opportunities/projects":
+        allowed = {"search", "sector", "limit", "offset", "cohort_token", "sort"}
+        search = request.query_params.get("search")
+        if search is not None and len(search) > 250:
+            raise HTTPException(422, "search must be at most 250 characters")
+    elif request.url.path == "/api/opportunities/export.csv":
         allowed = (allowed - {"offset", "sort"}) | {"industry_group"}
     elif request.url.path == "/api/opportunities/map-window":
         allowed = _BROWSE_FILTER_NAMES | {"tier", "search", "decision"}
@@ -1986,6 +1991,33 @@ def ingestion(
                 }
             )
         return {"items": items, "total": total, "limit": limit, "offset": offset}
+
+
+@app.get(
+    "/api/opportunities/projects",
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
+)
+def project_opportunities(
+    search: str | None = None,
+    sector: Literal["all", "oil_gas", "data_centers"] = "all",
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
+    sort: Literal["priority", "updated"] = "priority",
+):
+    from gridlens.intelligence.project_results import page as project_page
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        return project_page(
+            session,
+            search=search,
+            sector=sector,
+            limit=limit,
+            offset=offset,
+            token=cohort,
+            sort=sort,
+        )
 
 
 @app.get(

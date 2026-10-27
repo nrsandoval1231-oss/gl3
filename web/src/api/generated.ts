@@ -248,6 +248,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/opportunities/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Project Opportunities */
+        get: operations["project_opportunities_api_opportunities_projects_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunities": {
         parameters: {
             query?: never;
@@ -1523,6 +1540,10 @@ export interface components {
              * Format: uuid
              */
             company_id: string;
+            /** Company Identity Id */
+            company_identity_id?: string | null;
+            /** Person Identity Id */
+            person_identity_id?: string | null;
             /** Project Ids */
             project_ids?: string[];
             /**
@@ -4589,6 +4610,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IngestionPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_opportunities_api_opportunities_projects_get: {
+        parameters: {
+            query?: {
+                search?: string | null;
+                sector?: "all" | "oil_gas" | "data_centers";
+                limit?: number;
+                offset?: number;
+                cohort_token?: string | null;
+                sort?: "priority" | "updated";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

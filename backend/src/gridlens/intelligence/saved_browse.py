@@ -448,8 +448,39 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         # corpus or recompute business rules.
         from gridlens.domain.commercial_triage import build_card
         from gridlens.intelligence.buying_chain import buying_chain_views
+        from gridlens.intelligence.company_contacts import project_contacts
+        from gridlens.intelligence.contact_suppressions import apply_contact_suppressions
+        from gridlens.intelligence.project_contact_actions import (
+            project_contact_actions,
+            project_contact_people,
+        )
+        from gridlens.intelligence.project_sector import result_metadata
+        from gridlens.intelligence.rrc_well_research import verified_rrc_metadata
 
-        chains = buying_chain_views(session, {UUID(str(item["project_id"])) for item in details})
+        project_ids = {UUID(str(item["project_id"])) for item in details}
+        official_rrc_by_project = verified_rrc_metadata(session, project_ids)
+        chains = buying_chain_views(session, project_ids)
+        actions_by_project: dict[str, list[dict]] = {}
+        people_by_project: dict[str, list[dict]] = {}
+        for project_id, view in chains.items():
+            identity_ids = sorted(
+                {
+                    UUID(str(candidate["company_identity_id"]))
+                    for candidate in view.get("candidates", [])
+                    if candidate.get("company_identity_id")
+                },
+                key=str,
+            )
+            actions = []
+            people = []
+            for identity_id in identity_ids:
+                contacts = project_contacts(identity_id, {project_id: view}).contacts
+                contacts = apply_contact_suppressions(session, identity_id, contacts)
+                contact_payload = [contact.model_dump(mode="json") for contact in contacts]
+                actions.extend(project_contact_actions({"contacts": contact_payload}))
+                people.extend(project_contact_people({"contacts": contact_payload}))
+            actions_by_project[str(project_id)] = actions
+            people_by_project[str(project_id)] = people
         previews = {
             str(item["id"]): build_card(
                 item,
@@ -480,6 +511,21 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
                 priority_label=api._opportunity_priority_label(summary),
                 workflow_status=summary.get("workflow_status", "UNKNOWN"),
             )
+            # Project-first presentation metadata is prepared with the generation;
+            # ordinary reads only consume these saved, source-backed decisions.
+            compact["project_metadata"] = result_metadata(
+                {
+                    **compact,
+                    "_browse_rrc_records": summary.get("_browse_rrc_records", []),
+                    "_browse_tdlr_records": summary.get("_browse_tdlr_records", []),
+                    "_browse_oil_gas_relationship": summary.get("_browse_oil_gas_relationship", []),
+                    "_browse_rrc_official": official_rrc_by_project.get(
+                        str(summary["project_id"]), {}
+                    ),
+                }
+            )
+            compact["contact_actions"] = actions_by_project.get(str(summary["project_id"]), [])
+            compact["contact_people"] = people_by_project.get(str(summary["project_id"]), [])
             preview = previews[str(summary["id"])]
             compact["commercial_preview"] = {
                 "disposition": preview.get("disposition", "WATCH"),

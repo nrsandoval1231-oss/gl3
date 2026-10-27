@@ -1,0 +1,2108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+
+
+
+
+
+
+
+
+
+
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8;"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=5, IE=8, IE=9, IE=10" />
+    <link rel="stylesheet" type="text/css" href="/EWA/styles/ogm_style3.css;jsessionid=SANITIZED">
+
+    <script type="text/javascript">
+      var dojoConfig = {
+      parseOnLoad: true,
+      isDebug: false,
+
+      has: {
+      "dojo-debug-messages": false
+      },
+
+      packages:
+       [ { name:"rrcGisModules", location:location.pathname.replace(/\/[^/]+$/, '') + '/gis/javascript'} ]
+
+      };
+    </script>
+
+    <script type="text/javascript" src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=3.3compact"></script>
+    <script type="text/javascript">
+      require(["dojo/parser", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/query",
+               "dojo/dom-construct", "dojo/NodeList-manipulate", "dojo/dom-attr", "dojo/dom",
+               "dojo/_base/connect", "dojo/_base/event"]);
+    </script>
+
+    <title>Drilling Permit (W-1) Query</title>
+  </head>
+
+  <body>
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr><td>
+
+
+
+
+
+<script type="text/javascript">
+function openHelp(obj) {
+
+  var help = '/EWA/help/' + obj;
+  //alert(help+', '+obj);
+
+  hold = window.open(help, 'popupWindow',
+                     'resizable=yes,menubar=yes,scrollbars=yes,width=500,height=400,x=1,y=1,screenx=1,screeny=1');
+  hold.focus();
+  return false;
+}
+</script>
+
+<!-- System Header -->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td class="MainHeader"><img src="/EWA/commonuiImages/rrc_online_header.gif;jsessionid=SANITIZED"></td>
+    <td class="MainHeader" align="right" nowrap>&nbsp;</td>
+    <td class="MainHeader"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+  </tr>
+  <tr><td colspan="3" style="height: 3px;" class="BorderLines"/></tr>
+</table>
+
+<!--Application Header-->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td class="AppHeader"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+    <td class="AppHeader">Oil & Gas Data Query</td>
+  </tr>
+</table>
+
+<!-- Top Nav Level 2 -->
+<!--Navigation Table Level 2 and 3 -->
+<table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
+  <tr><td colspan="2" style="height: 2px;" class="BorderLines"/></tr>
+  <!--Level 2 navigation row-->
+  <tr>
+    <td class="AppNavMain" width="1%"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED" height="1px"></td>
+    <td class="AppNavMain">
+      <table border="0" cellpadding="0" cellspacing="0">
+        <tr>
+          <!-- Main -->
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <td class="AppNavMainSelected">
+            <a href="/EWA/ewaMain.do;jsessionid=SANITIZED">Query Menu</a>
+          </td>
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <!--Help-->
+          <td class="AppNavMain">
+
+            <a href="#" onclick="openHelp('DP_TOC.htm');">Help</a>
+          </td>
+          <td class="BorderLines"><img src="/EWA/commonuiImages/spacer.gif;jsessionid=SANITIZED"></td>
+          <!--Help END-->
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr><td colspan="2" style="height: 1px;" class="BorderLines"/></tr>
+</table>
+
+</td></tr>
+    </table>
+
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr valign="top">
+        <td style="width: 100%;" class="ContentArea">
+          <span id="messageArea">
+
+
+
+
+
+<!-- /tiles/messages.jsp BEGIN -->
+
+
+
+
+
+  <tr><td>&nbsp;</td></tr>
+  <tr>
+    <td style="white-space: nowrap;">
+      <ul>
+
+
+
+            <li><font color=red>(Ewa_126) No search arguments specified, at lease one search argument is required.</font></li>
+
+
+      </ul>
+    </td>
+  </tr>
+
+
+<!-- /tiles/messages.jsp END -->
+</span>
+
+
+
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" src="/EWA/js/ewaPageUtils.js"></script>
+
+<script type="text/javascript">
+  function resetForm() {
+  document.forms["drillingPermitsQueryActionForm"].elements["methodToCall"].value = "resetForm";
+  document.forms["drillingPermitsQueryActionForm"].submit();
+  }
+</script>
+
+<form name="drillingPermitsQueryActionForm" method="post" action="/EWA/drillingPermitsQueryAction.do;jsessionid=SANITIZED">
+  <input type="hidden" name="methodToCall" value="search">
+
+  <table class="ewaPage">
+    <tr>
+      <td>
+        <h2 class="style5">
+          Drilling Permit (W-1) Query
+        </h2>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <table class="TabBox2" cellpadding="8">
+          <tr>
+            <td>
+Select one or more search criteria below, and click on Submit to view the results. <p><b>If you select more than one search criteria, all of them have to be true for the W-1 to appear in the result list.</b></p>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <table width="100%" class="GroupBox1" cellspacing="0" cellpadding="5" border="0" summary="foo">
+                <tr>
+                  <th colspan="4">
+                    Search Criteria
+                  </th>
+                </tr>
+
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="width:50%;">
+
+
+
+      <!-- Text field label -->
+      <td style="white-space: nowrap; text-align: right" class=""
+          title="Permit/Status No." >
+        <label for="permitStatusNoHndlr:1001">Permit/Status No.:</label>
+      </td>
+      <!-- Text entry field -->
+      <td style="white-space: nowrap; text-align: left" title="Permit/Status No." colspan="1">
+
+        <input type="text" name="searchArgs.permitStatusNoHndlr.inputValue" maxlength="6" size="6" value="" id="permitStatusNoHndlr:1001">
+
+      </td>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="width:50%;">
+
+
+
+      <!-- Text field label -->
+      <td style="white-space: nowrap; text-align: right" class=""
+          title="API No." >
+        <label for="apiNoHndlr:1002">API No.:</label>
+      </td>
+      <!-- Text entry field -->
+      <td style="white-space: nowrap; text-align: left" title="API No." colspan="1">
+
+        <input type="text" name="searchArgs.apiNoHndlr.inputValue" maxlength="10" size="8" value="" id="apiNoHndlr:1002">
+
+      </td>
+
+
+</div>
+
+
+                </tr>
+
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="RRC District" >
+      <label for="districtCodeHndlr:1003">District:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="RRC District">
+      <select name="searchArgs.districtCodeHndlr.selectedCodes" multiple="multiple" size="5" onchange="" id="districtCodeHndlr:1003"><option value="01">01</option>
+<option value="02">02</option>
+<option value="03">03</option>
+<option value="04">04</option>
+<option value="05">05</option>
+<option value="06">06</option>
+<option value="6E">6E</option>
+<option value="7B">7B</option>
+<option value="7C">7C</option>
+<option value="08">08</option>
+<option value="8A">8A</option>
+<option value="09">09</option>
+<option value="10">10</option></select>
+    </td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="County" >
+      <label for="countyCodeHndlr:1004">County:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="County">
+      <select name="searchArgs.countyCodeHndlr.selectedCodes" multiple="multiple" size="5" onchange="" id="countyCodeHndlr:1004"><option value="001">ANDERSON</option>
+<option value="003">ANDREWS</option>
+<option value="005">ANGELINA</option>
+<option value="007">ARANSAS</option>
+<option value="009">ARCHER</option>
+<option value="011">ARMSTRONG</option>
+<option value="013">ATASCOSA</option>
+<option value="015">AUSTIN</option>
+<option value="017">BAILEY</option>
+<option value="019">BANDERA</option>
+<option value="021">BASTROP</option>
+<option value="023">BAYLOR</option>
+<option value="025">BEE</option>
+<option value="027">BELL</option>
+<option value="029">BEXAR</option>
+<option value="031">BLANCO</option>
+<option value="033">BORDEN</option>
+<option value="035">BOSQUE</option>
+<option value="037">BOWIE</option>
+<option value="039">BRAZORIA</option>
+<option value="041">BRAZOS</option>
+<option value="043">BREWSTER</option>
+<option value="045">BRISCOE</option>
+<option value="047">BROOKS</option>
+<option value="049">BROWN</option>
+<option value="051">BURLESON</option>
+<option value="053">BURNET</option>
+<option value="055">CALDWELL</option>
+<option value="057">CALHOUN</option>
+<option value="059">CALLAHAN</option>
+<option value="061">CAMERON</option>
+<option value="063">CAMP</option>
+<option value="065">CARSON</option>
+<option value="067">CASS</option>
+<option value="069">CASTRO</option>
+<option value="071">CHAMBERS</option>
+<option value="073">CHEROKEE</option>
+<option value="075">CHILDRESS</option>
+<option value="077">CLAY</option>
+<option value="079">COCHRAN</option>
+<option value="081">COKE</option>
+<option value="083">COLEMAN</option>
+<option value="085">COLLIN</option>
+<option value="087">COLLINGSWORTH</option>
+<option value="089">COLORADO</option>
+<option value="091">COMAL</option>
+<option value="093">COMANCHE</option>
+<option value="095">CONCHO</option>
+<option value="097">COOKE</option>
+<option value="099">CORYELL</option>
+<option value="101">COTTLE</option>
+<option value="103">CRANE</option>
+<option value="105">CROCKETT</option>
+<option value="107">CROSBY</option>
+<option value="109">CULBERSON</option>
+<option value="111">DALLAM</option>
+<option value="113">DALLAS</option>
+<option value="115">DAWSON</option>
+<option value="117">DEAF SMITH</option>
+<option value="119">DELTA</option>
+<option value="121">DENTON</option>
+<option value="123">DE WITT</option>
+<option value="125">DICKENS</option>
+<option value="127">DIMMIT</option>
+<option value="129">DONLEY</option>
+<option value="131">DUVAL</option>
+<option value="133">EASTLAND</option>
+<option value="135">ECTOR</option>
+<option value="137">EDWARDS</option>
+<option value="139">ELLIS</option>
+<option value="141">EL PASO</option>
+<option value="143">ERATH</option>
+<option value="145">FALLS</option>
+<option value="147">FANNIN</option>
+<option value="149">FAYETTE</option>
+<option value="151">FISHER</option>
+<option value="153">FLOYD</option>
+<option value="155">FOARD</option>
+<option value="157">FORT BEND</option>
+<option value="159">FRANKLIN</option>
+<option value="161">FREESTONE</option>
+<option value="163">FRIO</option>
+<option value="165">GAINES</option>
+<option value="167">GALVESTON</option>
+<option value="169">GARZA</option>
+<option value="171">GILLESPIE</option>
+<option value="173">GLASSCOCK</option>
+<option value="175">GOLIAD</option>
+<option value="177">GONZALES</option>
+<option value="179">GRAY</option>
+<option value="181">GRAYSON</option>
+<option value="183">GREGG</option>
+<option value="185">GRIMES</option>
+<option value="187">GUADALUPE</option>
+<option value="189">HALE</option>
+<option value="191">HALL</option>
+<option value="193">HAMILTON</option>
+<option value="195">HANSFORD</option>
+<option value="197">HARDEMAN</option>
+<option value="199">HARDIN</option>
+<option value="201">HARRIS</option>
+<option value="203">HARRISON</option>
+<option value="205">HARTLEY</option>
+<option value="207">HASKELL</option>
+<option value="209">HAYS</option>
+<option value="211">HEMPHILL</option>
+<option value="213">HENDERSON</option>
+<option value="215">HIDALGO</option>
+<option value="217">HILL</option>
+<option value="219">HOCKLEY</option>
+<option value="221">HOOD</option>
+<option value="223">HOPKINS</option>
+<option value="225">HOUSTON</option>
+<option value="227">HOWARD</option>
+<option value="229">HUDSPETH</option>
+<option value="231">HUNT</option>
+<option value="233">HUTCHINSON</option>
+<option value="235">IRION</option>
+<option value="237">JACK</option>
+<option value="239">JACKSON</option>
+<option value="241">JASPER</option>
+<option value="243">JEFF DAVIS</option>
+<option value="245">JEFFERSON</option>
+<option value="247">JIM HOGG</option>
+<option value="249">JIM WELLS</option>
+<option value="251">JOHNSON</option>
+<option value="253">JONES</option>
+<option value="255">KARNES</option>
+<option value="257">KAUFMAN</option>
+<option value="259">KENDALL</option>
+<option value="261">KENEDY</option>
+<option value="263">KENT</option>
+<option value="265">KERR</option>
+<option value="267">KIMBLE</option>
+<option value="269">KING</option>
+<option value="271">KINNEY</option>
+<option value="273">KLEBERG</option>
+<option value="275">KNOX</option>
+<option value="277">LAMAR</option>
+<option value="279">LAMB</option>
+<option value="281">LAMPASAS</option>
+<option value="283">LA SALLE</option>
+<option value="285">LAVACA</option>
+<option value="287">LEE</option>
+<option value="289">LEON</option>
+<option value="291">LIBERTY</option>
+<option value="293">LIMESTONE</option>
+<option value="295">LIPSCOMB</option>
+<option value="297">LIVE OAK</option>
+<option value="299">LLANO</option>
+<option value="301">LOVING</option>
+<option value="303">LUBBOCK</option>
+<option value="305">LYNN</option>
+<option value="307">MCCULLOCH</option>
+<option value="309">MCLENNAN</option>
+<option value="311">MCMULLEN</option>
+<option value="313">MADISON</option>
+<option value="315">MARION</option>
+<option value="317">MARTIN</option>
+<option value="319">MASON</option>
+<option value="321">MATAGORDA</option>
+<option value="323">MAVERICK</option>
+<option value="325">MEDINA</option>
+<option value="327">MENARD</option>
+<option value="329">MIDLAND</option>
+<option value="331">MILAM</option>
+<option value="333">MILLS</option>
+<option value="335">MITCHELL</option>
+<option value="337">MONTAGUE</option>
+<option value="339">MONTGOMERY</option>
+<option value="341">MOORE</option>
+<option value="343">MORRIS</option>
+<option value="345">MOTLEY</option>
+<option value="347">NACOGDOCHES</option>
+<option value="349">NAVARRO</option>
+<option value="351">NEWTON</option>
+<option value="353">NOLAN</option>
+<option value="355">NUECES</option>
+<option value="357">OCHILTREE</option>
+<option value="359">OLDHAM</option>
+<option value="361">ORANGE</option>
+<option value="363">PALO PINTO</option>
+<option value="365">PANOLA</option>
+<option value="367">PARKER</option>
+<option value="369">PARMER</option>
+<option value="371">PECOS</option>
+<option value="373">POLK</option>
+<option value="375">POTTER</option>
+<option value="377">PRESIDIO</option>
+<option value="379">RAINS</option>
+<option value="381">RANDALL</option>
+<option value="383">REAGAN</option>
+<option value="385">REAL</option>
+<option value="387">RED RIVER</option>
+<option value="389">REEVES</option>
+<option value="391">REFUGIO</option>
+<option value="393">ROBERTS</option>
+<option value="395">ROBERTSON</option>
+<option value="397">ROCKWALL</option>
+<option value="399">RUNNELS</option>
+<option value="401">RUSK</option>
+<option value="403">SABINE</option>
+<option value="405">SAN AUGUSTINE</option>
+<option value="407">SAN JACINTO</option>
+<option value="409">SAN PATRICIO</option>
+<option value="411">SAN SABA</option>
+<option value="413">SCHLEICHER</option>
+<option value="415">SCURRY</option>
+<option value="417">SHACKELFORD</option>
+<option value="419">SHELBY</option>
+<option value="421">SHERMAN</option>
+<option value="423">SMITH</option>
+<option value="425">SOMERVELL</option>
+<option value="427">STARR</option>
+<option value="429">STEPHENS</option>
+<option value="431">STERLING</option>
+<option value="433">STONEWALL</option>
+<option value="435">SUTTON</option>
+<option value="437">SWISHER</option>
+<option value="439">TARRANT</option>
+<option value="441">TAYLOR</option>
+<option value="443">TERRELL</option>
+<option value="445">TERRY</option>
+<option value="447">THROCKMORTON</option>
+<option value="449">TITUS</option>
+<option value="451">TOM GREEN</option>
+<option value="453">TRAVIS</option>
+<option value="455">TRINITY</option>
+<option value="457">TYLER</option>
+<option value="459">UPSHUR</option>
+<option value="461">UPTON</option>
+<option value="463">UVALDE</option>
+<option value="465">VAL VERDE</option>
+<option value="467">VAN ZANDT</option>
+<option value="469">VICTORIA</option>
+<option value="471">WALKER</option>
+<option value="473">WALLER</option>
+<option value="475">WARD</option>
+<option value="477">WASHINGTON</option>
+<option value="479">WEBB</option>
+<option value="481">WHARTON</option>
+<option value="483">WHEELER</option>
+<option value="485">WICHITA</option>
+<option value="487">WILBARGER</option>
+<option value="489">WILLACY</option>
+<option value="491">WILLIAMSON</option>
+<option value="493">WILSON</option>
+<option value="495">WINKLER</option>
+<option value="497">WISE</option>
+<option value="499">WOOD</option>
+<option value="501">YOAKUM</option>
+<option value="503">YOUNG</option>
+<option value="505">ZAPATA</option>
+<option value="507">ZAVALA</option>
+<option value="600">S PADRE IS-SB</option>
+<option value="601">N PADRE IS-SB</option>
+<option value="602">MUSTANG IS-SB</option>
+<option value="603">MATGRDA IS-SB</option>
+<option value="604">BRAZOS-SB</option>
+<option value="605">GALVESTON-SB</option>
+<option value="606">HIGH IS-SB</option>
+<option value="700">S PADRE IS-LB</option>
+<option value="701">N PADRE IS-LB</option>
+<option value="702">MUSTANG IS-LB</option>
+<option value="703">MATGRDA IS-LB</option>
+<option value="704">BRAZOS-LB</option>
+<option value="705">BRAZOS-S</option>
+<option value="706">GALVESTON-LB</option>
+<option value="707">GALVESTON-S</option>
+<option value="708">HIGH IS-LB</option>
+<option value="709">HIGH IS-S</option>
+<option value="710">HIGH IS-E</option>
+<option value="711">&quot;HIGH IS-E,S&quot;</option>
+<option value="712">MUSTANG IS-E</option>
+<option value="713">N PADRE IS-E</option>
+<option value="714">S PADRE IS-E</option>
+<option value="715">SABINE PASS</option></select>
+    </td>
+
+
+
+                </tr>
+
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="No Perf Zone
+No
+Yes
+" >
+      <label for="npzFlagHndlr:1028">No Perf Zone:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="No Perf Zone
+No
+Yes
+" colspan="">
+      <select name="searchArgs.npzFlagHndlr.inputValue" onchange="" id="npzFlagHndlr:1028"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="N">No</option>
+<option value="Y">Yes</option></select>
+    </td>
+
+
+
+                   <td colspan="2"></td>
+                </tr>
+                 <tr>
+                  <td align="left" colspan="4">Off-lease Surface Location is for a <b>horizontal</b> or <b>directional</b> wellbore profile only. Off-lease Penetration Point is for a <b>horizontal</b> wellbore profile only.</td>
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="*Off-lease Surface Location
+No
+Yes
+" >
+      <label for="offLeaseSurfLocFlagHndlr:1036">*Off-lease Surface Location:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="*Off-lease Surface Location
+No
+Yes
+" colspan="">
+      <select name="searchArgs.offLeaseSurfLocFlagHndlr.inputValue" onchange="" id="offLeaseSurfLocFlagHndlr:1036"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="N">No</option>
+<option value="Y">Yes</option></select>
+    </td>
+
+
+
+                  <td colspan="2"></td>
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="*Off-lease Penetration Point
+No
+Yes
+" >
+      <label for="offLeasePntrnPtFlagHndlr:1035">*Off-lease Penetration Point:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="*Off-lease Penetration Point
+No
+Yes
+" colspan="">
+      <select name="searchArgs.offLeasePntrnPtFlagHndlr.inputValue" onchange="" id="offLeasePntrnPtFlagHndlr:1035"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="N">No</option>
+<option value="Y">Yes</option></select>
+    </td>
+
+
+
+                  <td colspan="2"></td>
+                </tr>
+                <tr>
+                  <td align="left" colspan="4">*All returned records with an Approved Date before 2/28/2016 contain a value of 'No,' even when an off-lease condition is present. For records before this date, view the individual record.</td>
+                </tr>
+                <tr>
+                  <td colspan="4"><hr/></td>
+                </tr>
+
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<td style="white-space: nowrap; text-align: right" class=""
+    title="Operator Name" >
+  <label for="operatorNameHndlr:1006">Operator Name:</label>
+</td>
+
+<td style="white-space: nowrap; text-align: left" title="Operator Name">
+  <select name="searchArgs.operatorNameWildcardHndlr.inputValue" id="operatorNameWildcardHndlr:"><option value="beginsWith" selected="selected">Begins with</option>
+<option value="contains">Contains</option>
+<option value="exactMatch">Matches exactly</option></select>
+  <input type="text" name="searchArgs.operatorNameHndlr.inputValue" maxlength="50" size="40" value="" id="operatorNameHndlr:1006">
+</td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="width:50%;">
+
+
+
+      <!-- Text field label -->
+      <td style="white-space: nowrap; text-align: right" class=""
+          title="Operator Number" >
+        <label for="operatorNoHndlr:1007">Operator Number:</label>
+      </td>
+      <!-- Text entry field -->
+      <td style="white-space: nowrap; text-align: left" title="Operator Number" colspan="1">
+
+        <input type="text" name="searchArgs.operatorNoHndlr.inputValue" maxlength="6" size="6" value="" id="operatorNoHndlr:1007">
+
+      </td>
+
+
+</div>
+
+
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<td style="white-space: nowrap; text-align: right" class=""
+    title="Lease Name" >
+  <label for="leaseNameHndlr:1009">Lease Name:</label>
+</td>
+
+<td style="white-space: nowrap; text-align: left" title="Lease Name">
+  <select name="searchArgs.leaseNameWildcardHndlr.inputValue" id="leaseNameWildcardHndlr:"><option value="beginsWith" selected="selected">Begins with</option>
+<option value="contains">Contains</option>
+<option value="exactMatch">Matches exactly</option></select>
+  <input type="text" name="searchArgs.leaseNameHndlr.inputValue" maxlength="50" size="40" value="" id="leaseNameHndlr:1009">
+</td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="width:50%;">
+
+
+
+      <!-- Text field label -->
+      <td style="white-space: nowrap; text-align: right" class=""
+          title="Lease Number" >
+        <label for="leaseNoHndlr:1010">Lease Number:</label>
+      </td>
+      <!-- Text entry field -->
+      <td style="white-space: nowrap; text-align: left" title="Lease Number" colspan="1">
+
+        <input type="text" name="searchArgs.leaseNoHndlr.inputValue" maxlength="6" size="6" value="" id="leaseNoHndlr:1010">
+
+      </td>
+
+
+</div>
+
+
+                </tr>
+                <tr>
+                  <td align="center" colspan="4">Lease Name search returns all records for that Lease Name. Lease Number search only returns records of wells on the Proration Schedule. For a broader results set, do not select a District.</td>
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="width:50%;">
+
+
+
+      <!-- Text field label -->
+      <td style="white-space: nowrap; text-align: right" class=""
+          title="Well Number" >
+        <label for="wellNoHndlr:1011">Well Number:</label>
+      </td>
+      <!-- Text entry field -->
+      <td style="white-space: nowrap; text-align: left" title="Well Number" colspan="1">
+
+        <input type="text" name="searchArgs.wellNoHndlr.inputValue" maxlength="6" size="6" value="" id="wellNoHndlr:1011">
+
+      </td>
+
+
+</div>
+
+
+
+                  <td colspan="2"></td>
+                </tr>
+
+                <tr>
+                  <td colspan="4"><hr/></td>
+                </tr>
+
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<td style="white-space: nowrap; text-align: right" class=""
+    title="Field Name" >
+  <label for="fieldNameHndlr:1013">Field Name:</label>
+</td>
+
+<td style="white-space: nowrap; text-align: left" title="Field Name">
+  <select name="searchArgs.fieldNameWildcardHndlr.inputValue" id="fieldNameWildcardHndlr:"><option value="beginsWith" selected="selected">Begins with</option>
+<option value="contains">Contains</option>
+<option value="exactMatch">Matches exactly</option></select>
+  <input type="text" name="searchArgs.fieldNameHndlr.inputValue" maxlength="50" size="40" value="" id="fieldNameHndlr:1013">
+</td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="width:50%;">
+
+
+
+      <!-- Text field label -->
+      <td style="white-space: nowrap; text-align: right" class=""
+          title="Field Number" >
+        <label for="fieldNoHndlr:1014">Field Number:</label>
+      </td>
+      <!-- Text entry field -->
+      <td style="white-space: nowrap; text-align: left" title="Field Number" colspan="1">
+
+        <input type="text" name="searchArgs.fieldNoHndlr.inputValue" maxlength="8" size="8" value="" id="fieldNoHndlr:1014">
+
+      </td>
+
+
+</div>
+
+
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<td style="white-space: nowrap; text-align: right" class=""
+    title="Survey Name" >
+  <label for="surveyNameHndlr:1016">Survey Name:</label>
+</td>
+
+<td style="white-space: nowrap; text-align: left" title="Survey Name">
+  <select name="searchArgs.surveyNameWildcardHndlr.inputValue" id="surveyNameWildcardHndlr:"><option value="beginsWith" selected="selected">Begins with</option>
+<option value="contains">Contains</option>
+<option value="exactMatch">Matches exactly</option></select>
+  <input type="text" name="searchArgs.surveyNameHndlr.inputValue" maxlength="55" size="40" value="" id="surveyNameHndlr:1016">
+</td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Well Type
+A Type Well
+The W-1 application is for the purpose of obtaining a permit to drill an oil or gas well.
+The W-1 application is for the purpose of obtaining a permit to drill a Cathodic Protection Well.
+The W-1 application is for the purpose of obtaining a permit to drill a gas well.
+The W-1 application is for the purpose of obtaining a permit to drill an Injection (water, salt water, gas, CO2, steam, etc.) or disposal well.
+The W-1 application is for the purpose of obtaining a permit to drill an oil well.
+The W-1 application is for the purpose of obtaining a permit to drill a Storage Well (LPG, gas, underground, etc.)
+The W-1 application is for the purpose of obtaining a permit to drill an Other Service type (testing tools, observation, geothermal, etc.)
+The W-1 application is for the purpose of obtainig a permit to drill an exploratory test well for Core test, stratigraphic, seismic, sulfur.
+The W-1 application is for the purpose of obtaining a permit to drill a Water Supply well.
+" >
+      <label for="wellTypeCodeHndlr:1017">Well Type:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="Well Type
+A Type Well
+The W-1 application is for the purpose of obtaining a permit to drill an oil or gas well.
+The W-1 application is for the purpose of obtaining a permit to drill a Cathodic Protection Well.
+The W-1 application is for the purpose of obtaining a permit to drill a gas well.
+The W-1 application is for the purpose of obtaining a permit to drill an Injection (water, salt water, gas, CO2, steam, etc.) or disposal well.
+The W-1 application is for the purpose of obtaining a permit to drill an oil well.
+The W-1 application is for the purpose of obtaining a permit to drill a Storage Well (LPG, gas, underground, etc.)
+The W-1 application is for the purpose of obtaining a permit to drill an Other Service type (testing tools, observation, geothermal, etc.)
+The W-1 application is for the purpose of obtainig a permit to drill an exploratory test well for Core test, stratigraphic, seismic, sulfur.
+The W-1 application is for the purpose of obtaining a permit to drill a Water Supply well.
+" colspan="">
+      <select name="searchArgs.wellTypeCodeHndlr.inputValue" onchange="" id="wellTypeCodeHndlr:1017"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="A">A Type Well</option>
+<option value="B">Oil or Gas Well</option>
+<option value="C">Cathodic Protection Well</option>
+<option value="G">Gas Well</option>
+<option value="I">Injection Well</option>
+<option value="O">Oil Well</option>
+<option value="R">Storage Well</option>
+<option value="S">Service Well</option>
+<option value="T">Exploratory Test Well</option>
+<option value="V">Water Supply Well</option></select>
+    </td>
+
+
+
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="width:50%;">
+
+
+
+      <!-- Text field label -->
+      <td style="white-space: nowrap; text-align: right" class=""
+          title="Total Depth (more than)" >
+        <label for="totalDepthHndlr:1018">Total Depth (more than):</label>
+      </td>
+      <!-- Text entry field -->
+      <td style="white-space: nowrap; text-align: left" title="Total Depth (more than)" colspan="1">
+
+        <input type="text" name="searchArgs.totalDepthHndlr.inputValue" maxlength="8" size="8" value="" id="totalDepthHndlr:1018">
+        Feet
+      </td>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Filing Purpose
+The W-1 application is for the purpose of drilling a new wellbore
+The W-1 application is for the purpose of re-entering an existing wellbore which has previously been plugged to the surface.
+The W-1 application is for a well that has been transferred from one field to another.
+The W-1 application is for permission to recomplete an existing wellbore into another field and/or reservoir or to add additional horizontal drainholes to the existing completion.
+The W-1 application is for a well that is being reclassified from Oil to Gas or Gas to Oil.
+The W-1 application is amended as drilled BHL.
+Unknown
+" >
+      <label for="filingPurposeCodeHndlr:1019">Filing Purpose:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="Filing Purpose
+The W-1 application is for the purpose of drilling a new wellbore
+The W-1 application is for the purpose of re-entering an existing wellbore which has previously been plugged to the surface.
+The W-1 application is for a well that has been transferred from one field to another.
+The W-1 application is for permission to recomplete an existing wellbore into another field and/or reservoir or to add additional horizontal drainholes to the existing completion.
+The W-1 application is for a well that is being reclassified from Oil to Gas or Gas to Oil.
+The W-1 application is amended as drilled BHL.
+Unknown
+" colspan="">
+      <select name="searchArgs.filingPurposeCodeHndlr.inputValue" onchange="" id="filingPurposeCodeHndlr:1019"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="01">New Drill</option>
+<option value="07">Reenter</option>
+<option value="09">Field Transfer</option>
+<option value="14">Recompletion</option>
+<option value="15">Reclass</option>
+<option value="16">Amended as Drilled BHL</option>
+<option value="99">Unknown</option></select>
+    </td>
+
+
+
+                </tr>
+
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Statewide Rule" >
+      <label for="swrExceptionCodeHndlr:1030">Statewide Rule:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="Statewide Rule">
+      <select name="searchArgs.swrExceptionCodeHndlr.selectedCodes" multiple="multiple" size="5" onchange="" id="swrExceptionCodeHndlr:1030"><option value="36 ">SWR 36 H2S Field</option>
+<option value="37L">SWR 37 Lease Line</option>
+<option value="37B">SWR 37 Between Well</option>
+<option value="37I">SWR 37 Interior LeaseLine</option>
+<option value="R38">SWR 38</option>
+<option value="38D">SWR 38(d)(3)</option>
+<option value="R39">SWR 39</option>
+<option value="37H">SWR 37 Historical</option></select>
+    </td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Amended
+No
+Yes
+" >
+      <label for="ammendmentFlagHndlr:1029">Amended:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="Amended
+No
+Yes
+" colspan="">
+      <select name="searchArgs.ammendmentFlagHndlr.inputValue" onchange="" id="ammendmentFlagHndlr:1029"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="N">No</option>
+<option value="Y">Yes</option></select>
+    </td>
+
+
+
+                </tr>
+
+                <tr>
+                  <td colspan="4">
+                    <hr/>
+                  </td>
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Status
+The W-1 application has been approved by the RRC
+The W-1 application is closed by O/G docket services per RRC commission order
+The W-1 I application is dismissed after 90 days if it has not been completed correctly.
+The W-1 application is denied by O/G docket services per RRC commission order
+The status of the W-1 application is pending approval by the RRC
+The status of the W-1 application is pending approval by the RRC
+The W-1 application has been approved and validated by the RRC
+The W-1 application is withdrawn per request by the operator
+The W-1 application is updated to a deleted status if it is originally submitted incorrectly
+The W-1 application is automatically cancelled if the spud date is not entered after 2 years or if the applicant requests it.
+" >
+      <label for="statusCodeHndlr:1020">Status:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="Status
+The W-1 application has been approved by the RRC
+The W-1 application is closed by O/G docket services per RRC commission order
+The W-1 I application is dismissed after 90 days if it has not been completed correctly.
+The W-1 application is denied by O/G docket services per RRC commission order
+The status of the W-1 application is pending approval by the RRC
+The status of the W-1 application is pending approval by the RRC
+The W-1 application has been approved and validated by the RRC
+The W-1 application is withdrawn per request by the operator
+The W-1 application is updated to a deleted status if it is originally submitted incorrectly
+The W-1 application is automatically cancelled if the spud date is not entered after 2 years or if the applicant requests it.
+" colspan="">
+      <select name="searchArgs.statusCodeHndlr.inputValue" onchange="" id="statusCodeHndlr:1020"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="A">Approved</option>
+<option value="C">Closed</option>
+<option value="D">Dismissed</option>
+<option value="E">Denied</option>
+<option value="M">All Statuses(Final Disposition)</option>
+<option value="P">Pending Approval</option>
+<option value="V">Validated(Approved)</option>
+<option value="W">Withdrawn</option>
+<option value="X">Deleted</option>
+<option value="Z">Cancelled</option></select>
+    </td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Wellbore Profile
+This type Wellbore Profile on the W-1 application is for a directional wellbore.
+This type Wellbore Profile on the W-1 application is for a directional sidetrack wellbore.
+This type Wellbore Profile on the W-1 application is for a Horizontal wellbore.
+This type Wellbore Profile on the W-1 application is for a Horizontal Sidetrack wellbore.
+The type Wellbore Profile on the W-1 application is for a vertical wellbore.
+This type Wellbore Profile on the W-1 application is for a vertical sidetrack wellbore.
+" >
+      <label for="wellboreProfileCodeHndlr:1021">Wellbore Profile:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="Wellbore Profile
+This type Wellbore Profile on the W-1 application is for a directional wellbore.
+This type Wellbore Profile on the W-1 application is for a directional sidetrack wellbore.
+This type Wellbore Profile on the W-1 application is for a Horizontal wellbore.
+This type Wellbore Profile on the W-1 application is for a Horizontal Sidetrack wellbore.
+The type Wellbore Profile on the W-1 application is for a vertical wellbore.
+This type Wellbore Profile on the W-1 application is for a vertical sidetrack wellbore.
+" colspan="">
+      <select name="searchArgs.wellboreProfileCodeHndlr.inputValue" onchange="" id="wellboreProfileCodeHndlr:1021"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="DR">Directional</option>
+<option value="DS">Directional Sidetrack</option>
+<option value="HR">Horizontal</option>
+<option value="HS">Horizontal Sidetrack</option>
+<option value="VR">Vertical</option>
+<option value="VS">Vertical Sidetrack</option></select>
+    </td>
+
+
+
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Well Location
+This code is to designate that the W-1 application is for a wellbore that is located in a bay or estuary.
+This code is to designate that the W-1 application is for a wellbore that is located in an inland waterway.
+This code is to designate that the W-1 application is for a wellbore that is located on land.
+This code is to designate that the W-1 application is for a wellbore that is located offshore.
+" >
+      <label for="wellLocationCodeHndlr:1022">Well Location:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="Well Location
+This code is to designate that the W-1 application is for a wellbore that is located in a bay or estuary.
+This code is to designate that the W-1 application is for a wellbore that is located in an inland waterway.
+This code is to designate that the W-1 application is for a wellbore that is located on land.
+This code is to designate that the W-1 application is for a wellbore that is located offshore.
+" colspan="">
+      <select name="searchArgs.wellLocationCodeHndlr.inputValue" onchange="" id="wellLocationCodeHndlr:1022"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="B">Bay / Estuary</option>
+<option value="I">Inland Waterway</option>
+<option value="L">Land</option>
+<option value="O">Offshore</option></select>
+    </td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Completion Status
+Cathodic protection
+Dry hole
+See comments
+P&amp;A Exploratory test
+Final Completion
+1st side of mult / rule10
+Unperfed completion
+" >
+      <label for="completionStatusCodeHndlr:1023">Completion Status:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="Completion Status
+Cathodic protection
+Dry hole
+See comments
+P&amp;A Exploratory test
+Final Completion
+1st side of mult / rule10
+Unperfed completion
+" colspan="">
+      <select name="searchArgs.completionStatusCodeHndlr.inputValue" onchange="" id="completionStatusCodeHndlr:1023"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="C">Cathodic protection</option>
+<option value="D">Dry hole</option>
+<option value="O">See comments</option>
+<option value="T">P&amp;A Exploratory test</option>
+<option value="W">Final Completion</option>
+<option value="Y">1st side of mult / rule10</option>
+<option value="Z">Unperfed completion</option></select>
+    </td>
+
+
+
+                </tr>
+                <tr>
+                  <td align="left" colspan="4">Wellbore Completion Type selections below are for a <b>horizontal</b> wellbore profile only.</td>
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="**Production Sharing Agreement (PSA)
+Yes
+" >
+      <label for="psaFlagHndlr:1031">**Production Sharing Agreement (PSA):</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="**Production Sharing Agreement (PSA)
+Yes
+" colspan="">
+      <select name="searchArgs.psaFlagHndlr.inputValue" onchange="" id="psaFlagHndlr:1031"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="Y">Yes</option></select>
+    </td>
+
+
+
+                  <td colspan="2"></td>
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="**Allocation
+Yes
+" >
+      <label for="allocationFlagHndlr:1032">**Allocation:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="**Allocation
+Yes
+" colspan="">
+      <select name="searchArgs.allocationFlagHndlr.inputValue" onchange="" id="allocationFlagHndlr:1032"><option value="" selected="selected">All Statuses</option>
+
+
+        <option value="Y">Yes</option></select>
+    </td>
+
+
+
+                  <td colspan="2"></td>
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="**Stacked Lateral
+Yes
+" >
+      <label for="stackedLateralFlagHndlr:1033">**Stacked Lateral:</label>
+    </td>
+
+    <!-- dropdown input field -->
+    <td style="white-space: nowrap; text-align: left" title="**Stacked Lateral
+Yes
+" colspan="">
+      <select name="searchArgs.stackedLateralFlagHndlr.inputValue" onchange="" id="stackedLateralFlagHndlr:1033"><option value="" selected="selected">None Selected</option>
+
+
+        <option value="Y">Yes</option></select>
+    </td>
+
+
+
+                  <td colspan="2"></td>
+                </tr>
+                <tr>
+                  <td align="left" colspan="4">**Returned records will have a Submitted Date after 4/8/2013 when a value of 'Yes' is selected.</td>
+                </tr>
+                <tr>
+                  <td colspan="4">
+                    <hr/>
+                  </td>
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Approved Date From" >
+      <label for="approvedDtFromHndlr:1024">Approved Date From:</label>
+    </td>
+    <!-- Text entry field with date format string -->
+    <td style="white-space: nowrap; text-align: left" title="Approved Date From">
+      <input type="text" name="searchArgs.approvedDtFromHndlr.inputValue" size="10" value="" id="approvedDtFromHndlr:1024"> MM/DD/YYYY
+    </td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Approved Date To" >
+      <label for="approvedDtToHndlr:1025">Approved Date To:</label>
+    </td>
+    <!-- Text entry field with date format string -->
+    <td style="white-space: nowrap; text-align: left" title="Approved Date To">
+      <input type="text" name="searchArgs.approvedDtToHndlr.inputValue" size="10" value="" id="approvedDtToHndlr:1025"> MM/DD/YYYY
+    </td>
+
+
+
+
+
+                </tr>
+                <tr>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Submitted Date From" >
+      <label for="submittedDtFromHndlr:1026">Submitted Date From:</label>
+    </td>
+    <!-- Text entry field with date format string -->
+    <td style="white-space: nowrap; text-align: left" title="Submitted Date From">
+      <input type="text" name="searchArgs.submittedDtFromHndlr.inputValue" size="10" value="" id="submittedDtFromHndlr:1026"> MM/DD/YYYY
+    </td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Text field label -->
+    <td style="white-space: nowrap; text-align: right" class=""
+        title="Submitted Date To" >
+      <label for="submittedDtToHndlr:1027">Submitted Date To:</label>
+    </td>
+    <!-- Text entry field with date format string -->
+    <td style="white-space: nowrap; text-align: left" title="Submitted Date To">
+      <input type="text" name="searchArgs.submittedDtToHndlr.inputValue" size="10" value="" id="submittedDtToHndlr:1027"> MM/DD/YYYY
+    </td>
+
+
+
+
+
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <input type="submit" value="Submit">
+              <input type="reset" value="Reset" onclick="resetForm()">
+              <input type="button" name="unused" value="Return" onclick="returnToCaller('/EWA/ewaMain.do');" style="float: right;" title="Return Button">
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+
+        </td>
+      </tr>
+    </table>
+
+    <table style="width: 100%; table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+      <tr><td><table style="width: 100%" class="MainFooter">
+  <tr><td style="width: 100%;" class="BorderLines"></td></tr>
+  <tr>
+    <td style="width: 100%; height: 100%;" align="center" class="MainFooter">
+      <a target="_blank" href="http://www.rrc.texas.gov/site-policies/">Disclaimer</a> |
+      <a target="_blank" href="http://www.rrc.texas.gov">RRC Home</a> |
+      <a href="mailto:helpdesk@rrc.texas.gov?subject=Oil & Gas Queries">Contact</a>
+    </td>
+  </tr>
+</table>
+</td></tr>
+    </table>
+  </body>
+</html>
