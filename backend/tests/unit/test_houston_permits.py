@@ -1,4 +1,6 @@
+import hashlib
 import io
+import json
 import zipfile
 from datetime import UTC, date, datetime, timedelta
 from xml.sax.saxutils import escape
@@ -20,6 +22,8 @@ def workbook(
     event_date="2026/09/09",
     week_start="2026/09/07",
     week_end="2026/09/14",
+    address="1 Example Road",
+    description="New data center construction",
 ):
     rows = [
         ["Web eReport"],
@@ -32,8 +36,8 @@ def workbook(
             event_date,
             "Building Pmt",
             "123",
-            "1 Example Road",
-            "New data center construction",
+            address,
+            description,
         ],
     ]
     if duplicate:
@@ -98,6 +102,31 @@ def test_report_accepts_excel_serial_permit_dates(date_system):
     assert rows[0]["event_date"] == "2026-09-09"
 
 
+def test_serial_and_text_dates_have_the_same_semantic_hash_and_duplicate_identity():
+    _, text_rows = parse_report(
+        workbook(), INDEX, today=date(2026, 9, 30)
+    )
+    _, serial_rows = parse_report(
+        workbook(serial_dates=True), INDEX, today=date(2026, 9, 30)
+    )
+    assert serial_rows[0]["source_hash"] == text_rows[0]["source_hash"]
+    _, duplicate_rows = parse_report(
+        workbook(serial_dates=True, duplicate=True), INDEX, today=date(2026, 9, 30)
+    )
+    assert len(duplicate_rows) == 1
+    legacy_material = [
+        "77002",
+        "2026/09/09",
+        "Building Pmt",
+        "123",
+        "1 Example Road",
+        "New data center construction",
+    ]
+    assert text_rows[0]["source_hash"] == hashlib.sha256(
+        json.dumps(legacy_material, ensure_ascii=False).encode()
+    ).hexdigest()
+
+
 def test_report_accepts_listing_date_at_either_week_boundary():
     end, rows = parse_report(
         workbook(event_date="2026/09/14"),
@@ -121,6 +150,94 @@ def test_report_rejects_unrelated_listing_date_and_nonweekly_interval():
         parse_report(
             workbook(week_end="2026/09/15"), INDEX, today=date(2026, 9, 30)
         )
+
+
+def _retrieval_client(start, end, first, second):
+    first_url = f"https://{INDEX.split('/')[2]}/sites/g/files/first.xlsx"
+    second_url = f"https://{INDEX.split('/')[2]}/sites/g/files/second.xlsx"
+    listing = (
+        f'<a href="{first_url}">{start:%B} {start.day}, {start.year}</a>'
+        f'<a href="{second_url}">{end:%B} {end.day}, {end.year}</a>'
+    )
+
+    def handler(request):
+        if str(request.url) == INDEX:
+            return httpx.Response(200, headers={"content-type": "text/html"}, text=listing)
+        body = first if request.url.path.endswith("first.xlsx") else second
+        return httpx.Response(
+            200,
+            headers={
+                "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            },
+            content=body,
+        )
+
+    return httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+
+
+def test_retrieve_deduplicates_overlapping_string_and_serial_date_reports():
+    end = datetime.now(UTC).date()
+    start = end - timedelta(days=7)
+    issued = start + timedelta(days=2)
+    params = {
+        "week_start": start.strftime("%Y/%m/%d"),
+        "week_end": end.strftime("%Y/%m/%d"),
+        "event_date": issued.strftime("%Y/%m/%d"),
+    }
+    text_report = workbook(**params)
+    serial_report = workbook(serial_dates=True, **params)
+    records = retrieve(
+        {"id": "houston-weekly-permits", "endpoint": INDEX},
+        _retrieval_client(start, end, text_report, serial_report),
+    )
+    assert len(records) == 1
+    assert records[0]["document_number"] == f"123:Building Pmt:{issued.isoformat()}"
+
+
+@pytest.mark.parametrize(
+    ("field", "changed_value"),
+    [("address", "2 Example Road"), ("description", "Changed permit work")],
+)
+def test_retrieve_keeps_true_overlapping_report_conflicts_visible(field, changed_value):
+    end = datetime.now(UTC).date()
+    start = end - timedelta(days=7)
+    issued = start + timedelta(days=2)
+    params = {
+        "week_start": start.strftime("%Y/%m/%d"),
+        "week_end": end.strftime("%Y/%m/%d"),
+        "event_date": issued.strftime("%Y/%m/%d"),
+    }
+    first = workbook(**params)
+    second = workbook(**{**params, field: changed_value})
+    with pytest.raises(SourceParseError, match="overlapping reports conflict"):
+        retrieve(
+            {"id": "houston-weekly-permits", "endpoint": INDEX},
+            _retrieval_client(start, end, first, second),
+        )
+
+
+def test_retrieve_preserves_distinct_permit_dates_as_distinct_identities():
+    end = datetime.now(UTC).date()
+    start = end - timedelta(days=7)
+    first_date = start + timedelta(days=2)
+    next_date = start + timedelta(days=3)
+    params = {
+        "week_start": start.strftime("%Y/%m/%d"),
+        "week_end": end.strftime("%Y/%m/%d"),
+    }
+    records = retrieve(
+        {"id": "houston-weekly-permits", "endpoint": INDEX},
+        _retrieval_client(
+            start,
+            end,
+            workbook(event_date=first_date.strftime("%Y/%m/%d"), **params),
+            workbook(event_date=next_date.strftime("%Y/%m/%d"), **params),
+        ),
+    )
+    assert {row["event_date"] for row in records} == {
+        first_date.isoformat(),
+        next_date.isoformat(),
+    }
 
 
 def test_report_duplicates_are_exact_only_and_preserve_unknowns():

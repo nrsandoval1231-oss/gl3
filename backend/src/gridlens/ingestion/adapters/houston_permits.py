@@ -116,12 +116,22 @@ def parse_report(
             issued = _permit_date(stamp, date_epoch)
             if not start <= issued <= end or not all((project, address, kind, description)):
                 raise SourceParseError("Houston report has incomplete or out-of-window row")
+            # Keep the original string-date hash material for compatibility while
+            # normalizing equivalent Excel serials to that established representation.
+            canonical_values = [
+                zipcode,
+                issued.strftime("%Y/%m/%d"),
+                kind,
+                project,
+                address,
+                description,
+            ]
             identity = f"{project}:{kind}:{issued.isoformat()}"
             if identity in seen:
-                if seen[identity] != values:
+                if seen[identity] != canonical_values:
                     raise SourceParseError("Houston report has ambiguous duplicate identity")
                 continue  # Byte-equivalent field duplicates occur in official reports.
-            seen[identity] = values
+            seen[identity] = canonical_values
             output.append(
                 {
                     "document_number": identity,
@@ -148,7 +158,7 @@ def parse_report(
                         f"Official weekly report {start} through {end}; sheet1 row {number}"
                     ),
                     "source_hash": hashlib.sha256(
-                        json.dumps(values, ensure_ascii=False).encode()
+                        json.dumps(canonical_values, ensure_ascii=False).encode()
                     ).hexdigest(),
                     "permit": {
                         "source_type": "houston-weekly-permits",
