@@ -13,12 +13,22 @@ from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from time import monotonic
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
-from sqlalchemy import delete, func, insert, literal, or_, select, text, union, update
+from sqlalchemy import (
+    delete,
+    func,
+    insert,
+    literal,
+    or_,
+    select,
+    text,
+    union,
+    update,
+)
 
 from gridlens.domain.commercial_triage import _priority, work_group_identity
 from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
@@ -36,6 +46,7 @@ from gridlens.persistence.models import (
     BrowseCustomerMembership,
     BrowseDirtyProject,
     BrowseGeneration,
+    BrowseRecoveryStage,
     BrowseRow,
     BrowseState,
     BrowseUnresolvedCustomer,
@@ -828,7 +839,213 @@ def maintain_once(factory) -> dict:
     return prepared if prepared["status"] in {"prepared", "ready"} else result
 
 
-def rebuild(factory, *, before_publish=None, _prepare_at: datetime | None = None) -> dict:
+def _recovery_integrity_digest(session, generation: BrowseGeneration) -> tuple[str, dict[str, int]]:
+    """Hash all generation-bound output tables and group metadata deterministically."""
+    digest = hashlib.sha256()
+    digest.update(
+        canonical_json(
+            {
+                "generation_id": generation.id,
+                "input_revision": generation.input_revision,
+                "policy_version": generation.policy_version,
+                "digest": generation.digest,
+                "row_count": generation.row_count,
+                "built_at": generation.built_at,
+                "valid_from": generation.valid_from,
+                "valid_until": generation.valid_until,
+                "counts": generation.counts,
+            }
+        ).encode()
+    )
+    table_counts: dict[str, int] = {}
+    for model in (BrowseRow, BrowseCustomerMembership, BrowseUnresolvedCustomer):
+        primary_key = tuple(cast(Any, model.__table__).primary_key.columns)
+        query = (
+            select(model)
+            .where(model.generation_id == generation.id)
+            .order_by(*primary_key)
+            .execution_options(yield_per=500)
+        )
+        count = 0
+        digest.update(model.__tablename__.encode())
+        for record in session.execute(query).scalars():
+            values = {
+                column.name: getattr(record, column.name) for column in model.__table__.columns
+            }
+            digest.update(canonical_json(values).encode())
+            digest.update(b"\n")
+            count += 1
+        digest.update(f"rows={count}".encode())
+        table_counts[model.__tablename__] = count
+    return digest.hexdigest(), table_counts
+
+
+def stage_recovery(factory, *, minimum_horizon_seconds: int = 60) -> dict:
+    """Build a complete retained-data candidate without changing browse pointers."""
+    if minimum_horizon_seconds < 60:
+        raise ValueError("recovery staging requires at least 60 seconds of validity")
+    return rebuild(factory, _recovery_stage=True, _minimum_horizon_seconds=minimum_horizon_seconds)
+
+
+def inspect_recovery_stage(factory, generation_id: UUID) -> dict:
+    with factory() as session:
+        receipt = session.get(BrowseRecoveryStage, generation_id)
+        generation = session.get(BrowseGeneration, generation_id)
+        state = session.get(BrowseState, 1)
+        if receipt is None or generation is None or state is None:
+            return {"status": "not_found", "generation_id": str(generation_id)}
+        complete_rows = session.scalar(
+            select(func.count())
+            .select_from(BrowseRow)
+            .where(BrowseRow.generation_id == generation_id)
+        )
+        integrity_digest, table_counts = _recovery_integrity_digest(session, generation)
+        now = datetime.now(UTC)
+        receipt_counts_match = (
+            receipt.row_count == complete_rows
+            and receipt.membership_count == table_counts[BrowseCustomerMembership.__tablename__]
+            and receipt.unresolved_count == table_counts[BrowseUnresolvedCustomer.__tablename__]
+        )
+        matches = (
+            state.input_revision == receipt.expected_input_revision
+            and state.full_revision == receipt.expected_full_revision
+            and state.generation_id == receipt.expected_generation_id
+            and state.prepared_generation_id == receipt.expected_prepared_generation_id
+        )
+        valid = generation.valid_from <= now < generation.valid_until
+        return {
+            "status": "ready"
+            if (
+                matches
+                and valid
+                and generation.policy_version == POLICY_VERSION
+                and generation.digest == receipt.digest
+                and generation.row_count == complete_rows
+                and integrity_digest == receipt.integrity_digest
+                and receipt_counts_match
+                and complete_rows > 0
+                and (generation.valid_until - now).total_seconds() >= 60
+            )
+            else "stale_or_invalid",
+            "generation_id": str(generation_id),
+            "input_revision": generation.input_revision,
+            "policy_version": generation.policy_version,
+            "digest": generation.digest,
+            "row_count": generation.row_count,
+            "valid_until": generation.valid_until.isoformat(),
+            "expected_state": {
+                "input_revision": receipt.expected_input_revision,
+                "full_revision": receipt.expected_full_revision,
+                "generation_id": str(receipt.expected_generation_id)
+                if receipt.expected_generation_id
+                else None,
+                "prepared_generation_id": str(receipt.expected_prepared_generation_id)
+                if receipt.expected_prepared_generation_id
+                else None,
+            },
+            "state_matches": matches,
+            "complete": (
+                generation.row_count == complete_rows == receipt.row_count and complete_rows > 0
+            ),
+            "integrity_valid": integrity_digest == receipt.integrity_digest,
+            "table_counts": table_counts,
+            "current_policy": generation.policy_version == POLICY_VERSION,
+            "currently_valid": valid,
+        }
+
+
+def publish_recovery_stage(
+    factory, generation_id: UUID, *, minimum_horizon_seconds: int = 60
+) -> dict:
+    """CAS-publish a staged candidate while serializing against ordinary builders."""
+    if minimum_horizon_seconds < 60:
+        raise ValueError("recovery publication requires at least 60 seconds of validity")
+    with factory() as lock_session:
+        if not lock_session.scalar(select(func.pg_try_advisory_lock(BUILD_LOCK))):
+            return {"status": "busy", "generation_id": str(generation_id)}
+        try:
+            with factory.begin() as session:
+                state = session.scalar(
+                    select(BrowseState).where(BrowseState.id == 1).with_for_update()
+                )
+                receipt = session.get(BrowseRecoveryStage, generation_id)
+                generation = session.get(BrowseGeneration, generation_id)
+                if state is None or receipt is None or generation is None:
+                    return {"status": "not_found", "generation_id": str(generation_id)}
+                rows = session.scalar(
+                    select(func.count())
+                    .select_from(BrowseRow)
+                    .where(BrowseRow.generation_id == generation_id)
+                )
+                integrity_digest, actual_counts = _recovery_integrity_digest(session, generation)
+                now = datetime.now(UTC)
+                state_matches = (
+                    state.input_revision == receipt.expected_input_revision
+                    and state.full_revision == receipt.expected_full_revision
+                    and state.generation_id == receipt.expected_generation_id
+                    and state.prepared_generation_id == receipt.expected_prepared_generation_id
+                )
+                candidate_valid = not (
+                    generation.input_revision != receipt.expected_input_revision
+                    or generation.policy_version != POLICY_VERSION
+                    or receipt.policy_version != POLICY_VERSION
+                    or generation.digest != receipt.digest
+                    or generation.row_count != rows
+                    or integrity_digest != receipt.integrity_digest
+                    or receipt.row_count != rows
+                    or receipt.membership_count
+                    != actual_counts[BrowseCustomerMembership.__tablename__]
+                    or receipt.unresolved_count
+                    != actual_counts[BrowseUnresolvedCustomer.__tablename__]
+                    or rows <= 0
+                    or generation.valid_from > now
+                    or (generation.valid_until - now).total_seconds() < minimum_horizon_seconds
+                )
+                if not candidate_valid:
+                    return {"status": "candidate_invalid", "generation_id": str(generation_id)}
+                if not state_matches:
+                    already_published = (
+                        state.generation_id == generation_id
+                        and state.prepared_generation_id is None
+                        and state.input_revision == receipt.expected_input_revision
+                        and state.full_revision == receipt.expected_full_revision
+                    )
+                    if already_published:
+                        return {
+                            "status": "already_published",
+                            "generation_id": str(generation_id),
+                            "digest": generation.digest,
+                        }
+                    return {"status": "state_drift", "generation_id": str(generation_id)}
+                if (
+                    generation.valid_until - datetime.now(UTC)
+                ).total_seconds() < minimum_horizon_seconds:
+                    return {"status": "candidate_invalid", "generation_id": str(generation_id)}
+                displaced = state.generation_id
+                state.generation_id = generation_id
+                state.prepared_generation_id = None
+                session.flush()
+                return {
+                    "status": "published",
+                    "generation_id": str(generation_id),
+                    "displaced_generation_id": str(displaced) if displaced else None,
+                    "input_revision": state.input_revision,
+                    "digest": generation.digest,
+                    "row_count": generation.row_count,
+                    "valid_until": generation.valid_until.isoformat(),
+                }
+        finally:
+            lock_session.execute(select(func.pg_advisory_unlock(BUILD_LOCK)))
+
+
+def rebuild(
+    factory,
+    *,
+    before_publish=None,
+    _prepare_at: datetime | None = None,
+    _recovery_stage: bool = False,
+    _minimum_horizon_seconds: int = 60,
+) -> dict:
     """Build without blocking input writers; publish a fully fenced canonical snapshot.
 
     A crash rolls back the unpublished generation. The advisory lock excludes other
@@ -844,11 +1061,10 @@ def rebuild(factory, *, before_publish=None, _prepare_at: datetime | None = None
             generation_id = uuid4()
             with factory() as session:
                 session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
-                revision = session.scalar(
-                    select(BrowseState.input_revision).where(BrowseState.id == 1)
-                )
-                if revision is None:
+                state_snapshot = session.get(BrowseState, 1)
+                if state_snapshot is None:
                     raise RuntimeError("saved browse migration is required")
+                revision = state_snapshot.input_revision
                 now = datetime.now(UTC)
                 evaluated_at = _prepare_at or now
                 deadline = clock_deadline(session, evaluated_at)
@@ -875,9 +1091,40 @@ def rebuild(factory, *, before_publish=None, _prepare_at: datetime | None = None
                 # usable filter/group plans. This is outside the request path.
                 session.execute(text("ANALYZE browse_rows"))
                 generation.counts = _publish_group_metadata(session, generation_id)
+                if _recovery_stage:
+                    integrity_digest, table_counts = _recovery_integrity_digest(session, generation)
+                    if (deadline - datetime.now(UTC)).total_seconds() < _minimum_horizon_seconds:
+                        raise RuntimeError(
+                            "recovery candidate does not meet minimum validity horizon"
+                        )
+                    session.add(
+                        BrowseRecoveryStage(
+                            generation_id=generation_id,
+                            expected_input_revision=state_snapshot.input_revision,
+                            expected_full_revision=state_snapshot.full_revision,
+                            expected_generation_id=state_snapshot.generation_id,
+                            expected_prepared_generation_id=state_snapshot.prepared_generation_id,
+                            policy_version=POLICY_VERSION,
+                            digest=generation.digest,
+                            integrity_digest=integrity_digest,
+                            row_count=row_count,
+                            membership_count=table_counts[BrowseCustomerMembership.__tablename__],
+                            unresolved_count=table_counts[BrowseUnresolvedCustomer.__tablename__],
+                        )
+                    )
                 session.commit()
             if before_publish is not None:
                 before_publish()
+            if _recovery_stage:
+                return {
+                    "status": "staged",
+                    "generation_id": str(generation_id),
+                    "input_revision": revision,
+                    "row_count": row_count,
+                    "digest": generation.digest,
+                    "valid_until": generation.valid_until.isoformat(),
+                    "published": False,
+                }
             with factory.begin() as publication:
                 state = publication.scalar(
                     select(BrowseState).where(BrowseState.id == 1).with_for_update()

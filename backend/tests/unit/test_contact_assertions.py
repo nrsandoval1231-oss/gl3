@@ -784,11 +784,58 @@ def test_contact_privacy_overflow_fails_closed_only_for_oversized_project(contac
                 "evidence": [],
             },
         )
+        oversized_claim_ids = {
+            claim.id
+            for claim in session.query(BuyingChainClaim).filter_by(project_id=oversized_project.id)
+        }
+        independent_small_claim_ids = {small_claim.id}
+        # Include a second small project so neither project is selected by
+        # candidate position or by the fixture's original project candidate.
+        second_small_claim = BuyingChainClaim(
+            project_id=target_projects[2].id,
+            entity_key="second-independent-small-subject",
+            fingerprint=uuid4().hex,
+            policy_version=seed.policy_version,
+            organization=seed.organization,
+            person_name="Second Independent Small Subject",
+            title="Project Operations",
+            category=seed.category,
+            organization_relationship=seed.organization_relationship,
+            person_organization_relationship=seed.person_organization_relationship,
+            person_project_relationship=seed.person_project_relationship,
+            evidence_strength=seed.evidence_strength,
+            reason=seed.reason,
+            citations=[],
+            public_contacts=[{"kind": "email", "value": "second-small@example.test"}],
+            observed_at=seed.observed_at,
+        )
+        session.add(second_small_claim)
+        session.flush()
+        independent_small_claim_ids.add(second_small_claim.id)
+        candidates.append(
+            {
+                "id": second_small_claim.id,
+                "person_name": second_small_claim.person_name,
+                "title": second_small_claim.title,
+                "reason": "Project contact",
+                "public_contacts": second_small_claim.public_contacts,
+                "reported_contacts": [],
+                "correction_history": [],
+                "evidence": [],
+            }
+        )
+        reversed_candidates = [dict(candidate) for candidate in reversed(candidates)]
         _apply_contact_privacy(session, candidates)
-        small_candidate = candidates[0]
-        oversized_candidates = candidates[1:]
-        assert small_candidate.get("suppressed") is not True
-        assert all(candidate.get("suppressed") is True for candidate in oversized_candidates)
+        _apply_contact_privacy(session, reversed_candidates)
+        for result in (candidates, reversed_candidates):
+            by_id = {candidate["id"]: candidate for candidate in result}
+            assert all(
+                by_id[claim_id].get("suppressed") is not True
+                for claim_id in independent_small_claim_ids
+            )
+            assert all(
+                by_id[claim_id].get("suppressed") is True for claim_id in oversized_claim_ids
+            )
 
 
 def test_missing_entity_scope_recursively_redacts_display_fields(contact_db):

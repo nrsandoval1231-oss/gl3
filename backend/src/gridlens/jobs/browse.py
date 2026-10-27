@@ -11,24 +11,45 @@ from fastapi import HTTPException
 
 from gridlens.intelligence.saved_browse import (
     current_generation,
+    inspect_recovery_stage,
     maintain_once,
+    publish_recovery_stage,
     rebuild,
-    restore_generation,
+    stage_recovery,
 )
 from gridlens.persistence.database import SessionLocal
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("status", "rebuild", "maintain", "rollback"))
+    parser.add_argument(
+        "action",
+        choices=(
+            "status",
+            "rebuild",
+            "maintain",
+            "stage-recovery",
+            "inspect-recovery",
+            "publish-recovery",
+        ),
+    )
     parser.add_argument("--generation", type=UUID)
     args = parser.parse_args()
-    if args.action == "rollback":
+    if args.action in {"inspect-recovery", "publish-recovery"}:
         if args.generation is None:
-            parser.error("rollback requires --generation")
-        result = restore_generation(SessionLocal, args.generation)
-        print(json.dumps({"restored": result}))
-        return 0 if result else 1
+            parser.error(f"{args.action} requires --generation")
+    if args.action == "stage-recovery":
+        result = stage_recovery(SessionLocal)
+        print(json.dumps(result))
+        return 0 if result["status"] == "staged" else 1
+    if args.action == "inspect-recovery":
+        result = inspect_recovery_stage(SessionLocal, args.generation)
+        print(json.dumps(result))
+        return 0 if result["status"] == "ready" else 1
+    if args.action == "publish-recovery":
+        result = publish_recovery_stage(SessionLocal, args.generation)
+        print(json.dumps(result))
+        return 0 if result["status"] in {"published", "already_published"} else 1
     if args.action == "rebuild":
         result = rebuild(SessionLocal)
         print(json.dumps(result))
