@@ -41,6 +41,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const [retryKey, setRetryKey] = useState(0)
   const childRequests = useRef(new Map<string, AbortController>())
   const childEpoch = useRef(0)
+  const parentReloadNotice = useRef(false)
   const resetChildRequests = () => { childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear(); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildNotices({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({}) }
   useEffect(() => () => {
     childEpoch.current += 1
@@ -48,20 +49,24 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     childRequests.current.clear()
   }, [])
   useEffect(() => {
-    const onPop = () => { const route = readRoute(); setSearch(route.search); setSector(route.sector); setOffset(route.offset) }
+    const onPop = () => { parentReloadNotice.current = false; const route = readRoute(); setSearch(route.search); setSector(route.sector); setOffset(route.offset) }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
   useEffect(() => {
     childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear()
-    const controller = new AbortController(); setLoading(true); setError(''); setNotice(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildNotices({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({})
+    const controller = new AbortController(); setLoading(true); setError(''); if (!parentReloadNotice.current) setNotice(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildNotices({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({})
     const cohort = new URLSearchParams(location.search).get('cohort_token') ?? undefined
     const loadGroups = async () => {
       for (let attempt = 0; attempt <= MAX_PENDING_RETRIES; attempt += 1) {
         try {
           const value = await client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort: 'priority' }, controller.signal)
           if (controller.signal.aborted) return
-          setPage(value); setOpenedGroups({}); setLoading(false); setNotice('')
+          setPage(value); setOpenedGroups({}); setLoading(false)
+          if (parentReloadNotice.current) {
+            parentReloadNotice.current = false
+            setNotice('Results changed. Reloaded from the first page.')
+          } else setNotice('')
           return
         } catch (e) {
           if (controller.signal.aborted) return
@@ -72,11 +77,13 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
           }
           if (e instanceof OpportunityCohortChangedError) {
             setPage(null)
+            parentReloadNotice.current = true
             setNotice('Results changed. Reloaded from the first page.')
             updateUrl(search, sector)
             setOffset(0)
             if (offset === 0) setRetryKey(value => value + 1)
           } else {
+            parentReloadNotice.current = false
             setNotice('')
             setError(e instanceof OpportunityBrowsePendingError ? PENDING_EXHAUSTED_MESSAGE : e instanceof Error ? e.message : 'Could not load operator/customer groups.')
           }
@@ -92,7 +99,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     const next = new URLSearchParams({ view: 'workspace' }); if (nextSearch) next.set('q', nextSearch); if (nextSector !== 'all') next.set('sector', nextSector); if (nextOffset) next.set('offset', String(nextOffset)); if (cohort) next.set('cohort_token', cohort)
     history.replaceState(history.state, '', `/?${next}`)
   }
-  const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers') => { resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); setNotice(''); setSearch(q); setSector(s); setOffset(0); updateUrl(q, s) }
+  const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers') => { parentReloadNotice.current = false; resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); setNotice(''); setSearch(q); setSector(s); setOffset(0); updateUrl(q, s) }
   const groups = page?.items ?? []
   const toggleGroup = (group: OpportunityGroup) => {
     if (expanded[group.id]) {
