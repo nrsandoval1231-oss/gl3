@@ -59,6 +59,15 @@ def test_customer_group_routes_validate_queries_and_cohort_tokens(saved_db, monk
     assert child.status_code == 200, child.text
     assert child.json()["items"]
 
+    opened = client.get(f"/api/opportunities/groups/{group_id}/open")
+    assert opened.status_code == 200, opened.text
+    opened_payload = opened.json()
+    assert opened_payload["group"] == parent_payload["items"][0]
+    assert opened_payload["projects"]["items"]
+    child_cohort = opened_payload["projects"]["cohort_token"]
+    assert opened_payload["parent_cohort_token"] == child_cohort.split(".group.")[0]
+    assert opened_payload["generation"] == opened_payload["projects"]["generation"]
+
     missing_parent = client.get(child_path, params={"sector": "all"})
     assert missing_parent.status_code == 422
     stale_parent = client.get(child_path, params={**child_params, "parent_cohort_token": "stale"})
@@ -70,6 +79,8 @@ def test_customer_group_routes_validate_queries_and_cohort_tokens(saved_db, monk
         ("/api/opportunities/groups", {"geography": "Dallas"}),
         (child_path, {**child_params, "tier": "Signal"}),
         (child_path, {**child_params, "search": "x" * 251}),
+        (f"/api/opportunities/groups/{group_id}/open", {"offset": 1}),
+        (f"/api/opportunities/groups/{group_id}/open", {"cohort_token": "stale"}),
     )
     for path, params in invalid_requests:
         response = client.get(path, params=params)

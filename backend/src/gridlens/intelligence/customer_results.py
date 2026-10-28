@@ -22,10 +22,10 @@ _ASSET = """CASE
 _ASSET_B = _ASSET.replace("compact", "b.compact").replace("project_id", "b.project_id")
 
 
-def _cohort(session, *, search: str | None, sector: str, sort: str):
-    generation = current_generation(session)
+def _cohort(session, *, search: str | None, sector: str, sort: str, selected_generation=None):
+    generation = selected_generation or current_generation(session)
     term = (search or "").strip().casefold()
-    payload = [str(generation.id), generation.digest, sector, sort, term, "", True, []]
+    payload: list[Any] = [str(generation.id), generation.digest, sector, sort, term, "", True, []]
     token = "p1_" + hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode()).hexdigest()
     return generation, term, token
 
@@ -159,10 +159,15 @@ def _validate_token(token: str | None, expected: str, offset: int) -> None:
         raise HTTPException(422, "cohort_token is required when offset is greater than zero")
 
 
-def groups(session, *, search=None, sector="all", limit=25, offset=0, token=None, sort="priority"):
+def groups(
+    session, *, search=None, sector="all", limit=25, offset=0, token=None, sort="priority",
+    selected_generation=None,
+):
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
-    generation, term, cohort = _cohort(session, search=search, sector=sector, sort=sort)
+    generation, term, cohort = _cohort(
+        session, search=search, sector=sector, sort=sort, selected_generation=selected_generation
+    )
     _validate_token(token, cohort, offset)
     where, params = _query_parts(generation, term, sector)
     order = (
@@ -214,10 +219,13 @@ def group_projects(
     token=None,
     parent_token=None,
     sort="priority",
+    selected_generation=None,
 ):
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
-    generation, term, cohort = _cohort(session, search=search, sector=sector, sort=sort)
+    generation, term, cohort = _cohort(
+        session, search=search, sector=sector, sort=sort, selected_generation=selected_generation
+    )
     if parent_token is None:
         raise HTTPException(422, "parent_cohort_token is required for customer projects")
     if parent_token != cohort:
@@ -270,6 +278,7 @@ def group_projects(
             sort=sort,
             include_signals=True,
             project_ids=project_ids,
+            selected_generation=generation,
         )
         if project_ids
         else {"items": [], "generation": str(generation.id)}
