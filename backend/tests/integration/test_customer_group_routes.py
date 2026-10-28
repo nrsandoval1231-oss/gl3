@@ -11,7 +11,6 @@ from sqlalchemy import select, text
 from gridlens.intelligence.saved_browse import current_generation, rebuild
 from gridlens.persistence.models import (
     BrowseRow,
-    BrowseState,
     BuyingChainClaim,
     BuyingChainEvidence,
     BuyingChainIdentityLink,
@@ -166,27 +165,19 @@ def test_customer_group_open_uses_one_generation_across_all_serializers(saved_db
     monkeypatch.setattr(settings, "saved_browse_enabled", True)
     api = import_module("gridlens.api.app")
 
-    with saved_db.begin() as session:
-        old_generation_id = current_generation(session).id
-        state = session.get(BrowseState, 1)
-        state.prepared_generation_id = uuid4()
-        new_generation_id = state.prepared_generation_id
-        from gridlens.persistence.models import BrowseGeneration
-
-        old_generation = session.get(BrowseGeneration, old_generation_id)
-        new_generation = type(old_generation)(
-            id=new_generation_id,
-            input_revision=old_generation.input_revision,
-            policy_version=old_generation.policy_version,
-            built_at=old_generation.built_at,
-            valid_from=old_generation.valid_from + timedelta(seconds=1),
-            valid_until=old_generation.valid_until,
-            row_count=old_generation.row_count,
-            digest=old_generation.digest,
-            counts=old_generation.counts,
-        )
-        session.add(new_generation)
-        session.flush()
+    with saved_db() as session:
+        old_generation = current_generation(session)
+    new_generation = type(old_generation)(
+        id=uuid4(),
+        input_revision=old_generation.input_revision,
+        policy_version=old_generation.policy_version,
+        built_at=old_generation.built_at,
+        valid_from=old_generation.valid_from + timedelta(seconds=1),
+        valid_until=old_generation.valid_until,
+        row_count=old_generation.row_count,
+        digest=old_generation.digest,
+        counts=old_generation.counts,
+    )
 
     monkeypatch.setattr(api, "SessionLocal", saved_db)
     generation_reads = []
@@ -202,6 +193,7 @@ def test_customer_group_open_uses_one_generation_across_all_serializers(saved_db
     client = TestClient(api.app, base_url="https://testserver")
     client.cookies.set("gridlens_session", session_token)
     response = client.get("/api/opportunities/groups", params={"search": "Synthetic", "limit": 1})
+    assert response.status_code == 200, response.text
     group_id = response.json()["items"][0]["id"]
 
     # The route selection returns A once; subsequent selectors would return B.
