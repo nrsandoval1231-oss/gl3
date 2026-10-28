@@ -1,7 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
-import { client, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type OpportunityGroup, type OpportunityGroupsPage, type ProjectResult, type ProjectResultsPage } from '../../api/client'
+import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type OpportunityGroup, type OpportunityGroupsPage, type ProjectResult, type ProjectResultsPage } from '../../api/client'
 
 type Props = { selectedNeedId?: string; onNeed: (need: { id: string }) => void; onBrowseChange?: () => void }
+const MAX_PENDING_RETRIES = 3
+const PENDING_EXHAUSTED_MESSAGE = 'Results are still being prepared. Please try again shortly.'
+
+function waitForRetry(delayMs: number, signal: AbortSignal): Promise<boolean> {
+  if (signal.aborted) return Promise.resolve(false)
+  return new Promise(resolve => {
+    let timer: ReturnType<typeof setTimeout>
+    const finish = (completed: boolean) => {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', onAbort)
+      resolve(completed)
+    }
+    const onAbort = () => finish(false)
+    signal.addEventListener('abort', onAbort, { once: true })
+    timer = setTimeout(() => finish(true), delayMs)
+  })
+}
+
 export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props) {
   const readRoute = () => { const route = new URLSearchParams(location.search); return { search: route.get('q') ?? '', sector: (route.get('sector') === 'oil_gas' || route.get('sector') === 'data_centers' ? route.get('sector') : 'all') as 'all' | 'oil_gas' | 'data_centers', offset: Number(route.get('offset') ?? 0) } }
   const [initialRoute] = useState(readRoute)
@@ -30,22 +48,37 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   }, [])
   useEffect(() => {
     childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear()
-    const controller = new AbortController(); setLoading(true); setError(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({})
+    const controller = new AbortController(); setLoading(true); setError(''); setNotice(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({})
     const cohort = new URLSearchParams(location.search).get('cohort_token') ?? undefined
-    client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort: 'priority' }, controller.signal).then(value => { setPage(value); setOpenedGroups({}); setLoading(false) }).catch((e: Error) => {
-      if (controller.signal.aborted) return
-      if (e instanceof OpportunityCohortChangedError) {
-        setPage(null)
-        setError('')
-        setNotice('Results changed. Reloaded from the first page.')
-        updateUrl(search, sector)
-        setOffset(0)
-        if (offset === 0) setRetryKey(value => value + 1)
-      } else {
-        setError(e.message)
-        setLoading(false)
+    const loadGroups = async () => {
+      for (let attempt = 0; attempt <= MAX_PENDING_RETRIES; attempt += 1) {
+        try {
+          const value = await client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort: 'priority' }, controller.signal)
+          if (controller.signal.aborted) return
+          setPage(value); setOpenedGroups({}); setLoading(false); setNotice('')
+          return
+        } catch (e) {
+          if (controller.signal.aborted) return
+          if (e instanceof OpportunityBrowsePendingError && attempt < MAX_PENDING_RETRIES) {
+            setNotice('Results are still being prepared. Retrying automatically…')
+            if (await waitForRetry(e.retryAfterMs, controller.signal)) continue
+            return
+          }
+          if (e instanceof OpportunityCohortChangedError) {
+            setPage(null)
+            setNotice('Results changed. Reloaded from the first page.')
+            updateUrl(search, sector)
+            setOffset(0)
+            if (offset === 0) setRetryKey(value => value + 1)
+          } else {
+            setError(e instanceof OpportunityBrowsePendingError ? PENDING_EXHAUSTED_MESSAGE : e instanceof Error ? e.message : 'Could not load operator/customer groups.')
+          }
+          setLoading(false)
+          return
+        }
       }
-    })
+    }
+    void loadGroups()
     return () => controller.abort()
   }, [search, sector, offset, retryKey])
   const updateUrl = (nextSearch: string, nextSector: string, nextOffset = 0, cohort?: string) => {
@@ -78,38 +111,66 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     childRequests.current.get(group.id)?.abort()
     const controller = new AbortController(); childRequests.current.set(group.id, controller)
     const epoch = childEpoch.current
-    client.groupProjects(group.id, { search: requestSearch, sector: requestSector, limit: 25, offset: childOffset, cohort_token: cohortToken, parent_cohort_token: groupParentTokens[group.id] ?? requestPage?.cohort_token, sort: 'priority' }, controller.signal).then(value => {
-      if (controller.signal.aborted || epoch !== childEpoch.current) return
-      setChildren(current => ({ ...current, [group.id]: value })); setChildOffsets(current => ({ ...current, [group.id]: childOffset })); setChildLoading(current => ({ ...current, [group.id]: false }))
-    }).catch((e: Error) => {
-      if (controller.signal.aborted || epoch !== childEpoch.current) return
-      if (e instanceof OpportunityCohortChangedError) {
-        const wasPagination = childOffset > 0 || Boolean(cohortToken)
-        if (wasPagination) {
-          setChildren(current => ({ ...current, [group.id]: null }))
-          setChildOffsets(current => ({ ...current, [group.id]: 0 }))
-          setNotice('Project results changed. Reloaded this operator/customer group.')
-        }
-        client.openOpportunityGroup(group.id, { search: requestSearch, sector: requestSector, limit: 25, sort: 'priority' }, controller.signal).then(opened => {
-          if (controller.signal.aborted || epoch !== childEpoch.current || requestSearch !== search || requestSector !== sector || requestOffset !== offset) return
+    const requestIsCurrent = () => !controller.signal.aborted && epoch === childEpoch.current && requestSearch === search && requestSector === sector && requestOffset === offset
+    const openFreshGroup = async (firstRetryDelayMs = 0) => {
+      let retryDelayMs = firstRetryDelayMs
+      for (let attempt = 0; attempt <= MAX_PENDING_RETRIES; attempt += 1) {
+        if (retryDelayMs > 0 && !(await waitForRetry(retryDelayMs, controller.signal))) return
+        if (!requestIsCurrent()) return
+        try {
+          const opened = await client.openOpportunityGroup(group.id, { search: requestSearch, sector: requestSector, limit: 25, sort: 'priority' }, controller.signal)
+          if (!requestIsCurrent()) return
           if (opened.group.id !== group.id) throw new Error('The refreshed operator/customer group did not match the requested group.')
           setOpenedGroups(current => ({ ...current, [group.id]: opened.group }))
           setChildren(current => ({ ...current, [group.id]: opened.projects }))
           setChildOffsets(current => ({ ...current, [group.id]: 0 }))
           setGroupParentTokens(current => ({ ...current, [group.id]: opened.parent_cohort_token }))
           setChildLoading(current => ({ ...current, [group.id]: false }))
-        }).catch((refreshError: Error) => {
-          if (controller.signal.aborted || epoch !== childEpoch.current) return
+          setChildErrors(current => ({ ...current, [group.id]: '' }))
+          setNotice('')
+          return
+        } catch (refreshError) {
+          if (!requestIsCurrent()) return
+          if (refreshError instanceof OpportunityBrowsePendingError && attempt < MAX_PENDING_RETRIES) {
+            retryDelayMs = refreshError.retryAfterMs
+            setNotice('Project results are still being prepared. Retrying this group automatically…')
+            continue
+          }
           if (refreshError instanceof OpportunityGroupUnavailableError) {
             setExpanded(current => ({ ...current, [group.id]: false }))
+            setChildren(current => ({ ...current, [group.id]: null }))
+            setChildOffsets(current => ({ ...current, [group.id]: 0 }))
+            setGroupParentTokens(current => { const next = { ...current }; delete next[group.id]; return next })
             setOpenedGroups(current => { const next = { ...current }; delete next[group.id]; return next })
             setNotice(refreshError.message)
           }
-          setChildErrors(current => ({ ...current, [group.id]: refreshError.message }))
+          setChildErrors(current => ({ ...current, [group.id]: refreshError instanceof OpportunityBrowsePendingError ? PENDING_EXHAUSTED_MESSAGE : refreshError instanceof Error ? refreshError.message : 'Could not load projects.' }))
           setChildLoading(current => ({ ...current, [group.id]: false }))
-        })
-      } else setChildErrors(current => ({ ...current, [group.id]: e.message }))
-      if (!(e instanceof OpportunityCohortChangedError)) setChildLoading(current => ({ ...current, [group.id]: false }))
+          return
+        }
+      }
+    }
+    const wasPagination = childOffset > 0 || Boolean(cohortToken)
+    const recoverGroup = (retryDelayMs = 0) => {
+      setChildren(current => ({ ...current, [group.id]: null }))
+      setChildOffsets(current => ({ ...current, [group.id]: 0 }))
+      if (retryDelayMs > 0) setNotice('Project results are still being prepared. Retrying this group automatically…')
+      else if (wasPagination) setNotice('Project results changed. Reloaded this operator/customer group.')
+      void openFreshGroup(retryDelayMs)
+    }
+    client.groupProjects(group.id, { search: requestSearch, sector: requestSector, limit: 25, offset: childOffset, cohort_token: cohortToken, parent_cohort_token: groupParentTokens[group.id] ?? requestPage?.cohort_token, sort: 'priority' }, controller.signal).then(value => {
+      if (!requestIsCurrent()) return
+      setChildren(current => ({ ...current, [group.id]: value })); setChildOffsets(current => ({ ...current, [group.id]: childOffset })); setChildLoading(current => ({ ...current, [group.id]: false }))
+    }).catch((e: Error) => {
+      if (!requestIsCurrent()) return
+      if (e instanceof OpportunityCohortChangedError) {
+        recoverGroup()
+      } else if (e instanceof OpportunityBrowsePendingError) {
+        recoverGroup(e.retryAfterMs)
+      } else {
+        setChildErrors(current => ({ ...current, [group.id]: e.message }))
+        setChildLoading(current => ({ ...current, [group.id]: false }))
+      }
     })
   }
   return <section className="project-results" aria-label="Project opportunities">
