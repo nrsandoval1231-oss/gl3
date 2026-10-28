@@ -720,14 +720,9 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
       json: { detail: 'qualification pending' },
     })
   })
-  await page.route('**/api/opportunities?*', route => route.fulfill({
-    json: [],
-    headers: {
-      'X-Total-Count': '0',
-      'X-Group-Total-Count': '0',
-      'X-Decision-Counts': '{"SHOW":0,"REVIEW":0,"HOLD":0}',
-      'X-Cohort-Token': 'empty-signals-cohort',
-    },
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({
+    status: 503,
+    json: { detail: 'Synthetic research cohort unavailable' },
   }))
   await page.goto('/')
   const groupCard = page.locator('.customer-group').filter({ hasText: 'Example Energy' })
@@ -736,10 +731,11 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
   await expect.poll(() => openReads).toBe(1)
   await expect(groupCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
 
-  // A full document navigation guarantees ProjectResults unmounts while its
-  // atomic-open retry timer is waiting.
-  await page.goto('/?view=signals')
-  await expect(page.locator('.signals-browse')).toBeVisible()
+  // SPA navigation unmounts ProjectResults while preserving the browser realm
+  // and the pending fake-clock timer.
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Research', exact: true }).click()
+  await expect(page.getByRole('main', { name: 'Automated research' })).toBeVisible()
   await page.clock.fastForward(5000)
   expect(openReads).toBe(1)
 })
