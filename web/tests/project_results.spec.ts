@@ -497,11 +497,13 @@ test('parent pending retries stop after four active reads and manual retry start
   await expect(page.getByText('Loading operator/customer groups…').first()).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
-  for (let activeRead = 3; activeRead <= 5; activeRead += 1) {
+  for (let activeRead = 3; activeRead <= 4; activeRead += 1) {
     await page.clock.fastForward(1000)
     await expect.poll(() => requests).toBe(activeRead)
     await expect(page.getByRole('alert')).toHaveCount(0)
   }
+  await page.clock.fastForward(1000)
+  await expect.poll(() => requests).toBe(5)
   await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toHaveCount(0)
   await page.clock.fastForward(30000)
@@ -637,11 +639,13 @@ test('pending atomic open exhaustion is bounded and manual retry starts a new cy
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect.poll(() => openReads).toBe(1)
   await expect(page.getByRole('alert')).toHaveCount(0)
-  for (let attempt = 2; attempt <= 4; attempt += 1) {
+  for (let attempt = 2; attempt <= 3; attempt += 1) {
     await page.clock.fastForward(1000)
     await expect.poll(() => openReads).toBe(attempt)
     await expect(page.getByRole('alert')).toHaveCount(0)
   }
+  await page.clock.fastForward(1000)
+  await expect.poll(() => openReads).toBe(4)
   await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
   const groupCard = page.locator('.customer-group').filter({ hasText: 'Example Energy' })
   await expect(groupCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toHaveCount(0)
@@ -726,7 +730,7 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
   await expect.poll(() => openReads).toBe(1)
   await expect(groupCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
 
-  await page.getByRole('button', { name: 'More' }).click()
+  await page.locator('.wh-account summary').click()
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
   await expect(page.getByRole('main', { name: 'Signals browser' })).toBeVisible()
   await page.clock.fastForward(5000)
