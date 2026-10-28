@@ -12,3 +12,16 @@ The [Autonomous Intelligence Canon](../docs/product/AUTONOMOUS_INTELLIGENCE_CANO
 | Integration/review | Integrate commits, rerun final gates, inspect populated mobile/desktop behavior, independent Astra review, update PR | Exact candidate receipts and review follow-up |
 
 Lane ownership does not assert execution success. Final controller receipts record actual completion, blockers and candidate hashes. Deployment/live provider operation and original commercial launch acceptance are separate gates; see [Finish Contract](FINISH_CONTRACT.md).
+
+## October27 native source/commercial repair
+
+Current owner scope and acceptance: [SOURCE-COMMERCIAL-20261027](packets/SOURCE-COMMERCIAL-20261027.md).
+
+| Node | State | Outcome | Dependency |
+|---|---|---|---|
+| SC27-A | READY / diagnosis | Active native source adapter repair | Actual-source root cause, regression |
+| SC27-H | READY / diagnosis | Truthful scheduled/inactive/retained health | Effective registry/schedule evidence |
+| SC27-C | READY / diagnosis | Free native commercial evidence coverage | Literal attribution, frozen25 denominator |
+| SC27-I | WAITING | Integrated tested candidate | Lane commits and actual-data checks |
+| SC27-R | WAITING | Independent Astra and exact CI | Frozen integration |
+| SC27-D | WAITING | Guarded production release and receipt | Review, CI, fresh restore/rollback, live canary |

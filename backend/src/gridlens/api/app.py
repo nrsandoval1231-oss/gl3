@@ -1797,7 +1797,7 @@ def health():
                 info["operational_status"] = "Stale"
             elif raw_status in {"checked—no change", "checked - no change", "no new data"}:
                 info["operational_status"] = "No New Data"
-            elif freshness == "FRESH" or health_data.get("last_success"):
+            elif freshness == "FRESH":
                 info["operational_status"] = "Healthy"
             else:
                 info["operational_status"] = "Unknown"

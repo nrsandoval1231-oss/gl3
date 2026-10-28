@@ -10,7 +10,7 @@ import json
 import re
 import time
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -23,6 +23,10 @@ from gridlens.ingestion.adapters.buying_chain_public import (
     PublicDocument,
     retrieve,
     validate_public_url,
+)
+from gridlens.ingestion.adapters.rrc_operator_directory import (
+    is_rrc_directory_workbook_url,
+    load_current_directory,
 )
 from gridlens.intelligence.buying_chain import (
     _entity_key,
@@ -75,6 +79,7 @@ MAX_SECONDS = 35
 CONTACT_PLANNER_RETRY_DAYS = 7
 CONTACT_PLANNER_REFRESH_DAYS = 30
 POLICY_VERSION = "company-contact-discovery-v13-adaptive"
+NATIVE_RRC_DIRECTORY_POLICY = "rrc-p5-directory-v1"
 
 
 def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
@@ -143,24 +148,47 @@ def _research_source_digest(session: Session, project: Project, company_id: UUID
     imports = _active_import_rows(session, company_id)
     hyperlink_hints = _company_hyperlink_hints(session, company_id)
     hint_urls = hyperlink_hints.get("urls") or []
-    return fingerprint(
-        {
-            "anchor": _anchor_digest(session, project, company_id),
-            # Unsupported/malformed metadata does not create a new research
-            # generation. A newly recoverable public URL does, including a
-            # same-bytes parser-only import reparse.
-            "hyperlink_hints": (hyperlink_hints.get("fingerprint") if hint_urls else None),
-            "imports": [
-                {
-                    "row_id": str(row.id),
-                    "batch_id": str(row.batch_id),
-                    "content_hash": content_hash,
-                    "normalized_hash": fingerprint(row.normalized or {}),
-                }
-                for row, content_hash in imports
-            ],
-        }
+    digest_inputs = {
+        "anchor": _anchor_digest(session, project, company_id),
+        # Unsupported/malformed metadata does not create a new research
+        # generation. A newly recoverable public URL does, including a
+        # same-bytes parser-only import reparse.
+        "hyperlink_hints": (hyperlink_hints.get("fingerprint") if hint_urls else None),
+        "imports": [
+            {
+                "row_id": str(row.id),
+                "batch_id": str(row.batch_id),
+                "content_hash": content_hash,
+                "normalized_hash": fingerprint(row.normalized or {}),
+            }
+            for row, content_hash in imports
+        ],
+    }
+    # This is a bounded retrieval-policy version, not new evidence. Keep the
+    # legacy digest shape exactly unchanged for every non-RRC company.
+    native_policy = _native_contact_retrieval_policy(session, company_id)
+    if native_policy is not None:
+        digest_inputs["native_contact_retrieval_policy"] = native_policy
+    return fingerprint(digest_inputs)
+
+
+def _native_contact_retrieval_policy(session: Session, company_id: UUID) -> str | None:
+    identity = session.get(CompanyIdentity, company_id)
+    number = identity.rrc_operator_number if identity else None
+    return (
+        NATIVE_RRC_DIRECTORY_POLICY
+        if isinstance(number, str) and re.fullmatch(r"\d{6}", number)
+        else None
     )
+
+
+def _split_native_directory_urls(
+    urls: list[str], *, native_eligible: bool
+) -> tuple[list[str], bool]:
+    if not native_eligible:
+        return urls, False
+    native_urls = [url for url in urls if is_rrc_directory_workbook_url(url)]
+    return [url for url in urls if not is_rrc_directory_workbook_url(url)], bool(native_urls)
 
 
 def _contact_research_gaps(session: Session, company_id: UUID) -> tuple[bool, bool]:
@@ -444,11 +472,19 @@ def discover_company_contacts(
     now: datetime | None = None,
     refresh_generation: str | None = None,
     research_profile: str | None = None,
+    native_directory_intent: bool = False,
 ) -> dict:
     """Idempotently enqueue discovery; it intentionally performs no network I/O."""
     now = now or datetime.now(UTC)
     now = now.replace(tzinfo=UTC) if now.tzinfo is None else now.astimezone(UTC)
     urls = list(dict.fromkeys(validate_public_url(url) for url in candidate_urls))
+    native_eligible = _native_contact_retrieval_policy(session, company_identity_id) is not None
+    urls, discovered_native_intent = _split_native_directory_urls(
+        urls, native_eligible=native_eligible
+    )
+    native_directory_intent = native_eligible and (
+        native_directory_intent or discovered_native_intent
+    )
     if len(urls) > MAX_CANDIDATE_URLS:
         raise ValueError(f"At most {MAX_CANDIDATE_URLS} candidate URLs are allowed")
     projects = _projects(session, company_identity_id)
@@ -521,44 +557,42 @@ def discover_company_contacts(
         raise ValueError("Unsupported company contact research profile")
     research_candidate = replace(research_candidate, research_profile=selected_profile)
     input_digest = research_digest(research_candidate)
-    digest = fingerprint(
-        {
-            "company_identity_id": str(company_identity_id),
-            "candidate_urls": urls,
-            "anchor": _anchor_digest(session, anchor, company_identity_id),
-            "research_digest": input_digest,
-            "research_profile": selected_profile,
-            "refresh_due": refresh_due,
-            "policy": POLICY_VERSION,
-            # Preserve legacy direct/API refreshes. Explicit planner generations
-            # remain stable across calendar bucket boundaries for fenced retries.
-            "refresh_epoch": (
-                None if refresh_generation is not None else now.date().toordinal() // 30
-            ),
-            "refresh_generation": refresh_generation,
-        }
-    )
+    digest_inputs = {
+        "company_identity_id": str(company_identity_id),
+        "candidate_urls": urls,
+        "anchor": _anchor_digest(session, anchor, company_identity_id),
+        "research_digest": input_digest,
+        "research_profile": selected_profile,
+        "refresh_due": refresh_due,
+        "policy": POLICY_VERSION,
+        # Preserve legacy direct/API refreshes. Explicit planner generations
+        # remain stable across calendar bucket boundaries for fenced retries.
+        "refresh_epoch": (None if refresh_generation is not None else now.date().toordinal() // 30),
+        "refresh_generation": refresh_generation,
+    }
+    if native_directory_intent:
+        digest_inputs["native_directory_intent"] = True
+    digest = fingerprint(digest_inputs)
     # Successful enrichment changes its own gap/profile inputs. Keep a separate
     # source/request identity so an immediate replay can reuse that outcome,
     # without hiding new evidence, changed needs, or newly missing contacts.
-    source_request_digest = fingerprint(
-        {
-            "research": research_digest(
-                replace(
-                    research_candidate,
-                    missing_buyer_relevant_method=False,
-                    missing_contact_method=False,
-                    research_profile=STANDARD_RESEARCH_PROFILE,
-                )
-            ),
-            "candidate_urls": urls,
-            "refresh_epoch": None
-            if refresh_generation is not None
-            else now.date().toordinal() // 30,
-            "refresh_generation": refresh_generation,
-            "policy": POLICY_VERSION,
-        }
-    )
+    source_request_inputs = {
+        "research": research_digest(
+            replace(
+                research_candidate,
+                missing_buyer_relevant_method=False,
+                missing_contact_method=False,
+                research_profile=STANDARD_RESEARCH_PROFILE,
+            )
+        ),
+        "candidate_urls": urls,
+        "refresh_epoch": None if refresh_generation is not None else now.date().toordinal() // 30,
+        "refresh_generation": refresh_generation,
+        "policy": POLICY_VERSION,
+    }
+    if native_directory_intent:
+        source_request_inputs["native_directory_intent"] = True
+    source_request_digest = fingerprint(source_request_inputs)
     matching_failures = 0
     for job in existing:
         checkpoint = _load_checkpoint(job)
@@ -621,6 +655,7 @@ def discover_company_contacts(
                 "payload": {
                     "company_identity_id": str(company_identity_id),
                     "candidate_urls": urls,
+                    **({"native_directory_intent": True} if native_directory_intent else {}),
                     "refresh_due": refresh_due,
                     "research_profile": selected_profile,
                 },
@@ -963,12 +998,16 @@ def plan_company_contact_jobs(
         refresh_generation = retry_generation or (
             str(now.date().toordinal() // 30) if due_reason == "stale_refresh_due" else None
         )
+        candidate_urls = _known_contact_urls(session, company_id, list(_candidate.projects))
+        native_eligible = _native_contact_retrieval_policy(session, company_id) is not None
+        candidate_urls, native_directory_intent = _split_native_directory_urls(
+            candidate_urls, native_eligible=native_eligible
+        )
         result = discover_company_contacts(
             session,
             company_id,
-            candidate_urls=_known_contact_urls(session, company_id, list(_candidate.projects))[
-                :MAX_CANDIDATE_URLS
-            ],
+            candidate_urls=candidate_urls[:MAX_CANDIDATE_URLS],
+            native_directory_intent=native_directory_intent,
             now=now,
             refresh_generation=refresh_generation,
             research_profile=_candidate.research_profile,
@@ -1054,6 +1093,86 @@ def _rrc_public_method(
         "quote": phones[0],
         "observed_at": doc.observed_at.isoformat(),
     }
+
+
+def _rrc_directory_contact(
+    snapshot: dict, operator_number: str | None, organization: str
+) -> tuple[PublicDocument, dict[str, str]] | None:
+    """Build one generic company phone only from an exact current RRC P5 row."""
+    if not isinstance(operator_number, str) or not re.fullmatch(r"\d{6}", operator_number):
+        return None
+    operators = snapshot.get("operators")
+    rows = operators.get(operator_number) if isinstance(operators, dict) else None
+    if not isinstance(rows, list) or len(rows) != 1:
+        return None
+    row = rows[0]
+    if not isinstance(row, dict):
+        return None
+    if (
+        row.get("operator_number") != operator_number
+        or not isinstance(row.get("organization"), str)
+        or _brand_key(row["organization"]) != _brand_key(organization)
+        or row.get("status") not in {"Active", "ActiveExtension"}
+    ):
+        return None
+    country = str(row.get("country") or "").strip().upper()
+    if country not in {"US", "USA"}:
+        return None
+    phone = str(row.get("normal_phone") or "").strip()
+    if not re.fullmatch(r"(?:\+?1[ .-]?)?(?:\(?[2-9]\d{2}\)?[ .-]?){2}\d{4}", phone):
+        return None
+    try:
+        observed_at = datetime.fromisoformat(str(snapshot["observed_at"]))
+        if observed_at.tzinfo is None:
+            return None
+        published_at = date.fromisoformat(str(snapshot["workbook_header_date"]))
+        source_url = validate_public_url(str(snapshot["source_url"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+    if urlsplit(source_url).hostname != "www.rrc.texas.gov":
+        return None
+    row_number = row.get("row_number")
+    if type(row_number) is not int or row_number < 4:
+        return None
+    filename_date = str(snapshot.get("filename_date") or "unknown")
+    header_timestamp = str(snapshot.get("workbook_header_timestamp") or "unknown")
+    landing_statement = str(snapshot.get("landing_freshness_statement") or "not present")
+    raw_hash = str(snapshot.get("raw_sha256") or "")
+    if not re.fullmatch(r"[0-9a-f]{64}", raw_hash):
+        return None
+    quote = f"Phone: {phone}"
+    text = "\n".join(
+        (
+            "Railroad Commission of Texas — Oil & Gas P5 directory row",
+            f"Org Number: {operator_number}",
+            f"Org Name: {row['organization']}",
+            f"Country: {country}",
+            quote,
+            f"P5 Status: {row['status']}",
+            f"Workbook header timestamp: {header_timestamp} (timezone unspecified)",
+            f"Workbook header date: {published_at.isoformat()} "
+            "(not a need or contact-verification date)",
+            f"Directory filename date: {filename_date} (artifact metadata only)",
+            f"Landing page freshness statement: {landing_statement}",
+            f"Workbook SHA-256: {raw_hash}",
+        )
+    )
+    doc = PublicDocument(
+        url=source_url,
+        title="RRC Oil & Gas P5 directory organization phone",
+        text=text,
+        published_at=published_at,
+        observed_at=observed_at.astimezone(UTC),
+        extraction_location=f"RRC P5 directory worksheet row {row_number}",
+    )
+    method = {
+        "kind": "phone",
+        "value": phone,
+        "source_url": source_url,
+        "quote": quote,
+        "observed_at": doc.observed_at.isoformat(),
+    }
+    return doc, method
 
 
 def _search_official_urls(
@@ -1166,8 +1285,23 @@ def process_company_contact_discovery(
         refresh_due = payload.get("refresh_due") is True
         urls = payload.get("candidate_urls", [])
         projects = _projects(session, company_id)
-        if not urls:
-            urls = _known_contact_urls(session, company_id, projects)[:MAX_CANDIDATE_URLS]
+        identity = session.get(CompanyIdentity, company_id)
+        operator_number = identity.rrc_operator_number if identity else None
+        native_eligible = _native_contact_retrieval_policy(session, company_id) is not None
+        native_directory_intent = native_eligible and payload.get("native_directory_intent") is True
+        urls, payload_native_intent = _split_native_directory_urls(
+            urls if isinstance(urls, list) else [], native_eligible=native_eligible
+        )
+        native_directory_intent = native_directory_intent or payload_native_intent
+        if not payload.get("candidate_urls"):
+            known_urls = _known_contact_urls(session, company_id, projects)
+            known_urls, known_native_intent = _split_native_directory_urls(
+                known_urls, native_eligible=native_eligible
+            )
+            native_directory_intent = native_directory_intent or known_native_intent
+            urls = known_urls[:MAX_CANDIDATE_URLS]
+        else:
+            urls = urls[:MAX_CANDIDATE_URLS]
         anchor = _select_anchor_project(session, projects, company_id)
         anchor_id = anchor.id if anchor else None
         expected_digest = _anchor_digest(session, anchor, company_id) if anchor else None
@@ -1179,13 +1313,17 @@ def process_company_contact_discovery(
             already_named and not refresh_due and not missing_buyer_relevant_method
         )
         organization = _search_name(session, anchor, company_id) if anchor else None
-        identity = session.get(CompanyIdentity, company_id)
-        operator_number = identity.rrc_operator_number if identity else None
 
     fetched: dict[str, PublicDocument] = {}
     failures: list[dict[str, str]] = []
     discovery_reason: str | None = None
-    if not urls and not reuse_named_contact and organization and anchor_id is not None:
+    if (
+        not urls
+        and not native_directory_intent
+        and not reuse_named_contact
+        and organization
+        and anchor_id is not None
+    ):
         try:
             urls = _search_official_urls(
                 job_id,
@@ -1315,11 +1453,25 @@ def process_company_contact_discovery(
             for doc in fetched.values()
         )
     )
+    directory_entry: tuple[PublicDocument, dict[str, str]] | None = None
+    if not reuse_named_contact and not official_method_found and operator_number and anchor_id:
+        try:
+            directory_snapshot = load_current_directory(deadline=deadline)
+            directory_entry = _rrc_directory_contact(
+                directory_snapshot, operator_number, organization or ""
+            )
+        except Exception as exc:
+            failure = {"url": "rrc-p5-directory", "reason": type(exc).__name__}
+            detail = str(exc)
+            if re.fullmatch(r"[A-Za-z0-9_ .:-]{1,80}", detail):
+                failure["detail"] = detail
+            failures.append(failure)
     registry_url = _rrc_url(operator_number)
     registry_doc: PublicDocument | None = None
     if (
         not reuse_named_contact
         and not official_method_found
+        and directory_entry is None
         and registry_url
         and len(checked) < fetch_limit
         and time.monotonic() < deadline
@@ -1358,6 +1510,7 @@ def process_company_contact_discovery(
                             fetched,
                             now,
                             registry_doc=registry_doc,
+                            directory_entry=directory_entry,
                             operator_number=operator_number,
                         )
                     )
@@ -1782,6 +1935,7 @@ def _discover_anchor(
     now: datetime,
     *,
     registry_doc: PublicDocument | None = None,
+    directory_entry: tuple[PublicDocument, dict[str, str]] | None = None,
     operator_number: str | None = None,
 ) -> dict:
     """Attach literal corporate methods without changing the project's buyer claim."""
@@ -1789,7 +1943,7 @@ def _discover_anchor(
     old, _membership_source = _canonical_anchor(session, project, company_id, view, now)
     if old is None:
         return {"status": "unresolved", "reason": "no_current_source_backed_company_claim"}
-    if not fetched:
+    if not fetched and registry_doc is None and directory_entry is None:
         return {
             "status": "unresolved",
             "reason": "no_verified_official_seed",
@@ -1812,7 +1966,18 @@ def _discover_anchor(
         and identity.rrc_operator_number == operator_number
         else None
     )
-    if not documents and not registry_method:
+    directory_doc: PublicDocument | None = None
+    directory_method: dict[str, str] | None = None
+    if directory_entry is not None:
+        candidate_doc, candidate_method = directory_entry
+        if (
+            operator_number is not None
+            and identity is not None
+            and identity.rrc_operator_number == operator_number
+            and candidate_method.get("source_url") == candidate_doc.url
+        ):
+            directory_doc, directory_method = candidate_doc, candidate_method
+    if not documents and not registry_method and not directory_method:
         return {"status": "unresolved", "reason": "official_identity_unverified"}
     contacts = []
     # JSON columns return mutable nested objects; copy each row so rebinding an
@@ -1918,6 +2083,24 @@ def _discover_anchor(
                 "evidence_id": str(source.id),
                 "url": registry_doc.url,
                 "quote": registry_method["quote"],
+                "supports": "public_contact",
+            }
+        )
+    if directory_doc is not None and directory_method is not None:
+        source = _store_document(
+            session,
+            project,
+            directory_doc,
+            "Exact RRC operator-number P5 row; normal organization phone field.",
+            seen_at=directory_doc.observed_at,
+        )
+        evidence_ids.append(str(source.id))
+        contacts.append(directory_method)
+        citations.append(
+            {
+                "evidence_id": str(source.id),
+                "url": directory_doc.url,
+                "quote": directory_method["quote"],
                 "supports": "public_contact",
             }
         )

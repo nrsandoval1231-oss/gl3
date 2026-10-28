@@ -302,3 +302,23 @@ def test_health_collection_progress_is_unknown_without_metadata(health_db):
     assert source.get("collection_jobs_remaining") is None
     assert source.get("collection_paused_for_budget") is None
     assert source.get("pending_collection_lanes") is None
+
+
+def test_unknown_schedule_proof_does_not_inherit_healthy_from_historical_success(health_db):
+    import gridlens.api.app as api
+
+    with health_db.begin() as session:
+        source = session.get(Source, "proof-source")
+        assert source is not None
+        source.health = {
+            "status": "Updated",
+            "last_attempt": datetime.now(UTC).isoformat(),
+            "last_success": "2026-10-20T12:00:00+00:00",
+        }
+
+    result = next(item for item in api.health()["sources"] if item["id"] == "proof-source")
+
+    assert result["enabled"] is True
+    assert result["freshness"] == "UNKNOWN"
+    assert result["last_success"] == "2026-10-20T12:00:00+00:00"
+    assert result["operational_status"] == "Unknown"
