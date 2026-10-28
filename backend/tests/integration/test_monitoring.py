@@ -2,6 +2,7 @@ import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -50,13 +51,11 @@ def sessions():
         application.database,
     )
     engine = create_engine(settings.test_database_url, pool_size=8)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     try:
         yield factory
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 

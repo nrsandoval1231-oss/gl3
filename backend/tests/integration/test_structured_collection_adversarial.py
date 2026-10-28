@@ -8,6 +8,7 @@ from threading import Event
 
 import httpx
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -16,7 +17,6 @@ from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
 from gridlens.ingestion.structured_collection import collection_lanes, collection_policy_digest
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     Job,
@@ -63,8 +63,7 @@ def adversarial_db(monkeypatch):
         application.database,
     ), "TEST_DATABASE_URL must not identify the application database"
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     import gridlens.ingestion.adapters.socrata_permits as permits
     import gridlens.ingestion.registry as registry
@@ -81,7 +80,6 @@ def adversarial_db(monkeypatch):
 
     monkeypatch.setattr(worker, "load_registry", lambda: configured_registry)
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

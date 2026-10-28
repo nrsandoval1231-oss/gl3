@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup
+from db_reset import reset_test_database
 from sqlalchemy import func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -18,7 +19,6 @@ from gridlens.ingestion.adapters.nc_commerce import _listing_rows, _parse_articl
 from gridlens.ingestion.adapters.tceq_nsr_pending import _record as tceq_record
 from gridlens.ingestion.adapters.tceq_nsr_pending import parse_listing as parse_tceq_listing
 from gridlens.ingestion.service import process_job
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import Evidence, Interpretation, Job, Observation, Source
 from gridlens.settings import settings
 
@@ -43,8 +43,7 @@ def db():
     from sqlalchemy import create_engine
 
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     definitions = {
         NC_ID: (
@@ -90,7 +89,6 @@ def db():
         session.flush()
         jobs = {job.source_id: job.id for job in session.scalars(select(Job)).all()}
     yield factory, jobs
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

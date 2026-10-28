@@ -3,13 +3,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from db_reset import reset_test_database
 from pydantic import SecretStr
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.compare_acquisition import compare_case, report_complete
-from gridlens.persistence.database import Base
 from gridlens.settings import settings
 
 
@@ -19,13 +19,11 @@ def comparison_database(monkeypatch):
     assert target.database and target.database.endswith("_test")
     assert target != make_url(settings.database_url)
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr("gridlens.persistence.database.SessionLocal", factory)
     monkeypatch.setattr("gridlens.integrations.legacy_calls.SessionLocal", factory)
     yield engine
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

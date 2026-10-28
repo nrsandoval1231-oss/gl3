@@ -8,6 +8,7 @@ from uuid import UUID
 
 import httpx
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -16,7 +17,6 @@ from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
 from gridlens.jobs.queue import lease_one
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     ChangeEvent,
     Evidence,
@@ -51,8 +51,7 @@ def db():
         application.database,
     ), "TEST_DATABASE_URL must differ from DATABASE_URL"
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -79,7 +78,6 @@ def db():
         session.flush()
         job_id = job.id
     yield engine, factory, job_id
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

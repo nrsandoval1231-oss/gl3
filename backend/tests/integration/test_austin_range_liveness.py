@@ -5,13 +5,13 @@ import re
 from datetime import UTC, datetime, timedelta
 
 import httpx
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import Job, Source, SourceCollectionProgress
 from gridlens.settings import settings
 
@@ -48,8 +48,7 @@ def test_austin_recent_ranges_finish_within_eight_jobs_and_history_advances(monk
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(
         service,
@@ -177,5 +176,4 @@ def test_austin_recent_ranges_finish_within_eight_jobs_and_history_advances(monk
         )
         assert any(outcome["collection_current_complete"] for outcome in outcomes)
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()

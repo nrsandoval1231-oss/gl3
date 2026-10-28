@@ -3,12 +3,12 @@ from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.buying_chain import _retained_evidence_current_for_project
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     CompanyIdentity,
     CompanyProjectMembership,
@@ -33,8 +33,7 @@ def db():
     assert target.database.endswith("_test")
     assert target != application
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -50,7 +49,6 @@ def db():
             )
         )
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

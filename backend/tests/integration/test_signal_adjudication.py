@@ -1,12 +1,12 @@
 from datetime import date
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.signal_adjudication import adjudicate, adjudicate_current_signals
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -33,8 +33,7 @@ def db(monkeypatch):
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -51,7 +50,6 @@ def db(monkeypatch):
             )
         )
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +11,6 @@ from gridlens.intelligence.lifecycle_service import (
     refresh_lifecycle_projection,
     refresh_project_asset_type,
 )
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -33,8 +33,7 @@ def asset_classification_db():
     assert target.database and target.database.endswith("_test")
     assert target.database != application.database
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -50,7 +49,6 @@ def asset_classification_db():
             )
         )
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

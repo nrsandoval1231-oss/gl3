@@ -3,6 +3,7 @@ from datetime import UTC, datetime, time, timedelta
 
 import httpx
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -15,7 +16,6 @@ from gridlens.ingestion.structured_collection import (
     collection_policy_digest,
     prepare_collection_progress,
 )
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Job,
     Source,
@@ -40,11 +40,9 @@ def structured_db():
         application.database,
     ), "TEST_DATABASE_URL must differ from DATABASE_URL"
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

@@ -4,12 +4,12 @@ from datetime import UTC, datetime, timedelta
 from threading import Barrier
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.jobs.queue import assert_fence, enqueue, lease_one
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import Job, Source
 from gridlens.settings import settings
 
@@ -25,8 +25,7 @@ def db():
         application.database,
     ), "Refusing to reset application database"
     engine = create_engine(settings.test_database_url, pool_size=5)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -43,7 +42,6 @@ def db():
             )
         )
     yield engine, factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

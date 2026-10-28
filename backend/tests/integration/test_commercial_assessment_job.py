@@ -9,6 +9,7 @@ from threading import Event, Thread
 from uuid import uuid4
 
 import pytest
+from db_reset import reset_test_database
 from pydantic import SecretStr
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
@@ -23,7 +24,6 @@ from gridlens.intelligence.intelligence_jobs import (
     enqueue_intelligence,
 )
 from gridlens.persistence import database
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     EvidencePackage,
@@ -88,13 +88,11 @@ def sessions():
     assert target.database and target.database.endswith("_test")
     assert target != make_url(settings.database_url)
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     try:
         yield factory
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 

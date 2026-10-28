@@ -3,6 +3,7 @@ from importlib import import_module
 from uuid import UUID, uuid4
 
 import pytest
+from db_reset import reset_test_database
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
@@ -12,7 +13,6 @@ from gridlens.domain.commercial_triage import build_card
 from gridlens.intelligence.pursuit_questions import schedule_questions
 from gridlens.jobs.queue import lease_one
 from gridlens.jobs.retry import jittered_delay_seconds
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -36,8 +36,7 @@ def runtime(monkeypatch):
     assert target.database and target.database.endswith("_test")
     assert target != make_url(settings.database_url)
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     worker = import_module("gridlens.intelligence.autonomous_research")
     legacy_calls = import_module("gridlens.integrations.legacy_calls")
@@ -127,7 +126,6 @@ def runtime(monkeypatch):
     monkeypatch.setattr(worker, "evaluate_target", lambda _session, _need: card)
     monkeypatch.setattr(settings, "firecrawl_api_key", None)
     yield factory, worker, api, card
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

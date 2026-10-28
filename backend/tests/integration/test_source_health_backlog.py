@@ -2,11 +2,11 @@ from datetime import UTC, date, datetime
 from uuid import uuid4
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import Job, Source, SourceCollectionProgress
 from gridlens.settings import settings
 
@@ -22,8 +22,7 @@ def health_db(monkeypatch):
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     import gridlens.api.app as api
     import gridlens.ingestion.registry as registry
@@ -47,7 +46,6 @@ def health_db(monkeypatch):
             )
         )
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

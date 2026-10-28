@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
 
 import pytest
+from db_reset import reset_test_database
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
@@ -18,7 +19,6 @@ from gridlens.intelligence.change_detection import (
 from gridlens.intelligence.lifecycle_service import refresh_lifecycle_projection
 from gridlens.intelligence.project_state import _conflict, current_research_state, project_state
 from gridlens.intelligence.research_recommendation import recommend_from_context
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainEvidence,
@@ -46,8 +46,7 @@ def db():
     target, application = make_url(settings.test_database_url), make_url(settings.database_url)
     assert target.database.endswith("_test") and target != application
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -63,7 +62,6 @@ def db():
             )
         )
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

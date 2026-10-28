@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -15,7 +16,6 @@ from gridlens.intelligence.evidence_packages import (
     materialize_package,
     update_status,
 )
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     EvidencePackage,
@@ -49,13 +49,11 @@ def evidence_db():
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     try:
         yield factory
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 

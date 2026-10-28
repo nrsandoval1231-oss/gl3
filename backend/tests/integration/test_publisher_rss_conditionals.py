@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +11,6 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import Evidence, Job, Observation, Source
 from gridlens.settings import settings
 
@@ -39,8 +39,7 @@ def db():
         application.database,
     ), "Refusing to reset application database"
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -68,7 +67,6 @@ def db():
         session.flush()
         first_job = job.id
     yield engine, factory, first_job
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

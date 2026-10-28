@@ -7,6 +7,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -16,7 +17,6 @@ from gridlens.ingestion.adapters.acquisition_runtime import (
     FencedLeaseRenewer,
     try_public_acquisition_admission,
 )
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Job,
     Source,
@@ -40,15 +40,13 @@ def acquisition_runtime_db(monkeypatch):
         application.database,
     )
     engine = create_engine(settings.test_database_url, pool_size=8)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(worker, "SessionLocal", factory)
     monkeypatch.setattr(worker, "WORKER_ID", "c5-acquisition-test")
     try:
         yield factory, engine
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 
