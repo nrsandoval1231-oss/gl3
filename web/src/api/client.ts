@@ -53,6 +53,10 @@ export type ProjectResult = { id: string; project_id: string; project_ids?: stri
 export type ProjectResultsPage = { items: ProjectResult[]; total: number; count_unit: 'projects'; limit: number; offset: number; cohort_token: string; generation: string; results_scope?: 'qualified' | 'discovery' }
 export type OpportunityGroup = { id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
 export type OpportunityGroupsPage = { items: OpportunityGroup[]; total: number; count_unit: 'operators and customers'; limit: number; offset: number; cohort_token: string; generation: string }
+export type OpportunityGroupOpen = { group: OpportunityGroup; projects: ProjectResultsPage; parent_cohort_token: string; generation: string }
+export class OpportunityGroupUnavailableError extends Error {
+  constructor() { super('This operator/customer group is no longer available in the current results.'); this.name = 'OpportunityGroupUnavailableError' }
+}
 export type CustomerAccount = components['schemas']['CustomerAccountOut']
 export type CustomerProjectsPage = components['schemas']['CustomerProjectsPageOut']
 export type UnresolvedCustomerProjectsPage = components['schemas']['UnresolvedCustomerProjectsPageOut']
@@ -244,6 +248,15 @@ export const client = {
     if (response.status === 409) throw new OpportunityCohortChangedError()
     if (!response.ok) throw new Error(`Could not load projects (${response.status}).`)
     return response.json() as Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }>
+  },
+  openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: string }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
+    const response = await fetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/open?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    if (response.status === 404) throw new OpportunityGroupUnavailableError()
+    if (!response.ok) throw new Error(`Could not open current operator/customer results (${response.status}).`)
+    return response.json() as Promise<OpportunityGroupOpen>
   },
   projectResults: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: string; need_id?: string }, signal?: AbortSignal): Promise<ProjectResultsPage> => {
     const params = new URLSearchParams()
