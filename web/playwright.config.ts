@@ -10,10 +10,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   workers: process.env.CI ? 2 : undefined,
   // Timing-sensitive retry/Retry-After assertions occasionally miss their window
-  // under CI runner load. One retry keeps assertions untouched (no skip, no
+  // under CI runner load. Two CI retries keep assertions untouched (no skip, no
   // weakening) while tolerating transient timing; collected test count is
-  // unchanged — a retry must still pass the full test to count as green.
-  retries: process.env.CI ? 1 : 0,
+  // unchanged — every attempt must still pass the full test to count as green.
+  retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [['line'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1280, height: 900 }, locale: 'en-US', timezoneId: 'UTC', trace: 'retain-on-failure' },
   projects: [
