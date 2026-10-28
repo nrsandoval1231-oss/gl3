@@ -6,10 +6,15 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs on PR branches; never cancel main-branch runs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       TRUSTED_ORIGINS: http://127.0.0.1:5173
     steps:
@@ -123,8 +128,6 @@ jobs:
       - run: uv run ruff format --check src tests
         working-directory: backend
       - run: uv run mypy src
-        working-directory: backend
-      - run: uv run alembic upgrade head
         working-directory: backend
       - run: uv run alembic upgrade head
         working-directory: backend
