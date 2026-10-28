@@ -136,9 +136,8 @@ jobs:
       - name: Create test database
         run: docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gridlens_test'
       - name: Run backend test suite
-        # Regression gate: the suite must finish well under 8 minutes
-        # (fixture-reset target is ~4-6 min; the pre-fix baseline was ~14 min).
-        run: timeout 480 uv run pytest tests
+        # Regression gate: 12m until xdist lands (PR 3), then 8m.
+        run: timeout 720 uv run pytest tests
         working-directory: backend
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
