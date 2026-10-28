@@ -138,7 +138,8 @@ def pytest_runtest_makereport(item, call):
             "SELECT count(*) FROM browse_rows WHERE strpos(search_text, 'synthetic 7') > 0",
             "SELECT generation_id, count(*) FROM browse_rows GROUP BY 1",
             "SELECT id, generation_id, prepared_generation_id FROM browse_state",
-            "SELECT id, row_count, valid_from, valid_until FROM browse_generations ORDER BY built_at",
+            "SELECT id, row_count, valid_from, valid_until"
+            " FROM browse_generations ORDER BY built_at",
         ]
         with engine.connect() as connection:
             for query in queries:
