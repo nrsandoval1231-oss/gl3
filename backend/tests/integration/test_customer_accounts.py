@@ -13,6 +13,7 @@ from gridlens.intelligence.customer_accounts import (
     backfill_rrc_operator_memberships,
     record_rrc_operator_membership,
 )
+from gridlens.persistence.browse_invalidation import install
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BrowseCustomerMembership,
@@ -151,6 +152,84 @@ def test_rrc_operator_memberships_group_sites_and_preserve_separate_projects(cus
         assert session.scalar(
             select(CompanyIdentity).where(CompanyIdentity.rrc_operator_number == "217012")
         )
+
+
+def test_rrc_membership_replay_does_not_invalidate_full_browse(customer_db):
+    source_id = "texas-rrc-flare-vent-exceptions"
+    with customer_db.kw["bind"].begin() as connection:
+        install(connection)
+    with customer_db.begin() as session:
+        session.add(
+            Source(
+                id=source_id,
+                publisher="Texas Railroad Commission",
+                endpoint="https://rrc.example",
+                family="oil-and-gas-permits",
+                geography="Texas",
+                industries=["oil-and-gas"],
+                retrieval_method="rrc-flare-exceptions",
+            )
+        )
+        session.flush()
+        site = _project_evidence(session, source_id, "217012", "replay-site")
+        project, observation, evidence, record = site
+        record_rrc_operator_membership(
+            session,
+            project=project,
+            observation=observation,
+            evidence=evidence,
+            source_id=source_id,
+            record=record,
+        )
+
+    with customer_db.begin() as session:
+        state = session.get(BrowseState, 1)
+        full_revision = state.full_revision
+        input_revision = state.input_revision
+        record_rrc_operator_membership(
+            session,
+            project=project,
+            observation=observation,
+            evidence=evidence,
+            source_id=source_id,
+            record=record,
+        )
+        session.flush()
+        session.refresh(state)
+        assert state.full_revision == full_revision
+        assert state.input_revision == input_revision
+
+        # A new operator identity remains a genuine global browse invalidation.
+        other_site = _project_evidence(session, source_id, "999999", "new-identity-site")
+        record_rrc_operator_membership(
+            session,
+            project=other_site[0],
+            observation=other_site[1],
+            evidence=other_site[2],
+            source_id=source_id,
+            record=other_site[3],
+        )
+        session.flush()
+        session.refresh(state)
+        assert state.full_revision > full_revision
+
+        # Membership writes retain their existing browse invalidation behavior.
+        full_revision = state.full_revision
+        membership_site = _project_evidence(
+            session, source_id, "217012", "existing-identity-new-site"
+        )
+        record_rrc_operator_membership(
+            session,
+            project=membership_site[0],
+            observation=membership_site[1],
+            evidence=membership_site[2],
+            source_id=source_id,
+            record=membership_site[3],
+        )
+        session.flush()
+        session.refresh(state)
+        assert state.full_revision > full_revision
+        assert state.input_revision > input_revision
 
 
 def test_rrc_membership_requires_current_accepted_evidence(customer_db):

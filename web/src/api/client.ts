@@ -204,6 +204,35 @@ export class OpportunityCohortChangedError extends Error {
   }
 }
 
+const PENDING_RETRY_FALLBACK_MS = 1_000
+const PENDING_RETRY_MAX_MS = 30_000
+
+export class OpportunityBrowsePendingError extends Error {
+  constructor(readonly retryAfterMs: number) {
+    super('Operator/customer results are still being prepared.')
+    this.name = 'OpportunityBrowsePendingError'
+  }
+}
+
+function parsePendingRetryAfter(value: string | null): number {
+  if (!value) return PENDING_RETRY_FALLBACK_MS
+  let milliseconds: number
+  if (/^\d+$/.test(value.trim())) {
+    milliseconds = Number(value.trim()) * 1_000
+  } else {
+    const retryAt = Date.parse(value)
+    if (!Number.isFinite(retryAt)) return PENDING_RETRY_FALLBACK_MS
+    milliseconds = retryAt - Date.now()
+  }
+  if (!Number.isFinite(milliseconds)) return PENDING_RETRY_FALLBACK_MS
+  return Math.max(PENDING_RETRY_FALLBACK_MS, Math.min(PENDING_RETRY_MAX_MS, milliseconds))
+}
+
+function throwIfBrowsePending(response: Response): void {
+  if (response.status !== 503 || response.headers.get('X-Qualification-State')?.trim().toLowerCase() !== 'pending') return
+  throw new OpportunityBrowsePendingError(parsePendingRetryAfter(response.headers.get('Retry-After')))
+}
+
 export class OpportunityNeedUnavailableError extends Error {
   constructor() {
     super('The selected opportunity is not available in this filtered cohort.')
@@ -237,6 +266,7 @@ export const client = {
     const response = await fetch(`/api/opportunities/groups?${params}`, { credentials: 'same-origin', signal })
     if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
     if (response.status === 409) throw new OpportunityCohortChangedError()
+    throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not load operator/customer groups (${response.status}).`)
     return response.json() as Promise<OpportunityGroupsPage>
   },
@@ -246,6 +276,7 @@ export const client = {
     const response = await fetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/projects?${params}`, { credentials: 'same-origin', signal })
     if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
     if (response.status === 409) throw new OpportunityCohortChangedError()
+    throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not load projects (${response.status}).`)
     return response.json() as Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }>
   },
@@ -255,6 +286,7 @@ export const client = {
     const response = await fetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/open?${params}`, { credentials: 'same-origin', signal })
     if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
     if (response.status === 404) throw new OpportunityGroupUnavailableError()
+    throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not open current operator/customer results (${response.status}).`)
     return response.json() as Promise<OpportunityGroupOpen>
   },
