@@ -319,16 +319,24 @@ def record_rrc_operator_membership(
         text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
         {"key": f"customer-membership:{project.id}:{source_id}:asset_operator"},
     )
-    session.execute(
-        pg_insert(CompanyIdentity)
-        .values(rrc_operator_number=operator.operator_number)
-        .on_conflict_do_nothing(index_elements=[CompanyIdentity.rrc_operator_number])
-    )
     identity = session.scalar(
         select(CompanyIdentity).where(
             CompanyIdentity.rrc_operator_number == operator.operator_number
         )
     )
+    if identity is None:
+        # Avoid firing the table-level broad browse invalidation on a no-op
+        # INSERT ... ON CONFLICT path during every unchanged source replay.
+        session.execute(
+            pg_insert(CompanyIdentity)
+            .values(rrc_operator_number=operator.operator_number)
+            .on_conflict_do_nothing(index_elements=[CompanyIdentity.rrc_operator_number])
+        )
+        identity = session.scalar(
+            select(CompanyIdentity).where(
+                CompanyIdentity.rrc_operator_number == operator.operator_number
+            )
+        )
     if identity is None:
         return
     existing = session.scalar(
