@@ -282,7 +282,9 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
 
     monkeypatch.setattr(worker, "try_public_acquisition_admission", lambda *_args: Admission())
     monkeypatch.setattr(worker, "FencedLeaseRenewer", NoopRenewer)
+    worker_started_at = datetime.now(UTC)
     worked = worker.run_one({regional_db[1]["id"]: regional_db[1]}, job_ids=[regional_db[2]])
+    worker_finished_at = datetime.now(UTC)
     assert worked, f"worker did not lease job {regional_db[2]} with Retry-After={retry_after}"
 
     with regional_db[0]() as session:
@@ -298,10 +300,15 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
         assert source.health["attempt_rejected"] == 2
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
-        if retry_after in {"120", "604801"}:
+        if retry_after == "120":
             retry_at = datetime.fromisoformat(source.health["retry_at"])
-            delay = timedelta(seconds=int(retry_after))
-            # Preserve the exact request-time deadline across later worker latency.
+            delay = timedelta(seconds=120)
+            # A supported relative delay is recalculated at worker processing time.
+            assert worker_started_at + delay <= retry_at <= worker_finished_at + delay
+        elif retry_after == "604801":
+            retry_at = datetime.fromisoformat(source.health["retry_at"])
+            delay = timedelta(seconds=604801)
+            # The long-delay policy preserves only the absolute acquisition deadline.
             assert request_started_at + delay <= retry_at <= request_finished_at + delay
         elif expected_state == "retry_after_unrepresentable":
             assert source.health["retry_at"] is None
