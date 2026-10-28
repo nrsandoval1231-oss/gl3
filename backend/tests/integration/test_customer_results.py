@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from gridlens.intelligence.customer_results import group_projects, groups
 from gridlens.intelligence.saved_browse import current_generation, rebuild
@@ -11,6 +11,7 @@ from gridlens.persistence.models import (
     BrowseRow,
     BrowseUnresolvedCustomer,
     CompanyIdentity,
+    Project,
 )
 
 pytest_plugins = ["test_saved_browse"]
@@ -32,7 +33,13 @@ def _seed_group_cohort(factory):
     with factory.begin() as session:
         generation = current_generation(session)
         rows = session.scalars(
-            select(BrowseRow).where(BrowseRow.generation_id == generation.id)
+            select(BrowseRow)
+            .join(Project, BrowseRow.project_id == Project.id)
+            .where(BrowseRow.generation_id == generation.id)
+            # Heap/scan order is not deterministic (parallel scans, updated
+            # tuple versions, analyze timing): the positional cohort layout
+            # below requires numeric project creation order (external_id).
+            .order_by(func.length(Project.external_id), Project.external_id)
         ).all()
         for index, row in enumerate(rows):
             if index in {64, 65}:

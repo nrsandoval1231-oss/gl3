@@ -1,10 +1,55 @@
 import ipaddress
+import os
 import socket
 
 import httpx
 import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
 from gridlens.settings import settings
+
+
+def pytest_configure(config):
+    """Point each xdist worker at its own test database before settings load."""
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker:
+        return
+    base = os.environ.get("TEST_DATABASE_URL", "")
+    if not base:
+        return
+    url = make_url(base)
+    if not url.database:
+        return
+    stem = url.database[: -len("_test")] if url.database.endswith("_test") else url.database
+    worker_url = url.set(database=f"{stem}_{worker}_test")
+    os.environ["TEST_DATABASE_URL"] = worker_url.render_as_string(hide_password=False)
+
+
+def pytest_sessionstart(session):
+    """Create one pristine database per xdist worker (controller process only)."""
+    if os.environ.get("PYTEST_XDIST_WORKER"):
+        return
+    num = getattr(session.config.option, "numprocesses", None)
+    if not num:
+        return
+    if num == "auto":
+        num = os.cpu_count() or 1
+    num = max(int(num), 1)
+    base = os.environ.get("TEST_DATABASE_URL", "")
+    if not base:
+        return
+    url = make_url(base)
+    if not url.database:
+        return
+    stem = url.database[: -len("_test")] if url.database.endswith("_test") else url.database
+    admin = create_engine(url.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    with admin.connect() as connection:
+        for index in range(num):
+            name = f"{stem}_gw{index}_test"
+            connection.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+            connection.execute(text(f'CREATE DATABASE "{name}"'))
+    admin.dispose()
 
 
 @pytest.fixture(autouse=True)
