@@ -6,12 +6,12 @@ from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.registry import load_registry
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Job,
     Source,
@@ -35,8 +35,7 @@ def chain_db(monkeypatch, request):
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
 
     class NoopRenewer:
@@ -94,7 +93,6 @@ def chain_db(monkeypatch, request):
     try:
         yield factory, definition
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 

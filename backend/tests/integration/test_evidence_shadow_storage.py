@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -14,7 +15,6 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.integrations.typesafe_evidence_judge import SCHEMA_VERSION
 from gridlens.intelligence.evidence_judge import Judgment
 from gridlens.intelligence.evidence_shadow import run_shadow
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     EvidenceJudgeRun,
@@ -35,8 +35,7 @@ def shadow_db(monkeypatch):
     target, application = make_url(settings.test_database_url), make_url(settings.database_url)
     assert target.database.endswith("_test") and target != application
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -52,7 +51,6 @@ def shadow_db(monkeypatch):
             )
         )
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

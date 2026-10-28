@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
+from db_reset import drop_browse_triggers, reset_test_database
 from fastapi import HTTPException, Response
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -17,7 +18,6 @@ from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.registry import load_registry
 from gridlens.persistence import models  # noqa: F401
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BriefDailyBudget,
     CallFactDecision,
@@ -50,8 +50,7 @@ def runtime(monkeypatch):
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     service = import_module("gridlens.intelligence.briefs")
     api = import_module("gridlens.api.app")
@@ -181,7 +180,7 @@ def runtime(monkeypatch):
         )
         ids = need.id, evidence.id
     yield factory, service, ids
-    Base.metadata.drop_all(engine)
+    drop_browse_triggers(engine)
     engine.dispose()
 
 

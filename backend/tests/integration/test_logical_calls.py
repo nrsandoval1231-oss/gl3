@@ -6,6 +6,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DBAPIError
@@ -20,7 +21,6 @@ from gridlens.integrations.logical_calls import (
     reserve_call,
     settle_call,
 )
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Job,
     LogicalCall,
@@ -37,13 +37,11 @@ def sessions():
     assert target.database and target.database.endswith("_test")
     assert target != make_url(settings.database_url)
     engine = create_engine(settings.test_database_url, pool_size=8)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     try:
         yield factory
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 

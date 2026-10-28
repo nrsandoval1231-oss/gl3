@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -13,7 +14,6 @@ from gridlens.domain.permit_interpretation import assess_permit
 from gridlens.ingestion.adapters.ma_cultivation import retrieve
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -89,8 +89,7 @@ def db():
         application.database,
     ), "Refusing destructive setup against the application database"
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     definition = next(
         item for item in load_registry() if item["id"] == "ma-ccc-cultivation-applications"
@@ -121,7 +120,6 @@ def db():
         session.flush()
         job_id = job.id
     yield factory, job_id, definition
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

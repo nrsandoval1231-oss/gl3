@@ -4,11 +4,11 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Job,
     Source,
@@ -30,8 +30,7 @@ def source_proof_db(monkeypatch):
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     import gridlens.api.app as api
     import gridlens.ingestion.registry as registry
@@ -62,7 +61,6 @@ def source_proof_db(monkeypatch):
             )
         )
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

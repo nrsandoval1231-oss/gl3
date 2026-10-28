@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 import pytest
+from db_reset import reset_test_database
 from openpyxl import Workbook
 from sqlalchemy import create_engine, func, select
 from sqlalchemy import event as sqlalchemy_event
@@ -35,7 +36,6 @@ from gridlens.intelligence.external_imports import (
     rollback_import,
     stage_import,
 )
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainEvidence,
     BuyingChainRun,
@@ -70,13 +70,11 @@ def import_db():
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     try:
         yield factory
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 

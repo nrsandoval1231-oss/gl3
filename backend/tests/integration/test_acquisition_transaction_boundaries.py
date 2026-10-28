@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from threading import Event
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +11,6 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job, process_records
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import Evidence, Job, Observation, Source
 from gridlens.settings import settings
 
@@ -26,8 +26,7 @@ def acquisition_db():
         application.database,
     )
     engine = __import__("sqlalchemy").create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     definition = next(item for item in load_registry() if item["id"] == "federal-register-eis")
     with factory.begin() as session:
@@ -55,7 +54,6 @@ def acquisition_db():
         session.flush()
         job_id = job.id
     yield factory, definition, job_id
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

@@ -2,12 +2,12 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.intelligence_operations import operations_view
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import LogicalCall, LogicalCallBudget
 from gridlens.settings import settings
 
@@ -23,11 +23,9 @@ def factory():
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     session_factory = sessionmaker(engine, expire_on_commit=False)
     yield session_factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

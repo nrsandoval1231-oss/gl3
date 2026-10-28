@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
+from db_reset import reset_test_database
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
@@ -34,7 +35,6 @@ from gridlens.intelligence.identity_reconciliation import (
     link_claim_to_identity,
     reconcile_claim_identity,
 )
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainCorrection,
@@ -66,8 +66,7 @@ def db():
     assert target.database.endswith("_test") or target.database == "contact_p0_c28_tests"
     assert target != application
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory.begin() as session:
         session.add(
@@ -83,7 +82,6 @@ def db():
             )
         )
     yield factory
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

@@ -3,13 +3,13 @@ from importlib import import_module
 from uuid import UUID, uuid4
 
 import pytest
+from db_reset import reset_test_database
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.workspace_changes import review_token
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     CallFactDecision,
     CallFactVersion,
@@ -38,8 +38,7 @@ def runtime(monkeypatch):
         app_url.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     api = import_module("gridlens.api.app")
     monkeypatch.setattr(api, "SessionLocal", factory)
@@ -98,7 +97,6 @@ def runtime(monkeypatch):
         token_for(int((datetime.now(UTC) + timedelta(hours=1)).timestamp())),
     )
     yield client, factory, project_id, need_ids, observation_id
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 

@@ -3,6 +3,7 @@ from importlib import import_module
 from uuid import UUID, uuid4
 
 import pytest
+from db_reset import drop_browse_triggers, reset_test_database
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
@@ -10,7 +11,6 @@ from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.jobs.queue import enqueue, lease_one
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     Job,
@@ -35,8 +35,7 @@ def runtime(monkeypatch):
     assert target.database.endswith("_test")
     assert target != make_url(settings.database_url)
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     service = import_module("gridlens.intelligence.pursuits")
     api = import_module("gridlens.api.app")
@@ -146,7 +145,7 @@ def runtime(monkeypatch):
     monkeypatch.setattr(public, "retrieve_austin", retrieve)
     monkeypatch.setattr(public, "retrieve_tabs", tabs)
     yield factory, service, public, api, project_id
-    Base.metadata.drop_all(engine)
+    drop_browse_triggers(engine)
     engine.dispose()
 
 

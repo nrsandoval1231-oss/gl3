@@ -4,10 +4,10 @@ import time
 from datetime import UTC, datetime
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import Job, PlannerState, Source, WorkerHeartbeat
 from gridlens.settings import settings
 
@@ -27,8 +27,7 @@ def worker_db(monkeypatch):
     from sqlalchemy import create_engine
 
     engine = create_engine(settings.test_database_url, pool_size=8)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(worker, "SessionLocal", factory)
     monkeypatch.setattr(worker, "WORKER_ID", "c4-liveness-fixture")
@@ -37,7 +36,6 @@ def worker_db(monkeypatch):
     try:
         yield factory
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 

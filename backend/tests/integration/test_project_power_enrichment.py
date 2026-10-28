@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from db_reset import reset_test_database
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +11,6 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.domain.call_facts import validate_fact
 from gridlens.domain.power_enrichment import PowerEnrichment
 from gridlens.intelligence.project_enrichment import project_power_enrichment
-from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     CallFactDecision,
     CallFactVersion,
@@ -44,13 +44,11 @@ def power_db():
         application.database,
     )
     engine = create_engine(settings.test_database_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     try:
         yield factory
     finally:
-        Base.metadata.drop_all(engine)
         engine.dispose()
 
 
