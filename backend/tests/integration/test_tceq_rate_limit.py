@@ -222,6 +222,7 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
     from gridlens.jobs.queue import enqueue, lease_one
 
     _install_public_ip(monkeypatch)
+    request_started_at = datetime.now(UTC)
     rows = _nsr_rows()
     monkeypatch.setattr(adapter, "parse_listing", lambda *_args, **_kwargs: rows)
     monkeypatch.setattr(
@@ -301,7 +302,9 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
             assert retry_at >= datetime.now(UTC) + timedelta(seconds=119)
         elif retry_after == "604801":
             retry_at = datetime.fromisoformat(source.health["retry_at"])
-            assert retry_at >= datetime.now(UTC) + timedelta(seconds=604799)
+            # The parsed deadline is based on request-time; worker/runtime and
+            # suite latency may elapse before the persisted health is inspected.
+            assert retry_at >= request_started_at + timedelta(seconds=604801)
         elif expected_state == "retry_after_unrepresentable":
             assert source.health["retry_at"] is None
         else:

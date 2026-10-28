@@ -660,8 +660,12 @@ def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, mon
 
     row = {
         "permit_number": "2026-EVENT-1",
-        "issue_date": "2026-09-27",
-        "description": "Concert stage with food vendors October 2-4, 2026.",
+        "issue_date": (RealDate.today() - timedelta(days=1)).isoformat(),
+        "description": (
+            "Concert stage with food vendors "
+            f"{RealDate.today().strftime('%B')} "
+            f"{RealDate.today().day}, {RealDate.today().year}."
+        ),
         "permit_class_mapped": "Commercial",
         "work_class": "Temporary",
         "permit_type_desc": "Event Permit",
@@ -672,7 +676,7 @@ def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, mon
         "project_id": "EVENT-1",
         "link": {"url": "https://abc.austintexas.gov/permit/event-1"},
     }
-    as_of = [RealDate(2026, 10, 4)]
+    as_of = [RealDate.today()]
 
     class FrozenDate(RealDate):
         @classmethod
@@ -709,8 +713,8 @@ def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, mon
         need = session.scalar(select(PowerNeed))
         assert observation is not None and interpretation is not None and need is not None
         assert interpretation.status == "accepted"
-        assert interpretation.assessment["activity_end_date"] == "2026-10-04"
-        assert interpretation.assessment["review_after"] == "2026-10-04"
+        assert interpretation.assessment["activity_end_date"] == as_of[0].isoformat()
+        assert interpretation.assessment["review_after"] == as_of[0].isoformat()
         assert need.active is True and need.activity_key == "event-power"
         source_hash = observation.content_hash
         first_snapshot = (
@@ -737,7 +741,7 @@ def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, mon
         )
         assert repeated_end_day == first_snapshot
 
-    as_of[0] = RealDate(2026, 10, 5)
+    as_of[0] = as_of[0] + timedelta(days=1)
     assert run()["permit_rejected"] == 1
     with factory() as session:
         observation = session.scalar(select(Observation))
