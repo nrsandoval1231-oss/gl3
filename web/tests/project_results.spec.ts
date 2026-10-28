@@ -351,3 +351,295 @@ test('synthetic tablet selection opens detail in the viewport above an unfiltere
   await page.getByRole('button', { name: 'Back to power needs', exact: true }).click()
   await expect(page.locator('.project-results')).toBeVisible()
 })
+
+test('pending parent groups wait for Retry-After then reopen the same filtered cohort', async ({ page }) => {
+  await page.clock.install()
+  const requests: URL[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => {
+    const url = new URL(route.request().url())
+    requests.push(url)
+    // Vite's development StrictMode runs the initial effect twice; both
+    // mount-time reads stay pending, while only the live effect may retry.
+    if (requests.length <= 2) {
+      return route.fulfill({
+        status: 503,
+        headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
+        json: { detail: 'qualification pending' },
+      })
+    }
+    return route.fulfill({ json: { ...groupPage, items: [{ ...group, name: 'Fresh parent group' }] } })
+  })
+  await page.goto('/?view=workspace&q=Permian&sector=oil_gas')
+  await expect(page.getByText('Loading operator/customer groups…').first()).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect.poll(() => requests.length).toBe(2)
+  await page.clock.fastForward(4999)
+  expect(requests).toHaveLength(2)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.clock.fastForward(1)
+  await expect.poll(() => requests.length).toBe(3)
+  await expect(page.getByRole('button', { name: /Fresh parent group/ })).toBeVisible()
+  expect(requests.slice(0, 3).every(url => url.searchParams.get('search') === 'Permian')).toBe(true)
+  expect(requests.slice(0, 3).every(url => url.searchParams.get('sector') === 'oil_gas')).toBe(true)
+})
+
+test('pending first child read waits before atomic open of the same group', async ({ page }) => {
+  await page.clock.install()
+  const childRequests: URL[] = []
+  const openRequests: URL[] = []
+  const neighbor = { ...group, id: 'neighbor-group', name: 'Unchanged Operator', project_count: 4 }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [group, neighbor] } }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
+    childRequests.push(new URL(route.request().url()))
+    return route.fulfill({
+      status: 503,
+      headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
+      json: { detail: 'qualification pending' },
+    })
+  })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
+    const url = new URL(route.request().url())
+    openRequests.push(url)
+    return route.fulfill({ json: {
+      group: { ...group, name: 'Fresh Energy Customer', role: 'customer', project_count: 1 },
+      projects: { ...projectPage, items: [{ ...sample, name: 'Freshly opened project' }] },
+      parent_cohort_token: 'fresh-parent-cohort',
+      generation: 'fresh-generation',
+    } })
+  })
+  await page.goto('/?view=workspace&q=Permian&sector=oil_gas')
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await expect(page.getByText('Loading projects…')).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect.poll(() => childRequests.length).toBe(1)
+  await page.clock.fastForward(4999)
+  expect(openRequests).toHaveLength(0)
+  await page.clock.fastForward(1)
+  await expect.poll(() => openRequests.length).toBe(1)
+  await expect(page.getByRole('heading', { name: 'Freshly opened project' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Fresh Energy Customer/ })).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('button', { name: /Unchanged Operator/ })).toContainText('4 projects')
+  expect(openRequests[0].pathname).toBe('/api/opportunities/groups/group-synthetic-1/open')
+  expect(openRequests[0].searchParams.get('search')).toBe('Permian')
+  expect(openRequests[0].searchParams.get('sector')).toBe('oil_gas')
+  expect(openRequests[0].searchParams.has('parent_cohort_token')).toBe(false)
+  expect(openRequests[0].searchParams.has('cohort_token')).toBe(false)
+  expect(openRequests[0].searchParams.has('offset')).toBe(false)
+  expect(childRequests).toHaveLength(1)
+})
+
+test('409 opens atomically and a pending open retries to the fresh same-group page', async ({ page }) => {
+  await page.clock.install()
+  const childRequests: URL[] = []
+  const openRequests: URL[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, cohort_token: 'parent-list-cohort' } }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
+    childRequests.push(new URL(route.request().url()))
+    return route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } })
+  })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
+    const url = new URL(route.request().url())
+    openRequests.push(url)
+    if (openRequests.length === 1) {
+      return route.fulfill({
+        status: 503,
+        headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
+        json: { detail: 'qualification pending' },
+      })
+    }
+    return route.fulfill({ json: {
+      group: { ...group, name: 'Fresh atomic customer', role: 'customer', project_count: 1 },
+      projects: { ...projectPage, items: [{ ...sample, name: 'Fresh atomic project' }] },
+      parent_cohort_token: 'fresh-parent-token',
+      generation: 'fresh-generation',
+    } })
+  })
+  await page.goto('/?view=workspace&q=Permian')
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await expect.poll(() => childRequests.length).toBe(1)
+  await expect.poll(() => openRequests.length).toBe(1)
+  await expect(page.getByText('Loading projects…')).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.clock.fastForward(4999)
+  expect(openRequests).toHaveLength(1)
+  await page.clock.fastForward(1)
+  await expect.poll(() => openRequests.length).toBe(2)
+  await expect(page.getByRole('heading', { name: 'Fresh atomic project' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Fresh atomic customer/ })).toHaveAttribute('aria-expanded', 'true')
+  expect(childRequests).toHaveLength(1)
+  expect(openRequests.every(url => url.pathname.endsWith('/group-synthetic-1/open'))).toBe(true)
+  for (const url of openRequests) {
+    expect(url.searchParams.has('parent_cohort_token')).toBe(false)
+    expect(url.searchParams.has('cohort_token')).toBe(false)
+    expect(url.searchParams.has('offset')).toBe(false)
+  }
+})
+
+test('parent pending retries stop after four active reads and manual retry starts over', async ({ page }) => {
+  await page.clock.install()
+  let requests = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => {
+    requests += 1
+    if (requests <= 5) {
+      return route.fulfill({
+        status: 503,
+        headers: { 'X-Qualification-State': 'pending', 'Retry-After': '1' },
+        json: { detail: 'qualification pending' },
+      })
+    }
+    return route.fulfill({ json: groupPage })
+  })
+  await page.goto('/')
+  await expect(page.getByText('Loading operator/customer groups…').first()).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  for (let activeRead = 3; activeRead <= 5; activeRead += 1) {
+    await page.clock.fastForward(1000)
+    await expect.poll(() => requests).toBe(activeRead)
+    await expect(page.getByRole('alert')).toHaveCount(0)
+  }
+  await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
+  await page.clock.fastForward(30000)
+  expect(requests).toBe(5)
+  await page.getByRole('button', { name: /Retry|Reload/i }).last().click()
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  expect(requests).toBe(6)
+})
+
+test('generic 503 is not treated as pending and does not auto-retry', async ({ page }) => {
+  await page.clock.install()
+  let requests = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => {
+    requests += 1
+    if (requests <= 2) {
+      return route.fulfill({
+        status: 503,
+        headers: requests === 2
+          ? { 'X-Qualification-State': 'current', 'Retry-After': '5' }
+          : {},
+        json: { detail: 'temporarily unavailable' },
+      })
+    }
+    return route.fulfill({ json: groupPage })
+  })
+  await page.goto('/')
+  await expect(page.getByRole('alert')).toContainText('503')
+  await page.clock.fastForward(30000)
+  expect(requests).toBe(2)
+  await page.getByRole('button', { name: 'Retry' }).click()
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  expect(requests).toBe(3)
+})
+
+test('pending parent retry timer is cancelled when a new search supersedes it', async ({ page }) => {
+  await page.clock.install()
+  const requests: URL[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => {
+    const url = new URL(route.request().url())
+    requests.push(url)
+    if (!url.searchParams.has('search')) {
+      return route.fulfill({
+        status: 503,
+        headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
+        json: { detail: 'qualification pending' },
+      })
+    }
+    return route.fulfill({ json: { ...groupPage, items: [{ ...group, name: 'Superseding search result' }] } })
+  })
+  await page.goto('/')
+  await expect(page.getByText('Loading operator/customer groups…').first()).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.getByRole('textbox', { name: 'Search opportunities' }).fill('fresh')
+  await expect(page.getByRole('button', { name: /Superseding search result/ })).toBeVisible()
+  await page.clock.fastForward(5000)
+  expect(requests).toHaveLength(3)
+  expect(requests.slice(0, 2).every(url => !url.searchParams.has('search'))).toBe(true)
+  expect(requests[2].searchParams.get('search')).toBe('fresh')
+  await expect(page.getByRole('button', { name: /Superseding search result/ })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
+test('collapsing a group cancels its pending child retry before atomic reopen', async ({ page }) => {
+  await page.clock.install()
+  let childReads = 0
+  let openReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
+    childReads += 1
+    return route.fulfill({
+      status: 503,
+      headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
+      json: { detail: 'qualification pending' },
+    })
+  })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
+    openReads += 1
+    return route.fulfill({ json: {
+      group,
+      projects: projectPage,
+      parent_cohort_token: 'fresh-parent-token',
+      generation: 'fresh-generation',
+    } })
+  })
+  await page.goto('/')
+  const groupToggle = page.getByRole('button', { name: /Example Energy/ })
+  await groupToggle.click()
+  await expect(page.getByText('Loading projects…')).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect.poll(() => childReads).toBe(1)
+  await groupToggle.click()
+  await expect(groupToggle).toHaveAttribute('aria-expanded', 'false')
+  await page.clock.fastForward(5000)
+  expect(childReads).toBe(1)
+  expect(openReads).toBe(0)
+  await expect(page.getByRole('heading', { name: 'Example Compressor Station' })).toHaveCount(0)
+})
+
+test('pending atomic open exhaustion is bounded and manual retry starts a new cycle', async ({ page }) => {
+  await page.clock.install()
+  let childReads = 0
+  let openReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
+    childReads += 1
+    if (childReads === 1) return route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } })
+    return route.fulfill({ json: { ...projectPage, items: [{ ...sample, name: 'Manually retried project' }] } })
+  })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
+    openReads += 1
+    if (openReads <= 4) {
+      return route.fulfill({
+        status: 503,
+        headers: { 'X-Qualification-State': 'pending', 'Retry-After': '1' },
+        json: { detail: 'qualification pending' },
+      })
+    }
+    return route.fulfill({ json: {
+      group,
+      projects: { ...projectPage, items: [{ ...sample, name: 'Manually retried project' }] },
+      parent_cohort_token: 'fresh-parent-token',
+      generation: 'fresh-generation',
+    } })
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await expect.poll(() => openReads).toBe(1)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  for (let attempt = 2; attempt <= 4; attempt += 1) {
+    await page.clock.fastForward(1000)
+    await expect.poll(() => openReads).toBe(attempt)
+    await expect(page.getByRole('alert')).toHaveCount(0)
+  }
+  await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
+  const attemptsBeforeManualRetry = childReads + openReads
+  await page.getByRole('button', { name: /Retry|Reload/i }).last().click()
+  await expect(page.getByRole('heading', { name: 'Manually retried project' })).toBeVisible()
+  expect(childReads + openReads).toBe(attemptsBeforeManualRetry + 1)
+})
