@@ -30,6 +30,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const [children, setChildren] = useState<Record<string, ProjectResultsPage | null>>({})
   const [childErrors, setChildErrors] = useState<Record<string, string>>({})
   const [childLoading, setChildLoading] = useState<Record<string, boolean>>({})
+  const [childNotices, setChildNotices] = useState<Record<string, string>>({})
   const [childOffsets, setChildOffsets] = useState<Record<string, number>>({})
   const [groupParentTokens, setGroupParentTokens] = useState<Record<string, string>>({})
   const [openedGroups, setOpenedGroups] = useState<Record<string, OpportunityGroup>>({})
@@ -40,7 +41,12 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const [retryKey, setRetryKey] = useState(0)
   const childRequests = useRef(new Map<string, AbortController>())
   const childEpoch = useRef(0)
-  const resetChildRequests = () => { childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear(); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({}) }
+  const resetChildRequests = () => { childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear(); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildNotices({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({}) }
+  useEffect(() => () => {
+    childEpoch.current += 1
+    childRequests.current.forEach(request => request.abort())
+    childRequests.current.clear()
+  }, [])
   useEffect(() => {
     const onPop = () => { const route = readRoute(); setSearch(route.search); setSector(route.sector); setOffset(route.offset) }
     window.addEventListener('popstate', onPop)
@@ -48,7 +54,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   }, [])
   useEffect(() => {
     childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear()
-    const controller = new AbortController(); setLoading(true); setError(''); setNotice(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({})
+    const controller = new AbortController(); setLoading(true); setError(''); setNotice(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildNotices({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({})
     const cohort = new URLSearchParams(location.search).get('cohort_token') ?? undefined
     const loadGroups = async () => {
       for (let attempt = 0; attempt <= MAX_PENDING_RETRIES; attempt += 1) {
@@ -71,6 +77,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
             setOffset(0)
             if (offset === 0) setRetryKey(value => value + 1)
           } else {
+            setNotice('')
             setError(e instanceof OpportunityBrowsePendingError ? PENDING_EXHAUSTED_MESSAGE : e instanceof Error ? e.message : 'Could not load operator/customer groups.')
           }
           setLoading(false)
@@ -92,6 +99,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
       childRequests.current.get(group.id)?.abort(); childRequests.current.delete(group.id)
       setExpanded(current => ({ ...current, [group.id]: false }))
       setChildLoading(current => ({ ...current, [group.id]: false }))
+      setChildNotices(current => { const next = { ...current }; delete next[group.id]; return next })
       setChildren(current => ({ ...current, [group.id]: null }))
       setChildOffsets(current => ({ ...current, [group.id]: 0 }))
       setGroupParentTokens(current => { const next = { ...current }; delete next[group.id]; return next })
@@ -107,7 +115,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     const requestSector = sector
     const requestPage = page
     const requestOffset = offset
-    setChildLoading(current => ({ ...current, [group.id]: true })); setChildErrors(current => ({ ...current, [group.id]: '' }))
+    setChildLoading(current => ({ ...current, [group.id]: true })); setChildErrors(current => ({ ...current, [group.id]: '' })); setChildNotices(current => ({ ...current, [group.id]: '' }))
     childRequests.current.get(group.id)?.abort()
     const controller = new AbortController(); childRequests.current.set(group.id, controller)
     const epoch = childEpoch.current
@@ -127,13 +135,13 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
           setGroupParentTokens(current => ({ ...current, [group.id]: opened.parent_cohort_token }))
           setChildLoading(current => ({ ...current, [group.id]: false }))
           setChildErrors(current => ({ ...current, [group.id]: '' }))
-          setNotice('')
+          setChildNotices(current => ({ ...current, [group.id]: '' }))
           return
         } catch (refreshError) {
           if (!requestIsCurrent()) return
           if (refreshError instanceof OpportunityBrowsePendingError && attempt < MAX_PENDING_RETRIES) {
             retryDelayMs = refreshError.retryAfterMs
-            setNotice('Project results are still being prepared. Retrying this group automatically…')
+            setChildNotices(current => ({ ...current, [group.id]: 'Project results are still being prepared. Retrying this group automatically…' }))
             continue
           }
           if (refreshError instanceof OpportunityGroupUnavailableError) {
@@ -144,6 +152,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
             setOpenedGroups(current => { const next = { ...current }; delete next[group.id]; return next })
             setNotice(refreshError.message)
           }
+          setChildNotices(current => ({ ...current, [group.id]: '' }))
           setChildErrors(current => ({ ...current, [group.id]: refreshError instanceof OpportunityBrowsePendingError ? PENDING_EXHAUSTED_MESSAGE : refreshError instanceof Error ? refreshError.message : 'Could not load projects.' }))
           setChildLoading(current => ({ ...current, [group.id]: false }))
           return
@@ -154,7 +163,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     const recoverGroup = (retryDelayMs = 0) => {
       setChildren(current => ({ ...current, [group.id]: null }))
       setChildOffsets(current => ({ ...current, [group.id]: 0 }))
-      if (retryDelayMs > 0) setNotice('Project results are still being prepared. Retrying this group automatically…')
+      if (retryDelayMs > 0) setChildNotices(current => ({ ...current, [group.id]: 'Project results are still being prepared. Retrying this group automatically…' }))
       else if (wasPagination) setNotice('Project results changed. Reloaded this operator/customer group.')
       void openFreshGroup(retryDelayMs)
     }
@@ -168,6 +177,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
       } else if (e instanceof OpportunityBrowsePendingError) {
         recoverGroup(e.retryAfterMs)
       } else {
+        setChildNotices(current => ({ ...current, [group.id]: '' }))
         setChildErrors(current => ({ ...current, [group.id]: e.message }))
         setChildLoading(current => ({ ...current, [group.id]: false }))
       }
@@ -190,6 +200,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
         <svg className="customer-group-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 18 6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button></h2>
       {expanded[group.id] && <div className="customer-group-projects">
+        {childNotices[group.id] && <p role="status" className="project-results-notice">{childNotices[group.id]}</p>}
         {childErrors[group.id] && <p role="alert">{childErrors[group.id]} <button type="button" onClick={() => loadGroupProjects(group, 0)}>Reload projects</button></p>}
         {childLoading[group.id] && <p role="status">Loading projects…</p>}
         {!childLoading[group.id] && !childErrors[group.id] && children[group.id] && <>
