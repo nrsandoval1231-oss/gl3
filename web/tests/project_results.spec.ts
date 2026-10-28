@@ -721,7 +721,13 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
     })
   })
   await page.route('**/api/opportunities?*', route => route.fulfill({
-    json: { ...projectPage, total_count: 0, group_total_count: 0, decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 }, items: [] },
+    json: [],
+    headers: {
+      'X-Total-Count': '0',
+      'X-Group-Total-Count': '0',
+      'X-Decision-Counts': '{"SHOW":0,"REVIEW":0,"HOLD":0}',
+      'X-Cohort-Token': 'empty-signals-cohort',
+    },
   }))
   await page.goto('/')
   const groupCard = page.locator('.customer-group').filter({ hasText: 'Example Energy' })
@@ -730,9 +736,10 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
   await expect.poll(() => openReads).toBe(1)
   await expect(groupCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
 
-  await page.locator('.wh-account summary').click()
-  await page.getByRole('button', { name: 'Signals', exact: true }).click()
-  await expect(page.getByRole('main', { name: 'Signals browser' })).toBeVisible()
+  // A full document navigation guarantees ProjectResults unmounts while its
+  // atomic-open retry timer is waiting.
+  await page.goto('/?view=signals')
+  await expect(page.locator('.signals-browse')).toBeVisible()
   await page.clock.fastForward(5000)
   expect(openReads).toBe(1)
 })
