@@ -160,7 +160,14 @@ def _validate_token(token: str | None, expected: str, offset: int) -> None:
 
 
 def groups(
-    session, *, search=None, sector="all", limit=25, offset=0, token=None, sort="priority",
+    session,
+    *,
+    search=None,
+    sector="all",
+    limit=25,
+    offset=0,
+    token=None,
+    sort="priority",
     selected_generation=None,
 ):
     if sector not in {"all", "oil_gas", "data_centers"}:
@@ -205,6 +212,44 @@ def groups(
         "offset": offset,
         "cohort_token": cohort,
         "generation": str(generation.id),
+    }
+
+
+def group_metadata(
+    session, group_id: str, *, search=None, sector="all", sort="priority", selected_generation=None
+):
+    """Resolve one group against the entire filtered cohort without paging headers."""
+    if sector not in {"all", "oil_gas", "data_centers"}:
+        raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
+    generation, term, _ = _cohort(
+        session, search=search, sector=sector, sort=sort, selected_generation=selected_generation
+    )
+    where, params = _query_parts(generation, term, sector)
+    sql = _ctes(where)
+    row = (
+        session.execute(
+            text(
+                sql
+                + """
+                SELECT group_key, name, role, project_count, need_count, priority_score, sectors
+                FROM grouped WHERE 'cg_' || md5(group_key) = :id
+                """
+            ),
+            {**params, "id": group_id},
+        )
+        .mappings()
+        .first()
+    )
+    if row is None:
+        raise HTTPException(404, "Customer group not found in this cohort")
+    return {
+        "id": _group_id(row["group_key"]),
+        "name": row["name"],
+        "role": row["role"],
+        "project_count": row["project_count"],
+        "need_count": row["need_count"],
+        "priority_score": row["priority_score"],
+        "sectors": row["sectors"],
     }
 
 

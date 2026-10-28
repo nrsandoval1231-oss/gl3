@@ -2133,11 +2133,11 @@ def customer_group_open(
     sort: Literal["priority", "updated"] = "priority",
     limit: Annotated[int, Query(ge=1, le=50)] = 25,
 ):
-    from gridlens.intelligence.customer_results import group_projects, groups
-    from gridlens.intelligence.saved_browse import current_generation
+    from gridlens.intelligence.customer_results import group_metadata, group_projects, groups
 
     with SessionLocal() as session:
         _begin_consistent_read(session)
+        session.execute(text("SET TRANSACTION READ ONLY"))
         generation = current_generation(session)
         # Group and project serializers consume this generation explicitly so
         # a publication between reads cannot invalidate the parent selection.
@@ -2149,9 +2149,14 @@ def customer_group_open(
             sort=sort,
             selected_generation=generation,
         )
-        group = next((item for item in parent["items"] if item["id"] == group_id), None)
-        if group is None:
-            raise HTTPException(404, "Customer group not found in this cohort")
+        group = group_metadata(
+            session,
+            group_id,
+            search=search,
+            sector=sector,
+            sort=sort,
+            selected_generation=generation,
+        )
         children = group_projects(
             session,
             group_id,
