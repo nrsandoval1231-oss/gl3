@@ -658,13 +658,14 @@ def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, mon
         session.flush()
         job_id = job.id
 
+    event_end = RealDate.today()
     row = {
         "permit_number": "2026-EVENT-1",
-        "issue_date": (RealDate.today() - timedelta(days=1)).isoformat(),
+        "issue_date": (event_end - timedelta(days=1)).isoformat(),
         "description": (
             "Concert stage with food vendors "
-            f"{RealDate.today().strftime('%B')} "
-            f"{RealDate.today().day}, {RealDate.today().year}."
+            f"{event_end.strftime('%B')} "
+            f"{event_end.day}, {event_end.year}."
         ),
         "permit_class_mapped": "Commercial",
         "work_class": "Temporary",
@@ -676,7 +677,7 @@ def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, mon
         "project_id": "EVENT-1",
         "link": {"url": "https://abc.austintexas.gov/permit/event-1"},
     }
-    as_of = [RealDate.today()]
+    as_of = [event_end]
 
     class FrozenDate(RealDate):
         @classmethod

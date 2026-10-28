@@ -255,6 +255,7 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
             },
             mock_client,
         )
+    request_finished_at = datetime.now(UTC)
     assert len(acquired) == 3 and calls == 3
     monkeypatch.setattr(service, "retrieve_source", lambda *_args, **_kwargs: acquired)
     monkeypatch.setattr(worker, "load_registry", lambda: [regional_db[1]])
@@ -297,14 +298,11 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
         assert source.health["attempt_rejected"] == 2
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
-        if retry_after == "120":
+        if retry_after in {"120", "604801"}:
             retry_at = datetime.fromisoformat(source.health["retry_at"])
-            assert retry_at >= datetime.now(UTC) + timedelta(seconds=119)
-        elif retry_after == "604801":
-            retry_at = datetime.fromisoformat(source.health["retry_at"])
-            # The parsed deadline is based on request-time; worker/runtime and
-            # suite latency may elapse before the persisted health is inspected.
-            assert retry_at >= request_started_at + timedelta(seconds=604801)
+            delay = timedelta(seconds=int(retry_after))
+            # Preserve the exact request-time deadline across later worker latency.
+            assert request_started_at + delay <= retry_at <= request_finished_at + delay
         elif expected_state == "retry_after_unrepresentable":
             assert source.health["retry_at"] is None
         else:
