@@ -31,7 +31,7 @@ jobs:
           full() { { echo "full=true"; echo "backend=true"; echo "web=true"; echo "brand=true"; } >> "$GITHUB_OUTPUT"; }
           # Full suite always runs on PRs targeting main and on pushes to main.
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-            if [ "${GITHUB_BASE_REF}" = "main" ]; then
+            if [ "${GITHUB_BASE_REF:-}" = "main" ]; then
               full
               exit 0
             fi
@@ -42,7 +42,7 @@ jobs:
               full
               exit 0
             fi
-            base="${GITHUB_EVENT_BEFORE}"
+            base="${GITHUB_EVENT_BEFORE:-}"
             if [ -z "${base}" ] || [ "${base}" = "0000000000000000000000000000000000000000" ]; then
               # Branch creation or unavailable base: run everything.
               full
