@@ -184,28 +184,6 @@ def groups(
     )
     sql = _ctes(where)
     total = session.execute(text(sql + " SELECT count(*) FROM grouped"), params).scalar_one()
-    if total == 0 and term:  # TEMPORARY flake forensics; remove before merge.
-        import sys
-
-        try:
-            dbg = session.execute(
-                text(
-                    "SELECT (SELECT count(*) FROM browse_rows),"
-                    " (SELECT count(*) FROM browse_rows WHERE generation_id = :gen),"
-                    " (SELECT count(*) FROM browse_rows"
-                    "  WHERE strpos(search_text, :term) > 0),"
-                    " (SELECT count(*) FROM browse_state)"
-                ),
-                {"gen": generation.id, "term": term},
-            ).one()
-            print(
-                f"GROUPS-DEBUG gen={generation.id} row_count={generation.row_count}"
-                f" all_rows={dbg[0]} gen_rows={dbg[1]} term_rows={dbg[2]}"
-                f" state_rows={dbg[3]}",
-                file=sys.stderr,
-            )
-        except Exception as error:  # noqa: BLE001
-            print(f"GROUPS-DEBUG ERROR {error}", file=sys.stderr)
     rows = (
         session.execute(
             text(sql + f" SELECT * FROM grouped ORDER BY {order} LIMIT :limit OFFSET :offset"),
