@@ -144,8 +144,9 @@ test('synthetic operator groups expose every project through independent nested 
 test('synthetic nested cohort conflict atomically opens the same group with its fresh parent token', async ({ page }) => {
   let nestedReads = 0
   let openReads = 0
+  const otherGroup = { ...group, id: 'other-group', name: 'Unchanged Source Operator', role: 'operator' as const, project_count: 4 }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [group, otherGroup], total: 2, cohort_token: 'original-list-token' } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => { nestedReads += 1; return route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } }) })
   await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
     openReads += 1
@@ -153,14 +154,26 @@ test('synthetic nested cohort conflict atomically opens the same group with its 
     expect(url.searchParams.has('parent_cohort_token')).toBe(false)
     expect(url.searchParams.has('cohort_token')).toBe(false)
     expect(url.searchParams.has('offset')).toBe(false)
-    return route.fulfill({ json: { group: { ...group, name: 'Fresh Energy Operator' }, projects: { ...projectPage, items: [{ ...sample, name: 'Fresh open project' }], cohort_token: 'fresh-child-token' }, parent_cohort_token: 'fresh-parent-cohort', generation: 'fresh-generation' } })
+    return route.fulfill({ json: { group: { ...group, name: 'Fresh Energy Customer', role: 'customer', project_count: 3 }, projects: { ...projectPage, items: [{ ...sample, name: 'Fresh open project' }], cohort_token: 'fresh-child-token' }, parent_cohort_token: 'fresh-parent-cohort', generation: 'fresh-generation' } })
   })
   await page.goto('/')
   await page.getByRole('button', { name: /Energy/ }).first().click()
   await expect(page.getByRole('heading', { name: 'Fresh open project' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('button', { name: /Fresh Energy Customer/ })).toHaveAttribute('aria-expanded', 'true')
+  const refreshedGroup = page.getByRole('region', { name: 'Fresh Energy Customer customer group' })
+  await expect(refreshedGroup.locator('.customer-group-heading small')).toContainText('Customer')
+  await expect(refreshedGroup.locator('.customer-group-count')).toHaveText('3 projects')
+  await expect(page.getByRole('button', { name: /Unchanged Source Operator/ })).toContainText('4 projects')
+  await expect(page.getByRole('button', { name: /Unchanged Source Operator/ })).toContainText('Operator')
   expect(nestedReads).toBe(1)
   expect(openReads).toBe(1)
+  await page.getByRole('button', { name: /Fresh Energy Customer/ }).click()
+  await expect(page.getByRole('region', { name: 'Example Energy customer group' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fresh open project' })).toHaveCount(0)
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await expect(page.getByRole('heading', { name: 'Fresh open project' })).toBeVisible()
+  expect(nestedReads).toBe(2)
+  expect(openReads).toBe(2)
 })
 
 test('synthetic paginated child conflict fresh-opens page one and keeps parent-list token separate', async ({ page }) => {

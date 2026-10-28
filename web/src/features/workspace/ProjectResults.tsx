@@ -14,6 +14,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const [childLoading, setChildLoading] = useState<Record<string, boolean>>({})
   const [childOffsets, setChildOffsets] = useState<Record<string, number>>({})
   const [groupParentTokens, setGroupParentTokens] = useState<Record<string, string>>({})
+  const [openedGroups, setOpenedGroups] = useState<Record<string, OpportunityGroup>>({})
   const [offset, setOffset] = useState(initialRoute.offset)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -21,7 +22,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const [retryKey, setRetryKey] = useState(0)
   const childRequests = useRef(new Map<string, AbortController>())
   const childEpoch = useRef(0)
-  const resetChildRequests = () => { childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear(); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}); setGroupParentTokens({}) }
+  const resetChildRequests = () => { childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear(); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({}) }
   useEffect(() => {
     const onPop = () => { const route = readRoute(); setSearch(route.search); setSector(route.sector); setOffset(route.offset) }
     window.addEventListener('popstate', onPop)
@@ -29,9 +30,9 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   }, [])
   useEffect(() => {
     childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear()
-    const controller = new AbortController(); setLoading(true); setError(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}); setGroupParentTokens({})
+    const controller = new AbortController(); setLoading(true); setError(''); setPage(null); setExpanded({}); setChildren({}); setChildErrors({}); setChildLoading({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({})
     const cohort = new URLSearchParams(location.search).get('cohort_token') ?? undefined
-    client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort: 'priority' }, controller.signal).then(value => { setPage(value); setLoading(false) }).catch((e: Error) => {
+    client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort: 'priority' }, controller.signal).then(value => { setPage(value); setOpenedGroups({}); setLoading(false) }).catch((e: Error) => {
       if (controller.signal.aborted) return
       if (e instanceof OpportunityCohortChangedError) {
         setPage(null)
@@ -54,7 +55,16 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers') => { resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); setNotice(''); setSearch(q); setSector(s); setOffset(0); updateUrl(q, s) }
   const groups = page?.items ?? []
   const toggleGroup = (group: OpportunityGroup) => {
-    if (expanded[group.id]) { childRequests.current.get(group.id)?.abort(); childRequests.current.delete(group.id); setExpanded(current => ({ ...current, [group.id]: false })); setChildLoading(current => ({ ...current, [group.id]: false })); return }
+    if (expanded[group.id]) {
+      childRequests.current.get(group.id)?.abort(); childRequests.current.delete(group.id)
+      setExpanded(current => ({ ...current, [group.id]: false }))
+      setChildLoading(current => ({ ...current, [group.id]: false }))
+      setChildren(current => ({ ...current, [group.id]: null }))
+      setChildOffsets(current => ({ ...current, [group.id]: 0 }))
+      setGroupParentTokens(current => { const next = { ...current }; delete next[group.id]; return next })
+      setOpenedGroups(current => { const next = { ...current }; delete next[group.id]; return next })
+      return
+    }
     setExpanded(current => ({ ...current, [group.id]: true }))
     if (children[group.id] || childLoading[group.id]) return
     loadGroupProjects(group, 0)
@@ -83,13 +93,18 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
         client.openOpportunityGroup(group.id, { search: requestSearch, sector: requestSector, limit: 25, sort: 'priority' }, controller.signal).then(opened => {
           if (controller.signal.aborted || epoch !== childEpoch.current || requestSearch !== search || requestSector !== sector || requestOffset !== offset) return
           if (opened.group.id !== group.id) throw new Error('The refreshed operator/customer group did not match the requested group.')
+          setOpenedGroups(current => ({ ...current, [group.id]: opened.group }))
           setChildren(current => ({ ...current, [group.id]: opened.projects }))
           setChildOffsets(current => ({ ...current, [group.id]: 0 }))
           setGroupParentTokens(current => ({ ...current, [group.id]: opened.parent_cohort_token }))
           setChildLoading(current => ({ ...current, [group.id]: false }))
         }).catch((refreshError: Error) => {
           if (controller.signal.aborted || epoch !== childEpoch.current) return
-          if (refreshError instanceof OpportunityGroupUnavailableError) { setExpanded(current => ({ ...current, [group.id]: false })); setNotice(refreshError.message) }
+          if (refreshError instanceof OpportunityGroupUnavailableError) {
+            setExpanded(current => ({ ...current, [group.id]: false }))
+            setOpenedGroups(current => { const next = { ...current }; delete next[group.id]; return next })
+            setNotice(refreshError.message)
+          }
           setChildErrors(current => ({ ...current, [group.id]: refreshError.message }))
           setChildLoading(current => ({ ...current, [group.id]: false }))
         })
@@ -107,10 +122,10 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     {error && <p role="alert">{error} <button onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
     {loading && <p role="status">Loading operator/customer groups…</p>}
     {!loading && !error && !groups.length && <p className="project-empty">No operator/customer groups match this search.</p>}
-    {!loading && !error && <div className="customer-group-list">{groups.map(group => <section key={group.id} className="customer-group" aria-label={`${group.name} customer group`}>
+    {!loading && !error && <div className="customer-group-list">{groups.map(group => { const displayedGroup = openedGroups[group.id] ?? group; return <section key={group.id} className="customer-group" aria-label={`${displayedGroup.name} customer group`}>
       <h2 className="customer-group-heading"><button className="customer-group-toggle" type="button" aria-expanded={Boolean(expanded[group.id])} onClick={() => toggleGroup(group)}>
-        <span><strong className="customer-group-name">{group.name}</strong><small>{group.role === 'operator' ? 'Operator' : group.role === 'customer' ? 'Customer' : 'Operator/customer unresolved'}{group.operator_number ? ` · Operator ${group.operator_number}` : ''}</small></span>
-        <span className="customer-group-count">{group.project_count} {group.project_count === 1 ? 'project' : 'projects'}</span>
+        <span><strong className="customer-group-name">{displayedGroup.name}</strong><small>{displayedGroup.role === 'operator' ? 'Operator' : displayedGroup.role === 'customer' ? 'Customer' : 'Operator/customer unresolved'}{displayedGroup.operator_number ? ` · Operator ${displayedGroup.operator_number}` : ''}</small></span>
+        <span className="customer-group-count">{displayedGroup.project_count} {displayedGroup.project_count === 1 ? 'project' : 'projects'}</span>
         <svg className="customer-group-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 18 6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button></h2>
       {expanded[group.id] && <div className="customer-group-projects">
@@ -121,7 +136,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
           {children[group.id]!.total > children[group.id]!.limit && <footer className="project-paging"><span>{(childOffsets[group.id] ?? 0) + 1}–{(childOffsets[group.id] ?? 0) + children[group.id]!.items.length} of {children[group.id]!.total} projects</span><button disabled={childLoading[group.id] || (childOffsets[group.id] ?? 0) === 0} onClick={() => loadGroupProjects(group, Math.max(0, (childOffsets[group.id] ?? 0) - 25), children[group.id]?.cohort_token)}>Previous</button><button disabled={childLoading[group.id] || (childOffsets[group.id] ?? 0) + children[group.id]!.items.length >= children[group.id]!.total} onClick={() => loadGroupProjects(group, (childOffsets[group.id] ?? 0) + 25, children[group.id]?.cohort_token)}>Next</button></footer>}
         </>}
       </div>}
-    </section>)}</div>}
+    </section>})}</div>}
     {page && page.total > page.limit && <footer className="project-paging"><span>{page && !loading && !error ? `${page.offset + (groups.length ? 1 : 0)}–${page.offset + groups.length} of ${page.total} operator/customer groups` : ''}</span><button disabled={!page || loading || Boolean(error) || page.offset === 0} onClick={() => { const n = Math.max(0, (page?.offset ?? 0) - 25); setOffset(n); updateUrl(search, sector, n, page?.cohort_token) }}>Previous</button><button disabled={!page || loading || Boolean(error) || page.offset + groups.length >= page.total} onClick={() => { const n = (page?.offset ?? 0) + 25; setOffset(n); updateUrl(search, sector, n, page?.cohort_token) }}>Next</button></footer>}
   </section>
 }
