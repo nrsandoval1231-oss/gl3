@@ -496,12 +496,14 @@ test('parent pending retries stop after four active reads and manual retry start
   await page.goto('/')
   await expect(page.getByText('Loading operator/customer groups…').first()).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
   for (let activeRead = 3; activeRead <= 5; activeRead += 1) {
     await page.clock.fastForward(1000)
     await expect.poll(() => requests).toBe(activeRead)
     await expect(page.getByRole('alert')).toHaveCount(0)
   }
   await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
+  await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toHaveCount(0)
   await page.clock.fastForward(30000)
   expect(requests).toBe(5)
   await page.getByRole('button', { name: /Retry|Reload/i }).last().click()
@@ -593,8 +595,11 @@ test('collapsing a group cancels its pending child retry before atomic reopen', 
   await expect(page.getByText('Loading projects…')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect.poll(() => childReads).toBe(1)
+  const groupCard = page.locator('.customer-group').filter({ hasText: 'Example Energy' })
+  await expect(groupCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
   await groupToggle.click()
   await expect(groupToggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(groupCard.getByRole('status')).toHaveCount(0)
   await page.clock.fastForward(5000)
   expect(childReads).toBe(1)
   expect(openReads).toBe(0)
@@ -638,8 +643,92 @@ test('pending atomic open exhaustion is bounded and manual retry starts a new cy
     await expect(page.getByRole('alert')).toHaveCount(0)
   }
   await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
+  const groupCard = page.locator('.customer-group').filter({ hasText: 'Example Energy' })
+  await expect(groupCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toHaveCount(0)
   const attemptsBeforeManualRetry = childReads + openReads
   await page.getByRole('button', { name: /Retry|Reload/i }).last().click()
   await expect(page.getByRole('heading', { name: 'Manually retried project' })).toBeVisible()
   expect(childReads + openReads).toBe(attemptsBeforeManualRetry + 1)
+})
+
+test('collapsing one pending group clears only its retry status and preserves the other group', async ({ page }) => {
+  await page.clock.install()
+  const first = group
+  const second = { ...group, id: 'group-synthetic-2', name: 'Second Energy', project_count: 2 }
+  const childReads: string[] = []
+  const openReads: string[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [first, second] } }))
+  await page.route('**/api/opportunities/groups/*/projects?*', route => {
+    const groupId = new URL(route.request().url()).pathname.split('/').at(-2)!
+    childReads.push(groupId)
+    return route.fulfill({
+      status: 503,
+      headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
+      json: { detail: 'qualification pending' },
+    })
+  })
+  await page.route('**/api/opportunities/groups/*/open?*', route => {
+    const groupId = new URL(route.request().url()).pathname.split('/').at(-2)!
+    openReads.push(groupId)
+    return route.fulfill({ json: {
+      group: groupId === second.id ? second : first,
+      projects: projectPage,
+      parent_cohort_token: 'fresh-parent-token',
+      generation: 'fresh-generation',
+    } })
+  })
+  await page.goto('/')
+  const firstCard = page.locator('.customer-group').filter({ hasText: first.name })
+  const secondCard = page.locator('.customer-group').filter({ hasText: second.name })
+  await firstCard.getByRole('button', { name: /Example Energy/ }).click()
+  await expect(firstCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
+  await secondCard.getByRole('button', { name: /Second Energy/ }).click()
+  await expect(secondCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
+  expect(childReads).toEqual([first.id, second.id])
+
+  await firstCard.getByRole('button', { name: /Example Energy/ }).click()
+  await expect(firstCard.getByRole('status')).toHaveCount(0)
+  await expect(secondCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
+  await expect(secondCard.getByRole('button', { name: /Second Energy/ })).toHaveAttribute('aria-expanded', 'true')
+
+  await page.clock.fastForward(5000)
+  await expect.poll(() => openReads).toEqual([second.id])
+  await expect(firstCard.getByRole('button', { name: /Example Energy/ })).toHaveAttribute('aria-expanded', 'false')
+  await expect(secondCard.getByRole('heading', { name: 'Example Compressor Station' })).toBeVisible()
+})
+
+test('leaving opportunities during atomic-open wait cancels the retry timer', async ({ page }) => {
+  await page.clock.install()
+  let childReads = 0
+  let openReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
+    childReads += 1
+    return route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } })
+  })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
+    openReads += 1
+    return route.fulfill({
+      status: 503,
+      headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
+      json: { detail: 'qualification pending' },
+    })
+  })
+  await page.route('**/api/opportunities?*', route => route.fulfill({
+    json: { ...projectPage, total_count: 0, group_total_count: 0, decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 }, items: [] },
+  }))
+  await page.goto('/')
+  const groupCard = page.locator('.customer-group').filter({ hasText: 'Example Energy' })
+  await groupCard.getByRole('button', { name: /Example Energy/ }).click()
+  await expect.poll(() => childReads).toBe(1)
+  await expect.poll(() => openReads).toBe(1)
+  await expect(groupCard.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
+
+  await page.getByRole('button', { name: 'More' }).click()
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.getByRole('main', { name: 'Signals browser' })).toBeVisible()
+  await page.clock.fastForward(5000)
+  expect(openReads).toBe(1)
 })
