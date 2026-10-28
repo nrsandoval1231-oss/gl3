@@ -1,6 +1,7 @@
 """Authenticated HTTP contract for the grouped opportunity endpoints."""
 
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from importlib import import_module
 from uuid import uuid4
 
@@ -8,7 +9,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select, text
 
 from gridlens.intelligence.saved_browse import current_generation, rebuild
-from gridlens.persistence.models import BrowseRow, BrowseState
+from gridlens.persistence.models import (
+    BrowseRow,
+    BrowseState,
+    BuyingChainClaim,
+    BuyingChainEvidence,
+    BuyingChainIdentityLink,
+    BuyingChainRun,
+    CompanyIdentity,
+    PowerNeed,
+    Project,
+)
 from gridlens.security import token_for
 from gridlens.settings import settings
 
@@ -109,59 +120,41 @@ def test_customer_group_routes_validate_queries_and_cohort_tokens(saved_db, monk
 def test_customer_group_open_resolves_group_after_first_header_page(saved_db, monkeypatch):
     from test_saved_browse import seed
 
-    seed(saved_db, count=2, histories=1)
+    seed(saved_db, count=51, histories=1)
     assert rebuild(saved_db)["status"] == "published"
     monkeypatch.setattr(settings, "saved_browse_enabled", True)
     api = import_module("gridlens.api.app")
-    from gridlens.persistence.models import BrowseCustomerMembership, CompanyIdentity
-
     with saved_db.begin() as session:
         generation = current_generation(session)
         rows = session.scalars(
             select(BrowseRow).where(BrowseRow.generation_id == generation.id)
         ).all()
-        identities = [CompanyIdentity() for _ in rows]
-        session.add_all(identities)
-        session.flush()
-        for index, row in enumerate(rows):
-            row.compact = {**row.compact, "tier": "Prospect"}
-            row.compact = {
-                **row.compact,
-                "project_metadata": {"sector": "oil_gas", "title": f"Operator {index:03d}"},
-            }
-            session.add(
-                BrowseCustomerMembership(
-                    generation_id=generation.id,
-                    company_identity_id=identities[index].id,
-                    project_id=row.project_id,
-                    organization_name=f"Operator {index:03d}",
-                    role="customer",
-                )
-            )
+        assert len(rows) == 51
     from gridlens.intelligence.saved_browse import rebuild as rebuild_again
 
     assert rebuild_again(saved_db)["status"] == "published"
     with saved_db() as session:
         from gridlens.intelligence.customer_results import groups
 
-        parent = groups(session, sector="all", limit=50, sort="updated")
-        assert parent["total"] == len(rows)
-        target_id = parent["items"][-1]["id"]
-        assert target_id not in {
-            item["id"] for item in groups(session, sector="all", limit=1, sort="updated")["items"]
-        }
+        parent = groups(session, search="Synthetic", limit=50, sort="updated")
+        assert parent["total"] == 51
+        assert len(parent["items"]) == 50
+        target_id = groups(session, search="Synthetic", limit=51, sort="updated")["items"][-1]["id"]
+        assert target_id not in {item["id"] for item in parent["items"]}
 
     monkeypatch.setattr(api, "SessionLocal", saved_db)
     client = TestClient(api.app, base_url="https://testserver")
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     response = client.get(
-        f"/api/opportunities/groups/{target_id}/open", params={"sector": "all", "sort": "updated"}
+        f"/api/opportunities/groups/{target_id}/open",
+        params={"search": "Synthetic", "sort": "updated"},
     )
     assert response.status_code == 200, response.text
     assert response.json()["group"]["id"] == target_id
     with saved_db() as session:
         assert target_id not in {
-            item["id"] for item in groups(session, sector="all", limit=1, sort="updated")["items"]
+            item["id"]
+            for item in groups(session, search="Synthetic", limit=50, sort="updated")["items"]
         }
 
 
@@ -261,57 +254,134 @@ def test_customer_group_open_uses_one_generation_across_all_serializers(saved_db
 def test_customer_group_open_rechecks_current_contact_suppressions(saved_db, monkeypatch):
     from test_saved_browse import seed
 
-    seed(saved_db, count=1, histories=1)
+    ids = seed(saved_db, count=1, histories=1)
     assert rebuild(saved_db)["status"] == "published"
     monkeypatch.setattr(settings, "saved_browse_enabled", True)
     api = import_module("gridlens.api.app")
-    from gridlens.intelligence.contact_suppressions import global_method_suppression_key
-    from gridlens.persistence.suppression_models import ContactSuppression
+    from gridlens.intelligence.contact_suppressions import (
+        global_method_suppression_key,
+        record_contact_suppression,
+    )
 
     with saved_db.begin() as session:
-        generation = current_generation(session)
-        row = session.scalar(select(BrowseRow).where(BrowseRow.generation_id == generation.id))
-        company_id, person_id = uuid4(), uuid4()
-        row.compact = {
-            **row.compact,
-            "contact_actions": [
+        project_id = session.scalar(select(PowerNeed.project_id).where(PowerNeed.id == ids[0]))
+        project = session.get(Project, project_id)
+        company = CompanyIdentity()
+        session.add(company)
+        session.flush()
+        source_url = "https://example.test/public-contact"
+        quote = "Synthetic company contact private@example.test"
+        source = BuyingChainEvidence(
+            project_id=project.id,
+            url=source_url,
+            title="Synthetic contact source",
+            excerpt=quote,
+            content_hash=sha256(quote.encode()).hexdigest(),
+            extraction_location="Synthetic test fixture",
+            observed_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+            project_match_reason="Isolated synthetic test evidence.",
+        )
+        session.add(source)
+        session.flush()
+        claim = BuyingChainClaim(
+            project_id=project.id,
+            entity_key="customer-open-suppression-test",
+            fingerprint=sha256(b"customer-open-suppression-test").hexdigest(),
+            policy_version="test-v1",
+            organization="Synthetic Customer",
+            person_name=None,
+            title=None,
+            category="owner_developer",
+            organization_relationship="DIRECT",
+            person_organization_relationship="UNKNOWN",
+            person_project_relationship="DIRECT",
+            evidence_strength="High",
+            reason="Synthetic owner and contact statement.",
+            citations=[
+                {
+                    "evidence_id": str(source.id),
+                    "url": source_url,
+                    "quote": quote,
+                    "supports": "project_organization",
+                },
+                {
+                    "evidence_id": str(source.id),
+                    "url": source_url,
+                    "quote": quote,
+                    "supports": "public_contact",
+                },
+            ],
+            public_contacts=[
                 {
                     "kind": "email",
-                    "href": "mailto:private@example.test",
-                    "company_identity_id": str(company_id),
-                    "person_identity_id": str(person_id),
-                    "claim_id": "private-claim",
+                    "value": "private@example.test",
+                    "source_url": source_url,
+                    "quote": quote,
                 }
             ],
-        }
+            observed_at=datetime.now(UTC),
+        )
+        session.add(claim)
+        session.flush()
+        session.add(
+            BuyingChainRun(
+                project_id=project.id,
+                input_hash=sha256(b"customer-open-suppression-run").hexdigest(),
+                evidence_ids=[str(source.id)],
+                claim_ids=[str(claim.id)],
+                policy_version="test-v1",
+                status="complete",
+                documents_checked=1,
+                candidates_added=1,
+                unresolved=[],
+            )
+        )
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=claim.id,
+                entity_type="company",
+                company_identity_id=company.id,
+                reason="Explicit synthetic test identity link.",
+                basis="attributed_review",
+                reviewed_by="test",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+                state="current",
+            )
+        )
     from gridlens.intelligence.saved_browse import rebuild as rebuild_again
 
     assert rebuild_again(saved_db)["status"] == "published"
-    with saved_db.begin() as session:
-        session.add(
-            ContactSuppression(
-                scope="method",
-                subject_key=global_method_suppression_key("email", "mailto:private@example.test"),
-                expected_version=0,
-                version=1,
-                action="suppress",
-                reason="test suppression",
-                actor="test",
-                idempotency_key="cohort-open-suppression",
-            )
-        )
-
     monkeypatch.setattr(api, "SessionLocal", saved_db)
     client = TestClient(api.app, base_url="https://testserver")
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     parent = client.get("/api/opportunities/groups", params={"search": "Synthetic", "limit": 1})
     group_id = parent.json()["items"][0]["id"]
+    baseline = client.get(
+        f"/api/opportunities/groups/{group_id}/open", params={"search": "Synthetic"}
+    )
+    assert baseline.status_code == 200, baseline.text
+    assert "private@example.test" in baseline.text
+
+    with saved_db.begin() as session:
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=global_method_suppression_key("email", "mailto:private@example.test"),
+            action="suppress",
+            expected_version=0,
+            reason="synthetic privacy regression fixture",
+            actor="test",
+            idempotency_key="cohort-open-suppression",
+        )
+
     opened = client.get(
         f"/api/opportunities/groups/{group_id}/open", params={"search": "Synthetic"}
     )
     assert opened.status_code == 200, opened.text
     assert "private@example.test" not in opened.text
-    assert "private-claim" not in opened.text
+    assert str(claim.id) not in opened.text
 
 
 def test_customer_group_open_succeeds_if_generation_publishes_after_parent_read(
