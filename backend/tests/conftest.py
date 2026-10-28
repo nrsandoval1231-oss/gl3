@@ -115,3 +115,36 @@ def block_external_httpx_transport(monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Temporary flake forensics: dump browse state when the drift-fence test fails."""
+    outcome = yield
+    report = outcome.get_result()
+    if (
+        call.when == "call"
+        and report.failed
+        and "test_customer_search_and_generation_drift_fence" in item.nodeid
+    ):
+        import sys
+
+        url = os.environ.get("TEST_DATABASE_URL", "")
+        if not url:
+            return
+        engine = create_engine(url)
+        queries = [
+            "SELECT count(*) FROM browse_rows",
+            "SELECT count(*) FROM browse_rows WHERE strpos(search_text, 'synthetic 7') > 0",
+            "SELECT generation_id, count(*) FROM browse_rows GROUP BY 1",
+            "SELECT id, generation_id, prepared_generation_id FROM browse_state",
+            "SELECT id, row_count, valid_from, valid_until FROM browse_generations ORDER BY built_at",
+        ]
+        with engine.connect() as connection:
+            for query in queries:
+                try:
+                    rows = connection.execute(text(query)).all()
+                    print(f"\nDIAGNOSTIC {query} -> {rows}", file=sys.stderr)
+                except Exception as error:  # noqa: BLE001
+                    print(f"\nDIAGNOSTIC {query} ERROR {error}", file=sys.stderr)
+        engine.dispose()
