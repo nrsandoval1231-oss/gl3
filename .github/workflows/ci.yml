@@ -12,7 +12,57 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      full: ${{ steps.filter.outputs.full }}
+      backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+      brand: ${{ steps.filter.outputs.brand }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Classify changed paths
+        id: filter
+        run: |
+          set -euo pipefail
+          # Full suite always runs for PRs (pre-merge gate) and main pushes.
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            { echo "full=true"; echo "backend=true"; echo "web=true"; echo "brand=true"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base="${GITHUB_EVENT_BEFORE}"
+          if [ -z "${base}" ] || [ "${base}" = "0000000000000000000000000000000000000000" ]; then
+            # Branch creation or unavailable base: run everything.
+            { echo "full=true"; echo "backend=true"; echo "web=true"; echo "brand=true"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --quiet origin "${base}" || true
+          files="$(git diff --name-only "${base}" HEAD)"
+          if [ -z "${files}" ]; then
+            files="$(git diff --name-only "${base}" HEAD~0 || true)"
+          fi
+          has() { printf '%s\n' "${files}" | grep -q "$1"; }
+          backend=false; web=false; brand=false; full=false
+          if has '^uv\.lock$' || has '^package-lock\.json$' || has '^\.github/workflows/' || has '^config/' || has '^backend/migrations/'; then
+            full=true
+          fi
+          if has '^backend/'; then backend=true; fi
+          if has '^web/'; then web=true; brand=true; fi
+          if has '^tools/brand/'; then brand=true; fi
+          if ! has '^backend/\|^web/\|^tools/brand/'; then
+            # Unmatched paths (docs, scripts, root files): safest default is the full suite.
+            full=true
+          fi
+          if [ "${full}" = "true" ]; then backend=true; web=true; brand=true; fi
+          { echo "full=${full}"; echo "backend=${backend}"; echo "web=${web}"; echo "brand=${brand}"; } >> "$GITHUB_OUTPUT"
+          echo "changed paths classified: backend=${backend} web=${web} brand=${brand} full=${full}"
+
   backend:
+    if: needs.changes.outputs.backend == 'true'
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -140,6 +190,8 @@ jobs:
         run: timeout 720 uv run pytest tests -n 4
         working-directory: backend
   browser:
+    if: needs.changes.outputs.backend == 'true'
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -255,6 +307,8 @@ jobs:
 
 
   web:
+    if: needs.changes.outputs.web == 'true'
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -271,6 +325,8 @@ jobs:
       - run: npm run build --prefix web
 
   brand-assets:
+    if: needs.changes.outputs.brand == 'true'
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
