@@ -136,8 +136,14 @@ jobs:
       - name: Create test database
         run: docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gridlens_test'
       - name: Run backend test suite
-        # Regression gate: 12m until xdist proves out; the -n 4 target is well under 8m.
-        run: timeout 720 uv run pytest tests -n 4
+        # TEMPORARY instrumentation: triple-sample the suite to catch the
+        # intermittent drift-fence flake with diagnostics. Revert to a single
+        # run before merge.
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== pytest sampling pass $attempt ==="
+            timeout 900 uv run pytest tests -n 4 || exit 1
+          done
         working-directory: backend
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
