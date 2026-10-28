@@ -141,27 +141,103 @@ test('synthetic operator groups expose every project through independent nested 
   await expect(page.getByText('126–144 of 144 projects')).toBeVisible()
 })
 
-test('synthetic stale nested cohort clears the open child and reloads the parent groups', async ({ page }) => {
-  let parentReads = 0
+test('synthetic nested cohort conflict atomically opens the same group with its fresh parent token', async ({ page }) => {
   let nestedReads = 0
+  let openReads = 0
+  const otherGroup = { ...group, id: 'other-group', name: 'Unchanged Source Operator', role: 'operator' as const, project_count: 4 }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
-    parentReads += 1
-    const currentGroup = parentReads === 1 ? group : { ...group, id: 'fresh-group', name: 'Fresh Energy Operator' }
-    const token = parentReads === 1 ? 'old-parent-cohort' : 'fresh-parent-cohort'
-    return route.fulfill({ json: { ...groupPage, items: [currentGroup], cohort_token: token } })
-  })
-  await page.route('**/api/opportunities/groups/*/projects?*', route => {
-    nestedReads += 1
-    return nestedReads === 1 ? route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } }) : route.fulfill({ json: projectPage })
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [group, otherGroup], total: 2, cohort_token: 'original-list-token' } }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => { nestedReads += 1; return route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } }) })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
+    openReads += 1
+    const url = new URL(route.request().url())
+    expect(url.searchParams.has('parent_cohort_token')).toBe(false)
+    expect(url.searchParams.has('cohort_token')).toBe(false)
+    expect(url.searchParams.has('offset')).toBe(false)
+    return route.fulfill({ json: { group: { ...group, name: 'Fresh Energy Customer', role: 'customer', project_count: 3 }, projects: { ...projectPage, items: [{ ...sample, name: 'Fresh open project' }], cohort_token: 'fresh-child-token' }, parent_cohort_token: 'fresh-parent-cohort', generation: 'fresh-generation' } })
   })
   await page.goto('/')
   await page.getByRole('button', { name: /Energy/ }).first().click()
-  await expect(page.getByText('Project results changed. Reloaded from the first page.')).toBeVisible()
-  await expect(page.getByRole('button', { name: /Fresh Energy Operator/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Fresh Energy Operator/ })).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('heading', { name: 'Fresh open project' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Fresh Energy Customer/ })).toHaveAttribute('aria-expanded', 'true')
+  const refreshedGroup = page.getByRole('region', { name: 'Fresh Energy Customer customer group' })
+  await expect(refreshedGroup.locator('.customer-group-heading small')).toContainText('Customer')
+  await expect(refreshedGroup.locator('.customer-group-count')).toHaveText('3 projects')
+  await expect(page.getByRole('button', { name: /Unchanged Source Operator/ })).toContainText('4 projects')
+  await expect(page.getByRole('button', { name: /Unchanged Source Operator/ })).toContainText('Operator')
+  expect(nestedReads).toBe(1)
+  expect(openReads).toBe(1)
+  await page.getByRole('button', { name: /Fresh Energy Customer/ }).click()
+  await expect(page.getByRole('region', { name: 'Example Energy customer group' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fresh open project' })).toHaveCount(0)
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await expect(page.getByRole('heading', { name: 'Fresh open project' })).toBeVisible()
+  expect(nestedReads).toBe(2)
+  expect(openReads).toBe(2)
+})
+
+test('synthetic paginated child conflict fresh-opens page one and keeps parent-list token separate', async ({ page }) => {
+  const childRequests: URL[] = []
+  const groupRequests: URL[] = []
+  let openReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => { const url = new URL(route.request().url()); groupRequests.push(url); return route.fulfill({ json: { ...groupPage, total: 50, cohort_token: 'original-list-token' } }) })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
+    const url = new URL(route.request().url()); childRequests.push(url)
+    if (url.searchParams.get('offset') === '25') return route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } })
+    return route.fulfill({ json: { ...projectPage, total: 50, limit: 25, cohort_token: 'old-child-token', items: Array.from({ length: 25 }, (_, index) => ({ ...sample, id: `child-${index}` })) } })
+  })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
+    openReads += 1
+    return route.fulfill({ json: { group, projects: { ...projectPage, total: 30, items: [{ ...sample, id: 'fresh-first-page', name: 'Fresh first page project' }] }, parent_cohort_token: 'opened-group-parent-token', generation: 'fresh-generation' } })
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await page.locator('.customer-group-projects .project-paging').getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByRole('heading', { name: 'Fresh first page project' })).toBeVisible()
+  expect(openReads).toBe(1)
+  await page.locator('.customer-group-projects .project-paging').getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => childRequests.at(-1)?.searchParams.get('parent_cohort_token')).toBe('opened-group-parent-token')
+  await page.locator('.project-results > .project-paging').getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => groupRequests.at(-1)?.searchParams.get('cohort_token')).toBe('original-list-token')
+})
+
+test('synthetic nested conflict stops when atomic open reports the group missing', async ({ page }) => {
+  let openReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => { openReads += 1; return route.fulfill({ status: 404, json: { detail: 'missing group' } }) })
+  await page.goto('/')
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await expect(page.getByRole('status')).toContainText('no longer available')
+  expect(openReads).toBe(1)
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveAttribute('aria-expanded', 'false')
+})
+
+test('synthetic delayed atomic open cannot restore a child after the search changes', async ({ page }) => {
+  let releaseOpen: (() => void) | undefined
+  let openRequested: (() => void) | undefined
+  const requested = new Promise<void>(resolve => { openRequested = resolve })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => {
+    const fresh = Boolean(new URL(route.request().url()).searchParams.get('search'))
+    return route.fulfill({ json: { ...groupPage, items: [{ ...group, id: fresh ? 'fresh-group' : group.id, name: fresh ? 'Fresh Search Operator' : group.name }] } })
+  })
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', async route => {
+    openRequested?.()
+    await new Promise<void>(resolve => { releaseOpen = resolve })
+    try { await route.fulfill({ json: { group, projects: projectPage, parent_cohort_token: 'stale-open-token', generation: 'stale' } }) } catch { /* Superseded requests are aborted. */ }
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await requested
+  await page.getByRole('textbox', { name: 'Search opportunities' }).fill('fresh')
+  await expect(page.getByRole('button', { name: /Fresh Search Operator/ })).toBeVisible()
+  releaseOpen?.()
+  await expect(page.getByRole('heading', { name: 'Example Compressor Station', exact: true })).toHaveCount(0)
   await expect(page.locator('.project-card')).toHaveCount(0)
-  expect(parentReads).toBeGreaterThanOrEqual(2)
 })
 
 test('synthetic delayed child response cannot repopulate results after a search change', async ({ page }) => {

@@ -25,11 +25,12 @@ def page(
     need_id: UUID | None = None,
     include_signals: bool = False,
     project_ids: list[UUID] | None = None,
+    selected_generation=None,
 ) -> dict[str, Any]:
     """Return physical projects, consolidating only validated well API identities."""
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
-    generation = current_generation(session)
+    generation = selected_generation or current_generation(session)
     term = (search or "").strip().casefold()
     cohort_payload = [
         str(generation.id),

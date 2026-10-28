@@ -222,6 +222,7 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
     from gridlens.jobs.queue import enqueue, lease_one
 
     _install_public_ip(monkeypatch)
+    request_started_at = datetime.now(UTC)
     rows = _nsr_rows()
     monkeypatch.setattr(adapter, "parse_listing", lambda *_args, **_kwargs: rows)
     monkeypatch.setattr(
@@ -254,6 +255,7 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
             },
             mock_client,
         )
+    request_finished_at = datetime.now(UTC)
     assert len(acquired) == 3 and calls == 3
     monkeypatch.setattr(service, "retrieve_source", lambda *_args, **_kwargs: acquired)
     monkeypatch.setattr(worker, "load_registry", lambda: [regional_db[1]])
@@ -280,7 +282,9 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
 
     monkeypatch.setattr(worker, "try_public_acquisition_admission", lambda *_args: Admission())
     monkeypatch.setattr(worker, "FencedLeaseRenewer", NoopRenewer)
+    worker_started_at = datetime.now(UTC)
     worked = worker.run_one({regional_db[1]["id"]: regional_db[1]}, job_ids=[regional_db[2]])
+    worker_finished_at = datetime.now(UTC)
     assert worked, f"worker did not lease job {regional_db[2]} with Retry-After={retry_after}"
 
     with regional_db[0]() as session:
@@ -298,10 +302,14 @@ def test_worker_preserves_partial_source_cooldown_and_prefix(
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
         if retry_after == "120":
             retry_at = datetime.fromisoformat(source.health["retry_at"])
-            assert retry_at >= datetime.now(UTC) + timedelta(seconds=119)
+            delay = timedelta(seconds=120)
+            # A supported relative delay is recalculated at worker processing time.
+            assert worker_started_at + delay <= retry_at <= worker_finished_at + delay
         elif retry_after == "604801":
             retry_at = datetime.fromisoformat(source.health["retry_at"])
-            assert retry_at >= datetime.now(UTC) + timedelta(seconds=604799)
+            delay = timedelta(seconds=604801)
+            # The long-delay policy preserves only the absolute acquisition deadline.
+            assert request_started_at + delay <= retry_at <= request_finished_at + delay
         elif expected_state == "retry_after_unrepresentable":
             assert source.health["retry_at"] is None
         else:

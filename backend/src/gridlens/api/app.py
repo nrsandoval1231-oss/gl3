@@ -620,6 +620,16 @@ def _validate_browse_query(request: Request) -> None:
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
             raise HTTPException(422, "search must be at most 250 characters")
+    elif (
+        len(request.url.path.split("/")) == 6
+        and request.url.path.split("/")[:4] == ["", "api", "opportunities", "groups"]
+        and bool(request.url.path.split("/")[4])
+        and request.url.path.split("/")[5] == "open"
+    ):
+        allowed = {"search", "sector", "sort", "limit"}
+        search = request.query_params.get("search")
+        if search is not None and len(search) > 250:
+            raise HTTPException(422, "search must be at most 250 characters")
     else:
         path_parts = request.url.path.split("/")
         is_customer_group_projects = (
@@ -2109,6 +2119,64 @@ def customer_group_projects(
             sort=sort,
         )
         _bounded_opportunity_payload(payload["items"])
+        return payload
+
+
+@app.get(
+    "/api/opportunities/groups/{group_id}/open",
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
+)
+def customer_group_open(
+    group_id: str,
+    search: str | None = None,
+    sector: Literal["all", "oil_gas", "data_centers"] = "all",
+    sort: Literal["priority", "updated"] = "priority",
+    limit: Annotated[int, Query(ge=1, le=50)] = 25,
+):
+    from gridlens.intelligence.customer_results import group_metadata, group_projects, groups
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        session.execute(text("SET TRANSACTION READ ONLY"))
+        generation = current_generation(session)
+        # Group and project serializers consume this generation explicitly so
+        # a publication between reads cannot invalidate the parent selection.
+        parent = groups(
+            session,
+            search=search,
+            sector=sector,
+            limit=50,
+            sort=sort,
+            selected_generation=generation,
+        )
+        group = group_metadata(
+            session,
+            group_id,
+            search=search,
+            sector=sector,
+            sort=sort,
+            selected_generation=generation,
+        )
+        children = group_projects(
+            session,
+            group_id,
+            search=search,
+            sector=sector,
+            limit=limit,
+            sort=sort,
+            parent_token=parent["cohort_token"],
+            selected_generation=generation,
+        )
+        children.pop("group", None)
+        payload = {
+            "group": group,
+            "projects": children,
+            "parent_cohort_token": parent["cohort_token"],
+            "generation": str(generation.id),
+        }
+        _bounded_opportunity_payload(payload["projects"]["items"])
+        if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
+            raise HTTPException(413, "Project results exceed the response byte budget")
         return payload
 
 
