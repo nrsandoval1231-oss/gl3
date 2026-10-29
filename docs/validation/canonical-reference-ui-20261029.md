@@ -78,3 +78,35 @@ Follow-up local verification: the affected four retry/expiry tests passed in an 
 Final escalation found two concrete harness causes: `clock.install()` advances with wall time, and aborted StrictMode mount requests do not have a guaranteed intercepted count. Tests now freeze at a mounted response boundary before timers are created, capture the initial request baseline, and explicitly change mock response phase. Exact early-boundary, three automatic retries, exhaustion, manual retry and generation replacement assertions are retained. The affected four cases passed40/40 parallel repeated executions without retries, plus an independent Sol4/4. The earlier runFor-only repair was insufficient and is superseded.
 
 CI also skipped browser tests on web-only branch pushes. The browser job now runs when either backend or web paths change; all four truth-table combinations were independently reviewed. No application source, backend contract or CI retry setting changed. Final-head CI will be recorded in PR148; source receipt remains historical to its stated hash.
+
+## All Signals and real contact channels follow-up
+
+The owner requested default All inclusion of real Signals and populated phone/email, authenticated snapshot verification, and PR #148 update, without merge or deployment.
+
+The canonical client explicitly requests `include_signals=true`. The mounted API exposes the existing internal flag and validates it; existing callers still default to qualified-only scope. Scope remains bound to the pagination cohort, qualification does not change, and KPI wording follows the response. Generated OpenAPI/types were refreshed, also reconciling an already-mounted atomic group-open endpoint missing from the prior schema snapshot.
+
+Contact Overview displays retained phone/email through safe call/mail links with source/date and authority labels. The first phone and email appear together; exact duplicate company routes are suppressed, distinct company paths retained, and the arbitrary first-two-contacts cutoff is removed. Undated methods require matching current method-specific source support. Missing channels remain individually unavailable. Company routes do not establish a named person's purchasing authority or address deliverability. Project metadata and contact routes are bound to the selected need ID, hiding previous-selection data immediately while a new request is pending or fails. No contact addresses were guessed, fabricated or newly enriched.
+
+### Authenticated real-data verification
+
+The private isolated October 29 production-derived snapshot contains 1,969 projects and 1,966 power needs; production authentication rows were excluded. Only local retained-data summaries were rebuilt after the backend source/policy fingerprint changed. No acquisition workers or paid providers were started.
+
+- Unauthenticated discovery request: 401.
+- Authenticated legacy All request: 200, zero qualified projects, unchanged default.
+- Explicit Signals All request: 200, 1,896 discovery projects, 25 server-page rows, retained Signal classifications.
+- Pagination to offset 25 retained the 1,896-project scope; search, selection and mobile Clear returned the expected real records.
+- Switching a discovery cohort to qualified-only scope returned 409; malformed boolean returned 422.
+- Real EOG Resources Leviathan C Well 3H displayed its retained company phone and email together. Two phone and three email methods have source URLs and verification dates; purchasing authority remains unconfirmed.
+- Desktop 1440/1280 and mobile 390 captures used the real API and database, with no response interception or synthetic records. No browser page errors; the sole non-GET request was ordinary local login. Private captures and machine receipts remain under ignored `.artifacts/canonical-all-contact-review/`.
+
+Snapshot coverage is limited: 187 saved rows contain phone actions, 15 contain email actions, and four projects contain both. These are snapshot observations, not universal contact coverage or deliverability claims. Data-center email gaps remain explicit. This supersedes the earlier empty-All defect; it does not imply PR #148 is deployed.
+
+### Checks and review
+
+The full backend suite passed: 3,309 tests, one skipped, seven subtests passed (426.53 seconds). The scope/tier/cohort regression was then strengthened and its two focused integration tests passed. A full 169-case browser run passed without retries before the final contact ordering/identity guard; affected tests passed afterwards and the final full run is recorded in the PR handoff. TypeScript/build, Ruff/format, backend-directory mypy (183 files), maintained docs and all 216 protected brand assets passed. An initial mypy invocation from the repository root lacked backend configuration; the corrected backend-directory check passed.
+
+Independent Astra review found no unresolved material findings, verified the real-data API boundaries and EOG contact provenance, and ran two focused browser cases plus fresh types/build/diff checks. Reviewed changed-source digest: `5af680147f7ba37dd23026bc23bd5db1f42c11ac75d4645fc7e44a6c1bdc99db`.
+
+The npm high-severity audit gate passes, with one newly reported moderate Vite development-server advisory. No unrelated forced dependency upgrade was performed. Exact-head CI is linked in PR #148. No production credentials, retained data, deployment settings, schema, provider budgets, merge or deployment changed.
+
+Final integrated local browser rerun: **169 passed, retries disabled (1.6 minutes)**, including the completed contact ordering, deduplication and identity guard. Final real-snapshot captures and checks were repeated after that guard: All 1,896 projects, pagination, search, real phone/email and mobile Clear passed, with no page errors. Independent review is clear. Remote CI on the final committed head remains the release gate; PR stays unmerged and undeployed.

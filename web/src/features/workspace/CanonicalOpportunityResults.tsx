@@ -103,7 +103,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     let retries = 0
     const load = async () => {
       try {
-        const value = await client.projectResults({ search, sector, limit: 25, offset, cohort_token: new URLSearchParams(location.search).get('cohort_token') ?? undefined, sort: 'priority' }, controller.signal)
+        const value = await client.projectResults({ search, sector, limit: 25, offset, cohort_token: new URLSearchParams(location.search).get('cohort_token') ?? undefined, sort: 'priority', include_signals: true }, controller.signal)
         if (!active || controller.signal.aborted || generation !== requestGeneration.current || cacheGenerationAtStart !== cacheGeneration) return
         if (!pageIsCurrent(value)) throw new Error('Current project results could not be confirmed. Refresh to retry.')
         cache.delete(key); cache.set(key, { page: value, savedAt: Date.now() }); while (cache.size > 5) cache.delete(cache.keys().next().value!)
@@ -158,7 +158,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   const clearFilters = () => { onBrowseChangeRef.current?.(); setSearchDraft(''); setSearch(''); setRegion(''); setStage(''); setPriority(''); setSector('all'); setOffset(0); setSelectedRows([]); updateUrl('', 'all', 0) }
   const selectAll = (checked: boolean) => setSelectedRows(checked ? visible.map(item => item.id) : [])
   const count = visiblePage ? visiblePage.total : 'Unavailable'
-  const scope = visiblePage ? `${visiblePage.total} ${visiblePage.count_unit} · Signals included` : 'Current opportunity cohort unavailable'
+  const scope = visiblePage ? `${visiblePage.total} ${visiblePage.count_unit} · ${visiblePage.results_scope === 'discovery' ? 'Signals included' : 'Qualified projects'}` : 'Current opportunity cohort unavailable'
 
   return <section className="canonical-flat-results" aria-label="Project opportunities" aria-busy={loading || searchDraft !== search}>
     <div className="cfr-kpis" aria-label="Opportunity summary"><article><Layers aria-hidden="true"/><strong>{visiblePage ? count : "—"}</strong><span>Active Opportunities</span><small>{scope}</small></article><article><ChartNoAxesColumnIncreasing aria-hidden="true"/><strong>—</strong><span>High Priority</span><small>Priority classification unavailable</small></article><article><FileText aria-hidden="true"/><strong>—</strong><span>New This Week</span><small>Creation date unavailable</small></article></div>

@@ -299,6 +299,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/opportunities/groups/{group_id}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Customer Group Open */
+        get: operations["customer_group_open_api_opportunities_groups__group_id__open_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunities": {
         parameters: {
             query?: never;
@@ -4667,6 +4684,7 @@ export interface operations {
                 offset?: number;
                 cohort_token?: string | null;
                 sort?: "priority" | "updated";
+                include_signals?: boolean;
             };
             header?: never;
             path?: never;
@@ -4740,6 +4758,42 @@ export interface operations {
                 offset?: number;
                 cohort_token?: string | null;
                 sort?: "priority" | "updated";
+            };
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    customer_group_open_api_opportunities_groups__group_id__open_get: {
+        parameters: {
+            query?: {
+                search?: string | null;
+                sector?: "all" | "oil_gas" | "data_centers";
+                sort?: "priority" | "updated";
+                limit?: number;
             };
             header?: never;
             path: {

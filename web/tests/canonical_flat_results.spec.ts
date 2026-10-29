@@ -4,7 +4,7 @@ const pageFixture = {
   items: [
     { id: 'p1', project_id: 'p1', name: 'Northstar Energy · Mesa Compressor', company: 'Northstar Energy', location: 'Midland, TX', sector: 'oil_gas', asset_type: 'Compressor station', priority_score: 42, representative_need_id: 'n1', need_count: 2, needs: [{ id: 'n1', tier: 'Signal', activity: 'compression' }, { id: 'n2', tier: 'Prospect', activity: 'construction power' }], event: { kind: 'permit_issued', label: 'Permit issued', date: '2026-10-10' }, contact: [], power_summary: null, power_summary_kind: 'unknown', next_action: null, updated_at: '2026-10-28T00:00:00Z' },
     { id: 'p2', project_id: 'p2', name: 'Copperline Data · Mesa Campus', company: 'Copperline Data', location: 'Phoenix, AZ', sector: 'data_centers', asset_type: 'Campus', priority_score: null, representative_need_id: 'n3', need_count: 1, needs: [{ id: 'n3', tier: 'Lead' }], event: null, contact: [], power_summary: '420 MW supported residual gap', power_summary_kind: 'supported_gap', next_action: null, updated_at: '2026-10-28T00:00:00Z' },
-  ], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic-flat', generation: 'synthetic',
+  ], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic-flat', generation: 'synthetic', results_scope: 'discovery',
 }
 
 test('synthetic flat results render company/project rows, honest KPIs, filters, selection and full-cohort server search', async ({ page }) => {
@@ -14,8 +14,10 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await page.goto('/?view=workspace')
 
   await expect(page.getByRole('heading', { name: 'Opportunities' })).toBeVisible()
+  await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(2)
   await expect(page.locator('.cfr-kpis')).toContainText('2')
+  await expect(page.locator('.cfr-kpis')).toContainText('Signals included')
   await expect(page.locator('.cfr-kpis')).toContainText('Priority classification unavailable')
   await expect(page.locator('.cfr-kpis')).toContainText('Creation date unavailable')
   await expect(page.locator('.cfr-table')).toContainText('Northstar Energy')

@@ -611,6 +611,16 @@
               "default": "priority",
               "title": "Sort"
             }
+          },
+          {
+            "name": "include_signals",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Signals"
+            }
           }
         ],
         "responses": {
@@ -859,6 +869,100 @@
               "type": "string",
               "default": "priority",
               "title": "Sort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/opportunities/groups/{group_id}/open": {
+      "get": {
+        "summary": "Customer Group Open",
+        "operationId": "customer_group_open_api_opportunities_groups__group_id__open_get",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "sector",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "oil_gas",
+                "data_centers"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Sector"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "priority",
+                "updated"
+              ],
+              "type": "string",
+              "default": "priority",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
             }
           }
         ],

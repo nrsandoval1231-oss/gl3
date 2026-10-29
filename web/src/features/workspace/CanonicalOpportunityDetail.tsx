@@ -31,26 +31,35 @@ function displayDate(value: string | null | undefined) {
 export function CanonicalOpportunityDetail(props: Props) {
   const { item, pending, loading, error, associationNotice, tab, onTab, onBack, onRetry } = props
   const canonicalTab: CanonicalTab = tabForWorkspace(tab)
-  const [project, setProject] = useState<import('../../api/client').ProjectResult | null>(null)
-  const [projectLoading, setProjectLoading] = useState(false)
-  const [projectError, setProjectError] = useState('')
+  const [projectState, setProjectState] = useState<{ needId: string | null; project: import('../../api/client').ProjectResult | null }>({ needId: null, project: null })
+  const [projectStatus, setProjectStatus] = useState<{ needId: string | null; loading: boolean; error: string }>({ needId: null, loading: false, error: '' })
+  // Do not expose metadata from the previous selection during the render before the effect runs.
+  const project = projectState.needId === item?.id ? projectState.project : null
+  const projectLoading = projectStatus.needId === item?.id && projectStatus.loading
+  const projectError = projectStatus.needId === item?.id ? projectStatus.error : ''
 
   useEffect(() => {
-    if (!item?.project_id) { setProject(null); setProjectLoading(false); return }
+    if (!item?.project_id) {
+      setProjectState({ needId: item?.id ?? null, project: null })
+      setProjectStatus({ needId: item?.id ?? null, loading: false, error: '' })
+      return
+    }
     const controller = new AbortController()
-    setProjectLoading(true)
-    setProjectError('')
+    const needId = item.id
+    setProjectStatus({ needId, loading: true, error: '' })
     client.projectResults({ need_id: item.id, sector: 'all', limit: 1, offset: 0, sort: 'priority' }, controller.signal)
       .then(page => {
         if (controller.signal.aborted) return
-        const match = page.items.find(candidate => candidate.needs.some(need => need.id === item.id))
-        setProject(match ?? null)
-        if (!match) setProjectError('Current project details could not be matched to this opportunity.')
+        const match = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
+        setProjectState({ needId, project: match ?? null })
+        setProjectStatus({ needId, loading: false, error: match ? '' : 'Current project details could not be matched to this opportunity.' })
       })
       .catch(cause => {
-        if (!controller.signal.aborted) setProjectError(cause instanceof Error ? cause.message : 'Current project details are unavailable.')
+        if (!controller.signal.aborted) {
+          setProjectState({ needId, project: null })
+          setProjectStatus({ needId, loading: false, error: cause instanceof Error ? cause.message : 'Current project details are unavailable.' })
+        }
       })
-      .finally(() => { if (!controller.signal.aborted) setProjectLoading(false) })
     return () => controller.abort()
   }, [item?.id])
 
@@ -88,6 +97,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     { label: 'Needed By', value: timing || '—', basis: timing ? 'Power timing from retained assessment' : 'Not established · timing unknown', icon: 'calendar' },
   ]
   const people = card?.contacts ?? []
+  const renderedContactHrefs = new Set(people.flatMap(person => contactChannels(person.methods ?? [], person.sources ?? []).map(channel => normalizeContactHref(channel.href))))
   const evidence = item.evidence ?? []
   const sources = evidence.slice().sort((a, b) => (b.event_date || b.published_at || '').localeCompare(a.event_date || a.published_at || ''))
   const additionalCardEvidence = (card?.evidence ?? []).filter(source => {
@@ -132,14 +142,27 @@ export function CanonicalOpportunityDetail(props: Props) {
       <section className="cod-details" aria-label="Key project details"><h3>Project details</h3><dl>{details.length ? details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>) : <p>Project details are not established by current evidence.</p>}</dl></section>
       <div className="cod-lower">
         <section className="cod-contacts" aria-label="Decision maker or contact"><h3><UserRound size={13} strokeWidth={1.6}/>Decision Maker / Contact</h3>
-          {people.length ? people.slice(0, 2).map(person => <article key={person.claim_id}>
+          {people.length ? people.map(person => {
+            const channels = contactChannels(person.methods ?? [], person.sources ?? [])
+            return <article key={person.claim_id}>
             <strong>{person.name || person.company}</strong><p>{[person.title || person.role, person.name ? person.company : null].filter(Boolean).join(' · ')}</p>
             {person.responsibility && <p>{person.responsibility}</p>}
             <p>Purchasing authority: {person.purchasing_authority?.trim() || 'Authority not established'}</p>
-            {(person.methods ?? []).filter(isVerifiedContactMethod).map(method => <span className="cod-verified-method" key={`${method.kind}:${method.value}`}><a href={method.href!}>{method.kind === 'email' ? 'Email' : 'Call'} {method.value}</a><small>Source checked {displayDate(method.verified_at)}</small></span>)}
-            {!(person.methods ?? []).some(isVerifiedContactMethod) && <small>No verified direct method is available.</small>}
+            {prioritizePrimaryChannels(channels).map(channel => <span className="cod-verified-method" key={`${channel.kind}:${channel.value}`}>
+              <a href={channel.href}>{channel.kind === 'email' ? 'Email' : 'Call'} {channel.value}</a>
+              <small>{channel.verifiedAt ? `Source checked ${displayDate(channel.verifiedAt)}` : <>Listed in source: <a href={channel.sourceUrl} target="_blank" rel="noreferrer">{channel.sourceTitle}</a> · verification not established</>}</small>
+            </span>)}
+            {!channels.some(method => method.kind === 'phone') && <small>Phone unavailable in retained contact evidence.</small>}
+            {!channels.some(method => method.kind === 'email') && <small>Email unavailable in retained contact evidence.</small>}
             {(person.sources ?? []).filter(source => !sources.some(itemSource => safeSourceUrl(itemSource.url) && safeSourceUrl(itemSource.url) === safeSourceUrl(source.url))).map(source => safeSourceUrl(source.url) && <a key={`${source.reference}:${source.url}`} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">Contact source: {source.title}</a>)}
-          </article>) : <p>No verified decision-maker contact is available in retained evidence.</p>}
+          </article>}) : <p>No decision-maker or public company contact is available in retained evidence.</p>}
+          {(project?.contact ?? []).filter(action => action.route_kind === 'company_route').map(action => {
+            const href = safeContactAction(action.kind, action.href)
+            const normalizedHref = href ? normalizeContactHref(href) : ''
+            if (!href || !normalizedHref || renderedContactHrefs.has(normalizedHref)) return null
+            renderedContactHrefs.add(normalizedHref)
+            return <p className="cod-company-route" key={`${action.kind}:${href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact path'}</strong> · {action.responsibility || 'General company contact path'} · <a href={href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a>{action.support && <small>{action.support}</small>}</p>
+          })}
         </section>
         <section className="cod-evidence" aria-label="Recent evidence"><h3><FileText size={13} strokeWidth={1.6}/>Evidence ({sources.length + additionalCardEvidence.length})</h3>
           {sources.length ? sources.slice(0, 4).map(source => safeSourceUrl(source.url) && <a className="cod-evidence-row" key={`${source.id}:${source.content_hash}`} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer"><span>{source.title}</span><time title={source.event_date ? `${source.event_date_label}: ${source.event_date}` : `Published: ${source.published_at || "Unknown"}`}>{displayDate(source.event_date || source.published_at)}</time><small className="cod-source-status">{source.assessment_current === true ? "Current support" : source.assessment_current === false ? "Historical" : "Status unavailable"}</small></a>) : <p>No dated evidence is attached to this opportunity.</p>}
@@ -194,10 +217,53 @@ function safeSourceUrl(value: string | null | undefined): string | null {
   } catch { return null }
 }
 
-function isVerifiedContactMethod(method: { [key: string]: string }) {
-  if (!/^(tel:|mailto:)/i.test(method.href || '')) return false
-  const stamp = method.verified_at
-  return Boolean(stamp && !Number.isNaN(Date.parse(stamp)))
+function contactChannels(methods: { [key: string]: string }[], sources: NonNullable<NonNullable<Props['item']>['intelligence_card']>['contacts'][number]['sources']) {
+  const channels = new Map<string, { kind: 'phone' | 'email'; value: string; href: string; sourceTitle: string; sourceUrl: string; verifiedAt?: string }>()
+  for (const method of methods) {
+    const kind = /^(phone|telephone|call)$/i.test(method.kind || '') ? 'phone' : /^email$/i.test(method.kind || '') ? 'email' : null
+    const value = method.value?.trim()
+    if (!kind || !value) continue
+    const valid = kind === 'phone'
+      ? /^[+()\d][\d\s().-]{5,}$/.test(value) && (value.match(/\d/g)?.length ?? 0) >= 7
+      : /^[^\s@<>]+@[^\s@<>.]+(?:\.[^\s@<>.]+)+$/.test(value)
+    if (!valid) continue
+    const sourceUrl = safeSourceUrl(method.source_url)
+    const methodSource = (sources ?? []).find(source => source.verification_status === 'Current retained support' && safeSourceUrl(source.url) === sourceUrl)
+    const verifiedAt = method.verified_at && !Number.isNaN(Date.parse(method.verified_at)) ? method.verified_at : undefined
+    if (!verifiedAt && (!methodSource || !sourceUrl)) continue
+    const key = `${kind}:${value.toLowerCase()}`
+    if (!channels.has(key)) channels.set(key, {
+      kind, value, href: kind === 'phone' ? `tel:${value.replace(/[^+\d]/g, '')}` : `mailto:${value}`,
+      sourceTitle: methodSource?.title ?? '', sourceUrl: sourceUrl ?? '', ...(verifiedAt ? { verifiedAt } : {}),
+    })
+  }
+  return [...channels.values()]
+}
+
+function safeContactAction(kind: string, href: string | null | undefined): string | null {
+  if (!href || /[\u0000-\u001f]/.test(href)) return null
+  if (kind === 'call' && /^tel:\+?[0-9]{7,15}$/i.test(href)) return href
+  if (kind === 'email' && /^mailto:[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$/i.test(href)) return href
+  if (kind === 'contact') return safeSourceUrl(href)
+  return null
+}
+
+function normalizeContactHref(href: string): string {
+  if (href.toLowerCase().startsWith('mailto:')) return `mailto:${href.slice(7).toLowerCase()}`
+  if (href.toLowerCase().startsWith('tel:')) return `tel:${href.slice(4).replace(/[^+\d]/g, '')}`
+  try {
+    const url = new URL(href)
+    url.hash = ''
+    url.pathname = url.pathname.replace(/\/$/, '') || '/'
+    return url.href.toLowerCase()
+  } catch { return href }
+}
+
+function prioritizePrimaryChannels<T extends { kind: 'phone' | 'email' }>(channels: T[]): T[] {
+  const primaryPhone = channels.find(channel => channel.kind === 'phone')
+  const primaryEmail = channels.find(channel => channel.kind === 'email')
+  const primary = new Set([primaryPhone, primaryEmail])
+  return [...[primaryPhone, primaryEmail].filter((channel): channel is T => Boolean(channel)), ...channels.filter(channel => !primary.has(channel))]
 }
 
 function workspaceDetailProps(props: Props): Props {

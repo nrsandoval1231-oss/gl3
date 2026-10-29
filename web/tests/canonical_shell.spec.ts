@@ -9,7 +9,7 @@ const need = {
 }
 const projectResults = {
   items: [{ id: 'project-shell', project_id: 'project-shell', name: 'Northstar Energy · Mesa compressor project', company: 'Northstar Energy', location: 'Midland, TX', sector: 'oil_gas', asset_type: 'Compressor station', priority_score: null, representative_need_id: 'need-shell', need_count: 1, needs: [{ id: 'need-shell', project_id: 'project-shell', name: 'Mesa compressor project', browse_title: 'Mesa compressor project', activity: 'compressor station construction', tier: 'Signal' }], event: null, contact: [], power_summary: null, power_summary_kind: 'unknown', next_action: null, updated_at: null }],
-  total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'shell-cohort', generation: 'shell',
+  total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'shell-cohort', generation: 'shell', results_scope: 'discovery',
 }
 
 test('canonical shell searches opportunities, navigates, and remains usable at narrow widths', async ({ page }) => {
