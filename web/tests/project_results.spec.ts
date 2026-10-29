@@ -874,6 +874,21 @@ test('source health labels latest check separately from recent schedule freshnes
   await expect(source.getByText('Schedule freshness summarizes recent schedule history and can differ from the latest check when earlier outcomes differ.')).toBeVisible()
 })
 
+test('source health preserves unknown outcome values when a partial payload omits them', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/health', route => route.fulfill({ json: {
+    backlog: 0,
+    pending_interpretations: 0,
+    sources: [{ id: 'city-permits' }],
+  } }))
+  await page.route('**/api/ingestion?*', route => route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } }))
+  await page.goto('/?view=ingestion')
+
+  const source = page.locator('.wh-source-row').filter({ hasText: 'city-permits' })
+  await expect(source.locator('span')).toHaveText('Latest check: Unknown · Unknown · Schedule freshness: Unknown')
+  await expect(source.getByText('Schedule freshness summarizes recent schedule history and can differ from the latest check when earlier outcomes differ.')).toHaveCount(0)
+})
+
 test('a session failure removes the cached browse surface before a later return', async ({ page }) => {
   let groupReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
