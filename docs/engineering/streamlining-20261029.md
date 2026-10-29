@@ -11,7 +11,7 @@ Base: `eadb203be231af045480b97f196b89f1b6457846` (PR143). Scope: reversible repo
 - [x] E: Tooling/CI audit and justified cleanup.
 - [ ] F: Integrated checks and independent Astra review; report unavailable verification explicitly.
 
-Baseline tracked inventory: 1,986 files; 566 code files / 213,041 lines / 8,991,769 bytes; 695 Markdown files / 28,701 lines / 3,577,155 bytes; 725 other files. Code means `.py/.ts/.tsx/.css/.js/.mjs/.ps1/.sh`; documentation means `.md`. Counts include retained history. Subsystem counts: 183 backend source Python modules, 217 backend test Python files, 48 migration Python files, 20 React TSX files, 20 browser test TS files, 40 Python scripts, 18 deployment files, 11 configuration files and 224 web-public assets. Mounted API has 46 paths. Archive copies/relocations are not deletions or size savings.
+Baseline Git-blob inventory (avoids checkout newline conversions): 1,986 files; 566 code files / 213,042 lines / 8,991,851 bytes; 695 Markdown files / 28,701 lines / 3,577,155 bytes; 725 other files. Code means `.py/.ts/.tsx/.css/.js/.mjs/.ps1/.sh`; documentation means `.md`. Counts include retained history. Subsystem counts: 183 backend source Python modules, 217 backend test Python files, 48 migration Python files, 20 React TSX files, 20 browser test TS files, 40 Python scripts, 18 deployment files, 11 configuration files and 224 web-public assets. Mounted API has 46 paths. Archive copies/relocations are not deletions or size savings.
 
 | Paths / subsystem | Disposition | Dependency evidence and rationale | Risk |
 |---|---|---|---|
@@ -34,7 +34,7 @@ Baseline tracked inventory: 1,986 files; 566 code files / 213,041 lines / 8,991,
 
 ## Validation and measurements
 
-Pending integrated results. Production operation and real commercial coverage are outside this local cleanup. No CI speedup is claimed without measured runs.
+Local integrated gates completed as recorded below; hosted CI receipt remains separate. Production operation and real commercial coverage are outside this local cleanup. No CI speedup is claimed without measured runs.
 
 ## Exact duplicate historical records removed
 
@@ -46,3 +46,47 @@ Each deleted file was unreferenced by a repository-wide hidden-file search and b
 | `.agent/archive/STAGE2-20261009/git-WORK_GRAPH.md` | `.agent/archive/STAGE2-20261009/WORK_GRAPH.md` | `fa7d47c320911aea17da6ca23833041fe3d89f205567115e2fb4c31b9d50f42f` |
 | `.agent/archive/pre-UI79-CURRENT_STATE.md` | `.agent/archive/intelligence-20261018/CURRENT_STATE.md` | `6331ce22d6a0c3b1a66680b710d77fbd4ed4f8b1c54e47a53fc0abf2b5296951` |
 | `.agent/history/pre-m5-replay-pass-20261024T024500Z-CURRENT_STATE.md` | `.agent/history/pre-m5-runtime-20261024T021700Z-CURRENT_STATE.md` | `23b41efaad1e986b3ad56deb53dc3f85fb01274626097567bc420dab2baeebde` |
+
+## Architecture conclusions
+
+Sol 6.1/high architecture review and three actual Luna 6/low builder sessions used the available collaboration harness; Astra 6/high independently reviewed the integrated changes. No standalone repository agent launcher was found; no provider keys were used. Actual session starts verified those models were callable. This does not assert a model identity for the root runtime.
+
+Backend source has 183 modules: API 5, domain 30, ingestion 56, intelligence 69, integrations 4, jobs 9, persistence 7, root 3. Persistence registers 73 tables across four model files, with 48 linear migrations ending `0048_browse_recovery_stages`. The source registry has 39 definitions, 29 enabled and 30 declared retrieval methods. Every enabled definition has dispatch; three disabled retained-document definitions intentionally lack generic dispatch and must not be auto-enabled. Preserve disabled out-of-region adapters.
+
+`api/app.py` remains oversized: 6,140 lines, 54 schema classes, 76 top-level functions and 40 route decorators. Mounted API exposes 46 schema paths (plus excluded private OpenAPI route). `saved_browse.py` lazily imports API projection/search/date/rank helpers; commercial evaluation, autonomous research, opportunity intelligence, alerts and security also import the API module. A future focused extraction should move a coherent shared projection/evaluation responsibility with explicit session/date dependencies, preserving monkeypatch and worker behavior. Simply relocating route decorators would hide this dependency rather than remove it.
+
+## Verification receipts
+
+All checks use local disposable PostgreSQL 18.6 databases `gridlens_cleanup` and isolated `_test` workers, synthetic browser fixtures where declared, blank paid-provider keys and no production operations.
+
+| Check | Actual result |
+|---|---|
+| `uv sync --locked --extra dev` | PASS |
+| `uv run ruff check src tests` / `ruff format --check src tests` | PASS |
+| `uv run mypy src` | PASS |
+| `uv run alembic upgrade head` / `alembic check` | PASS on fresh isolated database; migrations unchanged |
+| API and worker import | PASS; browser gate also starts real API |
+| `npm run typecheck` / `npm run build` | PASS |
+| `npm run test:ci -- --workers=2` | 147 passed, 144.61 s invocation wall time; includes real auth and desktop/mobile regression cases |
+| Locked backend pip-audit / brand pip-audit / npm audit | PASS, no known vulnerabilities reported |
+| `tools/brand/validate.py` in isolated locked-requirement environment | PASS: 216 assets, hashes/fonts/tokens and eight semantic AA pairs |
+| Maintained docs links / `git diff --check` | PASS |
+| Independent Astra review | No unresolved critical or functional findings; archive bytes and dynamic CSS classes checked |
+| `uv run pytest tests -n 4 -q` | 3,296 passed, one skipped, seven passing subtests; 451.52 s pytest / 452.68 s invocation wall time |
+| Hosted CI | Latest PR checks pending; drafts until required gates finish |
+
+Original and cleaned production bundles were built with the same installed lockfile dependencies: CSS **87,451 → 73,494 bytes** (gzip with Python gzip/mtime=0: 14,503 → 12,444); JS **367,226 → 366,981 bytes** (105,648 → 105,597 gzip). These are artifact measurements, not page-load or CI latency claims. Nine core active instruction/canon/map files shrink **3,917 → 1,722 words**, **33,784 → 16,265 bytes**. Original wording remains archived. Four exact duplicate documents remove 9,046 bytes; historical workflow/script relocation saves zero repository bytes. Dependency reduction is zero. No obsolete commercial-intelligence subsystem was removed.
+
+## Remaining limits and PRs
+
+- [PR145](https://github.com/nrsandoval1231-oss/gl3/pull/145): active governance, archived candidate permissions and exact historical deduplication; incorporates PR144's upstream reconciliation. [PR146](https://github.com/nrsandoval1231-oss/gl3/pull/146): unused frontend wrappers/styles, archived diagnostic and duplicate local migration command. Separate reviewable changes; no merge/deploy performed.
+- Runtime OpenAPI has one existing route absent from committed generated JSON: `/api/opportunities/groups/{group_id}/open`. All common paths/schemas match. Backend/generated contracts are unchanged by cleanup; regeneration is a separate follow-up rather than a silent unrelated change.
+- Full native PowerShell wrapper execution is unavailable (`pwsh` absent); its individual gates are exercised directly. The duplicate migration deletion itself is independently reviewed.
+- Worker module imports and dispatch/tests are checked; no live ingestion/provider or continuous scheduled-worker run was performed. Production revision/schema, authenticated production flows, retained real-data corpus, independent exact visual screenshot comparison, fresh real-source commercial coverage and restore/rollback remain unverified by this task.
+- No CI acceleration is claimed: retained PR137–143 improvements are inspected in Git, not newly benchmarked against old runs. One duplicate local command is eliminated. Full required gates and every test remain.
+
+## Before and after (combined PR scope)
+
+Git baseline `eadb203` → union of PR145 and PR146, including upstream PR144 documentation reconciliation: **1,986 → 1,997 files**. Four duplicate documents are deleted; two diagnostic files are relocated, not deleted. New archive/index files make the net file count rise by eleven. This task prioritizes less active context and runtime dead code over a misleading file-count target.
+
+Retained code files: **566 → 566**; code lines **213,042 → 212,933** (**109 fewer**); code bytes **8,991,851 → 8,975,702** (**16,149 fewer**), counting the archived Python helper in both totals. Documentation totals grow because previous instructions remain preserved; exact final Markdown totals are recorded after the final report edit. No repository-size savings are attributed to archive moves/copies, and no test or intelligence service is deleted.
