@@ -1,9 +1,5 @@
-# Agent authority and record index
+# Agent entry point
 
-Read [repository AGENTS.md](../AGENTS.md) and the owner-approved [Autonomous Intelligence Canon](../docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) first. They supersede conflicting earlier product, UI, workflow and agent directions.
+Start at [AGENTS.md](../AGENTS.md), then [current checkpoint](CURRENT_STATE.md) and [finish contract](FINISH_CONTRACT.md). [Owner request](OWNER_REQUEST.md) summarizes this task; [work ownership](WORK_GRAPH.md) points to its manifest. These are the maintained entry points.
 
-The active control files are [OWNER_REQUEST](OWNER_REQUEST.md), [CURRENT_STATE](CURRENT_STATE.md), [FINISH_CONTRACT](FINISH_CONTRACT.md), [AGENT_RULES](AGENT_RULES.md) and [WORK_GRAPH](WORK_GRAPH.md). The [production intelligence directive](PRODUCTION_INTELLIGENCE_DIRECTIVE.md) is supporting context only where compatible. Current implementation dependencies and dispositions are in the [migration inventory](../docs/architecture/autonomous-migration-inventory.md).
-
-Other top-level `AUDIT_*`, `AUDIT-*`, `OPENING_TRIBUNAL*`, `TRIBUNAL`, `COMPLETION` and `METRICS` records, plus `graphs/`, `episodes/`, `contact-p0/`, `completion-*`, `hardening-*`, `readiness-*`, `history/` and `archive/`, are dated/candidate-scoped evidence. Their former builder assignments, owner approvals, paid budgets, deployment directions and manual-workflow requirements are historical. They must not silently govern a new candidate. A later actual validation receipt may establish measured results for its identified candidate, but cannot override the owner canon or imply production operation.
-
-The [October 26 governance archive](archive/AUTONOMOUS-20261026/README.md) preserves exact original pre-amendment bytes. Existing historical evidence is retained. Do not delete old source, benchmark, review or failed-run records to make a new result appear complete.
+All other dated plans, AUDIT/TRIBUNAL/COMPLETION/METRICS records, packets, episodes, prior build directives and archive directories are historical candidate evidence. Their assignments, provider budgets, release permissions and manual-workflow directions do not govern current work. Preserve failed runs, source evidence and review receipts. The [2026-10-29 archive](archive/STREAMLINING-20261029/README.md) retains previous active instructions verbatim; the [documentation map](../docs/README.md) indexes current guides and prior archives.
