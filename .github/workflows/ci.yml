@@ -44,6 +44,11 @@ jobs:
             fi
             base="${GITHUB_EVENT_BEFORE:-}"
             if [ -z "${base}" ] || [ "${base}" = "0000000000000000000000000000000000000000" ]; then
+              # GITHUB_EVENT_BEFORE is unset on some push events (observed in
+              # this repo): fall back to the pushed head's first parent.
+              base="$(git rev-parse --verify -q HEAD^ || true)"
+            fi
+            if [ -z "${base}" ]; then
               # Branch creation or unavailable base: run everything.
               full
               exit 0
