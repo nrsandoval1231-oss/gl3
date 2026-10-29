@@ -4,7 +4,7 @@ GridLens autonomously discovers, researches and ranks commercial power opportuni
 
 ## Current status
 
-The status page is [delivery milestones](docs/delivery/milestones.md). [.agent/CURRENT_STATE.md](.agent/CURRENT_STATE.md) is a short checkpoint that points there. Stage reports under [validation](docs/validation/) are dated evidence. They do not establish deployment or commercial acceptance.
+The [current repository checkpoint](.agent/CURRENT_STATE.md) records the inspected main head, engineering changes and unresolved live/commercial proof. The [delivery gates](docs/delivery/milestones.md) define acceptance boundaries. Dated [validation](docs/validation/) records apply only to their specific candidate and environment; none should be mistaken for a fresh production observation.
 
 ## Work areas
 
@@ -39,7 +39,7 @@ foreach ($line in Get-Content .env) {
 pwsh scripts/check.ps1
 ```
 
-A successful local check does not prove production operation. Production remains on hold; the observed layout, exact command gaps, and open release gates are documented in [operations status](docs/operations/README.md) and [delivery status](docs/delivery/milestones.md).
+A successful local check does not prove production operation. Do not infer the current production deployment or its authorization from local checks. Historical production observations, operational safeguards and open verification gates are documented in [operations status](docs/operations/README.md) and [delivery status](docs/delivery/milestones.md).
 
 ## Documentation authorities and history
 
