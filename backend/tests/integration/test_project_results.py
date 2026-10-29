@@ -231,10 +231,7 @@ def test_project_results_route_requires_session(saved_db, monkeypatch):
         assert discovery_page["results_scope"] == "discovery"
         assert discovery_page["total"] > 0
         assert discovery_page["items"]
-        assert any(
-            need["tier"] == "Signal"
-            for need in discovery_page["items"][0]["needs"]
-        )
+        assert any(need["tier"] == "Signal" for need in discovery_page["items"][0]["needs"])
         mismatched_cohort = client.get(
             "/api/opportunities/projects",
             params={
