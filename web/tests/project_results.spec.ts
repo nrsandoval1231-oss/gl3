@@ -431,7 +431,7 @@ test('pending first child read waits before atomic open of the same group', asyn
 })
 
 test('409 opens atomically and a pending open retries to the fresh same-group page', async ({ page }) => {
-  await page.clock.install()
+  await page.clock.install({ time: new Date('2030-01-01T00:00:00Z') })
   const childRequests: URL[] = []
   const openRequests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
@@ -458,6 +458,10 @@ test('409 opens atomically and a pending open retries to the fresh same-group pa
     } })
   })
   await page.goto('/?view=workspace&q=Permian')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  // Freeze the clock before the pending open creates its Retry-After timer so
+  // test setup and route handling cannot consume part of the 5-second window.
+  await page.clock.pauseAt(new Date('2030-01-01T00:01:00Z'))
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect.poll(() => childRequests.length).toBe(1)
   await expect.poll(() => openRequests.length).toBe(1)
