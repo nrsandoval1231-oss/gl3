@@ -27,3 +27,15 @@ The production bundle showed the shell in 111 ms under a synthetic 1000 ms API d
 No Follow/completion endpoints exist in the retained API; the UI does not fake those states. High Priority/New This Week and historical growth remain neutral without supported metadata. Page-local region/stage/rank filtering is visibly identified; search/project type are server-wide. Mobile has controlled table scrolling and a dedicated selected-detail view. Production was inspected only at unauthenticated sign-in; real retained/production populated-data acceptance remains unverified.
 
 Next: freeze source, finish final checks, obtain exact-candidate Astra review, record visual/verification receipts, and create a review PR. No merge or deployment is authorized.
+
+## Final source validation
+
+Frozen source `d41d4e179edf80147b78486398aa7582fab92bce` passes 168 serialized browser regressions and a clean full backend run: 3309 passed, 1 skipped, 7 subtests passed (403.56 s). Build/types, audits, Ruff/format/mypy, migrations, 216 protected brand assets, maintained docs and diff checks pass. The earlier four missing-table errors were corrected by migrating the isolated application database, not by editing application behavior.
+
+The [delivery receipt](../../docs/validation/canonical-reference-ui-20261029.md) and [visual QA](../../design-qa.md) contain synthetic screenshot comparisons, complete limitations and exact commands. Independent final Astra review is requested against this source hash. Remaining: record that verdict, commit only delivery documentation/evidence, push and open a review PR. Production remains unchanged; Follow/completion APIs and authenticated production-data acceptance remain unavailable.
+
+## Handoff
+
+Independent Astra approved exact source `d41d4e179edf80147b78486398aa7582fab92bce`: no unresolved P0/P1/P2 findings, 10 independent focused browser cases plus fresh build/diff checks passed. Full verifier evidence remains 168 browser cases and 3309 backend tests passed, as separately recorded. Only delivery documentation and synthetic screenshots follow that source commit; application code is frozen.
+
+The focused branch is ready for draft-PR review. Next owner action is to review the documented absent API capabilities and real-data/live acceptance limits before authorizing any merge or deployment. No deployment, paid-provider execution, production mutation, credential rotation or outreach occurred.
