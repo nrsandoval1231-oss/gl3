@@ -35,7 +35,7 @@ test('raw source content loads only on request and uses bounded chunks', async (
     return route.fulfill({ status: 404, json: { detail: 'Not found' } })
   })
 
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('heading', { name: /Pecos County Data Center/ })).toBeVisible()
   await page.getByRole('button', { name: /Pecos County Data Center/ }).click()
   await page.getByRole('button', { name: 'View project details' }).click()

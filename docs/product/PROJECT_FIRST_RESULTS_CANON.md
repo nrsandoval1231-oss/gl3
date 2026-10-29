@@ -1,4 +1,6 @@
 # GridLens — Operator/Customer Results Canon
+
+**Presentation amendment — October 29, 2026:** The latest owner-approved [visual reference](../design/references/canonical-opportunities-20261029.jpg) makes a project table with adjacent detail the default Opportunities presentation. Operator/customer aggregation remains available through secondary grouped/account browsing. This changes presentation only: company/project/need identities, territory, qualification, contact verification and evidence rules below remain authoritative.
 Status: OWNER-APPROVED product and UI direction · 2026-10-27 · operator/customer hierarchy amendment
 Authority: Complements and amends [AUTONOMOUS_INTELLIGENCE_CANON.md](AUTONOMOUS_INTELLIGENCE_CANON.md) on the presentation of opportunities. Supersedes earlier project-primary, account-table-first, KPI-dashboard-first and technical-workflow-first UI prescriptions in current design/product documents. Historical evidence, commercial integrity and backend rules remain authoritative.
 

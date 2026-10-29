@@ -167,7 +167,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     return () => cancelAnimationFrame(frame)
   }, [page, pageKey, search, sector, offset])
   const updateUrl = (nextSearch: string, nextSector: string, nextOffset = 0, cohort?: string) => {
-    const next = new URLSearchParams({ view: 'workspace' }); if (nextSearch) next.set('q', nextSearch); if (nextSector !== 'all') next.set('sector', nextSector); if (nextOffset) next.set('offset', String(nextOffset)); if (cohort) next.set('cohort_token', cohort)
+    const next = new URLSearchParams({ view: 'workspace' }); if (new URLSearchParams(location.search).get('groupBrowse') === '1') next.set('groupBrowse', '1'); if (nextSearch) next.set('q', nextSearch); if (nextSector !== 'all') next.set('sector', nextSector); if (nextOffset) next.set('offset', String(nextOffset)); if (cohort) next.set('cohort_token', cohort)
     history.replaceState(history.state, '', `/?${next}`)
   }
   const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers') => { parentReloadNotice.current = false; resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); setNotice(''); setSearchDraft(q); setSearch(q); setSector(s); setOffset(0); updateUrl(q, s) }
