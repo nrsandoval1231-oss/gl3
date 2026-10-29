@@ -98,6 +98,7 @@ export function WorkspaceHome() {
   }
   const historyFocusSequence = useRef(0)
   const pendingHistoryFocus = useRef<{ id: string; sequence: number; focused: boolean; origin: Element | null } | null>(null)
+  const moreMenu = useRef<HTMLDetailsElement>(null)
   const signalParams = useRef<URLSearchParams | null>(currentView() === 'signals' ? getParams() : null)
   const lastSelected = useRef<string | null>(null)
   const pageRef = useRef<{ page: WorkspacePage; request: string; revision: number } | null>(null)
@@ -255,17 +256,23 @@ export function WorkspaceHome() {
     if (!item) requestAnimationFrame(() => { const list = document.querySelector('.wh-list'); if (list && window.matchMedia('(min-width: 1051px)').matches) list.scrollTop = savedScroll.current.list; else window.scrollTo(0, savedScroll.current.window); const focus = document.querySelector<HTMLElement>(`[data-need-row="${selected?.id ?? ''}"]`); focus?.focus() })
   }
   const navigate = (nextView: 'opportunities' | 'pursuits' | 'ingestion' | 'signals') => {
+    moreMenu.current?.removeAttribute('open')
     if (nextView === 'ingestion' && view === 'ingestion') return
     if (nextView === 'opportunities' && view === 'opportunities') return
     if (nextView === 'signals' && view === 'signals') { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError(''); dispatchEvent(new Event('gridlens:signals-reset')); return }
     if (nextView !== view) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError('') }
     setView(nextView)
     if (view === 'signals') signalParams.current = getParams()
+    const currentBrowse = getParams()
+    const savedBrowse: Record<string, string> = view === 'opportunities'
+      ? Object.fromEntries(['q', 'sector', 'offset', 'cohort_token'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
+      : (history.state?.workspaceBrowse as Record<string, string> | undefined) ?? {}
     const params = nextView === 'opportunities' ? workspaceParams(filters)
       : nextView === 'signals' ? new URLSearchParams(signalParams.current ?? { view: 'signals', tier: 'Signals' })
       : new URLSearchParams({ view: nextView })
+    if (nextView === 'opportunities') for (const [key, value] of Object.entries(savedBrowse)) params.set(key, value)
     if (nextView === 'signals') { params.set('view', 'signals'); params.delete('need'); params.delete('section') }
-    history.pushState(null, '', `/?${params}`)
+    history.pushState({ ...history.state, workspaceBrowse: savedBrowse }, '', `/?${params}`)
   }
   const openActiveNeed = (need: { id: string }, accountContext?: AccountContext) => {
     lastSelected.current = need.id
@@ -281,7 +288,7 @@ export function WorkspaceHome() {
   }
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); updateSelectedNeedContext(null); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
-  const header = <header className="wh-header"><a href="/?view=workspace" aria-label="GridLens home"><img src="/brand/logos/primary-horizontal-dark.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><button aria-current={view === 'opportunities' ? 'page' : undefined} className={view === 'opportunities' ? 'active' : ''} onClick={() => navigate('opportunities')}>Opportunities</button></nav><details className="wh-account"><summary><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg><span>More</span></summary><div><span>Private workspace</span><button aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => navigate('pursuits')}>Research</button><button aria-current={view === 'signals' ? 'page' : undefined} onClick={() => navigate('signals')}>Signals</button><button type="button" onClick={() => navigate('ingestion')}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details></header>
+  const header = <header className="wh-header"><a href="/?view=workspace" aria-label="GridLens home"><img src="/brand/logos/primary-horizontal-dark.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><button aria-current={view === 'opportunities' ? 'page' : undefined} className={view === 'opportunities' ? 'active' : ''} onClick={() => navigate('opportunities')}>Opportunities</button></nav><details ref={moreMenu} className="wh-account"><summary><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg><span>More</span></summary><div><span>Private workspace</span><button aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => navigate('pursuits')}>Research</button><button aria-current={view === 'signals' ? 'page' : undefined} onClick={() => navigate('signals')}>Signals</button><button type="button" onClick={() => navigate('ingestion')}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details></header>
   const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{view === 'pursuits' && <ResearchView/>}</main>
   if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>

@@ -81,10 +81,28 @@ POLICY_VERSION = (
     f"browse-b1-v1/{RANKING_VERSION}/{REGIONAL_POLICY_VERSION}/{_policy_fingerprint()[:24]}"
 )
 BUILD_LOCK = 643119021
+# The retained full build has measured around eight minutes on production data;
+# begin the next clock-interval build with a conservative fifteen-minute lead.
+PREPARE_LEAD_SECONDS = 15 * 60
 
 
 def canonical_json(value: Any) -> str:
     return json.dumps(value, default=str, sort_keys=True, separators=(",", ":"))
+
+
+def _recovery_canonical_json(value: Any) -> str:
+    """Normalize aware timestamps across PostgreSQL session time zones for receipts."""
+
+    def normalize(item: Any) -> Any:
+        if isinstance(item, datetime):
+            return item.astimezone(UTC).isoformat() if item.tzinfo is not None else item.isoformat()
+        if isinstance(item, dict):
+            return {key: normalize(nested) for key, nested in item.items()}
+        if isinstance(item, list | tuple):
+            return [normalize(nested) for nested in item]
+        return item
+
+    return canonical_json(normalize(value))
 
 
 def _is_uuid(value: str) -> bool:
@@ -792,7 +810,7 @@ def _prune_generations(session):
     )
 
 
-def prepare_next(factory, *, lead_seconds=120, before_publish=None) -> dict:
+def prepare_next(factory, *, lead_seconds=PREPARE_LEAD_SECONDS, before_publish=None) -> dict:
     """Prepare exactly the next canonical clock interval, never expose it early."""
     try:
         with factory() as session:
@@ -843,7 +861,7 @@ def _recovery_integrity_digest(session, generation: BrowseGeneration) -> tuple[s
     """Hash all generation-bound output tables and group metadata deterministically."""
     digest = hashlib.sha256()
     digest.update(
-        canonical_json(
+        _recovery_canonical_json(
             {
                 "generation_id": generation.id,
                 "input_revision": generation.input_revision,
@@ -872,7 +890,7 @@ def _recovery_integrity_digest(session, generation: BrowseGeneration) -> tuple[s
             values = {
                 column.name: getattr(record, column.name) for column in model.__table__.columns
             }
-            digest.update(canonical_json(values).encode())
+            digest.update(_recovery_canonical_json(values).encode())
             digest.update(b"\n")
             count += 1
         digest.update(f"rows={count}".encode())
@@ -1381,6 +1399,11 @@ def page(
                 "HOLD": counts["hold"],
             },
             "qualification_state": "current",
+            "generation_id": str(generation.id),
+            "built_at": generation.built_at.isoformat(),
+            "as_of": generation.built_at.isoformat(),
+            "valid_until": generation.valid_until.isoformat(),
+            "refresh_state": "current",
         }
     sql, params = _filtered_cte(filters)
     params.update(generation=generation.id, limit=limit, offset=offset)
@@ -1453,7 +1476,9 @@ def page(
         "qualification_state": "current",
         "generation_id": str(generation.id),
         "built_at": generation.built_at.isoformat(),
+        "as_of": generation.built_at.isoformat(),
         "valid_until": generation.valid_until.isoformat(),
+        "refresh_state": "current",
     }
 
 

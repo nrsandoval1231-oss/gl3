@@ -491,7 +491,7 @@ def test_same_name_accounts_conflicts_shared_document_and_generation_refresh(sce
         assert any(item["project_id"] == conflict_project.id for item in unresolved["items"])
 
     # Retraction invalidates the generation before any account reader can serve
-    # stale associations; the next full publication has a stable remaining ID.
+    # stale associations; scoped publication keeps the stable remaining ID.
     with scenario_db.begin() as session:
         second_membership = session.scalar(
             select(CompanyProjectMembership).where(
@@ -510,11 +510,12 @@ def test_same_name_accounts_conflicts_shared_document_and_generation_refresh(sce
         current_generation(session)
     assert stale_generation.value.status_code == 503
     with scenario_db.begin() as session:
-        # Customer membership/evidence affects the company-wide summary, so a
-        # scoped incremental clone must defer to the full generation builder.
-        assert refresh_project_changes(session, max_projects=None, max_needs=None) is None
-    refreshed = rebuild(scenario_db)
+        # Membership changes refresh the affected project and the company-wide
+        # summary atomically without rebuilding unrelated projects.
+        refreshed = refresh_project_changes(session, max_projects=None, max_needs=None)
     assert refreshed["status"] == "published"
+    assert refreshed["mode"] == "projects"
+    assert refreshed["projects"] == 1
     with scenario_db() as session:
         current = account_queue(session, search=None, limit=25, offset=0)
         remaining = [item for item in current["items"] if item["name"] == "Twin Energy LLC"]
@@ -528,6 +529,10 @@ def test_same_name_accounts_conflicts_shared_document_and_generation_refresh(sce
             )
             == correction_id
         )
+        incremental_items = current["items"]
+    assert rebuild(scenario_db)["status"] == "published"
+    with scenario_db() as session:
+        assert account_queue(session, search=None, limit=25, offset=0)["items"] == incremental_items
     assert first_build["generation_id"] != refreshed["generation_id"]
 
     # An operator change after human retraction is visible for review, while an
@@ -555,9 +560,10 @@ def test_same_name_accounts_conflicts_shared_document_and_generation_refresh(sce
         current_generation(session)
     assert stale_generation.value.status_code == 503
     with scenario_db.begin() as session:
-        assert refresh_project_changes(session, max_projects=None, max_needs=None) is None
-    replay_build = rebuild(scenario_db)
+        replay_build = refresh_project_changes(session, max_projects=None, max_needs=None)
     assert replay_build["status"] == "published"
+    assert replay_build["mode"] == "projects"
+    assert replay_build["projects"] == 1
     with scenario_db() as session:
         unresolved = unresolved_projects(session, search="same-name-b", limit=25, offset=0)
         assert any(item["project_id"] == second_project.id for item in unresolved["items"]), (
@@ -570,6 +576,13 @@ def test_same_name_accounts_conflicts_shared_document_and_generation_refresh(sce
                 .where(CompanyProjectMembershipCorrection.id == correction_id)
             )
             == 1
+        )
+        incremental_unresolved = unresolved["items"]
+    assert rebuild(scenario_db)["status"] == "published"
+    with scenario_db() as session:
+        assert (
+            unresolved_projects(session, search="same-name-b", limit=25, offset=0)["items"]
+            == incremental_unresolved
         )
 
 

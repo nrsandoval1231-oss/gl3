@@ -1,6 +1,9 @@
 // Clear legacy tab-local state on logout and expired sessions.
+import { clearProjectBrowseCache } from './projectBrowseCache'
+
 const PREFIX = 'gl3-continuity:'
 export function clearContinuity() {
+  clearProjectBrowseCache()
   try {
     for (const key of Object.keys(sessionStorage)) if (key.startsWith(PREFIX)) sessionStorage.removeItem(key)
   } catch { /* Storage may be disabled. */ }

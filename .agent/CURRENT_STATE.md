@@ -1,9 +1,42 @@
-# Current checkpoint — 2026-10-29
+# Current checkpoint — browse availability, 2026-10-29
 
-Task: repository streamlining on base `eadb203be231af045480b97f196b89f1b6457846` (CI PR143). PR137–143 parallel testing, isolated databases, browser job, path selection and full gates are present in Git history and retained.
+Objective: restore reliable, fast operator/customer browsing during background work,
+with qualification, security, provenance and canonical design preserved.
 
-Current scope and results: [cleanup manifest](../docs/engineering/streamlining-20261029.md). Product authority starts at [AGENTS.md](../AGENTS.md). Prior operator/customer recovery state is [archived verbatim](archive/STREAMLINING-20261029/.agent__CURRENT_STATE.md); it is not current production status.
+Branch: `fix/browse-availability-20261029`; base
+`37cc949b4c230851c88f4181966b888a26e1f037`; dedicated worktree
+`.worktrees/browse-availability-20261029`. Existing dirty `gl3` is outside scope.
 
-Production revision, schema, freshness, scheduled operation and restore readiness were not observed in this task. Local checks do not establish commercial launch acceptance or deployment. Production data/configuration and credentials remain outside this cleanup's scope.
+Authority: [AGENTS](../AGENTS.md), [autonomous canon](../docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md),
+[results canon](../docs/product/PROJECT_FIRST_RESULTS_CANON.md), [finish contract](FINISH_CONTRACT.md).
+[READY graph](WORK_GRAPH.md), [bounded packet](packets/BROWSE-AVAILABILITY-20261029.md)
+and [evidence report](../docs/validation/browse-availability-repair-20261029.md) record scope and acceptance.
 
-Main advanced during this audit to `11fe4be3793ad709983c9aaef32c7b530f0c97c2` (PR144, documentation only). Its [checkpoint](archive/STREAMLINING-20261029/main144__.agent__CURRENT_STATE.md) and [delivery record](archive/STREAMLINING-20261029/main144__docs__delivery__milestones.md) are retained verbatim. Standing commercial/operational proof remains open in [delivery gates](../docs/delivery/milestones.md).
+Four Luna/low lanes delivered availability, SQL performance, frontend behavior and
+source diagnosis. Root Astra independently reviewed the actual integrated slices;
+no material code finding remains, conditional on final gates and live acceptance.
+
+Implemented: scoped identity/entity/company-membership invalidation with conservative
+fallback; 15-minute rollover preparation; UTC recovery integrity; one-pass group
+counts; All query reuse; transaction-local search JIT control; safe bounded browse
+cache and navigation; debounced/canceled searches; accurate loading/terminal states;
+menu fixes and separate latest-check/schedule-health labels.
+
+Static, migration/drift, dependency and canonical brand gates pass. Focused checks:
+34 availability/recovery/rollover, 7 membership follow-up, 3 SQL, 13 Austin; corrected
+app-schema auth/origin rerun 8/8. Full browser passed 156/156 before a diagnostics
+copy-only clarification, which passed its focused check; exact final browser rerun
+is completing. Two prior backend full runs failed from controller test-environment
+setup and one manually canceled slow native query; failed receipts are retained.
+Final backend full run follows the frozen membership change and migrated app schema.
+Only owned loopback PostgreSQL 18.6 databases on port55441 are used for local tests.
+
+Production still observed at37cc949b/schema0048; no implementation-lane production
+write, paid provider activation, ingestion replay or retained-data deletion occurred.
+Baseline HTTPS16 samples: median1206.8ms/p95=1648.2ms. Read-only candidate timings
+improve All/DC; Oil & Gas603–696ms remains above the500ms warm target.
+
+Next: candidate commit/draft PR and final gates, root release/rebuild, then authenticated
+live desktop/mobile journeys, exact-image percentiles and actual update-window
+availability. Production deployment and live acceptance remain pending. RRC MFT
+endpoint timeouts and exact well-research failure stage remain external/unknown.

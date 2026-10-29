@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import HTTPException
 
 from gridlens.intelligence.saved_browse import (
+    PREPARE_LEAD_SECONDS,
     current_generation,
     inspect_recovery_stage,
     maintain_once,
@@ -74,7 +75,7 @@ def main():
             return 0 if result["status"] == "current" else 1
         if (
             result["status"] == "pending"
-            or (generation.valid_until - datetime.now(UTC)).total_seconds() <= 120
+            or (generation.valid_until - datetime.now(UTC)).total_seconds() <= PREPARE_LEAD_SECONDS
         ):
             try:
                 maintenance = maintain_once(SessionLocal)

@@ -32,7 +32,7 @@ test('synthetic unresolved group role is explicit and never implies a resolved o
 test('synthetic project results use the project contract, category filters, and honest contact/event labels', async ({ page }) => {
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
+  await page.route('**/api/opportunities/groups?*', async route => {
     requests.push(new URL(route.request().url()))
     return route.fulfill({ json: groupPage })
   })
@@ -107,7 +107,7 @@ test('synthetic stale cohort conflict drops page token and reloads first page wi
   await page.goto('/')
   await expect(page.locator('.project-results-count')).toHaveText('50 operator/customer groups')
   await page.getByRole('button', { name: 'Next' }).click()
-  await expect(page.locator('.project-results-notice')).toContainText('Results changed')
+  await expect(page.locator('.project-results-count')).toContainText('Results changed')
   await expect.poll(() => requests.some(url => url.searchParams.get('offset') === '0' && !url.searchParams.has('cohort_token'))).toBeTruthy()
   await expect(page.locator('.project-card')).toHaveCount(0)
   expect(new URL(page.url()).searchParams.has('cohort_token')).toBe(false)
@@ -371,7 +371,7 @@ test('pending parent groups wait for Retry-After then reopen the same filtered c
     return route.fulfill({ json: { ...groupPage, items: [{ ...group, name: 'Fresh parent group' }] } })
   })
   await page.goto('/?view=workspace&q=Permian&sector=oil_gas')
-  await expect(page.getByText('Loading operator/customer groups…').first()).toBeVisible()
+  await expect(page.getByRole('status')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect.poll(() => requests.length).toBe(2)
   await page.clock.fastForward(4999)
@@ -431,7 +431,7 @@ test('pending first child read waits before atomic open of the same group', asyn
 })
 
 test('409 opens atomically and a pending open retries to the fresh same-group page', async ({ page }) => {
-  await page.clock.install()
+  await page.clock.install({ time: new Date('2030-01-01T00:00:00Z') })
   const childRequests: URL[] = []
   const openRequests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
@@ -458,6 +458,10 @@ test('409 opens atomically and a pending open retries to the fresh same-group pa
     } })
   })
   await page.goto('/?view=workspace&q=Permian')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  // Freeze the clock before the pending open creates its Retry-After timer so
+  // test setup and route handling cannot consume part of the 5-second window.
+  await page.clock.pauseAt(new Date('2030-01-01T00:01:00Z'))
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect.poll(() => childRequests.length).toBe(1)
   await expect.poll(() => openRequests.length).toBe(1)
@@ -494,7 +498,7 @@ test('parent pending retries stop after four active reads and manual retry start
     return route.fulfill({ json: groupPage })
   })
   await page.goto('/')
-  await expect(page.getByText('Loading operator/customer groups…').first()).toBeVisible()
+  await expect(page.getByRole('status')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
   for (let activeRead = 3; activeRead <= 4; activeRead += 1) {
@@ -738,4 +742,256 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
   await expect(page.getByRole('main', { name: 'Automated research' })).toBeVisible()
   await page.clock.fastForward(5000)
   expect(openReads).toBe(1)
+})
+
+test('rapid project searches debounce and an older response cannot replace the newest results', async ({ page }) => {
+  let releaseOld: (() => void) | undefined
+  let oldRequested: (() => void) | undefined
+  const oldStarted = new Promise<void>(resolve => { oldRequested = resolve })
+  const searches: string[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', async route => {
+    const url = new URL(route.request().url()), query = url.searchParams.get('search') ?? ''
+    searches.push(query)
+    if (query === 'seed') return route.fulfill({ json: groupPage })
+    if (query === 'Dia') {
+      oldRequested?.()
+      await new Promise<void>(resolve => { releaseOld = resolve })
+      try { await route.fulfill({ json: { ...groupPage, items: [{ ...group, id: 'old-search-group', name: 'Old search result' }] } }) } catch { /* Search superseded this response. */ }
+      return
+    }
+    return route.fulfill({ json: { ...groupPage, items: [{ ...group, id: 'diamondback-group', name: 'Diamondback Operator' }] } })
+  })
+  await page.goto('/?q=seed')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  const diaRequest = page.waitForRequest(request => new URL(request.url()).searchParams.get('search') === 'Dia')
+  const input = page.getByRole('textbox', { name: 'Search opportunities' })
+  await input.fill('D')
+  await input.fill('Di')
+  await input.fill('Dia')
+  await diaRequest
+  await oldStarted
+  const latestRequest = page.waitForRequest(request => new URL(request.url()).searchParams.get('search') === 'Diamondback')
+  await input.fill('Diamondback')
+  await latestRequest
+  await expect(page.getByRole('button', { name: /Diamondback Operator/ })).toBeVisible()
+  releaseOld?.()
+  await expect(page.getByRole('button', { name: /Diamondback Operator/ })).toBeVisible()
+  await expect(page.getByText('Old search result')).toHaveCount(0)
+  expect(searches.filter(value => ['D', 'Di'].includes(value))).toEqual([])
+})
+
+test('refresh keeps the rendered cohort labeled as updating and clears it when the filter changes', async ({ page }) => {
+  let refresh = false
+  let releaseDataCenters: (() => void) | undefined
+  let dataCentersRequested: (() => void) | undefined
+  const dataCentersStarted = new Promise<void>(resolve => { dataCentersRequested = resolve })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', async route => {
+    const url = new URL(route.request().url())
+    if (refresh && url.searchParams.get('sector') !== 'data_centers') return route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'Retry-After': '60' }, json: { detail: 'qualification pending' } })
+    if (url.searchParams.get('sector') === 'data_centers') {
+      dataCentersRequested?.()
+      await new Promise<void>(resolve => { releaseDataCenters = resolve })
+      return route.fulfill({ json: { ...groupPage, items: [{ ...group, id: 'dc-group', name: 'Data Center Owner' }], total: 1 } })
+    }
+    return route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T15:00:00Z', generation_id: 'synthetic-current-generation', qualification_state: 'current', refresh_state: 'current' } })
+  })
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  refresh = true
+  await page.getByRole('button', { name: 'Refresh project results' }).click()
+  await expect(page.getByRole('status')).toContainText('Updating results')
+  await expect(page.getByRole('status')).toContainText('qualification may have changed')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Data Centers' }).click()
+  await dataCentersStarted
+  await expect(page.getByRole('status')).toContainText('Showing prior operator/customer summaries')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeDisabled()
+  releaseDataCenters?.()
+  await expect(page.getByRole('button', { name: /Data Center Owner/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
+})
+
+test('expanded project pages survive More-menu navigation and return to the same browse context', async ({ page }) => {
+  let childReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => { childReads += 1; return route.fulfill({ json: projectPage }) })
+  await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
+  await page.goto('/?q=Diamondback&sector=oil_gas')
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await expect(page.getByRole('heading', { name: 'Example Compressor Station' })).toBeVisible()
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Signals' })).toBeVisible()
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('heading', { name: 'Example Compressor Station' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('Diamondback')
+  expect(new URL(page.url()).searchParams.get('sector')).toBe('oil_gas')
+  expect(childReads).toBe(1)
+  await expect(page.locator('.wh-account[open]')).toHaveCount(0)
+})
+
+test('Signals and source health distinguish a loading request from terminal unavailability', async ({ page }) => {
+  let failSignals = false
+  let releaseHealth: (() => void) | undefined
+  let healthRequested: (() => void) | undefined
+  const healthStarted = new Promise<void>(resolve => { healthRequested = resolve })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities?*', route => failSignals ? route.fulfill({ status: 503, json: { detail: 'Signals workspace unavailable' } }) : route.fulfill({ json: [] }))
+  await page.route('**/api/health', async route => {
+    healthRequested?.()
+    await new Promise<void>(resolve => { releaseHealth = resolve })
+    return route.fulfill({ status: 503, json: { detail: 'Health unavailable' } })
+  })
+  await page.route('**/api/ingestion?*', route => route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } }))
+  failSignals = true
+  await page.goto('/?view=signals')
+  await expect(page.getByText('Loading Signals…')).toHaveCount(0)
+  await expect(page.getByText('Signals unavailable')).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText('503')
+  await expect(page.getByRole('status').filter({ hasText: 'Loading current Signal cohort' })).toHaveCount(0)
+  await page.goto('/?view=ingestion')
+  await healthStarted
+  await expect(page.getByText('Loading source health…')).toBeVisible()
+  releaseHealth?.()
+  await expect(page.getByText('Source health unavailable').first()).toBeVisible()
+  await expect(page.getByText('Loading source health…')).toHaveCount(0)
+})
+
+test('source health labels latest check separately from recent schedule freshness', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/health', route => route.fulfill({ json: {
+    backlog: 0,
+    pending_interpretations: 0,
+    sources: [{ id: 'houston-building-permits', status: 'Checked—No Change', enabled: true, freshness: 'FAILED', last_attempt: null, last_success: null, new_records: 0, changed_records: 0, parse_failures: 0 }],
+  } }))
+  await page.route('**/api/ingestion?*', route => route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } }))
+  await page.goto('/?view=ingestion')
+
+  const source = page.locator('.wh-source-row').filter({ hasText: 'houston-building-permits' })
+  await expect(source.locator('span')).toContainText('Latest check: Checked—No Change')
+  await expect(source.locator('span')).toContainText('Schedule freshness: FAILED')
+  await expect(source.getByText('Schedule freshness summarizes recent schedule history and can differ from the latest check when earlier outcomes differ.')).toBeVisible()
+})
+
+test('source health preserves unknown outcome values when a partial payload omits them', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/health', route => route.fulfill({ json: {
+    backlog: 0,
+    pending_interpretations: 0,
+    sources: [{ id: 'city-permits' }],
+  } }))
+  await page.route('**/api/ingestion?*', route => route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } }))
+  await page.goto('/?view=ingestion')
+
+  const source = page.locator('.wh-source-row').filter({ hasText: 'city-permits' })
+  await expect(source.locator('span')).toHaveText('Latest check: Unknown · Unknown · Schedule freshness: Unknown')
+  await expect(source.getByText('Schedule freshness summarizes recent schedule history and can differ from the latest check when earlier outcomes differ.')).toHaveCount(0)
+})
+
+test('a session failure removes the cached browse surface before a later return', async ({ page }) => {
+  let groupReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => {
+    groupReads += 1
+    return groupReads <= 2 ? route.fulfill({ json: groupPage }) : route.fulfill({ status: 401, json: { detail: 'Authentication required' } })
+  })
+  await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Refresh project results' }).click()
+  await expect(page.getByRole('alert')).toContainText('Your session ended')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Your session ended')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
+  expect(groupReads).toBeGreaterThanOrEqual(3)
+})
+
+test('a session expiry from Signals clears the browse cache while results are unmounted', async ({ page }) => {
+  let groupReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => {
+    groupReads += 1
+    return groupReads <= 2 ? route.fulfill({ json: groupPage }) : route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'Retry-After': '60' }, json: { detail: 'qualification pending' } })
+  })
+  await page.route('**/api/opportunities?*', route => route.fulfill({ status: 401, json: { detail: 'Authentication required' } }))
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Your session ended')
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
+  await expect(page.getByRole('status')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
+  expect(groupReads).toBeGreaterThanOrEqual(2)
+})
+
+test('cached browse context expires at the backend valid-until boundary', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
+  let groupReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => {
+    groupReads += 1
+    const name = groupReads <= 2 ? 'Before generation expiry' : 'Current after generation expiry'
+    const validUntil = groupReads <= 2 ? '2026-10-29T12:00:02Z' : '2026-10-29T12:01:00Z'
+    return route.fulfill({ json: { ...groupPage, items: [{ ...group, id: `expiry-${groupReads}`, name }], as_of: '2026-10-29T11:59:00Z', valid_until: validUntil, qualification_state: 'current', refresh_state: 'current' } })
+  })
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: /Before generation expiry/ })).toBeVisible()
+  await page.clock.fastForward(2_100)
+  await expect(page.getByRole('button', { name: /Current after generation expiry/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Before generation expiry/ })).toHaveCount(0)
+  expect(groupReads).toBeGreaterThanOrEqual(2)
+})
+
+test('mounted child details disappear at their independent generation expiry', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
+  let childReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T11:59:00Z', valid_until: '2026-10-29T12:00:20Z', qualification_state: 'current', refresh_state: 'current' } }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
+    childReads += 1
+    const validUntil = childReads === 1 ? '2026-10-29T12:00:02Z' : '2026-10-29T12:00:20Z'
+    const label = childReads === 1 ? 'Expired child contact' : 'Current child contact'
+    return route.fulfill({ json: { ...projectPage, valid_until: validUntil, qualification_state: 'current', refresh_state: 'current', items: [{ ...sample, contact: [{ kind: 'call', label, href: 'tel:+15555550100' }] }] } })
+  })
+  await page.goto('/')
+  const groupButton = page.getByRole('button', { name: /Example Energy/ })
+  await groupButton.click()
+  await expect(page.getByRole('link', { name: 'Expired child contact' })).toBeVisible()
+  await page.clock.fastForward(2_100)
+  await expect(page.getByRole('link', { name: 'Expired child contact' })).toHaveCount(0)
+  await expect(groupButton).toHaveAttribute('aria-expanded', 'false')
+  await groupButton.click()
+  await expect(page.getByRole('link', { name: 'Current child contact' })).toBeVisible()
+  expect(childReads).toBe(2)
+})
+
+test('cache read drops an expired child generation while retaining the valid parent summary', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T11:59:00Z', valid_until: '2026-10-29T12:00:20Z', qualification_state: 'current', refresh_state: 'current' } }))
+  await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ json: { ...projectPage, valid_until: '2026-10-29T12:00:02Z', qualification_state: 'current', refresh_state: 'current', items: [{ ...sample, contact: [{ kind: 'call', label: 'Expired cached contact', href: 'tel:+15555550100' }] }] } }))
+  await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
+  await page.goto('/')
+  await page.getByRole('button', { name: /Example Energy/ }).click()
+  await expect(page.getByRole('link', { name: 'Expired cached contact' })).toBeVisible()
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Signals' })).toBeVisible()
+  await page.clock.fastForward(2_100)
+  await page.locator('.wh-account summary').click()
+  await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('link', { name: 'Expired cached contact' })).toHaveCount(0)
 })

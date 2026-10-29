@@ -265,6 +265,40 @@ def test_identity_link_installer_sql_matches_migration_0047(saved_db):
     assert browse_invalidation.IDENTITY_LINK_SQL == source
 
 
+def test_identity_entity_installer_sql_matches_migration_0049(saved_db):
+    migration_path = (
+        Path(__file__).parents[2] / "migrations/versions/0049_scoped_identity_entity_browse.py"
+    )
+    module = ast.parse(migration_path.read_text(encoding="utf-8"))
+    source = next(
+        ast.literal_eval(node.value)
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "IDENTITY_ENTITY_SQL"
+            for target in node.targets
+        )
+    )
+    assert browse_invalidation.IDENTITY_ENTITY_SQL == source
+
+
+def test_company_membership_installer_sql_matches_migration_0049(saved_db):
+    migration_path = (
+        Path(__file__).parents[2] / "migrations/versions/0049_scoped_identity_entity_browse.py"
+    )
+    module = ast.parse(migration_path.read_text(encoding="utf-8"))
+    source = next(
+        ast.literal_eval(node.value)
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "COMPANY_MEMBERSHIP_SCOPE_SQL"
+            for target in node.targets
+        )
+    )
+    assert browse_invalidation.COMPANY_MEMBERSHIP_SCOPE_SQL == source
+
+
 def test_identity_link_installer_scopes_known_claim_invalidation(saved_db):
     from gridlens.persistence.models import BuyingChainRun
 
