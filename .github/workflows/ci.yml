@@ -81,7 +81,7 @@ jobs:
     if: needs.changes.outputs.backend == 'true'
     needs: changes
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       TRUSTED_ORIGINS: http://127.0.0.1:5173
     steps:
@@ -203,8 +203,8 @@ jobs:
       - name: Create test database
         run: docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gridlens_test'
       - name: Run backend test suite
-        # Regression gate: 12m until xdist proves out; the -n 4 target is well under 8m.
-        run: timeout 720 uv run pytest tests -n 4
+        # Regression gate: pytest runs ~5m with -n 4 (292-390s measured over 10+ CI runs).
+        run: timeout 480 uv run pytest tests -n 4
         working-directory: backend
   browser:
     if: needs.changes.outputs.backend == 'true'
