@@ -1,6 +1,3 @@
-# Tab-local continuity
+# Session privacy cleanup
 
-`sessionState.ts` bounds temporary navigation snapshots and call input in session
-storage. This is not a domain cache or a persistence API. Entries expire after
-eight hours and logout clears them. Browser storage can be denied; the call form
-reports when refresh protection is unavailable.
+`clearContinuity()` removes GridLens-prefixed legacy session-storage entries and notifies mounted views when authentication ends. Storage access may be denied; cleanup handles that safely. Current application code does not create or restore tab-local navigation or call-entry drafts.

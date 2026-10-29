@@ -8,9 +8,9 @@ Method: read-only inspection of repository workflows, deployment artifacts, work
 
 ### Automated CI: `.github/workflows/ci.yml` (the only active gate)
 
-Triggers: **every push to every branch, every pull request, no path filters.** Two other workflow files exist but are not release-relevant:
+Triggers: **every push to every branch, every pull request, no path filters.** The following auxiliary workflow existed at the audit baseline and was not release-relevant (archived during the October 29 cleanup):
 
-- `.github/workflows/publication-diagnostic.yml` — branch- and path-pinned diagnostic (`fix/pr87-call-preparation` only). Not part of the release path.
+- The former branch- and path-pinned PR87 diagnostic is archived at [publication-diagnostic.yml](../../validation/archive/pr87-publication-diagnostic/publication-diagnostic.yml), with its helper script beside it. It was not part of the release path and is no longer an active workflow.
 - No deployment workflow exists in GitHub Actions. There is **no automated CD**: no `workflow_run` deploy job, no container registry push, no hosting-provider deploy step. Production release is a host-side manual procedure (Section 3).
 
 `ci.yml` defines three jobs that all start simultaneously on ubuntu-latest runners:
