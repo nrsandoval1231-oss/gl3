@@ -353,15 +353,20 @@ test('synthetic tablet selection opens detail in the viewport above an unfiltere
 })
 
 test('pending parent groups wait for Retry-After then reopen the same filtered cohort', async ({ page }) => {
-  await page.clock.install()
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
+  let pauseClock: Promise<void> | undefined
   const requests: URL[] = []
+  let pending = true
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
+  await page.route('**/api/opportunities/groups?*', async route => {
+    // Let the app mount, then freeze before any browse response creates timers.
+    // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
+    await (pauseClock ??= page.clock.pauseAt(new Date('2026-10-29T12:00:00Z')))
     const url = new URL(route.request().url())
     requests.push(url)
-    // Vite's development StrictMode runs the initial effect twice; both
-    // mount-time reads stay pending, while only the live effect may retry.
-    if (requests.length <= 2) {
+    // StrictMode's cancelled mount request may never reach the route handler.
+    // Response state is independent of how many initial requests were observed.
+    if (pending) {
       return route.fulfill({
         status: 503,
         headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
@@ -373,20 +378,22 @@ test('pending parent groups wait for Retry-After then reopen the same filtered c
   await page.goto('/?view=workspace&q=Permian&sector=oil_gas&groupBrowse=1')
   await expect(page.getByRole('status')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
-  await expect.poll(() => requests.length).toBe(2)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
+  const initialRequests = requests.length
+  expect(initialRequests).toBeGreaterThan(0)
   await page.clock.runFor(4999)
-  expect(requests).toHaveLength(2)
+  expect(requests).toHaveLength(initialRequests)
   await expect(page.getByRole('alert')).toHaveCount(0)
+  pending = false
   await page.clock.runFor(1)
-  await expect.poll(() => requests.length).toBe(3)
+  await expect.poll(() => requests.length).toBe(initialRequests + 1)
   await expect(page.getByRole('button', { name: /Fresh parent group/ })).toBeVisible()
-  expect(requests.slice(0, 3).every(url => url.searchParams.get('search') === 'Permian')).toBe(true)
-  expect(requests.slice(0, 3).every(url => url.searchParams.get('sector') === 'oil_gas')).toBe(true)
+  expect(requests.every(url => url.searchParams.get('search') === 'Permian')).toBe(true)
+  expect(requests.every(url => url.searchParams.get('sector') === 'oil_gas')).toBe(true)
 })
 
 test('pending first child read waits before atomic open of the same group', async ({ page }) => {
-  await page.clock.install()
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
   const childRequests: URL[] = []
   const openRequests: URL[] = []
   const neighbor = { ...group, id: 'neighbor-group', name: 'Unchanged Operator', project_count: 4 }
@@ -411,6 +418,8 @@ test('pending first child read waits before atomic open of the same group', asyn
     } })
   })
   await page.goto('/?view=workspace&q=Permian&sector=oil_gas&groupBrowse=1')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await page.clock.pauseAt(new Date('2026-10-29T12:00:00Z'))
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect(page.getByText('Loading projects…')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
@@ -487,12 +496,17 @@ test('409 opens atomically and a pending open retries to the fresh same-group pa
 })
 
 test('parent pending retries stop after four active reads and manual retry starts over', async ({ page }) => {
-  await page.clock.install()
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
+  let pauseClock: Promise<void> | undefined
   let requests = 0
+  let pending = true
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
+  await page.route('**/api/opportunities/groups?*', async route => {
+    // Let the app mount, then freeze before any browse response creates timers.
+    // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
+    await (pauseClock ??= page.clock.pauseAt(new Date('2026-10-29T12:00:00Z')))
     requests += 1
-    if (requests <= 5) {
+    if (pending) {
       return route.fulfill({
         status: 503,
         headers: { 'X-Qualification-State': 'pending', 'Retry-After': '1' },
@@ -505,24 +519,25 @@ test('parent pending retries stop after four active reads and manual retry start
   await expect(page.getByRole('status')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
-  for (let activeRead = 3; activeRead <= 4; activeRead += 1) {
-    // runFor yields through the request, React state update, and the next retry
-    // timer. fastForward can jump across nested timers while the response is
-    // still settling on a busy CI runner, making this intermediate assertion
-    // observe the exhausted state early.
+  const initialRequests = requests
+  expect(initialRequests).toBeGreaterThan(0)
+  for (let retry = 1; retry <= 2; retry += 1) {
+    // Advance the paused clock through each retry deadline, processing due
+    // callbacks while the surrounding assertions leave virtual time unchanged.
     await page.clock.runFor(1000)
-    await expect.poll(() => requests).toBe(activeRead)
+    await expect.poll(() => requests).toBe(initialRequests + retry)
     await expect(page.getByRole('alert')).toHaveCount(0)
   }
   await page.clock.runFor(1000)
-  await expect.poll(() => requests).toBe(5)
+  await expect.poll(() => requests).toBe(initialRequests + 3)
   await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toHaveCount(0)
   await page.clock.runFor(30000)
-  expect(requests).toBe(5)
+  expect(requests).toBe(initialRequests + 3)
+  pending = false
   await page.getByRole('button', { name: /Retry|Reload/i }).last().click()
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
-  expect(requests).toBe(6)
+  expect(requests).toBe(initialRequests + 4)
 })
 
 test('generic 503 is not treated as pending and does not auto-retry', async ({ page }) => {
@@ -948,23 +963,30 @@ test('a session expiry from Signals clears the browse cache while results are un
 })
 
 test('cached browse context expires at the backend valid-until boundary', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
+  let pauseClock: Promise<void> | undefined
   let groupReads = 0
+  let expired = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
+  await page.route('**/api/opportunities/groups?*', async route => {
+    // Let the app mount, then freeze before any browse response creates timers.
+    // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
+    await (pauseClock ??= page.clock.pauseAt(new Date('2026-10-29T12:00:00Z')))
     groupReads += 1
-    const name = groupReads <= 2 ? 'Before generation expiry' : 'Current after generation expiry'
-    const validUntil = groupReads <= 2 ? '2026-10-29T12:00:02Z' : '2026-10-29T12:01:00Z'
+    const name = expired ? 'Current after generation expiry' : 'Before generation expiry'
+    const validUntil = expired ? '2026-10-29T12:01:00Z' : '2026-10-29T12:00:02Z'
     return route.fulfill({ json: { ...groupPage, items: [{ ...group, id: `expiry-${groupReads}`, name }], as_of: '2026-10-29T11:59:00Z', valid_until: validUntil, qualification_state: 'current', refresh_state: 'current' } })
   })
   await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('button', { name: /Before generation expiry/ })).toBeVisible()
-  // Drain the expiry callback and its follow-up fetch/render before checking
-  // the refreshed generation. fastForward can leave nested browser work queued.
+  // Cross the server expiry while keeping network/render waits outside the
+  // virtual clock. The initial generation always gets its full two-second TTL.
+  const initialReads = groupReads
+  expired = true
   await page.clock.runFor(2_100)
   await expect(page.getByRole('button', { name: /Current after generation expiry/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Before generation expiry/ })).toHaveCount(0)
-  expect(groupReads).toBeGreaterThanOrEqual(2)
+  expect(groupReads).toBeGreaterThan(initialReads)
 })
 
 test('mounted child details disappear at their independent generation expiry', async ({ page }) => {

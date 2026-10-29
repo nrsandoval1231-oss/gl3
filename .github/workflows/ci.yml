@@ -207,7 +207,7 @@ jobs:
         run: timeout 480 uv run pytest tests -n 4
         working-directory: backend
   browser:
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
