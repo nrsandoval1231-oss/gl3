@@ -1,20 +1,25 @@
-# Delivery status
+# Delivery status and outstanding gates
 
-> Historical milestone/status record. Current autonomous implementation and separate launch gates are governed by the canon and current Finish Contract; recorded prior acceptance does not certify this candidate. Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md).
+**Status as of the October 28, 2026 repository inspection:** Engineering improvements have merged; production operation and commercial acceptance remain **unverified by this repository-only inspection**. For the current repository checkpoint, see [CURRENT_STATE](../../.agent/CURRENT_STATE.md). The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) and [Operator/Customer Results Canon](../product/PROJECT_FIRST_RESULTS_CANON.md) govern functionality. This document summarizes gates, not previous-candidate release authority.
 
+## Verified repository developments
 
-The [PRD](../product/PRD.md) governs qualification and commercial acceptance; the [UI canon](../design/UI_CANON.md) governs presentation. Current bounded engineering work is the [October 24 audit completion release](../operations/audit-completion-release-20261024.md). The prior October 20 status is [archived unchanged](../../.agent/archive/COMPLETION-20261024/milestones.md).
+PRs #137–#143 merged into main through `eadb203be231af045480b97f196b89f1b6457846`, improving CI scheduling, fixture performance, parallel testing and timeout controls. PR #139 reports 3,296 passing tests and one skip across its measured CI gate runs. These are *engineering* results; they do not certify production deployment or real project quality. Refer to the relevant PRs and exact CI runs for their evidence.
 
-PR119 dependency/container/RRC repairs and PR120 lease recovery/release preparation are merged; main at the start of this slice was `223849b1559532ae89dd1d2f53f7217add02084a`. PR96 is closed as superseded. The current slice repairs independently reproduced company/filter/evidence/history defects and uses local gates and independent review. Exact final candidate, test receipts, PR dispositions and deployment identities belong to its release record.
+## Acceptance matrix
 
-[Operations](../operations/README.md) records the latest dated runtime observation and required recovery process. Owner approval now covers this scoped repair and controlled deployment; it does not enable paid providers or satisfy unmeasured launch criteria.
-
-| Gate | Required evidence | Acceptance boundary |
+| Gate | What counts as proof | State |
 |---|---|---|
-| A — Foundation | Scheduled real source check persists while the owner's PC is off | Heartbeats alone do not prove the gate |
-| B — Daily Signals | Useful real admissions, replay, broad source coverage and visible failures | Source gaps and prospective news review remain explicit |
-| C — Prospects | Reviewed identity/activity and supported qualification | Synthetic fixtures are separate from commercial acceptance |
-| D — Leads | Independently discovered auditable real Lead reviewed by Nick | Unknown MW, timing, supply and contacts cannot be invented |
-| E — Daily working release | PRD38–41, seven real cycles, alerts and recovery | Local checks or a single restore do not prove sustained operation |
+| A — Autonomous foundation | Current deployed API/worker/web/schema identities; protected backup/rollback; actual scheduled retrieval with the owner's PC off | Not newly verified |
+| B — Daily signals | Source-specific due checks, useful genuine admissions, replay, visible source failures, seven measured cycles and >=95% successful due checks | Not newly verified |
+| C — Project and contact quality | Real TX/OK/NM physical-site identity, distinct wells, attributed milestones, buying roles, usable contacts, sourced relevance and explicit unknowns | Real-cohort acceptance open |
+| D — Lead quality | Independently reviewed actual Lead, evidenced remaining gap, MW/start/duration, and defensible next action | Commercial acceptance open |
+| E — Daily product release | Authenticated user/mobile checks, current data and alerts, deployment receipt, recovery safeguards and owner review | Not newly verified |
 
-The original 446-record corpus and retained M6/unknown-provider-outcome gaps remain open. A usable Signals/Prospects release may be reported honestly while full Lead/launch acceptance remains incomplete.
+Prior October 24 release approval and October 26 PR126 exception were **candidate-specific**. Do not reinterpret them as permission for new production writes, paid provider calls, release cutovers or waivers of truth/provenance. Preserve historical source and test observations in [validation](../validation/) and [operations](../operations/README.md); they remain useful dated evidence without proving current runtime health.
+
+## Immediate priority
+
+Run a controlled, read-only evaluation of 25 *actual* eligible project/site records if an accessible, independently validated corpus supports that sample. Report the actual denominator, verified owner/operator, project/site identity, event labels/dates, independent power activity/gap, contact method class, source freshness and recommended action. Do not invent missing records to reach 25. Rank remediation by actionable discovery, not permit count or CI speed.
+
+Historical milestone snapshots remain in [the completion archive](../../.agent/archive/COMPLETION-20261024/milestones.md). Exact operational verification belongs in a newly dated receipt.
