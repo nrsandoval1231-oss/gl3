@@ -11,23 +11,6 @@ export type EvidenceContent = {
   next_offset: number | null
 }
 
-export type IntelligenceHistoryItem = {
-  job_id: string; task_type: string | null; need_id: string; status: string
-  result: Record<string, unknown> | null; result_status?: string | null; validation_outcome?: string; validation_reason?: string | null; error: string | null; evidence_ids: string[]
-  commercial_assessment_support?: {
-    status: 'current' | 'saved' | 'unavailable' | 'stale'
-    reason?: string | null
-    document_coverage?: string | null
-    source_collection_status?: string | null
-    selected_facts: { fact_id: string; field?: string | null; value?: string | null; label?: string | null; support_status: 'current' | 'saved' | 'unavailable' | 'stale'; unavailable_reason?: string | null; citation?: { evidence_id: string; evidence_hash: string; source_url: string; excerpt: string; field: string; start: number; end: number } | null }[]
-  } | null
-  logical_call_id: string | null; usage: { input_tokens?: number | null; output_tokens?: number | null; cost_usd?: string | number | null; estimated_cost_usd?: string | number | null; cost_basis?: string | null } | null
-  reserved: boolean; uncertain: boolean; created_at: string | null; completed_at: string | null
-}
-export type IntelligenceTasks = {
-  items: { task_type: string; question_id: string | null; eligible: boolean; reason: string | null; provider: string | null; pinned_model: string | null }[]
-  mode: string; enabled: boolean; provider_configuration: { openai_key_present: boolean; typesafe_key_present: boolean }; note: string
-}
 export type IntelligenceOperations = {
   window_days: number; sources: { source_id: string; enabled: boolean; last_attempt_at: string | null; last_success_at: string | null; last_good_preserved: boolean; checked_30d: number; failed_30d: number; partial_30d: number; parse_failures_30d: number; parse_success_30d: number | null; freshness_30d: string; due_30d: number }[]
   queue: { by_kind_status: Record<string, Record<string, number>>; oldest_queued_at: string | null; retried_jobs_30d: number; failed_after_three_attempts_30d: number }
@@ -346,13 +329,7 @@ export const client = {
   ),
   buyingChain: (projectId: string, signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain`, { signal }),
   autonomousResearch: (needId: string, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { signal }, true),
-  intelligenceTasks: (signal?: AbortSignal) => api<IntelligenceTasks>('/api/intelligence/tasks', { signal }),
   intelligenceOperations: (signal?: AbortSignal) => api<IntelligenceOperations>('/api/intelligence/operations', { signal }),
-  intelligenceHistory: (needId: string, signal?: AbortSignal, taskType?: string) => {
-    const params = new URLSearchParams({ limit: '20' })
-    if (taskType) params.set('task_type', taskType)
-    return api<{ items: IntelligenceHistoryItem[] }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/history?${params}`, { signal })
-  },
   evidenceContent: (evidenceId: string, offset = 0, limit = 4096, signal?: AbortSignal) => {
     const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
     return api<EvidenceContent>(`/api/evidence/${encodeURIComponent(evidenceId)}/content?${params}`, { signal }, true)

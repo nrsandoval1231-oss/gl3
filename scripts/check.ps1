@@ -51,7 +51,6 @@ try {
     Invoke-Native "ruff format check" { uv run ruff format --check src tests }
     Invoke-Native "mypy" { uv run mypy src }
     Invoke-Native "alembic upgrade head" { uv run alembic upgrade head }
-    Invoke-Native "alembic upgrade head (repeat)" { uv run alembic upgrade head }
     Invoke-Native "alembic check" { uv run alembic check }
     Invoke-Native "pytest" { uv run pytest tests }
 }
