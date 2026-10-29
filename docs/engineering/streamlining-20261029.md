@@ -23,6 +23,7 @@ Baseline Git-blob inventory (avoids checkout newline conversions): 1,986 files; 
 | `backend/src/gridlens/api/app.py` | INVESTIGATE | 6,140 lines; mounted routes and helper consumers in saved browse, opportunity intelligence and jobs. A trial 17-line health extraction was discarded: it added compatibility plumbing without reducing coupled responsibilities. Full health separation requires shared date/schema/scheduling dependencies to be addressed together. | High coupling; deferred |
 | `web/src/api/client.ts` | REMOVE | Two wrappers (`intelligenceTasks`, `intelligenceHistory`) and their hand-written response types have no source/test consumers; backend routes/generated contract retained. | Low; build/typecheck/browser gate |
 | `web/src/styles/{app,workspace}.css`, `web/src/features/workspace/intelligence-card.css` | REMOVE | Unused selectors from retired workflows/dashboard; source and browser-test class references checked, including mixed selector branches. | Medium; independent dynamic-class review and browser gate |
+| `web/src/state/sessionState.ts` | REMOVE / KEEP | Remove uncalled `readSession`, `writeSession`, `removeSession` and their unused constants; full-repository and dynamic-reference audit finds no consumers. Preserve `clearContinuity` exactly for 401/logout privacy cleanup, including legacy prefix and notification event. | Low; auth/browser revalidation |
 | `web/src/**`, `web/public/brand/**` | KEEP | All 20 TSX components reachable through imports/direct secondary routes. Brand manifest declares deliverables beyond runtime icons. | UX/contracts |
 | `backend/tests/**`, `web/tests/**` | KEEP | Retained regression contracts and browser coverage; no tests removed for speed. | Verification |
 | `scripts/check.ps1` repeated migration upgrade | REMOVE | Same upgrade already runs before `alembic check`; CI PR137 removed identical redundancy. One upgrade plus drift check retained. | Low |
@@ -65,7 +66,7 @@ All checks use local disposable PostgreSQL 18.6 databases `gridlens_cleanup` and
 | `uv run ruff check src tests` / `ruff format --check src tests` | PASS |
 | `uv run mypy src` | PASS |
 | `uv run alembic upgrade head` / `alembic check` | PASS on fresh isolated database; migrations unchanged |
-| API and worker import | PASS; browser gate also starts real API |
+| API and worker import/startup | PASS; browser starts real API. Isolated worker main started and shut down gracefully on SIGTERM with external network blocked and paid/source dispatch disabled. |
 | `npm run typecheck` / `npm run build` | PASS |
 | `npm run test:ci -- --workers=2` | 147 passed, 144.61 s invocation wall time; includes real auth and desktop/mobile regression cases |
 | Locked backend pip-audit / brand pip-audit / npm audit | PASS, no known vulnerabilities reported |
@@ -82,11 +83,11 @@ Original and cleaned production bundles were built with the same installed lockf
 - [PR145](https://github.com/nrsandoval1231-oss/gl3/pull/145): active governance, archived candidate permissions and exact historical deduplication; incorporates PR144's upstream reconciliation. [PR146](https://github.com/nrsandoval1231-oss/gl3/pull/146): unused frontend wrappers/styles, archived diagnostic and duplicate local migration command. Separate reviewable changes; no merge/deploy performed.
 - Runtime OpenAPI has one existing route absent from committed generated JSON: `/api/opportunities/groups/{group_id}/open`. All common paths/schemas match. Backend/generated contracts are unchanged by cleanup; regeneration is a separate follow-up rather than a silent unrelated change.
 - Full native PowerShell wrapper execution is unavailable (`pwsh` absent); its individual gates are exercised directly. The duplicate migration deletion itself is independently reviewed.
-- Worker module imports and dispatch/tests are checked; no live ingestion/provider or continuous scheduled-worker run was performed. Production revision/schema, authenticated production flows, retained real-data corpus, independent exact visual screenshot comparison, fresh real-source commercial coverage and restore/rollback remain unverified by this task.
+- Worker startup/shutdown, imports and dispatch/tests are checked; no live ingestion/provider or continuous scheduled-worker run was performed. Production revision/schema, authenticated production flows, retained real-data corpus, independent exact visual screenshot comparison, fresh real-source commercial coverage and restore/rollback remain unverified by this task.
 - No CI acceleration is claimed: retained PR137–143 improvements are inspected in Git, not newly benchmarked against old runs. One duplicate local command is eliminated. Full required gates and every test remain.
 
 ## Before and after (combined PR scope)
 
 Git baseline `eadb203` → union of PR145 and PR146, including upstream PR144 documentation reconciliation: **1,986 → 1,997 files**. Four duplicate documents are deleted; two diagnostic files are relocated, not deleted. New archive/index files make the net file count rise by eleven. This task prioritizes less active context and runtime dead code over a misleading file-count target.
 
-Retained code files: **566 → 566**; code lines **213,042 → 212,933** (**109 fewer**); code bytes **8,991,851 → 8,975,702** (**16,149 fewer**), counting the archived Python helper in both totals. Documentation totals grow because previous instructions remain preserved; exact final Markdown totals are recorded after the final report edit. No repository-size savings are attributed to archive moves/copies, and no test or intelligence service is deleted.
+Retained code files: **566 → 566**; code lines **213,042 → 212,890** (**152 fewer**); code bytes **8,991,851 → 8,973,688** (**18,163 fewer**), counting the archived Python helper in both totals. Documentation totals grow because previous instructions remain preserved; whole-repository documentation reduction is not claimed. The final owner report measures the completed Git trees, including this report. No repository-size savings are attributed to archive moves/copies, and no test or intelligence service is deleted.
