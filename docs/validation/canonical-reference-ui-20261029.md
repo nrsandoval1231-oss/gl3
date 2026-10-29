@@ -112,3 +112,8 @@ The npm high-severity audit gate passes, with one newly reported moderate Vite d
 Final integrated local browser rerun: **169 passed, retries disabled (1.6 minutes)**, including the completed contact ordering, deduplication and identity guard. Final real-snapshot captures and checks were repeated after that guard: All 1,896 projects, pagination, search, real phone/email and mobile Clear passed, with no page errors. Independent review is clear. Remote CI on the final committed head remains the release gate; PR stays unmerged and undeployed.
 
 CI follow-up on source commit `cd4e5c4f`: the backend formatter gate rejected the final added test assertion's wrapping. The backend-configured formatter normalized that assertion without changing behavior; all 401 backend files then passed format, Ruff passed, and the two focused integration tests passed again. No application code or acceptance assertion changed. The corrected head's CI result is recorded in PR #148.
+
+
+## Production release update
+
+Owner subsequently authorized validation, merge and deployment. PR148 is merged and the exact merged application source ca12443f is live. The [production release receipt](canonical-ui-release-20261029.md) supersedes the earlier unmerged/undeployed boundary for this candidate and records fresh production acceptance. Contact availability, authority and other functional limits above remain explicit.

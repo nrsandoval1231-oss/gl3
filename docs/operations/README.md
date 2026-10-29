@@ -1,8 +1,9 @@
 # Operations authority
 
-Latest recorded release: PR147, application main `4376f4d1`, source `e153cefd`,
-schema0049, observed October29. See the [release evidence](../validation/browse-availability-repair-20261029.md)
-for verification and remaining performance/availability limits. GridLens runs on
+Latest recorded release: PR148, merged and deployed application main `ca12443f`,
+schema0049, verified October29 at23:18 UTC. See the [canonical UI release evidence](../validation/canonical-ui-release-20261029.md)
+for exact images, fresh backup/restore, live authenticated desktop/tablet/mobile checks,
+All including Signals, contact evidence and remaining limits. GridLens runs on
 DigitalOcean through https://app.grid-lens.com/; a Windows launcher is optional
 local-development work, not a requirement for hosted use.
 
