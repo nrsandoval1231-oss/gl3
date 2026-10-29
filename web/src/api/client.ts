@@ -33,10 +33,20 @@ export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
 export type ProjectResultNeed = { id: string; project_id?: string; name?: string | null; browse_title?: string | null; location?: string | null; activity?: string | null; tier?: 'Signal' | 'Prospect' | 'Lead' | null; commercial_preview?: { disposition?: string | null; reason?: string | null; next_question?: string | null; next_action?: string | null; organization?: string | null } }
 export type ProjectResultContactPerson = { record_type?: 'contact_person'; company_identity_id?: string | null; person_identity_id?: string | null; company?: string | null; name?: string | null; title?: string | null; role?: string | null; responsibility?: string | null; purchasing_authority?: string | null; source_url?: string | null }
 export type ProjectResult = { id: string; project_id: string; project_ids?: string[]; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; updated_at: string | null }
-export type ProjectResultsPage = { items: ProjectResult[]; total: number; count_unit: 'projects'; limit: number; offset: number; cohort_token: string; generation: string; results_scope?: 'qualified' | 'discovery' }
+export type BrowseGenerationMetadata = { generation_id?: string; as_of?: string; valid_until?: string; qualification_state?: 'current' | string; refresh_state?: 'current' | string }
+function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {
+  if ((value.qualification_state && value.qualification_state !== 'current') || (value.refresh_state && value.refresh_state !== 'current')) {
+    throw new Error('Current operator/customer results could not be confirmed.')
+  }
+  if (value.valid_until) {
+    const validUntil = Date.parse(value.valid_until)
+    if (!Number.isFinite(validUntil) || Date.now() >= validUntil) throw new Error('These prepared results have expired and must be refreshed.')
+  }
+}
+export type ProjectResultsPage = BrowseGenerationMetadata & { items: ProjectResult[]; total: number; count_unit: 'projects'; limit: number; offset: number; cohort_token: string; generation: string; results_scope?: 'qualified' | 'discovery' }
 export type OpportunityGroup = { id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
-export type OpportunityGroupsPage = { items: OpportunityGroup[]; total: number; count_unit: 'operators and customers'; limit: number; offset: number; cohort_token: string; generation: string }
-export type OpportunityGroupOpen = { group: OpportunityGroup; projects: ProjectResultsPage; parent_cohort_token: string; generation: string }
+export type OpportunityGroupsPage = BrowseGenerationMetadata & { items: OpportunityGroup[]; total: number; count_unit: 'operators and customers'; limit: number; offset: number; cohort_token: string; generation: string }
+export type OpportunityGroupOpen = BrowseGenerationMetadata & { group: OpportunityGroup; projects: ProjectResultsPage; parent_cohort_token: string; generation: string }
 export class OpportunityGroupUnavailableError extends Error {
   constructor() { super('This operator/customer group is no longer available in the current results.'); this.name = 'OpportunityGroupUnavailableError' }
 }
@@ -251,7 +261,9 @@ export const client = {
     if (response.status === 409) throw new OpportunityCohortChangedError()
     throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not load operator/customer groups (${response.status}).`)
-    return response.json() as Promise<OpportunityGroupsPage>
+    const value = await response.json() as OpportunityGroupsPage
+    requireCurrentBrowseGeneration(value)
+    return value
   },
   groupProjects: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; parent_cohort_token?: string; sort?: string }, signal?: AbortSignal): Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }> => {
     const params = new URLSearchParams()
@@ -261,7 +273,9 @@ export const client = {
     if (response.status === 409) throw new OpportunityCohortChangedError()
     throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not load projects (${response.status}).`)
-    return response.json() as Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }>
+    const value = await response.json() as ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }
+    requireCurrentBrowseGeneration(value)
+    return value
   },
   openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: string }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
     const params = new URLSearchParams()
@@ -271,7 +285,10 @@ export const client = {
     if (response.status === 404) throw new OpportunityGroupUnavailableError()
     throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not open current operator/customer results (${response.status}).`)
-    return response.json() as Promise<OpportunityGroupOpen>
+    const value = await response.json() as OpportunityGroupOpen
+    requireCurrentBrowseGeneration(value)
+    requireCurrentBrowseGeneration(value.projects)
+    return value
   },
   projectResults: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: string; need_id?: string }, signal?: AbortSignal): Promise<ProjectResultsPage> => {
     const params = new URLSearchParams()

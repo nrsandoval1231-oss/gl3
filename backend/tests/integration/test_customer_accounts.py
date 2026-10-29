@@ -199,7 +199,8 @@ def test_rrc_membership_replay_does_not_invalidate_full_browse(customer_db):
         assert state.full_revision == full_revision
         assert state.input_revision == input_revision
 
-        # A new operator identity remains a genuine global browse invalidation.
+        # The new company identity and its project membership affect only this site.
+        input_revision = state.input_revision
         other_site = _project_evidence(session, source_id, "999999", "new-identity-site")
         record_rrc_operator_membership(
             session,
@@ -211,10 +212,12 @@ def test_rrc_membership_replay_does_not_invalidate_full_browse(customer_db):
         )
         session.flush()
         session.refresh(state)
-        assert state.full_revision > full_revision
+        assert state.full_revision == full_revision
+        assert state.input_revision > input_revision
 
-        # Membership writes retain their existing browse invalidation behavior.
+        # A new RRC membership dirties only its owning project.
         full_revision = state.full_revision
+        input_revision = state.input_revision
         membership_site = _project_evidence(
             session, source_id, "217012", "existing-identity-new-site"
         )
@@ -228,7 +231,7 @@ def test_rrc_membership_replay_does_not_invalidate_full_browse(customer_db):
         )
         session.flush()
         session.refresh(state)
-        assert state.full_revision > full_revision
+        assert state.full_revision == full_revision
         assert state.input_revision > input_revision
 
 

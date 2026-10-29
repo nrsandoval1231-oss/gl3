@@ -224,6 +224,20 @@ def test_build_saved_page_matches_canonical_and_does_no_evidence_reads(saved_db,
     assert len(statements) <= 5
 
 
+def test_saved_page_always_exposes_current_snapshot_as_of_metadata(saved_db):
+    seed(saved_db)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        generation = current_generation(session)
+        result = page(session, filters())
+    assert result["generation_id"] == str(generation.id)
+    assert result["as_of"] == generation.built_at.isoformat()
+    assert result["built_at"] == generation.built_at.isoformat()
+    assert result["valid_until"] == generation.valid_until.isoformat()
+    assert result["qualification_state"] == "current"
+    assert result["refresh_state"] == "current"
+
+
 @pytest.mark.parametrize(
     "query", ["full history 2", "cross field", "synthetic 1", "%", "missing", ""]
 )
@@ -275,7 +289,12 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
             WHERE n.nspname=current_schema() AND t.tgname='invalidate_browse'
         """)
         ).all()
-        assert set(tables) == set(INPUT_TABLES) - {"buying_chain_identity_links"}
+        assert set(tables) == set(INPUT_TABLES) - {
+            "buying_chain_identity_links",
+            "company_identities",
+            "identity_identifiers",
+            "company_project_memberships",
+        }
         identity_triggers = session.scalars(
             text("""
             SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
@@ -290,6 +309,22 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
             "invalidate_browse_identity_link_delete",
             "invalidate_browse_identity_link_truncate",
         }
+        for table in ("company_identities", "identity_identifiers"):
+            scoped_triggers = session.scalars(
+                text("""
+                SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+                JOIN pg_namespace n ON n.oid=c.relnamespace
+                WHERE n.nspname=current_schema() AND c.relname=:table
+                    AND NOT t.tgisinternal
+                """),
+                {"table": table},
+            ).all()
+            assert set(scoped_triggers) == {
+                "invalidate_browse_identity_entity_insert",
+                "invalidate_browse_identity_entity_update",
+                "invalidate_browse_identity_entity_delete",
+                "invalidate_browse_identity_entity_truncate",
+            }
         # Exercise every table without creating/deleting canonical evidence.
         revision = session.scalar(select(BrowseState.input_revision))
         for table in INPUT_TABLES:
@@ -297,9 +332,450 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
         # Empty identity-link batches are no-ops; pursuit call-note writes are
         # live overlays and their TRUNCATE trigger remains conservative.
         assert (
-            session.scalar(select(BrowseState.input_revision)) == revision + len(INPUT_TABLES) - 2
+            session.scalar(select(BrowseState.input_revision)) == revision + len(INPUT_TABLES) - 5
         )
+        membership_triggers = session.scalars(
+            text("""
+            SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+            JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname=current_schema() AND c.relname='company_project_memberships'
+                AND NOT t.tgisinternal
+            """)
+        ).all()
+        assert set(membership_triggers) == {
+            "invalidate_browse_company_membership_insert",
+            "invalidate_browse_company_membership_update",
+            "invalidate_browse_company_membership_delete",
+            "invalidate_browse_company_membership_truncate",
+        }
         session.rollback()
+
+
+def test_identity_churn_only_invalidates_projects_that_consume_the_identity(saved_db):
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+    from gridlens.persistence.models import (
+        BrowseDirtyProject,
+        BuyingChainEvidence,
+        CompanyIdentity,
+        CompanyProjectMembership,
+        IdentityIdentifier,
+    )
+
+    need_ids = seed(saved_db, count=1, histories=1)
+    with saved_db.begin() as session:
+        need = session.get(PowerNeed, need_ids[0])
+        project = session.get(Project, need.project_id)
+        evidence = session.scalar(
+            select(Evidence)
+            .join(NeedObservation, NeedObservation.observation_id == Evidence.observation_id)
+            .where(NeedObservation.need_id == need.id)
+        )
+        observation = session.get(Observation, evidence.observation_id)
+        identity = CompanyIdentity()
+        identity_evidence = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://example.test/identity-identifier",
+            title="Synthetic identity identifier",
+            excerpt="Synthetic only.",
+            content_hash="c" * 64,
+            extraction_location="Synthetic fixture",
+            observed_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+            project_match_reason="Synthetic test data.",
+        )
+        session.add_all([identity, identity_evidence])
+        session.flush()
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity.id,
+                project_id=project.id,
+                role="asset_operator",
+                organization_name="Synthetic operator",
+                source_id=observation.source_id,
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="synthetic_test",
+                operator_number="123456",
+            )
+        )
+        identity_id, project_id = identity.id, project.id
+    assert rebuild(saved_db)["status"] == "published"
+
+    with saved_db() as session:
+        prior_full = session.get(BrowseState, 1).full_revision
+        prior_input = session.get(BrowseState, 1).input_revision
+    with saved_db.begin() as session:
+        session.get(CompanyIdentity, identity_id).rrc_operator_number = "654321"
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.full_revision == prior_full
+        assert state.input_revision == prior_input + 1
+        assert set(session.scalars(select(BrowseDirtyProject.project_id))) == {project_id}
+    with saved_db.begin() as session:
+        identifier = IdentityIdentifier(
+            entity_type="company",
+            company_identity_id=identity_id,
+            person_identity_id=None,
+            identifier_type="test_identifier",
+            normalized_value="synthetic-identity-123456",
+            source_evidence_id=identity_evidence.id,
+            source_version_hash=identity_evidence.content_hash,
+            reason="Synthetic test fixture.",
+        )
+        session.add(identifier)
+        session.flush()
+        identifier_id = identifier.id
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.full_revision == prior_full
+        assert set(session.scalars(select(BrowseDirtyProject.project_id))) == {project_id}
+    with saved_db.begin() as session:
+        result = refresh_project_changes(session, max_projects=None, max_needs=None)
+        assert result["status"] == "published"
+    with saved_db() as session:
+        current_generation(session)
+    with saved_db.begin() as session:
+        generation_id = session.get(BrowseState, 1).generation_id
+        session.add(
+            BrowseCustomerMembership(
+                generation_id=generation_id,
+                company_identity_id=identity_id,
+                project_id=project_id,
+                organization_name="Synthetic operator",
+                role="asset_operator",
+                supporting_evidence_count=1,
+                last_evidence_update=datetime.now(UTC),
+            )
+        )
+    with saved_db.begin() as session:
+        before_membership_delete_input = session.get(BrowseState, 1).input_revision
+        before_membership_delete_full = session.get(BrowseState, 1).full_revision
+        membership = session.scalar(
+            select(CompanyProjectMembership).where(
+                CompanyProjectMembership.company_identity_id == identity_id
+            )
+        )
+        session.delete(membership)
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == before_membership_delete_input + 1
+        assert state.full_revision == before_membership_delete_full
+        assert set(session.scalars(select(BrowseDirtyProject.project_id))) == {project_id}
+        before_identifier_delete = session.get(BrowseState, 1).input_revision
+        full_before_identifier_delete = session.get(BrowseState, 1).full_revision
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BrowseCustomerMembership)
+                .where(
+                    BrowseCustomerMembership.generation_id
+                    == session.get(BrowseState, 1).generation_id,
+                    BrowseCustomerMembership.company_identity_id == identity_id,
+                )
+            )
+            == 1
+        )
+    with saved_db.begin() as session:
+        session.delete(session.get(IdentityIdentifier, identifier_id))
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == before_identifier_delete + 1
+        assert state.full_revision == full_before_identifier_delete
+        assert set(session.scalars(select(BrowseDirtyProject.project_id))) == {project_id}
+
+
+def test_unreferenced_identity_reconciliation_rows_do_not_invalidate_browse(saved_db):
+    from gridlens.persistence.models import BuyingChainEvidence, CompanyIdentity, IdentityIdentifier
+
+    seed(saved_db, count=1)
+    with saved_db.begin() as session:
+        project = session.scalar(select(Project))
+        source_evidence = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://example.test/unlinked-identity-identifier",
+            title="Synthetic unlinked identity identifier",
+            excerpt="Synthetic only.",
+            content_hash="f" * 64,
+            extraction_location="Synthetic fixture",
+            observed_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+            project_match_reason="Synthetic test data.",
+        )
+        session.add(source_evidence)
+        session.flush()
+        evidence_id = source_evidence.id
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        before = session.get(BrowseState, 1).input_revision
+    with saved_db.begin() as session:
+        identity = CompanyIdentity()
+        session.add(identity)
+        session.flush()
+        session.add(
+            IdentityIdentifier(
+                entity_type="company",
+                company_identity_id=identity.id,
+                person_identity_id=None,
+                identifier_type="test_identifier",
+                normalized_value="unlinked-synthetic-123456",
+                source_evidence_id=evidence_id,
+                source_version_hash="f" * 64,
+                reason="Synthetic test fixture.",
+            )
+        )
+    with saved_db() as session:
+        assert session.get(BrowseState, 1).input_revision == before
+        current_generation(session)
+
+
+def test_company_membership_mutations_refresh_only_old_and_new_project_owners(saved_db):
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+    from gridlens.persistence.models import (
+        BrowseDirtyProject,
+        CompanyIdentity,
+        CompanyProjectMembership,
+    )
+
+    need_ids = seed(saved_db, count=2, histories=1)
+    with saved_db.begin() as session:
+        needs = [session.get(PowerNeed, need_id) for need_id in need_ids]
+        projects = [session.get(Project, need.project_id) for need in needs]
+        evidence = session.scalar(
+            select(Evidence)
+            .join(NeedObservation, NeedObservation.observation_id == Evidence.observation_id)
+            .where(NeedObservation.need_id == need_ids[0])
+        )
+        identity = CompanyIdentity(rrc_operator_number="123456")
+        session.add(identity)
+        session.flush()
+        identity_id = identity.id
+        first_project_id, second_project_id = projects[0].id, projects[1].id
+        evidence_id = evidence.id
+        source_id = evidence.observation.source_id
+        content_hash = evidence.content_hash
+    assert rebuild(saved_db)["status"] == "published"
+
+    with saved_db() as session:
+        prior_input = session.get(BrowseState, 1).input_revision
+        prior_full = session.get(BrowseState, 1).full_revision
+    with saved_db.begin() as session:
+        membership = CompanyProjectMembership(
+            company_identity_id=identity_id,
+            project_id=first_project_id,
+            role="asset_operator",
+            organization_name="Synthetic RRC Operator",
+            source_id=source_id,
+            source_evidence_id=evidence_id,
+            source_version_hash=content_hash,
+            decision_basis="typed_rrc_operator_number_v1",
+            operator_number="123456",
+        )
+        session.add(membership)
+        session.flush()
+        membership_id = membership.id
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == prior_input + 1
+        assert state.full_revision == prior_full
+        assert set(session.scalars(select(BrowseDirtyProject.project_id))) == {first_project_id}
+    with saved_db.begin() as session:
+        assert (
+            refresh_project_changes(session, max_projects=None, max_needs=None)["status"]
+            == "published"
+        )
+    with saved_db() as session:
+        generation = current_generation(session)
+        assert generation.input_revision == session.get(BrowseState, 1).input_revision
+
+    with saved_db() as session:
+        prior_input = session.get(BrowseState, 1).input_revision
+        prior_full = session.get(BrowseState, 1).full_revision
+    with saved_db.begin() as session:
+        session.get(CompanyProjectMembership, membership_id).project_id = second_project_id
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == prior_input + 1
+        assert state.full_revision == prior_full
+        assert set(session.scalars(select(BrowseDirtyProject.project_id))) == {
+            first_project_id,
+            second_project_id,
+        }
+    with saved_db.begin() as session:
+        assert (
+            refresh_project_changes(session, max_projects=None, max_needs=None)["status"]
+            == "published"
+        )
+    with saved_db() as session:
+        generation = current_generation(session)
+        assert generation.input_revision == session.get(BrowseState, 1).input_revision
+
+
+def test_malformed_company_membership_dependency_falls_back_to_full(saved_db):
+    seed(saved_db, count=1)
+    with saved_db.begin() as session:
+        state = session.get(BrowseState, 1)
+        prior_input = state.input_revision
+        session.execute(
+            text("SELECT invalidate_browse_company_membership_rows(CAST(:affected AS jsonb))"),
+            {"affected": '[{"project_id":"not-a-uuid"}]'},
+        )
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == prior_input + 1
+        assert state.full_revision == state.input_revision
+
+
+def test_company_membership_truncate_keeps_full_invalidation(saved_db):
+    seed(saved_db, count=1)
+    with saved_db() as session:
+        prior_input = session.get(BrowseState, 1).input_revision
+    with saved_db.begin() as session:
+        session.execute(
+            text("TRUNCATE company_project_membership_corrections, company_project_memberships")
+        )
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == prior_input + 1
+        assert state.full_revision == state.input_revision
+
+
+def test_person_identifier_changes_scope_through_historical_project_claims(saved_db):
+    from gridlens.persistence.models import (
+        BrowseDirtyProject,
+        BuyingChainClaim,
+        BuyingChainEvidence,
+        BuyingChainIdentityLink,
+        IdentityIdentifier,
+        PersonIdentity,
+    )
+
+    seed(saved_db, count=2)
+    with saved_db.begin() as session:
+        people = [PersonIdentity(), PersonIdentity()]
+        projects = list(session.scalars(select(Project).order_by(Project.name)))
+        evidence_rows = []
+        for index, (person, project) in enumerate(zip(people, projects, strict=True)):
+            evidence = BuyingChainEvidence(
+                project_id=project.id,
+                url=f"https://example.test/person-identity-{index}",
+                title="Synthetic buyer relationship",
+                excerpt="Synthetic only.",
+                content_hash=str(index + 3) * 64,
+                extraction_location="Synthetic fixture",
+                observed_at=datetime.now(UTC),
+                last_seen_at=datetime.now(UTC),
+                project_match_reason="Synthetic test data.",
+            )
+            session.add_all([person, evidence])
+            session.flush()
+            claim = BuyingChainClaim(
+                project_id=project.id,
+                entity_key=f"synthetic-person-identity-{index}",
+                fingerprint=str(index + 5) * 64,
+                policy_version="synthetic-test-v1",
+                organization="Synthetic buyer",
+                person_name=f"Synthetic Person {index}",
+                title="Decision maker",
+                category="owner_developer",
+                organization_relationship="DIRECT",
+                person_organization_relationship="DIRECT",
+                person_project_relationship="DIRECT",
+                evidence_strength="High",
+                reason="Synthetic test fixture.",
+                citations=[],
+                public_contacts=[],
+                observed_at=datetime.now(UTC),
+            )
+            session.add(claim)
+            session.flush()
+            session.add(
+                BuyingChainIdentityLink(
+                    claim_id=claim.id,
+                    entity_type="person",
+                    person_identity_id=person.id,
+                    company_identity_id=None,
+                    reason="Synthetic identity link",
+                    basis="strong_identifier",
+                    source_evidence_id=evidence.id,
+                    source_version_hash=evidence.content_hash,
+                    state="superseded",
+                )
+            )
+            evidence_rows.append(evidence)
+        identifier = IdentityIdentifier(
+            entity_type="person",
+            company_identity_id=None,
+            person_identity_id=people[0].id,
+            identifier_type="test_person_identifier",
+            normalized_value="synthetic-person-123456",
+            source_evidence_id=evidence_rows[0].id,
+            source_version_hash=evidence_rows[0].content_hash,
+            reason="Synthetic test fixture.",
+        )
+        session.add(identifier)
+        session.flush()
+        person_ids = [person.id for person in people]
+        project_ids = {project.id for project in projects}
+        identifier_id = identifier.id
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        before = session.get(BrowseState, 1)
+        prior_input, prior_full = before.input_revision, before.full_revision
+    with saved_db.begin() as session:
+        session.get(IdentityIdentifier, identifier_id).person_identity_id = person_ids[1]
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == prior_input + 1
+        assert state.full_revision == prior_full
+        assert set(session.scalars(select(BrowseDirtyProject.project_id))) == project_ids
+    with saved_db.begin() as session:
+        session.delete(session.get(IdentityIdentifier, identifier_id))
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == prior_input + 2
+        assert state.full_revision == prior_full
+        assert set(session.scalars(select(BrowseDirtyProject.project_id))) == project_ids
+
+
+def test_malformed_identity_dependency_falls_back_to_full_invalidation(saved_db):
+    seed(saved_db, count=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        before = session.get(BrowseState, 1).input_revision
+    with saved_db.begin() as session:
+        session.execute(
+            text("""
+                SELECT invalidate_browse_identity_entities(
+                    jsonb_build_array(jsonb_build_object(
+                        'entity_type', 'company',
+                        'company_identity_id', 'malformed',
+                        'person_identity_id', NULL
+                    )),
+                    'identity_identifiers'
+                )
+            """)
+        )
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == before + 1
+        assert state.full_revision == state.input_revision
+        with pytest.raises(HTTPException):
+            current_generation(session)
+
+
+def test_identity_identifier_truncate_keeps_full_invalidation(saved_db):
+    seed(saved_db, count=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        before = session.get(BrowseState, 1).input_revision
+    with saved_db.begin() as session:
+        session.execute(text("TRUNCATE TABLE identity_identifiers"))
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.input_revision == before + 1
+        assert state.full_revision == state.input_revision
+        with pytest.raises(HTTPException):
+            current_generation(session)
 
 
 def test_long_history_can_publish_compact_browse_but_detail_stays_bounded(saved_db, monkeypatch):
@@ -2106,6 +2582,35 @@ def test_maintenance_promotes_persisted_preparation_without_rebuild(saved_db, mo
         assert state.generation_id == prepared_id
         assert state.prepared_generation_id is None
         assert current_generation(restarted).id == prepared_id
+
+
+def test_default_rollover_lead_prepares_early_without_exposing_future_rows(saved_db, monkeypatch):
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import BrowseGeneration
+
+    seed(saved_db, count=1)
+    assert rebuild(saved_db)["status"] == "published"
+    now = datetime.now(UTC)
+    with saved_db.begin() as session:
+        original = current_generation(session)
+        original_id = original.id
+        original.valid_until = now + timedelta(minutes=10)
+        boundary = original.valid_until
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now
+
+    monkeypatch.setattr(saved_browse, "datetime", Clock)
+    result = saved_browse.prepare_next(saved_db)
+    assert result["status"] == "prepared"
+    prepared_id = UUID(result["generation_id"])
+    with saved_db() as session:
+        prepared = session.get(BrowseGeneration, prepared_id)
+        assert prepared.valid_from == boundary
+        assert current_generation(session, now=now).id == original_id
+        assert current_generation(session, now=boundary).id == prepared_id
 
 
 def test_preparing_subsequent_interval_preserves_now_effective_preparation(saved_db, monkeypatch):

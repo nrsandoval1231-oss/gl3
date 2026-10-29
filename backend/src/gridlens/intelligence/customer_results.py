@@ -30,6 +30,26 @@ def _cohort(session, *, search: str | None, sector: str, sort: str, selected_gen
     return generation, term, token
 
 
+def _snapshot_metadata(generation) -> dict[str, str]:
+    """Expose the exact published snapshot time on every successful page."""
+    as_of = generation.built_at.isoformat()
+    return {
+        "generation_id": str(generation.id),
+        "as_of": as_of,
+        "valid_until": generation.valid_until.isoformat(),
+        "qualification_state": "current",
+        "refresh_state": "current",
+    }
+
+
+def _disable_jit_for_search(session, term: str) -> None:
+    # PostgreSQL's JIT threshold can trigger substantial one-off compilation
+    # for the substring-search cohort query. Keep this request-local; do not
+    # alter the database-wide setting used by other workloads.
+    if term:
+        session.execute(text("SET LOCAL jit = off"))
+
+
 def _query_parts(generation, term, sector):
     clauses = ["b.generation_id = :generation"]
     params: dict[str, Any] = {"generation": generation.id, "term": term}
@@ -57,7 +77,23 @@ def _query_parts(generation, term, sector):
 
 
 def _ctes(where: str) -> str:
-    return """
+    # In the unfiltered All cohort, matched already contains every row in the
+    # generation. Reusing it avoids rescanning browse_rows and recomputing the
+    # validated asset identity for the same rows. Filtered cohorts still expand
+    # each matched asset to all of its generation rows below.
+    all_rows = (
+        "all_rows AS (SELECT * FROM matched),"
+        if where == "b.generation_id = :generation"
+        else """
+    all_rows AS (
+      SELECT %%ASSET%% AS asset_key, b.project_id, b.need_id, b.compact,
+             b.rank_score, b.updated_at
+      FROM browse_rows b JOIN candidate_assets c ON c.asset_key = %%ASSET%%
+      WHERE b.generation_id = :generation
+    ),"""
+    )
+    return (
+        """
     WITH matched AS (
       SELECT %%ASSET%% AS asset_key, b.project_id, b.need_id, b.compact,
              b.rank_score, b.updated_at
@@ -65,12 +101,7 @@ def _ctes(where: str) -> str:
     ), candidate_assets AS (
       SELECT asset_key, min(project_id::text) AS anchor_project_id
       FROM matched GROUP BY asset_key
-    ), all_rows AS (
-      SELECT %%ASSET%% AS asset_key, b.project_id, b.need_id, b.compact,
-             b.rank_score, b.updated_at
-      FROM browse_rows b JOIN candidate_assets c ON c.asset_key = %%ASSET%%
-      WHERE b.generation_id = :generation
-    ), assets AS (
+    ), %%ALL_ROWS%% assets AS (
       SELECT a.asset_key, c.anchor_project_id,
              count(DISTINCT need_id)::integer AS need_count,
              max(rank_score)::integer AS priority_score, max(updated_at) AS updated_at
@@ -145,7 +176,10 @@ def _ctes(where: str) -> str:
         max(updated_at) AS updated_at
       FROM assigned GROUP BY group_key
     )
-    """.replace("%%ASSET%%", _ASSET_B).replace("%%WHERE%%", where)
+    """.replace("%%ALL_ROWS%%", all_rows)
+        .replace("%%ASSET%%", _ASSET_B)
+        .replace("%%WHERE%%", where)
+    )
 
 
 def _group_id(key: str) -> str:
@@ -176,6 +210,7 @@ def groups(
         session, search=search, sector=sector, sort=sort, selected_generation=selected_generation
     )
     _validate_token(token, cohort, offset)
+    _disable_jit_for_search(session, term)
     where, params = _query_parts(generation, term, sector)
     order = (
         "priority_score DESC, name, group_key"
@@ -183,15 +218,27 @@ def groups(
         else "updated_at DESC, group_key"
     )
     sql = _ctes(where)
-    total = session.execute(text(sql + " SELECT count(*) FROM grouped"), params).scalar_one()
     rows = (
         session.execute(
-            text(sql + f" SELECT * FROM grouped ORDER BY {order} LIMIT :limit OFFSET :offset"),
+            text(
+                sql
+                + " SELECT grouped.*, count(*) OVER() AS total FROM grouped "
+                + f"ORDER BY {order} LIMIT :limit OFFSET :offset"
+            ),
             {**params, "limit": limit, "offset": min(offset, generation.row_count)},
         )
         .mappings()
         .all()
     )
+    # Count the cohort in the same grouped pass as the requested page. The
+    # window is evaluated before LIMIT/OFFSET, so every page retains the same
+    # total without rebuilding the full aggregation a second time.
+    if rows:
+        total = rows[0]["total"]
+    else:
+        # An empty page may be out of range or an empty cohort. Keep the count
+        # query for this uncommon case so totals remain exact.
+        total = session.execute(text(sql + " SELECT count(*) FROM grouped"), params).scalar_one()
     items = [
         {
             "id": _group_id(row["group_key"]),
@@ -212,6 +259,7 @@ def groups(
         "offset": offset,
         "cohort_token": cohort,
         "generation": str(generation.id),
+        **_snapshot_metadata(generation),
     }
 
 
@@ -277,6 +325,7 @@ def group_projects(
         raise HTTPException(409, "Customer cohort changed; restart pagination")
     group_token = cohort + ".group." + hashlib.sha256(group_id.encode()).hexdigest()[:16]
     _validate_token(token, group_token, offset)
+    _disable_jit_for_search(session, term)
     where, params = _query_parts(generation, term, sector)
     sql = _ctes(where)
     # Resolve the opaque group id using built-in PostgreSQL md5 and collect only
@@ -288,7 +337,8 @@ def group_projects(
                 sql
                 + f"""
           SELECT a.anchor_project_id, a.asset_key, a.group_name, a.group_role,
-                 a.priority_score, a.need_count, a.sector, a.updated_at
+                 a.priority_score, a.need_count, a.sector, a.updated_at,
+                 count(*) OVER() AS total
           FROM assigned a
           WHERE 'cg_' || md5(a.group_key) = :id
           ORDER BY {child_order}, a.asset_key
@@ -300,16 +350,21 @@ def group_projects(
         .mappings()
         .all()
     )
-    count = session.execute(
-        text(
-            sql
-            + """
-          SELECT count(*) FROM assigned a
-          WHERE 'cg_' || md5(a.group_key) = :id
-        """
-        ),
-        {**params, "id": group_id},
-    ).scalar_one()
+    if rows:
+        count = rows[0]["total"]
+    else:
+        # Preserve exact empty-cohort and out-of-range behavior without paying
+        # for a second full assignment aggregation on ordinary pages.
+        count = session.execute(
+            text(
+                sql
+                + """
+              SELECT count(*) FROM assigned a
+              WHERE 'cg_' || md5(a.group_key) = :id
+            """
+            ),
+            {**params, "id": group_id},
+        ).scalar_one()
     if count == 0:
         raise HTTPException(404, "Customer group not found in this cohort")
     project_ids = [UUID(row["anchor_project_id"]) for row in rows]
@@ -336,6 +391,7 @@ def group_projects(
         "offset": offset,
         "cohort_token": group_token,
         "generation": str(generation.id),
+        **_snapshot_metadata(generation),
         "group": {
             "id": group_id,
             "name": rows[0]["group_name"] if rows else "",

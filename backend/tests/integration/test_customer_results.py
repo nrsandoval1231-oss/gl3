@@ -139,7 +139,13 @@ def _seed_group_cohort(factory):
 def test_groups_aggregate_over_full_cohort_and_scope_children(saved_db):
     _seed_group_cohort(saved_db)
     with saved_db() as session:
+        generation = current_generation(session)
         first = groups(session, sector="all", limit=1)
+        assert first["generation_id"] == str(generation.id)
+        assert first["as_of"] == generation.built_at.isoformat()
+        assert first["valid_until"] == generation.valid_until.isoformat()
+        assert first["qualification_state"] == "current"
+        assert first["refresh_state"] == "current"
         assert first["total"] == 5
         assert first["items"][0]["project_count"] <= 66
         outer_page = groups(session, sector="all", limit=1, offset=1, token=first["cohort_token"])
@@ -159,6 +165,9 @@ def test_groups_aggregate_over_full_cohort_and_scope_children(saved_db):
             parent_token=searched_owner["cohort_token"],
         )
         assert owner_projects["total"] == 1
+        assert owner_projects["generation_id"] == str(generation.id)
+        assert owner_projects["as_of"] == generation.built_at.isoformat()
+        assert owner_projects["refresh_state"] == "current"
         assert len(owner_projects["items"]) == 1
         operators = groups(session, sector="oil_gas", limit=10)
         assert operators["total"] == 3
