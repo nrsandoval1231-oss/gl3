@@ -1,13 +1,29 @@
-# Current work — operator/customer hierarchy and current-data recovery
+# Current state — repository checkpoint (2026-10-28)
 
-Owner request (2026-10-27): repair bulk-contact over-redaction; establish safe rollback for current production data; test, independently review, merge and deploy without activating paid providers. Operator/customer is primary, with every supported well/project nested underneath. This supersedes the earlier project-primary presentation. Qualification, identity, evidence and privacy rules remain intact.
+This is a **repository-only checkpoint**, not a production status certificate. It supersedes the stale October 27 branch-in-progress narrative; that work remains available in Git history and dated validation/release records. Do not infer deployed image, schema, live source freshness, or commercial acceptance from a merge.
 
-Branch: `fix/operator-customer-recovery-20261027`, base `20c47ee4acdbd574051c1f85b1e6a6869ba2bde1`. Implementation is isolated from unrelated local-auth changes in the primary checkout. Previous state is preserved verbatim in [the archive](archive/OPERATOR-CUSTOMER-20261027/previous-current-state.md).
+## Verified from GitHub main
 
-Four Luna builders own privacy, grouped API, grouped UI and guarded recovery. Astra reviewed recovery architecture with required publication/CAS and provider gates; final integrated implementation review remains required. Assignments are not verification evidence.
+- Inspected main head: `eadb203be231af045480b97f196b89f1b6457846` (PR #143).
+- Recent merged pipeline work: PRs #137–#143. This includes test-fixture reset, isolated pytest-xdist workers, parallel browser CI, path-based CI selection and its follow-up fix, and tightened measured time limits.
+- The source and product authorities are [Autonomous Intelligence Canon](../docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md), [Operator/Customer Results Canon](../docs/product/PROJECT_FIRST_RESULTS_CANON.md), and [UI Canon](../docs/design/UI_CANON.md). The [PRD](../docs/product/PRD.md) remains subordinate where directions conflict.
+- The original October 27 recovery candidate and its reported test/restore evidence are **historical candidate receipts**, not present production claims. See [recovery protocol](../docs/validation/operator-customer-recovery-20261027/PROTOCOL.md) and Git history.
 
-Acceptance and next steps: [release protocol](../docs/validation/operator-customer-recovery-20261027/PROTOCOL.md). Reproduce bulk over-redaction, retain fail-closed per-project privacy limits, and test non-vacuous suppression. Group the full cohort on stable identities with bounded child pagination, typed dates and distinct project contacts. Recovery stages an invisible generation and publishes only under exact revision/pointer/policy guards while writers are held; no obsolete-pointer override or production snapshot restoration.
+## Product state and unresolved proof
 
-Disposable PostgreSQL 18 and Python 3.11 are available with external-test network guards and no paid keys. Privacy/recovery baseline is committed as `3491ba8f`; grouped application candidate is `0f424da0`, with disclosure follow-up `07fb8f5b` independently reviewed. Independent review passed 31 affected tests. Full browser regressions passed 133/133; the disclosure follow-up passed 11/11. Backend full run passed 3,250 with two test-fixture failures; both repairs subsequently passed six focused checks. The independent application review approves `07fb8f5b` subject to final CI and operations gates. Final exact-candidate checks remain required.
+GridLens has FastAPI, PostgreSQL, a Python worker, and a React frontend. Its intended daily product is operator/customer groups with distinct physical projects/wells nested underneath; source-grounded power needs, relevant contacts, freshness, evidence and next actions; real Oil & Gas and Data Center filters. No routine manual call logs, qualification forms, raw permit dashboards or operations UI.
 
-Fresh production snapshot restored with all 73 table counts/digests equal. The isolated recovery image upgraded it normally to 0048, returned 87 contact-bearing candidates versus zero before, staged invisibly and published with all 66 retained non-browse tables unchanged. Candidate grouping/privacy and populated-ledger rollback rehearsal are in progress. Production itself remains on the base revision/schema 0047; no application cutover is claimed. Release operations will explicitly disable paid intelligence dispatch for API and worker through non-secret Compose overrides, preserving keys, budgets and protected environment files. Commercial P0 remains unmet.
+**Do not mark the following complete without a current observed receipt:**
+1. Exact production API/web/worker revision, database schema, on-host recovery/rollback safeguards, and authenticated desktop/mobile release checks.
+2. PC-independent scheduled ingestion, incremental source checks, heartbeat *plus useful admissions*, source health and seven actual due cycles.
+3. Conservative company/project identity, per-well lifecycle dates, buyer/contact method coverage and evidence-supported residual power gaps on a frozen real TX/OK/NM sample.
+4. Commercial acceptance: actual eligible denominator and individually inspected actionable projects/Leads; synthetic tests do not count.
+5. Paid-provider budget/credential authorization. No new paid calls or destructive production writes are implied by this checkpoint.
+
+## Next bounded work
+
+1. Reconcile the exact deployed artifacts and source schedule using existing protected operational procedures; report observations with timestamp.
+2. Freeze a real-project review cohort; measure source-backed owner/operator, site, dates, power relevance, contacts and next action, retaining explicit unknowns.
+3. Repair the highest-impact real data defect first, then run the exact-candidate CI, independent review, and coordinated release checks.
+
+[Operations](../docs/operations/README.md) describes safe runtime verification. [Delivery gates](../docs/delivery/milestones.md) and [Finish Contract](FINISH_CONTRACT.md) describe evidence needed for acceptance. This file is not authorization to deploy, spend, overwrite source data, restore production, or merge feature work.
