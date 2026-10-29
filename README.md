@@ -1,6 +1,6 @@
 # GridLens GL3
 
-GridLens autonomously discovers, researches and ranks commercial power opportunities at physical projects in Texas, Oklahoma and New Mexico, with source-backed gaps, timing and business contacts. The owner-approved [Autonomous Intelligence Canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs the product; the [PRD](docs/product/PRD.md) supplies compatible evidence and qualification constraints, and the [UI canon](docs/design/UI_CANON.md) preserves the seven-color G/L brand and responsive table/detail composition.
+GridLens autonomously discovers, researches and ranks commercial power opportunities at physical projects in Texas, Oklahoma and New Mexico, with source-backed gaps, timing and business contacts. The owner-approved [Autonomous Intelligence Canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs the product; the [PRD](docs/product/PRD.md) supplies compatible evidence and qualification constraints, and the [UI canon](docs/design/UI_CANON.md) preserves the seven-color G/L brand and responsive operator/customer groups with nested wells/projects.
 
 ## Current status
 
