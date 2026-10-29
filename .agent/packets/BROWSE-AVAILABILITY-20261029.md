@@ -1,5 +1,11 @@
 # Browse availability repair — 2026-10-29
 
+Status: historical execution packet. PR147 is merged and deployed; final gates and
+live journeys completed. See [current checkpoint](../CURRENT_STATE.md) and
+[final release evidence](../../docs/validation/browse-availability-repair-20261029.md)
+for remaining limits. Pending/next statements below describe earlier checkpoints,
+and former worktree paths now map through the owner-local cleanup archive.
+
 READY packet: owner requests end-to-end live browsing repair, bounded performance work,
 operational diagnosis, authenticated QA and PR. Base `37cc949b4c230851c88f4181966b888a26e1f037`,
 branch `fix/browse-availability-20261029`; dedicated worktree `browse-availability-20261029`.

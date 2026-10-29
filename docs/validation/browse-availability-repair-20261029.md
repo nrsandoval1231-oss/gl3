@@ -5,6 +5,38 @@ preserving operator/customer grouping, qualification, privacy, provenance and th
 canonical interface. [Packet](../../.agent/packets/BROWSE-AVAILABILITY-20261029.md)
 and [current state](../../.agent/CURRENT_STATE.md) track candidate acceptance.
 
+## Final release status — verified October 29, 2026
+
+PR [147](https://github.com/nrsandoval1231-oss/gl3/pull/147) merged at
+`4376f4d13e0a13a0c8fb9bf7c004dbba89c5c4cb`. Deployed source
+`e153cefde8ababbe23ff0a4ef48af8c98fb61d28` has the identical application tree.
+At 15:14:22 UTC, API, web, ingestion worker and browse worker were running the
+verified release images with zero restarts, readiness READY and external HTTPS 200.
+Schema: `0049_scoped_identity_browse`. This is a dated observation, not continuous monitoring.
+
+Final source CI run `40894911298` passed. Local backend: 3308 passed, 2 skipped,
+7 subtests; browser: 158 passed. Independent source review had no unresolved
+material findings. Authenticated desktop, tablet and mobile journeys passed,
+including sector filters, group expansion/pagination, details, search, Signals,
+Research and diagnostics. These results supersede the preliminary pending gates below.
+
+Comparable 16-read HTTPS API median improved from 1206.8 ms to 398.45 ms;
+p95 was 954.5 ms (the maximum of this small sample, not a robust tail estimate).
+Oil filtering (890.1 ms median) and atomic group open (1376.8 ms median) still
+miss their targets. Actual live read/update overlap and midnight rollover remain
+unverified. RRC endpoint failures remain external/unknown. No full sustained
+availability or commercial acceptance is claimed.
+
+Fresh backup and isolated restore matched all 74 tables. Paid provider gates
+remained closed. No credential change, provider activation or production-data
+replacement was performed. Detailed owner-local release receipts are retained in
+`C:\Users\nrsan\Nucleus\02_Projects\GridLens\.repair-release-20261029`.
+
+## Pre-release investigation and measurements
+
+The remaining sections preserve the investigation as recorded before release.
+Final release results above supersede their pending deployment/QA statements.
+
 ## Verified cause
 
 Production API, worker, browse maintenance and web ran source `37cc949b`; database

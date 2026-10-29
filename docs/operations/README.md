@@ -1,5 +1,11 @@
 # Operations authority
 
+Latest recorded release: PR147, application main `4376f4d1`, source `e153cefd`,
+schema0049, observed October29. See the [release evidence](../validation/browse-availability-repair-20261029.md)
+for verification and remaining performance/availability limits. GridLens runs on
+DigitalOcean through https://app.grid-lens.com/; a Windows launcher is optional
+local-development work, not a requirement for hosted use.
+
 Current implementation follows the owner-approved [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) and [current owner request](../../.agent/OWNER_REQUEST.md). The autonomous pipeline must operate independently of the user's device, but repository implementation and local checks do not prove deployed operation. Exact deployed images/schema, scheduler cadence, provider credentials/budgets, alerts and recovery remain subject to current environment verification.
 
 Current product routes for company graph, contacts, and power enrichment are read-only projections. Manual contact/company relationship correction, qualification, workflow-status, and ad hoc research queue writes are not supported user workflows. Preserve their historical assertions and correction receipts for audit and projection; do not direct operators to recreate them through an API, CLI, or database edit. Internal authorized workbook staging and autonomous worker scheduling remain separate mechanisms, with their own provenance and safeguards.
