@@ -47,7 +47,7 @@ export function GlobalSearch({ onNeed, onCompany }: { onNeed: (needId: string) =
   const groups: [string, SearchHit[]][] = [['Projects', projects], ['Companies', companies], ['Contacts', contacts], ['Opportunity intelligence', opportunities]]
 
   return <div className="global-search" ref={searchRef}>
-    <label><span aria-hidden="true">Search</span><input type="search" aria-label="Search companies, projects, contacts and opportunities" placeholder="Companies, projects, contacts…" value={query} onFocus={() => setOpen(true)} onChange={event => { setQuery(event.target.value); setOpen(true) }}/></label>
+    <label><span aria-hidden="true">Search</span><input type="search" aria-label="Search companies, projects, contacts and opportunities" placeholder="Search companies, projects or locations…" value={query} onFocus={() => setOpen(true)} onChange={event => { setQuery(event.target.value); setOpen(true) }}/></label>
     {open && query.trim().length >= 2 && <section className="global-search-results" aria-label="Search results" aria-live="polite">
       {loading && <p role="status">Searching current intelligence…</p>}{error && <p role="alert">{error}</p>}
       {!loading && !error && currentResult && !groups.some(([, items]) => items.length) && currentResult.companies_status !== 'qualification_pending' && currentResult.opportunities_status !== 'qualification_pending' && <p>No current companies, projects, contacts or opportunities match this search.</p>}

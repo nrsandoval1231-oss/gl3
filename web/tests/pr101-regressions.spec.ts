@@ -40,7 +40,7 @@ test('legacy environment links preserve supported tab, lens, tier, and grouped b
     return route.fulfill({ status: 200, contentType: 'application/json', headers: opportunityHeaders('legacy-page', offset, null), body: JSON.stringify([need]) })
   })
 
-  await page.goto('/environment?view=environment&mode=evidence&need=need-a&lens=data_center')
+  await page.goto('/environment?view=environment&mode=evidence&need=need-a&lens=data_center&groupBrowse=1')
   await expect.poll(() => {
     const params = new URL(page.url()).searchParams
     return [params.get('view'), params.get('industry'), params.get('section'), params.get('need')]
@@ -80,7 +80,7 @@ test('secondary technical diagnostics keeps the filtered inbox URL and readback 
 test('default landing hides the legacy queue and briefing controls', async ({ page }) => {
   await authenticated(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'operators and customers', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic' } }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.locator('.wh-queue-meta')).toHaveCount(0)
   await expect(page.locator('.wh-briefing-scope')).toHaveCount(0)
   await expect(page.getByText('No operator/customer groups match this search.')).toBeVisible()

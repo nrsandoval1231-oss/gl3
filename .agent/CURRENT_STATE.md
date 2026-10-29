@@ -33,3 +33,13 @@ statements in candidate receipts are historical.
 
 The [repair packet](packets/BROWSE-AVAILABILITY-20261029.md) preserves implementation
 history. Next work should start from current main and the owner-approved canons.
+
+## Canonical UI candidate — October 29, 2026
+
+The owner-requested canonical screenshot implementation is on
+`feat/canonical-reference-ui-20261029`, source `d41d4e17`. It is not merged or
+deployed; the released production revision above remains unchanged. Local checks:
+168 browser regressions; 3309 backend tests passed/1 skipped/7 subtests; build,
+types, audits, migration compatibility and protected brand assets passed. The
+[candidate receipt](../docs/validation/canonical-reference-ui-20261029.md) records
+visual evidence, API limitations and the separate live-acceptance boundary.

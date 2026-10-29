@@ -290,7 +290,7 @@ export const client = {
     requireCurrentBrowseGeneration(value.projects)
     return value
   },
-  projectResults: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: string; need_id?: string }, signal?: AbortSignal): Promise<ProjectResultsPage> => {
+  projectResults: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: string; need_id?: string; include_signals?: boolean }, signal?: AbortSignal): Promise<ProjectResultsPage> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await fetch(`/api/opportunities/projects?${params}`, { credentials: 'same-origin', signal })

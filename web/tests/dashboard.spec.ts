@@ -48,7 +48,7 @@ test('project results preserve detail history, truthful gaps, and responsive nav
     }
     return route.fulfill({ status: 503, json: { detail: 'Not supplied by this project results fixture' } })
   })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await expect(page.locator('.project-results-count')).toHaveText('26 operator/customer groups')
   await expect(page.locator('.customer-group-toggle').first()).toBeVisible()
@@ -107,7 +107,7 @@ test('project results preserve detail history, truthful gaps, and responsive nav
   await page.getByRole('button', { name: 'Previous' }).click()
   await expect(page.locator('.customer-group')).toHaveCount(25)
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/?view=workspace&need=need-1')
+  await page.goto('/?view=workspace&groupBrowse=1&need=need-1')
   await expect(page.locator('.wh-detail h2')).toHaveText('Site development 2')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
 })

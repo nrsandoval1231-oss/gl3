@@ -8,7 +8,7 @@ const need = {
   intelligence_card: {
     policy_version: 'test', need_id: 'need-demo', project_id: 'project-demo', input_fingerprint: 'test', qualification: 'Prospect', disposition: 'RESEARCH',
     fields: [{ key: 'project', label: 'Project', section: 'identity', status: 'Verified', value: 'Ridgeview commissioning', basis: 'Publisher filing' }, { key: 'customer', label: 'Company', section: 'identity', status: 'Verified', value: 'Ridgeview Energy', basis: 'Publisher filing' }],
-    contacts: [{ claim_id: 'contact-1', company: 'Ridgeview Energy', name: 'Morgan Lee', title: 'Director, Construction', role: 'Project buyer', responsibility: 'Verified project responsibility', purchasing_authority: 'Purchasing authority requires confirmation', methods: [{ kind: 'email', value: 'morgan@example.test', href: 'mailto:morgan@example.test' }], verified_at: '2026-10-25T00:00:00Z', sources: [] }],
+    contacts: [{ claim_id: 'contact-1', company: 'Ridgeview Energy', name: 'Morgan Lee', title: 'Director, Construction', role: 'Project buyer', responsibility: 'Verified project responsibility', purchasing_authority: 'Purchasing authority requires confirmation', methods: [{ kind: 'email', value: 'morgan@example.test', href: 'mailto:morgan@example.test', verified_at: '2026-10-25T00:00:00Z' }], verified_at: '2026-10-25T00:00:00Z', sources: [] }],
     next_contact_path: 'Verified business email available', next_action: 'Review current gap evidence', research_gaps: [{ key: 'demand', label: 'Temporary demand', section: 'power', status: 'Not publicly available', value: null, basis: 'No current source supports activity demand.' }],
     completeness: { supported: 2, total: 5 }, last_intelligence_update: '2026-10-25T00:00:00Z', power_gap: null, evidence: [], research_enabled: true,
   },
@@ -185,50 +185,51 @@ test('project search surfaces matching project cards and opens a matching need',
   const projectResults = {
     items: [{ id: 'project-demo', project_id: 'project-demo', representative_need_id: 'need-demo', name: 'Ridgeview commissioning', company: longCompany, location: 'Austin, TX', sector: 'oil_gas', asset_type: 'processing_plant', priority_score: 1, needs: [need], need_count: 1, event: null, contact: [{ kind: 'email', label: 'Email Morgan Lee', href: `mailto:${longEmail}`, name: 'Morgan Lee', title: 'Director, Construction', company: longCompany }], power_summary: 'Power need to confirm', next_action: 'Confirm project timing', updated_at: '2026-10-25T00:00:00Z' }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', results_scope: 'discovery'
   }
-  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [{ id: 'group-demo', name: longCompany, role: 'customer', operator_number: null, project_count: 1, need_count: 1, priority_score: 1, sectors: ['oil_gas'] }], total: 1, count_unit: 'operators and customers', limit: 25, offset: 0, cohort_token: 'synthetic-parent', generation: 'synthetic' } }))
-  await page.route('**/api/opportunities/groups/group-demo/projects?**', route => route.fulfill({ json: projectResults }))
-  await page.route('**/api/opportunities/projects?**', route => route.fulfill({ json: projectResults }))
+  const searchNeed = { ...need, intelligence_card: { ...need.intelligence_card, contacts: need.intelligence_card.contacts.map(contact => ({ ...contact, company: longCompany, methods: contact.methods.map(method => ({ ...method, value: longEmail, href: `mailto:${longEmail}` })) })) } }
+  await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: searchNeed }))
+  const projectQueries: string[] = []
+  await page.route('**/api/opportunities/projects?**', route => { projectQueries.push(new URL(route.request().url()).searchParams.get('search') ?? ''); return route.fulfill({ json: projectResults }) })
   await page.goto('/?view=workspace')
   const search = page.getByLabel('Search opportunities')
   await search.fill('Morgan')
-  await page.getByRole('button', { name: /Ridgeview/ }).click()
-  await expect(page.getByText('Ridgeview commissioning')).toBeVisible()
-  await expect(page.locator('.project-results')).toContainText(longCompany)
-  await expect(page.locator('.project-card-actions a')).toHaveAttribute('href', `mailto:${longEmail}`)
+  await expect.poll(() => projectQueries).toContain('Morgan')
+  await expect(page.getByRole('button', { name: 'Ridgeview commissioning', exact: true })).toBeVisible()
+  await expect(page.locator('.canonical-flat-results')).toContainText(longCompany)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: test.info().outputPath('mobile-search.png'), fullPage: true })
-  await page.getByRole('button', { name: 'View project details' }).click()
-  await expect(page.locator('.wh-detail').getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open Ridgeview commissioning', exact: true }).click()
+  await expect(page.locator('.cod-panel').getByRole('heading', { name: `${longCompany} — Ridgeview commissioning` })).toBeVisible()
+  await expect(page.locator('.cod-contacts a')).toHaveAttribute('href', `mailto:${longEmail}`)
 })
 
 test('project search drops prior results after a failed query', async ({ page }) => {
   await install(page)
   const projectResults = { items: [{ id: 'project-demo', project_id: 'project-demo', representative_need_id: 'need-demo', name: 'Ridgeview commissioning', company: 'Ridgeview Energy', location: 'Austin, TX', sector: 'oil_gas', asset_type: 'processing_plant', priority_score: 1, needs: [need], need_count: 1, event: null, contact: [], power_summary: 'Power need to confirm', next_action: 'Confirm project timing', updated_at: null }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', results_scope: 'discovery' }
-  await page.route('**/api/opportunities/groups?**', route => {
-    const query = new URL(route.request().url()).searchParams.get('search')
+  const projectQueries: string[] = []
+  await page.route('**/api/opportunities/projects?**', route => {
+    const query = new URL(route.request().url()).searchParams.get('search') ?? ''
+    projectQueries.push(query)
     if (query === 'Failure') return route.fulfill({ status: 503, json: { detail: 'unavailable' } })
-    return route.fulfill({ json: { items: [{ id: 'group-demo', name: 'Ridgeview Energy', role: 'customer', operator_number: null, project_count: 1, need_count: 1, priority_score: 1, sectors: ['oil_gas'] }], total: 1, count_unit: 'operators and customers', limit: 25, offset: 0, cohort_token: 'synthetic-parent', generation: 'synthetic' } })
+    return route.fulfill({ json: projectResults })
   })
-  await page.route('**/api/opportunities/groups/group-demo/projects?**', route => route.fulfill({ json: projectResults }))
-  await page.route('**/api/opportunities/projects?**', route => route.fulfill({ json: projectResults }))
   await page.goto('/?view=workspace')
   const search = page.getByLabel('Search opportunities')
   await search.fill('Ridgeview')
-  await page.getByRole('button', { name: /Ridgeview/ }).click()
-  const hit = page.getByRole('button', { name: 'View project details' })
+  await expect.poll(() => projectQueries).toContain('Ridgeview')
+  const hit = page.getByRole('button', { name: 'Open Ridgeview commissioning', exact: true })
   await expect(hit).toBeEnabled()
   await hit.click()
-  await expect(page.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
+  await expect(page.locator('.cod-panel').getByRole('heading', { name: 'Ridgeview Energy — Ridgeview commissioning' })).toBeVisible()
   await page.goBack()
   await search.fill('Failure')
   await expect(page.getByRole('alert')).toBeVisible()
-  await expect(page.locator('.project-card-list')).toHaveCount(0)
+  await expect(page.locator('.cfr-table tbody tr')).toHaveCount(0)
 })
 
 test('All search explains when no source-backed operator/customer groups match', async ({ page }) => {
   await install(page)
   await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'operators and customers', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic' } }))
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&groupBrowse=1')
   await page.getByLabel('Search opportunities').fill('Ridgeview')
   await expect(page.getByText(/No operator\/customer groups match this search/)).toBeVisible()
 })

@@ -17,14 +17,14 @@ const groupPage = { items: [group], total: 1, count_unit: 'operators and custome
 test('synthetic default All scope shows operator/customer groups without a qualified-only empty message', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [], total: 0 } }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByText('No operator/customer groups match this search.')).toBeVisible()
 })
 
 test('synthetic unresolved group role is explicit and never implies a resolved organization', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [{ ...group, role: 'unresolved', name: 'Unresolved source entity' }] } }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.locator('.customer-group')).toContainText('Operator/customer unresolved')
   await expect(page.locator('.project-results-count')).toHaveText('1 operator/customer group')
 })
@@ -37,7 +37,7 @@ test('synthetic project results use the project contract, category filters, and 
     return route.fulfill({ json: groupPage })
   })
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ json: projectPage }))
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await expect(page.getByText('1 operator/customer group')).toBeVisible()
   await page.getByRole('button', { name: /Example Energy/ }).click()
@@ -69,7 +69,7 @@ test('synthetic project pagination retains its cohort and browser Back restores 
     const offset = Number(url.searchParams.get('offset') ?? 0)
     return route.fulfill({ json: { ...groupPage, items: offset ? [] : Array.from({ length: 25 }, (_, index) => ({ ...group, id: `synthetic-${index}`, name: `Synthetic customer ${index}` })), total: 27, offset, cohort_token: 'synthetic-page-cohort' } })
   })
-  await page.goto('/?view=workspace&q=example&sector=oil_gas')
+  await page.goto('/?view=workspace&q=example&sector=oil_gas&groupBrowse=1')
   await expect(page.locator('.project-results-count')).toHaveText('27 operator/customer groups')
   await page.getByRole('button', { name: 'Next' }).click()
   await expect.poll(() => requests.some(url => url.searchParams.get('offset') === '25')).toBeTruthy()
@@ -104,7 +104,7 @@ test('synthetic stale cohort conflict drops page token and reloads first page wi
     }
     return route.fulfill({ json: { ...groupPage, items: oldItems, total: 50, offset: 0, limit: 25, cohort_token: 'old-cohort' } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.locator('.project-results-count')).toHaveText('50 operator/customer groups')
   await page.getByRole('button', { name: 'Next' }).click()
   await expect(page.locator('.project-results-count')).toContainText('Results changed')
@@ -128,7 +128,7 @@ test('synthetic operator groups expose every project through independent nested 
     const items = Array.from({ length: Math.min(25, 144 - offset) }, (_, index) => ({ ...sample, id: `well-${offset + index}`, name: `Pioneer well ${offset + index + 1}` }))
     return route.fulfill({ json: { ...projectPage, items, total: 144, offset, limit: 25, cohort_token: 'operator-project-cohort' } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByText('1 operator/customer group')).toBeVisible()
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect(page.getByRole('heading', { name: 'Pioneer well 1', exact: true })).toBeVisible()
@@ -156,7 +156,7 @@ test('synthetic nested cohort conflict atomically opens the same group with its 
     expect(url.searchParams.has('offset')).toBe(false)
     return route.fulfill({ json: { group: { ...group, name: 'Fresh Energy Customer', role: 'customer', project_count: 3 }, projects: { ...projectPage, items: [{ ...sample, name: 'Fresh open project' }], cohort_token: 'fresh-child-token' }, parent_cohort_token: 'fresh-parent-cohort', generation: 'fresh-generation' } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await page.getByRole('button', { name: /Energy/ }).first().click()
   await expect(page.getByRole('heading', { name: 'Fresh open project' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Fresh Energy Customer/ })).toHaveAttribute('aria-expanded', 'true')
@@ -191,7 +191,7 @@ test('synthetic paginated child conflict fresh-opens page one and keeps parent-l
     openReads += 1
     return route.fulfill({ json: { group, projects: { ...projectPage, total: 30, items: [{ ...sample, id: 'fresh-first-page', name: 'Fresh first page project' }] }, parent_cohort_token: 'opened-group-parent-token', generation: 'fresh-generation' } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await page.locator('.customer-group-projects .project-paging').getByRole('button', { name: 'Next' }).click()
   await expect(page.getByRole('heading', { name: 'Fresh first page project' })).toBeVisible()
@@ -208,7 +208,7 @@ test('synthetic nested conflict stops when atomic open reports the group missing
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => { openReads += 1; return route.fulfill({ status: 404, json: { detail: 'missing group' } }) })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect(page.getByRole('status')).toContainText('no longer available')
   expect(openReads).toBe(1)
@@ -230,7 +230,7 @@ test('synthetic delayed atomic open cannot restore a child after the search chan
     await new Promise<void>(resolve => { releaseOpen = resolve })
     try { await route.fulfill({ json: { group, projects: projectPage, parent_cohort_token: 'stale-open-token', generation: 'stale' } }) } catch { /* Superseded requests are aborted. */ }
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await requested
   await page.getByRole('textbox', { name: 'Search opportunities' }).fill('fresh')
@@ -257,7 +257,7 @@ test('synthetic delayed child response cannot repopulate results after a search 
       await route.fulfill({ json: { ...projectPage, cohort_token: 'old-search-child-cohort', items: [{ ...sample, id: 'old-search-project', name: 'Old search project' }] } })
     } catch { /* The browser correctly aborts this superseded request. */ }
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await requested
   await page.getByRole('textbox', { name: 'Search opportunities' }).fill('fresh')
@@ -272,7 +272,7 @@ test('operator group disclosure is visible and tappable on desktop and mobile', 
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ json: projectPage }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   const groupButton = page.getByRole('button', { name: /Example Energy/ })
   const chevron = groupButton.locator('.customer-group-chevron')
   await expect(groupButton).toHaveAttribute('aria-expanded', 'false')
@@ -306,7 +306,7 @@ test('synthetic detail reloads the selected project by exact need and fails clos
   })
   await page.route('**/api/opportunities/projects?*', route => { const url = new URL(route.request().url()); if (url.searchParams.has('need_id')) { exactReads.push(url); if (failPreparedRead) return route.fulfill({ status: 503, json: { detail: 'Synthetic prepared read failure' } }) }; return route.fulfill({ json: { ...projectPage, items: [{ ...sample, power_summary: 'Facility demand is source-supported at 120 MW; temporary bridge demand is not established.', power_summary_kind: 'facility_demand', contact: [{ kind: 'call', label: 'Call Example Energy', href: 'tel:+15555550100' }], contact_people: [{ record_type: 'contact_person', company: 'M/E Design LLC', name: 'Luis Sample', role: 'owner developer', source_url: 'https://example.test/owner' }] }] } }) })
   await page.route('**/api/opportunities/needs/need-synthetic-1*', route => route.fulfill({ json: { id: 'need-synthetic-1', project_id: 'project-synthetic-1', name: 'Stale internal title', activity: 'construction', tier: 'Signal', rationale: 'Internal diagnostic rationale must not appear in the landing detail.', evidence: [] } }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await page.getByRole('button', { name: 'View project details' }).click()
   await expect(page.getByRole('alert')).toContainText('Current project details are unavailable')
@@ -341,7 +341,7 @@ test('synthetic tablet selection opens detail in the viewport above an unfiltere
     activity: 'drilling', supply: 'Unknown', required_mw: null, start_window: null, duration: null,
     evidence: [], missing_facts: [], rationale: 'Power demand is unconfirmed.',
   } }))
-  await page.goto('/?view=workspace&sector=oil_gas')
+  await page.goto('/?view=workspace&sector=oil_gas&groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect(page.locator('.project-card')).toHaveCount(25)
   await page.getByRole('button', { name: 'View project details', exact: true }).first().click()
@@ -353,15 +353,20 @@ test('synthetic tablet selection opens detail in the viewport above an unfiltere
 })
 
 test('pending parent groups wait for Retry-After then reopen the same filtered cohort', async ({ page }) => {
-  await page.clock.install()
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
+  let pauseClock: Promise<void> | undefined
   const requests: URL[] = []
+  let pending = true
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
+  await page.route('**/api/opportunities/groups?*', async route => {
+    // Let the app mount, then freeze before any browse response creates timers.
+    // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
+    await (pauseClock ??= page.clock.pauseAt(new Date('2026-10-29T12:00:00Z')))
     const url = new URL(route.request().url())
     requests.push(url)
-    // Vite's development StrictMode runs the initial effect twice; both
-    // mount-time reads stay pending, while only the live effect may retry.
-    if (requests.length <= 2) {
+    // StrictMode's cancelled mount request may never reach the route handler.
+    // Response state is independent of how many initial requests were observed.
+    if (pending) {
       return route.fulfill({
         status: 503,
         headers: { 'X-Qualification-State': 'pending', 'Retry-After': '5' },
@@ -370,22 +375,25 @@ test('pending parent groups wait for Retry-After then reopen the same filtered c
     }
     return route.fulfill({ json: { ...groupPage, items: [{ ...group, name: 'Fresh parent group' }] } })
   })
-  await page.goto('/?view=workspace&q=Permian&sector=oil_gas')
+  await page.goto('/?view=workspace&q=Permian&sector=oil_gas&groupBrowse=1')
   await expect(page.getByRole('status')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
-  await expect.poll(() => requests.length).toBe(2)
-  await page.clock.fastForward(4999)
-  expect(requests).toHaveLength(2)
+  await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
+  const initialRequests = requests.length
+  expect(initialRequests).toBeGreaterThan(0)
+  await page.clock.runFor(4999)
+  expect(requests).toHaveLength(initialRequests)
   await expect(page.getByRole('alert')).toHaveCount(0)
-  await page.clock.fastForward(1)
-  await expect.poll(() => requests.length).toBe(3)
+  pending = false
+  await page.clock.runFor(1)
+  await expect.poll(() => requests.length).toBe(initialRequests + 1)
   await expect(page.getByRole('button', { name: /Fresh parent group/ })).toBeVisible()
-  expect(requests.slice(0, 3).every(url => url.searchParams.get('search') === 'Permian')).toBe(true)
-  expect(requests.slice(0, 3).every(url => url.searchParams.get('sector') === 'oil_gas')).toBe(true)
+  expect(requests.every(url => url.searchParams.get('search') === 'Permian')).toBe(true)
+  expect(requests.every(url => url.searchParams.get('sector') === 'oil_gas')).toBe(true)
 })
 
 test('pending first child read waits before atomic open of the same group', async ({ page }) => {
-  await page.clock.install()
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
   const childRequests: URL[] = []
   const openRequests: URL[] = []
   const neighbor = { ...group, id: 'neighbor-group', name: 'Unchanged Operator', project_count: 4 }
@@ -409,14 +417,19 @@ test('pending first child read waits before atomic open of the same group', asyn
       generation: 'fresh-generation',
     } })
   })
-  await page.goto('/?view=workspace&q=Permian&sector=oil_gas')
+  await page.goto('/?view=workspace&q=Permian&sector=oil_gas&groupBrowse=1')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await page.clock.pauseAt(new Date('2026-10-29T12:00:00Z'))
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect(page.getByText('Loading projects…')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect.poll(() => childRequests.length).toBe(1)
-  await page.clock.fastForward(4999)
+  // Count the Retry-After interval from the moment the client has handled the
+  // pending response and installed its timer, not from route entry.
+  await expect(page.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
+  await page.clock.runFor(4999)
   expect(openRequests).toHaveLength(0)
-  await page.clock.fastForward(1)
+  await page.clock.runFor(1)
   await expect.poll(() => openRequests.length).toBe(1)
   await expect(page.getByRole('heading', { name: 'Freshly opened project' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Fresh Energy Customer/ })).toHaveAttribute('aria-expanded', 'true')
@@ -457,7 +470,7 @@ test('409 opens atomically and a pending open retries to the fresh same-group pa
       generation: 'fresh-generation',
     } })
   })
-  await page.goto('/?view=workspace&q=Permian')
+  await page.goto('/?view=workspace&q=Permian&groupBrowse=1')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   // Freeze the clock before the pending open creates its Retry-After timer so
   // test setup and route handling cannot consume part of the 5-second window.
@@ -483,12 +496,17 @@ test('409 opens atomically and a pending open retries to the fresh same-group pa
 })
 
 test('parent pending retries stop after four active reads and manual retry starts over', async ({ page }) => {
-  await page.clock.install()
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
+  let pauseClock: Promise<void> | undefined
   let requests = 0
+  let pending = true
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
+  await page.route('**/api/opportunities/groups?*', async route => {
+    // Let the app mount, then freeze before any browse response creates timers.
+    // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
+    await (pauseClock ??= page.clock.pauseAt(new Date('2026-10-29T12:00:00Z')))
     requests += 1
-    if (requests <= 5) {
+    if (pending) {
       return route.fulfill({
         status: 503,
         headers: { 'X-Qualification-State': 'pending', 'Retry-After': '1' },
@@ -497,24 +515,29 @@ test('parent pending retries stop after four active reads and manual retry start
     }
     return route.fulfill({ json: groupPage })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('status')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
-  for (let activeRead = 3; activeRead <= 4; activeRead += 1) {
-    await page.clock.fastForward(1000)
-    await expect.poll(() => requests).toBe(activeRead)
+  const initialRequests = requests
+  expect(initialRequests).toBeGreaterThan(0)
+  for (let retry = 1; retry <= 2; retry += 1) {
+    // Advance the paused clock through each retry deadline, processing due
+    // callbacks while the surrounding assertions leave virtual time unchanged.
+    await page.clock.runFor(1000)
+    await expect.poll(() => requests).toBe(initialRequests + retry)
     await expect(page.getByRole('alert')).toHaveCount(0)
   }
-  await page.clock.fastForward(1000)
-  await expect.poll(() => requests).toBe(5)
+  await page.clock.runFor(1000)
+  await expect.poll(() => requests).toBe(initialRequests + 3)
   await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toHaveCount(0)
-  await page.clock.fastForward(30000)
-  expect(requests).toBe(5)
+  await page.clock.runFor(30000)
+  expect(requests).toBe(initialRequests + 3)
+  pending = false
   await page.getByRole('button', { name: /Retry|Reload/i }).last().click()
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
-  expect(requests).toBe(6)
+  expect(requests).toBe(initialRequests + 4)
 })
 
 test('generic 503 is not treated as pending and does not auto-retry', async ({ page }) => {
@@ -534,13 +557,15 @@ test('generic 503 is not treated as pending and does not auto-retry', async ({ p
     }
     return route.fulfill({ json: groupPage })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('alert')).toContainText('503')
+  const initialRequests = requests
+  expect(initialRequests).toBeGreaterThan(0)
   await page.clock.fastForward(30000)
-  expect(requests).toBe(2)
+  expect(requests).toBe(initialRequests)
   await page.getByRole('button', { name: 'Retry' }).click()
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
-  expect(requests).toBe(3)
+  expect(requests).toBe(initialRequests + 1)
 })
 
 test('pending parent retry timer is cancelled when a new search supersedes it', async ({ page }) => {
@@ -559,15 +584,17 @@ test('pending parent retry timer is cancelled when a new search supersedes it', 
     }
     return route.fulfill({ json: { ...groupPage, items: [{ ...group, name: 'Superseding search result' }] } })
   })
-  await page.goto('/')
-  await expect(page.getByText('Loading operator/customer groups…').first()).toBeVisible()
-  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.goto('/?groupBrowse=1')
+  await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
+  const initialPendingRequests = requests.length
+  expect(initialPendingRequests).toBeGreaterThan(0)
   await page.getByRole('textbox', { name: 'Search opportunities' }).fill('fresh')
   await expect(page.getByRole('button', { name: /Superseding search result/ })).toBeVisible()
+  expect(requests).toHaveLength(initialPendingRequests + 1)
   await page.clock.fastForward(5000)
-  expect(requests).toHaveLength(3)
-  expect(requests.slice(0, 2).every(url => !url.searchParams.has('search'))).toBe(true)
-  expect(requests[2].searchParams.get('search')).toBe('fresh')
+  expect(requests).toHaveLength(initialPendingRequests + 1)
+  expect(requests.slice(0, initialPendingRequests).every(url => !url.searchParams.has('search'))).toBe(true)
+  expect(requests[initialPendingRequests].searchParams.get('search')).toBe('fresh')
   await expect(page.getByRole('button', { name: /Superseding search result/ })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
@@ -595,7 +622,7 @@ test('collapsing a group cancels its pending child retry before atomic reopen', 
       generation: 'fresh-generation',
     } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   const groupToggle = page.getByRole('button', { name: /Example Energy/ })
   await groupToggle.click()
   await expect(page.getByText('Loading projects…')).toBeVisible()
@@ -639,7 +666,7 @@ test('pending atomic open exhaustion is bounded and manual retry starts a new cy
       generation: 'fresh-generation',
     } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect.poll(() => openReads).toBe(1)
   await expect(page.getByRole('alert')).toHaveCount(0)
@@ -686,7 +713,7 @@ test('collapsing one pending group clears only its retry status and preserves th
       generation: 'fresh-generation',
     } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   const firstCard = page.locator('.customer-group').filter({ hasText: first.name })
   const secondCard = page.locator('.customer-group').filter({ hasText: second.name })
   await firstCard.getByRole('button', { name: /Example Energy/ }).click()
@@ -728,7 +755,7 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
     status: 503,
     json: { detail: 'Synthetic research cohort unavailable' },
   }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   const groupCard = page.locator('.customer-group').filter({ hasText: 'Example Energy' })
   await groupCard.getByRole('button', { name: /Example Energy/ }).click()
   await expect.poll(() => childReads).toBe(1)
@@ -762,7 +789,7 @@ test('rapid project searches debounce and an older response cannot replace the n
     }
     return route.fulfill({ json: { ...groupPage, items: [{ ...group, id: 'diamondback-group', name: 'Diamondback Operator' }] } })
   })
-  await page.goto('/?q=seed')
+  await page.goto('/?q=seed&groupBrowse=1')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   const diaRequest = page.waitForRequest(request => new URL(request.url()).searchParams.get('search') === 'Dia')
   const input = page.getByRole('textbox', { name: 'Search opportunities' })
@@ -797,7 +824,7 @@ test('refresh keeps the rendered cohort labeled as updating and clears it when t
     }
     return route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T15:00:00Z', generation_id: 'synthetic-current-generation', qualification_state: 'current', refresh_state: 'current' } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   refresh = true
   await page.getByRole('button', { name: 'Refresh project results' }).click()
@@ -819,7 +846,7 @@ test('expanded project pages survive More-menu navigation and return to the same
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => { childReads += 1; return route.fulfill({ json: projectPage }) })
   await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
-  await page.goto('/?q=Diamondback&sector=oil_gas')
+  await page.goto('/?q=Diamondback&sector=oil_gas&groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect(page.getByRole('heading', { name: 'Example Compressor Station' })).toBeVisible()
   await page.locator('.wh-account summary').click()
@@ -901,7 +928,7 @@ test('a session failure removes the cached browse surface before a later return'
     return groupReads <= 2 ? route.fulfill({ json: groupPage }) : route.fulfill({ status: 401, json: { detail: 'Authentication required' } })
   })
   await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   await page.getByRole('button', { name: 'Refresh project results' }).click()
   await expect(page.getByRole('alert')).toContainText('Your session ended')
@@ -923,7 +950,7 @@ test('a session expiry from Signals clears the browse cache while results are un
     return groupReads <= 2 ? route.fulfill({ json: groupPage }) : route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'Retry-After': '60' }, json: { detail: 'qualification pending' } })
   })
   await page.route('**/api/opportunities?*', route => route.fulfill({ status: 401, json: { detail: 'Authentication required' } }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   await page.locator('.wh-account summary').click()
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
@@ -936,21 +963,30 @@ test('a session expiry from Signals clears the browse cache while results are un
 })
 
 test('cached browse context expires at the backend valid-until boundary', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
+  let pauseClock: Promise<void> | undefined
   let groupReads = 0
+  let expired = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
+  await page.route('**/api/opportunities/groups?*', async route => {
+    // Let the app mount, then freeze before any browse response creates timers.
+    // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
+    await (pauseClock ??= page.clock.pauseAt(new Date('2026-10-29T12:00:00Z')))
     groupReads += 1
-    const name = groupReads <= 2 ? 'Before generation expiry' : 'Current after generation expiry'
-    const validUntil = groupReads <= 2 ? '2026-10-29T12:00:02Z' : '2026-10-29T12:01:00Z'
+    const name = expired ? 'Current after generation expiry' : 'Before generation expiry'
+    const validUntil = expired ? '2026-10-29T12:01:00Z' : '2026-10-29T12:00:02Z'
     return route.fulfill({ json: { ...groupPage, items: [{ ...group, id: `expiry-${groupReads}`, name }], as_of: '2026-10-29T11:59:00Z', valid_until: validUntil, qualification_state: 'current', refresh_state: 'current' } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('button', { name: /Before generation expiry/ })).toBeVisible()
-  await page.clock.fastForward(2_100)
+  // Cross the server expiry while keeping network/render waits outside the
+  // virtual clock. The initial generation always gets its full two-second TTL.
+  const initialReads = groupReads
+  expired = true
+  await page.clock.runFor(2_100)
   await expect(page.getByRole('button', { name: /Current after generation expiry/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Before generation expiry/ })).toHaveCount(0)
-  expect(groupReads).toBeGreaterThanOrEqual(2)
+  expect(groupReads).toBeGreaterThan(initialReads)
 })
 
 test('mounted child details disappear at their independent generation expiry', async ({ page }) => {
@@ -964,7 +1000,7 @@ test('mounted child details disappear at their independent generation expiry', a
     const label = childReads === 1 ? 'Expired child contact' : 'Current child contact'
     return route.fulfill({ json: { ...projectPage, valid_until: validUntil, qualification_state: 'current', refresh_state: 'current', items: [{ ...sample, contact: [{ kind: 'call', label, href: 'tel:+15555550100' }] }] } })
   })
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   const groupButton = page.getByRole('button', { name: /Example Energy/ })
   await groupButton.click()
   await expect(page.getByRole('link', { name: 'Expired child contact' })).toBeVisible()
@@ -982,7 +1018,7 @@ test('cache read drops an expired child generation while retaining the valid par
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T11:59:00Z', valid_until: '2026-10-29T12:00:20Z', qualification_state: 'current', refresh_state: 'current' } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ json: { ...projectPage, valid_until: '2026-10-29T12:00:02Z', qualification_state: 'current', refresh_state: 'current', items: [{ ...sample, contact: [{ kind: 'call', label: 'Expired cached contact', href: 'tel:+15555550100' }] }] } }))
   await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect(page.getByRole('link', { name: 'Expired cached contact' })).toBeVisible()
   await page.locator('.wh-account summary').click()

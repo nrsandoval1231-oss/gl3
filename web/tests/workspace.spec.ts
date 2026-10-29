@@ -25,7 +25,7 @@ test('default workspace shows project results and opens existing need detail wit
   await page.route('**/api/opportunities/projects?need_id=*', route => route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'exact-project-cohort', generation: 1 } }))
   await page.route('**/api/opportunities/workspace?*', route => { workspaceRequests.push(new URL(route.request().url())); return route.fulfill({ json: response() }) })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await expect(page.getByText('1 operator/customer group')).toBeVisible()
   await page.getByRole('button', { name: /Example operator/ }).click()
@@ -156,7 +156,7 @@ test('off-page detail reload ignores historical company evidence and keeps the s
 test('workspace gives an honest retry state when the current cohort is unavailable', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ status: 503, json: { detail: 'stale cohort' } }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('alert')).toContainText('Could not load operator/customer groups')
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible()
 })
@@ -334,8 +334,8 @@ test('mobile selected detail keeps the compact header and clear return', async (
   await expect(action.getByRole('button', { name: 'Research' })).toHaveCount(1)
   await expect(page.locator('.wh-title-row')).toBeHidden()
   await expect(page.locator('.wh-briefing')).toHaveCount(0)
-  await expect(page.locator('.global-search label > span')).toHaveCount(0)
-  expect(await page.locator('.wh-header>a img').evaluate(node => getComputedStyle(node).width)).toBe('170px')
+  await expect(page.locator('.canonical-header .global-search label > span')).toBeHidden()
+  expect(await page.locator('.canonical-header__brand').evaluate(node => getComputedStyle(node).width)).toBe('143px')
   await expect(page.getByRole('button', { name: /Back to power needs/ })).toBeVisible()
 })
 
@@ -545,7 +545,7 @@ test('tablet direct selection keeps detail and header reachable and restores the
   const bounds = await identity.boundingBox()
   expect(bounds!.y).toBeGreaterThanOrEqual(0)
   expect(bounds!.y + bounds!.height).toBeLessThan(1024)
-  for (const control of [page.getByRole('link', { name: 'GridLens home' }), page.getByRole('navigation', { name: 'Primary navigation' }), page.locator('.wh-account > summary')]) {
+  for (const control of [page.locator('.canonical-header__brand'), page.getByRole('navigation', { name: 'Primary navigation' }), page.locator('.wh-account > summary')]) {
     const box = await control.boundingBox()
     expect(box).not.toBeNull()
     expect(box!.x).toBeGreaterThanOrEqual(0)
@@ -560,12 +560,13 @@ test('tablet direct selection keeps detail and header reachable and restores the
 
 test('default project results keep routine research queues out of the user workspace', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'default-flat', generation: 'synthetic' } }))
   await page.goto('/?view=workspace')
-  await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunities', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Notifications' })).toHaveCount(0)
   await expect(page.locator('.wh-tools')).toHaveCount(0)
   await expect(page.locator('.brand-kpi')).toHaveCount(0)
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveCount(1)
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveText(['Opportunities', 'Intelligence', 'Developers', 'Power Supply', 'Reports'])
   for (const width of [768, 390]) {
     await page.setViewportSize({ width, height: 900 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)

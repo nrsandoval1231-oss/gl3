@@ -220,6 +220,26 @@ def test_project_results_route_requires_session(saved_db, monkeypatch):
         response = client.get("/api/opportunities/projects")
         assert response.status_code == 401
         client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
-        response = client.get("/api/opportunities/projects?sector=oil_gas")
+        response = client.get("/api/opportunities/projects")
         assert response.status_code == 200, response.text
         assert response.json()["count_unit"] == "projects"
+        assert response.json()["results_scope"] == "qualified"
+        assert response.json()["total"] == 0
+        discovery = client.get("/api/opportunities/projects?include_signals=true&limit=1")
+        assert discovery.status_code == 200, discovery.text
+        discovery_page = discovery.json()
+        assert discovery_page["results_scope"] == "discovery"
+        assert discovery_page["total"] > 0
+        assert discovery_page["items"]
+        assert any(need["tier"] == "Signal" for need in discovery_page["items"][0]["needs"])
+        mismatched_cohort = client.get(
+            "/api/opportunities/projects",
+            params={
+                "include_signals": "false",
+                "limit": 1,
+                "cohort_token": discovery_page["cohort_token"],
+            },
+        )
+        assert mismatched_cohort.status_code == 409
+        invalid = client.get("/api/opportunities/projects?include_signals=perhaps")
+        assert invalid.status_code == 422

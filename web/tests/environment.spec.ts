@@ -93,7 +93,7 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
 
 test('project-first results keep geographically unknown projects reachable and restore selected need', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX'), opportunity('d', null)])
-  await page.goto('/environment')
+  await page.goto('/environment?groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await page.getByRole('button', { name: /Test project d/ }).click()
   await expect(page.getByRole('heading', { name: 'Test project d', exact: true })).toBeVisible()
@@ -112,7 +112,7 @@ test('legacy action deep link restores selected need without retired call prepar
   await mock(page, [opportunity('a', 'Austin, TX')])
   const writes: string[] = []
   page.on('request', request => { if (request.method() === 'POST') writes.push(request.url()) })
-  await page.goto('/environment?view=environment&mode=action&state=Texas&need=a')
+  await page.goto('/environment?view=environment&mode=action&state=Texas&need=a&groupBrowse=1')
   await expect(page.locator('.project-first-detail h2')).toHaveText('Test project a')
   await page.locator('.wh-account summary').click()
   await expect(page.getByRole('button', { name: 'Research', exact: true }).first()).toBeVisible()
@@ -124,7 +124,7 @@ test('legacy environment URL reaches project results without workspace or map re
   const requests: string[] = []
   await mock(page, [opportunity('a', 'Austin, TX'), opportunity('dc', 'Washington, DC')])
   page.on('request', request => requests.push(new URL(request.url()).pathname))
-  await page.goto('/environment')
+  await page.goto('/environment?groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Test project dc' })).toBeVisible()
   expect(requests).toContain('/api/opportunities/groups')
@@ -201,7 +201,7 @@ test('section navigation keeps Opportunities and Signals searches independent th
   const requests: URL[] = []
   await mock(page, [opportunity('alpha', 'Austin, TX')])
   page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/groups') requests.push(url) })
-  await page.goto('/?view=workspace&q=alpha')
+  await page.goto('/?view=workspace&q=alpha&groupBrowse=1')
   await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('alpha')
   await openSecondaryRoute(page, 'Signals')
   await page.getByRole('textbox', { name: 'Search projects' }).fill('beta')
@@ -222,7 +222,7 @@ test('section navigation keeps Opportunities and Signals searches independent th
 
 test('Research navigation keeps Opportunities search and selection state independent', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX')])
-  await page.goto('/?view=workspace&q=a')
+  await page.goto('/?view=workspace&q=a&groupBrowse=1')
   await openSecondaryRoute(page, 'Research')
   await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /WATCH|ACTION NOW|REJECT/i })).toHaveCount(0)

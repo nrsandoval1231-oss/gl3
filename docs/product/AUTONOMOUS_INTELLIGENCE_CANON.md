@@ -1,4 +1,6 @@
 # GridLens — Autonomous Commercial Intelligence Canon
+
+**Visual amendment — October 29, 2026:** The latest owner mission makes the [canonical Opportunities screenshot](../design/references/canonical-opportunities-20261029.jpg) authoritative for visual presentation. The default uses three honest KPIs and a project table/detail split; operator/customer grouping remains secondary. Preserve all backend, commercial-evidence and privacy boundaries below. Follow/completion state is not fabricated when the existing API does not support it.
 Status: OWNER-APPROVED · 2026-10-25 · exceptional-control clarification 2026-10-26 · operator/customer hierarchy amendment 2026-10-27
 Authority: This document supersedes conflicting product, workflow, UI, and agent instructions throughout this repository. The later owner-approved [Project-First Results Canon](PROJECT_FIRST_RESULTS_CANON.md) controls the current opportunity surface and vertical-specific field presentation. Historical documents are records, not active requirements where they conflict.
 

@@ -199,14 +199,14 @@ test('approved intelligence workspace preserves evidence, research status, selec
   await expect(page.getByRole('heading', { name: 'Example Customer' })).toBeVisible()
   await page.setViewportSize({ width: 1648, height: 928 })
   await page.locator('.wh-detail').evaluate(el => { el.scrollTop = 0 })
-  const geometry = await page.evaluate(() => ({ header: document.querySelector('.wh-header')!.getBoundingClientRect(), rail: document.querySelector('.wh-list')!.getBoundingClientRect(), metrics: document.querySelector('.wh-customer-metrics')!.getBoundingClientRect(), columns: document.querySelector('.ic-dashboard')!.getBoundingClientRect(), tabs: document.querySelector('.wh-tabs')!.getBoundingClientRect(), table: document.querySelector('.wh-tabs')!.getBoundingClientRect() }))
-  expect(geometry.header.height).toBeCloseTo(92, 0)
+  const geometry = await page.evaluate(() => ({ header: document.querySelector('.canonical-header')!.getBoundingClientRect(), rail: document.querySelector('.wh-list')!.getBoundingClientRect(), metrics: document.querySelector('.wh-customer-metrics')!.getBoundingClientRect(), columns: document.querySelector('.ic-dashboard')!.getBoundingClientRect(), tabs: document.querySelector('.wh-tabs')!.getBoundingClientRect(), table: document.querySelector('.wh-tabs')!.getBoundingClientRect() }))
+  expect(geometry.header.height).toBeCloseTo(54, 0)
   // October 23 supersedes the old fixed 25% queue / three-column detail.
   expect(geometry.rail.width).toBeGreaterThan(1648 * .5)
   expect(geometry.rail.width).toBeLessThan(1648 * .71)
   expect(geometry.metrics.top).toBeGreaterThan(geometry.header.bottom)
   expect(geometry.columns.top).toBeGreaterThan(geometry.metrics.top)
-  expect(await page.locator('.wh-header').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(11, 31, 51)')
+  expect(await page.locator('.canonical-header').evaluate(el => getComputedStyle(el).backgroundImage)).toContain('linear-gradient')
   await page.evaluate(() => document.fonts.ready)
   expect(await page.evaluate(() => document.fonts.check('14px Inter') && document.fonts.check('22px Sora'))).toBe(true)
   for (const [width, height] of [[1648,928],[1440,900],[1280,800],[768,1024],[390,844]]) {

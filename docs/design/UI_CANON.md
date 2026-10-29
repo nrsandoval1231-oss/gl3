@@ -1,5 +1,7 @@
 # GridLens production UI canon — brand approved 2026-10-24, autonomous amendment 2026-10-26
 
+**Current visual authority — October 29, 2026:** The owner-supplied [canonical Opportunities reference](references/canonical-opportunities-20261029.jpg) supersedes earlier layout and brand presentation prescriptions below. Use its compact metallic-G navy header, three honest KPIs, dense project table, and adjacent detail panel. The existing two-tone vector masters remain retained; the reference header artwork is a faithful raster derivative, not a newly approved vector master. No sidebar. Preserve real data, provenance, authentication and existing API contracts.
+
 **Product authority:** the owner-approved [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes manual-workflow requirements. **Visual authority:** the final seven-color GridLens corporate brand board, amended by the [owner-approved results canon with the operator/customer amendment](../product/PROJECT_FIRST_RESULTS_CANON.md) for current layout and information hierarchy. See [BRAND_ASSETS.md](BRAND_ASSETS.md) and [brand.tokens.json](brand.tokens.json). This supersedes all prior Aperture, gold, silver/orange, Signal Blue, ABC Diatype, and left-sidebar design directives. Historical documents remain evidence, not implementation authority.
 
 ## Current mandatory composition — 2026-10-27 operator/customer amendment

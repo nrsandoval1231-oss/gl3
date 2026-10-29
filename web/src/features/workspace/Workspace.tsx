@@ -6,11 +6,15 @@ import { ResearchView } from '../pursuits/ResearchView'
 import { OperationsInbox } from '../operations/OperationsInbox'
 import { SignalsBrowse } from '../opportunities/SignalsBrowse'
 import { ProjectResults } from './ProjectResults'
+import { CanonicalOpportunityResults } from './CanonicalOpportunityResults'
 import { CustomerAccountsQueue } from './CustomerAccountsQueue'
 import { WorkspaceChanges } from './WorkspaceChanges'
 import { OpportunityTable } from './OpportunityTable'
+import { CanonicalHeader, type CanonicalHeaderDestination } from '../../components/CanonicalHeader'
+import { GlobalSearch } from './GlobalSearch'
+import { CanonicalOpportunityDetail } from './CanonicalOpportunityDetail'
 import '../../styles/workspace.css'
-
+import '../../styles/canonical-workspace.css'
 const tabs = workspaceTabs
 type Tab = WorkspaceTab
 type WorkspaceDetail = import('../../api/client').Opportunity & Partial<Pick<WorkspaceNeed, 'commercial_disposition' | 'commercial_reason' | 'commercial_next_question' | 'commercial_next_action' | 'commercial_organization'>>
@@ -57,7 +61,7 @@ function currentAccountContext(): AccountContext | undefined {
 function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false, accountContext?: AccountContext) {
   const signalView = currentView() === 'signals'
   const p = signalView ? getParams() : workspaceParams(filters)
-  if (!signalView) for (const key of ['q', 'sector', 'offset', 'cohort_token', 'accountBrowse', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
+  if (!signalView) for (const key of ['q', 'sector', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
   if (!signalView && accountContext) { p.set('account', accountContext.accountId); if (accountContext.projectId) p.set('project', accountContext.projectId) }
   if (signalView) { p.set('view', 'signals'); p.delete('need'); p.delete('section') }
   if (id) p.set('need', id)
@@ -67,6 +71,7 @@ function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push 
 }
 export function WorkspaceHome() {
   const [view, setView] = useState(currentView)
+  const [navigationPanel, setNavigationPanel] = useState<CanonicalHeaderDestination | null>(null)
   const [signalScope, setSignalScope] = useState<OpportunityNeedScope | null>(null)
   const signalScopeRef = useRef<OpportunityNeedScope | null>(null)
   function updateSignalScope(scope: OpportunityNeedScope | null) {
@@ -104,6 +109,7 @@ export function WorkspaceHome() {
   const pageRef = useRef<{ page: WorkspacePage; request: string; revision: number } | null>(null)
   const requestKey = workspaceRequestKey(filters)
   const accountBrowse = getParams().get('accountBrowse') === '1'
+  const groupBrowse = getParams().get('groupBrowse') === '1'
   const pageCurrent = Boolean(page && pageIdentity?.request === requestKey && pageIdentity.revision === revision && !loading && !error)
   const detailCurrent = Boolean(selected && detailIdentity?.id === selected.id && detailIdentity.revision === revision && !detailLoading && !detailError)
   useEffect(() => {
@@ -144,6 +150,25 @@ export function WorkspaceHome() {
     return () => cancelAnimationFrame(frame)
   }, [pageCurrent, requestKey, view, detailNavigation])
   useEffect(() => {
+    const restore = pendingRestore.current
+    if (!restore || accountBrowse || view !== 'opportunities' || selected || pendingNeedId) return
+    const restoreFocus = () => {
+      if (pendingRestore.current !== restore || getParams().has('need')) return
+      const target = restore.focus ? document.querySelector<HTMLButtonElement>(`button[data-need-row="${CSS.escape(restore.focus)}"]`) : null
+      if (restore.focus && (!target || target.disabled)) return
+      const disclosure = target?.closest('details')
+      if (disclosure) disclosure.open = true
+      target?.focus({ preventScroll: true })
+      window.scrollTo(0, restore.window)
+      pendingRestore.current = null
+      observer.disconnect()
+    }
+    const observer = new MutationObserver(restoreFocus)
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled'] })
+    const frame = requestAnimationFrame(restoreFocus)
+    return () => { observer.disconnect(); cancelAnimationFrame(frame) }
+  }, [accountBrowse, view, selected?.id, pendingNeedId, detailNavigation])
+  useEffect(() => {
     const focusBack = () => {
       const pending = pendingHistoryFocus.current
       if (!pending || (selected?.id ?? pendingNeedId) !== pending.id || view !== 'opportunities' || !window.matchMedia('(max-width: 1050px)').matches) return
@@ -163,7 +188,7 @@ export function WorkspaceHome() {
           pendingHistoryFocus.current = null
           return
         }
-        const back = document.querySelector<HTMLElement>('.wh-back')
+        const back = document.querySelector<HTMLElement>('.cod-back, .wh-back')
         back?.focus({ preventScroll: true })
         if (document.activeElement === back) {
           pendingHistoryFocus.current = isCurrent ? null : { ...current, focused: true }
@@ -252,7 +277,7 @@ export function WorkspaceHome() {
     const sameNeedNeedsReadback = Boolean(item && selected?.id === item.id)
     setDetailIdentity(null); setPendingNeedId(null); setSelected(item); setTab(targetTab); writeUrl(filters, item?.id ?? null, item ? targetTab : undefined, true, accountContext)
     if (sameNeedNeedsReadback) setRevision(value => value + 1)
-    if (item && window.matchMedia('(max-width: 1050px)').matches) { window.scrollTo(0, 0); requestAnimationFrame(() => document.querySelector<HTMLElement>('.wh-back')?.focus()) }
+    if (item && window.matchMedia('(max-width: 1050px)').matches) { window.scrollTo(0, 0); requestAnimationFrame(() => document.querySelector<HTMLElement>('.cod-back, .wh-back')?.focus()) }
     if (!item) requestAnimationFrame(() => { const list = document.querySelector('.wh-list'); if (list && window.matchMedia('(min-width: 1051px)').matches) list.scrollTop = savedScroll.current.list; else window.scrollTo(0, savedScroll.current.window); const focus = document.querySelector<HTMLElement>(`[data-need-row="${selected?.id ?? ''}"]`); focus?.focus() })
   }
   const navigate = (nextView: 'opportunities' | 'pursuits' | 'ingestion' | 'signals') => {
@@ -265,7 +290,7 @@ export function WorkspaceHome() {
     if (view === 'signals') signalParams.current = getParams()
     const currentBrowse = getParams()
     const savedBrowse: Record<string, string> = view === 'opportunities'
-      ? Object.fromEntries(['q', 'sector', 'offset', 'cohort_token'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
+      ? Object.fromEntries(['q', 'sector', 'offset', 'cohort_token', 'groupBrowse'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
       : (history.state?.workspaceBrowse as Record<string, string> | undefined) ?? {}
     const params = nextView === 'opportunities' ? workspaceParams(filters)
       : nextView === 'signals' ? new URLSearchParams(signalParams.current ?? { view: 'signals', tier: 'Signals' })
@@ -283,12 +308,19 @@ export function WorkspaceHome() {
     setDetailIdentity(null); setSelected(null); setPendingNeedId(need.id); setTab('Overview'); writeUrl(filters, need.id, undefined, true, accountContext)
     if (window.matchMedia('(max-width: 1050px)').matches) {
       window.scrollTo(0, 0)
-      requestAnimationFrame(() => document.querySelector<HTMLElement>('.wh-back')?.focus())
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('.cod-back, .wh-back')?.focus())
     }
   }
-  if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
+  if (authenticated === null) return <div className="workspace-home"><div inert><CanonicalHeader onNavigate={() => {}}/></div><main className="loading" aria-live="polite" aria-busy="true">Loading your private workspace…</main></div>
   if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); updateSelectedNeedContext(null); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
-  const header = <header className="wh-header"><a href="/?view=workspace" aria-label="GridLens home"><img src="/brand/logos/primary-horizontal-dark.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><button aria-current={view === 'opportunities' ? 'page' : undefined} className={view === 'opportunities' ? 'active' : ''} onClick={() => navigate('opportunities')}>Opportunities</button></nav><details ref={moreMenu} className="wh-account"><summary><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg><span>More</span></summary><div><span>Private workspace</span><button aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => navigate('pursuits')}>Research</button><button aria-current={view === 'signals' ? 'page' : undefined} onClick={() => navigate('signals')}>Signals</button><button type="button" onClick={() => navigate('ingestion')}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details></header>
+  const header = <CanonicalHeader
+    activeDestination={navigationPanel ?? (view === 'pursuits' ? 'intelligence' : 'opportunities')}
+    onNavigate={destination => {
+      if (destination === 'opportunities' || destination === 'intelligence') { setNavigationPanel(null); navigate(destination === 'intelligence' ? 'pursuits' : 'opportunities') }
+      else { setNavigationPanel(destination); navigate('opportunities') }
+    }}
+    search={<GlobalSearch onNeed={id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) }} onCompany={id => { const params = new URLSearchParams({ view: 'workspace', accountBrowse: '1', account: id }); location.assign(`/?${params}`) }}/>}
+    profile={<details ref={moreMenu} className="wh-account"><summary aria-label="Account menu"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg></summary><div><span>Private workspace</span><button onClick={() => { setNavigationPanel(null); navigate('pursuits') }}>Research</button><button onClick={() => { setNavigationPanel(null); navigate('signals') }}>Signals</button><button onClick={() => { setNavigationPanel(null); navigate('ingestion') }}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details>}/>
   const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{view === 'pursuits' && <ResearchView/>}</main>
   if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
@@ -307,19 +339,24 @@ export function WorkspaceHome() {
       <footer className="wh-paging"><span>{pageCurrent ? `Showing ${visiblePage?.items.length ? (visiblePage?.offset ?? 0) + 1 : 0}–${(visiblePage?.offset ?? 0) + (visiblePage?.items.length ?? 0)} of ${visiblePage?.total ?? 0}` : 'Results unavailable'}</span><button disabled={!pageCurrent || !visiblePage?.offset} onClick={() => visiblePage && setLegacyPage(Math.max(0, visiblePage.offset - 25), visiblePage.cohort_token)}>Previous</button><button disabled={!pageCurrent || visiblePage?.next_offset == null} onClick={() => visiblePage && visiblePage.next_offset != null && setLegacyPage(visiblePage.next_offset, visiblePage.cohort_token)}>Next</button></footer>
     </section><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} onTab={next => { setTab(next); if (selected) { const steps = history.state?.workspaceTabSteps ?? 0; const directEntry = history.state?.workspaceDirectEntry || !history.state?.workspaceDetail; writeUrl(filters, selected.id, next, true, currentAccountContext()); history.replaceState({ ...history.state, workspaceTabSteps: steps + 1, workspaceDirectEntry: directEntry }, '', location.href) } }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/></div></main></div>
   }
+  const ResultsView = groupBrowse ? ProjectResults : CanonicalOpportunityResults
+  const DetailView = groupBrowse ? WorkspaceDetail : CanonicalOpportunityDetail
   return <div className="workspace-home">
     {header}
     {researchHost}
-    <main className="wh-main project-first-main">
+    {navigationPanel && <section className="canonical-navigation-panel" aria-label={navigationPanel === 'developers' ? 'Developers' : navigationPanel === 'reports' ? 'Reports' : 'Power Supply'}>
+      <button aria-label="Close navigation panel" onClick={() => setNavigationPanel(null)}>Close</button>
+      <h1>{navigationPanel === 'developers' ? 'Developers' : navigationPanel === 'reports' ? 'Reports' : 'Power Supply'}</h1>
+      {navigationPanel === 'developers' ? <><p>Explore evidenced operator and customer relationships, projects, and published business contacts.</p><a href="/?view=workspace&accountBrowse=1">Browse customer accounts</a><span> · </span><a href="/?view=workspace&groupBrowse=1">Browse operator and customer groups</a></> : navigationPanel === 'reports' ? <><p>Export the current results with the table's Export action. Recent source-backed changes appear below.</p><WorkspaceChanges onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/></> : <><p>Select a project to inspect its activity-specific requirement, available supply, and supported residual power gap.</p>{selected && <button onClick={() => { setNavigationPanel(null); setTab('Power gap') }}>View selected project power supply</button>}</>}
+    </section>}
+    <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>
-        <ProjectResults selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => select(null)}/>
-        {(selected || pendingNeedId) && <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} projectFirst={!accountBrowse} onTab={next => { setTab(next); if (selected) { const steps = history.state?.workspaceTabSteps ?? 0; const directEntry = history.state?.workspaceDirectEntry || !history.state?.workspaceDetail; writeUrl(filters, selected.id, next, true, currentAccountContext()); history.replaceState({ ...history.state, workspaceTabSteps: steps + 1, workspaceDirectEntry: directEntry }, '', location.href) } }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/>}
+        <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => select(null)}/>
+        {(!groupBrowse || selected || pendingNeedId) && <DetailView item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} projectFirst={!accountBrowse} onTab={next => { setTab(next); if (selected) { const steps = history.state?.workspaceTabSteps ?? 0; const directEntry = history.state?.workspaceDirectEntry || !history.state?.workspaceDetail; writeUrl(filters, selected.id, next, true, currentAccountContext()); history.replaceState({ ...history.state, workspaceTabSteps: steps + 1, workspaceDirectEntry: directEntry }, '', location.href) } }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/>}
       </div>
     </main>
   </div>
-
 }
-
 function commercialPreview(row: WorkspaceNeed | null | undefined) {
   return {
     commercial_disposition: row?.commercial_disposition,
