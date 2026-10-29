@@ -374,10 +374,11 @@ test('pending parent groups wait for Retry-After then reopen the same filtered c
   await expect(page.getByRole('status')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect.poll(() => requests.length).toBe(2)
-  await page.clock.fastForward(4999)
+  await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
+  await page.clock.runFor(4999)
   expect(requests).toHaveLength(2)
   await expect(page.getByRole('alert')).toHaveCount(0)
-  await page.clock.fastForward(1)
+  await page.clock.runFor(1)
   await expect.poll(() => requests.length).toBe(3)
   await expect(page.getByRole('button', { name: /Fresh parent group/ })).toBeVisible()
   expect(requests.slice(0, 3).every(url => url.searchParams.get('search') === 'Permian')).toBe(true)
@@ -414,9 +415,12 @@ test('pending first child read waits before atomic open of the same group', asyn
   await expect(page.getByText('Loading projects…')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect.poll(() => childRequests.length).toBe(1)
-  await page.clock.fastForward(4999)
+  // Count the Retry-After interval from the moment the client has handled the
+  // pending response and installed its timer, not from route entry.
+  await expect(page.getByRole('status').filter({ hasText: /Retrying this group automatically/i })).toBeVisible()
+  await page.clock.runFor(4999)
   expect(openRequests).toHaveLength(0)
-  await page.clock.fastForward(1)
+  await page.clock.runFor(1)
   await expect.poll(() => openRequests.length).toBe(1)
   await expect(page.getByRole('heading', { name: 'Freshly opened project' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Fresh Energy Customer/ })).toHaveAttribute('aria-expanded', 'true')
@@ -502,15 +506,19 @@ test('parent pending retries stop after four active reads and manual retry start
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toBeVisible()
   for (let activeRead = 3; activeRead <= 4; activeRead += 1) {
-    await page.clock.fastForward(1000)
+    // runFor yields through the request, React state update, and the next retry
+    // timer. fastForward can jump across nested timers while the response is
+    // still settling on a busy CI runner, making this intermediate assertion
+    // observe the exhausted state early.
+    await page.clock.runFor(1000)
     await expect.poll(() => requests).toBe(activeRead)
     await expect(page.getByRole('alert')).toHaveCount(0)
   }
-  await page.clock.fastForward(1000)
+  await page.clock.runFor(1000)
   await expect.poll(() => requests).toBe(5)
   await expect(page.getByRole('alert')).toContainText(/still being prepared/i)
   await expect(page.getByRole('status').filter({ hasText: /Retrying automatically/i })).toHaveCount(0)
-  await page.clock.fastForward(30000)
+  await page.clock.runFor(30000)
   expect(requests).toBe(5)
   await page.getByRole('button', { name: /Retry|Reload/i }).last().click()
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
@@ -951,7 +959,9 @@ test('cached browse context expires at the backend valid-until boundary', async 
   })
   await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('button', { name: /Before generation expiry/ })).toBeVisible()
-  await page.clock.fastForward(2_100)
+  // Drain the expiry callback and its follow-up fetch/render before checking
+  // the refreshed generation. fastForward can leave nested browser work queued.
+  await page.clock.runFor(2_100)
   await expect(page.getByRole('button', { name: /Current after generation expiry/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Before generation expiry/ })).toHaveCount(0)
   expect(groupReads).toBeGreaterThanOrEqual(2)

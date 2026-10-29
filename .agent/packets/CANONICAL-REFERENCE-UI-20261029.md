@@ -39,3 +39,7 @@ The [delivery receipt](../../docs/validation/canonical-reference-ui-20261029.md)
 Independent Astra approved exact source `d41d4e179edf80147b78486398aa7582fab92bce`: no unresolved P0/P1/P2 findings, 10 independent focused browser cases plus fresh build/diff checks passed. Full verifier evidence remains 168 browser cases and 3309 backend tests passed, as separately recorded. Only delivery documentation and synthetic screenshots follow that source commit; application code is frozen.
 
 The focused branch is ready for draft-PR review. Next owner action is to review the documented absent API capabilities and real-data/live acceptance limits before authorizing any merge or deployment. No deployment, paid-provider execution, production mutation, credential rotation or outreach occurred.
+
+## PR #148 CI follow-up — October 29, 2026
+
+Owner requested CI repair and remaining validation, explicitly no merge/deploy. Exact-head CI808ac9cf passed all gates (3309 backend pass/1skip;166 browser first-pass plus2 retry-pass). One Luna builder owns the tightly coupled grouped-browse timing test repair; Sol independently checks the full35-case file. Tests switch fastForward to runFor without relaxing assertions; product source unchanged. Fresh production read-only probe confirms Sign in and protected health401, no credentials tried. Real-source acceptance remains blocked by unavailable authenticated populated environment; no providers or data writes were activated. Next: push the timing-test fix and verify final-head CI, keeping PR draft and production unchanged.

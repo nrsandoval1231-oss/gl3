@@ -66,3 +66,11 @@ Core: `web/src/components/CanonicalHeader.tsx`, `canonical-header.css`; `web/src
 Tests: new `canonical_detail.spec.ts`, `canonical_flat_results.spec.ts`, `canonical_shell.spec.ts`; retained `approved_workspace`, `autonomous-research`, `dashboard`, `environment`, `evidence-content`, `pr101-late-regressions`, `pr101-regressions`, `project_cards`, `project_results`, and `workspace` specs migrated only as needed for current versus secondary route coverage.
 
 Documentation: current UI/product canon amendments, this receipt and screenshots, root visual QA, and the existing `.agent/packets/CANONICAL-REFERENCE-UI-20261029.md` task checkpoint.
+
+## PR #148 CI follow-up
+
+CI run [40946937392](https://github.com/nrsandoval1231-oss/gl3/actions/runs/40946937392) passed on exact head `808ac9cf7a2b85840243dcdd9e6406fcce77ecef`: backend 3309 passed / 1 skipped; web, brand and path checks passed. Browser result was 166 first-attempt passes and two retry passes. The two grouped-browse cases advanced retry/cache-expiry clocks with `fastForward`; the follow-up uses `runFor` so intervening timer work is executed. Existing request-count, retry exhaustion, manual retry and cache replacement assertions remain intact. No product source or CI retry policy changed.
+
+Fresh read-only Chromium production probe returned HTTP 200 and rendered Sign in; `/api/health` returned 401. No production login was attempted. The earlier temporary local API is no longer running. Populated retained/live source acceptance still requires an authenticated populated environment; PR CI deliberately excludes live-acceptance/commercial-real suites. Existing absent Follow/completion/KPI metadata remains unavailable rather than fabricated. No merge or deployment is authorized or performed.
+
+Follow-up local verification: the affected four retry/expiry tests passed in an independent no-retry run. The updated grouped-browse file passed 35/35; a later repeat had one unrelated initial-navigation timeout (34 passed), with no timer failures. Additional focused repetitions are recorded in the final handoff. Parent/child tests now await client retry status before advancing the Retry-After boundary; assertions remain unchanged. This test-only repair does not claim every potential browser timing flake is eliminated.
