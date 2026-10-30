@@ -1,0 +1,8 @@
+{
+  "retrieved_at": "2026-10-30T16:47:00.626329+00:00",
+  "url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=%22CP24-8%22&conditions%5Bagencies%5D%5B%5D=federal-energy-regulatory-commission&per_page=100&order=newest",
+  "bytes": 12352,
+  "sha256": "fbfb85c23c2d6fc0c38e4e1770f98d109307dd42f6adf05a4d3105ceb3335def",
+  "count": 7,
+  "total_pages": 1
+}

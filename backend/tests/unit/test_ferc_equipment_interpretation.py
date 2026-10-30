@@ -131,3 +131,90 @@ def test_generic_federal_register_source_is_still_context_only(notice):
         citation_url=evidence.url,
         identified_project=True,
     ).admitted
+
+
+def test_exact_ea_review_schedule_notice_admits_same_site_with_bound_docket_context():
+    fixture = Path(__file__).parents[1] / "fixtures" / "ferc-review-schedule"
+    record = json.loads((fixture / "federal-register-record.json").read_text())
+    raw = (fixture / "FR-2024-00135.pdf").read_bytes()
+    with httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, content=raw, headers={"content-type": "application/pdf"})
+        )
+    ) as client:
+        citation = retrieve_companion(record, client)[0]
+    evidence = SimpleNamespace(
+        id=uuid4(),
+        title=record["title"],
+        abstract=citation["abstract"],
+        content_hash=hashlib.sha256(raw).hexdigest(),
+        url=record["pdf_url"],
+        published_at=date.fromisoformat(record["publication_date"]),
+        observed_at=datetime(2026, 10, 30, tzinfo=UTC),
+    )
+    assessment = assess_ferc_equipment(evidence.title, evidence.abstract)
+    assert assessment is not None and assessment["decision"] == "accepted"
+    native = assessment["native_equipment"]
+    assert native["notice_kind"] == "environmental_review_schedule"
+    assert native["docket_context"]["status"] == "SOURCE_BOUND"
+    assert native["docket_context"]["normalized_full"] == "CP24-8-000"
+    assert all(
+        evidence.abstract[item["start"] : item["end"]] == item["quote"]
+        for item in native["docket_context"]["references"]
+    )
+    assert native["project_activities"]
+    assert all(item["scope"] == "context_only" for item in native["project_activities"])
+    assert assessment["subject"] == "Compressor Station 302"
+    assert assessment["location"] == "Montgomery County, Texas"
+    assessment.update(
+        evidence_hash=evidence.content_hash,
+        source_document_number=record["document_number"],
+        evidence={"id": str(evidence.id), "url": evidence.url},
+    )
+    source = SimpleNamespace(
+        id="federal-register-eis", family="structured-government", retrieval_method="json-api"
+    )
+    assert admitted_from_source(source, assessment, evidence).admitted
+
+
+def test_schedule_family_does_not_admit_unmatched_title_or_source_identity():
+    fixture = Path(__file__).parents[1] / "fixtures" / "ferc-review-schedule"
+    record = json.loads((fixture / "federal-register-record.json").read_text())
+    assert (
+        assess_ferc_equipment(
+            record["title"].replace("Notice of Schedule", "Notice of Something"), record["abstract"]
+        )
+        is None
+    )
+    assert (
+        is_ferc_equipment_candidate(
+            {
+                "title": record["title"],
+                "pdf_url": record["pdf_url"],
+                "publication_date": record["publication_date"],
+                "document_number": "2024-99999",
+            }
+        )
+        is False
+    )
+
+
+def test_malformed_docket_context_cannot_become_source_bound():
+    from gridlens.domain.ferc_equipment_interpretation import source_docket_context
+
+    text = "Docket No. CP24-8-000; Docket No. CP24-8-00O"
+    extracted = SimpleNamespace(
+        docket_references=[
+            {
+                "normalized_full": "CP24-8-000",
+                "normalized_root": "CP24-8",
+                "quote": "CP24-8-000",
+                "start": 11,
+                "end": 21,
+            }
+        ],
+        docket_issues=["Malformed docket reference; docket identity is unresolved."],
+    )
+    context = source_docket_context(extracted, text)
+    assert context["status"] == "UNKNOWN"
+    assert context["normalized_full"] is None

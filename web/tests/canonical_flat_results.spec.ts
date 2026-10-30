@@ -56,15 +56,22 @@ test('synthetic repeated cohort conflict stops after one reset and presents a re
 
 test('synthetic logout while a request is pending cannot repopulate rows or cache', async ({ page }) => {
   let release: (() => void) | undefined
+  let requestStarted: (() => void) | undefined
+  let routeSettled: (() => void) | undefined
+  const projectRequestStarted = new Promise<void>(resolve => { requestStarted = resolve })
+  const projectRouteSettled = new Promise<void>(resolve => { routeSettled = resolve })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/projects?*', async route => {
+    requestStarted?.()
     await new Promise<void>(resolve => { release = resolve })
-    return route.fulfill({ json: pageFixture })
+    try { await route.fulfill({ json: pageFixture }) } finally { routeSettled?.() }
   })
   await page.goto('/?view=workspace')
+  await projectRequestStarted
   await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
   await expect(page.getByRole('alert')).toContainText('session ended')
   release?.()
+  await projectRouteSettled
   await page.waitForTimeout(150)
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(0)
 })

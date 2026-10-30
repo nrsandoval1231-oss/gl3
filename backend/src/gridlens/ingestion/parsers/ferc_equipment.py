@@ -12,10 +12,11 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from hashlib import sha256
 
-VERSION = "ferc-compressor-station-notice-v1"
+VERSION = "ferc-compressor-station-notice-v2"
 MAX_INPUT_CHARS = 128_000
 MAX_SITES = 16
 MAX_ACTIVITIES = 64
+MAX_DOCKET_REFERENCES = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +74,10 @@ class NativeEquipmentExtraction:
     body_applicant_start: int | None = None
     body_applicant_end: int | None = None
     sites: list[NativeEquipmentSite] = field(default_factory=list)
+    notice_kind: str | None = None
+    docket_references: list[dict[str, object]] = field(default_factory=list)
+    docket_issues: list[str] = field(default_factory=list)
+    project_activities: list[UnsupportedActivity] = field(default_factory=list)
     issues: list[str] = field(default_factory=list)
     attribution_issues: list[str] = field(default_factory=list)
     truncated: bool = False
@@ -116,6 +121,11 @@ _TITLE = re.compile(
     r"(?P<project>[A-Za-z0-9][A-Za-z0-9 ,&()'./-]{1,220} Project)",
     re.I,
 )
+_SCHEDULE_TITLE = re.compile(
+    r"(?P<party>[^;]{1,240});\s*Notice of Schedule for the Preparation of an "
+    r"Environmental Assessment for the (?P<project>[A-Za-z0-9][A-Za-z0-9 ,&()'./-]{1,220} Project)",
+    re.I,
+)
 _STATE = (
     r"Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|"
     r"Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|"
@@ -136,15 +146,79 @@ _BULLET = re.compile(
     rf"(?:\s+{_HEADING_PREFIX}\s+\d+\s+in\s+)|\Z)",
     re.I,
 )
-_ANY_HEADING = re.compile(rf"Compressor Station \d+ in [A-Za-z -]+ County, (?:{_STATE}):", re.I)
+_STATION_MENTION = re.compile(r"\bCompressor Station\b", re.I)
 _INSTALL_CLAUSE = re.compile(
     r"Install (?P<count>one|1|two|2|three|3|four|4|five|5|[0-9]{1,3}) new "
-    r"(?P<drive>electric motor driven|gas engine driven|diesel engine driven|"
-    r"steam turbine driven) compressor units? with a rating of "
+    r"(?P<drive>electric motor driven(?:\s+\(EMD\))?|gas engine driven|"
+    r"diesel engine driven|steam turbine driven) compressor units? with a rating of "
     r"(?P<rating>(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?) "
     r"(?P<unit>hp|kW|MW|kVA)[.;]",
     re.I,
 )
+
+
+def parse_ferc_notice_title(title: str) -> tuple[str, str, str] | None:
+    """Return the supported title identity and notice family, if recognized."""
+    value = title.strip()
+    match = _TITLE.fullmatch(value)
+    kind = "environmental_assessment_availability"
+    if match is None:
+        match = _SCHEDULE_TITLE.fullmatch(value)
+        kind = "environmental_review_schedule"
+    if match is None:
+        return None
+    return match.group("party").strip(), match.group("project").strip(), kind
+
+
+_DOCKET = re.compile(
+    r"\bCP\s*(?P<year>\d{2})\s*[‐‑‒–—-]\s*(?P<number>\d{1,5})"
+    r"(?:\s*[‐‑‒–—-]\s*(?P<suffix>\d{3}))?(?![\w‐‑‒–—-])",
+    re.I,
+)
+_DOCKET_LIKE = re.compile(
+    r"\bCP\s*\d+\s*[‐‑‒–—-]\s*\w+(?:\s*[‐‑‒–—-]\s*\w+)*",
+    re.I,
+)
+
+
+def _docket_references(text: str) -> tuple[list[dict[str, object]], list[str]]:
+    references: list[dict[str, object]] = []
+    issues: list[str] = []
+    for position, candidate in enumerate(_DOCKET_LIKE.finditer(text)):
+        if position >= MAX_DOCKET_REFERENCES:
+            issues.append("Docket reference bound exceeded; docket identity is unresolved.")
+            break
+        raw = candidate.group(0)
+        match = _DOCKET.fullmatch(raw)
+        if match is None:
+            issues.append(
+                f"Malformed docket reference retained at offset {candidate.start()}; "
+                "docket identity is unresolved."
+            )
+            continue
+        year = match.group("year")
+        number = match.group("number")
+        suffix = match.group("suffix")
+        full = f"CP{year}-{number}-{suffix}" if suffix else None
+        root = f"CP{year}-{number}"
+        references.append(
+            {
+                "normalized_full": full,
+                "normalized_root": root,
+                "quote": raw,
+                "start": candidate.start(),
+                "end": candidate.end(),
+            }
+        )
+    full_values = {item["normalized_full"] for item in references if item["normalized_full"]}
+    root_values = {item["normalized_root"] for item in references}
+    if len(full_values) > 1 or len(root_values) > 1:
+        issues.append("Docket references conflict; docket identity is unresolved.")
+    elif not references:
+        issues.append("No supported docket reference was found; docket identity is unresolved.")
+    return references, issues
+
+
 _COUNT_WORDS = {
     "one": 1,
     "1": 1,
@@ -180,19 +254,22 @@ def extract_ferc_equipment(text: str, *, title: str) -> NativeEquipmentExtractio
             f"Input exceeds {MAX_INPUT_CHARS} character parser bound; extraction abstained."
         )
         return result
-    title_match = _TITLE.fullmatch(title.strip())
-    if title_match is None:
+    parsed_title = parse_ferc_notice_title(title)
+    if parsed_title is None:
         result.issues.append(
             "Title does not match the supported FERC environmental-assessment notice layout."
         )
         return result
+    result.source_party_name, result.source_project_name, result.notice_kind = parsed_title
+    is_schedule = result.notice_kind == "environmental_review_schedule"
     title_value = title.strip()
     title_offset = title.find(title_value)
-    result.source_party_name = title_match.group("party").strip()
-    result.source_project_name = title_match.group("project").strip()
+    title_match = (_SCHEDULE_TITLE if is_schedule else _TITLE).fullmatch(title_value)
+    assert title_match is not None
     result.source_party_quote = result.source_party_name
     result.source_party_start = title_offset + title_match.start("party")
     result.source_party_end = result.source_party_start + len(result.source_party_name)
+    result.docket_references, result.docket_issues = _docket_references(text)
 
     normalized, offsets = _normalized_with_offsets(text)
     for contradiction in _CONTRADICTION.finditer(normalized):
@@ -200,7 +277,9 @@ def extract_ferc_equipment(text: str, *, title: str) -> NativeEquipmentExtractio
         quote = text[start:end]
         result.issues.append(f"Contradiction statement retained at offset {start}: {quote}")
     scope_pattern = re.compile(
-        rf"The proposed {re.escape(result.source_project_name)} includes the "
+        r"The Project would consist of the following facilities and activities:"
+        if is_schedule
+        else rf"The proposed {re.escape(result.source_project_name)} includes the "
         r"following facilities and activities:",
         re.I,
     )
@@ -213,6 +292,31 @@ def extract_ferc_equipment(text: str, *, title: str) -> NativeEquipmentExtractio
     scope = scopes[0]
     tail = normalized[scope.end() :]
     tail_offset = scope.end()
+    if is_schedule:
+        appurtenant = re.search(
+            r"In addition, Natural has identified in its application certain appurtenant "
+            r"facilities that it intends to construct/\s*install under section 2\.55\(a\) "
+            r"of the Commission['’]s regulations\.",
+            tail,
+            re.I,
+        )
+        if appurtenant is None:
+            result.issues.append(
+                "Appurtenant-facilities boundary is missing; extraction abstained."
+            )
+            return result
+        a_start, a_end = _raw_span(
+            offsets,
+            tail_offset + appurtenant.start(),
+            tail_offset + appurtenant.end(),
+            len(text),
+        )
+        result.project_activities.append(
+            UnsupportedActivity(
+                "unscoped_appurtenant_facilities", text[a_start:a_end], a_start, a_end
+            )
+        )
+        tail = tail[: appurtenant.start()]
     applicants = list(
         re.finditer(r"proposed by (?P<party>[^()]+?)\s*\((?P<alias>[^)]+)\)", normalized, re.I)
     )
@@ -237,7 +341,17 @@ def extract_ferc_equipment(text: str, *, title: str) -> NativeEquipmentExtractio
         result.attribution_issues.append(
             "Multiple body applicant names are ambiguous; retain attribution as unresolved."
         )
-    headings = list(_HEADING.finditer(tail))
+    heading_pattern = (
+        re.compile(
+            rf"(?P<heading>{_HEADING_PREFIX} (?P<number>\d+)"
+            rf"(?:\s+\(CS\s*(?P<alias>\d+)\))? in "
+            rf"(?P<county>[A-Za-z -]+) County, (?P<state>{_STATE})):?",
+            re.I,
+        )
+        if is_schedule
+        else _HEADING
+    )
+    headings = list(heading_pattern.finditer(tail))
     if not headings:
         result.issues.append(
             "No supported compressor-station headings were found; extraction abstained."
@@ -258,13 +372,26 @@ def extract_ferc_equipment(text: str, *, title: str) -> NativeEquipmentExtractio
     if len(set(identities)) != len(identities):
         result.issues.append("Duplicate station headings are ambiguous; extraction abstained.")
         return result
+    if is_schedule and any(
+        heading.group("alias") and heading.group("alias") != heading.group("number")
+        for heading in headings
+    ):
+        result.issues.append(
+            "Station heading alias does not match its number; extraction abstained."
+        )
+        return result
     if not _layout_gap_is_ignorable(tail[: headings[0].start()]):
         result.issues.append(
             "Unexpected text precedes the first station heading; extraction abstained."
         )
         return result
-    all_station_mentions = list(_ANY_HEADING.finditer(tail))
-    if len(all_station_mentions) != len(headings):
+    # Unsupported numbers, aliases or locations still delimit a possible site.
+    # Never absorb such a heading into the preceding station's activity text.
+    all_station_mentions = list(_STATION_MENTION.finditer(tail))
+    if len(all_station_mentions) != len(headings) or any(
+        mention.start() != tail.lower().find("compressor station", heading.start())
+        for mention, heading in zip(all_station_mentions, headings, strict=True)
+    ):
         result.issues.append(
             "Station heading layout is ambiguous or unsupported; extraction abstained."
         )
@@ -357,12 +484,14 @@ def extract_ferc_equipment(text: str, *, title: str) -> NativeEquipmentExtractio
                         UnsupportedActivity("unresolved_installation", quote, raw_start, raw_end)
                     )
                     continue
+                drive_value = install_match.group("drive").casefold()
                 drive = {
                     "electric motor driven": "electric",
+                    "electric motor driven (emd)": "electric",
                     "gas engine driven": "gas_engine",
                     "diesel engine driven": "diesel_engine",
                     "steam turbine driven": "steam",
-                }[install_match.group("drive").casefold()]
+                }[drive_value]
                 rating_text = install_match.group("rating")
                 rating = Decimal(rating_text.replace(",", ""))
                 exponent = rating.as_tuple().exponent

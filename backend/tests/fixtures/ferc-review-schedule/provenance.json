@@ -1,0 +1,17 @@
+{
+  "description": "Authentic Federal Register schedule notice PDF fixture for Docket CP24-8-000.",
+  "source": "Federal Register API metadata record and official GovInfo PDF; metadata object copied directly from the retained API response.",
+  "document_number": "2024-00135",
+  "api_record_capture": "federal-register-api-capture.json",
+  "api_record_capture_provenance": "federal-register-api-capture-provenance.json",
+  "api_capture_sha256": "fbfb85c23c2d6fc0c38e4e1770f98d109307dd42f6adf05a4d3105ceb3335def",
+  "pdf_url": "https://www.govinfo.gov/content/pkg/FR-2024-01-08/pdf/2024-00135.pdf",
+  "pdf_bytes": 207153,
+  "pdf_sha256": "b1ee9c1d389f8318c19605ee2a077b01acf104404cf27f9f301541aa92b84092",
+  "retrieval_source": "official GovInfo PDF URL from Federal Register API metadata",
+  "retrieved_at": "2026-10-30T16:47:30.271028+00:00",
+  "http_status": 200,
+  "redirects_allowed": false,
+  "per_document_timeout_seconds": 30,
+  "per_document_max_bytes": 10000000
+}
