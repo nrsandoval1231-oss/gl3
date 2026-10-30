@@ -36,6 +36,7 @@ from gridlens.persistence.models import (
 
 CONTRACT = "equipment-demand-v1"
 MAX_DOCUMENTS = 32
+BINDING_VERSION = 1
 
 
 def _json(value: Any) -> Any:
@@ -58,6 +59,23 @@ def _digest(value: Any) -> str:
 
 def _name(value: str | None) -> str:
     return re.sub(r"\s+", " ", value or "").strip().casefold()
+
+
+def _binding_snapshot(project, source, interpretation) -> dict:
+    assessment = interpretation.assessment or {}
+    return {
+        "version": BINDING_VERSION,
+        "project": {
+            "identity_key": project.identity_key,
+            "name": project.name,
+            "location": project.location,
+        },
+        "source": {"family": source.family, "retrieval_method": source.retrieval_method},
+        "attribution": {
+            "subject": assessment.get("subject"),
+            "project_hint": assessment.get("project_hint"),
+        },
+    }
 
 
 def _canonical_decimal(value: Any) -> str | None:
@@ -137,7 +155,7 @@ def _input_key(need, project, observation, evidence, source, interpretation) -> 
     assessment = interpretation.assessment or {}
     return _digest(
         {
-            "versions": [CONTRACT, VERSION, MODEL_ID, MODEL_VERSION],
+            "versions": [CONTRACT, VERSION, MODEL_ID, MODEL_VERSION, BINDING_VERSION],
             "need": [need.id, need.activity_key],
             "project": [project.id, project.identity_key, project.name, project.location],
             "observation": [observation.id, observation.external_id, observation.content_hash],
@@ -161,7 +179,9 @@ def _input_key(need, project, observation, evidence, source, interpretation) -> 
 def _payload(need, project, observation, evidence, source, interpretation) -> dict | None:
     text = evidence.abstract or ""
     extracted = extract_equipment_claims(text)
-    if not extracted.claims and not extracted.issues:
+    # Equipment words in ordinary permit/research prose are not a parsed
+    # schedule; structured but unparseable schedules remain abstained evidence.
+    if not extracted.claims and not extracted.has_schedule:
         return None
     questions = list(extracted.issues)
     if not extracted.company:
@@ -223,6 +243,7 @@ def _payload(need, project, observation, evidence, source, interpretation) -> di
     category = "CALCULATED" if demand and calculated.coincident_kw is not None else "UNKNOWN"
     return {
         "schema_version": CONTRACT,
+        "binding": _binding_snapshot(project, source, interpretation),
         "input_fingerprint": _input_key(
             need, project, observation, evidence, source, interpretation
         ),
@@ -385,6 +406,33 @@ def current_equipment_investigations(session, pairs: list[tuple]) -> dict[str, d
             for need_id, project_id in wanted
         )
     )
+    current_snapshot = func.jsonb_build_object(
+        "version",
+        BINDING_VERSION,
+        "project",
+        func.jsonb_build_object(
+            "identity_key",
+            Project.identity_key,
+            "name",
+            Project.name,
+            "location",
+            Project.location,
+        ),
+        "source",
+        func.jsonb_build_object(
+            "family",
+            Source.family,
+            "retrieval_method",
+            Source.retrieval_method,
+        ),
+        "attribution",
+        func.jsonb_build_object(
+            "subject",
+            Interpretation.assessment["subject"],
+            "project_hint",
+            Interpretation.assessment["project_hint"],
+        ),
+    )
     ranked = (
         select(
             EvidencePackage.id,
@@ -435,6 +483,7 @@ def current_equipment_investigations(session, pairs: list[tuple]) -> dict[str, d
                 func.jsonb_extract_path_text(Interpretation.assessment, "activity_key"),
             )
             == PowerNeed.activity_key,
+            EvidencePackage.payload["binding"] == current_snapshot,
         )
         .distinct()
         .subquery()

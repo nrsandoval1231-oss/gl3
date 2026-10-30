@@ -275,6 +275,52 @@ def test_company_name_containing_compressor_is_metadata_only():
     assert result.claims == []
 
 
+def test_has_schedule_distinguishes_structured_rows_from_prose_and_metadata():
+    valid = "ID: M-8 | Type: pump | Drive: electric | Rating: 200 kW electrical input"
+    assert extract_equipment_claims(valid).has_schedule is True
+    assert (
+        extract_equipment_claims("Type: pump | Drive: electric | Rating: 100 kW").has_schedule
+        is True
+    )
+    ambiguous = extract_equipment_claims(
+        "ID: M-9 | Type: pump | Drive: electric or gas engine | Rating: 100 kW"
+    )
+    assert ambiguous.claims == []
+    assert ambiguous.has_schedule is True
+    assert extract_equipment_claims("Install a pump at the station.").has_schedule is False
+    assert (
+        extract_equipment_claims(
+            "Company: CompressorSupply\nFacility: Compression Station\n"
+            "Type: Construction Permit\nState: OK\n"
+        ).has_schedule
+        is False
+    )
+
+
+def test_oversized_input_retains_structured_schedule_signal():
+    result = extract_equipment_claims(
+        "ID: M-10 | Type: pump | Drive: electric | Rating: 100 kW\n" + "x" * 130_000
+    )
+    assert result.truncated is True
+    assert result.has_schedule is True
+    assert result.claims == []
+
+
+def test_row_limit_retains_structured_schedule_signal():
+    row = "Equipment ID: M-11 | Type: pump | Drive: electric | Rating: 100 kW"
+    result = extract_equipment_claims(("metadata line\n" * 256) + row)
+    assert result.truncated is True
+    assert result.has_schedule is True
+    assert result.claims == []
+
+
+def test_non_equipment_permit_and_project_ids_do_not_set_schedule_signal():
+    for text in ("Permit ID: P-1\n", "Project ID: P-1\n", "ID: P-1\n"):
+        result = extract_equipment_claims(text)
+        assert result.has_schedule is False
+        assert result.claims == []
+
+
 def test_unknown_typed_state_rows_are_not_silently_dropped_beside_valid_claim():
     valid = "ID: M-7 | Type: pump | Drive: electric | Rating: 200 kW electrical input"
     for fragment in ("Type: compressors | State: proposed", "Type: fan | State: proposed"):

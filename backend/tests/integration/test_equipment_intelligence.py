@@ -382,6 +382,51 @@ def test_old_parser_and_model_receipts_do_not_consume_current_bound(equipment_db
         assert current_result["demand"] is not None
 
 
+def test_mutable_binding_history_does_not_starve_restored_current_receipt(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        need, project, observation, evidence, interpretation, source = rows
+        original_name, original_location = project.name, project.location
+        original_assessment = dict(interpretation.assessment)
+        original = build(session, rows)
+        for index in range(40):
+            project.name = f"Temporary Site {index}"
+            project.location = "Midland, TX" if index % 2 else "Odessa, TX"
+            interpretation.assessment = {
+                **original_assessment,
+                "subject": "prairie example llc" if index % 2 else "Prairie Example LLC",
+                "project_hint": (
+                    " Mock Permian Compression Station "
+                    if index % 2
+                    else "Mock Permian Compression Station"
+                ),
+            }
+            session.flush()
+            assert build(session, rows) is not None
+        project.name, project.location = original_name, original_location
+        interpretation.assessment = original_assessment
+        session.flush()
+        restored = build(session, rows)
+        assert restored.id == original.id
+        result = current_equipment_investigation(session, need.id, project.id)
+        assert result["status"] == "SUPPORTED"
+        assert result["demand"] is not None
+
+
+def test_more_than_bound_current_tampered_receipts_fail_closed(equipment_db):
+    from datetime import UTC, datetime
+
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        original = build(session, rows)
+        original.created_at = datetime(2020, 1, 1, tzinfo=UTC)
+        for index in range(34):
+            receipt = build(session, additional_document(session, rows, rows[3].abstract))
+            receipt.payload = {**receipt.payload, "demand": {"coincident_kw": str(index)}}
+        session.flush()
+        assert current_equipment_investigation(session, rows[0].id, rows[1].id) is None
+
+
 def test_decimal_signature_normalization_is_exact_and_context_independent():
     with localcontext() as context:
         context.prec = 2
@@ -406,6 +451,21 @@ def test_ambiguous_drive_cannot_publish_numeric_result(equipment_db, replacement
             session, rows, rows[3].abstract.replace("Drive: electric", replacement)
         )
         result = build(session, ambiguous).payload
+        assert result["status"] == "ABSTAINED"
+        assert result["demand"] is None
+
+
+def test_ambiguous_current_schedule_conflicts_with_valid_receipt(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        build(session, rows)
+        ambiguous = additional_document(
+            session,
+            rows,
+            rows[3].abstract.replace("Drive: electric", "Drive: electric or gas engine"),
+        )
+        assert build(session, ambiguous).payload["status"] == "ABSTAINED"
+        result = current_equipment_investigation(session, rows[0].id, rows[1].id)
         assert result["status"] == "ABSTAINED"
         assert result["demand"] is None
 
@@ -518,13 +578,16 @@ def test_disjoint_future_operating_windows_publish_partial_not_simultaneous_tota
         assert any("windows do not overlap" in q for q in result["unresolved_questions"])
 
 
-def test_ordinary_permit_metadata_does_not_materialize_equipment_investigation(equipment_db):
+@pytest.mark.parametrize(
+    "prose", ["", "HVAC compressors will be serviced.", "Equipment is stored onsite."]
+)
+def test_ordinary_permit_metadata_does_not_materialize_equipment_investigation(equipment_db, prose):
     with equipment_db.begin() as session:
         rows = seed(
             session,
             body=(
                 "Company: Prairie Example LLC\nFacility: Mock Permian Compression Station\n"
-                "Type: Construction Permit\nState: OK\nStatus: Under Review\n"
+                "Type: Construction Permit\nState: OK\nStatus: Under Review\n" + prose
             ),
         )
         assert build(session, rows) is None
