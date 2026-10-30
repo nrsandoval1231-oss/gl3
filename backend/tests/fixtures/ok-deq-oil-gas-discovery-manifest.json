@@ -5,9 +5,9 @@
   "original_listing_bytes": 563719,
   "original_listing_sha256": "fbf0fddcc7614d0d7eef5465f1e628bb48de171f8c127c8733c01dce9c4fbb05",
   "fixture_path": "backend/tests/fixtures/ok-deq-oil-gas-discovery-excerpt.html",
-  "fixture_bytes": 4590,
-  "fixture_sha256": "bc74f20a4392639ae2792ec7d9fa93d8b1eff43d3d60f56dbc9e080e7a30174e",
-  "selection": "Exact original <thead> and four original <tr> rows copied from the official HTML listing; no row values changed. Fixture omits page chrome and all other listing rows.",
+  "fixture_bytes": 4576,
+  "fixture_sha256": "db9e344a70bd655de85f6dc9f2bf83f4d11cf981979f0d6c0a1a9b0e55127b3b",
+  "selection": "Original <thead> and four original <tr> rows copied from the official HTML listing, with CRLF normalized to LF; no row values changed. Fixture omits page chrome and all other listing rows.",
   "columns": [
     "Division",
     "County",
@@ -81,5 +81,7 @@
     "O&G relevance is a discovery classification based on explicit company/facility/permit text only; it is not source-reported NAICS/operator verification.",
     "Preserve permit type, status, company, facility, county, detail ID, comment-window text. The dates are public-comment window dates only.",
     "The index/listing excerpt does not imply source adapter admission or permit qualification behavior."
-  ]
+  ],
+  "retrieval_time_precision": "minute; seconds were not measured",
+  "original_listing_retention": "Session capture outside the tracked repository; original bytes hash recorded above, selected excerpt retained here."
 }
