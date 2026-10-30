@@ -204,7 +204,8 @@ jobs:
         run: docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gridlens_test'
       - name: Run backend test suite
         # Regression gate: pytest runs ~5m with -n 4 (292-390s measured over 10+ CI runs).
-        run: timeout 480 uv run pytest tests -n 4
+        # Keep the existing gate, but retain active test stacks before an outer timeout.
+        run: timeout 480 uv run pytest tests -n 4 -vv -o faulthandler_timeout=60
         working-directory: backend
   browser:
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
