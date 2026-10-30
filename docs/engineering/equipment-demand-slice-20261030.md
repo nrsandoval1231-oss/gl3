@@ -48,3 +48,5 @@ Next, in commercial-value order:
 4. Extend the same demand contract to data-center phases and additional equipment models, with separately validated scenarios and lifecycle rules.
 
 No live source coverage, buyer verification, deployment, or production readiness is established by this candidate. The latest available production receipt remains the dated October 29 PR148 application `ca12443f5c57f3502584d8a353d83cdf7d5372b1`, schema `0049_scoped_identity_browse`, 74 tables; it was not freshly inspected.
+
+The [Oklahoma source-intake follow-up](../validation/ok-deq-equipment-discovery-20261030.md) closes the listing-discovery exclusion for explicit compressor stations and gas-processing plants. It retains evidence without creating equipment or demand claims; attachment acquisition and engineering extraction remain next work.
