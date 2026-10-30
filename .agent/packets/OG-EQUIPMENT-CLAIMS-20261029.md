@@ -1,6 +1,6 @@
 # O&G equipment claim foundation implementation plan
 
-READY; base c8d3ceb1; feat/og-equipment-claims-20261029 stacked on PR150. Owner authorized the next slice in the [roadmap](../../docs/delivery/intelligence-roadmap.md). Implements the [data](../../docs/architecture/data-model.md) and [demand](../../docs/architecture/demand-models.md) contracts only as pure candidate validation, not an operational engine.
+LOCAL PASS; scoped review/final CI pending; base c8d3ceb1; feat/og-equipment-claims-20261029 stacked on PR150. Owner authorized the next slice in the [roadmap](../../docs/delivery/intelligence-roadmap.md). Implements the [data](../../docs/architecture/data-model.md) and [demand](../../docs/architecture/demand-models.md) contracts only as pure candidate validation, not an operational engine.
 
 Goal: map existing evidence/identity fields and add missing strict candidate equipment claims plus provenance validation and negative fixtures. Reuse Pydantic and existing immutable Evidence/Observation/Project/PowerNeed anchors; no tables or dependencies. No runtime integration, calculations, scoring, publication, runtime/paid providers, APIs, UI, migration, merge or deployment. Read-only official public-document retrieval for a small fixture is permitted within the existing source research scope. Test scenarios explicitly synthetic; real retained O&G source excerpts demonstrate available evidence and missing equipment facts without fabrication. All candidates UNVERIFIED, structural validation is not semantic/source verification.
 
@@ -10,11 +10,13 @@ Interface: equipment_claims.py exports validate_equipment_claim(value:dict, *, c
 
 ## File ownership and tasks
 
-- [ ] Luna evidence: equipment_evidence.py and tests/unit/test_equipment_evidence.py. RED tests first; mismatch IDs/hash/source/quote, timezone/chronology, extra fields, immutability; implement minimal validator; GREEN focused tests.
-- [ ] Luna claims: equipment_claims.py and tests/unit/test_equipment_claims.py. RED first; consume evidence interface; test gas/unknown/standby/missing rating/count, malformed quantities, bool/NaN/Inf, project isolation and injected MW/gap/verification; implement then GREEN.
-- [ ] Luna cohort: docs/architecture/og-equipment-claim-map.md, tests/fixtures/og_equipment_claims.json and tests/unit/test_og_equipment_cohort.py. Map actual schema/source reuse and gaps; test clearly labeled synthetic negatives and real retained source limitations. Use public interfaces above; do not fabricate source-backed equipment facts.
+- [x] Luna evidence: equipment_evidence.py and tests/unit/test_equipment_evidence.py. RED tests first; mismatch IDs/hash/source/quote, timezone/chronology, extra fields, immutability; implement minimal validator; GREEN focused tests.
+- [x] Luna claims: equipment_claims.py and tests/unit/test_equipment_claims.py. RED first; consume evidence interface; test gas/unknown/standby/missing rating/count, malformed quantities, bool/NaN/Inf, project isolation and injected MW/gap/verification; implement then GREEN.
+- [x] Luna cohort: docs/architecture/og-equipment-claim-map.md, tests/fixtures/og_equipment_claims.json and tests/unit/test_og_equipment_cohort.py. Map actual schema/source reuse and gaps; test clearly labeled synthetic negatives and real retained source limitations. Use public interfaces above; do not fabricate source-backed equipment facts.
 - [ ] Lead: integrate; focused/full required tests, docs/build/audits/brand gates; independent Astra review and repairs; retain exact evidence and open focused stacked PR. Three builders use disjoint ownership in isolated worktree; no concurrent same-file writes.
 
 Acceptance: exact retained snapshot traceability, immutable metadata, no cross-project context, unknown/conflict explicit, gas/unknown ratings never imply electrical demand, candidate validation cannot award verification or qualification; reference fixture evidence; unchanged runtime wiring/schema/UI/provider settings; full required CI and independent review. Rollback revert unused modules/tests/docs with no data rollback. Current intermittent saved-browse publication failure from PR150 remains a separate risk, not repaired here.
 
 Source sufficiency: retained RRC samples support identity/lifecycle only. A read-only official GPO notice retrieved at 2026-10-30T01:16:10.278252+00:00 supplies one historical proposed-electric-compressor fixture; rating basis remains unknown. Original and excerpt hashes/provenance are retained separately. Synthetic negatives never inherit real project identifiers.
+
+Candidate50da643f: lead190focused tests/lint406/type185/docs/brandPASS. Astra P2 fresh Windows hash regression repaired via narrow eolLF attribute; exact Git checkout-filter digest verified. PR151 stacked onPR150; final scoped review/full CI outcomes retained in PR completion record. No merge/deploy.
