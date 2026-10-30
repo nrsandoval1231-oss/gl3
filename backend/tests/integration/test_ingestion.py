@@ -842,6 +842,121 @@ def test_pdf_representation_is_companion_evidence_not_a_second_discovery(db, mon
         assert "GovInfo PDF page 1" in locations
 
 
+def test_complete_pdf_notice_is_durable_and_same_hash_excerpt_is_immutable(db, monkeypatch):
+    """A complete companion is retained without changing a prior same-PDF excerpt."""
+    _, factory, job_id = db
+    import gridlens.ingestion.service as service
+
+    row = record(
+        "The proposed Mine Plan of Operations would develop the mine, with dewatering "
+        "and ventilation shafts."
+    )
+    row["document_number"] = "2099-01001"
+    row["title"] = "Silver Ridge Mine Project; Arizona; Synthetic Notice"
+    row["html_url"] = (
+        "https://www.federalregister.gov/documents/2099/01/01/2099-01001/synthetic-notice"
+    )
+    row["pdf_url"] = "https://www.govinfo.gov/content/pkg/FR-2099-01-01/pdf/2099-01001.pdf"
+
+    old_hash = "a" * 64
+    complete_hash = "b" * 64
+    old_excerpt = "Historical bounded excerpt retained before complete notice extraction."
+    late_equipment_text = (
+        "The notice also describes proposed compressor, dewatering, and ventilation work; "
+        "equipment capacity, electrical basis, and commissioning status remain unspecified."
+    )
+    complete_notice = (
+        "Synthetic complete notice beginning at the matching notice title.\n"
+        + ("Background and environmental review details. " * 45)
+        + "\n"
+        + late_equipment_text
+        + "\nFR Doc. 2099-01001 Filed 01-01-99."
+    )
+    assert len(complete_notice) > 1200
+    assert complete_notice.index(late_equipment_text) > 1200
+
+    def citation(content_hash, abstract, extraction_location):
+        return {
+            "content_hash": content_hash,
+            "title": row["title"],
+            "abstract": abstract,
+            "url": row["pdf_url"],
+            "published_at": row["publication_date"],
+            "extraction_location": extraction_location,
+        }
+
+    responses = [
+        citation(old_hash, old_excerpt, "GovInfo PDF page 1"),
+        citation(complete_hash, complete_notice, "GovInfo PDF pages 1-2"),
+        citation(complete_hash, complete_notice, "GovInfo PDF pages 1-2"),
+        citation(old_hash, complete_notice, "GovInfo PDF pages 1-2"),
+    ]
+    monkeypatch.setattr(service, "retrieve_companion", lambda *_args, **_kwargs: [responses.pop(0)])
+
+    def run():
+        with factory() as session:
+            return service.process_records(
+                session,
+                job_id,
+                "test",
+                1,
+                federal_register_source(),
+                [row],
+                allow_model=False,
+            )
+
+    first = run()
+    assert first["pdf_eligible"] == 1 and first["pdf_enriched"] == 1
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        old_evidence = session.scalar(select(Evidence).where(Evidence.content_hash == old_hash))
+        assert observation is not None
+        assert old_evidence is not None and old_evidence.abstract == old_excerpt
+        initial_qualification = [
+            (need.id, need.tier, need.active, need.required_mw, need.supply, need.rationale)
+            for need in session.scalars(select(PowerNeed).order_by(PowerNeed.id))
+        ]
+
+    stored = run()
+    assert stored["unchanged"] == 1
+    with factory() as session:
+        complete_evidence = session.scalar(
+            select(Evidence).where(Evidence.content_hash == complete_hash)
+        )
+        assert complete_evidence is not None
+        assert complete_evidence.abstract == complete_notice
+        assert complete_evidence.abstract.index(late_equipment_text) > 1200
+        assert complete_evidence.extraction_location == "GovInfo PDF pages 1-2"
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+        assert [
+            (need.id, need.tier, need.active, need.required_mw, need.supply, need.rationale)
+            for need in session.scalars(select(PowerNeed).order_by(PowerNeed.id))
+        ] == initial_qualification
+
+    replay = run()
+    assert replay["unchanged"] == 1
+    old_hash_fulltext_replay = run()
+    assert old_hash_fulltext_replay["unchanged"] == 1
+    assert responses == []
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        old_evidence = session.scalar(select(Evidence).where(Evidence.content_hash == old_hash))
+        complete_evidence = session.scalar(
+            select(Evidence).where(Evidence.content_hash == complete_hash)
+        )
+        assert observation is not None and observation.content_hash == service._hash(row)
+        assert old_evidence is not None
+        assert old_evidence.abstract == old_excerpt
+        assert old_evidence.extraction_location == "GovInfo PDF page 1"
+        assert complete_evidence is not None and complete_evidence.abstract == complete_notice
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+        assert [
+            (need.id, need.tier, need.active, need.required_mw, need.supply, need.rationale)
+            for need in session.scalars(select(PowerNeed).order_by(PowerNeed.id))
+        ] == initial_qualification
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 0
+
+
 def test_pdf_is_not_downloaded_for_non_signal_records(db, monkeypatch):
     _, factory, job_id = db
     import gridlens.ingestion.service as service
