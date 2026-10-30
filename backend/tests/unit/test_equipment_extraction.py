@@ -239,3 +239,60 @@ def test_mixed_valid_row_and_unstructured_equipment_prose_reports_incomplete_ext
     )
     assert [claim.equipment_id for claim in result.claims] == ["M-4"]
     assert any("Unstructured equipment-like text" in issue for issue in result.issues)
+
+
+def test_generic_permit_and_geographic_metadata_do_not_count_as_equipment_rows():
+    for text in (
+        "OK DEQ Type: Permit\nSpp State: Texas\n",
+        "Type: Construction Permit\nState: OK\n",
+        "ID: M-5 | Type: pump | Drive: electric | Rating: 100 kW electrical input\n"
+        "OK DEQ Type: Permit\nSpp State: Texas\n",
+    ):
+        result = extract_equipment_claims(text)
+        assert result.issues == []
+        assert len(result.claims) == (1 if text.startswith("ID:") else 0)
+
+
+def test_equipment_type_label_with_specification_remains_incomplete_row():
+    result = extract_equipment_claims("Type: pump, 200 kW motor\n")
+    assert result.claims == []
+    assert any("Structured equipment row lacks an ID" in issue for issue in result.issues)
+
+
+def test_company_and_facility_metadata_do_not_trigger_equipment_fallback():
+    result = extract_equipment_claims(
+        "Company: Prairie Example\n"
+        "Facility: Mock Permian Compression Station\n"
+        "Type: Construction Permit\nState: OK\nStatus: Under Review\n"
+    )
+    assert result.issues == []
+    assert result.claims == []
+
+
+def test_company_name_containing_compressor_is_metadata_only():
+    result = extract_equipment_claims("Company: CompressorSupply\n")
+    assert result.issues == []
+    assert result.claims == []
+
+
+def test_unknown_typed_state_rows_are_not_silently_dropped_beside_valid_claim():
+    valid = "ID: M-7 | Type: pump | Drive: electric | Rating: 200 kW electrical input"
+    for fragment in ("Type: compressors | State: proposed", "Type: fan | State: proposed"):
+        result = extract_equipment_claims(valid + "\n" + fragment)
+        assert [claim.equipment_id for claim in result.claims] == ["M-7"]
+        assert any("Structured equipment row lacks an ID" in issue for issue in result.issues)
+
+
+def test_standalone_unknown_typed_state_row_is_incomplete():
+    result = extract_equipment_claims("Type: fan | State: proposed\n")
+    assert result.claims == []
+    assert any("Structured equipment row lacks an ID" in issue for issue in result.issues)
+
+
+def test_idless_drive_rating_and_count_schedule_fragment_is_reported():
+    fragment = "Drive: electric | Rating: 100 kW electrical input | Count: 1"
+    result = extract_equipment_claims(
+        "ID: M-6 | Type: pump | Drive: electric | Rating: 200 kW electrical input\n" + fragment
+    )
+    assert [claim.equipment_id for claim in result.claims] == ["M-6"]
+    assert any("Structured equipment row lacks an ID" in issue for issue in result.issues)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
+from hashlib import sha256
 from typing import Any
 
 from gridlens.domain.evaluation_clock import evaluation_today
@@ -228,6 +229,13 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return TABS_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
         return BOSTON_PERMIT_EVALUATOR_VERSION
+    if isinstance(permit, dict) and permit.get("source_type") == "oklahoma-deq-public-review":
+        # Equipment extraction participates in admission, so unchanged rejected
+        # records must be reassessed after parser semantics change.
+        from gridlens.ingestion.parsers.equipment import VERSION as equipment_version
+
+        versions = f"{REGIONAL_POWER_EVALUATOR_VERSION}:{equipment_version}"
+        return "okdeq-equipment-" + sha256(versions.encode()).hexdigest()[:16]
     if isinstance(permit, dict) and permit.get("source_type") in _REGIONAL_POWER_SOURCE_TYPES:
         return REGIONAL_POWER_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") in _TEXAS_POWER_SOURCE_TYPES:

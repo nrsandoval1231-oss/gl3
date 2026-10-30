@@ -12,12 +12,12 @@ import re
 from collections import defaultdict
 from dataclasses import asdict, replace
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import String, and_, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from gridlens.domain.equipment_demand import MODEL_ID, MODEL_VERSION, calculate_equipment_demand
@@ -58,6 +58,56 @@ def _digest(value: Any) -> str:
 
 def _name(value: str | None) -> str:
     return re.sub(r"\s+", " ", value or "").strip().casefold()
+
+
+def _canonical_decimal(value: Any) -> str | None:
+    if value is None:
+        return None
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return str(value)
+    if not number.is_finite():
+        return str(value)
+    sign, raw_digits, exponent = number.as_tuple()
+    if not isinstance(exponent, int):
+        return str(value)
+    digits = list(raw_digits)
+    if not digits or not any(digits):
+        return "0"
+    while digits[-1] == 0:
+        digits.pop()
+        exponent += 1
+    return format(Decimal((sign, tuple(digits), exponent)), "f")
+
+
+def _engineering_signature(record: dict) -> str:
+    equipment = []
+    for claim in record["equipment"]:
+        normalized = {
+            key: value
+            for key, value in claim.items()
+            if key not in {"source_id", "quote", "start", "end"}
+        }
+        normalized["equipment_id"] = _name(normalized.get("equipment_id"))
+        for key in ("rating", "efficiency", "power_factor", "duty_fraction", "period_hours"):
+            normalized[key] = _canonical_decimal(normalized.get(key))
+        equipment.append(normalized)
+    unique_equipment = {_digest(claim): claim for claim in equipment}
+    return _digest(
+        {
+            "company": _name(record["company"]),
+            "facility": _name(record["facility"]),
+            "equipment": [unique_equipment[key] for key in sorted(unique_equipment)],
+            "status": record["status"],
+            "as_of": record["as_of"],
+            "quantities": {
+                key: _canonical_decimal(value)
+                for key, value in (record["demand"] or {}).items()
+                if key not in {"inputs", "input_hashes", "items"}
+            },
+        }
+    )
 
 
 def _eligible(need, project, observation, evidence, interpretation, source) -> bool:
@@ -326,6 +376,15 @@ def current_equipment_investigations(session, pairs: list[tuple]) -> dict[str, d
         raise ValueError("Equipment demand batch exceeds 50 needs")
     wanted = {(str(n), str(p)) for n, p in pairs}
     ids = [UUID(str(n)) for n, _ in pairs]
+    pair_filter = or_(
+        *(
+            and_(
+                EvidencePackage.need_id == UUID(str(need_id)),
+                EvidencePackage.project_id == UUID(str(project_id)),
+            )
+            for need_id, project_id in wanted
+        )
+    )
     ranked = (
         select(
             EvidencePackage.id,
@@ -336,7 +395,48 @@ def current_equipment_investigations(session, pairs: list[tuple]) -> dict[str, d
             )
             .label("position"),
         )
-        .where(EvidencePackage.need_id.in_(ids), EvidencePackage.schema_version == CONTRACT)
+        .join(PowerNeed, PowerNeed.id == EvidencePackage.need_id)
+        .join(Project, Project.id == EvidencePackage.project_id)
+        .join(Observation, Observation.id == EvidencePackage.observation_id)
+        .join(Evidence, Evidence.id == EvidencePackage.evidence_id)
+        .join(Interpretation, Interpretation.observation_id == Observation.id)
+        .join(Source, Source.id == Observation.source_id)
+        .join(
+            NeedObservation,
+            and_(
+                NeedObservation.need_id == PowerNeed.id,
+                NeedObservation.observation_id == Observation.id,
+            ),
+        )
+        .where(
+            pair_filter,
+            EvidencePackage.need_id.in_(ids),
+            EvidencePackage.schema_version == CONTRACT,
+            EvidencePackage.question_contract == CONTRACT,
+            EvidencePackage.provider == "deterministic",
+            EvidencePackage.model == f"{MODEL_ID}:{MODEL_VERSION}",
+            EvidencePackage.logical_call_id.is_(None),
+            EvidencePackage.extractor_version == VERSION,
+            EvidencePackage.evidence_hash == Evidence.content_hash,
+            PowerNeed.active.is_(True),
+            Project.region_status == "ELIGIBLE",
+            Interpretation.status == "accepted",
+            Interpretation.content_hash == Observation.content_hash,
+            func.jsonb_extract_path_text(Interpretation.assessment, "semantic_hash")
+            == Observation.content_hash,
+            func.jsonb_extract_path_text(Interpretation.assessment, "evidence_hash")
+            == Evidence.content_hash,
+            func.jsonb_extract_path_text(Interpretation.assessment, "evidence", "id")
+            == func.cast(Evidence.id, String),
+            func.jsonb_extract_path_text(Interpretation.assessment, "project_identity_key")
+            == Project.identity_key,
+            func.coalesce(
+                func.jsonb_extract_path_text(Interpretation.assessment, "power_activity"),
+                func.jsonb_extract_path_text(Interpretation.assessment, "activity_key"),
+            )
+            == PowerNeed.activity_key,
+        )
+        .distinct()
         .subquery()
     )
     rows = session.execute(
@@ -391,30 +491,7 @@ def current_equipment_investigations(session, pairs: list[tuple]) -> dict[str, d
         result["evidence"] = [ref for r in receipts for ref in r["evidence"]]
         # Different documents can describe the same units, or a complete vs partial
         # schedule. Never assume they describe additive physical demand.
-        signatures = {
-            _digest(
-                {
-                    "company": r["company"],
-                    "facility": r["facility"],
-                    "equipment": [
-                        {
-                            k: v
-                            for k, v in c.items()
-                            if k not in {"source_id", "quote", "start", "end"}
-                        }
-                        for c in r["equipment"]
-                    ],
-                    "status": r["status"],
-                    "as_of": r["as_of"],
-                    "quantities": {
-                        k: v
-                        for k, v in (r["demand"] or {}).items()
-                        if k not in {"inputs", "input_hashes", "items"}
-                    },
-                }
-            )
-            for r in receipts
-        }
+        signatures = {_engineering_signature(r) for r in receipts}
         if len(signatures) > 1 or counts[key] > MAX_DOCUMENTS:
             result.update(
                 status="ABSTAINED",

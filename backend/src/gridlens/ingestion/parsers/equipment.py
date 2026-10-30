@@ -22,7 +22,7 @@ from gridlens.domain.equipment_demand import (
     RatingUnit,
 )
 
-VERSION = "equipment-schedule-lines-v1"
+VERSION = "equipment-schedule-lines-v2"
 MAX_INPUT_CHARS = 128_000
 MAX_ROWS = 256
 MAX_ROW_CHARS = 1_200
@@ -68,6 +68,13 @@ _FACILITY = re.compile(r"^\s*facility\s*:\s*(.{1,160}?)\s*$", re.I | re.M)
 _ASOF_HEADER = re.compile(r"^\s*as\s+of\s*:\s*(.*?)\s*$", re.I | re.M)
 _SCHEDULE_FIELD = re.compile(
     r"\b(?:type|drive|rating|count|operating|running|state|role)\s*:", re.I
+)
+_EQUIPMENT_SPECIFIC_FIELD = re.compile(r"\b(?:drive|rating|count|operating|running|role)\s*:", re.I)
+_EQUIPMENT_CONTEXT = re.compile(r"\b(?:equipment|compressors?|compression|pumps?|motors?)\b", re.I)
+_GENERIC_TYPE_METADATA = re.compile(
+    r"^\s*type\s*:\s*(?:construction\s+)?permit\s*\|?\s*"
+    r"state\s*:\s*(?:[A-Z]{2}|[A-Za-z][A-Za-z .'-]{1,40})\s*$",
+    re.I,
 )
 
 _FIELD_PATTERNS = (
@@ -148,24 +155,24 @@ def extract_equipment_claims(text: str) -> ExtractionResult:
 
     seen: set[str] = set()
     id_fingerprints: dict[str, tuple[object, ...]] = {}
-    equipment_lines = 0
     for line_match in lines:
         line = line_match.group(0)
         if re.match(r"^\s*(?:company|facility|as\s+of)\s*:", line, re.I):
             continue
+        if _GENERIC_TYPE_METADATA.fullmatch(line):
+            continue
         if not re.search(r"\b(?:equipment\s+)?id\s*:", line, re.I):
-            if _SCHEDULE_FIELD.search(line):
-                equipment_lines += 1
+            if _EQUIPMENT_SPECIFIC_FIELD.search(line) or (
+                _SCHEDULE_FIELD.search(line) and (_EQUIPMENT_CONTEXT.search(line) or "|" in line)
+            ):
                 result.issues.append(
                     f"Structured equipment row lacks an ID at offset {line_match.start()}."
                 )
-            elif re.search(r"\b(?:pump|compressor|compression|motor|equipment)\b", line, re.I):
-                equipment_lines += 1
+            elif _EQUIPMENT_CONTEXT.search(line):
                 result.issues.append(
                     f"Unstructured equipment-like text at offset {line_match.start()} was skipped."
                 )
             continue
-        equipment_lines += 1
         if len(line) > MAX_ROW_CHARS:
             result.issues.append(
                 f"Equipment row at offset {line_match.start()} exceeds bound; extraction abstained."
@@ -332,10 +339,4 @@ def extract_equipment_claims(text: str) -> ExtractionResult:
         id_fingerprints[claim.equipment_id.casefold()] = fingerprint
         result.claims.append(claim)
 
-    if equipment_lines == 0 and any(
-        term in text.casefold() for term in ("pump", "compressor", "compression")
-    ):
-        result.issues.append(
-            "Equipment-like prose lacks an explicit equipment ID and was not extracted."
-        )
     return result

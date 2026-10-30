@@ -131,7 +131,8 @@ def test_oil_gas_electric_equipment_schedule_is_independent_signal_without_suppl
     assert assessment["rental_hypothesis"] is None
     assert not assessment["power_signals"]
     assert "does not establish temporary demand" in assessment["reason"]
-    assert evaluator_version(record) == "regional-power-record-v2"
+    assert evaluator_version(record).startswith("okdeq-equipment-")
+    assert len(evaluator_version(record)) <= 40
 
 
 @pytest.mark.parametrize(
@@ -708,3 +709,17 @@ def test_malformed_spp_stamp_and_deq_columns_fail_closed():
         parse_queue(b"not a queue\n")
     with pytest.raises(SourceParseError, match="columns changed"):
         parse_listing(b"<table><tr><td>Nope</td></tr></table>")
+
+
+def test_oklahoma_admission_version_changes_with_equipment_parser(monkeypatch):
+    from gridlens.domain.permit_interpretation import evaluator_version
+    from gridlens.ingestion.parsers import equipment
+
+    record = _oil_gas_equipment_record()
+    original = evaluator_version(record)
+    other_source = {"permit": {"source_type": "spp-thermal-interconnection"}}
+    other_version = evaluator_version(other_source)
+    monkeypatch.setattr(equipment, "VERSION", "equipment-schedule-test-next")
+    assert evaluator_version(record) != original
+    assert len(evaluator_version(record)) <= 40
+    assert evaluator_version(other_source) == other_version
