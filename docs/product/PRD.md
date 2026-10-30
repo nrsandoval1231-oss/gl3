@@ -1,25 +1,34 @@
 # GridLens — Product Requirements Document
 
-**Version:** 1.1 · autonomous amendment 2026-10-26
+**Version:** Phase 0 authority-consolidated · 2026-10-29
 **Date:** September 24, 2026
 **Product owner:** Nick Sandoval
-**Status:** Supporting requirements; subordinate to the owner-approved [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) and later [Results Canon](PROJECT_FIRST_RESULTS_CANON.md) for the public UX.
+**Status:** Supporting requirements; subordinate to the sole active [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md). Presentation follows the October 29 [UI canon](../design/UI_CANON.md).
 **Scope:** Texas, Oklahoma and New Mexico power-need discovery, daily ingestion, and evidence-based qualification
 **Numbered requirements:** 42
+
+## Delivery state
+
+- **CURRENT:** The released product and its limits are recorded in [.agent/CURRENT_STATE.md](../../.agent/CURRENT_STATE.md) and dated receipts. Requirements below are not proof of implementation or current source coverage.
+- **TARGET:** Requirements specify the intended autonomous commercial intelligence capability.
+- **NEXT:** Phase 1 evidence/entity foundation, followed by deterministic Oil & Gas and Data Center demand/lifecycle models.
+- **DEFERRED:** Other sector lenses, Athena integration, autonomous policy/model promotion, new infrastructure, paid providers, and territory expansion.
+
+**Phase 0 boundary:** This consolidation changes product documentation only. It is not an implementation, rollout, deletion, schema change, production operation, or proof that target capabilities are shipped.
 
 ## Executive summary
 
 GridLens autonomously discovers projects physically located in Texas, Oklahoma and New Mexico, resolves their identity, investigates temporary or supplemental power needs, enriches verified business contacts, and publishes ranked commercial intelligence.
 
-The system collects broadly every day, maintains one evolving record per project, and organizes individual power needs into **Signals, Prospects, and Leads**. Data center construction and commissioning receive default priority. All industries remain eligible, including manufacturing, mining, oil and gas, EV charging, utilities, commercial construction, and remote infrastructure.
+The target system maintains one evolving record per project and organizes distinct power needs into **Signals, Prospects, and Leads**. Oil & Gas and Data Centers are the first verticals; other sectors are later modular lenses. Eligibility remains limited to physical sites in TX/OK/NM and the existing inclusive 300 kW visible floor, including unknown-size Signals under the established rules.
 
-Users can work every tier. A Signal offers a reason to make a discovery call. A Prospect has an established power requirement and evidence that suitable supply may be insufficient. A Lead has an evidence-supported remaining power requirement, MW range, start window, and duration range.
+The ordinary experience is autonomous and read-only. A Signal has a sourced reason to investigate a possible power need. A Prospect has an established requirement and separate evidence that supply may be unsuitable. A Lead has an evidence-supported remaining need, MW, start, and duration ranges. None authorizes outreach or a required human review step.
 
 The product's core loop is:
 
 **Discover → resolve → research → enrich → analyze → score → publish → refresh.**
 
-This is an existing implementation. Preserve useful adapters, algorithms, immutable evidence, audit history and data. The [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes conflicting older workflow, presentation and engineering directions, including this document. The original pre-amendment requirements are retained in the [governance archive](../../.agent/archive/AUTONOMOUS-20261026/README.md).
+This pipeline is the **TARGET** architecture; its full operation is not claimed as shipped. Preserve useful adapters, algorithms, immutable evidence, audit history and data. The [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) is the sole active product authority. Earlier bytes are retained in the Phase 0 archive.
 
 ## Vertical lifecycle intelligence
 
@@ -27,7 +36,7 @@ The canonical vertical/asset lifecycle doctrine is [Vertical Lifecycle Intellige
 
 ## Autonomous application experience
 
-The [Results Canon](PROJECT_FIRST_RESULTS_CANON.md) and amended [UI canon](../design/UI_CANON.md) retain the approved seven-color G/L brand with compact operator/customer groups with nested wells/projects and domain filters **All | Oil & Gas | Data Centers**. The older dense account table, four KPI blocks and default exposed research/operations views are superseded. Autonomous Research and Signals remain accessible as secondary capabilities, with unified search. Source administration and diagnostics are internal. No call logging, manual fact drafting, operator statuses, qualification controls, correction forms, notes or administrative pursuit logging belong in the user-facing application or its public mutation API. Evidence tiers remain independently searchable; backend attribution and immutable audit history survive retirement of routine manual workflows. Exceptional internal correction, suppression and privacy services remain supported with reason/actor/version/idempotency audit, durable scope across refresh, and no qualification override.
+The [Results Canon](PROJECT_FIRST_RESULTS_CANON.md) and [UI canon](../design/UI_CANON.md) preserve the approved seven-color G/L brand, October 29 project-table/detail presentation, and domain filters **All | Oil & Gas | Data Centers**. Operator/customer grouping remains secondary. Autonomous Research and Signals remain accessible as secondary capabilities, with unified search. Source administration and diagnostics are internal. No call logging, manual fact drafting, operator statuses, qualification controls, correction forms, notes or administrative pursuit logging belong in the user-facing application or its public mutation API. Evidence tiers remain independently searchable; backend attribution and immutable audit history survive retirement of routine manual workflows. Exceptional internal correction, suppression and privacy services remain supported with reason/actor/version/idempotency audit, durable scope across refresh, and no qualification override.
 
 ## October 22, 2026 regional operating mandate
 
@@ -35,7 +44,7 @@ This owner directive supersedes every prior nationwide geographic eligibility or
 
 Only physical projects in **TX → OK → NM**, in that priority order, may enter active commercial pursuits, customer opportunity metrics, qualification results or direct opportunity APIs. A Texas company building in Georgia is excluded; a California company building in New Mexico is eligible. Unknown physical location and conflicting project-location evidence require autonomous evidence investigation and remain unresolved until supported; source geography, national mentions and headquarters addresses cannot resolve the physical site. National/multistate regulatory evidence and cross-border infrastructure directly connected to an eligible project may support it without creating an out-of-region pursuit. Preserve existing historical projects, immutable evidence versions, conflicts, audit records and source epochs.
 
-The intelligence questions remain: who needs power, how much, when, why conventional supply cannot meet the activity, who controls purchasing, and what commercial action follows. Signal / Prospect / Lead definitions and deterministic gates below remain authoritative. Each opportunity needs a defensible project/site identity; customer accounts group evidenced organizations without merging distinct physical projects or treating headquarters as sites. Unknown buyer, MW, dates and supply stay unknown. Preserve the Power Gap Engine, entity resolution, buying chains, raw source evidence, provenance, document versions, accepted and conflicting claims, Jev validation/model routing and LLM interpretation boundaries.
+The intelligence questions remain: who needs power, how much, when, why conventional supply cannot meet the activity, who controls purchasing, and what commercial action follows. Signal / Prospect / Lead definitions and deterministic gates below remain authoritative. Each opportunity needs a defensible project/site identity; customer accounts group evidenced organizations without merging distinct physical projects or treating headquarters as sites. Unknown buyer, MW, dates and supply stay unknown. Preserve the Power Gap Engine, entity resolution, buying chains, raw source evidence, provenance, document versions, accepted and conflicting claims, provider accounting, and LLM interpretation boundaries. Legacy provider names or routing references do not authorize use, activation, or dependency.
 
 Enforce geography in backend ingestion/admission, qualification and indexed opportunity queries, including saved projections, accounts, metrics, detail and exports. Disable out-of-region scheduling and direct refresh. National retrieval remains permitted upstream; out-of-region records remain evidence rather than active opportunities. Source health distinguishes intentional disablement, valid no-new-data, stale publication, degraded partial batches and failed processing. Future expansion uses a versioned territory configuration with unchanged qualification and source validation gates, and requires explicit owner direction.
 
@@ -43,13 +52,13 @@ Preserve territory and existing infrastructure while implementing autonomous int
 
 ## Product outcomes
 
-### Historical acquisition priorities — October 1, 2026 (geography superseded October 22)
+### Historical acquisition priorities — October 1, 2026 (superseded)
 
-Priority geographies are **Dallas, Austin, Houston, El Paso, and California**. These guide source onboarding, coverage repair and investigation effort; they do not exclude other United States geographies or disable existing feeds. California is a statewide priority, with actual coverage stated separately for each city, district or state source.
+This dated preference is historical only. Current eligible physical project territory is TX/OK/NM as specified below; California is out of scope.
 
-Commercial activity priority is **(1) data-center construction temporary power, (2) data-center commissioning temporary power, (3) oil and gas temporary power**. Early project formation evidence remains useful to those activities. Commissioning must have its own supporting evidence; construction or a generator permit alone does not establish commissioning.
+The historical ordering is superseded by the canon's shared first verticals: Oil & Gas and Data Centers. Lifecycle/source work is prioritized by evidence-backed commercial timing, not a claim that commissioning has established default commercial priority.
 
-Include official **flare-gas permits and flaring/venting exceptions** in oil-and-gas ingestion where records can be acquired reproducibly. Preserve applications, authorizations, amendments, expiration and reported operational events distinctly. An authorization is not proof of actual flaring, recoverable gas, continuous flow, gas composition, fuel suitability, generator capacity, an open power package or purchasing authority. Broad national and cross-industry collection remains enabled. These are owner priorities, not a claim that every requested source is already implemented or that runtime ranking has changed.
+Any future flare-gas source work remains subject to reproducible acquisition and the canon's evidence rules. An authorization is not proof of actual flaring, fuel suitability, an open power package or purchasing authority. National upstream evidence may support eligible TX/OK/NM projects; out-of-territory opportunities are not admitted.
 
 ### Owner-authorized presentation amendment — October 1, 2026
 
@@ -61,7 +70,7 @@ Include official **flare-gas permits and flaring/venting exceptions** in oil-and
 |---|---|
 | Reliable daily discovery | New information arrives without Nick manually starting collection. |
 | Regional commercial visibility | TX/OK/NM projects across industries, national upstream evidence and explicit coverage gaps. |
-| Useful at every tier | Signals and Prospects can support calls before a complete gap estimate exists. |
+| Useful at every tier | Signals and Prospects remain separately visible without implying qualified demand or initiating outreach. |
 | Defensible Leads | MW, timing, and remaining supply are traceable to evidence and explicit assumptions. |
 | Commercial relevance | Each opportunity identifies the power activity, likely buying party, and useful next action. |
 | Simple operation | One workspace, a small application architecture, and visible source health. |
@@ -143,7 +152,7 @@ The short morning list is a convenience. All active records remain searchable an
 
 21. **Lead gate.** A Lead requires a supported power activity and location, required MW range, start window, duration range, and an explained unresolved supply gap. Show a likely buying organization or role and next action; a named individual is helpful but not mandatory. A known fully awarded package is excluded from open pursuits unless a distinct remaining need is evidenced.
 
-22. **Evidence labels.** Label material inputs Reported, Inferred, Derived or Unknown. Preserve User-confirmed only as the original label of retained historical attributed evidence; it does not authorize a new user confirmation or fact-entry workflow. Retain their sources, dates, and basis. Use Low, Medium, or High confidence with published rubrics. Confidence reflects evidence support; it is not a probability. Tier promotion depends on required facts, not a single confidence score.
+22. **Evidence labels.** Preserve the canon's five distinct claim classes: source-verified facts (including reported claims), reproducible calculations, engineering estimates, model inferences, and unknown or contradicted claims. Every material claim retains source/citation, publication/event date where available, observation and retrieval dates, extraction/calculation version, linked entity, and verification/conflict state. Historical user-confirmed attribution remains historical evidence only; it does not authorize a new confirmation or fact-entry workflow. Confidence reflects evidence support, not probability; tier promotion depends on required facts, not a single score.
 
 23. **Scope-specific arithmetic.** For each applicable time interval, calculate remaining MW as the greater of zero and required MW minus suitable available supply. Evaluate construction and commissioning against the supply usable for those activities. Preserve unit and date precision, input versions, scenario assumptions, and calculation version.
 
@@ -187,7 +196,7 @@ The short morning list is a convenience. All active records remain searchable an
 
 40. **Operational launch gate.** Complete seven consecutive scheduled daily runs with at least 95% of due source checks verified successful overall, no source missed for two consecutive daily cycles without a visible alert, and no unreported failures. Demonstrate restart/replay, restore, and mobile/desktop use. Show daily cost and backlog alongside freshness.
 
-41. **End-to-end commercial proof.** Independently discover and substantiate at least one real Lead, reviewed by Nick against original evidence or an attributed customer confirmation. Track discovery time, missing facts, qualification time, and next action. If public evidence supports only Signals/Prospects, release that usable capability honestly and keep Lead capability acceptance open.
+41. **Optional owner commercial acceptance.** For a release or commercial acceptance decision, the owner may review one independently discovered, substantiated Lead against original evidence or attributed customer confirmation, and assess discovery time, missing facts, qualification time, and next action. This is an optional one-time acceptance decision, not a routine intelligence pipeline gate or a prerequisite to continued discovery, qualification, publication, or refresh. If public evidence supports only Signals/Prospects, describe that capability honestly and leave Lead acceptance open.
 
 42. **Scope discipline.** Deliver this PRD through the milestones below. Document changes in a short decision log. Defer equipment marketplaces, detailed solution engineering, power-flow models, portfolio finance, advanced ML probabilities, automated outreach, full CRM, and multi-customer billing. Expand sources and improve qualification using observed results.
 
@@ -390,10 +399,10 @@ Raw source documents, runtime exports, logs, secrets, and production database fi
 | Milestone | Deliverable | Required proof |
 |---|---|---|
 | **A — Foundation** | New repository, PostgreSQL migrations, auth, API/worker, cloud scheduler, source registry | A real scheduled source check persists an observation while the owner's PC is off; secrets absent from Git. |
-| **B — Daily Signals** | Multiple source families, preserved evidence, basic matching, live Signal list, health screen | Real regional/cross-industry observations with national supporting evidence; replay creates no duplicate cards; parser and source failures are visible. Nick can start discovery calls here. |
+| **B — Daily Signals** | Multiple source families, preserved evidence, basic matching, live Signal list, health screen | Real eligible regional observations with national supporting evidence; replay creates no duplicate cards; parser and source failures are visible. Signals support autonomous investigation and are not outreach authorization. |
 | **C — Prospects** | Power-need separation, missing-fact research, evidence labels, Prospect gate, contractor roles | Correct identity and activity on reviewed records; unsupported utility uncertainty cannot promote a record. |
 | **D — Leads** | MW/time scenarios, suitable supply assessment, Lead gate, history, demotion | An auditable real Lead when evidence permits; hypothetical tests establish calculations without masquerading as live findings. |
-| **E — Daily working release** | Morning changes, unified search/filter/export, contacts, autonomous refresh, recovery and alerts | Requirements 38–41 reviewed: source breadth, sample quality, seven daily cycles, commercial proof, and backup restore. |
+| **E — Daily working release** | Morning changes, unified search/filter/export, contacts, autonomous refresh, recovery and alerts | Operational readiness meets requirements 38–40; optional owner commercial acceptance under requirement 41 remains a distinct decision. |
 
 Implement usable milestones incrementally; deployment requires current candidate validation and applicable authorization. Source onboarding can continue alongside later milestones through the same adapter interface. Preserve daily collection while improving qualification.
 
@@ -430,7 +439,7 @@ Implement usable milestones incrementally; deployment requires current candidate
 | Verified actionable business contacts per eligible project | Measures useful contact coverage with source, freshness and buyer relevance; missing contacts remain explicit. |
 | Source-backed gap/timing coverage and commercially actionable discovery time | Measures the quality and speed of autonomous intelligence. |
 
-Source count, record count, and test count are supporting metrics. The release must satisfy both broad reliable ingestion and commercially useful output.
+Source count, record count, and test count are supporting metrics. The target must satisfy reliable eligible-territory ingestion and commercially useful output.
 
 ## Remaining runtime decisions
 

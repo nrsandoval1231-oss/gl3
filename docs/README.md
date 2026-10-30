@@ -1,6 +1,6 @@
 # Documentation map
 
-Start with [AGENTS.md](../AGENTS.md). Current owner-approved canons override conflicting historical instructions; dated reports prove only their named candidate and environment.
+Start with [AGENTS.md](../AGENTS.md). The [Autonomous Intelligence Canon](product/AUTONOMOUS_INTELLIGENCE_CANON.md) is the sole active product authority; supporting documents remain compatible and dated reports prove only their named candidate and environment.
 
 | Need | Maintained entry point |
 |---|---|
@@ -15,3 +15,7 @@ Start with [AGENTS.md](../AGENTS.md). Current owner-approved canons override con
 ## Historical evidence
 
 [Validation records](validation/), [agent archive](../.agent/archive/), dated operations reports and [design screenshots](design/screenshots/) retain previous plans, failed runs, release receipts and review evidence. Historical authorizations never apply automatically to a new candidate. The [2026-10-29 archive](../.agent/archive/STREAMLINING-20261029/README.md) preserves superseded active instructions verbatim; the [2026-10-20 inventory](../.agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTORY-20261020.md) and [2026-10-26 archive](../.agent/archive/AUTONOMOUS-20261026/README.md) index earlier governance history. Some dated reports reference ignored receipts unavailable in a clean checkout; do not invent replacements or interpret them as current operational proof.
+
+## Intelligence consolidation — CURRENT / TARGET / NEXT / DEFERRED
+
+CURRENT implementation and TARGET contracts are separated in the [architecture](architecture/overview.md), [engine](architecture/intelligence-engine.md), [data model](architecture/data-model.md), [demand models](architecture/demand-models.md) and [verification/evaluation](architecture/verification-evaluation.md). NEXT work is sequenced in the [roadmap](delivery/intelligence-roadmap.md) using the path-level [audit](engineering/intelligence-phase0-audit-20261029.md). DEFERRED engine capabilities are specifications, not shipped functionality. Replaced authority bytes are retained in the [Phase 0 archive](../.agent/archive/INTELLIGENCE-PHASE0-20261029/README.md).

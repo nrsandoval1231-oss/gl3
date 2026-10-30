@@ -1,50 +1,35 @@
-# Data model — first slice
+# Data model: current facts and target extensions
 
-| Table | Role and boundary |
-|---|---|
-| sources | Stable configured publisher endpoint, coverage/cadence and latest source health. Registry describes intended collection; durable state describes actual attempts. |
-| jobs | Durable queued/running/succeeded/failed execution, attempts, available time, lease owner/expiry/fence and checkpoint. |
-| observations | One current record envelope per source+external ID, preserving first-seen identity and current version hash. |
-| evidence | Immutable source-content versions, linked to observation, retaining original date, URL, excerpt, retrieval time/hash and extraction location. |
-| interpretations | Pending/accepted/rejected/failed interpretation state so preserved observations can be retried independently. |
-| projects | Conservative stable-record identity; name alone cannot merge sites. |
-| power_needs | Separate activity per project, evidence tier, rationale, unknown scope fields, active state, and `admission_basis` provenance. No campus-MW inference. |
-| need_observations | Explicit evidence relationship between needs and observations. |
-| change_events | Immutable accepted project-state transitions with prior/new snapshots, source date, replay identity and material flag. `evidence_id` anchors source Evidence; `buying_chain_evidence_id` anchors a contractor/buyer transition to the immutable buying-chain document version that actually supports it. The two source references are kept distinct. |
-| project_material_states | Current compact material snapshot and monotonic revision per Project, used under project serialization to compare actual accepted state and recognize reversions. |
-| evidence_judge_runs | Bounded TypeSafe EvidenceJudge attempt/result metadata, deterministic comparison, status and measured usage. Input identity makes retries/replays idempotent; pending attempts remain visible after interruption. This table never drives accepted domain state. |
+Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). CURRENT describes repository structures; TARGET/NEXT are design only. Migrations in `backend/migrations/versions/` and ORM definitions in `backend/src/gridlens/persistence/models.py` are authoritative for actual schema.
 
-An observation envelope can point at a newer content hash while old evidence remains. Reappearance of a previously seen version must reuse retained evidence without a uniqueness error. Alternate representations require explicit shared identity and do not create a second project or corroborating source claim.
+## CURRENT — implemented relational model
 
-The implementation uses ordinary relational tables and does not import schemas from older GridLens repositories. User notes, supply scenarios and commercial assessments now have persisted models; their presence does not establish complete commercial or live-provider acceptance. Merged GL3-017 buying-chain tables and the GL3-018 admission column are below; current migrations are the authoritative schema inventory.
+| Concept | Implemented structures | Meaning / boundary |
+|---|---|---|
+| Source and collection | `sources`, `source_schedule_epochs`, `source_due_checks`, `source_check_receipts`, `source_collection_progress`, `jobs`, `observations` | Registry, durable scheduling/attempts, checkpoints and one observation per source/external ID. |
+| Immutable evidence | `evidence`, `evidence_packages`, `interpretations` | Content versions are unique by observation/hash; preserve source URL, dates, extraction location and provenance. Evidence packages bind evidence hash, extractor/question versions and provider metadata. |
+| Project/activity | `projects`, `project_lifecycles`, `lifecycle_events`, `power_needs`, `need_observations` | Conservative project identity; a need is an activity/project-level qualification unit, not a full equipment inventory. |
+| Facts and state | `call_fact_versions`, `call_fact_decisions`, `change_events`, `project_material_states`, `signal_decisions` | Effective-dated accepted/corrected/rejected facts; immutable transitions and compact current snapshots. Historical operator facts are preserved. |
+| Commercial identity | `company_identities`, `person_identities`, `identity_identifiers`, `company_project_memberships`, `buying_chain_evidence`, `buying_chain_claims`, corrections and identity links | Company/person identities can associate with multiple projects; roles and claims retain evidence and project scope. Name similarity alone is not merge authority. |
+| Evaluation/operations | `evidence_judge_runs`, logical-call budgets/settlements, source receipts, worker heartbeats | Bounded operational/accounting and optional shadow/advisory evaluations; not a general evaluation corpus or autonomous promotion system. |
+| Publication | `browse_*`, pursuit and assessment tables | Read projections and commercial research state. They do not make missing evidence known. |
 
-Migration `0012_evidence_graph_jev_shadow` adds these small relational projections. `project_material_states` contains only semantic accepted fields; retrieval metadata, updated timestamps and rationale-only churn are excluded. Project locking encloses prior-state reads, writes, diffs and revision updates. Legacy state is seeded without manufacturing a discovery event. `EvidenceJudgeRun` is separate from `signal_adjudication` and is written only by explicit shadow execution; normal ingestion remains provider-independent.
+## TARGET — temporal, many-to-many claim model
 
-Accepted contractor and buyer changes cite their supporting immutable `BuyingChainEvidence` through `change_events.buying_chain_evidence_id` and leave the generic `evidence_id` unset. Contractor/buyer removals use a checked replacement found at the prior claim's URL when one exists. The authenticated morning `/api/changes` feed resolves either source reference to the actual source title and URL while retaining its existing response shape.
+Represent the product graph as Company ↔ Facility ↔ Project ↔ Phase ↔ Equipment ↔ Demand Scenario ↔ Supply Constraint ↔ Procurement Event ↔ Decision-Maker. Relationships are many-to-many where real ownership, operation, contracting, equipment serving, supply coverage, or buyer authority crosses entity boundaries. A project may have multiple facilities/phases; a company may own or operate multiple projects; a source claim can support or contradict multiple scoped assertions without being copied as independent corroboration.
 
-## GL3-017 project-scoped enrichment
+Every assertion should carry: stable claim/subject/predicate/object identity; source and immutable evidence-version reference; source-published/event date (if known); first observed/retrieved time; validity interval (effective-from/until); extraction and rule/model version; units and scope; evidence class; verification/conflict state; and correction/supersession linkage. Preserve competing claims and history. Do not overwrite an old claim when a later source disagrees. A source reappearance must not create duplicate evidence or extra corroboration.
 
-The merged buying chain adds `buying_chain_evidence`, `buying_chain_claims` and
-`buying_chain_runs`, all bound to existing `projects.id`. An enrichment excerpt
-may reference an existing `evidence.id`; otherwise its public source URL, content
-hash, extraction location and dates are retained. Claim snapshots distinguish
-project–organization, organization–person/current role and person–project links.
-Claims remain project-scoped. Later company/person identity tables and reviewed
-identity links can associate supported claims across projects; name similarity
-alone is not authority to merge them. Semantic versions and replay retain prior
-claims. Neither PowerNeed tier nor source observations are changed by identity linking.
+Unknown, contradicted, stale and absent are distinct states. Missing supply is not zero; missing equipment drive is not electric; missing timing is not a predicted date. Derived values link to exact input claim IDs/hashes and formula version. Identity resolution links require evidence and retain prior decisions.
 
-`BuyingChainEvidence.observed_at` is immutable first observation; `last_seen_at`
-records verified reobservation without creating a content version. Run evidence
-and claim IDs identify the currently accepted snapshot, including A→B→A source
-reversions. A failed or bounded-out source does not erase accepted evidence;
-checked replacements and independent unresolved role conflicts remain distinct.
+## NEXT — additive migration slices
 
-## GL3-018 admission provenance
+1. Inventory existing claim JSON and relationship tables against the target contract; map, do not replace, existing projects, needs, company identities and evidence IDs.
+2. Add only missing equipment, phase, scenario, supply-coverage and procurement-event relations with effective dates and source references. Use ordinary PostgreSQL unless measured query needs justify otherwise.
+3. Backfill only values derivable from retained evidence; leave unavailable fields null/unknown. Provide dual-read compatibility, bounded backfill, rollback plan and cross-project isolation tests.
 
-`power_needs.admission_basis` is non-null JSON. Accepted needs store
-`signal-admission-v1`, an origin label, reason, source id, and evidence hash.
-Migration `0009_signal_admission` closes active needs that lack a current exact
-authoritative link and stores their prior active flag and tier inside that JSON.
-It does not delete projects, observations, evidence, or links. News and planning
-context can remain stored without an active standalone Signal.
+## DEFERRED
+
+A property graph store; global merge by string similarity; copying each source into multiple synthetic corroboration records; destructive replacement of current IDs or migration history; schema claims based on proposed tables.
+
+See [intelligence engine](intelligence-engine.md), [demand models](demand-models.md) and [verification/evaluation](verification-evaluation.md).

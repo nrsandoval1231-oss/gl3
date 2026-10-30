@@ -1,53 +1,11 @@
-# Current checkpoint — PR148 released, October 29, 2026
+# Current checkpoint — autonomous intelligence Phase 0
 
-GridLens runs at https://app.grid-lens.com/ independently of the owner's Windows
-PC. PR148 merged and deployed application source `ca12443f5c57f3502584d8a353d83cdf7d5372b1`.
-Schema remains 0049/74 tables. Final release verification passed at 23:18 UTC
-(6:18 pm America/Chicago); API, worker, browse and web run the exact candidate
-images with zero restarts, readiness READY and external HTTPS 200.
+Branch `docs/autonomous-intelligence-phase0-20261029`; base `b03f2e58f43cbe036622273831ae4ffc0a909a3b`. Owner directive authorizes repository audit, canonical documentation consolidation, safe cleanup, phased plan and focused PR. It does not authorize merge/deployment or implement the engine.
 
-The [production release receipt](../docs/validation/canonical-ui-release-20261029.md)
-records source/main tree equivalence, green source CI, fresh backup and isolated
-74-table restore, independent review, 38 authenticated API reads and actual Chrome
-desktop/tablet/mobile checks. All shows 1,896 real projects including Signals;
-retained phone/email displays preserve source dates and authority uncertainty.
-Both canaries passed before workers resumed; protected settings, effective
-environments and closed paid-provider gates were preserved. No migration,
-production database restore, credential change or outbound outreach occurred.
+CURRENT: FastAPI/PostgreSQL/worker/React implementation retained unchanged. Latest dated production receipt reports PR148 application `ca12443f5c57f3502584d8a353d83cdf7d5372b1`, schema0049/74 tables; [receipt](../docs/validation/canonical-ui-release-20261029.md). No fresh production inspection in this task. Original checkpoint bytes are preserved in the [archive](archive/INTELLIGENCE-PHASE0-20261029/README.md).
 
-Application source CI: 169 browser tests and 3,309 backend tests passed, one skipped.
-Release/documentation commits after the application SHA do not imply a different
-deployed application. The candidate history below is dated and superseded.
+TARGET: [sole product canon](../docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md), compatible [PRD](../docs/product/PRD.md), [seven-layer architecture](../docs/architecture/overview.md), explicit evidence classes, deterministic demand and independent verification. Preserve approved October29 UI, regional/tier boundaries, history and privacy.
 
-Remaining: source-backed contact coverage/deliverability and buyer authority are
-incomplete; absent KPI/Follow/completion APIs remain explicit; page filters and
-sorting are page-local. Oil/group-open latency, long-duration update overlap,
-midnight rollover and existing external-source failures remain follow-up limits.
-Do not infer new paid-provider or data-replacement authority from this record.
+Completed: three Luna documentation lanes, current/target path-backed [audit](../docs/engineering/intelligence-phase0-audit-20261029.md), [roadmap](../docs/delivery/intelligence-roadmap.md), archived authority conflicts and concise entry points. No runtime removal justified. Local lint/format/mypy/typecheck/build and 216-asset protection passed; npm high-severity audit passed with existing moderate Vite advisory (separate Dependabot PR149).
 
-## Local repository organization
-
-Both `GridLens/gl3` and `GitHub/gl3` main checkouts were synchronized with origin/main
-on October29. Thirteen secondary worktrees were archived intact under the owner-local
-`GridLens/archive/repo-cleanup-20261029/`; its cleanup record maps former paths.
-Seventeen merged local branches were removed after verified Git bundles were created.
-Unmerged branches, ignored files, deployment evidence and backups were retained.
-
-Optional Windows launcher/loopback-auth work is preserved locally on
-`preserve/local-launcher-auth-20261029` (`f4077bf5`); it is not required for hosted
-use and is not queued for merge. Recovery notes are on
-`preserve/recovery-notes-20261029` (`3fe00aa6`). Old worktree locations and dirty-main
-statements in candidate receipts are historical.
-
-The [repair packet](packets/BROWSE-AVAILABILITY-20261029.md) preserves implementation
-history. Next work should start from current main and the owner-approved canons.
-
-## Historical canonical UI candidate checkpoint — superseded by release above
-
-The owner-requested canonical screenshot implementation is on
-`feat/canonical-reference-ui-20261029`, source `d41d4e17`. It is not merged or
-deployed; the released production revision above remains unchanged. Local checks:
-168 browser regressions; 3309 backend tests passed/1 skipped/7 subtests; build,
-types, audits, migration compatibility and protected brand assets passed. The
-[candidate receipt](../docs/validation/canonical-reference-ui-20261029.md) records
-visual evidence, API limitations and the separate live-acceptance boundary.
+Next: finish integration checks, independent Astra review, retain exact-candidate CI results and open focused PR. [Packet](packets/INTELLIGENCE-PHASE0-20261029.md), [graph](WORK_GRAPH.md), [validation](../docs/validation/intelligence-phase0-20261029.md). Full backend/browser and dependency checks pending; no commercial acceptance claimed. Highest-leverage NEXT slice: map existing evidence/identity fields for one O&G cohort, then add only missing typed drive/load claims and negative fixtures. Athena remains optional. DEFERRED: engine implementation and production changes.

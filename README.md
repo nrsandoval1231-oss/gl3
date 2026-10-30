@@ -1,6 +1,8 @@
 # GridLens GL3
 
-GridLens autonomously discovers, researches and ranks commercial power opportunities at physical projects in Texas, Oklahoma and New Mexico, with source-backed gaps, timing and business contacts. The owner-approved [Autonomous Intelligence Canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs the product; the [PRD](docs/product/PRD.md) supplies compatible evidence and qualification constraints, and the [UI canon](docs/design/UI_CANON.md) preserves the seven-color G/L brand and responsive operator/customer groups with nested wells/projects.
+**GridLens — Commercial Intelligence for Constrained Power.** GridLens is an autonomous commercial intelligence platform that discovers electrical demand, evaluates documented supply constraints and identifies evidence-backed procurement opportunities and decision-makers. This is the product direction, not a claim that the target engine is shipped. The [sole product canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) and [PRD](docs/product/PRD.md) distinguish CURRENT, TARGET, NEXT and DEFERRED capabilities. Preserve the approved October 29 [UI](docs/design/UI_CANON.md).
+
+The current FastAPI/PostgreSQL/worker/React system retains regional project discovery, conservative qualification and source-backed contacts. The [Phase 0 audit](docs/engineering/intelligence-phase0-audit-20261029.md), [architecture](docs/architecture/overview.md) and [phased roadmap](docs/delivery/intelligence-roadmap.md) define the gaps and next implementation slices. This PR changes documentation and instructions only.
 
 ## Current status
 

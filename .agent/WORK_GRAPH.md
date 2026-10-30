@@ -1,20 +1,14 @@
-# Current work ownership
+# Current work ownership — intelligence Phase 0
 
-Browse repair PR147 is merged and deployed. See the [current checkpoint](CURRENT_STATE.md)
-and [release evidence](../docs/validation/browse-availability-repair-20261029.md).
+Base `b03f2e58f43cbe036622273831ae4ffc0a909a3b`; branch `docs/autonomous-intelligence-phase0-20261029`. [Packet](packets/INTELLIGENCE-PHASE0-20261029.md), [checkpoint](CURRENT_STATE.md).
 
-| Work | Recorded outcome |
-| --- | --- |
-| Diagnosis and four implementation lanes | Delivered and integrated |
-| Final source gates | Passed; exact results in release evidence |
-| Independent source review | No unresolved material findings |
-| PR147 and production release | Merged and deployed, schema0049 |
-| Authenticated desktop/tablet/mobile journeys | Passed at the dated release observation |
-| Oil filter and atomic group-open speed targets | Missed; follow-up remains |
-| Live update overlap and midnight rollover | Unverified |
-| Local checkout cleanup | Completed; unfinished work and evidence preserved |
+| Node | Owner | Dependency | State |
+|---|---|---|---|
+| P0 product authority | Luna product | Owner directive | RUNNING |
+| P0 architecture contracts | Luna architecture | Owner directive, inspected code | RUNNING |
+| P0 audit and roadmap | Luna audit_roadmap | Inspected code | RUNNING |
+| P0 integration and validation | Sol lead | Three lanes | READY |
+| P0 independent review | Astra critic | Frozen integrated diff and checks | WAITING |
+| P0 focused PR | Sol lead | Review and validation evidence | WAITING |
 
-No implementation lane is currently assigned by this graph. The
-[bounded packet](packets/BROWSE-AVAILABILITY-20261029.md) records historical assignments
-and checkpoints; it does not authorize a new release. The
-[finish contract](FINISH_CONTRACT.md) governs future acceptance.
+File ownership is disjoint in one shared branch; no runtime files are assigned. Historical release graph is preserved in the Phase 0 archive. No merge/deployment authority.
