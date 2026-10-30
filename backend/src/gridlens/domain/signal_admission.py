@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import UTC
 from typing import Any
 
 POLICY_VERSION = "signal-admission-v2"
@@ -356,7 +357,12 @@ def admitted_from_source(source: Any, assessment: dict[str, Any], evidence: Any)
             and assessment["evidence"].get("url") == evidence.url
             and evidence.observed_at is not None
             and evidence.published_at is not None
-            and evidence.published_at <= evidence.observed_at.date()
+            and evidence.published_at
+            <= (
+                evidence.observed_at.astimezone(UTC).date()
+                if evidence.observed_at.tzinfo
+                else evidence.observed_at.date()
+            )
             and native_fresh
             and native_fresh.get("decision") == "accepted"
             and all(
