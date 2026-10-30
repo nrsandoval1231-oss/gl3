@@ -335,6 +335,51 @@ def admit_standalone(
 
 def admitted_from_source(source: Any, assessment: dict[str, Any], evidence: Any) -> Admission:
     """Evaluate a persisted accepted assessment and its exact retained evidence."""
+    if str(source.id) == "federal-register-eis" and assessment.get("native_equipment"):
+        from gridlens.domain.ferc_equipment_interpretation import (
+            assess_ferc_equipment,
+            govinfo_document_identity,
+        )
+
+        native_fresh = assess_ferc_equipment(evidence.title, evidence.abstract)
+        valid = bool(
+            source.family == "structured-government"
+            and source.retrieval_method == "json-api"
+            and assessment.get("decision") == "accepted"
+            and assessment.get("tier") == "Signal"
+            and assessment.get("evidence_hash") == evidence.content_hash
+            and govinfo_document_identity(evidence.url, evidence.published_at) is not None
+            and govinfo_document_identity(evidence.url, evidence.published_at)
+            == assessment.get("source_document_number")
+            and isinstance(assessment.get("evidence"), dict)
+            and assessment["evidence"].get("id") == str(evidence.id)
+            and assessment["evidence"].get("url") == evidence.url
+            and evidence.observed_at is not None
+            and evidence.published_at is not None
+            and evidence.published_at <= evidence.observed_at.date()
+            and native_fresh
+            and native_fresh.get("decision") == "accepted"
+            and all(
+                assessment.get(key) == native_fresh.get(key)
+                for key in (
+                    "subject",
+                    "project_hint",
+                    "location",
+                    "power_activity",
+                    "native_equipment",
+                )
+            )
+        )
+        return Admission(
+            valid,
+            "Official federal equipment proposal",
+            (
+                "Accepted a dated, source-bound single-site electric-equipment proposal; "
+                "current status and power quantities remain unverified."
+            )
+            if valid
+            else "FERC equipment requires exact current native site, source and evidence binding.",
+        )
     if source.retrieval_method == "retained-document":
         from gridlens.ingestion.adapters.retained_document import SOURCES
 

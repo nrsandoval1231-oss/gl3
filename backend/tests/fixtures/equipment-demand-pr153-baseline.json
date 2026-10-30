@@ -1,0 +1,497 @@
+{
+  "baseline": {
+    "commit": "9f77040dfabebbc880f7d4a30a60441cba151e4b",
+    "description": "Actual `equipment-demand-v1` package and current read output from baseline source code. Synthetic Oklahoma DEQ schedule from the existing PR153 integration test; stable ORM UUIDs and fixed Evidence.observed_at were used for replayable SQL read validation.",
+    "id_scheme": "uuid5(NAMESPACE_URL, \"baseline-pr153:<table>:<ordinal>\")"
+  },
+  "current": {
+    "aggregation_policy": "Equipment scope only; never sum with facility demand or infer gaps.",
+    "as_of": "2026-10-30",
+    "assumptions": [],
+    "binding": {
+      "attribution": {
+        "project_hint": "Prairie Compression Station",
+        "subject": "Prairie Example LLC"
+      },
+      "project": {
+        "identity_key": "oklahoma-deq-public-review:SYN-EQUIP-1",
+        "location": "1 Sample Road, Tulsa, OK",
+        "name": "Prairie Example LLC"
+      },
+      "source": {
+        "family": "construction-permits",
+        "retrieval_method": "ok-deq-public-review"
+      },
+      "version": 1
+    },
+    "claim_classes": {
+      "company": "DOCUMENTED",
+      "decision_maker": "UNKNOWN",
+      "demand": "CALCULATED",
+      "equipment_inputs": "DOCUMENTED",
+      "expected_start": "UNKNOWN"
+    },
+    "classification": "CALCULATED",
+    "commercial_relevance": "EMERGING_DEMAND",
+    "company": "Prairie Example LLC",
+    "company_basis": "DOCUMENTED",
+    "company_id": null,
+    "confidence": "UNCALIBRATED",
+    "decision_maker": null,
+    "demand": {
+      "as_of": "2026-10-30",
+      "average_kw": null,
+      "coincident_kw": "828.5554133333333333333333333",
+      "connected_kw": "1657.110826666666666666666667",
+      "electrical_input_kw": "828.5554133333333333333333333",
+      "energy_mwh": null,
+      "incremental_kw": "1657.110826666666666666666667",
+      "input_hashes": [
+        "cfec075da6c5bcdc5be18f0c0c4c8dffd7d98ac51444eef1bb4fe311e8369987"
+      ],
+      "inputs": [
+        {
+          "count": 2,
+          "drive": "electric",
+          "duty_fraction": null,
+          "effective_from": null,
+          "effective_until": null,
+          "efficiency": "0.90",
+          "end": 253,
+          "equipment_id": "C-101",
+          "equipment_type": "compressor",
+          "operating_count": 1,
+          "period_hours": null,
+          "power_factor": null,
+          "quote": "Equipment ID: C-101 | Type: compressor | Drive: electric | Rating: 1000 hp mechanical output | Count: 2 | Operating: 1 | State: proposed | Role: duty | Efficiency: 0.90",
+          "rating": "1000",
+          "rating_basis": "mechanical_output",
+          "role": "duty",
+          "source_id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+          "start": 85,
+          "state": "proposed",
+          "unit": "hp"
+        }
+      ],
+      "items": [
+        {
+          "average_kw": null,
+          "coincident_kw": "828.5554133333333333333333333",
+          "connected_kw": "1657.110826666666666666666667",
+          "electrical_input_kw": "828.5554133333333333333333333",
+          "energy_mwh": null,
+          "equipment_id": "c-101",
+          "incremental_kw": "1657.110826666666666666666667",
+          "input_hash": "cfec075da6c5bcdc5be18f0c0c4c8dffd7d98ac51444eef1bb4fe311e8369987",
+          "mechanical_kw": "745.699872000",
+          "status": "known"
+        }
+      ],
+      "known_connected_subtotal_kw": "1657.110826666666666666666667",
+      "mechanical_kw": "745.699872000",
+      "model_id": "gridlens.equipment_demand",
+      "model_version": "1.0.0",
+      "unresolved": []
+    },
+    "demand_category": "electric_compression_and_pumping",
+    "equipment": [
+      {
+        "count": 2,
+        "drive": "electric",
+        "duty_fraction": null,
+        "effective_from": null,
+        "effective_until": null,
+        "efficiency": "0.90",
+        "end": 253,
+        "equipment_id": "C-101",
+        "equipment_type": "compressor",
+        "operating_count": 1,
+        "period_hours": null,
+        "power_factor": null,
+        "quote": "Equipment ID: C-101 | Type: compressor | Drive: electric | Rating: 1000 hp mechanical output | Count: 2 | Operating: 1 | State: proposed | Role: duty | Efficiency: 0.90",
+        "rating": "1000",
+        "rating_basis": "mechanical_output",
+        "role": "duty",
+        "source_id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+        "start": 85,
+        "state": "proposed",
+        "unit": "hp"
+      }
+    ],
+    "evidence": [
+      {
+        "claims": [
+          {
+            "end": 253,
+            "quote": "Equipment ID: C-101 | Type: compressor | Drive: electric | Rating: 1000 hp mechanical output | Count: 2 | Operating: 1 | State: proposed | Role: duty | Efficiency: 0.90",
+            "start": 85
+          }
+        ],
+        "content_hash": "c357873f4b1ad63ca59a7bd6be3ed5bc8f4c467009b780d82715e94ecb840092",
+        "document_id": "SYN-EQUIP-1",
+        "evidence_id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+        "extraction_location": "Synthetic equipment schedule",
+        "metadata_claims": [
+          {
+            "classification": "DOCUMENTED",
+            "end": 28,
+            "quote": "Company: Prairie Example LLC",
+            "start": 0
+          },
+          {
+            "classification": "DOCUMENTED",
+            "end": 66,
+            "quote": "Facility: Prairie Compression Station",
+            "start": 29
+          },
+          {
+            "classification": "DOCUMENTED",
+            "end": 84,
+            "quote": "As of: 2026-10-30",
+            "start": 67
+          }
+        ],
+        "published_at": "2026-10-30",
+        "retrieved_at": "2026-10-30T12:00:00+00:00",
+        "semantic_hash": "d533bd42f3b2a8f8c24e0b6c99bf15df044a14daa02484d27fdbacc065fde084",
+        "source_id": "oklahoma-deq-public-review",
+        "title": "Prairie Compression Station public review",
+        "url": "https://example.test/ok-deq/SYN-EQUIP-1"
+      }
+    ],
+    "expected_start": [],
+    "extractor_version": "equipment-schedule-lines-v4",
+    "facility": "Prairie Compression Station",
+    "facility_id": "065112ca-1c21-5711-a855-d3c6763718e8",
+    "input_fingerprint": "74764c7ad5e7a265e4e869a9424e389d493ff8bfb14d6a40bbc19adcf83bf636",
+    "last_verified_at": "2026-10-30T12:00:00+00:00",
+    "lifecycle": [
+      "proposed"
+    ],
+    "location": "1 Sample Road, Tulsa, OK",
+    "model": {
+      "id": "gridlens.equipment_demand",
+      "version": "1.0.0"
+    },
+    "need_id": "6764d8bc-54bd-550c-9d8b-6adb2c033844",
+    "next_action": "Investigate source-backed equipment procurement timing and the responsible buyer.",
+    "project_id": "065112ca-1c21-5711-a855-d3c6763718e8",
+    "quantity_classification": {
+      "coincident_kw": "CALCULATED",
+      "connected_kw": "CALCULATED",
+      "energy_mwh": "UNKNOWN",
+      "incremental_kw": "CALCULATED"
+    },
+    "record_id": "c1bfbeee1129162e7be0fb3371f6c4b2fbe339514f2e6b71caafc3747bef5818",
+    "requirement_type": "UNKNOWN",
+    "residual_gap_kw": null,
+    "schema_version": "equipment-demand-v1",
+    "scope": "equipment_schedule",
+    "status": "SUPPORTED",
+    "supply_constraint_evidence": [],
+    "unresolved_questions": [
+      "Identify the equipment procurement decision-maker and purchase timing."
+    ],
+    "verification": {
+      "method": "source-span, schema, entity, unit, date, duplicate and arithmetic checks",
+      "retrieval_method": "ok-deq-public-review",
+      "source_authority": "construction-permits"
+    }
+  },
+  "evidence": {
+    "abstract": "Company: Prairie Example LLC\nFacility: Prairie Compression Station\nAs of: 2026-10-30\nEquipment ID: C-101 | Type: compressor | Drive: electric | Rating: 1000 hp mechanical output | Count: 2 | Operating: 1 | State: proposed | Role: duty | Efficiency: 0.90",
+    "content_hash": "c357873f4b1ad63ca59a7bd6be3ed5bc8f4c467009b780d82715e94ecb840092",
+    "event_date": "2026-10-30",
+    "extraction_location": "Synthetic equipment schedule",
+    "id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+    "observed_at": "2026-10-30T12:00:00+00:00",
+    "published_at": "2026-10-30",
+    "title": "Prairie Compression Station public review",
+    "url": "https://example.test/ok-deq/SYN-EQUIP-1"
+  },
+  "interpretation": {
+    "assessment": {
+      "action": "Natural gas compression station and proposed electric pump expansion.",
+      "activity_end_date": null,
+      "as_of_date": "2026-10-30",
+      "decision": "accepted",
+      "document_links": {},
+      "evaluator_version": "okdeq-equipment-33cd935bb7d1a28f",
+      "event_date": "2026-10-30",
+      "event_date_label": "Public review date",
+      "evidence": {
+        "event_date": "2026-10-30",
+        "event_date_label": "Public review date",
+        "id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+        "issue_date": null,
+        "publication_date": "2026-10-30",
+        "url": "https://example.test/ok-deq/SYN-EQUIP-1"
+      },
+      "evidence_hash": "c357873f4b1ad63ca59a7bd6be3ed5bc8f4c467009b780d82715e94ecb840092",
+      "issue_date": null,
+      "issue_date_label": null,
+      "location": "1 Sample Road, Tulsa, OK",
+      "missing_facts": [
+        "buyer or responsible operator",
+        "activity-specific power requirement",
+        "start window",
+        "duration",
+        "suitable supply"
+      ],
+      "permit_status": null,
+      "power_activity": "facility-expansion",
+      "power_signals": [],
+      "project_hint": "Prairie Compression Station",
+      "project_identity_key": "oklahoma-deq-public-review:SYN-EQUIP-1",
+      "reason": "Official Oklahoma DEQ evidence identifies proposed electric pump or compressor equipment at Prairie Compression Station (1 Sample Road, Tulsa, OK). The source-backed schedule supports a separate equipment-demand calculation; it does not establish temporary demand, a shortage, or a supply gap.",
+      "rental_category": "regional-power-discovery",
+      "rental_hypothesis": null,
+      "reported_claim": "Natural gas compression station and proposed electric pump expansion.",
+      "reported_power_facts": [],
+      "review_after": null,
+      "schema_version": 1,
+      "semantic_hash": "d533bd42f3b2a8f8c24e0b6c99bf15df044a14daa02484d27fdbacc065fde084",
+      "source_field_citations": {},
+      "stable_row_id": "SYN-EQUIP-1",
+      "subject": "Prairie Example LLC",
+      "tier": "Signal"
+    },
+    "evaluator_version": "okdeq-equipment-33cd935bb7d1a28f",
+    "status": "accepted"
+  },
+  "need": {
+    "active": true,
+    "activity_key": "facility-expansion",
+    "id": "6764d8bc-54bd-550c-9d8b-6adb2c033844",
+    "project_id": "065112ca-1c21-5711-a855-d3c6763718e8",
+    "required_mw": null,
+    "supply": "Unknown",
+    "tier": "Signal"
+  },
+  "observation": {
+    "content_hash": "d533bd42f3b2a8f8c24e0b6c99bf15df044a14daa02484d27fdbacc065fde084",
+    "external_id": "SYN-EQUIP-1",
+    "id": "72c81929-7c69-506e-bd44-9d4a7f778549"
+  },
+  "package": {
+    "evidence_hash": "c357873f4b1ad63ca59a7bd6be3ed5bc8f4c467009b780d82715e94ecb840092",
+    "evidence_id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+    "extractor_version": "equipment-schedule-lines-v4",
+    "id": "4ca188ba-24aa-57e9-b03f-5db5f3f0211d",
+    "model": "gridlens.equipment_demand:1.0.0",
+    "need_id": "6764d8bc-54bd-550c-9d8b-6adb2c033844",
+    "observation_id": "72c81929-7c69-506e-bd44-9d4a7f778549",
+    "package_key": "74764c7ad5e7a265e4e869a9424e389d493ff8bfb14d6a40bbc19adcf83bf636",
+    "payload": {
+      "aggregation_policy": "Equipment scope only; never sum with facility demand or infer gaps.",
+      "as_of": "2026-10-30",
+      "assumptions": [],
+      "binding": {
+        "attribution": {
+          "project_hint": "Prairie Compression Station",
+          "subject": "Prairie Example LLC"
+        },
+        "project": {
+          "identity_key": "oklahoma-deq-public-review:SYN-EQUIP-1",
+          "location": "1 Sample Road, Tulsa, OK",
+          "name": "Prairie Example LLC"
+        },
+        "source": {
+          "family": "construction-permits",
+          "retrieval_method": "ok-deq-public-review"
+        },
+        "version": 1
+      },
+      "claim_classes": {
+        "company": "DOCUMENTED",
+        "decision_maker": "UNKNOWN",
+        "demand": "CALCULATED",
+        "equipment_inputs": "DOCUMENTED",
+        "expected_start": "UNKNOWN"
+      },
+      "classification": "CALCULATED",
+      "commercial_relevance": "EMERGING_DEMAND",
+      "company": "Prairie Example LLC",
+      "company_basis": "DOCUMENTED",
+      "company_id": null,
+      "confidence": "UNCALIBRATED",
+      "decision_maker": null,
+      "demand": {
+        "as_of": "2026-10-30",
+        "average_kw": null,
+        "coincident_kw": "828.5554133333333333333333333",
+        "connected_kw": "1657.110826666666666666666667",
+        "electrical_input_kw": "828.5554133333333333333333333",
+        "energy_mwh": null,
+        "incremental_kw": "1657.110826666666666666666667",
+        "input_hashes": [
+          "cfec075da6c5bcdc5be18f0c0c4c8dffd7d98ac51444eef1bb4fe311e8369987"
+        ],
+        "inputs": [
+          {
+            "count": 2,
+            "drive": "electric",
+            "duty_fraction": null,
+            "effective_from": null,
+            "effective_until": null,
+            "efficiency": "0.90",
+            "end": 253,
+            "equipment_id": "C-101",
+            "equipment_type": "compressor",
+            "operating_count": 1,
+            "period_hours": null,
+            "power_factor": null,
+            "quote": "Equipment ID: C-101 | Type: compressor | Drive: electric | Rating: 1000 hp mechanical output | Count: 2 | Operating: 1 | State: proposed | Role: duty | Efficiency: 0.90",
+            "rating": "1000",
+            "rating_basis": "mechanical_output",
+            "role": "duty",
+            "source_id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+            "start": 85,
+            "state": "proposed",
+            "unit": "hp"
+          }
+        ],
+        "items": [
+          {
+            "average_kw": null,
+            "coincident_kw": "828.5554133333333333333333333",
+            "connected_kw": "1657.110826666666666666666667",
+            "electrical_input_kw": "828.5554133333333333333333333",
+            "energy_mwh": null,
+            "equipment_id": "c-101",
+            "incremental_kw": "1657.110826666666666666666667",
+            "input_hash": "cfec075da6c5bcdc5be18f0c0c4c8dffd7d98ac51444eef1bb4fe311e8369987",
+            "mechanical_kw": "745.699872000",
+            "status": "known"
+          }
+        ],
+        "known_connected_subtotal_kw": "1657.110826666666666666666667",
+        "mechanical_kw": "745.699872000",
+        "model_id": "gridlens.equipment_demand",
+        "model_version": "1.0.0",
+        "unresolved": []
+      },
+      "demand_category": "electric_compression_and_pumping",
+      "equipment": [
+        {
+          "count": 2,
+          "drive": "electric",
+          "duty_fraction": null,
+          "effective_from": null,
+          "effective_until": null,
+          "efficiency": "0.90",
+          "end": 253,
+          "equipment_id": "C-101",
+          "equipment_type": "compressor",
+          "operating_count": 1,
+          "period_hours": null,
+          "power_factor": null,
+          "quote": "Equipment ID: C-101 | Type: compressor | Drive: electric | Rating: 1000 hp mechanical output | Count: 2 | Operating: 1 | State: proposed | Role: duty | Efficiency: 0.90",
+          "rating": "1000",
+          "rating_basis": "mechanical_output",
+          "role": "duty",
+          "source_id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+          "start": 85,
+          "state": "proposed",
+          "unit": "hp"
+        }
+      ],
+      "evidence": [
+        {
+          "claims": [
+            {
+              "end": 253,
+              "quote": "Equipment ID: C-101 | Type: compressor | Drive: electric | Rating: 1000 hp mechanical output | Count: 2 | Operating: 1 | State: proposed | Role: duty | Efficiency: 0.90",
+              "start": 85
+            }
+          ],
+          "content_hash": "c357873f4b1ad63ca59a7bd6be3ed5bc8f4c467009b780d82715e94ecb840092",
+          "document_id": "SYN-EQUIP-1",
+          "evidence_id": "d2baf573-2490-5aa0-bfab-5742a147548b",
+          "extraction_location": "Synthetic equipment schedule",
+          "metadata_claims": [
+            {
+              "classification": "DOCUMENTED",
+              "end": 28,
+              "quote": "Company: Prairie Example LLC",
+              "start": 0
+            },
+            {
+              "classification": "DOCUMENTED",
+              "end": 66,
+              "quote": "Facility: Prairie Compression Station",
+              "start": 29
+            },
+            {
+              "classification": "DOCUMENTED",
+              "end": 84,
+              "quote": "As of: 2026-10-30",
+              "start": 67
+            }
+          ],
+          "published_at": "2026-10-30",
+          "retrieved_at": "2026-10-30T12:00:00+00:00",
+          "semantic_hash": "d533bd42f3b2a8f8c24e0b6c99bf15df044a14daa02484d27fdbacc065fde084",
+          "source_id": "oklahoma-deq-public-review",
+          "title": "Prairie Compression Station public review",
+          "url": "https://example.test/ok-deq/SYN-EQUIP-1"
+        }
+      ],
+      "expected_start": [],
+      "extractor_version": "equipment-schedule-lines-v4",
+      "facility": "Prairie Compression Station",
+      "facility_id": "065112ca-1c21-5711-a855-d3c6763718e8",
+      "input_fingerprint": "74764c7ad5e7a265e4e869a9424e389d493ff8bfb14d6a40bbc19adcf83bf636",
+      "last_verified_at": "2026-10-30T12:00:00+00:00",
+      "lifecycle": [
+        "proposed"
+      ],
+      "location": "1 Sample Road, Tulsa, OK",
+      "model": {
+        "id": "gridlens.equipment_demand",
+        "version": "1.0.0"
+      },
+      "need_id": "6764d8bc-54bd-550c-9d8b-6adb2c033844",
+      "next_action": "Investigate source-backed equipment procurement timing and the responsible buyer.",
+      "project_id": "065112ca-1c21-5711-a855-d3c6763718e8",
+      "quantity_classification": {
+        "coincident_kw": "CALCULATED",
+        "connected_kw": "CALCULATED",
+        "energy_mwh": "UNKNOWN",
+        "incremental_kw": "CALCULATED"
+      },
+      "record_id": "c1bfbeee1129162e7be0fb3371f6c4b2fbe339514f2e6b71caafc3747bef5818",
+      "requirement_type": "UNKNOWN",
+      "residual_gap_kw": null,
+      "schema_version": "equipment-demand-v1",
+      "scope": "equipment_schedule",
+      "status": "SUPPORTED",
+      "supply_constraint_evidence": [],
+      "unresolved_questions": [
+        "Identify the equipment procurement decision-maker and purchase timing."
+      ],
+      "verification": {
+        "method": "source-span, schema, entity, unit, date, duplicate and arithmetic checks",
+        "retrieval_method": "ok-deq-public-review",
+        "source_authority": "construction-permits"
+      }
+    },
+    "processing_status": "COMPLETE_ADVISORY",
+    "project_id": "065112ca-1c21-5711-a855-d3c6763718e8",
+    "provider": "deterministic",
+    "question_contract": "equipment-demand-v1",
+    "schema_version": "equipment-demand-v1"
+  },
+  "project": {
+    "id": "065112ca-1c21-5711-a855-d3c6763718e8",
+    "identity_key": "oklahoma-deq-public-review:SYN-EQUIP-1",
+    "location": "1 Sample Road, Tulsa, OK",
+    "name": "Prairie Example LLC",
+    "region_status": "ELIGIBLE"
+  },
+  "source": {
+    "family": "construction-permits",
+    "id": "oklahoma-deq-public-review",
+    "retrieval_method": "ok-deq-public-review"
+  }
+}

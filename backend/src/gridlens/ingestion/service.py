@@ -18,6 +18,15 @@ from gridlens.domain.call_facts import (
     qualification_from_facts,
 )
 from gridlens.domain.evaluation_clock import evaluation_now
+from gridlens.domain.ferc_equipment_interpretation import (
+    EVALUATOR_VERSION as FERC_EVALUATOR_VERSION,
+)
+from gridlens.domain.ferc_equipment_interpretation import (
+    assess_ferc_equipment,
+    govinfo_document_identity,
+    is_ferc_equipment_candidate,
+    is_ferc_equipment_title,
+)
 from gridlens.domain.lifecycle import classify_event
 from gridlens.domain.news_interpretation import (
     EVALUATOR_VERSION,
@@ -402,6 +411,53 @@ def _need_has_current_support(
             continue
         return True
     return False
+
+
+def _withdraw_prior_native_support(
+    session: Session,
+    observation: Observation,
+    prior_assessment: dict[str, Any] | None,
+    content_hash: str,
+) -> None:
+    """Close unsupported needs when an accepted native FERC assessment is replaced."""
+    if not isinstance(prior_assessment, dict) or not isinstance(
+        prior_assessment.get("native_equipment"), dict
+    ):
+        return
+    project_key = prior_assessment.get("project_identity_key")
+    if not isinstance(project_key, str) or not project_key:
+        return
+    project = session.scalar(select(Project).where(Project.identity_key == project_key))
+    if project is None:
+        return
+    lock_project(session, project.id)
+    needs = session.scalars(
+        select(PowerNeed)
+        .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+        .where(
+            NeedObservation.observation_id == observation.id,
+            PowerNeed.project_id == project.id,
+            PowerNeed.active.is_(True),
+        )
+        .order_by(PowerNeed.id)
+        .with_for_update()
+    ).all()
+    for need in needs:
+        if _need_has_current_support(session, need, project):
+            continue
+        need.active = False
+        need.tier = "Signal"
+        need.required_mw = None
+        need.start_window = None
+        need.duration = None
+        need.supply = "Unknown"
+        session.add(
+            ChangeEvent(
+                observation_id=observation.id,
+                content_hash=content_hash,
+                kind="closed",
+            )
+        )
 
 
 def _need_admission_basis_is_current(session: Session, need: PowerNeed, project: Project) -> bool:
@@ -3163,6 +3219,12 @@ def process_records(
             else _hash(record)
         )
         evidence_digest = record.get("source_hash") or _source_version_hash(record)
+        native_ferc_title = bool(
+            source.id == "federal-register-eis" and is_ferc_equipment_title(record.get("title"))
+        )
+        native_ferc_candidate = False
+        native_pdf_evidence = None
+        native_ferc_assessment = None
         source_provenance = _source_link_provenance(record, source.id)
         if record.get("publication_date"):
             counts["latest_publication_date"] = max(
@@ -3339,7 +3401,8 @@ def process_records(
         # content hash and page citation to this observation only.
         if record.get("pdf_url"):
             counts["pdf_candidates"] += 1
-            eligible = (
+            native_ferc_candidate = bool(native_ferc_title and is_ferc_equipment_candidate(record))
+            eligible = native_ferc_candidate or (
                 source.id == "federal-register-eis"
                 and assess_signal(record["title"], record.get("abstract")) is not None
             )
@@ -3397,6 +3460,42 @@ def process_records(
                     )
                     remaining_seconds(deadline)
                     session.commit() if commit else session.flush()
+                if native_ferc_candidate:
+                    native_pdf_evidence = session.scalar(
+                        select(Evidence).where(
+                            Evidence.observation_id == observation.id,
+                            Evidence.content_hash == pdf["content_hash"],
+                            Evidence.url == pdf["url"],
+                        )
+                    )
+                    if native_pdf_evidence is not None:
+                        native_pdf_document = govinfo_document_identity(
+                            native_pdf_evidence.url, native_pdf_evidence.published_at
+                        )
+                        if (
+                            native_pdf_document == record.get("document_number")
+                            and native_pdf_document == observation.external_id
+                        ):
+                            native_ferc_assessment = assess_ferc_equipment(
+                                native_pdf_evidence.title, native_pdf_evidence.abstract
+                            )
+                            if native_ferc_assessment is not None:
+                                native_ferc_assessment = {
+                                    **native_ferc_assessment,
+                                    "source_document_number": native_pdf_document,
+                                    "evidence_hash": native_pdf_evidence.content_hash,
+                                    "evidence": {
+                                        "id": str(native_pdf_evidence.id),
+                                        "url": native_pdf_evidence.url,
+                                    },
+                                }
+                            evidence_digest = native_pdf_evidence.content_hash
+                        else:
+                            native_pdf_evidence = None
+            elif native_ferc_candidate:
+                # Native admission must use a PDF captured in this ingestion pass.
+                # A retained historical companion cannot make a missing refresh current.
+                native_pdf_evidence = None
         # PDF evidence has its own commit boundary. Reacquire the current fence
         # before creating or updating the durable interpretation backlog.
         assert_fence(session, job_id, worker_id, fence)
@@ -3410,12 +3509,34 @@ def process_records(
         prior_evaluator_version = (
             interpretation.evaluator_version if interpretation is not None else None
         )
+        prior_native_project_identity = (
+            prior_assessment.get("project_identity_key")
+            if isinstance(prior_assessment, dict)
+            and isinstance(prior_assessment.get("native_equipment"), dict)
+            and isinstance(prior_assessment.get("source_document_number"), str)
+            else None
+        )
+        native_assessment_current = bool(
+            native_ferc_candidate
+            and native_pdf_evidence is not None
+            and native_ferc_assessment
+            and interpretation is not None
+            and interpretation.evaluator_version == FERC_EVALUATOR_VERSION
+            and (interpretation.assessment or {}).get("native_equipment")
+            == native_ferc_assessment.get("native_equipment")
+            and (interpretation.assessment or {}).get("evidence_hash")
+            == native_pdf_evidence.content_hash
+        )
         if (
-            is_permit_source
+            (is_permit_source or native_assessment_current)
             and interpretation is not None
             and interpretation.status in {"accepted", "rejected"}
             and interpretation.content_hash == digest
-            and interpretation.evaluator_version == permit_evaluator_version(record)
+            and (
+                interpretation.evaluator_version == permit_evaluator_version(record)
+                if is_permit_source
+                else native_assessment_current
+            )
             and interpretation.assessment is not None
             and interpretation.assessment.get("semantic_hash") == digest
             and interpretation.assessment.get("evidence_hash") == evidence_digest
@@ -3525,22 +3646,36 @@ def process_records(
 
         try:
             permit_assessment = assess_permit(record) if is_permit_source else None
-            interpreted = (
-                _interpret_retained_document(source.id, record)
-                if source_definition.get("retrieval_method") == "retained-document"
-                else {
-                    "name": permit_assessment["subject"],
-                    "activity_key": permit_assessment["power_activity"],
-                    "rationale": permit_assessment["reason"],
-                    "location": permit_assessment["location"],
-                }
-                if permit_assessment and permit_assessment["decision"] == "accepted"
-                else None
-                if permit_assessment
-                else interpret_taylor_planning(record)
-                if source.id == "taylor-development-newsflash"
-                else interpret({**record, "source_id": source.id})
-            )
+            if native_ferc_title:
+                permit_assessment = None
+                interpreted = (
+                    {
+                        "name": native_ferc_assessment["subject"],
+                        "activity_key": native_ferc_assessment["power_activity"],
+                        "rationale": native_ferc_assessment["reason"],
+                        "location": native_ferc_assessment["location"],
+                    }
+                    if native_ferc_assessment
+                    and native_ferc_assessment.get("decision") == "accepted"
+                    else None
+                )
+            else:
+                interpreted = (
+                    _interpret_retained_document(source.id, record)
+                    if source_definition.get("retrieval_method") == "retained-document"
+                    else {
+                        "name": permit_assessment["subject"],
+                        "activity_key": permit_assessment["power_activity"],
+                        "rationale": permit_assessment["reason"],
+                        "location": permit_assessment["location"],
+                    }
+                    if permit_assessment and permit_assessment["decision"] == "accepted"
+                    else None
+                    if permit_assessment
+                    else interpret_taylor_planning(record)
+                    if source.id == "taylor-development-newsflash"
+                    else interpret({**record, "source_id": source.id})
+                )
         except Exception as exc:
             assert_fence(session, job_id, worker_id, fence)
             interpretation.status, interpretation.error = "failed", type(exc).__name__
@@ -3551,19 +3686,40 @@ def process_records(
 
         if interpreted is not None:
             activity = interpreted.get("activity_key")
-            admission = admit_standalone(
-                source_id=source.id,
-                family=source.family,
-                retrieval_method=source.retrieval_method,
-                accepted=True,
-                activity=activity if isinstance(activity, str) else None,
-                title=record["title"],
-                abstract=record.get("abstract"),
-                dated=bool(record.get("publication_date") or record.get("event_date")),
-                citation_url=record.get("html_url"),
-                identified_project=bool(interpreted.get("name") and interpreted.get("location")),
-            )
-            if not admission.admitted:
+            if native_ferc_title and native_ferc_assessment and native_pdf_evidence is not None:
+                native_ferc_assessment = {
+                    **native_ferc_assessment,
+                    "semantic_hash": digest,
+                    "evidence_hash": evidence_digest,
+                    "evidence": {
+                        "id": str(native_pdf_evidence.id),
+                        "url": native_pdf_evidence.url,
+                        "publication_date": native_pdf_evidence.published_at.isoformat()
+                        if native_pdf_evidence.published_at
+                        else None,
+                    },
+                }
+                admission = admitted_from_source(
+                    source, native_ferc_assessment, native_pdf_evidence
+                )
+            elif native_ferc_title:
+                admission = admitted_from_source(source, {}, None)
+            else:
+                admission = admit_standalone(
+                    source_id=source.id,
+                    family=source.family,
+                    retrieval_method=source.retrieval_method,
+                    accepted=True,
+                    activity=activity if isinstance(activity, str) else None,
+                    title=record["title"],
+                    abstract=record.get("abstract"),
+                    dated=bool(record.get("publication_date") or record.get("event_date")),
+                    citation_url=record.get("html_url"),
+                    identified_project=bool(
+                        interpreted.get("name") and interpreted.get("location")
+                    ),
+                )
+            if not admission.admitted and not native_ferc_title:
                 current_evidence = session.scalar(
                     select(Evidence).where(
                         Evidence.observation_id == observation.id,
@@ -3604,6 +3760,8 @@ def process_records(
                         else []
                     ),
                 }
+                if prior_assessment and isinstance(prior_assessment.get("native_equipment"), dict):
+                    _withdraw_prior_native_support(session, observation, prior_assessment, digest)
                 job = assert_fence(session, job_id, worker_id, fence)
                 if commit:
                     job.checkpoint = external_id
@@ -3612,26 +3770,49 @@ def process_records(
                 session.commit() if commit else session.flush()
                 counts["context_only"] = counts.get("context_only", 0) + 1
                 continue
+            if not admission.admitted:
+                interpreted = None
 
         is_taylor = source.id == "taylor-development-newsflash"
         article_id = str(record.get("article_id") or "")
-        project_key = (
-            f"{source.id}:{article_id}"
-            if is_taylor and article_id.isdigit()
-            else f"{source.id}:{external_id}"
+        native_site_key = (
+            native_ferc_assessment.get("native_equipment", {}).get("site_key")
+            if native_ferc_assessment
+            and native_ferc_assessment.get("decision") == "accepted"
+            and isinstance(native_ferc_assessment.get("native_equipment"), dict)
+            else None
         )
+        if is_taylor and article_id.isdigit():
+            project_key = f"{source.id}:{article_id}"
+        elif isinstance(native_site_key, str):
+            project_key = f"{source.id}:equipment-site:{native_site_key}"
+        else:
+            project_key = f"{source.id}:{external_id}"
         project_query = select(Project).where(Project.identity_key == project_key)
         # Negative/correction handling discovers every linked project below;
         # defer its lock so one identity-key row cannot precede a sorted set of
         # impacted projects. Accepted processing keeps its existing early lock.
+        native_project_rebind = bool(
+            native_ferc_assessment
+            and native_ferc_assessment.get("decision") == "accepted"
+            and prior_native_project_identity
+            and prior_native_project_identity != project_key
+        )
         project = session.scalar(
-            project_query.with_for_update() if interpreted is not None else project_query
+            project_query.with_for_update()
+            if interpreted is not None and not native_project_rebind
+            else project_query
         )
         if project is not None and interpreted is not None:
-            session.execute(
-                text("SELECT pg_advisory_xact_lock(hashtextextended(:project_id, 0))"),
-                {"project_id": str(project.id)},
-            )
+            project_lock_ids = {project.id}
+            if native_project_rebind:
+                prior_project = session.scalar(
+                    select(Project).where(Project.identity_key == prior_native_project_identity)
+                )
+                if prior_project is not None:
+                    project_lock_ids.add(prior_project.id)
+            for project_lock_id in sorted(project_lock_ids, key=str):
+                lock_project(session, project_lock_id)
         taylor_revision_ambiguous = False
         withdrawn_taylor = bool(
             is_taylor and record.get("disposition") == "withdrawn" and article_id.isdigit()
@@ -3873,6 +4054,7 @@ def process_records(
                     interpretation.assessment["project_identity_key"] = project.identity_key
             else:
                 assessment_payload = {
+                    **(native_ferc_assessment if native_ferc_assessment is not None else {}),
                     "semantic_hash": digest,
                     "evidence_hash": evidence_digest,
                     "decision": "unknown"
@@ -3893,6 +4075,13 @@ def process_records(
                     ),
                     "project_identity_key": project.identity_key if project else None,
                 }
+                if native_ferc_title:
+                    interpretation.evaluator_version = FERC_EVALUATOR_VERSION
+                    assessment_payload["evaluator_version"] = FERC_EVALUATOR_VERSION
+                    assessment_payload["evidence"] = {
+                        "id": str(current_evidence.id) if current_evidence else None,
+                        "url": current_evidence.url if current_evidence else observation.url,
+                    }
                 if taylor_revision_ambiguous and prior_assessment is not None:
                     prior_history = list(prior_assessment.get("previous_assessments", []))
                     prior_history.append(
@@ -4224,6 +4413,12 @@ def process_records(
                 candidates = session.scalars(select(Project)).all()
                 decisions, supported = candidate_decisions(candidates)
                 locked_candidate_ids = decision_project_ids(candidates, decisions, supported)
+                if native_project_rebind and prior_native_project_identity:
+                    prior_native_project = session.scalar(
+                        select(Project).where(Project.identity_key == prior_native_project_identity)
+                    )
+                    if prior_native_project is not None:
+                        locked_candidate_ids.add(prior_native_project.id)
                 for candidate_id in sorted(locked_candidate_ids, key=str):
                     lock_project(session, candidate_id)
                 candidates = session.scalars(
@@ -4247,8 +4442,22 @@ def process_records(
                             "facility_scope": facility_scope,
                             "facility_source_address": facility_source_address,
                             "site": project_location,
+                            **(
+                                {
+                                    "native_equipment_site_key": native_ferc_assessment[
+                                        "native_equipment"
+                                    ]["site_key"]
+                                }
+                                if native_ferc_assessment
+                                and native_ferc_assessment.get("decision") == "accepted"
+                                else {}
+                            ),
                         }
                         if facility_scope
+                        or (
+                            native_ferc_assessment
+                            and native_ferc_assessment.get("decision") == "accepted"
+                        )
                         else {},
                     )
                     session.add(project)
@@ -4342,11 +4551,22 @@ def process_records(
                         )
                 if not supported or len(supported) != 1:
                     project.identity_facts = {
+                        **(project.identity_facts or {}),
                         "asset_identity": list(asset_identity) if asset_identity else None,
                         "site": project_location,
                         "project_name": project_name,
                         "facility_scope": facility_scope,
                         "facility_source_address": facility_source_address,
+                        **(
+                            {
+                                "native_equipment_site_key": native_ferc_assessment[
+                                    "native_equipment"
+                                ]["site_key"]
+                            }
+                            if native_ferc_assessment
+                            and native_ferc_assessment.get("decision") == "accepted"
+                            else {}
+                        ),
                     }
                 elif supported[0][1].decision == "matched":
                     project.identity_facts = {
@@ -4619,7 +4839,19 @@ def process_records(
                 interpretation.assessment["project_identity_key"] = project.identity_key
                 interpretation.assessment["power_activity"] = activity_key
             else:
+                interpretation.evaluator_version = (
+                    FERC_EVALUATOR_VERSION
+                    if native_ferc_assessment
+                    and native_ferc_assessment.get("decision") == "accepted"
+                    else interpretation.evaluator_version
+                )
                 interpretation.assessment = {
+                    **(
+                        native_ferc_assessment
+                        if native_ferc_assessment
+                        and native_ferc_assessment.get("decision") == "accepted"
+                        else {}
+                    ),
                     "semantic_hash": digest,
                     "evidence_hash": evidence_digest,
                     "decision": "accepted",
@@ -4636,7 +4868,47 @@ def process_records(
                         "url": lifecycle_evidence.url if lifecycle_evidence else observation.url,
                     },
                 }
-            if lifecycle_evidence is not None:
+            if (
+                native_ferc_assessment
+                and native_ferc_assessment.get("decision") == "accepted"
+                and prior_native_project_identity
+                and prior_native_project_identity != project.identity_key
+            ):
+                session.flush()
+                previous_project = session.scalar(
+                    select(Project).where(Project.identity_key == prior_native_project_identity)
+                )
+                if previous_project is not None:
+                    previous_needs = session.scalars(
+                        select(PowerNeed)
+                        .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+                        .where(
+                            NeedObservation.observation_id == observation.id,
+                            PowerNeed.project_id == previous_project.id,
+                            PowerNeed.active.is_(True),
+                        )
+                        .order_by(PowerNeed.id)
+                        .with_for_update()
+                    ).all()
+                    for previous_need in previous_needs:
+                        if _need_has_current_support(session, previous_need, previous_project):
+                            continue
+                        previous_need.active = False
+                        previous_need.tier = "Signal"
+                        previous_need.required_mw = None
+                        previous_need.start_window = None
+                        previous_need.duration = None
+                        previous_need.supply = "Unknown"
+                        session.add(
+                            ChangeEvent(
+                                observation_id=observation.id,
+                                content_hash=digest,
+                                kind="reclassified",
+                            )
+                        )
+            if lifecycle_evidence is not None and not (
+                native_ferc_assessment and native_ferc_assessment.get("decision") == "accepted"
+            ):
                 from gridlens.intelligence.customer_accounts import record_rrc_operator_membership
 
                 record_rrc_operator_membership(
@@ -4647,7 +4919,9 @@ def process_records(
                     source_id=source.id,
                     record=record,
                 )
-            if lifecycle_evidence is not None:
+            if lifecycle_evidence is not None and not (
+                native_ferc_assessment and native_ferc_assessment.get("decision") == "accepted"
+            ):
                 # Source authority and existing identity/activity admission precede
                 # qualification. Public/news supplements cannot take this path.
                 if admitted_from_source(
@@ -4677,9 +4951,9 @@ def process_records(
                 enqueue_retained_buying_chain_research(
                     session, project.id, lifecycle_evidence.id, lifecycle_evidence.content_hash
                 )
-                # The equipment model is a separate calculated intelligence
-                # package. Its own admission checks bind it to current accepted
-                # evidence and it never changes the legacy need qualification.
+            if lifecycle_evidence is not None:
+                # Native FERC and established schedule paths share the same
+                # source-bound deterministic package and current read validator.
                 from gridlens.intelligence.equipment_intelligence import (
                     materialize_equipment_investigation,
                 )
