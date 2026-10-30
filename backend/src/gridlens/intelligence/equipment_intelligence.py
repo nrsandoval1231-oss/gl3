@@ -11,7 +11,7 @@ import json
 import re
 from collections import defaultdict
 from dataclasses import asdict, replace
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from typing import Any
@@ -73,7 +73,9 @@ def _extractor_version(source, interpretation) -> str:
 def _json(value: Any) -> Any:
     if isinstance(value, Decimal | UUID):
         return str(value)
-    if isinstance(value, date | datetime):
+    if isinstance(value, datetime):
+        return value.astimezone(UTC).isoformat() if value.tzinfo else value.isoformat()
+    if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, dict):
         return {k: _json(v) for k, v in value.items()}
@@ -323,8 +325,16 @@ def _ferc_extraction(need, project, observation, evidence, interpretation, sourc
             evidence_id=evidence.id,
             evidence_hash=evidence.content_hash,
             source_url=evidence.url,
-            observed_at=evidence.observed_at,
-            retrieved_at=evidence.observed_at,
+            observed_at=(
+                evidence.observed_at.astimezone(UTC)
+                if evidence.observed_at.tzinfo
+                else evidence.observed_at
+            ),
+            retrieved_at=(
+                evidence.observed_at.astimezone(UTC)
+                if evidence.observed_at.tzinfo
+                else evidence.observed_at
+            ),
             published_at=evidence.published_at,
             extraction_location=evidence.extraction_location,
             extractor_version=result.extractor_version,
@@ -523,7 +533,13 @@ def _payload(need, project, observation, evidence, source, interpretation) -> di
         questions.append(question)
         blocking_questions.append(question)
     # Freeze validation against acquisition time; no wall clock in the package key.
-    retrieved = evidence.observed_at.date() if evidence.observed_at else None
+    retrieved = (
+        evidence.observed_at.astimezone(UTC).date()
+        if evidence.observed_at and evidence.observed_at.tzinfo
+        else evidence.observed_at.date()
+        if evidence.observed_at
+        else None
+    )
     if retrieved and ((source_date and source_date > retrieved) or (as_of and as_of > retrieved)):
         question = "Resolve a schedule or publication date after source retrieval."
         questions.append(question)

@@ -10,3 +10,4 @@ web/public/brand/asset-manifest.json text eol=lf
 
 # Hash-bound official equipment excerpt must retain its recorded LF bytes.
 backend/tests/fixtures/ferc-cp24-8-equipment-excerpt.txt text eol=lf
+backend/tests/fixtures/ok-deq-oil-gas-discovery-excerpt.html text eol=lf

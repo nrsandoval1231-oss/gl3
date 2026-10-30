@@ -76,3 +76,9 @@ The reviewed scoping notice FR-2023-26762 remains outside this parser extension.
 2. Resolve source-attributed companies and current project status, then investigate missing specifications and verified buyers through existing budgets/privacy controls.
 3. Support deliberate multi-site observation scoping and physical-unit deduplication before totals. Add demand-first portfolio ranking only with defensible overlap and timing rules.
 4. Extend the shared model to further equipment/layouts and data-center phases, using a measured corpus and independent regression gates. General prose/table extraction and autonomous model promotion remain deferred.
+
+## October 30 merge validation: timestamp stability
+
+Local PostgreSQL validation exposed a timezone-dependent receipt fingerprint: the same acquisition instant serialized as UTC on CI and Central time locally, causing an otherwise valid retained PR153 receipt to disappear. Aware acquisition timestamps now serialize in UTC, including native claim references; publication/retrieval date checks use the UTC date. Date-only and existing naive timestamp behavior remain unchanged. Tests retain the exact PR153 fixture and assert its complete payload/key under a Chicago database session, native reference normalization, and publication near UTC midnight.
+
+Immutable evidence and original packages are preserved. Previously created non-UTC candidate packages may require normal unchanged-source replay to create a canonical replacement; no backfill or historical rewrite is performed. The changes are repository candidates, not deployed behavior. Final integrated checks and independent review are recorded on PR156 and PR158.

@@ -7,6 +7,7 @@ import json
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -345,6 +346,7 @@ def test_real_ferc_notice_admits_only_new_electric_station_with_unknown_quantity
     first = _run(factory, definition, job_id, record)
     assert first["signals"] == 1
     with factory() as session:
+        session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
         needs = list(session.scalars(select(PowerNeed)))
         assert len(needs) == 1
         need = needs[0]
@@ -391,6 +393,8 @@ def test_real_ferc_notice_admits_only_new_electric_station_with_unknown_quantity
         assert candidate["lifecycle_status"] == "proposed"
         assert candidate["count"] == 1
         assert candidate["rating"] == {"value": "18340", "unit": "hp", "basis": "unknown"}
+        assert candidate["evidence"]["observed_at"].endswith(("Z", "+00:00"))
+        assert candidate["evidence"]["retrieved_at"].endswith(("Z", "+00:00"))
         assert candidate["equipment_id"]
         assert investigation["residual_gap_kw"] is None
         assert investigation["supply_constraint_evidence"] == []
@@ -441,6 +445,34 @@ def test_real_ferc_notice_admits_only_new_electric_station_with_unknown_quantity
         assert demand_field["sources"][0]["reference"].startswith("equipment-evidence:")
         assert not any(
             field.get("value") in {"18340 MW", "18,340 MW", "18.34 MW"} for field in card["fields"]
+        )
+
+        # Publication on the UTC retrieval date remains valid even when the
+        # database-local date is still the prior day.
+        from gridlens.domain.signal_admission import admitted_from_source
+
+        evidence.observed_at = datetime(2024, 6, 12, 1, 0, tzinfo=UTC).astimezone(
+            ZoneInfo("America/Chicago")
+        )
+        assert evidence.observed_at.date().isoformat() == "2024-06-11"
+        assert admitted_from_source(
+            session.get(Source, definition["id"]), interpretation.assessment, evidence
+        ).admitted
+        from gridlens.intelligence.equipment_intelligence import _payload
+
+        local_midnight_payload = _payload(
+            need,
+            project,
+            observation,
+            evidence,
+            session.get(Source, definition["id"]),
+            interpretation,
+        )
+        assert local_midnight_payload is not None
+        assert local_midnight_payload["status"] == "PARTIAL"
+        assert (
+            "Resolve a schedule or publication date after source retrieval."
+            not in (local_midnight_payload["unresolved_questions"])
         )
 
     _run(factory, definition, job_id, record)
@@ -722,6 +754,7 @@ def test_baseline_pr153_package_remains_current_without_ingestion_replay(ferc_eq
     _seed_pr153_baseline_snapshot(factory, baseline)
 
     with factory() as session:
+        session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
         need_id = baseline["need"]["id"]
         project_id = baseline["project"]["id"]
         package = session.scalar(select(EvidencePackage))

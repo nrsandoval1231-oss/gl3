@@ -1,0 +1,3 @@
+# Current owner request — power demand intelligence
+
+Implement the demand-centered autonomous equipment-to-commercial-intelligence slice, preserve the approved UI and uncertainty, validate independently, and deliver reviewable PRs. Use the OpenAI model roles in [AGENTS.md](../AGENTS.md). The current candidate is [PR153](https://github.com/nrsandoval1231-oss/gl3/pull/153); merge and deployment are not part of this delivery. Preserve production data, credentials and paid-provider gates. Earlier PR150/151 merge instructions are [historical](archive/OG-EQUIPMENT-CLAIMS-20261029/MAIN152_OWNER_REQUEST.md). See [checkpoint](CURRENT_STATE.md).
