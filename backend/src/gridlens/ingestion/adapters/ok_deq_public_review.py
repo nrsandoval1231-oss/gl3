@@ -2,8 +2,10 @@
 
 The index is one HTML table. It has no bulk export. Rows are kept when the
 company, facility, or permit type names a data center or on-site power
-equipment. The index often has no event date; a public-comment window in the
-step column is the only date this adapter records.
+equipment. Explicit compressor-station and gas-processing-plant facility names
+are also retained as discovery evidence, without an equipment or power claim.
+The index often has no event date; a public-comment window in the step column
+is the only date this adapter records.
 """
 
 from __future__ import annotations
@@ -43,6 +45,10 @@ _RELEVANT = re.compile(
     r"data\s*cent(?:er|re)|turbine|generator|electric\s+generat|hyperscale|"
     r"\bengines?\b|behind[- ]the[- ]meter|temporary power|power plant|"
     r"\bbridge power\b|\bbridge generation\b|\bbridging power\b",
+    re.IGNORECASE,
+)
+_OIL_GAS_FACILITY = re.compile(
+    r"\bcompressor\s+station\b|\bgas\s+processing\s+plant\b",
     re.IGNORECASE,
 )
 _COMMENT_START = re.compile(r"(\d{2}/\d{2}/\d{4})")
@@ -140,7 +146,7 @@ def parse_listing(body: bytes) -> list[dict[str, Any]]:
             raise SourceParseError("Oklahoma DEQ listing has a duplicate permit number")
         seen.add(permit_no)
         blob = " ".join(row[key] for key in ("Company", "Facility", "Type", "Step"))
-        if not _RELEVANT.search(blob):
+        if not _RELEVANT.search(blob) and not _OIL_GAS_FACILITY.search(facility):
             continue
         county = row["County"].strip()
         location = f"{county.title()} County, OK" if county else None

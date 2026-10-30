@@ -1,0 +1,85 @@
+{
+  "source_url": "https://applications.deq.ok.gov/PermitsPublicReview/",
+  "retrieved_at_utc": "2026-10-30T05:46:00Z",
+  "original_listing_path": "raw/okdeq-index.html",
+  "original_listing_bytes": 563719,
+  "original_listing_sha256": "fbf0fddcc7614d0d7eef5465f1e628bb48de171f8c127c8733c01dce9c4fbb05",
+  "fixture_path": "backend/tests/fixtures/ok-deq-oil-gas-discovery-excerpt.html",
+  "fixture_bytes": 4590,
+  "fixture_sha256": "bc74f20a4392639ae2792ec7d9fa93d8b1eff43d3d60f56dbc9e080e7a30174e",
+  "selection": "Exact original <thead> and four original <tr> rows copied from the official HTML listing; no row values changed. Fixture omits page chrome and all other listing rows.",
+  "columns": [
+    "Division",
+    "County",
+    "Company",
+    "Facility",
+    "Permit #",
+    "Tier",
+    "Type",
+    "Step",
+    "Staff Name",
+    "Status",
+    "Related Information"
+  ],
+  "rows": [
+    {
+      "selection": "compressor example",
+      "permit": "2025-0673-TVR5",
+      "division": "AQD",
+      "county": "BEAVER",
+      "company": "NATURAL GAS PIPELINE CO OF AMERICA",
+      "facility": "COMPRESSOR STATION 102",
+      "type": "Title V Operating Permit",
+      "step": "Comment Review (07/28/2026 - 10/26/2026)",
+      "status": "Under DEQ Review",
+      "detail_id": "1062106",
+      "date_semantics": "comment window dates only; neither publication nor equipment dates"
+    },
+    {
+      "selection": "construction permit example",
+      "permit": "2025-0662-C M-1",
+      "division": "AQD",
+      "county": "Roger Mills",
+      "company": "ET Gathering & Processing LLC",
+      "facility": "Lippencott Compressor Station",
+      "type": "Minor Source Construction Permit",
+      "step": "Comment Review (04/30/2026 - 07/29/2026)",
+      "status": "Under DEQ Review",
+      "detail_id": "1072419",
+      "date_semantics": "comment window dates only; neither publication nor equipment dates"
+    },
+    {
+      "selection": "distinct current O&G facility example",
+      "permit": "2026-0504-C",
+      "division": "AQD",
+      "county": "Canadian",
+      "company": "EnLink Midstream Services, LLC",
+      "facility": "Silver Compressor Station",
+      "type": "Major Source Construction Permit",
+      "step": "Public Commenting Period (10/28/2026 - 11/27/2026)",
+      "status": "Awaiting Public Participation",
+      "detail_id": "1073280",
+      "date_semantics": "comment window dates only; neither publication nor equipment dates"
+    },
+    {
+      "selection": "negative unrelated industrial facility",
+      "permit": "2020-0146-TVR3",
+      "division": "AQD",
+      "county": "SEMINOLE",
+      "company": "COMMERCIAL BRICK CORP",
+      "facility": "WEWOKA PLANT",
+      "type": "Title V Operating Permit",
+      "step": "Comment Review (04/25/2026 - 07/24/2026)",
+      "status": "Under DEQ Review",
+      "detail_id": "1061985",
+      "date_semantics": "comment window dates only; neither publication nor equipment dates"
+    }
+  ],
+  "interpretation_limits": [
+    "These are index records only: no motor/drive type, equipment schedule, rating, capacity, power demand, or efficiency is reported by these rows.",
+    "Compressor facility names do not imply electric drive. Do not create equipment or demand claims from facility names or permit types.",
+    "O&G relevance is a discovery classification based on explicit company/facility/permit text only; it is not source-reported NAICS/operator verification.",
+    "Preserve permit type, status, company, facility, county, detail ID, comment-window text. The dates are public-comment window dates only.",
+    "The index/listing excerpt does not imply source adapter admission or permit qualification behavior."
+  ]
+}
