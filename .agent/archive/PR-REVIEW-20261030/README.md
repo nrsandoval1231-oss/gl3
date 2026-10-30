@@ -8,3 +8,5 @@ These original bytes retain candidate checkpoints before the owner-authorized Oc
 - [Prior delivery graph](pre-review-WORK_GRAPH.md)
 
 - [PR158 before integration](PR158-pre-integration-CURRENT_STATE.md)
+
+- [Integrated PR158 checkpoint](PR158-integrated781-CURRENT_STATE.md)
