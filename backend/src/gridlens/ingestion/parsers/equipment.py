@@ -22,7 +22,7 @@ from gridlens.domain.equipment_demand import (
     RatingUnit,
 )
 
-VERSION = "equipment-schedule-lines-v3"
+VERSION = "equipment-schedule-lines-v4"
 MAX_INPUT_CHARS = 128_000
 MAX_ROWS = 256
 MAX_ROW_CHARS = 1_200
@@ -78,7 +78,12 @@ _GENERIC_TYPE_METADATA = re.compile(
     re.I,
 )
 _EXPLICIT_EQUIPMENT_ID = re.compile(r"^\s*equipment\s+id\s*:", re.I)
-_BARE_ID = re.compile(r"^\s*id\s*:", re.I)
+_ID_AT_SEGMENT_START = re.compile(r"^\s*(?:equipment\s+)?id\s*:", re.I)
+
+
+def _has_id_segment(line: str) -> bool:
+    return any(_ID_AT_SEGMENT_START.match(segment) for segment in line.split("|"))
+
 
 _FIELD_PATTERNS = (
     _ID,
@@ -126,10 +131,10 @@ def _has_structured_schedule(text: str) -> bool:
             continue
         if _GENERIC_TYPE_METADATA.fullmatch(line):
             continue
-        if _EXPLICIT_EQUIPMENT_ID.search(line):
+        if any(_EXPLICIT_EQUIPMENT_ID.match(segment) for segment in line.split("|")):
             return True
         has_schedule_fields = bool(_SCHEDULE_FIELD.search(line))
-        if _BARE_ID.search(line) and has_schedule_fields:
+        if _has_id_segment(line) and has_schedule_fields:
             return True
         if _EQUIPMENT_SPECIFIC_FIELD.search(line) or (
             has_schedule_fields and (_EQUIPMENT_CONTEXT.search(line) or "|" in line)
@@ -183,7 +188,7 @@ def extract_equipment_claims(text: str) -> ExtractionResult:
             continue
         if _GENERIC_TYPE_METADATA.fullmatch(line):
             continue
-        has_id = bool(re.search(r"\b(?:equipment\s+)?id\s*:", line, re.I))
+        has_id = _has_id_segment(line)
         if not has_id:
             if _EQUIPMENT_SPECIFIC_FIELD.search(line) or (
                 _SCHEDULE_FIELD.search(line) and (_EQUIPMENT_CONTEXT.search(line) or "|" in line)
@@ -256,11 +261,11 @@ def extract_equipment_claims(text: str) -> ExtractionResult:
             continue
         unit_token = rating_match.group(2).casefold()
         unit = {"bhp": "hp", "hp": "hp", "kw": "kW", "mw": "MW", "kva": "kVA"}[unit_token]
-        basis_text = (rating_match.group(3) or "").casefold()
+        basis_text = " ".join((rating_match.group(3) or "").split()).casefold()
         basis = "mechanical_output" if basis_text == "mechanical output" else "unknown"
         if basis_text == "electrical input" and unit != "hp":
             basis = "electrical_input"
-        drive_text = drive_match.group(1).casefold()
+        drive_text = " ".join(drive_match.group(1).split()).casefold()
         drive_suffix = drive_match.group(0).partition("(")[2]
         if drive_suffix and drive_text not in {"no electric", "not electric", "not yet electric"}:
             result.issues.append(f"Contradictory drive annotation at offset {line_match.start()}.")

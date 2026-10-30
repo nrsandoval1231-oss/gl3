@@ -217,3 +217,109 @@ def test_equipment_schedule_is_materialized_and_accepted_permit_replay_is_idempo
         assert investigation is not None and investigation["status"] == "PARTIAL"
         assert investigation["demand"]["coincident_kw"] is None
         assert investigation["residual_gap_kw"] is None
+
+
+def test_oklahoma_schedule_with_generic_headers_and_whitespace_keeps_demand_source_bound(
+    equipment_ingestion_db,
+):
+    """Generic permit metadata and source whitespace must not hide equipment evidence."""
+    from gridlens.ingestion.service import process_records
+
+    factory = equipment_ingestion_db
+    definition = next(row for row in load_registry() if row["id"] == "oklahoma-deq-public-review")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=definition["cadence_hours"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="synthetic-equipment-worker",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    electric_quote = (
+        "Equipment ID: C-201 | Type: compressor | Drive:\t electric | "
+        "Rating: 2 MW electrical\t  input | Count: 2 | Operating: 1 | "
+        "State: proposed | Role: duty"
+    )
+    gas_quote = (
+        "Equipment ID: C-202 | Type: compressor | Drive: gas\t  engine | "
+        "Rating: 500 hp mechanical\t\toutput | Count: 1 | Operating: 1 | "
+        "State: proposed | Role: duty"
+    )
+    schedule = (
+        "Permit ID: SYN-OK-201\n"
+        "Facility ID: FAC-201\n"
+        "Project ID: PROJ-201\n"
+        "Company: Prairie Example LLC\n"
+        "Facility: Prairie Compression Station\n"
+        f"As of: {date.today().isoformat()}\n"
+        f"{electric_quote}\n"
+        f"{gas_quote}"
+    )
+    record = {
+        "document_number": "SYN-OK-201",
+        "title": "Prairie Compression Station public review",
+        "abstract": schedule,
+        "publication_date": date.today().isoformat(),
+        "event_date": date.today().isoformat(),
+        "event_date_label": "Public review date",
+        "html_url": "https://example.test/ok-deq/SYN-OK-201",
+        "extraction_location": "Synthetic equipment schedule",
+        "permit": {
+            "source_type": "oklahoma-deq-public-review",
+            "row_id": "SYN-OK-201",
+            "facility": "Prairie Compression Station",
+            "applicant": "Prairie Example LLC",
+            "location": "1 Sample Road, Tulsa, OK",
+            "description": "Natural gas compression station with a proposed electric compressor.",
+            "power_signals": [],
+        },
+    }
+
+    with factory() as session:
+        result = process_records(
+            session,
+            job_id,
+            "synthetic-equipment-worker",
+            1,
+            definition,
+            [record],
+            allow_model=False,
+        )
+    assert result["permit_accepted"] == 1
+
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        package = session.scalar(select(EvidencePackage))
+        assert observation is not None and observation.abstract == schedule
+        assert package is not None
+        payload = package.payload
+        assert payload["status"] == "SUPPORTED"
+        claims = {claim["equipment_id"]: claim for claim in payload["equipment"]}
+        assert claims["C-201"]["drive"] == "electric"
+        assert claims["C-201"]["rating_basis"] == "electrical_input"
+        assert claims["C-202"]["drive"] == "gas_engine"
+        assert claims["C-202"]["rating_basis"] == "mechanical_output"
+        for quote in (electric_quote, gas_quote):
+            claim = next(value for value in claims.values() if value["quote"] == quote)
+            assert observation.abstract[claim["start"] : claim["end"]] == quote
+        assert payload["demand"]["connected_kw"] == "4000"
+        assert payload["demand"]["coincident_kw"] == "2000"
+        assert payload["demand"]["incremental_kw"] == "4000"
