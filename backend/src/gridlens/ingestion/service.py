@@ -3468,6 +3468,29 @@ def process_records(
                             _need_admission_basis_is_current(session, need, project)
                         ):
                             need.admission_basis = incoming_basis
+                    # Equipment demand is an independent evidence-backed projection.
+                    # Rebuild it on unchanged accepted permit records as well, so a
+                    # retry can repair a missing package without changing qualification.
+                    if (
+                        interpretation.status == "accepted"
+                        and (interpretation.assessment or {}).get("decision") == "accepted"
+                        and need is not None
+                        and project is not None
+                        and current_evidence is not None
+                    ):
+                        from gridlens.intelligence.equipment_intelligence import (
+                            materialize_equipment_investigation,
+                        )
+
+                        materialize_equipment_investigation(
+                            session,
+                            need,
+                            project,
+                            observation,
+                            current_evidence,
+                            interpretation,
+                            current_source,
+                        )
             regional_scope = (interpretation.assessment or {}).get("regional_scope")
             if isinstance(regional_scope, dict) and regional_scope.get("status") != "ELIGIBLE":
                 counts[
@@ -4653,6 +4676,22 @@ def process_records(
 
                 enqueue_retained_buying_chain_research(
                     session, project.id, lifecycle_evidence.id, lifecycle_evidence.content_hash
+                )
+                # The equipment model is a separate calculated intelligence
+                # package. Its own admission checks bind it to current accepted
+                # evidence and it never changes the legacy need qualification.
+                from gridlens.intelligence.equipment_intelligence import (
+                    materialize_equipment_investigation,
+                )
+
+                materialize_equipment_investigation(
+                    session,
+                    need,
+                    project,
+                    observation,
+                    lifecycle_evidence,
+                    interpretation,
+                    source,
                 )
 
         # TDLR's primary registration is direct evidence for the exact project

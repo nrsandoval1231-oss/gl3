@@ -1,6 +1,6 @@
 # Autonomous intelligence architecture and retention map
 
-Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). This describes implementation boundaries and required acceptance; it does not certify a deployed candidate. Source files and migrations remain authoritative for exact runtime behavior.
+Authority: implementation-history reference subordinate to the [Autonomous Power Demand Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). This describes legacy qualification and retention boundaries; its gap-led product framing is not the target. It does not certify a deployed candidate. Source files and migrations remain authoritative for exact runtime behavior.
 
 See the [path-level migration inventory](autonomous-migration-inventory.md) for each KEEP/TRANSFORM/REMOVE/ARCHIVE decision, removed-feature dependencies and verification obligations.
 
@@ -34,7 +34,7 @@ The company scan reuses canonical identities and bounded queued jobs. Evidence/i
 
 ## Commercial and operational controls
 
-TX/OK/NM physical-site eligibility, the inclusive 300 kW visibility floor, original Signal/Prospect/Lead gates and source scope apply at admission, indexed queries and exports. Company headquarters and source geography do not establish site eligibility. Facility load, activity-specific demand, committed suitable supply and residual gap remain distinct. Confidence, priority and commercial disposition are separate outputs with reasons and current citations.
+Legacy compatibility only: TX/OK/NM physical-site eligibility, the inclusive 300 kW visibility floor, and Signal/Prospect/Lead gates apply where current runtime requires them. They do not gate target demand records. Company headquarters and source geography do not establish site eligibility. Facility load and activity-specific demand remain distinct; supply facts are optional context. This module's priority/disposition outputs do not define target demand ranking.
 
 Apollo and Firecrawl integrations depend on permitted account access, configured credentials, provider terms and bounded cost controls. Missing integration or budget is an explicit unresolved state. Historical benchmark contact details may be used as evaluation evidence with provenance; they are not a feed of verified current contacts. No source-backed method or buying authority is invented to increase coverage.
 

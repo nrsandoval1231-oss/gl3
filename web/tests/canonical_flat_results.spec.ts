@@ -16,8 +16,13 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await expect(page.getByRole('heading', { name: 'Opportunities' })).toBeVisible()
   await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(2)
-  await expect(page.locator('.cfr-kpis')).toContainText('2')
-  await expect(page.locator('.cfr-kpis')).toContainText('Signals included')
+  await expect(page.locator('.cfr-kpis article')).toHaveCount(3)
+  const demandKpi = page.locator('.cfr-kpis article').first()
+  await expect(demandKpi).toContainText('Identified Power Demand (MW)')
+  await expect(demandKpi.locator('strong')).toHaveText('—')
+  await expect(demandKpi).toContainText('Portfolio total unavailable')
+  await expect(demandKpi).toContainText('unknown is not zero')
+  await expect(page.locator('.cfr-heading')).toContainText('Signals included')
   await expect(page.locator('.cfr-kpis')).toContainText('Priority classification unavailable')
   await expect(page.locator('.cfr-kpis')).toContainText('Creation date unavailable')
   await expect(page.locator('.cfr-table')).toContainText('Northstar Energy')
@@ -34,6 +39,10 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
 
   await page.getByRole('textbox', { name: 'Search opportunities' }).fill('alternate source alias')
   await expect.poll(() => requests.some(url => url.searchParams.get('search') === 'alternate source alias')).toBeTruthy()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.locator('.cfr-kpis article')).toHaveCount(3)
+  await expect(demandKpi.locator('strong')).toHaveText('—')
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
 })
 
 test('synthetic repeated cohort conflict stops after one reset and presents a retry', async ({ page }) => {

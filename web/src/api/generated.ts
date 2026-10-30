@@ -2332,6 +2332,10 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             power_schedule?: components["schemas"]["PowerScheduleProjection"] | null;
+            /** Equipment Demand */
+            equipment_demand?: {
+                [key: string]: unknown;
+            } | null;
             /** Evidence */
             evidence: components["schemas"]["IntelligenceSource"][];
             /** Research Enabled */
@@ -2383,7 +2387,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "Source-reported" | "User-confirmed" | "Evidence-supported" | "Evidence-supported estimate" | "Research in progress" | "Not publicly available" | "Not applicable" | "Conflicting evidence";
+            status: "Source-reported" | "User-confirmed" | "Evidence-supported" | "Evidence-supported estimate" | "Calculated" | "Research in progress" | "Not publicly available" | "Not applicable" | "Conflicting evidence";
             /** Value */
             value?: string | null;
             /** Basis */

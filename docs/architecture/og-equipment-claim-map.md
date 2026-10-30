@@ -2,6 +2,8 @@
 
 **Status:** bounded Phase 1 implementation note. The claim types under development are pure, unverified candidates; this map does not establish equipment facts, electrical demand, qualification, or publication. **Scope:** repository schema, retained RRC completion fixtures and one historical Federal Register equipment excerpt. The lead retrieved the official public notice read-only on October29 local time; no runtime source job, paid provider or production request was made.
 
+**Current integration:** this document describes PR152 candidate contracts. PR153 adds a separate, independently verified bounded schedule-to-demand path; see [equipment-demand implementation](../engineering/equipment-demand-slice-20261030.md). The candidate-only gaps below do not imply that the calculation/persistence path is absent. `equipment-claim-v1` remains UNVERIFIED and is not automatically promoted into `equipment-demand-v1`.
+
 ## Existing schema reuse
 
 ORM definitions in `backend/src/gridlens/persistence/models.py` and migrations are authoritative. Existing structures already provide source version and project/activity anchors:

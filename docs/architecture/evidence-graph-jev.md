@@ -1,7 +1,9 @@
 # Evidence Graph and Jev Judgment Architecture
 
-**Status:** Canonical architecture decision  
+**Status:** Historical architecture proposal; evidence safeguards remain useful where compatible.
 **Date:** 2026-10-01
+
+This document predates the 2026-10-30 demand-centered canon. Its power-gap identity and seven-step decision flow are historical, not active product direction. The current target is the six-layer demand model; no shortage or qualification gate is required for a demand record.
 
 ## Objective
 

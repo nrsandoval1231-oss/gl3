@@ -1,5 +1,5 @@
 # Product authority
 
-The owner-approved [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) is the highest product authority. The [PRD](PRD.md) retains compatible territory, evidence, power-gap, tier and launch constraints. The [vertical lifecycle strategy](VERTICAL_LIFECYCLE_STRATEGY.md) and [ranking rules](ranking-weights.md) are supporting requirements; no older document may restore manual user workflows.
+The owner-aligned 2026-10-30 [Autonomous Power Demand Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) is the sole active product authority. The [PRD](PRD.md) defines active demand-centered requirements; [results semantics](PROJECT_FIRST_RESULTS_CANON.md) define target presentation. Earlier power-gap, qualification, lifecycle, and ranking documents describe historical/current runtime behavior where labeled; they cannot make shortage or tiers a target demand gate.
 
-The product autonomously discovers, resolves, researches, enriches, analyzes, scores, publishes and refreshes intelligence. Opportunities, automated Research, Signals and search explain which projects matter and whom to contact, with sources, freshness and explicit unknowns. Prior manual-workflow directions are historical.
+The target product autonomously discovers and characterizes demand through six layers. A bounded equipment slice is in progress; demand-centered UI changes are in the current candidate, but KPI data is unavailable and the candidate is not production shipped. Prior gap-led product identity is retained in the dated pre-pivot archive.

@@ -54,7 +54,7 @@ test('synthetic All view requests discovery so Signals render, and pagination an
   await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
   await expect(page.locator('.cfr-table tbody tr').first()).toContainText('Qualification: Signal')
-  await expect(page.locator('.cfr-kpis')).toContainText('Signals included')
+  await expect(page.locator('.cfr-heading')).toContainText('Signals included')
 
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('25')

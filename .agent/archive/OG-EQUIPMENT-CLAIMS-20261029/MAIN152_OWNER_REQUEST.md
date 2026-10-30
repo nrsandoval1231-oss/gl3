@@ -1,0 +1,3 @@
+# Current owner request — validate and merge
+
+The owner explicitly requested validate and merge after PR151 readiness. Validate PR150 and stackedPR151 at exact current heads, address valid review blockers, merge in dependency order, retarget PR151 to main, verify integrated source and final remote/localmain. Preserve dirty/unrelated work and historical evidence. Prior request bytes retained in archive/OG-EQUIPMENT-CLAIMS-20261029/PREMERGE_OWNER_REQUEST.md. No deployment, credentials, paidproviders, production data or outreach authority. Keep failures, skipped checks and timing limitations explicit.

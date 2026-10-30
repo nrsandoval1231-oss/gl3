@@ -1,6 +1,6 @@
 # Prepared operator/customer and project results
 
-The [results canon with its operator/customer amendment](../product/PROJECT_FIRST_RESULTS_CANON.md) governs ordinary browsing. The existing company, project, power-need, evidence and qualification models remain canonical. Operator/customer groups are primary; their nested projects preserve the existing physical-asset read contract. Permits remain evidence.
+This note records the current prepared project-read API contract and dated implementation behavior. The active target presentation semantics are in the [demand-centered results canon](../product/PROJECT_FIRST_RESULTS_CANON.md). Existing company/project/power-need/evidence and qualification models remain current implementation contracts; operator/customer grouped browsing and permit semantics are compatibility behavior, not target product identity.
 
 ## Grouped read contract
 

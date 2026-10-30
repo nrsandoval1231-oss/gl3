@@ -28,6 +28,22 @@ function displayDate(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
 }
 
+type EquipmentDemandProjection = Record<string, unknown>
+
+function equipmentDemandProjection(card: NonNullable<Props['item']>['intelligence_card']): EquipmentDemandProjection | null {
+  if (!card) return null
+  const value = card.equipment_demand
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : null
+}
+
+function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_kw' | 'coincident_kw' | 'incremental_kw') {
+  const value = demand?.[key]
+  const amount = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN
+  if (!Number.isFinite(amount)) return 'Unknown'
+  if (amount > 0 && amount < 0.1) return '<0.1 kW'
+  return `${amount.toLocaleString(undefined, { maximumFractionDigits: 1 })} kW`
+}
+
 export function CanonicalOpportunityDetail(props: Props) {
   const { item, pending, loading, error, associationNotice, tab, onTab, onBack, onRetry } = props
   const canonicalTab: CanonicalTab = tabForWorkspace(tab)
@@ -71,6 +87,7 @@ export function CanonicalOpportunityDetail(props: Props) {
   if (tab === 'Evidence' || tab === 'Power gap' || tab === 'Research') return <WorkspaceDetail {...workspaceDetailProps(props)} />
 
   const card = item.intelligence_card
+  const equipmentDemand = equipmentDemandProjection(card)
   const fields = card?.fields ?? []
   const field = (key: string) => fields.find(candidate => candidate.key === key && candidate.value)
   const company = project?.company?.trim() || item.commercial_organization || item.title_company || null
@@ -140,6 +157,17 @@ export function CanonicalOpportunityDetail(props: Props) {
         <div><strong title={metric.value} aria-label={metric.value}>{metric.value}</strong><span className="cod-metric-label">{metric.label}</span><small>{metric.basis}</small></div>
       </article>)}</section>
       <section className="cod-details" aria-label="Key project details"><h3>Project details</h3><dl>{details.length ? details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>) : <p>Project details are not established by current evidence.</p>}</dl></section>
+      {equipmentDemand && (() => {
+        const demand = equipmentDemand.demand && typeof equipmentDemand.demand === 'object' && !Array.isArray(equipmentDemand.demand) ? equipmentDemand.demand as EquipmentDemandProjection : null
+        const label = (value: unknown) => typeof value === 'string' ? value.replaceAll('_', ' ') : 'Unavailable'
+        const lifecycle = Array.isArray(equipmentDemand.lifecycle) ? equipmentDemand.lifecycle.filter((value): value is string => typeof value === 'string' && value.length > 0) : []
+        const plannedStates = lifecycle.filter(value => ['new', 'proposed'].includes(value.toLowerCase()))
+        const plannedOnly = lifecycle.length > 0 && plannedStates.length === lifecycle.length
+        const capacityLabel = (value: string) => plannedOnly ? `Planned ${value}` : plannedStates.length ? `${value} (includes planned equipment)` : value
+        const expectedStarts = Array.isArray(equipmentDemand.expected_start) ? equipmentDemand.expected_start.filter((value): value is string => typeof value === 'string' && Boolean(value.trim())).map(displayDate) : []
+        const asOf = typeof equipmentDemand.as_of === 'string' ? displayDate(equipmentDemand.as_of) : 'Unknown'
+        return <section className="cod-equipment-demand" aria-label="Equipment schedule demand"><h3>Equipment schedule demand</h3><p>Schedule-level capacity figures · not a site or portfolio total or metered demand.</p><dl><div><dt>Classification</dt><dd>{label(equipmentDemand.classification)}</dd></div><div><dt>Status</dt><dd>{label(equipmentDemand.status)}</dd></div><div><dt>Scope</dt><dd>{label(equipmentDemand.scope)}</dd></div><div><dt>Equipment state / lifecycle</dt><dd>{lifecycle.map(label).join(', ') || 'Unknown'}</dd></div><div><dt>Schedule as of</dt><dd>{asOf}</dd></div><div><dt>Documented expected start</dt><dd>{expectedStarts.join(', ') || 'Unknown'}</dd></div><div><dt>{capacityLabel('connected capacity')}</dt><dd>{equipmentKw(demand, 'connected_kw')}</dd></div><div><dt>{capacityLabel('coincident operating capacity')}</dt><dd>{equipmentKw(demand, 'coincident_kw')}</dd></div><div><dt>{plannedStates.length ? 'Planned incremental capacity' : 'Incremental capacity'}</dt><dd>{equipmentKw(demand, 'incremental_kw')}</dd></div></dl>{typeof equipmentDemand.next_action === 'string' && equipmentDemand.next_action.trim() && <p className="cod-equipment-next-action"><strong>Equipment next action:</strong> {equipmentDemand.next_action}</p>}</section>
+      })()}
       <div className="cod-lower">
         <section className="cod-contacts" aria-label="Decision maker or contact"><h3><UserRound size={13} strokeWidth={1.6}/>Decision Maker / Contact</h3>
           {people.length ? people.map(person => {

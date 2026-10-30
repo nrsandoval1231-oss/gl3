@@ -1,4 +1,6 @@
-# Opportunity ranking weights
+# Legacy opportunity ranking weights
+
+This versioned score documents current compatibility behavior; it is not the target product's primary demand ranking or KPI. Demand-centered presentation and prioritization remain pending. A residual gap, tier, or buyer-access score must not determine whether a supported demand record exists.
 
 Requirement 27: rank active needs by timing, recent material change, evidence strength, product fit and purchasing accessibility; publish the weights; show the principal reasons; never rank solely by campus MW or tier.
 

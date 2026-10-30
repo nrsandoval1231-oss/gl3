@@ -1,8 +1,8 @@
 # GridLens GL3
 
-**GridLens — Commercial Intelligence for Constrained Power.** GridLens is an autonomous commercial intelligence platform that discovers electrical demand, evaluates documented supply constraints and identifies evidence-backed procurement opportunities and decision-makers. This is the product direction, not a claim that the target engine is shipped. The [sole product canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) and [PRD](docs/product/PRD.md) distinguish CURRENT, TARGET, NEXT and DEFERRED capabilities. Preserve the approved October 29 [UI](docs/design/UI_CANON.md).
+**GridLens — Autonomous Power Demand Intelligence.** GridLens discovers, classifies, and quantifies power demand from evidence, then tracks the entities, equipment, and lifecycle events behind it. This target direction is not a claim that the full engine is shipped. The [sole product canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) defines six target layers and separates CURRENT, TARGET, NEXT, and DEFERRED capabilities. The October 29 UI is the dated released presentation; the candidate preserves that layout while adding demand terminology and equipment details.
 
-The current FastAPI/PostgreSQL/worker/React system retains regional project discovery, conservative qualification and source-backed contacts. The [Phase 0 audit](docs/engineering/intelligence-phase0-audit-20261029.md), [architecture](docs/architecture/overview.md) and [phased roadmap](docs/delivery/intelligence-roadmap.md) define the gaps and next implementation slices. This PR changes documentation and instructions only.
+The current FastAPI/PostgreSQL/worker/React system retains regional project discovery, evidence packages, and legacy Signal/Prospect/Lead qualification. The bounded Oil & Gas parser/model slice is implemented in this candidate; see its [implementation plan](docs/engineering/equipment-demand-slice-20261030.md). The demand-centered UI is implemented in the current candidate, but KPI data is unavailable and the candidate is not production shipped.
 
 ## Current status
 

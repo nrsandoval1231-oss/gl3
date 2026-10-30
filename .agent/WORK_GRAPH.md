@@ -1,14 +1,5 @@
-# Current merge validation ownership
+# Current delivery ownership
 
-User authorized validation/merge of PR150 thenPR151; no deployment. [Checkpoint](CURRENT_STATE.md), [owner request](OWNER_REQUEST.md). Previous graph bytes retained in archive/OG-EQUIPMENT-CLAIMS-20261029/PREMERGE_WORK_GRAPH.md.
+Sol 6.1/high architecture, five Luna 6/low implementation lanes and Astra 6/high independent review completed the bounded equipment-demand slice. The integrated candidate received no unresolved blocking review findings. Final handoff uses Sol 6.1/high and the full repository CI gates.
 
-| Work | Owner | State |
-|---|---|---|
-| Pure equipment foundation and Phase0 audit | Three Luna builders | Delivered; source unchanged208df7df |
-| Independent source and CI diagnostic review | Astra critic | PASS208df7df |
-| Fresh review findings | Lead | Layout, archive navigation and historical status repaired |
-| Scoped premerge review and final CI | Lead + Astra | Pending repaired heads |
-| Merge PR150 then retarget/merge PR151 | Lead | Authorized after validation |
-| Remote/local main verification | Lead | Pending merge |
-
-No UI/runtime/schema/provider/qualification change or release assignment. This is an authoring-time checkpoint; final exact-head and merge outcomes are retained in the linked PR completion records.
+PR153 is integrating PR152 main; preserve its unverified candidate contracts and require new combined-head validation. See [checkpoint](CURRENT_STATE.md), [validation](../docs/validation/equipment-demand-20261030.md) and [next work](../docs/engineering/equipment-demand-slice-20261030.md). Historical merge assignments are [archived](archive/OG-EQUIPMENT-CLAIMS-20261029/MAIN152_WORK_GRAPH.md). No production, provider activation or deployment assignment.

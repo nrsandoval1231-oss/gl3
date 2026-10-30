@@ -67,8 +67,15 @@ def attach_cards(session, items: list[dict], chains: dict) -> None:
     associated_accounts = associated_accounts_for_projects(
         session, {UUID(str(item["project_id"])) for item in items}
     )
+    from gridlens.intelligence.equipment_intelligence import current_equipment_investigations
+
+    equipment = current_equipment_investigations(
+        session,
+        [(str(item["id"]), str(item["project_id"])) for item in items],
+    )
     for item in items:
         item["associated_account"] = associated_accounts.get(UUID(str(item["project_id"])))
+        item["equipment_demand"] = equipment.get(str(item["id"]))
         chain = chains.get(str(item["project_id"]), {})
         commercial = build_card(item, chain, chicago_today())
         expected = fingerprint(
