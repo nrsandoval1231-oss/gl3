@@ -540,33 +540,43 @@ test('parent pending retries stop after four active reads and manual retry start
   expect(requests).toBe(initialRequests + 4)
 })
 
-test('generic 503 is not treated as pending and does not auto-retry', async ({ page }) => {
-  await page.clock.install()
-  let requests = 0
-  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => {
-    requests += 1
-    if (requests <= 2) {
-      return route.fulfill({
-        status: 503,
-        headers: requests === 2
-          ? { 'X-Qualification-State': 'current', 'Retry-After': '5' }
-          : {},
-        json: { detail: 'temporarily unavailable' },
-      })
-    }
-    return route.fulfill({ json: groupPage })
+const generic503Variants: { name: string; headers: Record<string, string> }[] = [
+  { name: 'without headers', headers: {} },
+  {
+    name: 'with current and Retry-After headers',
+    headers: { 'X-Qualification-State': 'current', 'Retry-After': '5' },
+  },
+]
+for (const variant of generic503Variants) {
+  test(`generic 503 ${variant.name} is not pending and does not auto-retry`, async ({ page }) => {
+    await page.clock.install()
+    let requests = 0
+    let failing = true
+    await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+    await page.route('**/api/opportunities/groups?*', route => {
+      requests += 1
+      if (failing) {
+        return route.fulfill({
+          status: 503,
+          headers: variant.headers,
+          json: { detail: 'temporarily unavailable' },
+        })
+      }
+      return route.fulfill({ json: groupPage })
+    })
+    await page.goto('/?groupBrowse=1')
+    await expect(page.getByRole('alert')).toContainText('503')
+    await page.waitForLoadState('networkidle')
+    const initialRequests = requests
+    expect(initialRequests).toBeGreaterThan(0)
+    await page.clock.fastForward(30000)
+    expect(requests).toBe(initialRequests)
+    failing = false
+    await page.getByRole('button', { name: 'Retry' }).click()
+    await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+    expect(requests).toBe(initialRequests + 1)
   })
-  await page.goto('/?groupBrowse=1')
-  await expect(page.getByRole('alert')).toContainText('503')
-  const initialRequests = requests
-  expect(initialRequests).toBeGreaterThan(0)
-  await page.clock.fastForward(30000)
-  expect(requests).toBe(initialRequests)
-  await page.getByRole('button', { name: 'Retry' }).click()
-  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
-  expect(requests).toBe(initialRequests + 1)
-})
+}
 
 test('pending parent retry timer is cancelled when a new search supersedes it', async ({ page }) => {
   await page.clock.install()
