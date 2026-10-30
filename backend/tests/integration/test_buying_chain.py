@@ -197,6 +197,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
                 "https://www.eogresources.com/investors/",
                 "https://www.eogresources.com/careers/",
             ],
+            now=NOW,
         )
         job = session.get(Job, UUID(queued["job_id"]))
         job.status = "running"
@@ -262,6 +263,22 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
     )
     assert result["status"] == "complete", result
     assert seen_deadlines and all(value == inherited_deadline for value in seen_deadlines)
+
+    # A new checkpoint opens a new transaction and must reuse the same job.
+    with db.begin() as session:
+        replay = discovery.discover_company_contacts(
+            session,
+            company_id,
+            candidate_urls=[
+                "https://www.eogresources.com/",
+                "https://www.eogresources.com/news/",
+                "https://www.eogresources.com/investors/",
+                "https://www.eogresources.com/careers/",
+            ],
+            now=NOW,
+        )
+        assert replay["job_id"] == str(job_id)
+        assert replay["deduplicated"] is True
     with db.begin() as session:
         projected = company_contacts(session, company_id)
         assert projected.contacts
@@ -408,20 +425,6 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
             for contact in day_31_projection.contacts
             for method in contact.methods
         )
-    # A new checkpoint opens a new transaction and must reuse the same job.
-    with db.begin() as session:
-        replay = discovery.discover_company_contacts(
-            session,
-            company_id,
-            candidate_urls=[
-                "https://www.eogresources.com/",
-                "https://www.eogresources.com/news/",
-                "https://www.eogresources.com/investors/",
-                "https://www.eogresources.com/careers/",
-            ],
-        )
-        assert replay["job_id"] == str(job_id)
-        assert replay["deduplicated"] is True
     with db.begin() as session:
         membership = session.scalar(
             select(CompanyProjectMembership).where(
@@ -925,6 +928,7 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
             session,
             company_id,
             candidate_urls=["https://acme.example/contact", "https://acme.example/team"],
+            now=NOW,
         )
         job = session.get(Job, UUID(queued["job_id"]))
         job.status, job.lease_owner, job.fence = "running", "contact-test", 1
@@ -979,6 +983,7 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
             session,
             company_id,
             candidate_urls=["https://acme.example/contact", "https://acme.example/team"],
+            now=NOW,
         )
         assert replay["job_id"] == str(job_id)
         assert replay["deduplicated"] is True

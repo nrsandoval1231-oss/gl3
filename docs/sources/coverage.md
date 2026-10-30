@@ -17,3 +17,7 @@ On October 20, the owner authorized site-specific news to create standalone disc
 - [PRD](../product/PRD.md): product scope and evidence requirements.
 
 Older source audits and local retrieval reports are dated evidence. They describe only their named candidate and observation period.
+
+## October 30 acquisition candidate
+
+The [bounded GovInfo notice capture](../validation/govinfo-complete-notice-20261030.md) retains complete newly captured target notices, preserving engineering text previously lost after 1,200 characters. It leaves existing source eligibility and immutable earlier evidence unchanged. The retained two-page historical PDF is a regression fixture, not proof of current engineering coverage or deployment.
