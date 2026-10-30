@@ -1,4 +1,6 @@
-# Current work ownership — intelligence Phase 0
+# Historical Phase 0 ownership checkpoint — intelligence consolidation
+
+This table preserves its authoring-time state; pending/draft rows below are historical, not current CI or merge status. The [PR150 completion record](https://github.com/nrsandoval1231-oss/gl3/pull/150) retains exact-head results, independent review and current readiness. The owner subsequently authorized validation and merge; deployment remains separately gated.
 
 Base `b03f2e58f43cbe036622273831ae4ffc0a909a3b`; branch `docs/autonomous-intelligence-phase0-20261029`. [Packet](packets/INTELLIGENCE-PHASE0-20261029.md), [checkpoint](CURRENT_STATE.md).
 

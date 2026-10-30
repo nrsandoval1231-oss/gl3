@@ -34,6 +34,6 @@ Twelve replaced authority documents are preserved byte-for-byte under [.agent/ar
 
 ## Execution record and remaining risk
 
-Full lane; three concurrent `gpt-6-luna` low builders with disjoint ownership; independent `gpt-6-astra` high critic. One material review repair cycle. Planning/build/validation/audit phase timings and token totals UNKNOWN; no speed or token-efficiency claim. UTC review/receipt checkpoint observed 2026-10-30 00:17:09; local date remains October29 America/Chicago.
+Full lane; three concurrent `gpt-6-luna` low builders with disjoint ownership; independent `gpt-6-astra` high critic. One material review repair cycle. Planning/build/validation/audit phase timings and token totals UNKNOWN; no speed or token-efficiency claim. UTC review/receipt checkpoint observed 2026-10-30 00:17:09; local date remains October 29 America/Chicago.
 
 Static audit is broad but not an exhaustive call graph or fresh production assessment. Current coverage, buyer authority/deliverability, calibration and autonomous promotion remain unproven. Keep runtime/approved UI, regional/tier/300kW boundaries and privacy intact. Highest-leverage NEXT slice: map existing evidence and identity for one O&G cohort, then add only missing typed equipment/load claims and negative fixtures before connecting deterministic demand models. The [roadmap](../delivery/intelligence-roadmap.md) is planned work, not shipped functionality. No merge/deployment authorization.
