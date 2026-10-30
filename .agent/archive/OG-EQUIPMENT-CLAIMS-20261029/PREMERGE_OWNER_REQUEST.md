@@ -1,0 +1,3 @@
+# Current owner request — proceed with O&G claim foundation
+
+Following Phase0 PR150, user said proceed. Implement the stated next source-traceable equipment/load slice in a separate PR using the approved [roadmap](../docs/delivery/intelligence-roadmap.md) and [packet](packets/OG-EQUIPMENT-CLAIMS-20261029.md). Map existing schema, add only missing pure candidate contracts/fixtures, test and independently review. Keep unknowns, explicit UNVERIFIED state and exact source/project binding. No merge, deployment, providers, runtime publication, schema/data mutation, UI changes or unrelated saved-browse repair. Preserve prior request under archive/OG-EQUIPMENT-CLAIMS-20261029.

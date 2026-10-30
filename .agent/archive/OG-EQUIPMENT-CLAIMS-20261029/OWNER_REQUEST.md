@@ -1,0 +1,3 @@
+# Current owner request — autonomous intelligence Phase 0
+
+Authority: owner-supplied Canonical Autonomous Intelligence Builder Directive, October 29, 2026, preserved as [directive](packets/INTELLIGENCE-PHASE0-DIRECTIVE.md). Audit the real GL3 repository, consolidate one product direction, document seven-layer target contracts and measured implementation gaps, safely consolidate conflicting active documentation, validate, independently review, and open a focused PR. No engine rewrite, UI redesign, migrations, production changes, paid-provider activation or outreach. [Packet](packets/INTELLIGENCE-PHASE0-20261029.md) records scope and acceptance; [roadmap](../docs/delivery/intelligence-roadmap.md) sequences later work.
