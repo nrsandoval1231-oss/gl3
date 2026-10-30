@@ -3,11 +3,18 @@ import re
 from decimal import Decimal
 from pathlib import Path
 
+import httpx
+import pytest
 from pypdf import PdfReader
 
-from gridlens.ingestion.parsers.ferc_equipment import extract_ferc_equipment
+from gridlens.ingestion.adapters.govinfo_pdf import retrieve_companion
+from gridlens.ingestion.parsers.ferc_equipment import (
+    extract_ferc_equipment,
+    parse_ferc_notice_title,
+)
 
 FIXTURE = Path(__file__).parents[1] / "fixtures/govinfo-complete-notice"
+SCHEDULE_FIXTURE = Path(__file__).parents[1] / "fixtures/ferc-review-schedule"
 
 
 def _real_notice_text() -> tuple[str, str]:
@@ -15,6 +22,157 @@ def _real_notice_text() -> tuple[str, str]:
     reader = PdfReader(str(FIXTURE / "FR-2024-12869.pdf"))
     text = "\n".join(page.extract_text() or "" for page in reader.pages)
     return text, provenance["official_title"]
+
+
+def _real_schedule_text() -> tuple[str, str]:
+    record = json.loads((SCHEDULE_FIXTURE / "federal-register-record.json").read_text())
+    raw = (SCHEDULE_FIXTURE / "FR-2024-00135.pdf").read_bytes()
+    with httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, content=raw, headers={"content-type": "application/pdf"})
+        )
+    ) as client:
+        citation = retrieve_companion(record, client)[0]
+    return citation["abstract"], record["title"]
+
+
+def test_extracts_authentic_review_schedule_and_keeps_appurtenant_work_unscoped():
+    text, title = _real_schedule_text()
+    result = extract_ferc_equipment(text, title=title)
+
+    assert parse_ferc_notice_title(title) == (
+        "Natural Gas Pipeline Company of America LLC",
+        "Texas-Louisiana Expansion Project",
+        "environmental_review_schedule",
+    )
+    assert result.notice_kind == "environmental_review_schedule"
+    assert [(site.facility, site.location) for site in result.sites] == [
+        ("Compressor Station 302", "Montgomery County, Texas"),
+        ("Compressor Station 343", "Liberty County, Texas"),
+    ]
+    assert len(result.sites[0].claims) == 1
+    claim = result.sites[0].claims[0]
+    assert (claim.drive, claim.lifecycle_status, claim.count, claim.rating, claim.rating_unit) == (
+        "electric",
+        "proposed",
+        1,
+        Decimal("18340"),
+        "hp",
+    )
+    assert claim.rating_basis == "unknown"
+    assert "(EMD)" in claim.quote
+    assert text[claim.start : claim.end] == claim.quote
+    assert result.sites[1].claims == ()
+    assert len(result.project_activities) == 1
+    appurtenant = result.project_activities[0]
+    assert appurtenant.activity == "unscoped_appurtenant_facilities"
+    assert "certain appurtenant facilities" in re.sub(r"\s+", " ", appurtenant.quote)
+    assert text[appurtenant.start : appurtenant.end] == appurtenant.quote
+    assert [
+        (ref["normalized_full"], ref["normalized_root"]) for ref in result.docket_references
+    ] == [("CP24-8-000", "CP24-8"), (None, "CP24-8")]
+    for ref in result.docket_references:
+        assert text[ref["start"] : ref["end"]] == ref["quote"]
+    assert result.docket_issues == []
+
+
+def test_review_schedule_rejects_mismatched_station_alias_and_wrong_notice_family():
+    text, title = _real_schedule_text()
+    alias_mismatch = text.replace("(CS 302)", "(CS 343)", 1)
+    result = extract_ferc_equipment(alias_mismatch, title=title)
+    assert result.sites == []
+    assert any("alias" in issue for issue in result.issues)
+
+    scoping_title = title.replace(
+        "Notice of Schedule for the Preparation of an Environmental Assessment",
+        "Notice of Scoping Period Requesting Comments on Environmental Issues",
+    )
+    assert parse_ferc_notice_title(scoping_title) is None
+    assert extract_ferc_equipment(text, title=scoping_title).sites == []
+
+
+def test_review_schedule_does_not_absorb_unrecognized_station_heading_into_prior_bullet():
+    text, title = _real_schedule_text()
+    altered = re.sub(
+        r"•\s*Install one new electric motor\s+driven \(EMD\) compressor unit with a\s+"
+        r"rating of 18,340 hp\.",
+        "",
+        text,
+        count=1,
+    )
+    altered = re.sub(
+        r"Modification at Compressor Station\s+343\s+\(CS 343\) in Liberty County, Texas",
+        "Work at Compressor Station 343 (CS 343) in Liberty County, Texas",
+        altered,
+        count=1,
+    )
+    altered = re.sub(
+        r"•\s*Re-wheel existing EMD compressor\s+Units 9 and 10\.",
+        "• Install one new electric motor driven (EMD) compressor unit with a rating of 18,340 hp.",
+        altered,
+        count=1,
+    )
+    result = extract_ferc_equipment(altered, title=title)
+    assert result.sites == []
+    assert any("heading layout is ambiguous" in issue for issue in result.issues)
+
+
+def test_docket_references_are_generic_consistent_and_never_gain_invented_suffixes():
+    text, title = _real_schedule_text()
+    changed_full = text + " Related docket CP24–8–001."
+    conflict = extract_ferc_equipment(changed_full, title=title)
+    assert any("conflict" in issue for issue in conflict.docket_issues)
+    assert {ref["normalized_full"] for ref in conflict.docket_references} == {
+        "CP24-8-000",
+        "CP24-8-001",
+        None,
+    }
+
+    root_only_text = text.replace("CP24–8–000", "CP24–8")
+    root_only = extract_ferc_equipment(root_only_text, title=title)
+    assert root_only.docket_references
+    assert all(ref["normalized_full"] is None for ref in root_only.docket_references)
+    assert all(ref["normalized_root"] == "CP24-8" for ref in root_only.docket_references)
+
+    malformed = extract_ferc_equipment(text.replace("CP24–8–000", "CP24–8–0000", 1), title=title)
+    assert any("Malformed docket" in issue for issue in malformed.docket_issues)
+
+
+@pytest.mark.parametrize("reference", ["CP24 - 8 - 000", "CP24–8–000", "cp24—8—000"])
+def test_docket_typography_keeps_exact_source_spans(reference):
+    text, title = _real_schedule_text()
+    text = text.replace("CP24–8–000", reference)
+    result = extract_ferc_equipment(text, title=title)
+    assert result.docket_issues == []
+    first = result.docket_references[0]
+    assert first["normalized_full"] == "CP24-8-000"
+    assert first["quote"] == reference
+    assert text[first["start"] : first["end"]] == reference
+
+
+@pytest.mark.parametrize("reference", ["CP24-8-0000", "CP24-8-000A", "CP2024-8-000"])
+def test_malformed_docket_cannot_be_accepted_as_a_valid_prefix(reference):
+    text, title = _real_schedule_text()
+    result = extract_ferc_equipment(text + " Related docket " + reference, title=title)
+    assert any("Malformed docket" in issue for issue in result.docket_issues)
+    assert all(ref["quote"] != reference for ref in result.docket_references)
+
+
+def test_docket_reference_bound_cannot_silently_publish_a_partial_identity():
+    text, title = _real_schedule_text()
+    result = extract_ferc_equipment(text + " CP24-8" * 17, title=title)
+    assert len(result.docket_references) == 16
+    assert any("bound exceeded" in issue for issue in result.docket_issues)
+    assert result.sites[0].claims[0].rating == Decimal("18340")
+
+
+def test_station_heading_case_does_not_change_scope():
+    text, title = _real_schedule_text()
+    changed = text.replace("Compressor Station", "compressor station")
+    original = extract_ferc_equipment(text, title=title)
+    result = extract_ferc_equipment(changed, title=title)
+    assert result.issues == []
+    assert result.sites[0].claims[0].claim_key == original.sites[0].claims[0].claim_key
 
 
 def test_extracts_real_notice_as_two_distinct_stations_with_exact_source_spans():
@@ -127,6 +285,7 @@ def test_installation_clause_fullmatch_rejects_negation_and_trailing_contradicti
         clause[:-1] + ", but installation has been cancelled.",
         clause[:-1] + " and 20,000 hp.",
         clause.replace("electric motor driven", "electric motor driven gas engine driven"),
+        clause.replace("electric motor driven", "gas engine driven (EMD)"),
     ):
         altered = clause_pattern.sub(replacement, text, count=1)
         result = extract_ferc_equipment(altered, title=title)

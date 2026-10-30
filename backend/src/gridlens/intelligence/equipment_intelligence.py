@@ -26,6 +26,10 @@ from gridlens.domain.equipment_evidence import EvidenceContext, EvidenceReferenc
 from gridlens.domain.ferc_equipment_interpretation import (
     EVALUATOR_VERSION as FERC_EVALUATOR_VERSION,
 )
+from gridlens.domain.ferc_equipment_interpretation import (
+    source_docket_context,
+    source_project_activities,
+)
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.parsers.equipment import VERSION, extract_equipment_claims
 from gridlens.ingestion.parsers.ferc_equipment import (
@@ -287,6 +291,18 @@ def _ferc_extraction(need, project, observation, evidence, interpretation, sourc
         f"Unsupported station activity remains unresolved: {item.activity}."
         for item in site.unsupported_activities
     )
+    docket = source_docket_context(result, text)
+    project_activities = source_project_activities(result, text)
+    if docket != native.get("docket_context"):
+        context_questions.append(
+            "Current FERC docket context does not match the admitted source binding."
+        )
+    if project_activities != native.get("project_activities", []):
+        context_questions.append(
+            "Current FERC project activity context does not match the admitted source binding."
+        )
+    if not isinstance(docket, dict) or docket.get("status") != "SOURCE_BOUND":
+        context_questions.append("FERC docket identity remains unknown or conflicting.")
     if native.get("complete_site_schedule") is not True:
         context_questions.append(
             "The notice identifies equipment but does not provide a complete site schedule."
@@ -375,6 +391,9 @@ def _ferc_extraction(need, project, observation, evidence, interpretation, sourc
         extracted.claims.append(converted)
     source_context = {
         "classification": "CONTEXT_ONLY_EXCEPT_SELECTED_SITE",
+        "notice_kind": native.get("notice_kind"),
+        "docket": docket,
+        "project_activities": project_activities,
         "sites": [
             {
                 "facility": current_site.facility,
@@ -644,6 +663,11 @@ def _payload(need, project, observation, evidence, source, interpretation) -> di
                 for claim in claims
             ],
             native_site_assertion={
+                "notice_kind": assessment.get("native_equipment", {}).get("notice_kind"),
+                "docket": assessment.get("native_equipment", {}).get("docket_context"),
+                "project_activities": assessment.get("native_equipment", {}).get(
+                    "project_activities", []
+                ),
                 "scope": assessment.get("native_equipment", {}).get("scope"),
                 "site_key": assessment.get("native_equipment", {}).get("site_key"),
                 "facility": extracted.facility,

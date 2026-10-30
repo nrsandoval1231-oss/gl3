@@ -1,0 +1,31 @@
+{
+  "title": "Natural Gas Pipeline Company of America LLC; Notice of Schedule for the Preparation of an Environmental Assessment for the Texas-Louisiana Expansion Project",
+  "type": "Notice",
+  "abstract": null,
+  "document_number": "2024-00135",
+  "html_url": "https://www.federalregister.gov/documents/2024/01/08/2024-00135/natural-gas-pipeline-company-of-america-llc-notice-of-schedule-for-the-preparation-of-an",
+  "pdf_url": "https://www.govinfo.gov/content/pkg/FR-2024-01-08/pdf/2024-00135.pdf",
+  "public_inspection_pdf_url": "https://public-inspection.federalregister.gov/2024-00135.pdf?1704462324",
+  "publication_date": "2024-01-08",
+  "agencies": [
+    {
+      "raw_name": "DEPARTMENT OF ENERGY",
+      "name": "Energy Department",
+      "id": 136,
+      "url": "https://www.federalregister.gov/agencies/energy-department",
+      "json_url": "https://www.federalregister.gov/api/v1/agencies/136",
+      "parent_id": null,
+      "slug": "energy-department"
+    },
+    {
+      "raw_name": "Federal Energy Regulatory Commission",
+      "name": "Federal Energy Regulatory Commission",
+      "id": 167,
+      "url": "https://www.federalregister.gov/agencies/federal-energy-regulatory-commission",
+      "json_url": "https://www.federalregister.gov/api/v1/agencies/167",
+      "parent_id": 136,
+      "slug": "federal-energy-regulatory-commission"
+    }
+  ],
+  "excerpts": "On October 18, 2023, Natural Gas Pipeline Company of America LLC (Natural) filed an application in Docket No. <span class=\"match\">CP24-8</span>-000 requesting a Certificate of Public Convenience and Necessity pursuant to section 7(c) of the Natural Gas Act to construct and operate certain natural gas pipeline facilities. The proposed project is known as the Texas-Louisiana Expansion Project (Project) and would add an incremental 300,000 dekatherms per day (Dth/day) of firm gas capacity in Segment 25 of Natural's Louisiana Line 10. When combined with the unsubscribed capacity"
+}
