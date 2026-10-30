@@ -1,0 +1,31 @@
+{
+  "source_url": "https://www.govinfo.gov/content/pkg/FR-2024-06-12/html/2024-12869.htm",
+  "source_host": "www.govinfo.gov",
+  "source_document": "Federal Register, 2024-06-12, docket CP24-8-000",
+  "project_description": "Proposed Texas-Louisiana expansion; Natural Gas Pipeline Company of America LLC; Compressor Station 302, Montgomery County, Texas",
+  "published_at": "2024-06-12",
+  "document_date": "2024-06-06",
+  "retrieved_at": "2026-10-30T01:16:10.278252+00:00",
+  "retained_excerpt_path": "backend/tests/fixtures/ferc-cp24-8-equipment-excerpt.txt",
+  "retained_excerpt_sha256": "d76f9ac3c5e5621cd16101033ab35e0e7b3b7e22aec98757ed815794c88c4d57",
+  "original_source_sha256": "d4e94db733664b6045b046296bb96666a25885d661bfce5482d8f787d019a74f",
+  "normalization": "Exact quoted sentence retained with one trailing LF; source quote whitespace collapsed before exact excerpt selection. Original source hash is of the retrieved full HTML, which is intentionally not copied into the tracked fixture.",
+  "source_assertion": {
+    "equipment_type": "compressor",
+    "drive_type": "electric",
+    "lifecycle_status": "proposed",
+    "operating_role": "unknown",
+    "count": 1,
+    "rating_original": "18,340 hp",
+    "rating_value": "18340",
+    "rating_unit": "hp",
+    "rating_basis": "unknown"
+  },
+  "limitations": [
+    "Historical proposal, not proof of current installation, construction, operation, or present status.",
+    "The source does not establish whether hp is shaft output or electrical input; retain basis as unknown and do not convert to MW.",
+    "This equipment assertion does not establish project power demand, utility supply, a residual gap, procurement status, or Lead qualification.",
+    "Test UUIDs are fixture-only anchors, not database project, need, observation, or evidence IDs.",
+    "Original document hash is provenance metadata for the retrieved source; the tracked excerpt hash covers only the one-sentence fixture plus LF."
+  ]
+}

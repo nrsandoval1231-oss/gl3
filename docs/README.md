@@ -19,3 +19,5 @@ Start with [AGENTS.md](../AGENTS.md). The [Autonomous Intelligence Canon](produc
 ## Intelligence consolidation — CURRENT / TARGET / NEXT / DEFERRED
 
 CURRENT implementation and TARGET contracts are separated in the [architecture](architecture/overview.md), [engine](architecture/intelligence-engine.md), [data model](architecture/data-model.md), [demand models](architecture/demand-models.md) and [verification/evaluation](architecture/verification-evaluation.md). NEXT work is sequenced in the [roadmap](delivery/intelligence-roadmap.md) using the path-level [audit](engineering/intelligence-phase0-audit-20261029.md). DEFERRED engine capabilities are specifications, not shipped functionality. Replaced authority bytes are retained in the [Phase 0 archive](../.agent/archive/INTELLIGENCE-PHASE0-20261029/README.md).
+
+NEXT foundation slice: [O&G equipment claim map](architecture/og-equipment-claim-map.md), [implementation packet](../.agent/packets/OG-EQUIPMENT-CLAIMS-20261029.md), and [verification](validation/og-equipment-claims-20261029.md). Candidate validation alone is not verified electrical demand or an implemented autonomous engine.

@@ -1,0 +1,123 @@
+{
+  "schema_version": "og-equipment-cohort-fixture-v1",
+  "notice": "Synthetic claim assertions validate structure only; they are not claims about any retained or real project.",
+  "retained_sources": [
+    {
+      "fixture_path": "backend/tests/fixtures/rrc_completion/new-well-138740.html",
+      "manifest_path": "backend/tests/fixtures/rrc_completion/provenance.json",
+      "fixture_sha256": "ffb33a959abab9bcdc1649d45161f3fd5110ce3b2e394b8bc729bce5418f4ab0",
+      "source_host": "https://webapps.rrc.texas.gov/CMPL/",
+      "source_excerpt": "New Well",
+      "identity": {
+        "api": "16538299",
+        "permit_number": "0918877",
+        "operator_number": "630555",
+        "operator": "OXY USA WTP LP",
+        "lease": "WEST SEMINOLE SA UNIT",
+        "well_number": "604 R",
+        "county": "GAINES"
+      },
+      "observed_fact_limit": "Official completion packet reports a historical new-well completion and identity fields. It does not identify compressor/pump equipment, drive type, equipment count, rating, operating role, electrical load, or project power demand."
+    },
+    {
+      "fixture_path": "backend/tests/fixtures/rrc_completion/recompletion-273201.html",
+      "manifest_path": "backend/tests/fixtures/rrc_completion/provenance.json",
+      "fixture_sha256": "91bc2282eccacdf11eb2052d9c76cf3bb06d82e2853cf391b32419978b61f374",
+      "source_host": "https://webapps.rrc.texas.gov/CMPL/",
+      "source_excerpt": "Type Of Completion:",
+      "identity": {
+        "api": "16538299",
+        "operator": "OXY USA WTP LP",
+        "lease": "WEST SEMINOLE SA UNIT",
+        "well_number": "604 R",
+        "county": "GAINES"
+      },
+      "observed_fact_limit": "Official packet is a historical recompletion record for the same API identity; it contains no retained equipment drive/rating/count/role evidence."
+    }
+  ],
+  "synthetic_context": {
+    "project_id": "e3bc2452-bede-4ee8-8f44-e24ea5c4fb8a",
+    "need_id": "0a2a6d60-3ef1-46cb-bbfe-b708fc198b33",
+    "source_id": "synthetic-fixture-only",
+    "source_url": "https://fixture.invalid/claims/og-equipment",
+    "observed_at": "2026-10-28T12:00:00+00:00",
+    "retrieved_at": "2026-10-28T13:00:00+00:00",
+    "published_at": "2026-10-27",
+    "extraction_location": "synthetic test fixture assertion",
+    "extractor_version": "synthetic-fixture-v1"
+  },
+  "synthetic_cases": [
+    {
+      "name": "electric compressor reported rating",
+      "claim_state": "reported",
+      "equipment_type": "compressor",
+      "drive_type": "electric",
+      "lifecycle_status": "installed",
+      "operating_role": "duty",
+      "count": 2,
+      "rating": {"value": "125", "unit": "hp", "basis": "mechanical_output"},
+      "quote": "Synthetic example: two electric compressors, 125 hp mechanical output each.",
+      "expected_rating_preserved": true
+    },
+    {
+      "name": "gas engine is not electric demand",
+      "claim_state": "reported",
+      "equipment_type": "compressor",
+      "drive_type": "gas_engine",
+      "lifecycle_status": "existing",
+      "operating_role": "duty",
+      "count": 1,
+      "rating": {"value": "500", "unit": "hp", "basis": "mechanical_output"},
+      "quote": "Synthetic example: one gas-engine-driven compressor rated 500 hp.",
+      "expected_rating_preserved": true
+    },
+    {
+      "name": "unknown drive stays unknown",
+      "claim_state": "reported",
+      "equipment_type": "pump",
+      "drive_type": "unknown",
+      "lifecycle_status": "existing",
+      "operating_role": "unknown",
+      "count": 1,
+      "rating": {"value": "75", "unit": "hp", "basis": "unknown"},
+      "quote": "Synthetic example: pump rated 75 hp; drive not stated.",
+      "expected_rating_preserved": true
+    },
+    {
+      "name": "standby compressor",
+      "claim_state": "reported",
+      "equipment_type": "compressor",
+      "drive_type": "electric",
+      "lifecycle_status": "installed",
+      "operating_role": "standby",
+      "count": 1,
+      "rating": null,
+      "quote": "Synthetic example: one electric compressor is standby; rating not stated.",
+      "expected_rating_preserved": false
+    },
+    {
+      "name": "equipment with missing count and rating",
+      "claim_state": "unknown",
+      "equipment_type": "unknown",
+      "drive_type": "unknown",
+      "lifecycle_status": "unknown",
+      "operating_role": "unknown",
+      "count": null,
+      "rating": null,
+      "quote": "Synthetic example: equipment mentioned without type, drive, count, or rating.",
+      "expected_rating_preserved": false
+    },
+    {
+      "name": "conflicting drive assertion",
+      "claim_state": "contradicted",
+      "equipment_type": "compressor",
+      "drive_type": "mixed",
+      "lifecycle_status": "existing",
+      "operating_role": "unknown",
+      "count": 1,
+      "rating": null,
+      "quote": "Synthetic example: one source says electric and another says gas driven.",
+      "expected_rating_preserved": false
+    }
+  ]
+}
