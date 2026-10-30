@@ -1,0 +1,21 @@
+{
+  "source_url": "https://www.govinfo.gov/content/pkg/FR-2024-06-12/pdf/2024-12869.pdf",
+  "retrieved_at_utc": "2026-10-30T08:32:45Z",
+  "retrieval_method": "single unauthenticated HTTPS GET; 15 second timeout; maximum response 5,000,000 bytes",
+  "http_status": 200,
+  "content_type": "application/pdf",
+  "response_bytes": 229868,
+  "sha256": "4d5d8293eebb47e41705b0b9f2aa027a6a898820c73913f6b33d7683b99127b6",
+  "official_title": "Natural Gas Pipeline Company of America LLC; Notice of Availability of the Environmental Assessment for the Proposed Texas-Louisiana Expansion Project",
+  "document_number": "2024-12869",
+  "publication_date": "2024-06-12",
+  "pdf_pages": 2,
+  "pypdf_version": "6.10.0",
+  "selection": "Complete original GovInfo PDF for FR-2024-12869. No page content was edited or synthesized.",
+  "interpretation_limits": [
+    "The notice describes proposed work; it does not establish installation, commissioning, or current operation.",
+    "The notice reports 18,340 hp but does not establish electrical input basis, efficiency, operating count, or electric MW.",
+    "The file is two Federal Register pages and includes the end of preceding document 2024-12866 on page one before the target title.",
+    "The target FR Doc. 2024-12869 footer appears on page two."
+  ]
+}
