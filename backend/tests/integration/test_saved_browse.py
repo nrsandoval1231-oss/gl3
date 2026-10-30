@@ -1528,7 +1528,25 @@ def test_operator_refresh_does_not_publish_cached_project_after_concurrent_ident
         assert {item["id"] for item in page(reader, filters())["items"]} == set(map(str, ids[1:]))
 
 
-def test_worker_refresh_failure_preserves_evidence_and_restart_recovers(saved_db, monkeypatch):
+@pytest.fixture
+def ordinary_browse_clock(monkeypatch):
+    """Recovery tests exercise publication, independently of midnight pre-preparation."""
+    from gridlens.intelligence import saved_browse, worker_browse
+
+    fixed_now = datetime.now(UTC).replace(hour=16, minute=0, second=0, microsecond=0)
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed_now.replace(tzinfo=None) if tz is None else fixed_now.astimezone(tz)
+
+    monkeypatch.setattr(saved_browse, "datetime", FixedDatetime)
+    monkeypatch.setattr(worker_browse, "datetime", FixedDatetime)
+
+
+def test_worker_refresh_failure_preserves_evidence_and_restart_recovers(
+    saved_db, monkeypatch, ordinary_browse_clock
+):
     from gridlens.intelligence import saved_browse
     from gridlens.intelligence.worker_browse import install_worker_publication
 
@@ -1682,7 +1700,9 @@ def test_continuous_worker_ingestion_keeps_saved_reads_current_and_exact(saved_d
         assert len(page(reader, filters())["items"]) == 4
 
 
-def test_worker_publication_pending_commit_recovers_after_engine_restart(saved_db, monkeypatch):
+def test_worker_publication_pending_commit_recovers_after_engine_restart(
+    saved_db, monkeypatch, ordinary_browse_clock
+):
     from time import monotonic
 
     from gridlens.intelligence.saved_browse import maintain_once
@@ -1770,7 +1790,9 @@ def test_worker_publishes_bulk_segment_but_operator_request_stays_small(saved_db
         assert page(reader, filters())["total_count"] == 0
 
 
-def test_worker_budget_exhaustion_retains_changes_and_offline_recovers(saved_db, monkeypatch):
+def test_worker_budget_exhaustion_retains_changes_and_offline_recovers(
+    saved_db, monkeypatch, ordinary_browse_clock
+):
     from time import monotonic
 
     from gridlens.intelligence.saved_browse import maintain_once

@@ -151,11 +151,18 @@ def extract_equipment_claims(text: str) -> ExtractionResult:
     equipment_lines = 0
     for line_match in lines:
         line = line_match.group(0)
+        if re.match(r"^\s*(?:company|facility|as\s+of)\s*:", line, re.I):
+            continue
         if not re.search(r"\b(?:equipment\s+)?id\s*:", line, re.I):
             if _SCHEDULE_FIELD.search(line):
                 equipment_lines += 1
                 result.issues.append(
                     f"Structured equipment row lacks an ID at offset {line_match.start()}."
+                )
+            elif re.search(r"\b(?:pump|compressor|compression|motor|equipment)\b", line, re.I):
+                equipment_lines += 1
+                result.issues.append(
+                    f"Unstructured equipment-like text at offset {line_match.start()} was skipped."
                 )
             continue
         equipment_lines += 1

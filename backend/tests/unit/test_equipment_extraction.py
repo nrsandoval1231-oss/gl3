@@ -41,6 +41,7 @@ def test_synthetic_schedule_fixture_is_explicit_and_keeps_unknowns():
     text = path.read_text()
     result = extract_equipment_claims(text)
     assert len(result.claims) == 3
+    assert result.issues == []
     assert result.claims[0].drive == "electric"
     assert result.claims[1].drive == "gas_engine"
     assert result.claims[2].drive == "unknown"
@@ -227,3 +228,14 @@ def test_mixed_valid_row_and_structured_rows_missing_id_or_rating_report_issues(
     assert len(result.issues) == 3
     assert any("Structured equipment row lacks an ID" in issue for issue in result.issues)
     assert any("Unrecognized or ambiguous equipment row" in issue for issue in result.issues)
+
+
+def test_mixed_valid_row_and_unstructured_equipment_prose_reports_incomplete_extraction():
+    row = "ID: M-4 | Type: pump | Drive: electric | Rating: 100 kW electrical input"
+    result = extract_equipment_claims(
+        "Company: Pumping Example LLC\n"
+        "Facility: Compressor Station 4\n"
+        "As of: 2025-01-01\n" + row + "\nAlso install a 200 kW electric pump."
+    )
+    assert [claim.equipment_id for claim in result.claims] == ["M-4"]
+    assert any("Unstructured equipment-like text" in issue for issue in result.issues)
