@@ -44,3 +44,9 @@ A Sol architecture audit, five Luna implementation lanes and independent Astra r
 - The full six-layer system, autonomous model promotion and Athena integration remain target work. The next commercially useful phases are in the implementation record.
 
 Latest available production evidence remains the **dated October 29** PR148 application `ca12443f5c57f3502584d8a353d83cdf7d5372b1`, schema0049, 74 tables. It is not a fresh observation of production and does not establish deployment of this work.
+
+## Subsequent main integration
+
+The exact PR153 head `d24c70bdade334e24059bcac88d1c45fb56c970c` passed [CI run 41005705346](https://github.com/nrsandoval1231-oss/gl3/actions/runs/41005705346): 3,388 backend tests passed/one existing skip (301.23 seconds), 169 browser tests passed (2.0 minutes), and all five jobs succeeded. A fresh fetch then found PR152 main `d54646c1`; its unverified equipment candidate contracts and tests were integrated without changing their runtime semantics. The sole merge conflict was the current checkpoint. Superseded active merge instructions were archived exactly. A new combined-head CI gate is required; final results are recorded in the PR description/check suite.
+
+Combined local verification: all three PR152 candidate/cohort test modules plus the seven demand/admission/integration modules passed **206 tests in 14.14 seconds**. Ruff lint/format passed (414 files); maintained-document links passed (90 documents, 352 targets before the added cross-link). Sol 6.1/high independently confirmed module coexistence and no separate repository harness launcher; the session uses the native OpenAI collaboration harness with explicitly selected roles.

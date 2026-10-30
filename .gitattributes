@@ -7,3 +7,6 @@ docs/design/brand.tokens.json text eol=lf
 web/public/brand/**/*.svg text eol=lf
 web/public/brand/**/*.html text eol=lf
 web/public/brand/asset-manifest.json text eol=lf
+
+# Hash-bound official equipment excerpt must retain its recorded LF bytes.
+backend/tests/fixtures/ferc-cp24-8-equipment-excerpt.txt text eol=lf

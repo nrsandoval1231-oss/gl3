@@ -18,6 +18,10 @@ Audit base: `a65b0d1d3196914699e3446447246c4e7b10f598`, fetched after PR150's do
 | REMOVE | None | No useful runtime, migration, historical evidence or test deleted. |
 | DEFER | Live engineering-document acquisition, broader sectors, portfolio demand ranking/totals, buyer automation extensions, Athena | Require source evaluation and independently measured scope; no new infrastructure or paid-provider activation. |
 
+## PR152 integration
+
+Main advanced during validation to `d54646c1600ff4f658d765fa0acf749a4166803c` (PR152). Its `domain/equipment_claims.py` and `domain/equipment_evidence.py` are preserved as strict, unverified candidate/extraction contracts with historic source fixtures. They have no runtime consumer and do not perform demand arithmetic. The bounded schedule parser and `equipment-demand-v1` receipt use separate calculation inputs and independent current-database/source verification; structural candidate validity never certifies a demand result. A future general-document extractor should reuse the candidate contract and add an explicit validated conversion into the calculation input. Consolidation must preserve unsupported states and source binding rather than blindly casting between the two contracts.
+
 ## Implemented path
 
 A representative official O&G schedule enters ordinary `process_records`. Exact company and facility headers, dated regional source context, and at least one new/proposed electric compressor or pump permit Signal discovery without a utility shortage or rental hypothesis. Missing motor efficiency does not prevent the demand investigation record. Gas-only, malformed or mismatched schedules cannot use this new admission path.
