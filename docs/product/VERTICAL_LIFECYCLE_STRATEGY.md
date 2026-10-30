@@ -1,9 +1,11 @@
 # GridLens Vertical Lifecycle Intelligence Strategy
 
 **Date:** September 27, 2026  
-**Status:** Owner-approved canonical product and ingestion strategy  
+**Status:** Supporting lifecycle strategy · owner-approved 2026-09-27
 **Applies to:** `gl3`  
-**Authority:** Complements the [PRD](../product/PRD.md) and supersedes any interpretation that treats permit discovery itself as the primary definition of an early Signal.
+**Authority:** Subordinate to the [Autonomous Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md) and compatible with detailed [PRD](PRD.md) requirements. It explains lifecycle interpretation; it cannot expand current territory or commercial eligibility.
+
+**Delivery state:** CURRENT lifecycle coverage is limited to what deployed sources and code demonstrate. TARGET is the lifecycle doctrine below. NEXT is Oil & Gas and Data Centers. DEFERRED are other sectors and speculative pre-permit models until source-backed validation.
 
 ## Core doctrine
 
@@ -262,9 +264,9 @@ Minimum conceptual outputs:
 
 LLMs/search/research may classify, extract and find evidence. Deterministic code owns lifecycle validation, date arithmetic, time-to-event calculations, tier gates and persisted state transitions.
 
-# Owner acquisition priorities — October 1, 2026
+# Historical owner acquisition priorities — October 1, 2026 (superseded)
 
-Prioritize Dallas, Austin, Houston, El Paso and California while continuing nationwide, cross-industry ingestion. Within that effort, prioritize data-center construction temporary power, then data-center commissioning temporary power, then oil and gas temporary power. The lifecycle discovery sequence below supports that commercial order; early formation evidence remains valuable and does not imply a power gap or commissioning activity.
+The geography and sequence in this dated paragraph are superseded. Current product authority limits eligible physical sites to TX/OK/NM, prioritizes Oil & Gas and Data Centers as the first verticals, and defers other sectors. Lifecycle events remain evidence only and do not imply a power gap or commissioning activity.
 
 Official flare-gas permits and flaring/venting exceptions are in scope for oil-and-gas source onboarding. Preserve their legal/event type and dates separately from actual flaring/production measurements. Do not convert an authorized gas volume to electric output or assume gas availability, composition, suitable fuel or a buyer.
 

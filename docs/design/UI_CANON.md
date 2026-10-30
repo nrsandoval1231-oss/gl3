@@ -2,9 +2,13 @@
 
 **Current visual authority — October 29, 2026:** The owner-supplied [canonical Opportunities reference](references/canonical-opportunities-20261029.jpg) supersedes earlier layout and brand presentation prescriptions below. Use its compact metallic-G navy header, three honest KPIs, dense project table, and adjacent detail panel. The existing two-tone vector masters remain retained; the reference header artwork is a faithful raster derivative, not a newly approved vector master. No sidebar. Preserve real data, provenance, authentication and existing API contracts.
 
-**Product authority:** the owner-approved [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) supersedes manual-workflow requirements. **Visual authority:** the final seven-color GridLens corporate brand board, amended by the [owner-approved results canon with the operator/customer amendment](../product/PROJECT_FIRST_RESULTS_CANON.md) for current layout and information hierarchy. See [BRAND_ASSETS.md](BRAND_ASSETS.md) and [brand.tokens.json](brand.tokens.json). This supersedes all prior Aperture, gold, silver/orange, Signal Blue, ABC Diatype, and left-sidebar design directives. Historical documents remain evidence, not implementation authority.
+**Status: CURRENT visual contract; TARGET intelligence follows the [sole product canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md).** The October 29 reference above controls presentation. The older operator/customer-first composition below is historical; retain its supported entity relationships, sector field semantics and privacy constraints, without reinstating its layout. NEXT: preserve this released UI during the intelligence consolidation. DEFERRED: any redesign.
 
-## Current mandatory composition — 2026-10-27 operator/customer amendment
+## CURRENT composition
+
+Compact metallic-G navy horizontal navigation; light clean data-first workspace; approved navy/slate/sea-cliff/graphite palette; three honest KPIs, dense opportunity table and adjacent company/project evidence/contact detail; responsive phone detail. No left sidebar or photography. Preserve qualified-versus-Signals behavior, pagination, authenticated browsing, session privacy cleanup, background browse updates and provenance-backed contacts. A ranked Today queue and company-centered opportunity semantics are TARGET capabilities where absent, not permission to redesign the released workspace. Preserve vector masters and the raster-reference distinction in [brand assets](BRAND_ASSETS.md).
+
+## Historical October 27 composition — superseded layout
 
 - **No left sidebar or toolbar.** Compact top header uses the canonical lockup and opportunity search. Ordinary primary market filters are **All | Oil & Gas | Data Centers**. Research and Signals remain available as secondary read-only intelligence routes; internal Operations/diagnostics are not routine navigation.
 - Harbor Navy header and existing G/L brand; white/light canvas, restrained navy/slate typography and seven-color brand accents. No decorative photography, maps, hero illustrations or decorative charts.

@@ -1,9 +1,44 @@
-# Architecture and evidence boundaries
+# Architecture: current implementation and target
 
-The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs product behavior; the [UI canon](../design/UI_CANON.md) governs compatible brand and composition. See the [autonomous architecture and retention map](autonomous-intelligence.md) for processing boundaries, retired workflows and preserved data.
+Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) and [PRD](../product/PRD.md). This document describes implementation only where labeled CURRENT. Target contracts are proposals, not shipped services.
 
-GridLens uses a FastAPI backend, a separate Python worker, React/TypeScript and PostgreSQL. Source adapters retrieve/parse evidence. Ingestion, research and enrichment preserve immutable source versions and conservative project identity. Deterministic services calculate qualification, activity-specific gap and ranking; the web reads server-owned published intelligence. Generated TypeScript types derive from the mounted OpenAPI contract.
+## CURRENT — repository implementation boundaries
 
-Historical attributed need facts/decisions, workflow events and pursuit records remain retained backend data. Their schema presence does not authorize new call logging, manual status, fact drafting, correction or qualification UI/API. Distinguish project, power activity, company/buying role, tier, commercial disposition, confidence and priority. Missing supply, a generic contact, source failure or model answer never establishes a Lead.
+- API: FastAPI application and response contracts in `backend/src/gridlens/api/app.py` and `backend/src/gridlens/api/intelligence.py`.
+- Persistence: PostgreSQL SQLAlchemy models in `backend/src/gridlens/persistence/models.py`; additive Alembic history in `backend/migrations/versions/`. Current production checkpoint reports migration 0049 / 74 tables; see [.agent/CURRENT_STATE.md](../../.agent/CURRENT_STATE.md).
+- Collection: source registry, scheduled checks/receipts, durable jobs, observations, immutable evidence versions, interpretation and worker execution (`backend/src/gridlens/ingestion/`, `backend/src/gridlens/jobs/worker.py`).
+- Identity: project identity and match decisions plus company/person identity, membership and buying-chain claims; associations remain evidence- and project-scoped. Identity links do not imply demand qualification.
+- Commercial intelligence: accepted need/activity records, typed fact versions and decisions, lifecycle events, demand/supply schedules, deterministic official qualification, commercial assessment/research, and published browse projections. See `backend/src/gridlens/domain/power_qualification.py`, `power_schedule.py`, `call_facts.py`, and `opportunity_intelligence.py`.
+- Verification: some deterministic boundaries and optional/shadow EvidenceJudge runs exist (`evidence_judge_runs`); they are not a general independent validator or a learned autonomous evaluation system.
+- API/UI publication: server-owned browse and opportunity projections. UI/API presence is not evidence that every target claim is supported. Unknown supply, uncertain contacts, and incomplete signals remain unknown or held.
 
-Active physical projects are limited to TX, OK and NM, in that priority order, across every vertical. Headquarters and source geography cannot establish project eligibility. Preserve evidence/history, customer identity, 300 kW floor, gap calculations and Jev/model boundaries. Runtime configuration, candidate tests and production observations are separate evidence; see [operations status](../operations/README.md).
+Existing eligibility, tier, evidence and privacy boundaries remain those in the canonical product docs. Historical tables and internal exceptional controls do not imply routine human review in the target workflow.
+
+## TARGET — seven-layer intelligence contract
+
+The [engine specification](intelligence-engine.md) defines layer inputs, outputs and evidence gates. Flow: (1) discovery, (2) evidence/entity graph, (3) equipment and demand, (4) lifecycle/timing, (5) supply/constraints, (6) commercial qualification, (7) evaluation/learning. Existing API, worker, PostgreSQL and source adapters are the preferred substrate; no new infrastructure is assumed.
+
+A replaceable reasoning-provider interface may assist extraction, classification, ambiguous resolution and research planning. Athena is optional and outside this repository's runtime dependency. Deterministic software owns calculations, qualification, validation and publication eligibility.
+
+## NEXT — implementation sequence
+
+1. Extend evidence/entity structures additively for temporal many-to-many equipment, demand scenario and supply relationships; retain current identifiers and projections.
+2. Add deterministic, versioned O&G and data-center demand models with explicit input provenance, units, scenarios and negative cases.
+3. Add independent evaluation fixtures, abstention thresholds and rollback/promotion records before connecting autonomous reasoning to publication.
+
+Each slice needs migration/API compatibility and isolated-database regression evidence. No runtime change is part of the Phase 0 specification work.
+
+## DEFERRED
+
+General-purpose graph database, speculative orchestration framework and paid provider activation without separate authorization.
+
+## EXCLUDED
+
+Required routine human approval queues, unrestricted autonomous production code editing, and representing documentation as implemented capability.
+
+## Related specifications
+
+- [Data model](data-model.md)
+- [Demand models](demand-models.md)
+- [Verification and evaluation](verification-evaluation.md)
+- [Existing opportunity intelligence](OPPORTUNITY_INTELLIGENCE.md)

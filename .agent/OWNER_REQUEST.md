@@ -1,5 +1,3 @@
-# Current owner request — repository streamlining, 2026-10-29
+# Current owner request — autonomous intelligence Phase 0
 
-Audit and simplify the existing architecture: preserve the intelligence, eliminate confirmed complexity. Inventory dependencies before deleting; classify KEEP / CONSOLIDATE / REMOVE / ARCHIVE / INVESTIGATE with evidence and risk. Implement bounded, reviewable cleanup, preserve the approved UX and all intelligence, data, privacy and operational safeguards, and run relevant plus full required checks. No rewrite, new infrastructure, production deployment or credential changes.
-
-[AGENTS.md](../AGENTS.md) defines the reading order and safety rules. The [cleanup manifest](../docs/engineering/streamlining-20261029.md) records dispositions and measured results. Prior requests and release permissions remain [historical](archive/STREAMLINING-20261029/README.md).
+Authority: owner-supplied Canonical Autonomous Intelligence Builder Directive, October 29, 2026, preserved as [directive](packets/INTELLIGENCE-PHASE0-DIRECTIVE.md). Audit the real GL3 repository, consolidate one product direction, document seven-layer target contracts and measured implementation gaps, safely consolidate conflicting active documentation, validate, independently review, and open a focused PR. No engine rewrite, UI redesign, migrations, production changes, paid-provider activation or outreach. [Packet](packets/INTELLIGENCE-PHASE0-20261029.md) records scope and acceptance; [roadmap](../docs/delivery/intelligence-roadmap.md) sequences later work.
