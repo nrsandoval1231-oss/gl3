@@ -14,19 +14,20 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 
 Existing eligibility, tier, evidence and privacy boundaries remain those in the canonical product docs. Historical tables and internal exceptional controls do not imply routine human review in the target workflow.
 
-## TARGET — seven-layer intelligence contract
+## TARGET — six-layer demand intelligence contract
 
-The [engine specification](intelligence-engine.md) defines layer inputs, outputs and evidence gates. Flow: (1) discovery, (2) evidence/entity graph, (3) equipment and demand, (4) lifecycle/timing, (5) supply/constraints, (6) commercial qualification, (7) evaluation/learning. Existing API, worker, PostgreSQL and source adapters are the preferred substrate; no new infrastructure is assumed.
+The [engine specification](intelligence-engine.md) defines six layers: (1) Discovery, (2) Entity/Evidence, (3) Electrical Demand, (4) Lifecycle/Timing, (5) Commercial, and (6) Autonomous Evaluation. Demand identification and characterization do not depend on supply constraint or shortage claims. Existing API, worker, PostgreSQL, EvidencePackage, intelligence-card API and source adapters are the preferred substrate; no migration or new framework is planned for the current slice.
 
-A replaceable reasoning-provider interface may assist extraction, classification, ambiguous resolution and research planning. Athena is optional and outside this repository's runtime dependency. Deterministic software owns calculations, qualification, validation and publication eligibility.
+A replaceable reasoning-provider interface may assist interpretation. Athena is optional, not a runtime dependency or required framework. Engineers own deterministic calculations and tests.
 
-## NEXT — implementation sequence
+## NEXT — implementation sequence (first slice in progress)
 
-1. Extend evidence/entity structures additively for temporal many-to-many equipment, demand scenario and supply relationships; retain current identifiers and projections.
-2. Add deterministic, versioned O&G and data-center demand models with explicit input provenance, units, scenarios and negative cases.
-3. Add independent evaluation fixtures, abstention thresholds and rollback/promotion records before connecting autonomous reasoning to publication.
+1. Implement the bounded O&G source equipment parser and deterministic `Decimal` electric pump/compressor models; retain source efficiency, count, operating/standby state, and new-versus-existing classification.
+2. Bind through the confirmed `EvidencePackage`, normal and unchanged-record ingestion hooks, and existing intelligence-card API contract; no migration is planned for this slice.
+3. Later, add broader deterministic, versioned O&G and data-center models with explicit input provenance, units, scenarios and negative cases.
+4. Add independent evaluation fixtures, abstention thresholds and rollback/promotion records before connecting autonomous reasoning to publication.
 
-Each slice needs migration/API compatibility and isolated-database regression evidence. No runtime change is part of the Phase 0 specification work.
+The first slice is documented as in progress, not shipped; see [implementation plan](../engineering/equipment-demand-slice-20261030.md). Each implementation slice needs migration/API compatibility and isolated-database regression evidence. The historical Phase 0 specification work itself made no runtime change.
 
 ## DEFERRED
 

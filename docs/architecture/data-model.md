@@ -14,19 +14,19 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 | Evaluation/operations | `evidence_judge_runs`, logical-call budgets/settlements, source receipts, worker heartbeats | Bounded operational/accounting and optional shadow/advisory evaluations; not a general evaluation corpus or autonomous promotion system. |
 | Publication | `browse_*`, pursuit and assessment tables | Read projections and commercial research state. They do not make missing evidence known. |
 
-## TARGET — temporal, many-to-many claim model
+## TARGET — demand-centered temporal claim model
 
-Represent the product graph as Company ↔ Facility ↔ Project ↔ Phase ↔ Equipment ↔ Demand Scenario ↔ Supply Constraint ↔ Procurement Event ↔ Decision-Maker. Relationships are many-to-many where real ownership, operation, contracting, equipment serving, supply coverage, or buyer authority crosses entity boundaries. A project may have multiple facilities/phases; a company may own or operate multiple projects; a source claim can support or contradict multiple scoped assertions without being copied as independent corroboration.
+Represent the product graph around scoped demand: Organization ↔ Site/Facility ↔ Project ↔ Phase/Activity ↔ Equipment ↔ Demand Record, with lifecycle events and commercial roles linked when evidenced. Supply and procurement facts are optional context, not required graph nodes or publication gates. Relationships are many-to-many where ownership, operation, contracting, equipment service, or commercial roles cross entity boundaries. A source claim can support or contradict multiple scoped assertions without being copied as independent corroboration.
 
 Every assertion should carry: stable claim/subject/predicate/object identity; source and immutable evidence-version reference; source-published/event date (if known); first observed/retrieved time; validity interval (effective-from/until); extraction and rule/model version; units and scope; evidence class; verification/conflict state; and correction/supersession linkage. Preserve competing claims and history. Do not overwrite an old claim when a later source disagrees. A source reappearance must not create duplicate evidence or extra corroboration.
 
-Unknown, contradicted, stale and absent are distinct states. Missing supply is not zero; missing equipment drive is not electric; missing timing is not a predicted date. Derived values link to exact input claim IDs/hashes and formula version. Identity resolution links require evidence and retain prior decisions.
+Unknown, contradicted, stale and absent are distinct states. Missing equipment drive is not electric; missing timing is not a predicted date. Derived values link to exact input claim IDs/hashes and formula version. Demand may be represented with unknown MW. Identity resolution links require evidence and retain prior decisions.
 
-## NEXT — additive migration slices
+## NEXT — evolve existing contracts only as demonstrated
 
-1. Inventory existing claim JSON and relationship tables against the target contract; map, do not replace, existing projects, needs, company identities and evidence IDs.
-2. Add only missing equipment, phase, scenario, supply-coverage and procurement-event relations with effective dates and source references. Use ordinary PostgreSQL unless measured query needs justify otherwise.
-3. Backfill only values derivable from retained evidence; leave unavailable fields null/unknown. Provide dual-read compatibility, bounded backfill, rollback plan and cross-project isolation tests.
+1. Reuse `EvidencePackage` and existing project/need relationships for the in-progress `equipment-demand-v1` slice; no migration is planned for that slice.
+2. Map real source/project/equipment cases to existing structures. Add or evolve persistence only when a demonstrated gap blocks a demand record, with compatibility and rollback evidence.
+3. Preserve all historical IDs and claims; never backfill unsupported values or make supply/qualification mandatory for demand records.
 
 ## DEFERRED
 

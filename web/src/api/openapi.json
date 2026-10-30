@@ -7856,6 +7856,18 @@
               }
             ]
           },
+          "equipment_demand": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Demand"
+          },
           "evidence": {
             "items": {
               "$ref": "#/components/schemas/IntelligenceSource"
@@ -8001,6 +8013,7 @@
               "User-confirmed",
               "Evidence-supported",
               "Evidence-supported estimate",
+              "Calculated",
               "Research in progress",
               "Not publicly available",
               "Not applicable",

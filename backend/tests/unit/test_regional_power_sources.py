@@ -88,6 +88,143 @@ def test_albuquerque_window_keeps_dated_relevant_permits():
     assert by_id["BP-2026-10003"]["tags"] == ["temporary"]
 
 
+def _oil_gas_equipment_record(*, schedule: str | None = None) -> dict:
+    body = schedule or (
+        "Company: Prairie Example LLC\n"
+        "Facility: Prairie Compression Station\n"
+        f"As of: {TODAY.isoformat()}\n"
+        "Equipment ID: C-101 | Type: compressor | Drive: electric | "
+        "Rating: 1000 hp mechanical output | Count: 2 | Operating: 1 | "
+        "State: proposed | Role: duty | Efficiency: 0.90"
+    )
+    return {
+        "document_number": "OKDEQ-SYN-1",
+        "title": "Prairie Compression Station public review",
+        "abstract": body,
+        "event_date": TODAY.isoformat(),
+        "event_date_label": "Public comment window start",
+        "html_url": "https://example.test/permit/SYN-1",
+        "permit": {
+            "source_type": "oklahoma-deq-public-review",
+            "row_id": "OKDEQ-SYN-1",
+            "applicant": "Prairie Example LLC",
+            "facility": "Prairie Compression Station",
+            "location": "Atoka County, OK",
+            "description": (
+                "Natural gas compressor station expansion and electric pumping equipment."
+            ),
+            "power_signals": [],
+        },
+    }
+
+
+def test_oil_gas_electric_equipment_schedule_is_independent_signal_without_supply_claim():
+    from gridlens.domain.permit_interpretation import assess_permit, evaluator_version
+
+    record = _oil_gas_equipment_record()
+    assessment = assess_permit(record, as_of=TODAY)
+    assert assessment["decision"] == "accepted"
+    assert assessment["tier"] == "Signal"
+    assert assessment["power_activity"] == "facility-expansion"
+    assert assessment["subject"] == "Prairie Example LLC"
+    assert assessment["project_hint"] == "Prairie Compression Station"
+    assert assessment["rental_hypothesis"] is None
+    assert not assessment["power_signals"]
+    assert "does not establish temporary demand" in assessment["reason"]
+    assert evaluator_version(record) == "regional-power-record-v2"
+
+
+@pytest.mark.parametrize(
+    "schedule",
+    [
+        (
+            "Company: Prairie Example LLC\nFacility: Prairie Compression Station\n"
+            f"As of: {TODAY.isoformat()}\n"
+            "Equipment ID: E-1 | Type: compressor | Drive: gas engine | "
+            "Rating: 1000 hp mechanical output | Count: 1 | State: proposed"
+        ),
+        (
+            "Company: Prairie Example LLC\nFacility: Prairie Compression Station\n"
+            f"As of: {TODAY.isoformat()}\n"
+            "Equipment ID: E-1 | Type: compressor | Drive: unknown | "
+            "Rating: 1000 hp mechanical output | Count: 1 | State: proposed"
+        ),
+        (
+            "Company: Prairie Example LLC\nFacility: Prairie Compression Station\n"
+            f"As of: {TODAY.isoformat()}\n"
+            "Equipment ID: E-1 | Type: compressor | Drive: electric | "
+            "Rating: 1000 hp mechanical output | Count: 1 | State: existing"
+        ),
+        (
+            "Company: Prairie Example LLC\nFacility: Prairie Compression Station\n"
+            f"As of: {TODAY.isoformat()}\n"
+            "Equipment ID: E-1 | Type: compressor | Drive: electric | "
+            "Rating: 1000 hp mechanical output | Count: 0 | State: proposed"
+        ),
+        (
+            "Company: Prairie Example LLC\nFacility: Another Station\n"
+            f"As of: {TODAY.isoformat()}\n"
+            "Equipment ID: E-1 | Type: compressor | Drive: electric | "
+            "Rating: 1000 hp mechanical output | Count: 1 | State: proposed"
+        ),
+        (
+            "Company: Other Operator LLC\nFacility: Prairie Compression Station\n"
+            f"As of: {TODAY.isoformat()}\n"
+            "Equipment ID: E-1 | Type: compressor | Drive: electric | "
+            "Rating: 1000 hp mechanical output | Count: 1 | State: proposed"
+        ),
+        (
+            "Company: Prairie Example LLC\nFacility: Prairie Compression Station\n"
+            f"As of: {TODAY.isoformat()}\n"
+            "Equipment ID: E-1 | Type: compressor | Drive: electric | "
+            "Rating: invalid hp mechanical output | Count: 1 | State: proposed"
+        ),
+    ],
+)
+def test_oil_gas_equipment_admission_rejects_non_electric_existing_malformed_or_wrong_site(
+    schedule,
+):
+    from gridlens.domain.permit_interpretation import assess_permit
+
+    record = _oil_gas_equipment_record(schedule=schedule)
+    assessment = assess_permit(record, as_of=TODAY)
+    assert assessment["decision"] == "rejected"
+    assert assessment["tier"] is None
+
+
+def test_oil_gas_schedule_without_efficiency_is_admitted_without_inventing_demand():
+    from gridlens.domain.permit_interpretation import assess_permit
+
+    record = _oil_gas_equipment_record(
+        schedule=(
+            "Company: Prairie Example LLC\n"
+            "Facility: Prairie Compression Station\n"
+            f"As of: {TODAY.isoformat()}\n"
+            "Equipment ID: C-1 | Type: compressor | Drive: electric | "
+            "Rating: 1000 hp mechanical output | Count: 1 | Operating: 1 | "
+            "State: proposed | Role: duty"
+        )
+    )
+    assessment = assess_permit(record, as_of=TODAY)
+    assert assessment["decision"] == "accepted"
+    assert assessment["tier"] == "Signal"
+    assert assessment["reported_power_facts"] == []
+    assert assessment["power_activity"] == "facility-expansion"
+
+
+def test_oil_gas_schedule_can_mix_new_electric_with_existing_gas_equipment():
+    from gridlens.domain.permit_interpretation import assess_permit
+
+    base = _oil_gas_equipment_record()
+    base["abstract"] += (
+        "\nEquipment ID: C-102 | Type: compressor | Drive: gas engine | "
+        "Rating: 800 hp mechanical output | Count: 1 | State: existing"
+    )
+    assessment = assess_permit(base, as_of=TODAY)
+    assert assessment["decision"] == "accepted"
+    assert assessment["power_activity"] == "facility-expansion"
+
+
 def _client(body: bytes, content_type: str, requests: list[httpx.Request]) -> httpx.Client:
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)

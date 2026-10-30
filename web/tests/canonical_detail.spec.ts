@@ -23,6 +23,7 @@ const card = {
   ], sources: [source] }],
   next_contact_path: 'Synthetic test action: confirm the temporary power package with the fixture contact.', next_action: 'Synthetic test action: confirm the fixture power package and schedule.',
   research_gaps: [], completeness: { supported: 1, total: 2, percent: 50, basis: 'Evidence support' },
+  equipment_demand: { status: 'PARTIAL', classification: 'UNKNOWN', scope: 'equipment_schedule', as_of: '2026-10-15', lifecycle: ['proposed'], expected_start: ['2027-06-01'], next_action: 'Investigate source-backed equipment procurement timing and the responsible buyer.', demand: { connected_kw: '1250.000', coincident_kw: null, incremental_kw: '0' } },
   power_gap: { remaining_mw: 'Not established', status: 'unknown' }, evidence: [source], research_enabled: true,
 }
 const opportunity = {
@@ -91,6 +92,16 @@ test('canonical detail tabs update browser history and render only source-backed
   await expect(page.locator('.cod-metrics')).not.toContainText('2026-10-19')
   await expect(page.locator('.cod-metrics')).toContainText('—')
   await expect(page.locator('.cod-metrics')).toContainText('Not established')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('PARTIAL')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('UNKNOWN')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('Planned connected capacity1250.000 kW')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('Planned coincident operating capacityUnknown')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('Planned incremental capacity0 kW')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('Documented expected start6/1/2027')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('Schedule as of10/15/2026')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('proposed')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('not a site or portfolio total')
+  await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toContainText('Investigate source-backed equipment procurement timing and the responsible buyer.')
   await expect(page.getByRole('link', { name: 'Email unverified@example.test' })).toHaveAttribute('href', 'mailto:unverified@example.test')
   await expect(page.locator('.cod-contacts')).toContainText('verification not established')
   await expect(page.locator('.cod-contacts')).toContainText('Company phone')

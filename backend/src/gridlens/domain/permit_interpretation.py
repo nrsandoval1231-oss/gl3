@@ -382,7 +382,7 @@ def _assess_georgia_air(
 
 
 TCEQ_NSR_EVALUATOR_VERSION = "tceq-nsr-pending-v1"
-REGIONAL_POWER_EVALUATOR_VERSION = "regional-power-record-v1"
+REGIONAL_POWER_EVALUATOR_VERSION = "regional-power-record-v2"
 _REGIONAL_POWER_SOURCE_TYPES = {
     "oklahoma-deq-public-review",
     "spp-thermal-interconnection",
@@ -1104,21 +1104,31 @@ def _assess_regional_power(
     dated = bool(event_day and event_day <= as_of)
     citation = bool(record.get("html_url") and permit.get("row_id"))
     explicit_mode = bool(tags)
+    equipment_schedule = _ok_deq_oil_gas_equipment_schedule(record, permit)
     accepted = bool(
         (facility or applicant)
         and location
         and region.status == "ELIGIBLE"
         and dated
         and citation
-        and (data_center or explicit_mode)
+        and (data_center or explicit_mode or equipment_schedule)
     )
-    if "temporary" in tags and not data_center:
+    if equipment_schedule and not data_center:
+        activity = "facility-expansion"
+    elif "temporary" in tags and not data_center:
         activity = "temporary-power"
     elif "bridge" in tags and not data_center:
         activity = "bridge-power"
     else:
         activity = "facility-expansion"
-    if accepted and data_center:
+    if accepted and equipment_schedule and not data_center:
+        reason = (
+            f"Official Oklahoma DEQ evidence identifies proposed electric pump or compressor "
+            f"equipment at {facility} ({location}). The source-backed schedule supports a "
+            "separate equipment-demand calculation; it does not establish temporary demand, "
+            "a shortage, or a supply gap."
+        )
+    elif accepted and data_center:
         reason = (
             f"Official record names a data-center project at {location}. "
             "Required MW, start, duration, buyer, and utility service remain unknown. "
@@ -1169,7 +1179,9 @@ def _assess_regional_power(
         "reported_claim": description if accepted else None,
         "reported_power_facts": [],
         "rental_hypothesis": (
-            "Inferred review question only: does the stated site need temporary or bridge "
+            None
+            if equipment_schedule and not data_center
+            else "Inferred review question only: does the stated site need temporary or bridge "
             "power before utility service or on-site generation is available?"
             if accepted
             else None
@@ -1179,6 +1191,52 @@ def _assess_regional_power(
         "as_of_date": as_of.isoformat(),
         "document_links": permit.get("document_links", {}),
     }
+
+
+def _ok_deq_oil_gas_equipment_schedule(record: dict[str, Any], permit: dict[str, Any]) -> bool:
+    """Narrow source-specific admission for explicit proposed O&G electric equipment."""
+    if permit.get("source_type") != "oklahoma-deq-public-review":
+        return False
+    abstract = record.get("abstract")
+    if not isinstance(abstract, str) or not abstract:
+        return False
+    # Keep source equipment schedules out of unrelated compressor uses (for
+    # example, data-center HVAC). This check adds no load or supply claims.
+    context = f"{permit.get('facility') or ''} {permit.get('description') or ''} {abstract}"
+    if not re.search(
+        r"\b(?:oil\s*(?:&|and)\s*gas|natural\s+gas|gas\s+compression|"
+        r"compressor\s+station|oilfield|oil\s+field)\b",
+        context,
+        re.I,
+    ):
+        return False
+    from gridlens.ingestion.parsers.equipment import extract_equipment_claims
+
+    extracted = extract_equipment_claims(abstract)
+    company = str(permit.get("applicant") or "").strip()
+    facility = str(permit.get("facility") or "").strip()
+
+    def identity(value: str) -> str:
+        return " ".join(value.split()).casefold()
+
+    return bool(
+        company
+        and facility
+        and extracted.claims
+        and not extracted.issues
+        and not extracted.truncated
+        and extracted.company
+        and identity(extracted.company) == identity(company)
+        and extracted.facility
+        and identity(extracted.facility) == identity(facility)
+        and any(
+            claim.equipment_type in {"pump", "compressor"}
+            and claim.drive == "electric"
+            and claim.state in {"new", "proposed"}
+            and (claim.count is None or claim.count > 0)
+            for claim in extracted.claims
+        )
+    )
 
 
 def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[str, Any]:

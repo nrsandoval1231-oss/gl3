@@ -17,6 +17,7 @@ FieldStatus = Literal[
     "User-confirmed",
     "Evidence-supported",
     "Evidence-supported estimate",
+    "Calculated",
     "Research in progress",
     "Not publicly available",
     "Not applicable",
@@ -85,6 +86,7 @@ class IntelligenceCard(BaseModel):
     last_intelligence_update: str | None = None
     power_gap: dict[str, Any] | None = None
     power_schedule: PowerScheduleProjection | None = None
+    equipment_demand: dict[str, Any] | None = None
     evidence: list[IntelligenceSource]
     research_enabled: bool
 
@@ -503,6 +505,7 @@ def assemble_card(
         refs=None,
         *,
         estimate=False,
+        calculated=False,
         conflict=False,
         basis="Current canonical evidence; inspect the cited source and scope.",
     ):
@@ -582,7 +585,9 @@ def assemble_card(
             value = None
             basis = "Current evidence conflicts; no single value is accepted."
         elif value is not None and refs:
-            if estimate:
+            if calculated:
+                status = "Calculated"
+            elif estimate:
                 status = "Evidence-supported estimate"
             elif any(ref.verification_status == "Current source-reported claim" for ref in refs):
                 # A retained, current quote supports what the source reported. It
@@ -664,6 +669,67 @@ def assemble_card(
     )
     add("activity", "Power activity", "identity", item.get("activity"), "power_need", current)
     add("stage", "Project stage", "identity", item.get("lifecycle_state"), "phase", current)
+    equipment = item.get("equipment_demand")
+    if isinstance(equipment, dict):
+        equipment_sources = []
+        for row in equipment.get("evidence", []):
+            if not isinstance(row, dict) or not row.get("evidence_id"):
+                continue
+            evidence_id = str(row["evidence_id"])
+            claims = row.get("claims")
+            quote = (
+                next(
+                    (
+                        claim.get("quote")
+                        for claim in claims
+                        if isinstance(claim, dict) and claim.get("quote")
+                    ),
+                    None,
+                )
+                if isinstance(claims, list)
+                else row.get("quote")
+            )
+            canonical = next(
+                (
+                    source
+                    for source in sources
+                    if source.retained_evidence_id == evidence_id
+                    and source.content_hash == (row.get("content_hash") or row.get("evidence_hash"))
+                ),
+                None,
+            )
+            if canonical is not None:
+                equipment_sources.append(
+                    canonical.model_copy(
+                        update={
+                            "reference": "equipment-evidence:" + evidence_id,
+                            "passage": compact_source_excerpt(quote or canonical.evidence_text),
+                            "extraction_method": "Deterministic equipment-demand calculation",
+                            "verification_status": "Calculated from current retained source",
+                        }
+                    )
+                )
+        demand = equipment.get("demand")
+        coincident = demand.get("coincident_kw") if isinstance(demand, dict) else None
+        calculated_value = (
+            f"{coincident} kW coincident equipment demand" if coincident is not None else None
+        )
+        add(
+            "calculatedEquipmentDemand",
+            "Calculated equipment demand",
+            "power",
+            calculated_value,
+            "load",
+            equipment_sources,
+            calculated=coincident is not None,
+            basis=(
+                f"{equipment.get('classification', 'UNKNOWN')} equipment-demand projection; "
+                "reproducible from the cited source-backed equipment claims. This is not a "
+                "supply gap and does not change qualification."
+                if coincident is not None
+                else "Equipment demand remains unknown or partial; no missing inputs were assumed."
+            ),
+        )
     gap = normalize_gap(item)
     schedule_facts = [
         fact
@@ -856,6 +922,7 @@ def assemble_card(
         last_intelligence_update=updated[-1] if updated else None,
         power_gap=gap,
         power_schedule=schedule,
+        equipment_demand=equipment,
         evidence=sources,
         research_enabled=research_enabled,
     )

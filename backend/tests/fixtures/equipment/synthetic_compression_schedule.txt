@@ -1,0 +1,7 @@
+SOURCE EXAMPLE — synthetic schedule for parser testing; not live data.
+Company: Prairie Example LLC
+Facility: Mock Permian Compression Station
+As of: 2026-04-01
+Equipment ID: C-101 | Type: compressor | Drive: electric | Rating: 1,200 hp mechanical output | Count: 2 | Operating: 1 | State: proposed | Role: duty | Efficiency: 0.90
+Equipment ID: C-102 | Type: compressor | Drive: gas engine | Rating: 900 hp mechanical output | Count: 1 | State: existing | Role: duty
+Equipment ID: P-201 | Type: pump | Drive: unknown | Rating: 75 kVA | Count: 1 | State: installed | Role: standby

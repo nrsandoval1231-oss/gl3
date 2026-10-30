@@ -4,7 +4,7 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 
 ## CURRENT
 
-Existing code includes strict source-scoped qualification, typed fact validation, deterministic demand/supply interval arithmetic, conflict checks, evidence citation projections, logical-call budget/accounting, and optional advisory EvidenceJudge execution. These mechanisms serve specific workflows. They do not by themselves establish independent validation across all seven layers, calibrated abstention, frozen holdouts, or automated model promotion.
+Existing code includes strict source-scoped qualification, typed fact validation, deterministic demand/supply interval arithmetic, conflict checks, evidence citation projections, logical-call budget/accounting, and optional advisory EvidenceJudge execution. These mechanisms serve specific workflows. They do not by themselves establish independent validation across all six target layers, calibrated abstention, frozen holdouts, or automated model promotion.
 
 ## TARGET — independent checks
 
