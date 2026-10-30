@@ -22,7 +22,7 @@ from gridlens.domain.equipment_demand import (
     RatingUnit,
 )
 
-VERSION = "equipment-schedule-lines-v2"
+VERSION = "equipment-schedule-lines-v3"
 MAX_INPUT_CHARS = 128_000
 MAX_ROWS = 256
 MAX_ROW_CHARS = 1_200
@@ -33,6 +33,7 @@ MAX_CLAIMS = 128
 class ExtractionResult:
     claims: list[EquipmentClaim] = field(default_factory=list)
     issues: list[str] = field(default_factory=list)
+    has_schedule: bool = False
     truncated: bool = False
     company: str | None = None
     facility: str | None = None
@@ -76,6 +77,8 @@ _GENERIC_TYPE_METADATA = re.compile(
     r"state\s*:\s*(?:[A-Z]{2}|[A-Za-z][A-Za-z .'-]{1,40})\s*$",
     re.I,
 )
+_EXPLICIT_EQUIPMENT_ID = re.compile(r"^\s*equipment\s+id\s*:", re.I)
+_BARE_ID = re.compile(r"^\s*id\s*:", re.I)
 
 _FIELD_PATTERNS = (
     _ID,
@@ -117,9 +120,28 @@ def _one(pattern: re.Pattern[str], text: str) -> re.Match[str] | None:
     return matches[0] if len(matches) == 1 else None
 
 
+def _has_structured_schedule(text: str) -> bool:
+    for line in re.findall(r"[^\r\n]+", text):
+        if re.match(r"^\s*(?:company|facility|as\s+of)\s*:", line, re.I):
+            continue
+        if _GENERIC_TYPE_METADATA.fullmatch(line):
+            continue
+        if _EXPLICIT_EQUIPMENT_ID.search(line):
+            return True
+        has_schedule_fields = bool(_SCHEDULE_FIELD.search(line))
+        if _BARE_ID.search(line) and has_schedule_fields:
+            return True
+        if _EQUIPMENT_SPECIFIC_FIELD.search(line) or (
+            has_schedule_fields and (_EQUIPMENT_CONTEXT.search(line) or "|" in line)
+        ):
+            return True
+    return False
+
+
 def extract_equipment_claims(text: str) -> ExtractionResult:
     """Extract claims from explicit equipment-ID lines, retaining source offsets."""
     result = ExtractionResult()
+    result.has_schedule = _has_structured_schedule(text[:MAX_INPUT_CHARS])
     if len(text) > MAX_INPUT_CHARS:
         result.truncated = True
         result.issues.append(
@@ -161,10 +183,12 @@ def extract_equipment_claims(text: str) -> ExtractionResult:
             continue
         if _GENERIC_TYPE_METADATA.fullmatch(line):
             continue
-        if not re.search(r"\b(?:equipment\s+)?id\s*:", line, re.I):
+        has_id = bool(re.search(r"\b(?:equipment\s+)?id\s*:", line, re.I))
+        if not has_id:
             if _EQUIPMENT_SPECIFIC_FIELD.search(line) or (
                 _SCHEDULE_FIELD.search(line) and (_EQUIPMENT_CONTEXT.search(line) or "|" in line)
             ):
+                result.has_schedule = True
                 result.issues.append(
                     f"Structured equipment row lacks an ID at offset {line_match.start()}."
                 )
