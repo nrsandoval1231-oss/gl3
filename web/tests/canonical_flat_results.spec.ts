@@ -45,6 +45,45 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
 })
 
+test('canonical KPI captions stay within their cards and above the opportunities heading', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
+  await page.route('**/api/opportunities/needs/**', route => route.fulfill({ json: { id: 'n1', project_id: 'p1', name: 'Northstar Mesa Compressor', browse_title: 'Northstar Mesa Compressor', location: 'Midland, TX', tier: 'Signal', activity: 'compression', priority_score: 42, required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Synthetic fixture', workflow_status: 'New' } }))
+  await page.goto('/?view=workspace')
+
+  const kpis = page.locator('.cfr-kpis')
+  const heading = page.getByRole('heading', { name: 'Opportunities' })
+  await expect(kpis.locator('article')).toHaveCount(3)
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect.poll(async () => page.evaluate(() => {
+      const cards = [...document.querySelectorAll<HTMLElement>('.cfr-kpis article')]
+      const heading = document.querySelector<HTMLElement>('.cfr-heading h1')
+      const results = document.querySelector<HTMLElement>('.canonical-flat-results')
+      if (cards.length !== 3 || !heading || !results) return false
+      const cardContainsText = cards.every(card => {
+        const box = card.getBoundingClientRect()
+        return [...card.querySelectorAll<HTMLElement>('strong, span, small')].every(text => {
+          const range = document.createRange()
+          range.selectNodeContents(text)
+          return [...range.getClientRects()].every(rect => rect.top >= box.top && rect.bottom <= box.bottom && rect.left >= box.left && rect.right <= box.right)
+        })
+      })
+      const kpiBottom = document.querySelector('.cfr-kpis')!.getBoundingClientRect().bottom
+      const resultsTop = results.getBoundingClientRect().top
+      return cardContainsText && kpiBottom < heading.getBoundingClientRect().top && resultsTop - kpiBottom >= 0 && resultsTop - kpiBottom <= 24
+    })).toBe(true)
+    await page.screenshot({ path: `../.artifacts/kpi-layout-fix-20261030/kpi-${width}.png`, fullPage: true })
+  }
+  await expect(heading).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByText('Mesa Compressor').click()
+  await expect(page.locator('.cfr-kpis')).toBeHidden()
+  await page.locator('.cod-back').click()
+  await expect(page.locator('.cfr-kpis')).toBeVisible()
+  await page.screenshot({ path: '../.artifacts/kpi-layout-fix-20261030/kpi-mobile-back.png', fullPage: true })
+})
+
 test('synthetic repeated cohort conflict stops after one reset and presents a retry', async ({ page }) => {
   let reads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))

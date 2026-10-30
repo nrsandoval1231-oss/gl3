@@ -6,7 +6,7 @@ import { ResearchView } from '../pursuits/ResearchView'
 import { OperationsInbox } from '../operations/OperationsInbox'
 import { SignalsBrowse } from '../opportunities/SignalsBrowse'
 import { ProjectResults } from './ProjectResults'
-import { CanonicalOpportunityResults } from './CanonicalOpportunityResults'
+import { CanonicalOpportunityKpis, CanonicalOpportunityResults } from './CanonicalOpportunityResults'
 import { CustomerAccountsQueue } from './CustomerAccountsQueue'
 import { WorkspaceChanges } from './WorkspaceChanges'
 import { OpportunityTable } from './OpportunityTable'
@@ -351,6 +351,7 @@ export function WorkspaceHome() {
     </section>}
     <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>
+        {!groupBrowse && <CanonicalOpportunityKpis/>}
         <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => select(null)}/>
         {(!groupBrowse || selected || pendingNeedId) && <DetailView item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} projectFirst={!accountBrowse} onTab={next => { setTab(next); if (selected) { const steps = history.state?.workspaceTabSteps ?? 0; const directEntry = history.state?.workspaceDirectEntry || !history.state?.workspaceDetail; writeUrl(filters, selected.id, next, true, currentAccountContext()); history.replaceState({ ...history.state, workspaceTabSteps: steps + 1, workspaceDirectEntry: directEntry }, '', location.href) } }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/>}
       </div>
