@@ -249,7 +249,9 @@
       "publication_cadence": "daily",
       "credential_reference": null,
       "enabled": true,
-      "retention": "Public metadata and short abstract retained; link to publisher source",
+      "retention": "Public metadata and short abstracts retained; exact duplicate notices deduplicated and conflicting metadata quarantined; official PDF evidence retained for bounded native equipment extraction",
+      "collection_scope": "Daily 30-day Federal Register NOTICE searches for environmental impact statements and FERC environmental assessments, sharing a maximum of 10 request pages and 20 MB per run.",
+      "coverage_limitation": "Bounded dual-query notice discovery, not complete FERC or environmental-review coverage and not historical backfill. Exact duplicates are deduplicated; conflicting metadata is quarantined. Native PDF parsing is bounded to one qualifying proposed electric-equipment site per notice and does not establish full-site equipment coverage or current status.",
       "query": {
         "term": "environmental impact statement",
         "document_type": "NOTICE",
@@ -257,7 +259,13 @@
         "per_page": 100,
         "max_pages": 10,
         "max_response_bytes": 4000000,
-        "max_run_bytes": 20000000
+        "max_run_bytes": 20000000,
+        "supplemental_queries": [
+          {
+            "term": "environmental assessment",
+            "agency": "federal-energy-regulatory-commission"
+          }
+        ]
       }
     },
     {

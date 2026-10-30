@@ -71,9 +71,11 @@ def _retrieve_source_direct(
 ) -> list[dict[str, Any]] | dict[str, Any]:
     method = source.get("retrieval_method")
     if method in {"federal-register-json", "json-api"}:
-        from gridlens.ingestion.adapters.federal_register import retrieve
+        from gridlens.ingestion.adapters.federal_register import (
+            retrieve as retrieve_federal_register,
+        )
 
-        return retrieve(source, client)
+        return retrieve_federal_register(source, client, deadline=deadline)
     if method == "nc-commerce-html":
         return retrieve_nc_commerce(source, client)
     if method == "publisher-rss":

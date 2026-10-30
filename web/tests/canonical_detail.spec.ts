@@ -191,3 +191,36 @@ test('canonical detail tabs update browser history and render only source-backed
   await expect(page.locator('.cod-status')).toBeVisible()
   await expect(page.locator('.cod-contacts')).not.toContainText('Example Compute Holdings')
 })
+
+
+test('native equipment proposal preserves historical date and unknown capacity on desktop and mobile', async ({ page }) => {
+  const nativeCard = { ...card, qualification: 'Signal', contacts: [], fields: [], equipment_demand: {
+    status: 'PARTIAL', classification: 'UNKNOWN', scope: 'identified_equipment_assertion',
+    as_of: '2024-06-12', lifecycle: ['proposed'], expected_start: [],
+    equipment: [{ quote: 'Install one new electric motor driven compressor unit with a rating of 18,340 hp.' }],
+    demand: { connected_kw: null, coincident_kw: null, incremental_kw: null },
+    next_action: 'Investigate current plans and missing electrical specifications.',
+  } }
+  const nativeOpportunity = { ...opportunity, tier: 'Signal', intelligence_card: nativeCard }
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/needs/need-canonical') return route.fulfill({ json: nativeOpportunity })
+    if (path === '/api/opportunities/projects') return route.fulfill({ json: projects })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace&need=need-canonical')
+  const proposal = page.getByRole('region', { name: 'Source-reported equipment proposal' })
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    await expect(proposal).toBeVisible()
+    await expect(proposal).toContainText('Source proposal as of6/12/2024')
+    await expect(proposal).toContainText('Current status and site demand remain unverified.')
+    await expect(proposal).toContainText('Equipment reported by source: Install one new electric motor driven compressor unit with a rating of 18,340 hp.')
+    await expect(proposal).toContainText('Planned connected capacityUnknown')
+    await expect(proposal).toContainText('Documented expected startUnknown')
+    await expect(proposal).not.toContainText('0 kW')
+    await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toHaveCount(0)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+  }
+})

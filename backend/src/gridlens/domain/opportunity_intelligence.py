@@ -671,6 +671,8 @@ def assemble_card(
     add("stage", "Project stage", "identity", item.get("lifecycle_state"), "phase", current)
     equipment = item.get("equipment_demand")
     if isinstance(equipment, dict):
+        demand = equipment.get("demand")
+        coincident = demand.get("coincident_kw") if isinstance(demand, dict) else None
         equipment_sources = []
         for row in equipment.get("evidence", []):
             if not isinstance(row, dict) or not row.get("evidence_id"):
@@ -704,13 +706,19 @@ def assemble_card(
                         update={
                             "reference": "equipment-evidence:" + evidence_id,
                             "passage": compact_source_excerpt(quote or canonical.evidence_text),
-                            "extraction_method": "Deterministic equipment-demand calculation",
-                            "verification_status": "Calculated from current retained source",
+                            "extraction_method": (
+                                "Deterministic equipment-demand calculation"
+                                if coincident is not None
+                                else "Source equipment assertion extraction"
+                            ),
+                            "verification_status": (
+                                "Calculated from current retained source"
+                                if coincident is not None
+                                else "Reported equipment assertion; electrical demand unverified"
+                            ),
                         }
                     )
                 )
-        demand = equipment.get("demand")
-        coincident = demand.get("coincident_kw") if isinstance(demand, dict) else None
         calculated_value = (
             f"{coincident} kW coincident equipment demand" if coincident is not None else None
         )

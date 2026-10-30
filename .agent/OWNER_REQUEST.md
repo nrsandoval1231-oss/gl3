@@ -1,3 +1,5 @@
-# Current owner request — power demand intelligence
+# Current owner request
 
-Implement the demand-centered autonomous equipment-to-commercial-intelligence slice, preserve the approved UI and uncertainty, validate independently, and deliver reviewable PRs. Use the OpenAI model roles in [AGENTS.md](../AGENTS.md). The current candidate is [PR153](https://github.com/nrsandoval1231-oss/gl3/pull/153); merge and deployment are not part of this delivery. Preserve production data, credentials and paid-provider gates. Earlier PR150/151 merge instructions are [historical](archive/OG-EQUIPMENT-CLAIMS-20261029/MAIN152_OWNER_REQUEST.md). See [checkpoint](CURRENT_STATE.md).
+Review, validate, fix, revalidate and merge every open GL3 PR (153–158 at task start). Preserve evidence, privacy, approved UI, existing tests and unrelated work. Use isolated disposable test databases and exact-candidate CI plus independent review. This scope supersedes the earlier PR-only delivery boundary, preserved in [archive](archive/PR-REVIEW-20261030/README.md).
+
+Deployment, production data actions, credentials and paid providers remain outside scope. See [checkpoint](CURRENT_STATE.md) and [finish contract](FINISH_CONTRACT.md).

@@ -117,3 +117,58 @@ def test_partial_equipment_projection_does_not_fill_unknown_load():
     assert field.status == "Research in progress"
     assert card.power_gap is None
     assert card.qualification == "Signal"
+
+
+def test_native_unknown_demand_is_not_labeled_a_verified_calculation():
+    quote = "Install one new electric motor driven compressor unit with a rating of 18,340 hp."
+    evidence_id = "native-evidence"
+    evidence_hash = "c" * 64
+    item = {
+        "id": "need-123",
+        "project_id": "project-123",
+        "tier": "Signal",
+        "location": "Montgomery County, Texas",
+        "activity": "facility-expansion",
+        "research_state": {},
+        "operator_fact_refs": [],
+        "power_field_provenance": {},
+        "evidence": [
+            {
+                "id": evidence_id,
+                "source_id": "federal-register-eis",
+                "title": "Historical proposed compressor",
+                "abstract": quote,
+                "url": "https://www.govinfo.gov/content/pkg/FR-2024-06-12/pdf/2024-12869.pdf",
+                "content_hash": evidence_hash,
+                "published_at": "2024-06-12",
+                "observed_at": "2026-10-30T12:00:00Z",
+                "extraction_location": "GovInfo PDF page 1",
+                "assessment_current": True,
+            }
+        ],
+        "equipment_demand": {
+            "status": "PARTIAL",
+            "classification": "UNKNOWN",
+            "scope": "identified_equipment_assertion",
+            "demand": {"coincident_kw": None},
+            "evidence": [
+                {"evidence_id": evidence_id, "evidence_hash": evidence_hash, "quote": quote}
+            ],
+        },
+    }
+    card = assemble_card(
+        item,
+        {"candidates": []},
+        {"disposition": "RESEARCH", "next_action": "Investigate current plans and specifications."},
+        [],
+        research_enabled=False,
+    )
+    field = next(value for value in card.fields if value.key == "calculatedEquipmentDemand")
+    assert field.value is None
+    assert field.status != "Calculated"
+    assert (
+        field.sources[0].verification_status
+        == "Reported equipment assertion; electrical demand unverified"
+    )
+    assert field.sources[0].extraction_method == "Source equipment assertion extraction"
+    assert card.power_gap is None and card.qualification == "Signal"
