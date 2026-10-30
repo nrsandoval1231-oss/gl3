@@ -44,4 +44,4 @@ Required routine human approval queues, unrestricted autonomous production code 
 - [Verification and evaluation](verification-evaluation.md)
 - [Existing opportunity intelligence](OPPORTUNITY_INTELLIGENCE.md)
 
-The [native FERC notice candidate](../engineering/native-equipment-demand-20261030.md) reuses this path for one explicitly scoped proposed electric-equipment site. It consumes source-bound UNVERIFIED candidates, preserves unsupported ratings as unknown demand, and does not expand the scheduled source query.
+The [native FERC notice candidate](../engineering/native-equipment-demand-20261030.md) reuses this path for one explicitly scoped proposed electric-equipment site. It consumes source-bound UNVERIFIED candidates, preserves unsupported ratings as unknown demand, and adds one bounded FERC environmental-assessment query alongside the existing EIS query. Read-only retrieval and historical fixture replay do not establish deployed scheduled coverage.

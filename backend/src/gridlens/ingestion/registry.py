@@ -100,6 +100,14 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             raise ValueError("Duplicate source ID or unapproved host")
         ids.add(source["id"])
         query = source.get("query", {})
+        if not isinstance(query, dict):
+            raise ValueError("Source query must be an object")
+        supplemental_declared = "supplemental_queries" in query
+        if supplemental_declared and source["retrieval_method"] not in {
+            "json-api",
+            "federal-register-json",
+        }:
+            raise ValueError("Supplemental queries are unsupported for this source")
         valid_window = source["retrieval_method"] in {
             "rrc-drilling-permits",
             "rrc-flare-exceptions",
@@ -123,12 +131,59 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ok-deq-public-review",
             "spp-interconnection-queue",
             "cabq-building-permits",
-        } or (1 <= query.get("window_days", 0) <= 90)
+        } or (type(query.get("window_days")) is int and 1 <= query.get("window_days", 0) <= 90)
         if source["retrieval_method"] in {"json-api", "federal-register-json"}:
+            string_fields_valid = all(
+                type(query.get(field)) is str and query[field].strip()
+                for field in ("term", "document_type")
+            )
+            integer_fields = (
+                "window_days",
+                "per_page",
+                "max_pages",
+                "max_response_bytes",
+                "max_run_bytes",
+            )
+            integer_fields_valid = all(type(query.get(field)) is int for field in integer_fields)
+            allowed_query_fields = {
+                "term",
+                "document_type",
+                "window_days",
+                "per_page",
+                "max_pages",
+                "max_response_bytes",
+                "max_run_bytes",
+                "supplemental_queries",
+            }
+            supplemental = query.get("supplemental_queries", [])
+            supplemental_valid = type(supplemental) is list and len(supplemental) <= 1
+            if supplemental_declared:
+                supplemental_valid = (
+                    supplemental_valid
+                    and source.get("id") == "federal-register-eis"
+                    and source.get("retrieval_method") == "json-api"
+                    and source.get("endpoint")
+                    == "https://www.federalregister.gov/api/v1/documents.json"
+                )
+            if supplemental_valid and supplemental:
+                lane = supplemental[0]
+                supplemental_valid = (
+                    type(lane) is dict
+                    and set(lane) == {"term", "agency"}
+                    and type(lane.get("term")) is str
+                    and lane.get("term") == "environmental assessment"
+                    and type(lane.get("agency")) is str
+                    and lane.get("agency") == "federal-energy-regulatory-commission"
+                )
             bounded = (
-                1 <= query.get("max_pages", 0) <= 10
-                and query.get("per_page") == 100
-                and 1024 <= query.get("max_response_bytes", 0) <= 5_000_000
+                string_fields_valid
+                and integer_fields_valid
+                and set(query).issubset(allowed_query_fields)
+                and supplemental_valid
+                and 1 <= query["window_days"] <= 90
+                and 1 <= query["max_pages"] <= 10
+                and query["per_page"] == 100
+                and 1024 <= query["max_response_bytes"] <= 5_000_000
                 and query.get("max_response_bytes", 0) <= query.get("max_run_bytes", 0)
                 and query.get("max_run_bytes", 0) <= 100_000_000
             )

@@ -1,0 +1,49 @@
+{
+  "description": "Unmodified official Federal Register API responses retrieved for a historical 30-day query ending 2024-06-30. Retained for deterministic discovery replay, not current operational coverage.",
+  "query_as_of": "2024-06-30",
+  "window_days": 30,
+  "endpoint": "https://www.federalregister.gov/api/v1/documents.json",
+  "captures": [
+    {
+      "file": "eis-2024-05-31_2024-06-30.json",
+      "retrieved_at": "2026-10-30T13:12:14.187708+00:00",
+      "url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=environmental+impact+statement&conditions%5Bpublication_date%5D%5Bgte%5D=2024-05-31&conditions%5Bpublication_date%5D%5Blte%5D=2024-06-30&conditions%5Btype%5D%5B%5D=NOTICE&per_page=100&page=1&order=newest",
+      "parameters": {
+        "conditions[term]": "environmental impact statement",
+        "conditions[publication_date][gte]": "2024-05-31",
+        "conditions[publication_date][lte]": "2024-06-30",
+        "conditions[type][]": "NOTICE",
+        "per_page": 100,
+        "page": 1,
+        "order": "newest"
+      },
+      "response_bytes": 168673,
+      "sha256": "41292200b46b2d5e54c3f0a9d4fa2d5f825e25a7c0f20ab30ea0f09467127bb7",
+      "count": 72,
+      "total_pages": 1,
+      "target_document_present": false
+    },
+    {
+      "file": "ferc-ea-2024-05-31_2024-06-30.json",
+      "retrieved_at": "2026-10-30T13:12:14.648978+00:00",
+      "url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bterm%5D=environmental+assessment&conditions%5Bagencies%5D%5B%5D=federal-energy-regulatory-commission&conditions%5Bpublication_date%5D%5Bgte%5D=2024-05-31&conditions%5Bpublication_date%5D%5Blte%5D=2024-06-30&conditions%5Btype%5D%5B%5D=NOTICE&per_page=100&page=1&order=newest",
+      "parameters": {
+        "conditions[term]": "environmental assessment",
+        "conditions[agencies][]": "federal-energy-regulatory-commission",
+        "conditions[publication_date][gte]": "2024-05-31",
+        "conditions[publication_date][lte]": "2024-06-30",
+        "conditions[type][]": "NOTICE",
+        "per_page": 100,
+        "page": 1,
+        "order": "newest"
+      },
+      "response_bytes": 35727,
+      "sha256": "5c85dd7c7c001e008e119b0cac13cd31e155b48b3d33861e2bf819edc1776b1e",
+      "count": 19,
+      "total_pages": 1,
+      "target_document_present": true
+    }
+  ],
+  "companion_fixture": "../govinfo-complete-notice/FR-2024-12869.pdf",
+  "target_document_number": "2024-12869"
+}

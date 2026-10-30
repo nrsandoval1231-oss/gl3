@@ -8,12 +8,12 @@
 |---|---|---|
 | KEEP | PostgreSQL, Evidence/Project/PowerNeed/EvidencePackage, FastAPI, workers, deterministic demand model | No migration, dependency, service or provider added. |
 | EVOLVE | GovInfo companion retrieval | Retain complete bounded notice text, original PDF hash, page provenance and exact document/title/footer binding. |
-| EVOLVE | Ingestion/admission | Inspect eligible native equipment notices under existing retrieval budgets, then admit exactly one explicit proposed electric-equipment site. |
+| EVOLVE | Discovery and ingestion/admission | Add one FERC environmental-assessment query alongside EIS under shared retrieval budgets, then admit exactly one explicit proposed electric-equipment site. |
 | EVOLVE | Evidence processing | Parse a bounded native layout, validate PR152 UNVERIFIED candidates, explicitly convert supported fields to existing deterministic inputs. |
 | EVOLVE | Existing intelligence card/detail | Show exact source equipment assertion, historical date, unknown capacity and investigation action without changing layout. |
 | DEFER | Broader discovery/extraction, multi-site fan-out, legal company identity, verified buyer, portfolio totals/ranking | Require measured coverage and explicit physical-equipment overlap rules. |
 
-The prior path required labeled schedules; native O&G notices also failed the mining-oriented companion-fetch gate. Generic Federal Register admission remains context-only. The new path has its own source-bound admission and skips whole-notice legacy qualification/lifecycle inference, so other stations and publication dates cannot invent quantity or commissioning claims.
+The prior path required labeled schedules; native O&G notices also failed the mining-oriented companion-fetch gate. The later discovery extension adds the missing FERC environmental-assessment query to the existing source. Generic Federal Register admission remains context-only. The new path has its own source-bound admission and skips whole-notice legacy qualification/lifecycle inference, so other stations and publication dates cannot invent quantity or commissioning claims.
 
 ## Actual evidence and output
 
@@ -44,9 +44,23 @@ Local integrated gate: **155 tests passed in 36.00 seconds** across engineering/
 
 No production configuration/data, credentials, paid providers or deployment were changed. Latest production evidence remains the dated October 29 PR148/schema0049 receipt; it was not freshly inspected.
 
+## Discovery follow-through
+
+The candidate extends the existing `federal-register-eis` source, preserving its ID, daily cadence, primary EIS query and rolling window. One supplemental query uses `conditions[term]=environmental assessment` with `conditions[agencies][]=federal-energy-regulatory-commission`. The checked-in configuration shares **10 request pages, 20 MB and the acquisition deadline** across both queries; empty-query probes consume the same budget. No source or production worker was activated during implementation.
+
+Each query must complete before records are returned. Explicit zero-result responses are healthy; malformed/empty nonzero pages, count/page drift, repeated same-query records or exhausted limits fail acquisition. Exact cross-query canonical duplicates are removed without changing retained record fields. Conflicting variants remain separate so existing ingestion quarantines every conflicting variant. No lexical checkpoint is used as a retrieval cursor and no new scheduler or schema is introduced.
+
+[Unmodified API captures and provenance](../../backend/tests/fixtures/federal-register-ferc-discovery/provenance.json) cover the same historical window, May 31–June 30, 2024. The EIS query returned **72** notices and excluded FR-2024-12869; the FERC assessment query returned **19**, including that notice. Five exact overlaps yield **86** unique notices, **14** additional to EIS. The normal acquisition/job integration test checks capture hashes/bytes and retrieves the real target PDF to produce the existing unknown-quantity CS302 investigation. Other companion PDFs are explicitly unavailable in that offline test; it does not prove extraction coverage for all 86 notices. Replay, healthy zero results and conflict quarantine are tested separately.
+
+A read-only execution of the candidate adapter at **2026-10-30 13:16:08 UTC**, using the real September 30–October 30 query window, completed **two HTTP requests** and normalized **71 unique metadata records** without partial status. Three records matched native title/URL eligibility. These are metadata candidates, not three established power opportunities. This check performed no ingestion, job creation, paid-provider call or production write. Old same-hash truncated PDF evidence remains immutable; no historical backfill is included.
+
+Local discovery validation: **148 passed in 30.10 seconds** across registry, adapter, native ingestion, general ingestion and collection-only regressions. A further acquisition-boundary selection passed **68 tests in 6.57 seconds**. The final captured-response integration cases passed **3 tests in 15.76 seconds**, including both capture hash checks. Ruff lint/format, mypy (190 source files), maintained-doc links (91 documents/366 targets), API startup/unauthenticated session and idle-worker startup/shutdown passed. These focused checks do not replace the full CI gate.
+
+The predecessor `484301b6f017b8487417372db5345c369c0bcfa0` passed [CI 41058851985](https://github.com/nrsandoval1231-oss/gl3/actions/runs/41058851985): 3,583 backend tests/one existing skip and 170 browser tests. That head includes the independent test-clock repair from PR157. The discovery extension needs its own final-head full gate, recorded on PR156; earlier results do not certify it.
+
 ## Remaining work by commercial value
 
-1. Evaluate additional permitted real engineering documents and scheduled discovery coverage. The unchanged `federal-register-eis` query searches environmental impact statements within its configured window; this historical environmental-assessment fixture does **not** prove live discovery coverage.
+1. Evaluate more engineering layouts and observe scheduled acquisition after an authorized deployment. The candidate now searches both EIS and FERC environmental assessments; read-only retrieval and historical replay do **not** establish deployed scheduling or complete equipment coverage.
 2. Resolve source-attributed companies and current project status, then investigate missing specifications and verified buyers through existing budgets/privacy controls.
 3. Support deliberate multi-site observation scoping and physical-unit deduplication before totals. Add demand-first portfolio ranking only with defensible overlap and timing rules.
 4. Extend the shared model to further equipment/layouts and data-center phases, using a measured corpus and independent regression gates. General prose/table extraction and autonomous model promotion remain deferred.
