@@ -91,7 +91,16 @@ def test_review_schedule_rejects_mismatched_station_alias_and_wrong_notice_famil
     assert extract_ferc_equipment(text, title=scoping_title).sites == []
 
 
-def test_review_schedule_does_not_absorb_unrecognized_station_heading_into_prior_bullet():
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "Work at Compressor Station 343 (CS 343) in Liberty County, Texas",
+        "Modification at Compressor Station 343 (CS TBD) in Liberty County, Texas",
+        "Modification at Compressor Station TBD (CS TBD) in Liberty County, Texas",
+        "Modification at Compressor Station 343 (CS 343) in an unspecified location",
+    ],
+)
+def test_review_schedule_does_not_absorb_unrecognized_station_heading_into_prior_bullet(heading):
     text, title = _real_schedule_text()
     altered = re.sub(
         r"•\s*Install one new electric motor\s+driven \(EMD\) compressor unit with a\s+"
@@ -102,7 +111,7 @@ def test_review_schedule_does_not_absorb_unrecognized_station_heading_into_prior
     )
     altered = re.sub(
         r"Modification at Compressor Station\s+343\s+\(CS 343\) in Liberty County, Texas",
-        "Work at Compressor Station 343 (CS 343) in Liberty County, Texas",
+        heading,
         altered,
         count=1,
     )

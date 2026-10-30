@@ -146,12 +146,7 @@ _BULLET = re.compile(
     rf"(?:\s+{_HEADING_PREFIX}\s+\d+\s+in\s+)|\Z)",
     re.I,
 )
-_ANY_HEADING = re.compile(rf"Compressor Station \d+ in [A-Za-z -]+ County, (?:{_STATE}):", re.I)
-_ANY_SCHEDULE_HEADING = re.compile(
-    rf"Compressor Station\s+\d+(?:\s+\(CS\s*\d+\))?\s+in "
-    rf"[A-Za-z -]+ County, (?:{_STATE}):?",
-    re.I,
-)
+_STATION_MENTION = re.compile(r"\bCompressor Station\b", re.I)
 _INSTALL_CLAUSE = re.compile(
     r"Install (?P<count>one|1|two|2|three|3|four|4|five|5|[0-9]{1,3}) new "
     r"(?P<drive>electric motor driven(?:\s+\(EMD\))?|gas engine driven|"
@@ -390,9 +385,9 @@ def extract_ferc_equipment(text: str, *, title: str) -> NativeEquipmentExtractio
             "Unexpected text precedes the first station heading; extraction abstained."
         )
         return result
-    all_station_mentions = list(
-        (_ANY_SCHEDULE_HEADING if is_schedule else _ANY_HEADING).finditer(tail)
-    )
+    # Unsupported numbers, aliases or locations still delimit a possible site.
+    # Never absorb such a heading into the preceding station's activity text.
+    all_station_mentions = list(_STATION_MENTION.finditer(tail))
     if len(all_station_mentions) != len(headings) or any(
         mention.start() != tail.lower().find("compressor station", heading.start())
         for mention, heading in zip(all_station_mentions, headings, strict=True)
