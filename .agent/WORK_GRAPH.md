@@ -1,14 +1,14 @@
-# Current work ownership — O&G equipment candidates
+# Current merge validation ownership
 
-Base c8d3ceb1, feat/og-equipment-claims-20261029. [Packet](packets/OG-EQUIPMENT-CLAIMS-20261029.md).
+User authorized validation/merge of PR150 thenPR151; no deployment. [Checkpoint](CURRENT_STATE.md), [owner request](OWNER_REQUEST.md). Previous graph bytes retained in archive/OG-EQUIPMENT-CLAIMS-20261029/PREMERGE_WORK_GRAPH.md.
 
-| Work | Owner | Files | State |
-|---|---|---|---|
-| Retained evidence binding | Luna architecture | equipment_evidence.py; unit tests | DELIVERED |
-| Equipment candidate contract | Luna product | equipment_claims.py; unit tests | DELIVERED |
-| Cohort/source/schema map | Luna audit_roadmap | og-equipment-claim-map.md; cohort fixtures/test | DELIVERED |
-| Integration and checks | Lead | instructions/checkpoint/receipts/entry links | Local PASS; full CI pending |
-| Independent review | Astra critic | Read-only integrated diff | Source review PASS a37fced9; CI diagnostic-only change needs scoped review |
-| Focused stacked PR | Lead | Base PR150 branch | PR151 draft; PR backend timeout diagnosis |
+| Work | Owner | State |
+|---|---|---|
+| Pure equipment foundation and Phase0 audit | Three Luna builders | Delivered; source unchanged208df7df |
+| Independent source and CI diagnostic review | Astra critic | PASS208df7df |
+| Fresh review findings | Lead | Layout, archive navigation and historical status repaired |
+| Scoped premerge review and final CI | Lead + Astra | Pending repaired heads |
+| Merge PR150 then retarget/merge PR151 | Lead | Authorized after validation |
+| Remote/local main verification | Lead | Pending merge |
 
-Shared isolated Git worktree, disjoint ownership; no runtime integration assignments. Prior graph retained under archive/OG-EQUIPMENT-CLAIMS-20261029. No release authority.
+No UI/runtime/schema/provider/qualification change or release assignment. This is an authoring-time checkpoint; final exact-head and merge outcomes are retained in the linked PR completion records.
