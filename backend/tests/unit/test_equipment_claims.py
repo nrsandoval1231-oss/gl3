@@ -94,7 +94,10 @@ def test_accepts_uuid_and_canonical_uuid_text(identifier):
     assert value.project_id == PROJECT_ID
 
 
-@pytest.mark.parametrize("identifier", [str(uuid4()).upper(), "not-a-uuid", 4, True])
+@pytest.mark.parametrize(
+    "identifier",
+    ["AFF1A621-9B4A-469D-84FA-70F267B96410", "not-a-uuid", 4, True],
+)
 def test_rejects_noncanonical_or_wrongly_typed_uuids(identifier):
     with pytest.raises((ValidationError, ValueError, TypeError)):
         validate_equipment_claim(candidate(project_id=identifier), context=context_for())
