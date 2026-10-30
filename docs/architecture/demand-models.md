@@ -1,6 +1,6 @@
 # Electrical demand models
 
-Authority: [Autonomous Power Demand Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). These are target demand contracts; bounded equipment implementation is in progress, not shipped.
+Authority: [Autonomous Power Demand Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). These are target demand contracts; the bounded equipment implementation is a tested candidate, not deployed.
 
 ## CURRENT
 
@@ -52,9 +52,9 @@ O&G and data-center examples must follow same schema but have separate equipment
 
 Each calculation stores model ID/version, unit-conversion version, formula, scenario timestamp/as-of, input claim IDs and hashes, explicit assumptions with source or calibration version, output unit/range, and validation results. Recompute deterministically from frozen inputs. A changed formula yields a new result version; prior results remain addressable.
 
-## NEXT — first slice in progress
+## CURRENT CANDIDATE — first bounded slice
 
-Implement source parsing and deterministic `Decimal` models for a bounded O&G electric pump/compressor cohort, retaining source efficiency, count, operating/standby state and new-versus-existing classification. Use existing `EvidencePackage`, normal and unchanged-record ingestion hooks, and intelligence-card API; no migration is planned. Deterministic regression and integration tests cover this candidate. This slice is not shipped; see [implementation plan](../engineering/equipment-demand-slice-20261030.md). Broader catalogs and lifecycle models follow separately. Candidate UI presents dated equipment capacity; cohort-wide KPI values remain unavailable.
+The candidate implements source parsing and deterministic `Decimal` models for a bounded O&G electric pump/compressor cohort, retaining source efficiency, count, operating/standby state and new-versus-existing classification. Use existing `EvidencePackage`, normal and unchanged-record ingestion hooks, and intelligence-card API; no migration is planned. Deterministic regression and integration tests cover this candidate. This slice is not deployed; see [implementation plan](../engineering/equipment-demand-slice-20261030.md). Broader catalogs and lifecycle models follow separately. Candidate UI presents dated equipment capacity; cohort-wide KPI values remain unavailable.
 
 ## EXCLUDED
 

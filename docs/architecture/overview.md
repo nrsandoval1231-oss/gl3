@@ -20,14 +20,14 @@ The [engine specification](intelligence-engine.md) defines six layers: (1) Disco
 
 A replaceable reasoning-provider interface may assist interpretation. Athena is optional, not a runtime dependency or required framework. Engineers own deterministic calculations and tests.
 
-## NEXT — implementation sequence (first slice in progress)
+## CURRENT CANDIDATE and next implementation
 
-1. Implement the bounded O&G source equipment parser and deterministic `Decimal` electric pump/compressor models; retain source efficiency, count, operating/standby state, and new-versus-existing classification.
-2. Bind through the confirmed `EvidencePackage`, normal and unchanged-record ingestion hooks, and existing intelligence-card API contract; no migration is planned for this slice.
+1. The candidate implements the bounded O&G source equipment parser and deterministic `Decimal` electric pump/compressor models; retain source efficiency, count, operating/standby state, and new-versus-existing classification.
+2. It binds through the confirmed `EvidencePackage`, normal and unchanged-record ingestion hooks, and existing intelligence-card API contract; no migration is planned for this slice.
 3. Later, add broader deterministic, versioned O&G and data-center models with explicit input provenance, units, scenarios and negative cases.
 4. Add independent evaluation fixtures, abstention thresholds and rollback/promotion records before connecting autonomous reasoning to publication.
 
-The first slice is documented as in progress, not shipped; see [implementation plan](../engineering/equipment-demand-slice-20261030.md). Each implementation slice needs migration/API compatibility and isolated-database regression evidence. The historical Phase 0 specification work itself made no runtime change.
+The first slice is implemented and under candidate validation, not deployed; see [implementation plan](../engineering/equipment-demand-slice-20261030.md). Each implementation slice needs migration/API compatibility and isolated-database regression evidence. The historical Phase 0 specification work itself made no runtime change.
 
 ## DEFERRED
 

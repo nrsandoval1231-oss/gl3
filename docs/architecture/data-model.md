@@ -24,7 +24,7 @@ Unknown, contradicted, stale and absent are distinct states. Missing equipment d
 
 ## NEXT — evolve existing contracts only as demonstrated
 
-1. Reuse `EvidencePackage` and existing project/need relationships for the in-progress `equipment-demand-v1` slice; no migration is planned for that slice.
+1. Reuse `EvidencePackage` and existing project/need relationships for the candidate `equipment-demand-v1` slice; no migration is planned for that slice.
 2. Map real source/project/equipment cases to existing structures. Add or evolve persistence only when a demonstrated gap blocks a demand record, with compatibility and rollback evidence.
 3. Preserve all historical IDs and claims; never backfill unsupported values or make supply/qualification mandatory for demand records.
 

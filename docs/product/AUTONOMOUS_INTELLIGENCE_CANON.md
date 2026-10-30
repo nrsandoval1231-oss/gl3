@@ -50,7 +50,7 @@ Primary demand KPI: **Identified Power Demand MW**, with documented, calculated,
 
 ## Historical Phase 0 scope and current implementation boundary
 
-The October 29 Phase 0 was documentation-only. Current implementation is a narrower first slice: source equipment parsing and deterministic `Decimal` electric-pump/compressor models using `equipment-demand-v1` on existing `EvidencePackage` records and normal and unchanged-record ingestion hooks; demand records use the existing intelligence-card API contract. No migration is planned. Independent deterministic tests are engineer-owned. This slice is in progress and does not implement all six layers. Demand-centered UI changes are in the current candidate, but Identified Power Demand MW data is unavailable. October 29 UI remains released production truth; candidate work is not deployed. See the [implementation plan](../engineering/equipment-demand-slice-20261030.md).
+The October 29 Phase 0 was documentation-only. Current implementation is a narrower first slice: source equipment parsing and deterministic `Decimal` electric-pump/compressor models using `equipment-demand-v1` on existing `EvidencePackage` records and normal and unchanged-record ingestion hooks; demand records use the existing intelligence-card API contract. No migration is planned. Independent deterministic tests are engineer-owned. This candidate implements the bounded slice and does not implement all six layers. Demand-centered UI changes are in the current candidate, but Identified Power Demand MW data is unavailable. October 29 UI remains released production truth; candidate work is not deployed. See the [implementation plan](../engineering/equipment-demand-slice-20261030.md).
 
 ## Historical candidate directions
 
