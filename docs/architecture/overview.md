@@ -30,7 +30,11 @@ Each slice needs migration/API compatibility and isolated-database regression ev
 
 ## DEFERRED
 
-General-purpose graph database, speculative orchestration framework, required human approval queue, autonomous production code editing, paid provider activation, and any claim that a documentation spec implements the target engine.
+General-purpose graph database, speculative orchestration framework and paid provider activation without separate authorization.
+
+## EXCLUDED
+
+Required routine human approval queues, unrestricted autonomous production code editing, and representing documentation as implemented capability.
 
 ## Related specifications
 

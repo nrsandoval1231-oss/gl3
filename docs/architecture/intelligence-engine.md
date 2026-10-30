@@ -41,6 +41,10 @@ Define an adapter contract `interpret(task, schema, evidence_refs, budget, deadl
 
 Implement the missing graph relations and deterministic equipment models first; then run independent evaluation/verification before enabling any model proposal in publication decisions. No runtime implementation is included in this documentation slice.
 
-## DEFERRED
+## EXCLUDED
 
 Required human approval; single-model self-verification; model-authored arithmetic; provider-specific domain schema; unbounded multi-agent research; self-modifying production code.
+
+## DEFERRED
+
+Athena integration, broader sector lenses and autonomous policy promotion until the earlier foundations and evaluation gates pass.

@@ -34,6 +34,10 @@ Promotion requires predeclared thresholds per task and protected segment, no cri
 
 First create frozen, source-attributed fixtures for current qualification and new demand models. Then implement independent validator interfaces and read-only shadow evaluation. Define numeric release thresholds only after baseline measurement and owner-approved commercial criteria; never relax thresholds to obtain a pass.
 
-## DEFERRED
+## EXCLUDED
 
 Self-modifying code, autonomous policy promotion without a frozen gate, second-model agreement as sole verifier, using user clicks as verified commercial outcomes, or treating production observations as a substitute for labeled evaluation.
+
+## DEFERRED
+
+Automated policy/model promotion remains later-phase work until frozen evaluation and rollback gates exist.
