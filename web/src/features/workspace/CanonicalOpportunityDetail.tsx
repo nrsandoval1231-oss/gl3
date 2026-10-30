@@ -38,9 +38,10 @@ function equipmentDemandProjection(card: NonNullable<Props['item']>['intelligenc
 
 function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_kw' | 'coincident_kw' | 'incremental_kw') {
   const value = demand?.[key]
-  if (typeof value === 'number' && Number.isFinite(value)) return `${value.toLocaleString()} kW`
-  if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return `${value.trim()} kW`
-  return 'Unknown'
+  const amount = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN
+  if (!Number.isFinite(amount)) return 'Unknown'
+  if (amount > 0 && amount < 0.1) return '<0.1 kW'
+  return `${amount.toLocaleString(undefined, { maximumFractionDigits: 1 })} kW`
 }
 
 export function CanonicalOpportunityDetail(props: Props) {
