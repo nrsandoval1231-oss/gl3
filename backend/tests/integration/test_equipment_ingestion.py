@@ -323,3 +323,71 @@ def test_oklahoma_schedule_with_generic_headers_and_whitespace_keeps_demand_sour
         assert payload["demand"]["connected_kw"] == "4000"
         assert payload["demand"]["coincident_kw"] == "2000"
         assert payload["demand"]["incremental_kw"] == "4000"
+
+
+def test_real_ok_deq_discovery_rows_retain_evidence_without_inventing_demand(
+    equipment_ingestion_db,
+):
+    from pathlib import Path
+
+    from gridlens.ingestion.adapters.ok_deq_public_review import _record, parse_listing
+    from gridlens.ingestion.service import process_records
+    from gridlens.persistence.models import Evidence, Interpretation
+
+    factory = equipment_ingestion_db
+    definition = next(row for row in load_registry() if row["id"] == "oklahoma-deq-public-review")
+    body = (
+        Path(__file__).parents[1] / "fixtures" / "ok-deq-oil-gas-discovery-excerpt.html"
+    ).read_bytes()
+    records = [_record(row) for row in parse_listing(body)]
+    assert len(records) == 3
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=definition["cadence_hours"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="discovery-test-worker",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    for _ in range(2):
+        with factory() as session:
+            result = process_records(
+                session,
+                job_id,
+                "discovery-test-worker",
+                1,
+                definition,
+                records,
+                allow_model=False,
+            )
+            assert result["permit_accepted"] == 0
+        with factory() as session:
+            assert session.scalar(select(func.count()).select_from(Observation)) == 3
+            assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+            assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+            assert session.scalar(select(func.count()).select_from(EvidencePackage)) == 0
+            interpretations = session.scalars(select(Interpretation)).all()
+            assert len(interpretations) == 3
+            assert all(row.status == "rejected" for row in interpretations)
+            evidence = session.scalars(select(Evidence)).all()
+            assert all(row.event_date is not None for row in evidence)
+            assert all(row.url.startswith("https://applications.deq.ok.gov/") for row in evidence)
+            assert all("Power signal tags: none" in row.abstract for row in evidence)
