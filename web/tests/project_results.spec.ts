@@ -922,16 +922,20 @@ test('source health preserves unknown outcome values when a partial payload omit
 
 test('a session failure removes the cached browse surface before a later return', async ({ page }) => {
   let groupReads = 0
+  let expireSession = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/groups?*', route => {
     groupReads += 1
-    return groupReads <= 2 ? route.fulfill({ json: groupPage }) : route.fulfill({ status: 401, json: { detail: 'Authentication required' } })
+    return expireSession ? route.fulfill({ status: 401, json: { detail: 'Authentication required' } }) : route.fulfill({ json: groupPage })
   })
   await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
   await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  const initialGroupReads = groupReads
+  expireSession = true
   await page.getByRole('button', { name: 'Refresh project results' }).click()
   await expect(page.getByRole('alert')).toContainText('Your session ended')
+  await expect.poll(() => groupReads).toBeGreaterThan(initialGroupReads)
   await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
   await page.locator('.wh-account summary').click()
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
@@ -939,27 +943,30 @@ test('a session failure removes the cached browse surface before a later return'
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Your session ended')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
-  expect(groupReads).toBeGreaterThanOrEqual(3)
+  expect(groupReads).toBeGreaterThan(initialGroupReads + 1)
 })
 
 test('a session expiry from Signals clears the browse cache while results are unmounted', async ({ page }) => {
   let groupReads = 0
+  let serviceUnavailable = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/groups?*', route => {
     groupReads += 1
-    return groupReads <= 2 ? route.fulfill({ json: groupPage }) : route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'Retry-After': '60' }, json: { detail: 'qualification pending' } })
+    return serviceUnavailable ? route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'Retry-After': '60' }, json: { detail: 'qualification pending' } }) : route.fulfill({ json: groupPage })
   })
   await page.route('**/api/opportunities?*', route => route.fulfill({ status: 401, json: { detail: 'Authentication required' } }))
   await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  const initialGroupReads = groupReads
   await page.locator('.wh-account summary').click()
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Your session ended')
+  serviceUnavailable = true
   await page.locator('.wh-account summary').click()
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
   await expect(page.getByRole('status')).toBeVisible()
   await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
-  expect(groupReads).toBeGreaterThanOrEqual(2)
+  expect(groupReads).toBeGreaterThan(initialGroupReads)
 })
 
 test('cached browse context expires at the backend valid-until boundary', async ({ page }) => {
