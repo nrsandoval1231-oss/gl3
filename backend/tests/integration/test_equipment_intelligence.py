@@ -1,6 +1,7 @@
 """Synthetic equipment evidence: durable automatic processing, never live coverage."""
 
-from datetime import date
+from datetime import UTC, date, datetime
+from decimal import Decimal, Inexact, localcontext
 from hashlib import sha256
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.equipment_intelligence import (
+    _canonical_decimal,
     current_equipment_investigation,
     materialize_equipment_investigation,
 )
@@ -299,6 +301,100 @@ def test_conflicting_documents_abstain_without_double_counting(equipment_db):
         assert "Reconcile" in result["next_action"]
 
 
+def test_historical_receipts_do_not_consume_current_document_bound(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        build(session, rows)
+        for _index in range(40):
+            stale = additional_document(session, rows, rows[3].abstract)
+            build(session, stale)
+            stale[4].status = "rejected"
+            session.flush()
+        # A newly admitted old-source-date document remains current and eligible.
+        current = additional_document(session, rows, rows[3].abstract)
+        # Backdate the source publication before constructing its immutable receipt.
+        current[2].published_at = date(2020, 1, 1)
+        current[3].published_at = date(2020, 1, 1)
+        current[4].assessment = {**current[4].assessment}
+        current[4].assessment["published_at"] = date(2020, 1, 1).isoformat()
+        build(session, current)
+        result = current_equipment_investigation(session, rows[0].id, rows[1].id)
+        assert result["status"] == "SUPPORTED"
+        assert result["demand"] is not None
+
+
+def test_thirty_three_current_documents_still_abstain(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        build(session, rows)
+        for _ in range(32):
+            build(session, additional_document(session, rows, rows[3].abstract))
+        result = current_equipment_investigation(session, rows[0].id, rows[1].id)
+        assert result["status"] == "ABSTAINED"
+        assert result["demand"] is None
+
+
+def test_identical_reordered_rows_and_case_variant_ids_do_not_conflict(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        build(session, rows)
+        body = rows[3].abstract.replace("C-101", "c-101").replace("P-201", "p-201")
+        row_lines = body.splitlines()
+        reordered = "\n".join(row_lines[:3] + [row_lines[4], row_lines[3]])
+        build(session, additional_document(session, rows, reordered))
+        result = current_equipment_investigation(session, rows[0].id, rows[1].id)
+        assert result["status"] == "SUPPORTED"
+        assert result["demand"] is not None
+        assert len(result["evidence"]) == 2
+
+
+def test_tampered_current_binding_fails_closed_before_rank_limit(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        build(session, rows)
+        for _ in range(34):
+            stale = additional_document(session, rows, rows[3].abstract)
+            build(session, stale)
+            stale[4].assessment = {**stale[4].assessment, "evidence_hash": "f" * 64}
+        session.flush()
+        assert (
+            current_equipment_investigation(session, rows[0].id, rows[1].id)["status"]
+            == "SUPPORTED"
+        )
+
+
+def test_old_parser_and_model_receipts_do_not_consume_current_bound(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        current = build(session, rows)
+        for index in range(34):
+            stale = additional_document(session, rows, rows[3].abstract)
+            old = build(session, stale)
+            old.extractor_version = f"old-parser-{index}"
+            old.model = f"old-model-{index}"
+            old.question_contract = "old-contract"
+            session.flush()
+        # The current package is old by creation time; obsolete package versions
+        # must not consume the current projection's bounded read.
+        current.created_at = datetime(2020, 1, 1, tzinfo=UTC)
+        current_result = current_equipment_investigation(session, rows[0].id, rows[1].id)
+        assert current_result["status"] == "SUPPORTED"
+        assert current_result["demand"] is not None
+
+
+def test_decimal_signature_normalization_is_exact_and_context_independent():
+    with localcontext() as context:
+        context.prec = 2
+        context.traps[Inexact] = True
+        assert _canonical_decimal(Decimal("1.2300")) == _canonical_decimal(Decimal("1.23"))
+        assert _canonical_decimal(Decimal("12345678901234567890.001")) == (
+            "12345678901234567890.001"
+        )
+        assert _canonical_decimal(Decimal("12345678901234567890.002")) == (
+            "12345678901234567890.002"
+        )
+
+
 @pytest.mark.parametrize(
     "replacement", ["Drive: electric or gas engine", "Drive: electric (gas engine)"]
 )
@@ -420,3 +516,17 @@ def test_disjoint_future_operating_windows_publish_partial_not_simultaneous_tota
         assert result["demand"]["coincident_kw"] is None
         assert result["classification"] == "UNKNOWN"
         assert any("windows do not overlap" in q for q in result["unresolved_questions"])
+
+
+def test_ordinary_permit_metadata_does_not_materialize_equipment_investigation(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(
+            session,
+            body=(
+                "Company: Prairie Example LLC\nFacility: Mock Permian Compression Station\n"
+                "Type: Construction Permit\nState: OK\nStatus: Under Review\n"
+            ),
+        )
+        assert build(session, rows) is None
+        assert session.scalar(select(func.count()).select_from(EvidencePackage)) == 0
+        assert current_equipment_investigation(session, rows[0].id, rows[1].id) is None

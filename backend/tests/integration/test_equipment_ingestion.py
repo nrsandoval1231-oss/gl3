@@ -41,8 +41,11 @@ def equipment_ingestion_db():
         admin.dispose()
 
 
+@pytest.mark.parametrize("legacy_rejection", [False, True])
 def test_equipment_schedule_is_materialized_and_accepted_permit_replay_is_idempotent(
     equipment_ingestion_db,
+    monkeypatch,
+    legacy_rejection,
 ):
     from gridlens.ingestion.service import process_records
 
@@ -115,6 +118,30 @@ def test_equipment_schedule_is_materialized_and_accepted_permit_replay_is_idempo
                 [record_value],
                 allow_model=False,
             )
+
+    if legacy_rejection:
+        import gridlens.domain.permit_interpretation as permit_engine
+        import gridlens.ingestion.service as ingestion
+        from gridlens.persistence.models import Evidence, Interpretation
+
+        # Same source bytes, rejected and cached under the preceding admission
+        # version when generic permit metadata looked like malformed equipment.
+        record["abstract"] += "\nType: Construction Permit\nState: OK"
+        with monkeypatch.context() as old_version:
+            old_version.setattr(
+                ingestion, "permit_evaluator_version", lambda _: "regional-power-record-v2"
+            )
+            old_version.setattr(
+                permit_engine, "_ok_deq_oil_gas_equipment_schedule", lambda *_: False
+            )
+            rejected = run(record)
+        assert rejected["permit_accepted"] == 0
+        with factory() as session:
+            previous = session.scalar(select(Interpretation))
+            assert previous.status == "rejected"
+            assert previous.evaluator_version == "regional-power-record-v2"
+            assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+            assert session.scalar(select(func.count()).select_from(Evidence)) == 1
 
     first = run(record)
     assert first["permit_accepted"] == 1
