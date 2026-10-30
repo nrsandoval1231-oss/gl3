@@ -131,6 +131,44 @@ def test_basis_labels_are_conservative_by_unit_and_efficiency_percent_is_normali
     assert claims[2].power_factor == Decimal("0.0095")
 
 
+def test_interpretation_normalizes_rating_basis_and_drive_whitespace_but_keeps_quote():
+    rows = (
+        "Equipment ID: W-1 | Type: pump | Drive: gas\t engine | "
+        "Rating: 100 hp mechanical\t\toutput",
+        "ID: W-2 | Type: pump | Drive: electric | Rating: 200 kW electrical\tinput",
+        "ID: W-3 | Type: pump | Drive: gas    engine | Rating: 300 hp mechanical output",
+    )
+    text = "\n".join(rows)
+    result = extract_equipment_claims(text)
+
+    assert [(claim.drive, claim.rating_basis) for claim in result.claims] == [
+        ("gas_engine", "mechanical_output"),
+        ("electric", "electrical_input"),
+        ("gas_engine", "mechanical_output"),
+    ]
+    assert result.issues == []
+    assert [text[claim.start : claim.end] for claim in result.claims] == list(rows)
+
+
+def test_generic_metadata_ids_do_not_create_issues_or_hide_valid_equipment_schedule():
+    row = "ID: M-12 | Type: pump | Drive: electric | Rating: 100 kW electrical input"
+    result = extract_equipment_claims("Permit ID: P-1\nFacility ID: F-2\nProject ID: J-3\n" + row)
+
+    assert [claim.equipment_id for claim in result.claims] == ["M-12"]
+    assert result.has_schedule is True
+    assert result.issues == []
+
+
+def test_malformed_explicit_equipment_id_row_still_reports_incomplete_extraction():
+    result = extract_equipment_claims(
+        "Permit ID: P-1\nEquipment ID: M-13 | Type: pump | Drive: electric\n"
+    )
+
+    assert result.claims == []
+    assert result.has_schedule is True
+    assert any("Unrecognized or ambiguous equipment row" in issue for issue in result.issues)
+
+
 def test_malformed_negative_count_is_reported_instead_of_becoming_unknown():
     result = extract_equipment_claims(
         "ID: X-4 | Type: pump | Drive: electric | Rating: 100 kW electrical input | Count: -1"
