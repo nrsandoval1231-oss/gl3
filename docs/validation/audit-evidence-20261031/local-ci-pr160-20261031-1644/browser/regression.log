@@ -1,0 +1,205 @@
+$ npm run test:ci --prefix web
+
+> gridlens-web@0.1.0 test:ci
+> playwright test --project=regression
+
+[WebServer] INFO:     Started server process [39904]
+[WebServer] INFO:     Waiting for application startup.
+
+[WebServer] INFO:     Application startup complete.
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+
+[WebServer] (node:39922) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 179 tests using 2 workers
+
+(node:39943) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/179] [regression] › tests/approved_workspace.spec.ts:39:1 › approved intelligence workspace preserves evidence, research status, selection history, and mobile width
+(node:39944) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/179] [regression] › tests/auth.spec.ts:8:1 › real session protects the workspace, survives reload, and ends on sign-out
+[3/179] [regression] › tests/autonomous-research.spec.ts:26:1 › Research shows source-backed contacts, separate priority and confidence, explicit unknowns, and read-only history on mobile
+[4/179] [regression] › tests/autonomous-research.spec.ts:71:1 › Research reports contact detail unavailable when the selected need read fails
+[5/179] [regression] › tests/buying_chain.spec.ts:67:1 › mobile buying chain keeps unknown and empty results readable
+[6/179] [regression] › tests/autonomous-research.spec.ts:90:1 › Research treats a successful detail response without an intelligence card as unavailable
+[7/179] [regression] › tests/buying_chain.spec.ts:77:1 › retained permit fields are useful before enrichment and preserve source roles
+[8/179] [regression] › tests/autonomous-research.spec.ts:101:1 › Research does not show a prior project contact after a rapid selection change
+[9/179] [regression] › tests/canonical_all_signals.spec.ts:43:1 › synthetic All view requests discovery so Signals render, and pagination and filters keep that scope
+[10/179] [regression] › tests/autonomous-research.spec.ts:146:1 › Research hides the previous cohort while a new search loads or fails
+[11/179] [regression] › tests/autonomous-research.spec.ts:168:1 › Back to opportunities clears the selected research URL across reloads
+[12/179] [regression] › tests/canonical_cohort_sort.spec.ts:39:3 › company sort requests the complete cohort and resets pagination
+[13/179] [regression] › tests/autonomous-research.spec.ts:180:1 › project search surfaces matching project cards and opens a matching need
+[14/179] [regression] › tests/canonical_cohort_sort.spec.ts:39:3 › project sort requests the complete cohort and resets pagination
+[15/179] [regression] › tests/autonomous-research.spec.ts:205:1 › project search drops prior results after a failed query
+[16/179] [regression] › tests/canonical_cohort_sort.spec.ts:59:1 › priority ascending belongs to the server cohort and survives detail/back and reload
+[17/179] [regression] › tests/autonomous-research.spec.ts:229:1 › All search explains when no source-backed operator/customer groups match
+[18/179] [regression] › tests/canonical_cohort_sort.spec.ts:79:1 › browser Back restores sort and its cached cohort without mixing rows
+[19/179] [regression] › tests/canonical_cohort_sort.spec.ts:92:1 › sorting beside an open desktop detail clears the need without undoing the new sort
+[20/179] [regression] › tests/canonical_detail.spec.ts:64:1 › canonical detail tabs update browser history and render only source-backed, correctly attributed contact methods
+[21/179] [regression] › tests/canonical_cohort_sort.spec.ts:107:1 › an empty filtered page reports visible matches separately from the cohort range
+[22/179] [regression] › tests/canonical_cohort_sort.spec.ts:121:1 › an empty server page beyond a smaller cohort reports no inverted range
+[23/179] [regression] › tests/canonical_flat_results.spec.ts:10:1 › synthetic flat results render company/project rows, honest KPIs, filters, selection and full-cohort server search
+[24/179] [regression] › tests/canonical_flat_results.spec.ts:48:1 › canonical KPI captions stay within their cards and above the opportunities heading
+[25/179] [regression] › tests/canonical_detail.spec.ts:196:1 › native equipment proposal preserves historical date and unknown capacity on desktop and mobile
+[26/179] [regression] › tests/canonical_shell.spec.ts:15:1 › canonical shell searches opportunities, navigates, and remains usable at narrow widths
+[27/179] [regression] › tests/canonical_flat_results.spec.ts:87:1 › synthetic repeated cohort conflict stops after one reset and presents a retry
+[28/179] [regression] › tests/canonical_flat_results.spec.ts:96:1 › synthetic logout while a request is pending cannot repopulate rows or cache
+[29/179] [regression] › tests/company-intelligence.spec.ts:45:1 › company graph shows explicit unknowns and only evidence-backed aliases and safe source links
+[30/179] [regression] › tests/canonical_flat_results.spec.ts:118:1 › synthetic logout while results are unmounted clears module cache before returning
+[31/179] [regression] › tests/company-intelligence.spec.ts:58:1 › company graph failure can be retried within the existing account panel
+[32/179] [regression] › tests/canonical_flat_results.spec.ts:138:1 › synthetic empty and error states do not produce repeated React update errors
+[33/179] [regression] › tests/company-intelligence.spec.ts:68:1 › company graph switches identity when the selected account changes
+[34/179] [regression] › tests/canonical_flat_results.spec.ts:148:1 › synthetic related need navigation restores focus to its exact need control
+[35/179] [regression] › tests/company-intelligence.spec.ts:79:1 › company graph displays nested evidence and permits only safe source URLs
+[36/179] [regression] › tests/canonical_flat_results.spec.ts:164:1 › synthetic unavailable browse response stays visible for explicit retry
+[37/179] [regression] › tests/canonical_flat_results.spec.ts:173:1 › malformed browse payload fails safely while an exact selected need remains available
+[38/179] [regression] › tests/company-intelligence.spec.ts:95:1 › imported contact assertions stay visibly unverified and are not clickable routes
+[39/179] [regression] › tests/customer-accounts.spec.ts:14:1 › account queue uses server grouping, opens paginated projects, and retains unresolved research access
+[40/179] [regression] › tests/dashboard.spec.ts:13:1 › project results preserve detail history, truthful gaps, and responsive navigation
+[41/179] [regression] › tests/customer-accounts.spec.ts:93:1 › account deep links reload profile and filters remain server-side
+[42/179] [regression] › tests/environment.spec.ts:94:1 › project-first results keep geographically unknown projects reachable and restore selected need
+[43/179] [regression] › tests/customer-accounts.spec.ts:117:1 › primary account pages are server driven and preserve cohort and history
+[44/179] [regression] › tests/environment.spec.ts:111:1 › legacy action deep link restores selected need without retired call preparation
+[45/179] [regression] › tests/customer-accounts.spec.ts:153:1 › primary account pager resets a stale cohort on 409
+[46/179] [regression] › tests/environment.spec.ts:123:1 › legacy environment URL reaches project results without workspace or map requests
+[47/179] [regression] › tests/customer-accounts.spec.ts:183:1 › expired workspace cohort restarts pagination and keeps the selected account profile
+[48/179] [regression] › tests/environment.spec.ts:135:1 › secondary account browsing uses bounded server pagination instead of map-window data
+[49/179] [regression] › tests/customer-accounts.spec.ts:206:1 › account project errors expose an explicit retry without changing the account route
+[50/179] [regression] › tests/environment.spec.ts:155:1 › Back and Forward wait for the matching page before restoring each queue position
+[51/179] [regression] › tests/customer-accounts.spec.ts:232:1 › unresolved customer project failures remain visible and retry successfully
+[52/179] [regression] › tests/customer-accounts.spec.ts:256:1 › account project page is deep-linked and restored through reload, Back, and Forward
+[53/179] [regression] › tests/environment.spec.ts:200:1 › section navigation keeps Opportunities and Signals searches independent through reload and history
+[54/179] [regression] › tests/environment.spec.ts:223:1 › Research navigation keeps Opportunities search and selection state independent
+[55/179] [regression] › tests/customer-accounts.spec.ts:302:1 › unresolved pagination resets on search and ignores the previous search response
+[56/179] [regression] › tests/evidence-content.spec.ts:3:1 › raw source content loads only on request and uses bounded chunks
+[57/179] [regression] › tests/customer-accounts.spec.ts:352:3 › detail clears a mismatched account identity from the saved account URL
+[58/179] [regression] › tests/customer-accounts.spec.ts:352:3 › detail clears a retracted account identity from the saved account URL
+[59/179] [regression] › tests/login.spec.ts:16:3 › workspace login responds at desktop and phone sizes, then retries after a rejected password
+[60/179] [regression] › tests/customer-accounts.spec.ts:375:1 › company contacts remain actionable after refresh and generic routes require research
+[61/179] [regression] › tests/login.spec.ts:54:3 › workspace login validates required input and suppresses repeated submissions while pending
+[62/179] [regression] › tests/login.spec.ts:84:3 › workspace login gives safe rate-limit guidance
+[63/179] [regression] › tests/pr101-late-regressions.spec.ts:20:1 › server-filtered SHOW group remains visible when only a REVIEW member is loaded
+[64/179] [regression] › tests/login.spec.ts:92:3 › workspace login gives safe network guidance
+[65/179] [regression] › tests/pr101-late-regressions.spec.ts:33:1 › active Opportunities navigation preserves its selected need and section after reload
+[66/179] [regression] › tests/login.spec.ts:16:3 › environment login responds at desktop and phone sizes, then retries after a rejected password
+[67/179] [regression] › tests/pr101-late-regressions.spec.ts:51:1 › legacy source-sector aliases canonicalize selection, request, and URL
+[68/179] [regression] › tests/login.spec.ts:54:3 › environment login validates required input and suppresses repeated submissions while pending
+[69/179] [regression] › tests/login.spec.ts:84:3 › environment login gives safe rate-limit guidance
+[70/179] [regression] › tests/login.spec.ts:92:3 › environment login gives safe network guidance
+[71/179] [regression] › tests/pr101-regressions.spec.ts:30:1 › legacy environment links preserve supported tab, lens, tier, and grouped browse offset
+[72/179] [regression] › tests/project_cards.spec.ts:124:1 › stable project IDs consolidate lifecycle records and decision filters default uncertain records to REVIEW
+[73/179] [regression] › tests/project_cards.spec.ts:139:1 › Cannabis Watch is removed and an evidence-supported applicant titles the card and detail
+[74/179] [regression] › tests/pr101-regressions.spec.ts:59:1 › secondary technical diagnostics keeps the filtered inbox URL and readback aligned
+[75/179] [regression] › tests/project_cards.spec.ts:174:1 › browse filters travel through the request URL and restore with the selected detail Back state
+[76/179] [regression] › tests/pr101-regressions.spec.ts:80:1 › default landing hides the legacy queue and briefing controls
+[77/179] [regression] › tests/project_cards.spec.ts:244:1 › stale later-page cohort restarts at page one without showing the previous cohort
+[78/179] [regression] › tests/project_results.spec.ts:17:1 › synthetic default All scope shows operator/customer groups without a qualified-only empty message
+[79/179] [regression] › tests/project_cards.spec.ts:291:1 › Back restores the exact selected need across tiers and pages with its cohort and focus
+[80/179] [regression] › tests/project_results.spec.ts:24:1 › synthetic unresolved group role is explicit and never implies a resolved organization
+[81/179] [regression] › tests/project_results.spec.ts:32:1 › synthetic project results use the project contract, category filters, and honest contact/event labels
+[82/179] [regression] › tests/project_cards.spec.ts:323:1 › direct selected URL reports an exact need outside its filtered cohort without showing another record
+[83/179] [regression] › tests/project_cards.spec.ts:359:1 › direct selected URL hydrates the exact need with the restored page cohort when it moved off-page
+[84/179] [regression] › tests/project_results.spec.ts:62:1 › synthetic project pagination retains its cohort and browser Back restores search and sector
+[85/179] [regression] › tests/project_cards.spec.ts:405:1 › late restored-page response cannot replace a newer Back/Forward destination
+[86/179] [regression] › tests/project_results.spec.ts:87:1 › synthetic stale cohort conflict drops page token and reloads first page without stale cards
+[87/179] [regression] › tests/project_cards.spec.ts:470:1 › active first-page tier click preserves ready metadata and closes its detail without refetching
+[88/179] [regression] › tests/project_results.spec.ts:120:1 › synthetic operator groups expose every project through independent nested pagination
+[89/179] [regression] › tests/project_cards.spec.ts:514:1 › active first-page tier click while loading lets the matching request settle
+[90/179] [regression] › tests/project_cards.spec.ts:567:1 › active tier click from a later page fetches first-page data before showing totals
+[91/179] [regression] › tests/project_results.spec.ts:144:1 › synthetic nested cohort conflict atomically opens the same group with its fresh parent token
+[92/179] [regression] › tests/project_cards.spec.ts:602:1 › active Signals decision and unchanged search preserve ready page metadata
+[93/179] [regression] › tests/project_results.spec.ts:179:1 › synthetic paginated child conflict fresh-opens page one and keeps parent-list token separate
+[94/179] [regression] › tests/project_cards.spec.ts:637:1 › active decision and unchanged activity filter during page load preserve the request
+[95/179] [regression] › tests/project_results.spec.ts:205:1 › synthetic nested conflict stops when atomic open reports the group missing
+[96/179] [regression] › tests/project_cards.spec.ts:676:1 › unchanged search during page load does not cancel its terminal response
+[97/179] [regression] › tests/project_results.spec.ts:218:1 › synthetic delayed atomic open cannot restore a child after the search changes
+[98/179] [regression] › tests/project_cards.spec.ts:711:1 › unchanged activity filter during page load does not cancel or duplicate its request
+[99/179] [regression] › tests/project_results.spec.ts:243:1 › synthetic delayed child response cannot repopulate results after a search change
+[100/179] [regression] › tests/project_cards.spec.ts:750:1 › technical diagnostics are secondary to the commercial navigation and load source records
+[101/179] [regression] › tests/project_cards.spec.ts:785:1 › late detail response cannot replace a newer selected record
+[102/179] [regression] › tests/project_results.spec.ts:270:1 › operator group disclosure is visible and tappable on desktop and mobile
+[103/179] [regression] › tests/project_cards.spec.ts:808:1 › late group expansion pages cannot restore members from a superseded browse filter
+[104/179] [regression] › tests/project_results.spec.ts:299:1 › synthetic detail reloads the selected project by exact need and fails closed until retry
+[105/179] [regression] › tests/project_cards.spec.ts:879:1 › changed browse cohort supersedes a pending group expansion
+[106/179] [regression] › tests/project_results.spec.ts:332:1 › synthetic tablet selection opens detail in the viewport above an unfiltered 25-card list
+[107/179] [regression] › tests/project_cards.spec.ts:934:1 › only the latest group expansion intent may open a card or surface its failure
+[108/179] [regression] › tests/project_results.spec.ts:355:1 › pending parent groups wait for Retry-After then reopen the same filtered cohort
+[109/179] [regression] › tests/project_cards.spec.ts:998:1 › reclicking a pending group cancels its expansion and selected-record navigation supersedes it
+[110/179] [regression] › tests/project_results.spec.ts:395:1 › pending first child read waits before atomic open of the same group
+[111/179] [regression] › tests/project_cards.spec.ts:1053:1 › group expansion intent is invalidated by tier, search, Signal decision, page, and view transitions
+[112/179] [regression] › tests/project_results.spec.ts:446:1 › 409 opens atomically and a pending open retries to the fresh same-group page
+[113/179] [regression] › tests/project_results.spec.ts:498:1 › parent pending retries stop after four active reads and manual retry starts over
+[114/179] [regression] › tests/project_results.spec.ts:551:3 › generic 503 without headers is not pending and does not auto-retry
+[115/179] [regression] › tests/project_cards.spec.ts:1158:1 › Previous hides later-page rows and metadata until the first-page request settles
+[116/179] [regression] › tests/project_results.spec.ts:551:3 › generic 503 with current and Retry-After headers is not pending and does not auto-retry
+[117/179] [regression] › tests/project_cards.spec.ts:1214:1 › Next hides first-page rows and metadata until the later-page request settles
+[118/179] [regression] › tests/project_cards.spec.ts:1264:1 › failed Previous clears the later page and reports unavailable instead of an empty cohort
+[119/179] [regression] › tests/project_results.spec.ts:581:1 › pending parent retry timer is cancelled when a new search supersedes it
+[120/179] [regression] › tests/project_cards.spec.ts:1305:1 › failed Next clears the first page and reports unavailable instead of retaining its cards
+[121/179] [regression] › tests/project_results.spec.ts:612:1 › collapsing a group cancels its pending child retry before atomic reopen
+[122/179] [regression] › tests/project_cards.spec.ts:1343:1 › project title prefers a current owner over operator, applicant, and contractor claims
+[123/179] [regression] › tests/project_cards.spec.ts:1352:1 › city permit company title shows source role and does not infer ownership
+[124/179] [regression] › tests/project_cards.spec.ts:1365:1 › city permit organization labels preserve the source role and role uncertainty
+[125/179] [regression] › tests/project_cards.spec.ts:1378:1 › current official RRC operator labels list and detail titles without buyer authority
+[126/179] [regression] › tests/project_cards.spec.ts:1395:1 › RRC operator parsing stays on its physical line when the operator is blank
+[127/179] [regression] › tests/project_cards.spec.ts:1414:1 › RRC operator title requires exact route, current evidence, and one usable name
+[128/179] [regression] › tests/project_cards.spec.ts:1433:1 › grouped permit members use company-first titles while retaining each permit record
+[129/179] [regression] › tests/project_results.spec.ts:652:1 › pending atomic open exhaustion is bounded and manual retry starts a new cycle
+[130/179] [regression] › tests/project_cards.spec.ts:1470:1 › Signals default to All and keep SHOW, REVIEW, and HOLD selectable
+[131/179] [regression] › tests/project_results.spec.ts:699:1 › collapsing one pending group clears only its retry status and preserves the other group
+[132/179] [regression] › tests/project_cards.spec.ts:1517:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable
+[133/179] [regression] › tests/project_results.spec.ts:746:1 › leaving opportunities during atomic-open wait cancels the retry timer
+[134/179] [regression] › tests/project_results.spec.ts:784:1 › rapid project searches debounce and an older response cannot replace the newest results
+[135/179] [regression] › tests/project_cards.spec.ts:1638:1 › all qualification tiers retain advanced filters and scoped export
+[136/179] [regression] › tests/project_results.spec.ts:821:1 › refresh keeps the rendered cohort labeled as updating and clears it when the filter changes
+[137/179] [regression] › tests/project_cards.spec.ts:1660:1 › Signal decisions do not filter Lead or Prospect cohorts
+[138/179] [regression] › tests/project_results.spec.ts:853:1 › expanded project pages survive More-menu navigation and return to the same browse context
+[139/179] [regression] › tests/source-listing-review.spec.ts:14:1 › a filing that left its source listing is flagged for status review, not hidden
+[140/179] [regression] › tests/project_results.spec.ts:875:1 › Signals and source health distinguish a loading request from terminal unavailability
+[141/179] [regression] › tests/source-listing-review.spec.ts:29:1 › a grouped card shows the review flag when any member left its listing
+[142/179] [regression] › tests/project_results.spec.ts:902:1 › source health labels latest check separately from recent schedule freshness
+[143/179] [regression] › tests/verticals.spec.ts:53:1 › source-sector groups preserve the oil and gas URL alias and send canonical filter values
+[144/179] [regression] › tests/project_results.spec.ts:918:1 › source health preserves unknown outcome values when a partial payload omits them
+[145/179] [regression] › tests/verticals.spec.ts:76:1 › source filters list authenticated health sources and send their actual source IDs
+[146/179] [regression] › tests/project_results.spec.ts:933:1 › a session failure removes the cached browse surface before a later return
+[147/179] [regression] › tests/verticals.spec.ts:103:1 › All Signals labels cards and every member of a mixed decision group
+[148/179] [regression] › tests/project_results.spec.ts:959:1 › a session expiry from Signals clears the browse cache while results are unmounted
+[149/179] [regression] › tests/workspace.spec.ts:19:1 › default workspace shows project results and opens existing need detail without the legacy list API
+[150/179] [regression] › tests/project_results.spec.ts:982:1 › cached browse context expires at the backend valid-until boundary
+[151/179] [regression] › tests/workspace.spec.ts:43:1 › browser Back re-reads the same selected need after identity is cleared
+[152/179] [regression] › tests/project_results.spec.ts:1009:1 › mounted child details disappear at their independent generation expiry
+[153/179] [regression] › tests/project_results.spec.ts:1032:1 › cache read drops an expired child generation while retaining the valid parent summary
+[154/179] [regression] › tests/workspace.spec.ts:81:1 › table uses its source-backed browse title and settled detail recomputes from current evidence
+[155/179] [regression] › tests/workspace.spec.ts:104:1 › Signal ACTION NOW reads as a discovery call while Prospect and Lead dispositions stay unchanged
+[156/179] [regression] › tests/workspace.spec.ts:129:1 › off-page detail reload ignores historical company evidence and keeps the source name visible
+[157/179] [regression] › tests/workspace.spec.ts:156:1 › workspace gives an honest retry state when the current cohort is unavailable
+[158/179] [regression] › tests/workspace.spec.ts:164:1 › workspace selection switches to a full detail view on mobile and has a clear return
+[159/179] [regression] › tests/workspace.spec.ts:179:1 › mobile history Back keeps the selected shell through delayed readback and focuses Back
+[160/179] [regression] › tests/workspace.spec.ts:215:1 › desktop history readback does not steal Search focus after resizing to phone
+[161/179] [regression] › tests/workspace.spec.ts:238:1 › mobile Back can leave a held history readback and late response cannot restore it
+[162/179] [regression] › tests/workspace.spec.ts:285:1 › mobile failed history readback keeps Retry and Back available
+[163/179] [regression] › tests/workspace.spec.ts:316:1 › mobile selected detail keeps the compact header and clear return
+[164/179] [regression] › tests/workspace.spec.ts:346:1 › switching selected needs does not invoke title enrichment
+[165/179] [regression] › tests/workspace.spec.ts:362:1 › selected opportunity uses its returned project title without enrichment requests
+[166/179] [regression] › tests/workspace.spec.ts:378:1 › Signal tier deep links stay on workspace and a changed cohort resets pagination
+[167/179] [regression] › tests/workspace.spec.ts:395:1 › stale list responses cannot replace a newer filter result
+[168/179] [regression] › tests/workspace.spec.ts:415:1 › a failed workspace filter hides rows, counts, and pagination from the prior cohort
+[169/179] [regression] › tests/workspace.spec.ts:441:1 › canonical priority score and reasons are explained separately from disposition
+[170/179] [regression] › tests/workspace.spec.ts:463:1 › active change links use canonical workspace readback instead of historical stored tier
+[171/179] [regression] › tests/workspace.spec.ts:496:1 › active change link hides a previously stored Lead while canonical readback is pending or fails
+[172/179] [regression] › tests/workspace.spec.ts:528:1 › tablet workspace has no horizontal overflow and retains readable layout
+[173/179] [regression] › tests/workspace.spec.ts:537:1 › tablet direct selection keeps detail and header reachable and restores the queue
+[174/179] [regression] › tests/workspace.spec.ts:561:1 › default project results keep routine research queues out of the user workspace
+[175/179] [regression] › tests/workspace.spec.ts:576:1 › industrial group filters canonical asset types, carries URL cohorts, and resets exact filters
+[176/179] [regression] › tests/workspace.spec.ts:632:1 › Power gap shows only backend-qualified ranges and keeps null or conflicted gaps unknown
+[177/179] [regression] › tests/workspace.spec.ts:657:1 › utility service status stays distinct from an energization date and facility demand stays separate from activity size
+[178/179] [regression] › tests/workspace.spec.ts:681:3 › unified intelligence card preserves evidence, verified actions and research at 1280px
+[179/179] [regression] › tests/workspace.spec.ts:681:3 › unified intelligence card preserves evidence, verified actions and research at 390px
+  179 passed (1.8m)

@@ -1,0 +1,36 @@
+[
+  {
+    "name": "migration-upgrade",
+    "command": [
+      ".venv/bin/alembic",
+      "upgrade",
+      "head"
+    ],
+    "exit": 0,
+    "seconds": 1.2616519799998969
+  },
+  {
+    "name": "migration-check",
+    "command": [
+      ".venv/bin/alembic",
+      "check"
+    ],
+    "exit": 0,
+    "seconds": 1.3642365489999975
+  },
+  {
+    "name": "pytest",
+    "command": [
+      "timeout",
+      "480",
+      ".venv/bin/pytest",
+      "tests",
+      "-n",
+      "4",
+      "-v",
+      "--tb=short"
+    ],
+    "exit": 1,
+    "seconds": 339.5544471129999
+  }
+]

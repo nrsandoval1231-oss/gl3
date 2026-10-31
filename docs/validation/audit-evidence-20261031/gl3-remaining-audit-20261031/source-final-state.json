@@ -1,0 +1,21 @@
+{
+  "observed_utc": "2026-10-31T18:17:01.085969+00:00",
+  "remote_main": "00026c758ece2bc41eea88c478cbb0112f9e0de5",
+  "expected_main": "00026c758ece2bc41eea88c478cbb0112f9e0de5",
+  "checkouts": [
+    {
+      "path": "/workspace/gl3",
+      "branch": "work",
+      "head": "d54646c1600ff4f658d765fa0acf749a4166803c",
+      "tree": "efcfab35a8d7a4e6255c2ab8e6334b4121a2e3a7",
+      "status_porcelain_all_untracked": ""
+    },
+    {
+      "path": "/workspace/gl3-phase1",
+      "branch": "fix/phase1-reliability-20261031",
+      "head": "78591b308aa829a25157bf3310133ed069434d3b",
+      "tree": "125b7dc0ee61a890b1dffff40f3b2891df3be9c1",
+      "status_porcelain_all_untracked": ""
+    }
+  ]
+}

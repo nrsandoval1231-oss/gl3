@@ -1,0 +1,3 @@
+$ .venv-brand/bin/python tools/brand/validate.py
+PASS: 216 assets; hashes, SVG, dimensions, alpha, names, references, fonts, tokens and 8 semantic AA pairs.
+Visual fidelity approval: owner-approved; this check does not authorize merge.

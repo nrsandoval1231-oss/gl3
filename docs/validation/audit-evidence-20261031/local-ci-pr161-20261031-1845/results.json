@@ -1,0 +1,592 @@
+{
+  "commit": "49fe43805a2d31a2253521946dcbd2f08e901ced",
+  "jobs": {
+    "changes": "PASS",
+    "backend": "PASS",
+    "browser": "PASS",
+    "web": "PASS",
+    "brand-assets": "PASS",
+    "extras": "PASS"
+  },
+  "steps": [
+    {
+      "job": "changes",
+      "step": "classify",
+      "command": [
+        "bash",
+        "/workspace/local-ci-pr161-20261031-1845/changes/classify.sh"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.004,
+      "log": "/workspace/local-ci-pr161-20261031-1845/changes/classify.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "start-postgres",
+      "command": [
+        "docker",
+        "--host=unix:///var/run/docker.sock",
+        "run",
+        "-d",
+        "--name",
+        "gl3-local-ci-pr161-backend-1845",
+        "-e",
+        "POSTGRES_USER=gridlens",
+        "-e",
+        "POSTGRES_PASSWORD",
+        "-e",
+        "POSTGRES_DB=gridlens",
+        "-p",
+        "127.0.0.1:5432:5432",
+        "postgres:18.6"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 3.084,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/start-postgres.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "versions",
+      "command": [
+        "bash",
+        "-c",
+        "backend/.venv/bin/python --version; uv --version; node --version; npm --version"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.217,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/versions.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "uv-sync",
+      "command": [
+        "uv",
+        "sync",
+        "--locked",
+        "--extra",
+        "dev"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.032,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/uv-sync.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "export",
+      "command": [
+        "uv",
+        "export",
+        "--locked",
+        "--extra",
+        "dev",
+        "--no-emit-project",
+        "--format",
+        "requirements-txt",
+        "--output-file",
+        "/workspace/local-ci-pr161-20261031-1845/backend/requirements.txt"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.016,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/export.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "dependency-audit",
+      "command": [
+        "uv",
+        "tool",
+        "run",
+        "--python",
+        "3.11",
+        "--from",
+        "pip-audit==2.10.1",
+        "pip-audit",
+        "-r",
+        "/workspace/local-ci-pr161-20261031-1845/backend/requirements.txt",
+        "--disable-pip",
+        "--no-deps",
+        "--format",
+        "json"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 2.973,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/dependency-audit.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "brand-dependency-audit",
+      "command": [
+        "uv",
+        "tool",
+        "run",
+        "--python",
+        "3.11",
+        "--from",
+        "pip-audit==2.10.1",
+        "pip-audit",
+        "-r",
+        "tools/brand/requirements.txt",
+        "--format",
+        "json"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 8.035,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/brand-dependency-audit.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "ruff",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "src",
+        "tests"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.064,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/ruff.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "format",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "format",
+        "--check",
+        "src",
+        "tests"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.032,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/format.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "mypy",
+      "command": [
+        "uv",
+        "run",
+        "mypy",
+        "src"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 40.741,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/mypy.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "migration-upgrade",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 1.37,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/migration-upgrade.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "migration-drift",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "check"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 1.418,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/migration-drift.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "create-test-database",
+      "command": [
+        "docker",
+        "--host=unix:///var/run/docker.sock",
+        "exec",
+        "gl3-local-ci-pr161-backend-1845",
+        "psql",
+        "-U",
+        "gridlens",
+        "-d",
+        "gridlens",
+        "-c",
+        "CREATE DATABASE gridlens_test"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.215,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/create-test-database.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "backend",
+      "step": "pytest",
+      "command": [
+        "timeout",
+        "480",
+        "uv",
+        "run",
+        "pytest",
+        "tests",
+        "-n",
+        "4"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 325.114,
+      "log": "/workspace/local-ci-pr161-20261031-1845/backend/pytest.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "browser",
+      "step": "start-postgres",
+      "command": [
+        "docker",
+        "--host=unix:///var/run/docker.sock",
+        "run",
+        "-d",
+        "--name",
+        "gl3-local-ci-pr161-browser-1845",
+        "-e",
+        "POSTGRES_USER=gridlens",
+        "-e",
+        "POSTGRES_PASSWORD",
+        "-e",
+        "POSTGRES_DB=gridlens",
+        "-p",
+        "127.0.0.1:5432:5432",
+        "postgres:18.6"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 6.782,
+      "log": "/workspace/local-ci-pr161-20261031-1845/browser/start-postgres.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "browser",
+      "step": "uv-sync",
+      "command": [
+        "uv",
+        "sync",
+        "--locked",
+        "--extra",
+        "dev"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.065,
+      "log": "/workspace/local-ci-pr161-20261031-1845/browser/uv-sync.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "browser",
+      "step": "migration-upgrade",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 1.318,
+      "log": "/workspace/local-ci-pr161-20261031-1845/browser/migration-upgrade.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "browser",
+      "step": "npm-ci",
+      "command": [
+        "npm",
+        "ci",
+        "--prefix",
+        "web"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 3.685,
+      "log": "/workspace/local-ci-pr161-20261031-1845/browser/npm-ci.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "browser",
+      "step": "install-chromium",
+      "command": [
+        "npx",
+        "playwright",
+        "install",
+        "chromium"
+      ],
+      "cwd": "/workspace/gl3-recovery/web",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.766,
+      "log": "/workspace/local-ci-pr161-20261031-1845/browser/install-chromium.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "browser",
+      "step": "host-dependencies-dry-run",
+      "command": [
+        "npx",
+        "playwright",
+        "install-deps",
+        "--dry-run",
+        "chromium"
+      ],
+      "cwd": "/workspace/gl3-recovery/web",
+      "exit": 1,
+      "status": "FAIL",
+      "seconds": 0.768,
+      "log": "/workspace/local-ci-pr161-20261031-1845/browser/host-dependencies-dry-run.log",
+      "extra_or_platform_check": true
+    },
+    {
+      "job": "browser",
+      "step": "bundled-browser-smoke",
+      "command": [
+        "node",
+        "-e",
+        "const{chromium}=require('playwright');(async()=>{console.log('executable',chromium.executablePath());const b=await chromium.launch();console.log('browser',await b.version());await b.close()})().catch(e=>{console.error(e);process.exit(1)})"
+      ],
+      "cwd": "/workspace/gl3-recovery/web",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.521,
+      "log": "/workspace/local-ci-pr161-20261031-1845/browser/bundled-browser-smoke.log",
+      "extra_or_platform_check": true
+    },
+    {
+      "job": "browser",
+      "step": "regression",
+      "command": [
+        "npm",
+        "run",
+        "test:ci",
+        "--prefix",
+        "web"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 110.518,
+      "log": "/workspace/local-ci-pr161-20261031-1845/browser/regression.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "web",
+      "step": "npm-ci",
+      "command": [
+        "npm",
+        "ci",
+        "--prefix",
+        "web"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 4.685,
+      "log": "/workspace/local-ci-pr161-20261031-1845/web/npm-ci.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "web",
+      "step": "npm-audit",
+      "command": [
+        "npm",
+        "audit",
+        "--prefix",
+        "web",
+        "--audit-level=high"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 1.068,
+      "log": "/workspace/local-ci-pr161-20261031-1845/web/npm-audit.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "web",
+      "step": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck",
+        "--prefix",
+        "web"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 5.851,
+      "log": "/workspace/local-ci-pr161-20261031-1845/web/typecheck.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "web",
+      "step": "build",
+      "command": [
+        "npm",
+        "run",
+        "build",
+        "--prefix",
+        "web"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 8.039,
+      "log": "/workspace/local-ci-pr161-20261031-1845/web/build.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "brand-assets",
+      "step": "venv",
+      "command": [
+        "uv",
+        "venv",
+        ".venv-brand"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.033,
+      "log": "/workspace/local-ci-pr161-20261031-1845/brand-assets/venv.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "brand-assets",
+      "step": "install",
+      "command": [
+        "uv",
+        "pip",
+        "install",
+        "--python",
+        ".venv-brand/bin/python",
+        "-r",
+        "tools/brand/requirements.txt"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.466,
+      "log": "/workspace/local-ci-pr161-20261031-1845/brand-assets/install.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "brand-assets",
+      "step": "validate",
+      "command": [
+        ".venv-brand/bin/python",
+        "tools/brand/validate.py"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 1.218,
+      "log": "/workspace/local-ci-pr161-20261031-1845/brand-assets/validate.log",
+      "extra_or_platform_check": false
+    },
+    {
+      "job": "extras",
+      "step": "maintained-docs",
+      "command": [
+        "uv",
+        "run",
+        "--project",
+        "backend",
+        "python",
+        "scripts/check_docs.py"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.115,
+      "log": "/workspace/local-ci-pr161-20261031-1845/extras/maintained-docs.log",
+      "extra_or_platform_check": true
+    },
+    {
+      "job": "extras",
+      "step": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.008,
+      "log": "/workspace/local-ci-pr161-20261031-1845/extras/diff-check.log",
+      "extra_or_platform_check": true
+    },
+    {
+      "job": "extras",
+      "step": "source-status",
+      "command": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/workspace/gl3-recovery",
+      "exit": 0,
+      "status": "PASS",
+      "seconds": 0.016,
+      "log": "/workspace/local-ci-pr161-20261031-1845/extras/source-status.log",
+      "extra_or_platform_check": true
+    }
+  ]
+}

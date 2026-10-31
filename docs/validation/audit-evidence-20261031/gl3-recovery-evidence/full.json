@@ -1,0 +1,17 @@
+{
+  "command": [
+    "timeout",
+    "480",
+    "uv",
+    "run",
+    "pytest",
+    "tests",
+    "-n",
+    "4"
+  ],
+  "cwd": "/workspace/gl3-recovery/backend",
+  "exit": 0,
+  "seconds": 338.93648044999827,
+  "python": "Python 3.11.16",
+  "source_root": "/workspace/gl3-recovery/backend/src"
+}

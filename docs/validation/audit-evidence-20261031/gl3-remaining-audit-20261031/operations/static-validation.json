@@ -1,0 +1,20 @@
+{
+  "current_cli_choices": [
+    "status",
+    "rebuild",
+    "maintain",
+    "stage-recovery",
+    "inspect-recovery",
+    "publish-recovery"
+  ],
+  "obsolete_rollback_rejected_by_literal_choices": true,
+  "argparse_error": "usage: - [-h] [--generation GENERATION]\n         {status,rebuild,maintain,stage-recovery,inspect-recovery,publish-recovery}\n-: error: argument action: invalid choice: 'rollback' (choose from status, rebuild, maintain, stage-recovery, inspect-recovery, publish-recovery)\n",
+  "wrapper_dispatch_has_rollback": true,
+  "wrapper_dispatch_has_stage_recovery": false,
+  "rehearsal_expected_schema": "0041_evidence_packages",
+  "rehearsal_target_schema": "0041_evidence_packages",
+  "same_0049_snapshot_comparison": [
+    "unexpected_schema_transition"
+  ],
+  "validation_boundary": "Only AST-derived literals, argparse validation and pure snapshot comparison evaluated; no repository CLI, wrapper, Docker, database or administrative function invoked."
+}

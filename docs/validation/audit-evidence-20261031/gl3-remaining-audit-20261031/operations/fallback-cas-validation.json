@@ -1,0 +1,15 @@
+{
+  "project_results.py:page": {
+    "saved_browse_enabled": false,
+    "missing_generation_blocks": true
+  },
+  "customer_results.py:_cohort": {
+    "saved_browse_enabled": false,
+    "missing_generation_blocks": true
+  },
+  "CAS": {
+    "same_revisions_and_expected_pointers": true,
+    "after_other_publish_changes_active_and_clears_prepared": false
+  },
+  "boundary": "Only actual function definitions up to fail-closed sentinel and pure CAS expression evaluated; no real settings imports, database, source writes, CLI, wrappers or production commands."
+}
