@@ -16,6 +16,7 @@ from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from gridlens.domain.evaluation_clock import evaluate_at
 from gridlens.domain.opportunity_intelligence import contact_projection
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument, parse_document
 from gridlens.intelligence.buying_chain import (
@@ -81,7 +82,11 @@ def db():
                 health={},
             )
         )
-    yield factory
+    # Synthetic captures span September 30 through October 28. Keep default
+    # read projections within that cohort's freshness window; explicit instants
+    # and nested evaluation contexts still exercise their own time boundaries.
+    with evaluate_at(NOW + timedelta(days=29)):
+        yield factory
     engine.dispose()
 
 

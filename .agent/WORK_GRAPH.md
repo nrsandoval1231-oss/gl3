@@ -1,5 +1,7 @@
-# Current delivery ownership
+# Phase 1 ownership — October 31
 
-PR153–158 review and merge is complete. Owner authorizes deployment follow-through. Three Luna release-helper lanes and independent Astra review prepared an exact-source e97 release; actual live visual acceptance caught KPI caption overlap before worker resume.
+One integration worktree owns the bounded Phase 1 candidate. Scoped lanes cover backend cohort sorting; frontend ordering/count/navigation regressions; operations/framing; retained-evidence query profiling and parity. Independent integrated review must cover every changed area without authors approving their own work. Model-specific harness identities are not claimed unless actually available.
 
-READY: one Luna lane owns the tightly coupled KPI markup/layout/geometry test repair; lead handles integration and existing release operations; Astra independently reviews source and live release evidence. Preserve the existing release architecture and all data/provider guards. Same-data rollback is restoring the prior verified images while the repair passes review/CI. Then release corrected main with a fresh immutable manifest and canaries. [Checkpoint](CURRENT_STATE.md); earlier graph is [archived](archive/PR-REVIEW-20261030/pre-review-WORK_GRAPH.md).
+The integration lead records exact-candidate tests, generated API contracts, performance limitations and remaining failures before publishing a draft PR. Main was refreshed at `593cfd516d82a12b66558f53b975ad6c2b711517`; no open PRs were returned at task start. Refresh again before publication. See [owner request](OWNER_REQUEST.md), [checkpoint](CURRENT_STATE.md) and [previous graph](archive/PHASE1-20261031/PRE_PHASE1_WORK_GRAPH.md).
+
+Company-centered browsing and demand/ingestion/enrichment expansion are deferred. No merge or production operation is authorized.

@@ -94,7 +94,14 @@ def test_dallas_monthly_rows_keep_roles_events_and_scope_distinct():
     assert "rental requirement" in assessment["rental_hypothesis"]
 
 
-def test_dallas_latest_month_link_retrieval_and_host_bounds():
+def test_dallas_latest_month_link_retrieval_and_host_bounds(monkeypatch):
+    class FixtureDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 10, 1, tzinfo=tz)
+
+    # Retrieval shares the October 1 clock used by the adjacent parsing fixture.
+    monkeypatch.setattr("gridlens.ingestion.adapters.dallas_permits.datetime", FixtureDateTime)
     body = _workbook(
         [list(HEADERS), _dallas_row("CASE-1", "Commercial New Construction Permit", "Data Center")]
     )
