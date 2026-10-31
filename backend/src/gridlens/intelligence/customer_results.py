@@ -129,6 +129,8 @@ def _group_filter(*, term, region, stage, priority, alias="g"):
             "strpos(sb.search_text,:term)>0 OR "
             "strpos(lower(coalesce(sb.compact->>'browse_title','')),:term)>0 OR "
             "strpos(lower(coalesce(sb.compact->>'name','')),:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact #>> '{project_metadata,title}','')),:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact #>> '{project_metadata,name}','')),:term)>0 OR "
             "strpos(lower(coalesce(sb.compact #>> '{project_metadata,operator}','')),:term)>0 OR "
             "strpos(lower(coalesce(sb.compact #>> "
             "'{project_metadata,oil_gas,operator_number}','')),:term)>0 OR "
