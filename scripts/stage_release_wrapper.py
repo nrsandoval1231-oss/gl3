@@ -132,19 +132,31 @@ def _render(source: str) -> str:
             "gridlens.jobs.browse",
             "rebuild",
         ],
+        "browse-status": [
+            "run", "--rm", "--no-deps", "browse", "uv", "run", "python", "-m",
+            "gridlens.jobs.browse", "status",
+        ],
+        "stage-browse": [
+            "run", "--rm", "--no-deps", "browse", "uv", "run", "python", "-m",
+            "gridlens.jobs.browse", "stage-recovery",
+        ],
         "start-canary": ["up", "-d", "--no-build", "--no-deps", "api", "web"],
         "start-workers": ["up", "-d", "--no-build", "--no-deps", "worker", "browse"],
     }
-    if operation == "rollback-browse":
+    generation_operations = {
+        "inspect-browse": "inspect-recovery",
+        "publish-browse": "publish-recovery",
+    }
+    if operation in generation_operations:
         if len(arguments) != 1:
-            raise SystemExit("rollback-browse requires exactly one generation UUID")
+            raise SystemExit(operation + " requires exactly one generation UUID")
         import uuid
         try:
             generation = str(uuid.UUID(arguments[0]))
         except ValueError:
-            raise SystemExit("rollback-browse generation must be a canonical UUID") from None
+            raise SystemExit(operation + " generation must be a canonical UUID") from None
         if generation != arguments[0]:
-            raise SystemExit("rollback-browse generation must be a canonical UUID")
+            raise SystemExit(operation + " generation must be a canonical UUID")
         suffix = [
             "run",
             "--rm",
@@ -155,7 +167,7 @@ def _render(source: str) -> str:
             "python",
             "-m",
             "gridlens.jobs.browse",
-            "rollback",
+            generation_operations[operation],
             "--generation",
             generation,
         ]

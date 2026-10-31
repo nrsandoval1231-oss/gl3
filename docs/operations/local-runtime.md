@@ -58,17 +58,14 @@ uv run --project backend uvicorn gridlens.api.app:app --host 127.0.0.1 --port 80
 npm --prefix web run dev
 ```
 
-When using saved-browse reads, start this command in its own terminal after the
-migrations:
+For current project/company UI reads, start the retained browse maintainer in its own terminal after migrations, even when `SAVED_BROWSE_ENABLED=false`:
 
 ```powershell
 uv run --directory backend python -m gridlens.jobs.browse maintain
 ```
 
 The maintainer only rebuilds retained projections; it does not start the acquisition worker.
-The API keeps `SAVED_BROWSE_ENABLED=false` by default. Enable it explicitly for
-the API process when validating saved-browse reads; the maintainer publishes the
-initial generation on its ordinary loop.
+The API keeps `SAVED_BROWSE_ENABLED=false` by default for flag-gated legacy paths. Current project/company results always require a valid generation; setting the flag false is not their fallback. Enable it explicitly when validating saved evaluation on legacy routes. The maintainer publishes an initial generation on its ordinary loop; until ready, generation-dependent reads return qualification-pending HTTP503. See the [current recovery procedure](recovery-release.md) for route boundaries and policy/CAS guards.
 
 The browser is at `http://127.0.0.1:5173`; Vite proxies `/api` to the API on port 8000. Use the password in the ignored `.artifacts/local-auth.txt`. The direct Uvicorn command includes `--no-proxy-headers`; do not trust forwarded headers from arbitrary loopback peers.
 

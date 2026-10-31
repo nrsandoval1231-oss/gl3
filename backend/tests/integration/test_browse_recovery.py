@@ -434,3 +434,63 @@ def test_publish_rejects_candidate_that_is_not_current_complete_and_fresh(saved_
     assert publish_recovery_stage(saved_db, staged_id)["status"] == "candidate_invalid"
     with saved_db() as session:
         assert session.get(BrowseState, 1).generation_id != staged_id
+
+
+def test_operator_cli_recovery_refuses_stale_pointer_and_publishes_fresh_stage(
+    saved_db, monkeypatch, capsys
+):
+    import json
+    import sys
+
+    from gridlens.jobs import browse
+
+    original = _ready_stage(saved_db)
+    monkeypatch.setattr(browse, "SessionLocal", saved_db)
+
+    def command(action, generation=None):
+        argv = ["browse", action]
+        if generation:
+            argv.extend(["--generation", generation])
+        monkeypatch.setattr(sys, "argv", argv)
+        code = browse.main()
+        return code, json.loads(capsys.readouterr().out)
+
+    code, staged = command("stage-recovery")
+    assert code == 0 and staged["published"] is False
+    with saved_db() as session:
+        assert current_generation(session).id == original.id
+    assert command("inspect-recovery", staged["generation_id"])[1]["status"] == "ready"
+
+    forward = rebuild(saved_db)
+    code, refused = command("publish-recovery", staged["generation_id"])
+    assert code == 1 and refused["status"] == "state_drift"
+    with saved_db() as session:
+        assert str(current_generation(session).id) == forward["generation_id"]
+
+    code, fresh = command("stage-recovery")
+    assert code == 0
+    assert command("inspect-recovery", fresh["generation_id"])[0] == 0
+    assert command("publish-recovery", fresh["generation_id"])[1]["status"] == "published"
+    with saved_db() as session:
+        assert str(current_generation(session).id) == fresh["generation_id"]
+
+
+@pytest.mark.parametrize("surface", ["projects", "companies"])
+def test_current_browse_surfaces_require_generation_with_switch_disabled(
+    saved_db, monkeypatch, surface
+):
+    from fastapi import HTTPException
+
+    from gridlens.intelligence.customer_results import groups
+    from gridlens.intelligence.project_results import page
+    from gridlens.settings import settings
+
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    read = page if surface == "projects" else groups
+    seed(saved_db, count=2)
+    with saved_db() as session, pytest.raises(HTTPException) as pending:
+        read(session)
+    assert pending.value.status_code == 503
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        assert isinstance(read(session), dict)
