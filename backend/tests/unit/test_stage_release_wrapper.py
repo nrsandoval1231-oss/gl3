@@ -91,7 +91,7 @@ def test_stages_only_exact_input_and_preserves_it(tmp_path, monkeypatch):
     assert '"rebuild-browse"' in rendered
     assert '"start-canary"' in rendered
     assert '"start-workers"' in rendered
-    assert '"rollback-browse"' in rendered
+    assert '"stage-browse"' in rendered
     assert "SECRET_TOKEN" not in rendered
 
 
@@ -155,23 +155,30 @@ class _Executed(Exception):
         (["migrate"], ["run", "--rm", "--no-deps", "migrate"]),
         (["start-canary"], ["up", "-d", "--no-build", "--no-deps", "api", "web"]),
         (["start-workers"], ["up", "-d", "--no-build", "--no-deps", "worker", "browse"]),
-        (
-            ["rollback-browse", "123e4567-e89b-12d3-a456-426614174000"],
-            [
-                "run",
-                "--rm",
-                "--no-deps",
-                "browse",
-                "uv",
-                "run",
-                "python",
-                "-m",
-                "gridlens.jobs.browse",
-                "rollback",
-                "--generation",
-                "123e4567-e89b-12d3-a456-426614174000",
-            ],
-        ),
+        *[
+            (
+                [operation, *(["123e4567-e89b-12d3-a456-426614174000"] if needs_id else [])],
+                [
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "browse",
+                    "uv",
+                    "run",
+                    "python",
+                    "-m",
+                    "gridlens.jobs.browse",
+                    action,
+                    *(["--generation", "123e4567-e89b-12d3-a456-426614174000"] if needs_id else []),
+                ],
+            )
+            for operation, action, needs_id in [
+                ("browse-status", "status", False),
+                ("stage-browse", "stage-recovery", False),
+                ("inspect-browse", "inspect-recovery", True),
+                ("publish-browse", "publish-recovery", True),
+            ]
+        ],
     ],
 )
 def test_generated_wrapper_executes_only_fixed_suffixes(tmp_path, monkeypatch, arguments, suffix):
@@ -198,10 +205,60 @@ def test_generated_wrapper_executes_only_fixed_suffixes(tmp_path, monkeypatch, a
     assert captured["command"][-len(suffix) :] == suffix
     assert captured["command"][:4] == ["infisical", "--silent", "--telemetry=false", "run"]
 
+    # Execute the generated action through the real CLI parser/dispatcher. Only
+    # the database boundary is replaced; Infisical/Docker must never execute.
+    if "gridlens.jobs.browse" in suffix and suffix[-1] != "status":
+        from uuid import UUID
+
+        from gridlens.jobs import browse
+
+        observed = []
+        factory = object()
+        monkeypatch.setattr(browse, "SessionLocal", factory)
+
+        def stage_recovery(actual_factory):
+            assert actual_factory is factory
+            observed.append(("stage-recovery", None))
+            return {"status": "staged"}
+
+        def inspect_recovery(actual_factory, generation):
+            assert actual_factory is factory
+            observed.append(("inspect-recovery", generation))
+            return {"status": "ready"}
+
+        def publish_recovery(actual_factory, generation):
+            assert actual_factory is factory
+            observed.append(("publish-recovery", generation))
+            return {"status": "published"}
+
+        monkeypatch.setattr(browse, "stage_recovery", stage_recovery)
+        monkeypatch.setattr(browse, "inspect_recovery_stage", inspect_recovery)
+        monkeypatch.setattr(browse, "publish_recovery_stage", publish_recovery)
+        action_index = suffix.index("gridlens.jobs.browse") + 1
+        monkeypatch.setattr(sys, "argv", ["browse", *suffix[action_index:]])
+        assert browse.main() == 0
+        expected = {
+            "stage-browse": ("stage-recovery", None),
+            "inspect-browse": ("inspect-recovery", UUID("123e4567-e89b-12d3-a456-426614174000")),
+            "publish-browse": ("publish-recovery", UUID("123e4567-e89b-12d3-a456-426614174000")),
+        }
+        assert observed == [expected[arguments[0]]]
+
 
 @pytest.mark.parametrize(
     "arguments",
-    [[], ["unknown"], ["migrate", "extra"], ["rollback-browse", "not-a-uuid"]],
+    [
+        [],
+        ["unknown"],
+        ["migrate", "extra"],
+        ["rollback-browse", "123e4567-e89b-12d3-a456-426614174000"],
+        ["inspect-browse"],
+        ["publish-browse", "not-a-uuid"],
+        ["publish-browse", "123E4567-E89B-12D3-A456-426614174000"],
+        ["publish-browse", "123e4567-e89b-12d3-a456-426614174000", "--force"],
+        ["stage-browse", "--generation", "123e4567-e89b-12d3-a456-426614174000"],
+        ["browse-status", "extra"],
+    ],
 )
 def test_generated_wrapper_rejects_default_and_arbitrary_commands(tmp_path, monkeypatch, arguments):
     source = _source().replace("/etc/gridlens", tmp_path.as_posix())

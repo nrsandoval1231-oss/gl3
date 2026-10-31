@@ -33,23 +33,13 @@ finite dirty set in the same small batches, avoiding permanent bulk starvation.
 
 ## Release and recovery
 
-1. Back up canonical PostgreSQL and the private deployment configuration. Verify
-   the dump catalog and a restore on an isolated database. Retain prior images.
-2. Gracefully stop the ingestion worker and browse maintenance for migration;
-   preserve persistent volumes, source schedules, due checks and provider budgets.
-3. Deploy the same validated backend image to API, ingestion and browse services.
-   Upgrade the schema and build a current saved generation before enabling saved
-   reads. Keep the API's canonical read fallback available during this transition.
-4. Resume ingestion and maintenance. Measure authenticated national map, state,
-   project, evidence and Back navigation, including repeated reads during real
-   ingestion commits. A ready web page alone is insufficient acceptance.
-5. If publication fails, switch only the API to `SAVED_BROWSE_ENABLED=false` and
-   use canonical reads while diagnosing maintenance. This fallback is slower.
-   Prior application images may be restored with the fallback enabled. Do not
-   restore an older database over new evidence merely to roll back application code.
+Use the [current release/recovery procedure](recovery-release.md) for operational ordering and the protected wrapper contract. This guide describes retained ingestion publication; it grants no production action.
 
-The migration downgrade restores the previous trigger policy and invalidates
-derived generations; it does not delete canonical evidence or accepted history.
+Before a separately authorized release, verify actual images/schema and protected tooling, hold writers and browse maintenance, capture a fresh verified backup and prove isolated restore/current-data rollback. Keep canonical evidence, source schedules and provider accounting intact. Coordinate API, ingestion and browse on the same validated backend artifact and policy. Stage, inspect and guarded-publish a valid derived generation before accepting candidate reads; release workers only after authenticated canary acceptance.
+
+Current project/company result routes always require a valid generation, regardless of `SAVED_BROWSE_ENABLED`. Some legacy list/map/detail paths retain flag-gated canonical evaluation, but switching the flag false does not recover the ordinary project/company UI. Missing, expired or invalidated generations remain qualification-pending HTTP503. If publication or canary fails, hold traffic/writers and use the rehearsed current-data stage/inspect/publish recovery lane under the selected compatible image's policy. Never force pointers, bypass freshness or restore an old database over new evidence.
+
+Historically, migration 0030 downgrade restored the previous trigger policy and invalidated derived generations without deleting canonical evidence. That behavior is not a current application rollback procedure; preserve the forward schema and privacy ledger.
 Tests cover rollback/reapply, source policy versus health, shared dependencies,
 concurrent reads, bulk ingestion/checkpoints, replay deduplication, expired budgets,
 and savepoint/heartbeat isolation. Provider calls are unnecessary for these tests.

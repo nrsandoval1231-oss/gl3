@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Run a private, local-only PostgreSQL 18 restore and image rollback rehearsal.
+"""Historical schema-0041 local restore/image rollback rehearsal only.
 
-This helper has no production mode. It accepts only an authorized private dump,
-uses an internal Docker network, and keeps failure resources for diagnosis.
+This helper cannot certify current schema-0049 recovery. See
+docs/operations/recovery-release.md for the current recovery guide. Explicit
+--historical-0041-only acknowledgement is required before any resource access.
+It has no production mode, accepts only an authorized private dump, uses an
+internal Docker network, and keeps failure resources for diagnosis.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ import os
 import re
 import secrets
 import subprocess
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -726,7 +730,18 @@ def web_smoke(container: str, *, timeout: int = 30) -> dict[str, Any]:
     raise RehearsalBlocked("web_internal_proxy_readiness_timeout")
 
 
+def require_historical_acknowledgement(args: argparse.Namespace) -> None:
+    """Fail before file/Docker access; acknowledgement does not relax any guard."""
+    if getattr(args, "historical_0041_only", False) is not True:
+        raise RehearsalBlocked(
+            "Historical schema-0041 helper requires --historical-0041-only; "
+            "cannot certify current schema-0049 recovery. "
+            "See docs/operations/recovery-release.md"
+        )
+
+
 def rehearsal(args: argparse.Namespace) -> dict[str, Any]:
+    require_historical_acknowledgement(args)
     if args.dump.is_symlink() or args.test_env.is_symlink():
         raise RehearsalBlocked("input_files_must_not_be_symlinks")
     dump = args.dump.resolve(strict=True)
@@ -1031,6 +1046,11 @@ def rehearsal(args: argparse.Namespace) -> dict[str, Any]:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument(
+        "--historical-0041-only",
+        action="store_true",
+        help="acknowledge historical schema-0041 only; cannot certify current recovery",
+    )
     result.add_argument("--dump", type=Path, required=True)
     result.add_argument("--dump-sha256", required=True)
     result.add_argument("--api-image", required=True)
@@ -1050,6 +1070,11 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = parser().parse_args()
+    try:
+        require_historical_acknowledgement(args)
+    except RehearsalBlocked as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     try:
         result = rehearsal(args)
     except RehearsalBlocked:

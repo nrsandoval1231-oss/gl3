@@ -1,11 +1,8 @@
 # Saved browse B1
 
-The rollout switch is `SAVED_BROWSE_ENABLED`, default **false**. The approved UI
-is unchanged. Only its project-title helper consumes the saved title because
-compact list/map responses deliberately omit evidence and lifecycle histories.
-Opening a record reads canonical detail for that exact need.
+**Historical B1 implementation and rollout notes.** The switch, manual-workflow and early migration descriptions below record that implementation stage; they do not define the current ordinary UI or authorize any rollout. Use the [current release/recovery procedure](recovery-release.md) and [privacy recovery contract](contact-suppression-rollback.md) for current commands and current-data rollback. Current project/company result routes require a valid generation even with `SAVED_BROWSE_ENABLED=false`; this switch is not a blanket canonical fallback.
 
-## Behavior and boundaries
+## Historical B1 behavior and boundaries
 
 Canonical evaluators remain authoritative. A retained-data-only builder writes
 immutable summaries, normalized historical search text, ranks/reasons, filter
@@ -61,30 +58,27 @@ or rerank the population. Offset pagination can still walk skipped index entries
 arbitrary substring search is not constant-time. Export retains its explicit row,
 history and byte limits and reads canonical detail only for selected records.
 
-## Commands
+## Current local command reference
 
-Run in the already configured application environment; never print or export its
-secrets. These commands do not dispatch collection, research or paid providers:
+Run only in an already authorized, correctly scoped local environment; never print or export its secrets. These commands do not dispatch collection, research or paid providers, but rebuild/maintain/stage/publish write derived state. Production must follow the current protected-context procedure:
 
 ```sh
 uv run python -m gridlens.jobs.browse status
 uv run python -m gridlens.jobs.browse rebuild
 uv run python -m gridlens.jobs.browse maintain
-uv run python -m gridlens.jobs.browse rollback --generation <retained-generation-UUID>
+uv run python -m gridlens.jobs.browse stage-recovery
+uv run python -m gridlens.jobs.browse inspect-recovery --generation <generation-UUID>
+uv run python -m gridlens.jobs.browse publish-recovery --generation <generation-UUID>
 ```
 
-`rollback` refuses a generation with different canonical inputs, code policy or
-expired clocks. It is not permission to serve obsolete qualification. Rebuilding
-after a restart is idempotent. A failed or interrupted build preserves the
-published pointer and leaves qualification pending if canonical inputs changed.
+There is no current `rollback --generation` CLI. Stage/publish write derived data and require separately authorized scope; inspect must report ready immediately before guarded publication. The receipt binds current input/full revisions and active/prepared pointers, exact runtime policy, integrity/counts and validity. Use the current recovery procedure before selecting a prior image; a captured UUID is insufficient.
 
 ## Normal startup and initial generation
 
-The local Compose stack and the ordinary DigitalOcean Compose stack start the
+The local Compose stack and alternate DigitalOcean Compose preparation start the
 providerless `browse` maintainer after migrations. It calls retained-data
 maintenance only; it never dispatches source, research, or paid-provider jobs.
-The API switch remains `SAVED_BROWSE_ENABLED=false` unless explicitly enabled,
-so a disabled feature continues to use the canonical browse path.
+The API switch defaults false for flag-gated legacy paths. Current project/company result routes always need a valid generation; disabling the switch does not recover them.
 
 For native local development, after `alembic upgrade head`, run this command in
 a separate terminal to publish an initial generation and keep it fresh:
@@ -93,14 +87,11 @@ a separate terminal to publish an initial generation and keep it fresh:
 uv run --directory backend python -m gridlens.jobs.browse maintain
 ```
 
-When testing the saved-browse API, set `SAVED_BROWSE_ENABLED=true` for the API
-process, then use the normal authenticated Opportunities request. The maintainer
-publishes the initial generation automatically; no manual rebuild command is
-needed.
+When testing saved evaluation on flag-gated legacy routes, set `SAVED_BROWSE_ENABLED=true` for the API process. Current project/company UI needs the maintainer regardless of that flag. It publishes the initial generation automatically; no manual rebuild command is needed for ordinary disposable local startup.
 
-## Production activation gate
+## Historical B1 production activation gate
 
-No production activation has been performed from the saved cloud environment.
+The original B1 authoring-time access snapshot reported no production activation from its saved cloud environment; the following access limitations describe that historical environment, not the current host or this session.
 It has GitHub access and connected DigitalOcean inventory access, which confirms
 the active production droplet. That connector exposes no host command channel.
 There is no SSH directory/agent, local DigitalOcean/Infisical token, production
@@ -131,15 +122,9 @@ With the existing legitimate deployment identity available:
    database CPU/locks and process memory. The proposed API p95 <1s is a target,
    not production acceptance established by fixture timings.
 
-For runtime rollback, set the switch false and recreate the API (or use the
-recorded previous image). Leave the additive tables/migration in place. Stop the
-browse maintenance service if reverting the image. Do not downgrade/drop
-canonical evidence, change network access, enable timers or spend providers.
-When reverting to an older image, recreate only the API with `--no-deps`; do not
-run an older migration container against the newer 0022 revision. The simplest
-rollback is the current image with the switch false.
+The former B1 switch-off rollback is superseded by the current recovery procedure. Preserve the forward schema, canonical evidence and suppression ledger; no old migration container or direct pointer edit is part of application rollback.
 
-## Prepared clock transitions (0022 follow-on)
+## Historical prepared clock transitions (0022 follow-on)
 
 Migration `0022_browse_clock_transitions` adds `valid_from` and one persisted
 prepared-generation pointer. After the existing backup and switch-false gates,
@@ -171,12 +156,9 @@ mutations remain the existing full-build fallback. No stale/future Lead is serve
 as current. Measure production HTTP behavior and clock agreement; fixtures are not
 live acceptance. Keep collection/research/paid AI and scheduling disabled.
 
-The runtime rollback remains the final image with the browse switch false. Keep
-the additive0022 schema in place. If reverting to any older image, stop maintenance
-and recreate only API/web with `--no-deps`; do not run an older migration container
-against0022 or remove canonical evidence/history.
+Current application rollback follows the policy/CAS-aware procedure linked above; the historical switch-off instruction does not recover current project/company reads.
 
-## Commercial pursuits selection (0023)
+## Historical commercial pursuits selection (0023)
 
 Migration `0023_browse_commercial_selection` adds four nullable derived scalar
 columns and their index to existing browse rows. Stop retained maintenance and
@@ -217,12 +199,11 @@ rolled-back attempt remain. Receipt and note mutations continue to leave the
 generation current under0024; other invalidating writes continue to require a
 rebuild.
 
-At the 0023 rollout stage, runtime rollback used the final image with the switch
-false and retained0023. Current rollback instructions are in the0024 section below.
+At the 0023 rollout stage, runtime rollback used the final image with the switch false and retained0023. That historical behavior is not current project/company recovery; use the current procedure linked above.
 The PC task owns production rollout/live QA; fixture results do not establish live
 SLOs.
 
-## Live commercial saves (0024)
+## Historical live commercial saves (0024)
 
 Migration `0024_browse_live_receipts` changes triggers only; it deletes no evidence
 or workspace history. Recognized receipt-only changes and note row DML affect live
@@ -239,5 +220,4 @@ PC rollout: existing backup/disabled-provider gates, stop maintenance, switch fa
 upgrade0024/repeat/check, final-runtime rebuild and retained-corpus parity, restart
 maintenance and activate. Verify save/readback/rollback/limits/concurrency on an
 isolated retained copy and real authenticated GET latency after deployment. Runtime
-rollback is the final image with the switch false. Retain0024; if reverting an image,
-stop maintenance and recreate API/web only with `--no-deps`, without older migrations.
+rollback used the final image with the switch false at that 0024 stage. This is historical context, not the current recovery path; preserve the forward schema and use the current procedure linked above.
