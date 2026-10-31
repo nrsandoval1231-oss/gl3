@@ -1,0 +1,47 @@
+{
+  "task": "default-customer-rollup frontend",
+  "status": "complete",
+  "started_at_utc": null,
+  "finished_at_utc": "2026-10-31T23:17:19Z",
+  "files": [
+    "web/src/features/workspace/Workspace.tsx",
+    "web/src/features/workspace/ProjectResults.tsx",
+    "web/src/api/client.ts",
+    "web/src/state/projectBrowseCache.ts",
+    "web/src/styles/workspace.css"
+  ],
+  "changes": [
+    "Grouped operator/customer results now power the default root and workspace Opportunities route; projectBrowse=1 selects the explicit legacy flat view, and accountBrowse=1 remains intact.",
+    "Added cohort-wide Region, Stage, and Priority filters, plus Company, Priority, Priority (ascending), and Recently updated sorting. The selected context is sent to group, open, and child project requests and represented in URL state and cache keys.",
+    "Preserved grouped mode and filter/sort state through detail URLs, browser navigation, pagination, child expansion, and responsive layout; facets populate the region and stage controls.",
+    "Added optional same_name_unconfirmed group metadata and the visible Name group caption, exact unlinked-identity explanation, and separate company identity count; added optional project customer_identity_id metadata without displaying it.",
+    "Normalized unsupported sort query values to priority and invalid offsets to zero, with malformed URL cleanup.",
+    "Used neutral group totals and empty/paging labels so presentation containers are not represented as verified customer counts."
+  ],
+  "checks": [
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed"
+    }
+  ],
+  "not_run": [
+    "Browser regression suite (owned by test lane)",
+    "Retained-source browser/sample validation (lead/final gate)"
+  ],
+  "limitations": [
+    "Frontend expects backend grouped routes to accept region, stage, priority, and sort parameters and grouped responses to return facets.regions and facets.stages.",
+    "No live or retained-data validation, deployment, publication, or backend change was performed."
+  ],
+  "timing": {
+    "elapsed_seconds": null,
+    "note": "Start time and elapsed time were not measured."
+  },
+  "follow_up_validation": {
+    "status": "pending",
+    "note": "The initial typecheck/build passed before final metadata and route-hardening edits; lead owns final integrated build and tests."
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "provenance": "Read-only SQL on existing network-none isolated backup gridlens-phase1-pair-048ce0d4fcbf, not live database",
+  "snapshot": "Prior paired rehearsal restored38,571,220byte fresh.dump; active isolated generation9b8aaa10-a0f1-42a9-b485-a7db29e1a50c",
+  "samples": [
+    {
+      "name": "DE CENTRAL OPERATING, LLC",
+      "rrc_operator_number": "102879",
+      "canonical_project_count": 48,
+      "company_identity_count": 1
+    },
+    {
+      "name": "DIAMONDBACK E&P LLC",
+      "rrc_operator_number": "217012",
+      "canonical_project_count": 159,
+      "company_identity_count": 1
+    },
+    {
+      "name": "AMAZON DATA SERVICES, INC",
+      "project_title": "PECOS COUNTY DATA CENTER",
+      "canonical_project_count": 3,
+      "company_identity_count": 3,
+      "company_identity_ids": [
+        "49bc7db2-a5e2-4d68-b677-59d30acbaed2",
+        "84665801-4338-4b83-8017-353f24f5705c",
+        "f7789659-b9a2-4709-9b2e-73effab63082"
+      ],
+      "basis": "project_scoped",
+      "role": "owner_developer",
+      "relationship": "DIRECT",
+      "strong_identifiers_found": 0,
+      "frozen_source": "texas-tdlr-tabs-data-centers",
+      "frozen_owner_developer": "AMAZON DATA SERVICES, INC",
+      "nonempty_frozen_evidence_refs": true,
+      "shared_entity_key_is_identity_proof": false
+    }
+  ],
+  "interpretation": "No legal-entity merge established forAmazon. Only explicitly unconfirmed source-name presentation collection allowed; projects and identities remain separate.",
+  "writes_performed": false
+}

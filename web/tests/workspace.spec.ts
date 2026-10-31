@@ -25,7 +25,7 @@ test('default workspace shows project results and opens existing need detail wit
   await page.route('**/api/opportunities/projects?need_id=*', route => route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'exact-project-cohort', generation: 1 } }))
   await page.route('**/api/opportunities/workspace?*', route => { workspaceRequests.push(new URL(route.request().url())); return route.fulfill({ json: response() }) })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
-  await page.goto('/?groupBrowse=1')
+  await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await expect(page.getByText('1 operator/customer group')).toBeVisible()
   await page.getByRole('button', { name: /Example operator/ }).click()
@@ -558,10 +558,10 @@ test('tablet direct selection keeps detail and header reachable and restores the
   await expect(identity).toBeVisible()
 })
 
-test('default project results keep routine research queues out of the user workspace', async ({ page }) => {
+test('legacy flat project results remain available explicitly and keep routine research queues out of the workspace', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'default-flat', generation: 'synthetic' } }))
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('heading', { name: 'Opportunities', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Notifications' })).toHaveCount(0)
   await expect(page.locator('.wh-tools')).toHaveCount(0)

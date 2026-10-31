@@ -33,7 +33,7 @@ export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
 export type ProjectResultNeed = { id: string; project_id?: string; name?: string | null; browse_title?: string | null; location?: string | null; activity?: string | null; tier?: 'Signal' | 'Prospect' | 'Lead' | null; commercial_preview?: { disposition?: string | null; reason?: string | null; next_question?: string | null; next_action?: string | null; organization?: string | null } }
 export type ProjectResultContactPerson = { record_type?: 'contact_person'; company_identity_id?: string | null; person_identity_id?: string | null; company?: string | null; name?: string | null; title?: string | null; role?: string | null; responsibility?: string | null; purchasing_authority?: string | null; source_url?: string | null }
 export type ProjectResultsSort = 'priority' | 'priority_asc' | 'company' | 'project' | 'updated'
-export type ProjectResult = { id: string; project_id: string; project_ids?: string[]; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; updated_at: string | null }
+export type ProjectResult = { id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; updated_at: string | null }
 export type BrowseGenerationMetadata = { generation_id?: string; as_of?: string; valid_until?: string; qualification_state?: 'current' | string; refresh_state?: 'current' | string }
 function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {
   if ((value.qualification_state && value.qualification_state !== 'current') || (value.refresh_state && value.refresh_state !== 'current')) {
@@ -45,8 +45,10 @@ function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {
   }
 }
 export type ProjectResultsPage = BrowseGenerationMetadata & { items: ProjectResult[]; total: number; count_unit: 'projects'; limit: number; offset: number; cohort_token: string; generation: string; results_scope?: 'qualified' | 'discovery' }
-export type OpportunityGroup = { id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
-export type OpportunityGroupsPage = BrowseGenerationMetadata & { items: OpportunityGroup[]; total: number; count_unit: 'operators and customers'; limit: number; offset: number; cohort_token: string; generation: string }
+export type OpportunityGroup = { id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; group_kind?: 'resolved_identity' | 'same_name_unconfirmed' | 'unresolved'; identity_count?: number; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
+export type OpportunityGroupsPage = BrowseGenerationMetadata & { items: OpportunityGroup[]; total: number; count_unit: 'operators and customers'; limit: number; offset: number; cohort_token: string; generation: string; facets?: { regions: string[]; stages: string[] } }
+export type CustomerRollupFilters = { region?: string; stage?: string; priority?: 'ranked' | 'unranked' | '' }
+export type CustomerRollupSort = 'priority' | 'priority_asc' | 'company' | 'updated'
 export type OpportunityGroupOpen = BrowseGenerationMetadata & { group: OpportunityGroup; projects: ProjectResultsPage; parent_cohort_token: string; generation: string }
 export class OpportunityGroupUnavailableError extends Error {
   constructor() { super('This operator/customer group is no longer available in the current results.'); this.name = 'OpportunityGroupUnavailableError' }
@@ -254,7 +256,7 @@ async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, sig
 }
 
 export const client = {
-  opportunityGroups: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: string }, signal?: AbortSignal): Promise<OpportunityGroupsPage> => {
+  opportunityGroups: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<OpportunityGroupsPage> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await fetch(`/api/opportunities/groups?${params}`, { credentials: 'same-origin', signal })
@@ -266,7 +268,7 @@ export const client = {
     requireCurrentBrowseGeneration(value)
     return value
   },
-  groupProjects: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; parent_cohort_token?: string; sort?: string }, signal?: AbortSignal): Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }> => {
+  groupProjects: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; parent_cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await fetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/projects?${params}`, { credentials: 'same-origin', signal })
@@ -278,7 +280,7 @@ export const client = {
     requireCurrentBrowseGeneration(value)
     return value
   },
-  openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: string }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
+  openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await fetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/open?${params}`, { credentials: 'same-origin', signal })

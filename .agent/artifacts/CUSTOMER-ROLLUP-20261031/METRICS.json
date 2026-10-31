@@ -1,0 +1,42 @@
+{
+  "task_id": "CUSTOMER-ROLLUP-20261031",
+  "started_utc": "2026-10-31T23:05:27Z",
+  "finished_utc": null,
+  "lane": "full",
+  "model": null,
+  "config_identity": "Lead runtime model not exposed; requested Sol6.1/high. Spawned worker/reviewer model IDs are recorded explicitly.",
+  "planning_seconds": null,
+  "build_seconds": null,
+  "validation_seconds": null,
+  "audit_seconds": null,
+  "elapsed_to_accepted_seconds": null,
+  "repair_count": 0,
+  "scope_risk_match": null,
+  "audit_findings_count": null,
+  "regressions_found": null,
+  "roles": {
+    "backend": "gpt-6-luna/low",
+    "frontend": "gpt-6-luna/low",
+    "browser_tests": "gpt-6-luna/low",
+    "review": "gpt-6-astra/high pending"
+  },
+  "tokens": {
+    "input_measured": null,
+    "output_measured": null,
+    "input_unknown": true,
+    "output_unknown": true
+  },
+  "attempts": [
+    {
+      "stage": "focused integration",
+      "status": "FAIL_RETAINED",
+      "notes": "SQL alias integration errors and fixture setup/ordering assumptions corrected without privacy weakening; full gates pending"
+    }
+  ],
+  "acceptance": {
+    "status": "UNKNOWN",
+    "accepted_at_utc": null,
+    "independent_review": null
+  },
+  "notes": "No elapsed-speed claim; start is owner authorization timestamp, not measured active build time."
+}

@@ -4724,7 +4724,10 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 cohort_token?: string | null;
-                sort?: "priority" | "updated";
+                sort?: "priority" | "priority_asc" | "company" | "updated";
+                region?: string | null;
+                stage?: string | null;
+                priority?: ("ranked" | "unranked") | null;
             };
             header?: never;
             path?: never;
@@ -4761,7 +4764,10 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 cohort_token?: string | null;
-                sort?: "priority" | "updated";
+                sort?: "priority" | "priority_asc" | "company" | "updated";
+                region?: string | null;
+                stage?: string | null;
+                priority?: ("ranked" | "unranked") | null;
             };
             header?: never;
             path: {
@@ -4796,8 +4802,11 @@ export interface operations {
             query?: {
                 search?: string | null;
                 sector?: "all" | "oil_gas" | "data_centers";
-                sort?: "priority" | "updated";
+                sort?: "priority" | "priority_asc" | "company" | "updated";
                 limit?: number;
+                region?: string | null;
+                stage?: string | null;
+                priority?: ("ranked" | "unranked") | null;
             };
             header?: never;
             path: {

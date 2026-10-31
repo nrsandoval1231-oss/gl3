@@ -11,7 +11,7 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/projects?*', route => { requests.push(new URL(route.request().url())); return route.fulfill({ json: pageFixture }) })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
 
   await expect(page.getByRole('heading', { name: 'Opportunities' })).toBeVisible()
   await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
@@ -49,7 +49,7 @@ test('canonical KPI captions stay within their cards and above the opportunities
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/needs/**', route => route.fulfill({ json: { id: 'n1', project_id: 'p1', name: 'Northstar Mesa Compressor', browse_title: 'Northstar Mesa Compressor', location: 'Midland, TX', tier: 'Signal', activity: 'compression', priority_score: 42, required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Synthetic fixture', workflow_status: 'New' } }))
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
 
   const kpis = page.locator('.cfr-kpis')
   const heading = page.getByRole('heading', { name: 'Opportunities' })
@@ -88,7 +88,7 @@ test('synthetic repeated cohort conflict stops after one reset and presents a re
   let reads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/projects?*', route => { reads += 1; return route.fulfill({ status: 409, json: { detail: 'cohort changed' } }) })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('alert')).toContainText('Results changed again')
   expect(reads).toBeLessThanOrEqual(3)
 })
@@ -105,7 +105,7 @@ test('synthetic logout while a request is pending cannot repopulate rows or cach
     await new Promise<void>(resolve => { release = resolve })
     try { await route.fulfill({ json: pageFixture }) } finally { routeSettled?.() }
   })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await projectRequestStarted
   await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
   await expect(page.getByRole('alert')).toContainText('session ended')
@@ -124,7 +124,7 @@ test('synthetic logout while results are unmounted clears module cache before re
     if (holdNext) return new Promise<void>(() => {})
     return route.fulfill({ json: pageFixture })
   })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(2)
   await page.getByRole('button', { name: 'Intelligence' }).click()
   await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
@@ -140,7 +140,7 @@ test('synthetic empty and error states do not produce repeated React update erro
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()) })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ status: 503, json: { detail: 'unavailable' } }))
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('alert')).toContainText('Could not load projects')
   await expect.poll(() => consoleErrors.filter(error => /maximum update depth|too many re-renders/i.test(error)).length).toBe(0)
 })
@@ -150,7 +150,7 @@ test('synthetic related need navigation restores focus to its exact need control
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/needs/**', route => route.fulfill({ json: { id: 'n2', project_id: 'p1', name: 'Synthetic related need', browse_title: 'Synthetic related need', location: 'Midland, TX', tier: 'Prospect', activity: 'construction power', priority_score: 42, required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Synthetic fixture', workflow_status: 'New' } }))
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(2)
   await page.getByText('2 related power needs').click()
   const relatedNeed = page.locator('[data-need-row="n2"]')
@@ -165,7 +165,7 @@ test('synthetic unavailable browse response stays visible for explicit retry', a
   let reads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/projects?*', route => { reads += 1; return route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'retry-after': '0' }, json: { detail: 'browse pending' } }) })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('alert')).toContainText('Could not load projects (503)')
   expect(reads).toBeLessThanOrEqual(2)
 })
@@ -179,7 +179,7 @@ test('malformed browse payload fails safely while an exact selected need remains
     required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Synthetic fixture', workflow_status: 'New',
   } }))
 
-  await page.goto('/?view=workspace&need=n2')
+  await page.goto('/?view=workspace&projectBrowse=1&need=n2')
   await expect(page.getByRole('heading', { name: 'Exact selected need' })).toBeVisible()
   await expect(page.getByRole('alert')).toContainText('Current project results could not be confirmed')
 })
