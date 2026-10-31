@@ -259,7 +259,7 @@ def _ctes(where: str) -> str:
         -- represented by that canonical asset meets the same strict rule.
         AND NOT EXISTS (
           SELECT 1 FROM all_rows nr
-          WHERE nr.asset_key = r.asset_key AND NOT (
+          WHERE nr.asset_key = r.asset_key AND (
             nr.compact #>> '{project_metadata,sector}' = 'data_centers'
             AND convert_to(
               nr.compact #>> '{project_metadata,data_center,owner_developer}', 'UTF8'
@@ -270,7 +270,7 @@ def _ctes(where: str) -> str:
               THEN jsonb_array_length(nr.compact #> '{project_metadata,event,evidence_refs}') > 0
               ELSE false
             END
-          )
+          ) IS NOT TRUE
         )
     ), same_name_eligible AS (
       -- Require every asset attached to this company UUID to be eligible.
@@ -285,6 +285,9 @@ def _ctes(where: str) -> str:
             SELECT 1 FROM same_name_asset_eligible eligible
             WHERE eligible.asset_key = ca.asset_key
               AND eligible.company_id = csm.company_id
+              AND eligible.role = candidate.role
+              AND convert_to(eligible.organization_name, 'UTF8') =
+                  convert_to(candidate.organization_name, 'UTF8')
           )
       )
     ), same_name_bucket_defs AS (

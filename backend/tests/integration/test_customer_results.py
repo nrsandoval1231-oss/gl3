@@ -508,14 +508,48 @@ def test_tdlr_bucket_excludes_entire_identity_with_ineligible_sibling(saved_db):
         }
 
 
+@pytest.mark.parametrize("missing_field", ["owner_developer", "source"])
+def test_tdlr_bucket_rejects_missing_owner_or_source(saved_db, missing_field):
+    _seed_tdlr_name_bucket(saved_db)
+    with saved_db.begin() as session:
+        generation = current_generation(session)
+        project = session.scalar(select(Project).where(Project.external_id == "0"))
+        rows = session.scalars(
+            select(BrowseRow).where(
+                BrowseRow.generation_id == generation.id,
+                BrowseRow.project_id == project.id,
+            )
+        ).all()
+        for row in rows:
+            metadata = dict(row.compact["project_metadata"])
+            if missing_field == "owner_developer":
+                metadata["data_center"] = {"owner_developer": None}
+            else:
+                metadata["event"] = {
+                    key: value for key, value in metadata["event"].items() if key != "source"
+                }
+            row.compact = {**row.compact, "project_metadata": metadata}
+
+    with saved_db() as session:
+        parent = groups(session, sector="data_centers", limit=20)
+        buckets = [
+            item for item in parent["items"] if item["group_kind"] == "same_name_unconfirmed"
+        ]
+        assert len(buckets) == 1
+        assert buckets[0]["identity_count"] == 2
+        assert buckets[0]["project_count"] == 2
+
+
 def test_operator_number_search_and_group_count_unit(saved_db):
     _seed_group_cohort(saved_db)
     with saved_db() as session:
         parent = groups(session, search="12345", sector="oil_gas", limit=10)
         assert parent["count_unit"] == "groups"
-        assert parent["total"] == 1
-        group = parent["items"][0]
+        assert parent["total"] == 2
+        group = next(item for item in parent["items"] if item["project_count"] == 62)
+        conflict = next(item for item in parent["items"] if item["project_count"] == 1)
         assert group["project_count"] == 62
+        assert conflict["role"] == "unresolved"
         metadata = group_metadata(session, group["id"], search="12345", sector="oil_gas")
         assert metadata["project_count"] == 62
         children = group_projects(
