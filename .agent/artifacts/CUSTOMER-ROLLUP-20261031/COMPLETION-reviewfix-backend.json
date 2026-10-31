@@ -1,0 +1,43 @@
+{
+  "format": "gl3-customer-rollup-reviewfix-backend-v1",
+  "status": "implemented_static_checks_passed_db_tests_pending",
+  "changed_files": [
+    "backend/src/gridlens/intelligence/customer_results.py",
+    "backend/tests/integration/test_customer_results.py"
+  ],
+  "changes": [
+    "Require every project and every asset attached to a canonical company UUID in the selected sector to meet the same exact TDLR owner, role, source, and evidence eligibility before any of that identity enters the same-name presentation bucket.",
+    "Search the explicit frozen operator_number field when selecting customer groups.",
+    "Return count_unit=groups for customer group pages."
+  ],
+  "regressions_added": [
+    "Mixed eligible and ineligible same-UUID projects remain together under the company UUID and retain the complete nested project set.",
+    "Operator-number search selects the group and preserves all related nested projects and group metadata."
+  ],
+  "checks": [
+    {
+      "command": "python -m py_compile src/gridlens/intelligence/customer_results.py tests/integration/test_customer_results.py",
+      "exit_code": 0
+    },
+    {
+      "command": "ruff check src/gridlens/intelligence/customer_results.py tests/integration/test_customer_results.py",
+      "exit_code": 0
+    },
+    {
+      "command": "ruff format --check src/gridlens/intelligence/customer_results.py tests/integration/test_customer_results.py",
+      "exit_code": 0
+    }
+  ],
+  "database_tests": {
+    "status": "not_run",
+    "reason": "Lead instructed not to start DB tests while the earlier full backend test run is pending.",
+    "unknown": [
+      "Focused test_customer_results.py result",
+      "Full backend suite result for this integrated candidate"
+    ]
+  },
+  "unknowns": [
+    "Database-backed behavior has not been executed in this lane."
+  ],
+  "commit_or_publication": "none"
+}

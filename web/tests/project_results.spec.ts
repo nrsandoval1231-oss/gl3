@@ -12,7 +12,7 @@ const sample = {
 }
 const projectPage = { items: [sample], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic-cohort', generation: 1 }
 const group = { id: 'group-synthetic-1', name: 'Example Energy', role: 'operator', operator_number: '123456', project_count: 1, need_count: 2, priority_score: null, sectors: ['oil_gas'] }
-const groupPage = { items: [group], total: 1, count_unit: 'operators and customers', limit: 25, offset: 0, cohort_token: 'synthetic-group-cohort', generation: '1' }
+const groupPage = { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'synthetic-group-cohort', generation: '1' }
 
 test('default root and header navigation browse customer groups with project children and server-side cohort controls', async ({ page }) => {
   const parentRequests: URL[] = []
@@ -30,7 +30,12 @@ test('default root and header navigation browse customer groups with project chi
     { ...sample, id: 'dc-project', project_id: 'dc-project', name: 'Customer Data Center', company: 'Cross Sector Customer', sector: 'data_centers', location: 'Austin, TX', event: { ...sample.event, kind: 'construction_notice', label: 'Construction notice' } },
     { ...sample, id: 'oil-project', project_id: 'oil-project', name: 'Customer Oil Field', company: 'Cross Sector Customer', sector: 'oil_gas', location: 'Permian Basin, TX' },
   ]
-  const edgeProject = { ...sample, id: 'filter-edge-project', project_id: 'filter-edge-project', name: 'Filter Edge Site', company: 'Filter Edge Customer' }
+  const edgeProject = {
+    ...sample, id: 'filter-edge-project', project_id: 'filter-edge-project', customer_identity_id: 'filter-edge-company',
+    name: 'Filter Edge Site', company: 'Filter Edge Customer', representative_need_id: 'need-filter-edge',
+    needs: [{ id: 'need-filter-edge', project_id: 'filter-edge-project', browse_title: 'Filter Edge Site', location: 'Austin, TX', activity: 'construction', tier: 'Signal' }],
+    need_count: 1, contact_people: [], contact: [{ kind: 'call', label: 'Call Filter Edge Customer', href: 'tel:+15555550125', company: 'Filter Edge Customer' }],
+  }
   let parentToken = 'default-customer-cohort'
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/groups?*', route => {
@@ -50,7 +55,7 @@ test('default root and header navigation browse customer groups with project chi
     if (url.searchParams.get('sort') === 'company') matches.sort((left, right) => left.name.localeCompare(right.name))
     else if (url.searchParams.get('sort') === 'priority') matches.sort((left, right) => (right.priority_score ?? -1) - (left.priority_score ?? -1) || left.name.localeCompare(right.name))
     return route.fulfill({ json: {
-      items: matches.slice(offset, offset + 25), total: matches.length, count_unit: 'operators and customers', limit: 25, offset,
+      items: matches.slice(offset, offset + 25), total: matches.length, count_unit: 'groups', limit: 25, offset,
       cohort_token: parentToken, generation: 'synthetic-default-generation', facets: { regions: ['Permian Basin, TX', 'Austin, TX'], stages: ['Construction notice', 'Permit issued'] },
     } })
   })
@@ -60,6 +65,16 @@ test('default root and header navigation browse customer groups with project chi
     const items = url.pathname.includes('filter-edge-customer') ? [edgeProject] : childProjects
     return route.fulfill({ json: { items, total: items.length, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'customer-project-cohort', parent_cohort_token: parentToken, generation: 'synthetic-default-generation' } })
   })
+  await page.route('**/api/opportunities/projects?*', route => {
+    const needId = new URL(route.request().url()).searchParams.get('need_id')
+    const items = needId === 'need-filter-edge' ? [edgeProject] : []
+    return route.fulfill({ json: { items, total: items.length, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'filter-edge-detail-cohort', generation: 'synthetic-default-generation' } })
+  })
+  await page.route('**/api/opportunities/needs/need-filter-edge*', route => route.fulfill({ json: {
+    id: 'need-filter-edge', project_id: 'filter-edge-project', name: 'Filter Edge Site', browse_title: 'Filter Edge Site',
+    location: 'Austin, TX', tier: 'Signal', activity: 'construction', supply: 'Unknown', required_mw: null,
+    start_window: null, duration: null, evidence: [], missing_facts: [], rationale: 'Synthetic source-backed fixture.',
+  } }))
   await page.goto('/')
   await expect(page.locator('.customer-group')).toHaveCount(25)
   await expect(page.locator('.project-results-count')).toContainText('26')
@@ -131,8 +146,21 @@ test('default root and header navigation browse customer groups with project chi
   for (const [key, value] of [['search', 'Filter Edge Customer'], ['sector', 'all'], ['sort', 'company'], ['region', 'Austin, TX'], ['stage', 'Construction notice'], ['priority', 'ranked']]) {
     expect(childRequests.at(-1)?.searchParams.get(key)).toBe(value)
   }
-  await page.goBack()
-  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('')
+  await page.locator('.customer-group').filter({ hasText: 'Filter Edge Customer' }).getByRole('button', { name: 'View project details' }).click()
+  await expect(page).toHaveURL(/need=need-filter-edge/)
+  const selectedDetail = page.locator('.wh-detail')
+  await expect(selectedDetail.getByRole('heading', { name: 'Filter Edge Site', exact: true })).toBeVisible()
+  await expect(selectedDetail).toContainText('Filter Edge Customer')
+  await expect(selectedDetail.getByRole('link', { name: 'Call Filter Edge Customer' })).toHaveAttribute('href', 'tel:+15555550125')
+  await page.getByRole('button', { name: 'Back to power needs', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('Filter Edge Customer')
+  await expect(page.getByRole('combobox', { name: 'Sort opportunities' })).toHaveValue('company')
+  await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue('Austin, TX')
+  await expect(page.getByRole('combobox', { name: 'Stage' })).toHaveValue('Construction notice')
+  await expect(page.getByRole('combobox', { name: 'Priority' })).toHaveValue('ranked')
+  const restoredGroup = page.locator('.customer-group').filter({ hasText: 'Filter Edge Customer' })
+  await expect(restoredGroup.locator('.customer-group-toggle')).toHaveAttribute('aria-expanded', 'true')
+  await expect(restoredGroup.getByRole('heading', { name: 'Filter Edge Site' })).toBeVisible()
 })
 
 test('legacy flat sort and malformed offset links normalize to a valid default grouped URL and request', async ({ page }) => {
@@ -180,7 +208,7 @@ test('synthetic same-name group keeps three source identities and contacts indep
   const detailReads: string[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: {
-    items: [group], total: 1, count_unit: 'operators and customers', limit: 25, offset: 0,
+    items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0,
     cohort_token: 'amazon-name-cohort', generation: 'synthetic-amazon-generation', facets: { regions: [], stages: [] },
   } }))
   await page.route('**/api/opportunities/groups/same-name-amazon-pecos/projects?*', route => route.fulfill({ json: {

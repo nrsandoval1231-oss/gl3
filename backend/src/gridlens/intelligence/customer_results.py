@@ -130,6 +130,8 @@ def _group_filter(*, term, region, stage, priority, alias="g"):
             "strpos(lower(coalesce(sb.compact->>'browse_title','')),:term)>0 OR "
             "strpos(lower(coalesce(sb.compact->>'name','')),:term)>0 OR "
             "strpos(lower(coalesce(sb.compact #>> '{project_metadata,operator}','')),:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact #>> "
+            "'{project_metadata,oil_gas,operator_number}','')),:term)>0 OR "
             "EXISTS (SELECT 1 FROM browse_customer_memberships cm "
             "WHERE cm.generation_id=sb.generation_id AND cm.project_id=sb.project_id "
             "AND lower(cm.role) NOT IN ('contractor','general_contractor','epc','subcontractor') "
@@ -229,7 +231,7 @@ def _ctes(where: str) -> str:
         UNION ALL
         SELECT asset_key, organization_name FROM recorded_conflicts
       ) conflicts GROUP BY asset_key
-    ), same_name_eligible AS (
+    ), same_name_asset_eligible AS (
       SELECT DISTINCT r.asset_key, sm.company_id, sm.organization_name, sm.role
       FROM all_rows r
       JOIN single_membership sm ON sm.asset_key = r.asset_key
@@ -253,6 +255,38 @@ def _ctes(where: str) -> str:
           THEN jsonb_array_length(r.compact #> '{project_metadata,event,evidence_refs}') > 0
           ELSE false
         END
+        -- An asset may enter a presentation bucket only when every project
+        -- represented by that canonical asset meets the same strict rule.
+        AND NOT EXISTS (
+          SELECT 1 FROM all_rows nr
+          WHERE nr.asset_key = r.asset_key AND NOT (
+            nr.compact #>> '{project_metadata,sector}' = 'data_centers'
+            AND convert_to(
+              nr.compact #>> '{project_metadata,data_center,owner_developer}', 'UTF8'
+            ) = convert_to(sm.organization_name, 'UTF8')
+            AND nr.compact #>> '{project_metadata,event,source}' = 'texas-tdlr-tabs-data-centers'
+            AND CASE
+              WHEN jsonb_typeof(nr.compact #> '{project_metadata,event,evidence_refs}') = 'array'
+              THEN jsonb_array_length(nr.compact #> '{project_metadata,event,evidence_refs}') > 0
+              ELSE false
+            END
+          )
+        )
+    ), same_name_eligible AS (
+      -- Require every asset attached to this company UUID to be eligible.
+      -- This prevents a good TDLR project from pulling unsupported siblings
+      -- into the same-name display collection.
+      SELECT candidate.* FROM same_name_asset_eligible candidate
+      WHERE NOT EXISTS (
+        SELECT 1 FROM assets ca
+        JOIN single_membership csm ON csm.asset_key = ca.asset_key
+        WHERE csm.company_id = candidate.company_id
+          AND NOT EXISTS (
+            SELECT 1 FROM same_name_asset_eligible eligible
+            WHERE eligible.asset_key = ca.asset_key
+              AND eligible.company_id = csm.company_id
+          )
+      )
     ), same_name_bucket_defs AS (
       SELECT convert_to(organization_name, 'UTF8') AS organization_name_bytes, role,
              min(organization_name) AS organization_name,
@@ -431,7 +465,7 @@ def groups(
     ]
     return {
         "items": items,
-        "count_unit": "operators and customers",
+        "count_unit": "groups",
         "total": total,
         "limit": limit,
         "offset": offset,

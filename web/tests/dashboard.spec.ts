@@ -23,7 +23,7 @@ test('project results preserve detail history, truthful gaps, and responsive nav
       const search = (url.searchParams.get('search') ?? '').toLowerCase()
       const matching = groups.filter(group => `${group.name} ${projects.find(project => `group-${project.id}` === group.id)?.name}`.toLowerCase().includes(search))
       const offset = Number(url.searchParams.get('offset') || 0)
-      return route.fulfill({ json: { items: matching.slice(offset, offset + 25), total: matching.length, offset, limit: 25, cohort_token: 'dashboard-group-cohort', generation: 1, count_unit: 'operators and customers' } })
+      return route.fulfill({ json: { items: matching.slice(offset, offset + 25), total: matching.length, offset, limit: 25, cohort_token: 'dashboard-group-cohort', generation: 1, count_unit: 'groups' } })
     }
     if (url.pathname.startsWith('/api/opportunities/groups/')) {
       const groupId = url.pathname.split('/')[4]

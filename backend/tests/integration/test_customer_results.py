@@ -1,3 +1,4 @@
+import hashlib
 from uuid import uuid4
 
 import pytest
@@ -427,6 +428,107 @@ def test_tdlr_same_name_container_preserves_distinct_company_identities(saved_db
         outside_bucket = [group for group in parent["items"] if group["id"] != container["id"]]
         assert len(outside_bucket) == 6
         assert all(group["group_kind"] != "same_name_unconfirmed" for group in outside_bucket)
+
+
+def test_tdlr_bucket_excludes_entire_identity_with_ineligible_sibling(saved_db):
+    identity_ids, exact_name = _seed_tdlr_name_bucket(saved_db)
+    with saved_db.begin() as session:
+        generation = current_generation(session)
+        project = session.scalar(select(Project).where(Project.external_id == "3"))
+        eligible_project = session.scalar(select(Project).where(Project.external_id == "0"))
+        excluded_identity = session.scalar(
+            select(BrowseCustomerMembership.company_identity_id).where(
+                BrowseCustomerMembership.generation_id == generation.id,
+                BrowseCustomerMembership.project_id == eligible_project.id,
+            )
+        )
+        assert excluded_identity in identity_ids
+        rows = session.scalars(
+            select(BrowseRow).where(
+                BrowseRow.generation_id == generation.id,
+                BrowseRow.project_id == project.id,
+            )
+        ).all()
+        for row in rows:
+            metadata = dict(row.compact["project_metadata"])
+            metadata["data_center"] = {"owner_developer": "Different exact name"}
+            row.compact = {**row.compact, "project_metadata": metadata}
+        session.execute(
+            BrowseCustomerMembership.__table__.delete().where(
+                BrowseCustomerMembership.generation_id == generation.id,
+                BrowseCustomerMembership.project_id == project.id,
+            )
+        )
+        session.add(
+            BrowseCustomerMembership(
+                generation_id=generation.id,
+                company_identity_id=excluded_identity,
+                project_id=project.id,
+                organization_name="Different exact name",
+                role="owner_developer",
+            )
+        )
+
+    with saved_db() as session:
+        parent = groups(session, sector="data_centers", limit=20)
+        buckets = [
+            item for item in parent["items"] if item["group_kind"] == "same_name_unconfirmed"
+        ]
+        assert len(buckets) == 1
+        bucket = buckets[0]
+        assert bucket["name"] == exact_name
+        assert bucket["identity_count"] == 2
+        assert bucket["project_count"] == 2
+        # The UUID with one eligible and one differently named project stays
+        # under its canonical company key with both projects intact.
+        company = group_metadata(
+            session,
+            "cg_"
+            + hashlib.md5(
+                ("company:" + str(excluded_identity)).encode(), usedforsecurity=False
+            ).hexdigest(),
+            sector="data_centers",
+        )
+        assert company["group_kind"] == "resolved_identity"
+        assert company["project_count"] == 2
+        searched = groups(session, search="PECOS facility 3", sector="data_centers")
+        assert searched["total"] == 1
+        assert searched["items"][0]["id"] == company["id"]
+        children = group_projects(
+            session,
+            company["id"],
+            search="PECOS facility 3",
+            sector="data_centers",
+            parent_token=searched["cohort_token"],
+        )
+        assert children["total"] == 2
+        assert len(children["items"]) == 2
+        assert {item["customer_identity_id"] for item in children["items"]} == {
+            str(excluded_identity)
+        }
+
+
+def test_operator_number_search_and_group_count_unit(saved_db):
+    _seed_group_cohort(saved_db)
+    with saved_db() as session:
+        parent = groups(session, search="12345", sector="oil_gas", limit=10)
+        assert parent["count_unit"] == "groups"
+        assert parent["total"] == 1
+        group = parent["items"][0]
+        assert group["project_count"] == 62
+        metadata = group_metadata(session, group["id"], search="12345", sector="oil_gas")
+        assert metadata["project_count"] == 62
+        children = group_projects(
+            session,
+            group["id"],
+            search="12345",
+            sector="oil_gas",
+            parent_token=parent["cohort_token"],
+            limit=100,
+        )
+        assert children["total"] == 62
+        assert len(children["items"]) == 62
+        assert len({item["project_id"] for item in children["items"]}) == 62
 
 
 @pytest.mark.parametrize("sort", ["priority_asc", "company", "updated"])

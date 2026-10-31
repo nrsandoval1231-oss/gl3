@@ -2,12 +2,16 @@
   "lane": "tests",
   "status": "implemented_pending_browser_validation",
   "started_at_utc": null,
-  "finished_at_utc": "2026-10-31T23:20:54Z",
+  "finished_at_utc": "2026-10-31T23:29:09Z",
   "timing_note": "Start time and elapsed time were not measured.",
   "files_changed": [
     "web/tests/project_results.spec.ts",
     "web/tests/dashboard.spec.ts",
     "web/tests/workspace.spec.ts",
+    "web/tests/autonomous-research.spec.ts",
+    "web/tests/pr101-regressions.spec.ts",
+    "web/tests/environment.spec.ts",
+    "web/tests/evidence-content.spec.ts",
     "web/tests/canonical_flat_results.spec.ts",
     "web/tests/canonical_cohort_sort.spec.ts",
     "web/tests/canonical_detail.spec.ts",
@@ -23,8 +27,11 @@
     "Added mocked same_name_unconfirmed coverage for exact name-group caption and identity count while collapsed and expanded, three distinct PECOS project/customer identity IDs, isolated contact links, each exact need detail, and Back to all three projects.",
     "Refined the sort proof to reflect localeCompare's full order: Cross Sector Customer first, then Customer 01; ranked Filter Edge Customer is second under priority order and moves to the final page under company order.",
     "Detail assertions now verify each latest exact-need read and deduplicated project visit order while allowing a repeated read after Back navigation.",
+    "The default route/filter test now opens Filter Edge Site's exact need detail before Back and verifies the prior filtered customer search, sort, region, stage, priority, and expanded project are restored.",
     "Added a deep-link normalization case for legacy sort=project and a negative offset; asserts grouped requests use priority and offset 0 and the invalid URL parameters are removed.",
     "Aligned only grouped result count and empty-state expectations with the frontend's neutral group wording; numerical, project, identity, and error assertions remain intact.",
+    "Updated all mocked grouped response count_unit values in browser specs to the neutral `groups` contract. Updated the legacy workspace count and PR101/research empty-state assertions to match neutral group copy.",
+    "Updated autonomous research project-search detail assertions to use the rendered WorkspaceDetail `.wh-detail` and separately verify its project heading, company, and scoped contact link.",
     "Moved grouped regression cases in project_results and dashboard onto the customer-rollup default. Retained one explicit groupBrowse=1 compatibility case. Existing accountBrowse=1 account paths were preserved.",
     "Adapted flat-results-specific browser cases to use projectBrowse=1, including canonical table, cohort sorting, detail, shell, and legacy flat workspace flows."
   ],
@@ -44,7 +51,8 @@
     "Retained or live data sample validation."
   ],
   "unknowns": [
-    "The earlier focused run passed 36 of 37 tests. The later integrated focused run passed 38 of 40; its two failures were the incorrect mocked company-sort order expectation and an overly strict exact-detail request count across Back navigation. Both expectations are now corrected; a subsequent browser rerun remains pending.",
+    "The latest full browser run passed 173 of 182 tests before the current copy/fixture updates. The test-lane failures identified in autonomous-research detail selectors, empty-state copy, and workspace group count are corrected; a rerun remains pending.",
+    "The default route/search failure was not rerun after replacing list-only Back with a detail-history Back; its browser rerun remains pending.",
     "Final integrated browser test outcomes are pending lead validation.",
     "The new route-level browser fixture models full-cohort sorting and filtering; backend correctness must be established by backend tests and final integration checks."
   ],

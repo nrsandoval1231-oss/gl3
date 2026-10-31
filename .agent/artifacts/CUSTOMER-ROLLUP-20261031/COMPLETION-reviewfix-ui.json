@@ -1,0 +1,38 @@
+{
+  "lane": "reviewfix-ui",
+  "status": "implemented_typecheck_pass_browser_pending",
+  "started_at_utc": null,
+  "finished_at_utc": "2026-10-31T23:28:03Z",
+  "timing_note": "Start time and elapsed time were not measured.",
+  "files_changed": [
+    "web/src/features/workspace/ProjectResults.tsx",
+    "web/tests/customer-rollup-sector.spec.ts",
+    ".agent/artifacts/CUSTOMER-ROLLUP-20261031/COMPLETION-reviewfix-ui.json"
+  ],
+  "changes": [
+    "Sector changes clear region and stage filters, updating request parameters, visible controls, and URL while preserving priority and sort.",
+    "Region and stage controls retain active URL values absent from the returned sector facets.",
+    "Added mocked browser regressions for Data Centers switching after region/stage selection and arbitrary deep-linked region/stage values missing from facets."
+  ],
+  "checks": [
+    {
+      "result": "PASS: tsc --noEmit completed successfully.",
+      "command": "npm run typecheck"
+    },
+    {
+      "result": "PASS.",
+      "command": "git diff --check -- web/src/features/workspace/ProjectResults.tsx web/tests/customer-rollup-sector.spec.ts"
+    }
+  ],
+  "fixture_evidence": "New browser cases use synthetic mocked grouped API responses. They have not been executed in this lane.",
+  "not_run": [
+    "Playwright/browser checks; delegated lead owns the disposable runtime and browser validation.",
+    "Full browser suite and retained/live dataset checks."
+  ],
+  "unknowns": [
+    "Browser regression outcomes are pending execution in the lead validation environment."
+  ],
+  "limitations": [
+    "No backend, provider, production, database, publication, or deployment action was performed."
+  ]
+}

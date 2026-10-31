@@ -28,6 +28,7 @@ function readRoute() {
 }
 function updateUrl(search: string, sector: Sector, offset: number, sort: Sort, cohort?: string, push = false) {
   const params = new URLSearchParams({ view: 'workspace' })
+  if (new URLSearchParams(location.search).get('projectBrowse') === '1') params.set('projectBrowse', '1')
   if (search) params.set('q', search)
   if (sector !== 'all') params.set('sector', sector)
   if (offset) params.set('offset', String(offset))

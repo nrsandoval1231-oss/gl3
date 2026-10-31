@@ -20,14 +20,14 @@ test('default workspace shows project results and opens existing need detail wit
   const workspaceRequests: URL[] = []
   const project = { id: 'project-a', project_id: 'project-a', name: 'Test data center', company: 'Example operator', location: 'Austin, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: null, representative_need_id: 'need-a', needs: [{ id: 'need-a', project_id: 'project-a', activity: 'construction', browse_title: 'Test data center', location: 'Austin, TX' }], need_count: 1, event: { kind: 'permit_issued', label: 'Permit issued', date: '2026-10-18', source: 'Synthetic fixture', evidence_refs: [] }, contact: [], power_summary: 'Power need remains unconfirmed.', next_action: 'Review the source-backed project evidence.', updated_at: '2026-10-20T00:00:00Z' }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [{ id: 'group-project-a', name: 'Example operator', role: 'operator', project_count: 1, need_count: 1, sectors: ['data_centers'] }], total: 1, count_unit: 'operators and customers', limit: 25, offset: 0, cohort_token: 'group-cohort', generation: 1 } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [{ id: 'group-project-a', name: 'Example operator', role: 'operator', project_count: 1, need_count: 1, sectors: ['data_centers'] }], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'group-cohort', generation: 1 } }))
   await page.route('**/api/opportunities/groups/group-project-a/projects?*', route => route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'project-cohort', generation: 1 } }))
   await page.route('**/api/opportunities/projects?need_id=*', route => route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'exact-project-cohort', generation: 1 } }))
   await page.route('**/api/opportunities/workspace?*', route => { workspaceRequests.push(new URL(route.request().url())); return route.fulfill({ json: response() }) })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
-  await expect(page.getByText('1 operator/customer group')).toBeVisible()
+  await expect(page.getByText('1 group')).toBeVisible()
   await page.getByRole('button', { name: /Example operator/ }).click()
   await expect(page.getByText('Permit issued · 2026-10-18')).toBeVisible()
   await page.getByRole('button', { name: 'View project details' }).click()
