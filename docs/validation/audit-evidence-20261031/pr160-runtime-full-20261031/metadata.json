@@ -1,0 +1,69 @@
+{
+  "commit": "78591b308aa829a25157bf3310133ed069434d3b",
+  "command": [
+    "timeout",
+    "480",
+    "uv",
+    "run",
+    "pytest",
+    "tests",
+    "-n",
+    "4",
+    "-p",
+    "runtime_observer",
+    "--durations=30"
+  ],
+  "started_utc": "2026-10-31T17:14:54Z",
+  "started_monotonic": 7296.962309854,
+  "settings": [
+    [
+      "checkpoint_completion_target",
+      "0.9",
+      null
+    ],
+    [
+      "checkpoint_timeout",
+      "300",
+      "s"
+    ],
+    [
+      "fsync",
+      "on",
+      null
+    ],
+    [
+      "full_page_writes",
+      "on",
+      null
+    ],
+    [
+      "max_wal_size",
+      "1024",
+      "MB"
+    ],
+    [
+      "shared_buffers",
+      "16384",
+      "8kB"
+    ],
+    [
+      "synchronous_commit",
+      "on",
+      null
+    ]
+  ],
+  "checkpoint_before": {
+    "num_timed": 0,
+    "num_requested": 20,
+    "num_done": 15,
+    "restartpoints_timed": 0,
+    "restartpoints_req": 0,
+    "restartpoints_done": 0,
+    "write_time": 322511,
+    "sync_time": 76182,
+    "buffers_written": 61457,
+    "slru_written": 51,
+    "stats_reset": "2026-10-31T16:47:59.579391+00:00"
+  },
+  "instrumentation": "External observer JSONL on start/setup/call/teardown; no fsync; one persistent PG connection sampled every5s with1000ms statement_timeout; cgroup snapshots; built-in durations30; same4workers480s gate, not exact CI command."
+}

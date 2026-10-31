@@ -1,0 +1,33 @@
+{
+  "observed_utc": "2026-10-31T18:55:34.379500+00:00",
+  "steps": [
+    {
+      "step": "changed-scripts-lint",
+      "command": [
+        ".venv/bin/ruff",
+        "check",
+        "../scripts/stage_release_wrapper.py",
+        "../scripts/rehearse_release.py"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "seconds": 0.03240961000119569
+    },
+    {
+      "step": "changed-scripts-format",
+      "command": [
+        ".venv/bin/ruff",
+        "format",
+        "--check",
+        "../scripts/stage_release_wrapper.py",
+        "../scripts/rehearse_release.py"
+      ],
+      "cwd": "/workspace/gl3-recovery/backend",
+      "exit": 0,
+      "seconds": 0.015822494999156334
+    }
+  ],
+  "head": "49fe43805a2d31a2253521946dcbd2f08e901ced",
+  "remote_head": "49fe43805a2d31a2253521946dcbd2f08e901ced",
+  "source_status": ""
+}

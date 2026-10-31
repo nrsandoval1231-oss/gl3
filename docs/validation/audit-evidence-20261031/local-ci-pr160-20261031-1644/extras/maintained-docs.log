@@ -1,0 +1,2 @@
+$ uv run --project backend python scripts/check_docs.py
+Maintained documentation graph passed: 91 documents, 362 local targets, 3 anchors.

@@ -1,0 +1,14 @@
+{
+  "observed_utc": "2026-10-31T19:00:22.458043+00:00",
+  "pr_url": "https://github.com/nrsandoval1231-oss/gl3/pull/161",
+  "merged": true,
+  "merge_commit_sha": "e0035d9e5bfb52f92bb4d21e6de0fac16d91adff",
+  "merged_at": "2026-10-31T18:59:11Z",
+  "trees": {
+    "e0035d9e5bfb52f92bb4d21e6de0fac16d91adff": "2ec4e47c9628501ca68b326f5c345bdd0fac08e6",
+    "49fe43805a2d31a2253521946dcbd2f08e901ced": "2ec4e47c9628501ca68b326f5c345bdd0fac08e6"
+  },
+  "parity": true,
+  "worktree_head": "49fe43805a2d31a2253521946dcbd2f08e901ced",
+  "worktree_status": ""
+}

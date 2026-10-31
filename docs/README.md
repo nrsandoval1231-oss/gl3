@@ -14,6 +14,8 @@ Start with [AGENTS.md](../AGENTS.md). The [Autonomous Intelligence Canon](produc
 
 ## Historical evidence
 
+[October 30–31 audit and validation archive](validation/audit-evidence-20261031/README.md) preserves the audit, independent reviews, failed and successful validation receipts, and PR160/161 post-merge evidence. Its index distinguishes superseded findings, unresolved work and the deployment hold.
+
 [Validation records](validation/), [agent archive](../.agent/archive/), dated operations reports and [design screenshots](design/screenshots/) retain previous plans, failed runs, release receipts and review evidence. Historical authorizations never apply automatically to a new candidate. The [2026-10-29 archive](../.agent/archive/STREAMLINING-20261029/README.md) preserves superseded active instructions verbatim; the [2026-10-20 inventory](../.agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTORY-20261020.md) and [2026-10-26 archive](../.agent/archive/AUTONOMOUS-20261026/README.md) index earlier governance history. Some dated reports reference ignored receipts unavailable in a clean checkout; do not invent replacements or interpret them as current operational proof.
 
 ## Intelligence consolidation — CURRENT / TARGET / NEXT / DEFERRED

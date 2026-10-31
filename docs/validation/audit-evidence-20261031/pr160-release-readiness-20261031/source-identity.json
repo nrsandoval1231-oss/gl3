@@ -1,0 +1,23 @@
+[
+  {
+    "sha": "593cfd516d82a12b66558f53b975ad6c2b711517",
+    "tree": "0902bd1e2d4acee3e154f94bbe74ae8295a2841c",
+    "python_files": 190,
+    "fingerprint_sha256": "7c259289059c1216fa0e9ef0167288499d08d6c1bd93bab2a3edd7166c76c845",
+    "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/7c259289059c1216fa0e9ef0"
+  },
+  {
+    "sha": "78591b308aa829a25157bf3310133ed069434d3b",
+    "tree": "125b7dc0ee61a890b1dffff40f3b2891df3be9c1",
+    "python_files": 190,
+    "fingerprint_sha256": "27851625e924e8bc0e3dede67012435bb798ab349eefee8f5cb4daf67bddf2e1",
+    "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/27851625e924e8bc0e3dede6"
+  },
+  {
+    "sha": "00026c758ece2bc41eea88c478cbb0112f9e0de5",
+    "tree": "125b7dc0ee61a890b1dffff40f3b2891df3be9c1",
+    "python_files": 190,
+    "fingerprint_sha256": "27851625e924e8bc0e3dede67012435bb798ab349eefee8f5cb4daf67bddf2e1",
+    "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/27851625e924e8bc0e3dede6"
+  }
+]

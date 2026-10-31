@@ -1,0 +1,12 @@
+$ npx playwright install-deps --dry-run chromium
+Failed to install browser dependencies
+Error: 'apt-get install -s' exited with code 100:
+W: Unable to read /etc/apt/apt.conf.d/80-applied-apt-retries - open (13: Permission denied)
+E: Unable to locate package xvfb
+E: Unable to locate package fonts-unifont
+E: Package 'xfonts-scalable' has no installation candidate
+E: Package 'fonts-ipafont-gothic' has no installation candidate
+E: Package 'fonts-wqy-zenhei' has no installation candidate
+E: Unable to locate package fonts-tlwg-loma-otf
+E: Package 'fonts-freefont-ttf' has no installation candidate
+

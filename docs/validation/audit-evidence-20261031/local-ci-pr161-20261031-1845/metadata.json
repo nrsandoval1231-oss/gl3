@@ -1,0 +1,13 @@
+{
+  "commit": "49fe43805a2d31a2253521946dcbd2f08e901ced",
+  "tree": "2ec4e47c9628501ca68b326f5c345bdd0fac08e6",
+  "observed_utc": "2026-10-31T18:46:04.630986+00:00",
+  "workflow_sha256": "8dd1a97a4c1f1006aa3bb3a2e36562fb75c5b2ddb1ace68bec2e30214675d38c",
+  "platform": "Debian13 cloud, not GitHub ubuntu-latest",
+  "limitations": [
+    "Checkout/cache/upload-artifact action services are not executed; local logs substitute for upload.",
+    "Ubuntu-specific apt mirror rewrite/system package installation is not reproduced; installed Chromium shared libraries and launch are checked locally.",
+    "No GitHub Actions run is dispatched.",
+    "Jobs run sequentially; the backend480s gate has no competing validation workload."
+  ]
+}

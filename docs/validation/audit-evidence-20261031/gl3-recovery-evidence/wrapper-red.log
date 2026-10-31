@@ -1,0 +1,605 @@
+F........FFFF...F......                                                  [100%]
+=================================== FAILURES ===================================
+________________ test_stages_only_exact_input_and_preserves_it _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-7/test_stages_only_exact_input_a0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd882b5e490>
+
+    def test_stages_only_exact_input_and_preserves_it(tmp_path, monkeypatch):
+        source = _source()
+        _authorize(monkeypatch, source)
+        current = tmp_path / "current.py"
+        staged = tmp_path / "staged.py"
+        current.write_bytes(source.encode())
+    
+        stage.stage_release_wrapper(current, staged)
+    
+        assert current.read_text() == source
+        rendered = staged.read_text()
+        assert '"stop-app"' in rendered
+        assert '"migrate"' in rendered
+        assert '"rebuild-browse"' in rendered
+        assert '"start-canary"' in rendered
+        assert '"start-workers"' in rendered
+>       assert '"stage-browse"' in rendered
+E       assert '"stage-browse"' in '"""Protected selective release wrapper; staged locally and not installed."""\nimport json\nimport os\nfrom pathlib im...OT / \'runtime.env\')] + suffix\n    os.execvpe("infisical", command, env)\n\nif __name__ == "__main__":\n    main()\n'
+
+backend/tests/unit/test_stage_release_wrapper.py:94: AssertionError
+___ test_generated_wrapper_executes_only_fixed_suffixes[arguments4-suffix4] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd882be49d0>
+arguments = ['browse-status']
+suffix = ['run', '--rm', '--no-deps', 'browse', 'uv', 'run', ...]
+
+    @pytest.mark.parametrize(
+        ("arguments", "suffix"),
+        [
+            (["stop-app"], ["stop", "api", "worker", "browse", "web"]),
+            (["migrate"], ["run", "--rm", "--no-deps", "migrate"]),
+            (["start-canary"], ["up", "-d", "--no-build", "--no-deps", "api", "web"]),
+            (["start-workers"], ["up", "-d", "--no-build", "--no-deps", "worker", "browse"]),
+            *[
+                (
+                    [operation, *(["123e4567-e89b-12d3-a456-426614174000"] if needs_id else [])],
+                    [
+                        "run", "--rm", "--no-deps", "browse", "uv", "run", "python", "-m",
+                        "gridlens.jobs.browse", action,
+                        *(["--generation", "123e4567-e89b-12d3-a456-426614174000"] if needs_id else []),
+                    ],
+                )
+                for operation, action, needs_id in [
+                    ("browse-status", "status", False),
+                    ("stage-browse", "stage-recovery", False),
+                    ("inspect-browse", "inspect-recovery", True),
+                    ("publish-browse", "publish-recovery", True),
+                ]
+            ],
+        ],
+    )
+    def test_generated_wrapper_executes_only_fixed_suffixes(tmp_path, monkeypatch, arguments, suffix):
+        source = _source().replace("/etc/gridlens", tmp_path.as_posix())
+        _authorize(monkeypatch, source)
+        current, staged = tmp_path / "current.py", tmp_path / "staged.py"
+        current.write_bytes(source.encode())
+        stage.stage_release_wrapper(current, staged)
+        for name in ("scope", "credentials", "runtime.env"):
+            (tmp_path / name).write_text('{"token": "not-a-real-token-value-123456"}')
+        captured = {}
+    
+        def fake_execvpe(file, command, env):
+            captured.update(file=file, command=command, env=env)
+            raise _Executed
+    
+        monkeypatch.setattr(os, "getuid", lambda: 0, raising=False)
+        monkeypatch.setattr(os, "execvpe", fake_execvpe)
+        monkeypatch.setattr(sys, "argv", [str(staged), *arguments])
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(_Executed):
+>           runpy.run_path(str(staged), run_name="__main__")
+
+/workspace/gl3-recovery/backend/tests/unit/test_stage_release_wrapper.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<frozen runpy>:291: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute4/staged.py:78: in <module>
+    main()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main():
+        required = [ROOT / "scope", ROOT / "credentials", ROOT / "runtime.env"]
+        if not all(path.is_file() for path in required):
+            raise SystemExit("missing")
+        try:
+            token = private_json(required[1])["token"]
+            runtime = {"DATABASE_URL": "configured", "OPENAI_API_KEY": "configured"}
+        except (OSError, ValueError, KeyError):
+            raise SystemExit("invalid") from None
+        if sys.argv[1:] == ["--validate-only"]:
+            print("present")
+            return
+        if not sys.argv[1:]:
+            raise SystemExit("explicit operation required")
+        operation, *arguments = sys.argv[1:]
+        static_operations = {
+            "stop-app": ["stop", "api", "worker", "browse", "web"],
+            "migrate": ["run", "--rm", "--no-deps", "migrate"],
+            "rebuild-browse": [
+                "run",
+                "--rm",
+                "--no-deps",
+                "browse",
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "gridlens.jobs.browse",
+                "rebuild",
+            ],
+            "start-canary": ["up", "-d", "--no-build", "--no-deps", "api", "web"],
+            "start-workers": ["up", "-d", "--no-build", "--no-deps", "worker", "browse"],
+        }
+        if operation == "rollback-browse":
+            if len(arguments) != 1:
+                raise SystemExit("rollback-browse requires exactly one generation UUID")
+            import uuid
+            try:
+                generation = str(uuid.UUID(arguments[0]))
+            except ValueError:
+                raise SystemExit("rollback-browse generation must be a canonical UUID") from None
+            if generation != arguments[0]:
+                raise SystemExit("rollback-browse generation must be a canonical UUID")
+            suffix = [
+                "run",
+                "--rm",
+                "--no-deps",
+                "browse",
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "gridlens.jobs.browse",
+                "rollback",
+                "--generation",
+                generation,
+            ]
+        elif operation in static_operations and not arguments:
+            suffix = static_operations[operation]
+        else:
+>           raise SystemExit("operation is not authorized")
+E           SystemExit: operation is not authorized
+
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute4/staged.py:72: SystemExit
+___ test_generated_wrapper_executes_only_fixed_suffixes[arguments5-suffix5] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd882be7050>
+arguments = ['stage-browse']
+suffix = ['run', '--rm', '--no-deps', 'browse', 'uv', 'run', ...]
+
+    @pytest.mark.parametrize(
+        ("arguments", "suffix"),
+        [
+            (["stop-app"], ["stop", "api", "worker", "browse", "web"]),
+            (["migrate"], ["run", "--rm", "--no-deps", "migrate"]),
+            (["start-canary"], ["up", "-d", "--no-build", "--no-deps", "api", "web"]),
+            (["start-workers"], ["up", "-d", "--no-build", "--no-deps", "worker", "browse"]),
+            *[
+                (
+                    [operation, *(["123e4567-e89b-12d3-a456-426614174000"] if needs_id else [])],
+                    [
+                        "run", "--rm", "--no-deps", "browse", "uv", "run", "python", "-m",
+                        "gridlens.jobs.browse", action,
+                        *(["--generation", "123e4567-e89b-12d3-a456-426614174000"] if needs_id else []),
+                    ],
+                )
+                for operation, action, needs_id in [
+                    ("browse-status", "status", False),
+                    ("stage-browse", "stage-recovery", False),
+                    ("inspect-browse", "inspect-recovery", True),
+                    ("publish-browse", "publish-recovery", True),
+                ]
+            ],
+        ],
+    )
+    def test_generated_wrapper_executes_only_fixed_suffixes(tmp_path, monkeypatch, arguments, suffix):
+        source = _source().replace("/etc/gridlens", tmp_path.as_posix())
+        _authorize(monkeypatch, source)
+        current, staged = tmp_path / "current.py", tmp_path / "staged.py"
+        current.write_bytes(source.encode())
+        stage.stage_release_wrapper(current, staged)
+        for name in ("scope", "credentials", "runtime.env"):
+            (tmp_path / name).write_text('{"token": "not-a-real-token-value-123456"}')
+        captured = {}
+    
+        def fake_execvpe(file, command, env):
+            captured.update(file=file, command=command, env=env)
+            raise _Executed
+    
+        monkeypatch.setattr(os, "getuid", lambda: 0, raising=False)
+        monkeypatch.setattr(os, "execvpe", fake_execvpe)
+        monkeypatch.setattr(sys, "argv", [str(staged), *arguments])
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(_Executed):
+>           runpy.run_path(str(staged), run_name="__main__")
+
+/workspace/gl3-recovery/backend/tests/unit/test_stage_release_wrapper.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<frozen runpy>:291: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute5/staged.py:78: in <module>
+    main()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main():
+        required = [ROOT / "scope", ROOT / "credentials", ROOT / "runtime.env"]
+        if not all(path.is_file() for path in required):
+            raise SystemExit("missing")
+        try:
+            token = private_json(required[1])["token"]
+            runtime = {"DATABASE_URL": "configured", "OPENAI_API_KEY": "configured"}
+        except (OSError, ValueError, KeyError):
+            raise SystemExit("invalid") from None
+        if sys.argv[1:] == ["--validate-only"]:
+            print("present")
+            return
+        if not sys.argv[1:]:
+            raise SystemExit("explicit operation required")
+        operation, *arguments = sys.argv[1:]
+        static_operations = {
+            "stop-app": ["stop", "api", "worker", "browse", "web"],
+            "migrate": ["run", "--rm", "--no-deps", "migrate"],
+            "rebuild-browse": [
+                "run",
+                "--rm",
+                "--no-deps",
+                "browse",
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "gridlens.jobs.browse",
+                "rebuild",
+            ],
+            "start-canary": ["up", "-d", "--no-build", "--no-deps", "api", "web"],
+            "start-workers": ["up", "-d", "--no-build", "--no-deps", "worker", "browse"],
+        }
+        if operation == "rollback-browse":
+            if len(arguments) != 1:
+                raise SystemExit("rollback-browse requires exactly one generation UUID")
+            import uuid
+            try:
+                generation = str(uuid.UUID(arguments[0]))
+            except ValueError:
+                raise SystemExit("rollback-browse generation must be a canonical UUID") from None
+            if generation != arguments[0]:
+                raise SystemExit("rollback-browse generation must be a canonical UUID")
+            suffix = [
+                "run",
+                "--rm",
+                "--no-deps",
+                "browse",
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "gridlens.jobs.browse",
+                "rollback",
+                "--generation",
+                generation,
+            ]
+        elif operation in static_operations and not arguments:
+            suffix = static_operations[operation]
+        else:
+>           raise SystemExit("operation is not authorized")
+E           SystemExit: operation is not authorized
+
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute5/staged.py:72: SystemExit
+___ test_generated_wrapper_executes_only_fixed_suffixes[arguments6-suffix6] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute6')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd882aac0d0>
+arguments = ['inspect-browse', '123e4567-e89b-12d3-a456-426614174000']
+suffix = ['run', '--rm', '--no-deps', 'browse', 'uv', 'run', ...]
+
+    @pytest.mark.parametrize(
+        ("arguments", "suffix"),
+        [
+            (["stop-app"], ["stop", "api", "worker", "browse", "web"]),
+            (["migrate"], ["run", "--rm", "--no-deps", "migrate"]),
+            (["start-canary"], ["up", "-d", "--no-build", "--no-deps", "api", "web"]),
+            (["start-workers"], ["up", "-d", "--no-build", "--no-deps", "worker", "browse"]),
+            *[
+                (
+                    [operation, *(["123e4567-e89b-12d3-a456-426614174000"] if needs_id else [])],
+                    [
+                        "run", "--rm", "--no-deps", "browse", "uv", "run", "python", "-m",
+                        "gridlens.jobs.browse", action,
+                        *(["--generation", "123e4567-e89b-12d3-a456-426614174000"] if needs_id else []),
+                    ],
+                )
+                for operation, action, needs_id in [
+                    ("browse-status", "status", False),
+                    ("stage-browse", "stage-recovery", False),
+                    ("inspect-browse", "inspect-recovery", True),
+                    ("publish-browse", "publish-recovery", True),
+                ]
+            ],
+        ],
+    )
+    def test_generated_wrapper_executes_only_fixed_suffixes(tmp_path, monkeypatch, arguments, suffix):
+        source = _source().replace("/etc/gridlens", tmp_path.as_posix())
+        _authorize(monkeypatch, source)
+        current, staged = tmp_path / "current.py", tmp_path / "staged.py"
+        current.write_bytes(source.encode())
+        stage.stage_release_wrapper(current, staged)
+        for name in ("scope", "credentials", "runtime.env"):
+            (tmp_path / name).write_text('{"token": "not-a-real-token-value-123456"}')
+        captured = {}
+    
+        def fake_execvpe(file, command, env):
+            captured.update(file=file, command=command, env=env)
+            raise _Executed
+    
+        monkeypatch.setattr(os, "getuid", lambda: 0, raising=False)
+        monkeypatch.setattr(os, "execvpe", fake_execvpe)
+        monkeypatch.setattr(sys, "argv", [str(staged), *arguments])
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(_Executed):
+>           runpy.run_path(str(staged), run_name="__main__")
+
+/workspace/gl3-recovery/backend/tests/unit/test_stage_release_wrapper.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<frozen runpy>:291: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute6/staged.py:78: in <module>
+    main()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main():
+        required = [ROOT / "scope", ROOT / "credentials", ROOT / "runtime.env"]
+        if not all(path.is_file() for path in required):
+            raise SystemExit("missing")
+        try:
+            token = private_json(required[1])["token"]
+            runtime = {"DATABASE_URL": "configured", "OPENAI_API_KEY": "configured"}
+        except (OSError, ValueError, KeyError):
+            raise SystemExit("invalid") from None
+        if sys.argv[1:] == ["--validate-only"]:
+            print("present")
+            return
+        if not sys.argv[1:]:
+            raise SystemExit("explicit operation required")
+        operation, *arguments = sys.argv[1:]
+        static_operations = {
+            "stop-app": ["stop", "api", "worker", "browse", "web"],
+            "migrate": ["run", "--rm", "--no-deps", "migrate"],
+            "rebuild-browse": [
+                "run",
+                "--rm",
+                "--no-deps",
+                "browse",
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "gridlens.jobs.browse",
+                "rebuild",
+            ],
+            "start-canary": ["up", "-d", "--no-build", "--no-deps", "api", "web"],
+            "start-workers": ["up", "-d", "--no-build", "--no-deps", "worker", "browse"],
+        }
+        if operation == "rollback-browse":
+            if len(arguments) != 1:
+                raise SystemExit("rollback-browse requires exactly one generation UUID")
+            import uuid
+            try:
+                generation = str(uuid.UUID(arguments[0]))
+            except ValueError:
+                raise SystemExit("rollback-browse generation must be a canonical UUID") from None
+            if generation != arguments[0]:
+                raise SystemExit("rollback-browse generation must be a canonical UUID")
+            suffix = [
+                "run",
+                "--rm",
+                "--no-deps",
+                "browse",
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "gridlens.jobs.browse",
+                "rollback",
+                "--generation",
+                generation,
+            ]
+        elif operation in static_operations and not arguments:
+            suffix = static_operations[operation]
+        else:
+>           raise SystemExit("operation is not authorized")
+E           SystemExit: operation is not authorized
+
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute6/staged.py:72: SystemExit
+___ test_generated_wrapper_executes_only_fixed_suffixes[arguments7-suffix7] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute7')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd882a2b350>
+arguments = ['publish-browse', '123e4567-e89b-12d3-a456-426614174000']
+suffix = ['run', '--rm', '--no-deps', 'browse', 'uv', 'run', ...]
+
+    @pytest.mark.parametrize(
+        ("arguments", "suffix"),
+        [
+            (["stop-app"], ["stop", "api", "worker", "browse", "web"]),
+            (["migrate"], ["run", "--rm", "--no-deps", "migrate"]),
+            (["start-canary"], ["up", "-d", "--no-build", "--no-deps", "api", "web"]),
+            (["start-workers"], ["up", "-d", "--no-build", "--no-deps", "worker", "browse"]),
+            *[
+                (
+                    [operation, *(["123e4567-e89b-12d3-a456-426614174000"] if needs_id else [])],
+                    [
+                        "run", "--rm", "--no-deps", "browse", "uv", "run", "python", "-m",
+                        "gridlens.jobs.browse", action,
+                        *(["--generation", "123e4567-e89b-12d3-a456-426614174000"] if needs_id else []),
+                    ],
+                )
+                for operation, action, needs_id in [
+                    ("browse-status", "status", False),
+                    ("stage-browse", "stage-recovery", False),
+                    ("inspect-browse", "inspect-recovery", True),
+                    ("publish-browse", "publish-recovery", True),
+                ]
+            ],
+        ],
+    )
+    def test_generated_wrapper_executes_only_fixed_suffixes(tmp_path, monkeypatch, arguments, suffix):
+        source = _source().replace("/etc/gridlens", tmp_path.as_posix())
+        _authorize(monkeypatch, source)
+        current, staged = tmp_path / "current.py", tmp_path / "staged.py"
+        current.write_bytes(source.encode())
+        stage.stage_release_wrapper(current, staged)
+        for name in ("scope", "credentials", "runtime.env"):
+            (tmp_path / name).write_text('{"token": "not-a-real-token-value-123456"}')
+        captured = {}
+    
+        def fake_execvpe(file, command, env):
+            captured.update(file=file, command=command, env=env)
+            raise _Executed
+    
+        monkeypatch.setattr(os, "getuid", lambda: 0, raising=False)
+        monkeypatch.setattr(os, "execvpe", fake_execvpe)
+        monkeypatch.setattr(sys, "argv", [str(staged), *arguments])
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(_Executed):
+>           runpy.run_path(str(staged), run_name="__main__")
+
+/workspace/gl3-recovery/backend/tests/unit/test_stage_release_wrapper.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<frozen runpy>:291: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute7/staged.py:78: in <module>
+    main()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main():
+        required = [ROOT / "scope", ROOT / "credentials", ROOT / "runtime.env"]
+        if not all(path.is_file() for path in required):
+            raise SystemExit("missing")
+        try:
+            token = private_json(required[1])["token"]
+            runtime = {"DATABASE_URL": "configured", "OPENAI_API_KEY": "configured"}
+        except (OSError, ValueError, KeyError):
+            raise SystemExit("invalid") from None
+        if sys.argv[1:] == ["--validate-only"]:
+            print("present")
+            return
+        if not sys.argv[1:]:
+            raise SystemExit("explicit operation required")
+        operation, *arguments = sys.argv[1:]
+        static_operations = {
+            "stop-app": ["stop", "api", "worker", "browse", "web"],
+            "migrate": ["run", "--rm", "--no-deps", "migrate"],
+            "rebuild-browse": [
+                "run",
+                "--rm",
+                "--no-deps",
+                "browse",
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "gridlens.jobs.browse",
+                "rebuild",
+            ],
+            "start-canary": ["up", "-d", "--no-build", "--no-deps", "api", "web"],
+            "start-workers": ["up", "-d", "--no-build", "--no-deps", "worker", "browse"],
+        }
+        if operation == "rollback-browse":
+            if len(arguments) != 1:
+                raise SystemExit("rollback-browse requires exactly one generation UUID")
+            import uuid
+            try:
+                generation = str(uuid.UUID(arguments[0]))
+            except ValueError:
+                raise SystemExit("rollback-browse generation must be a canonical UUID") from None
+            if generation != arguments[0]:
+                raise SystemExit("rollback-browse generation must be a canonical UUID")
+            suffix = [
+                "run",
+                "--rm",
+                "--no-deps",
+                "browse",
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "gridlens.jobs.browse",
+                "rollback",
+                "--generation",
+                generation,
+            ]
+        elif operation in static_operations and not arguments:
+            suffix = static_operations[operation]
+        else:
+>           raise SystemExit("operation is not authorized")
+E           SystemExit: operation is not authorized
+
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_execute7/staged.py:72: SystemExit
+__ test_generated_wrapper_rejects_default_and_arbitrary_commands[arguments3] ___
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_rejects3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd882ac5810>
+arguments = ['rollback-browse', '123e4567-e89b-12d3-a456-426614174000']
+
+    @pytest.mark.parametrize(
+        "arguments",
+        [
+            [], ["unknown"], ["migrate", "extra"],
+            ["rollback-browse", "123e4567-e89b-12d3-a456-426614174000"],
+            ["inspect-browse"], ["publish-browse", "not-a-uuid"],
+            ["publish-browse", "123E4567-E89B-12D3-A456-426614174000"],
+            ["publish-browse", "123e4567-e89b-12d3-a456-426614174000", "--force"],
+            ["stage-browse", "--generation", "123e4567-e89b-12d3-a456-426614174000"],
+            ["browse-status", "extra"],
+        ],
+    )
+    def test_generated_wrapper_rejects_default_and_arbitrary_commands(tmp_path, monkeypatch, arguments):
+        source = _source().replace("/etc/gridlens", tmp_path.as_posix())
+        _authorize(monkeypatch, source)
+        current, staged = tmp_path / "current.py", tmp_path / "staged.py"
+        current.write_bytes(source.encode())
+        stage.stage_release_wrapper(current, staged)
+        for name in ("scope", "credentials", "runtime.env"):
+            (tmp_path / name).write_text('{"token": "not-a-real-token-value-123456"}')
+        monkeypatch.setattr(os, "getuid", lambda: 0, raising=False)
+        monkeypatch.setattr(os, "execvpe", lambda *_: pytest.fail("must not execute"))
+        monkeypatch.setattr(sys, "argv", [str(staged), *arguments])
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(SystemExit):
+>           runpy.run_path(str(staged), run_name="__main__")
+
+/workspace/gl3-recovery/backend/tests/unit/test_stage_release_wrapper.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<frozen runpy>:291: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_rejects3/staged.py:78: in <module>
+    main()
+/tmp/pytest-of-agent/pytest-7/test_generated_wrapper_rejects3/staged.py:75: in main
+    os.execvpe("infisical", command, env)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_ = ('infisical', ['infisical', '--silent', '--telemetry=false', 'run', '--projectId=project-id', '--env=dev', ...], {'DAT...WORD_HASH': 'placeholder', 'PYTHONPATH': '/workspace/gl3-recovery/backend/src', 'SESSION_SECRET': 'offline-only', ...})
+
+>   monkeypatch.setattr(os, "execvpe", lambda *_: pytest.fail("must not execute"))
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: must not execute
+
+/workspace/gl3-recovery/backend/tests/unit/test_stage_release_wrapper.py:222: Failed
+=========================== short test summary info ============================
+FAILED backend/tests/unit/test_stage_release_wrapper.py::test_stages_only_exact_input_and_preserves_it
+FAILED backend/tests/unit/test_stage_release_wrapper.py::test_generated_wrapper_executes_only_fixed_suffixes[arguments4-suffix4]
+FAILED backend/tests/unit/test_stage_release_wrapper.py::test_generated_wrapper_executes_only_fixed_suffixes[arguments5-suffix5]
+FAILED backend/tests/unit/test_stage_release_wrapper.py::test_generated_wrapper_executes_only_fixed_suffixes[arguments6-suffix6]
+FAILED backend/tests/unit/test_stage_release_wrapper.py::test_generated_wrapper_executes_only_fixed_suffixes[arguments7-suffix7]
+FAILED backend/tests/unit/test_stage_release_wrapper.py::test_generated_wrapper_rejects_default_and_arbitrary_commands[arguments3]
+6 failed, 17 passed in 0.17s
