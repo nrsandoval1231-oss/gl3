@@ -32,6 +32,10 @@ def test_refresh_outcome_survives_savepoint_and_excludes_private_error(
     monkeypatch,
     prepare_next_window,
 ):
+    # Refresh also clamps validity to the next clock boundary. Freeze before
+    # the first build so a real run near midnight cannot enter preparation.
+    now = datetime.now(UTC).replace(hour=12, minute=0, second=0, microsecond=0)
+    controlled_clock(monkeypatch, now)
     ids = seed(saved_db, histories=1)
     assert saved_browse.rebuild(saved_db)["status"] == "published"
     monkeypatch.setattr(settings, "saved_browse_enabled", True)
@@ -64,7 +68,6 @@ def test_refresh_outcome_survives_savepoint_and_excludes_private_error(
             saved_browse.current_generation(reader)
         assert failure.value.status_code == 503
     monkeypatch.setattr(saved_browse, "_write_rows", original)
-    now = datetime.now(UTC)
     with saved_db.begin() as fixture:
         state = fixture.get(BrowseState, 1)
         current = fixture.get(BrowseGeneration, state.generation_id)
