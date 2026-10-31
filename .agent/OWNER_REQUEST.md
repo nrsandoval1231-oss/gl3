@@ -1,5 +1,7 @@
-# Current owner request
+# Current owner request — October 31 Phase 1
 
-Deploy reviewed main so the live GridLens site reflects it. The preceding review/fix/validation/merge task for PR153–158 is complete. Necessary bounded release repairs require independent review and CI before merge and deployment. Preserve approved presentation, all existing evidence/data, privacy, credentials and paid-provider guards.
+Owner explicitly authorized bounded Phase 1 implementation, isolated testing, scoped commits/push and a **draft PR**. Refresh main and open PRs first. Fix verified whole-result Company/Project sorting and invalid empty-filter ranges; diagnose the concurrency failure without weakening tests; establish evidence-based performance measurements and only justified narrow optimizations; reconcile operations documentation; evaluate compatible framing hardening and investigate cache/compression attribution before changing it.
 
-The e97 live canary exposed KPI caption overlap on mobile; repair normal-flow sizing and validate desktop/tablet/mobile before finishing release. Use existing host release and same-data rollback machinery, fresh backups/isolated restore, exact image/source/config/asset proofs and authenticated live canaries. No production data replacement, credential change, paid-provider activation or new infrastructure. See [checkpoint](CURRENT_STATE.md).
+Preserve the approved UI, real entities/evidence, privacy/suppression and stable project/need identities. Company-centered browsing is a later intentional presentation change, not a claim that multiple rows under an operator are corrupt duplicates. Demand, ingestion, enrichment and RRC recovery expansion remain later phases.
+
+No PR approval, merge, auto-merge, deployment, production business-data mutation, ingestion/backfill, paid provider execution, credential/provider changes, new infrastructure/spending or user's PC use. Publishing this draft is not release acceptance. Existing deployment permission is historical, retained in [archive](archive/PHASE1-20261031/README.md). See [checkpoint](CURRENT_STATE.md).

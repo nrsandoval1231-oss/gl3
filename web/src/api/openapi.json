@@ -605,6 +605,9 @@
             "schema": {
               "enum": [
                 "priority",
+                "priority_asc",
+                "company",
+                "project",
                 "updated"
               ],
               "type": "string",

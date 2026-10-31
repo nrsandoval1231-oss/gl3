@@ -2049,7 +2049,7 @@ def project_opportunities(
     limit: Annotated[int, Query(ge=1, le=50)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
-    sort: Literal["priority", "updated"] = "priority",
+    sort: Literal["priority", "priority_asc", "company", "project", "updated"] = "priority",
     include_signals: bool = False,
 ):
     from gridlens.intelligence.project_results import page as project_page

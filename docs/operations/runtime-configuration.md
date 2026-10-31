@@ -38,7 +38,7 @@ The October 20 host snapshot reported different explicit runtime flags and budge
 
 - Native local runs: `scripts/setup_local.py` writes ignored root `.env` and `.artifacts/local-auth.txt`. It reads ignored `.artifacts/local-postgres/connection.env` unless `--use-environment` is supplied.
 - Local Compose: `scripts/setup_compose.py` writes ignored `.env.compose` and `.artifacts/compose-auth.txt`; invoke Compose with `--env-file .env.compose`. Compose uses container DNS name `db`.
-- Production: the October 20 observation reported `/etc/gridlens/runtime.env`, with a secret-manager injection context. Its approved wrapper and exact environment assembly are UNKNOWN. Never copy production values into a repository file or print them.
+- Production: the October 20 observation reported `/etc/gridlens/runtime.env`. Later dated release evidence records the protected Infisical startup wrapper; see the [operations authority](README.md) for host paths and release evidence. This guide does not establish the currently running wrapper, effective environment or deployed revision. Never copy production values into a repository file or print them.
 
 Current code defaults are not deployment instructions. The old `deploy/digitalocean/` secret/deploy material is preparation only; use the [operations authority](README.md) for production status and open command gaps.
 

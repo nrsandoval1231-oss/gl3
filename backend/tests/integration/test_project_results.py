@@ -107,6 +107,15 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         assert first["total"] == 3
         full = page(session, sector="all", search="Synthetic", limit=50)
         grouped = next(item for item in full["items"] if item["need_count"] == 3)
+        for sort in ("company", "project", "priority_asc"):
+            sorted_items = page(session, search="Synthetic", sort=sort)["items"]
+            assert {
+                i["id"]: (i["project_id"], i["representative_need_id"], i["need_count"])
+                for i in sorted_items
+            } == {
+                i["id"]: (i["project_id"], i["representative_need_id"], i["need_count"])
+                for i in full["items"]
+            }
         assert grouped["company"] == "Same Operator"
         assert len(grouped["project_ids"]) == 2
         assert grouped["asset_identity"]["value"] == "4216538299"
@@ -231,6 +240,17 @@ def test_project_results_route_requires_session(saved_db, monkeypatch):
         assert discovery_page["results_scope"] == "discovery"
         assert discovery_page["total"] > 0
         assert discovery_page["items"]
+        for sort in ("priority", "priority_asc", "company", "project", "updated"):
+            sorted_response = client.get(
+                "/api/opportunities/projects",
+                params={
+                    "include_signals": "true",
+                    "sort": sort,
+                    "limit": 1,
+                },
+            )
+            assert sorted_response.status_code == 200, sorted_response.text
+        assert client.get("/api/opportunities/projects?sort=invalid").status_code == 422
         assert any(need["tier"] == "Signal" for need in discovery_page["items"][0]["needs"])
         mismatched_cohort = client.get(
             "/api/opportunities/projects",
@@ -243,3 +263,122 @@ def test_project_results_route_requires_session(saved_db, monkeypatch):
         assert mismatched_cohort.status_code == 409
         invalid = client.get("/api/opportunities/projects?include_signals=perhaps")
         assert invalid.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "sort,field",
+    [
+        ("company", "company"),
+        ("project", "name"),
+        ("priority_asc", "priority_score"),
+    ],
+)
+def test_project_sort_orders_entire_cohort_before_pagination(saved_db, sort, field):
+    from test_saved_browse import seed
+
+    seed(saved_db, count=6, histories=1)
+    rebuild(saved_db)
+    with saved_db.begin() as session:
+        generation = current_generation(session)
+        rows = session.scalars(
+            select(BrowseRow)
+            .where(BrowseRow.generation_id == generation.id)
+            .order_by(BrowseRow.need_id)
+        ).all()
+        for index, row in enumerate(rows):
+            row.rank_score = 100 - index
+            row.compact = {
+                **row.compact,
+                "project_metadata": {
+                    "title": ["Zulu", "Beta", "alpha", "ALPHA", "Delta", "Echo"][index],
+                    "operator": ["Zulu", None, "alpha", "ALPHA", "Delta", "Echo"][index],
+                },
+            }
+            if index == 5:
+                row.compact = {
+                    **row.compact,
+                    "name": None,
+                    "browse_title": None,
+                    "project_metadata": {"operator": "Echo"},
+                }
+    with saved_db() as session:
+        full = page(session, include_signals=True, sort=sort)
+        values = [item[field] for item in full["items"]]
+        expected = sorted(
+            values, key=lambda v: (v is None, v.casefold() if isinstance(v, str) else v)
+        )
+        assert values == expected
+        seen = []
+        token = full["cohort_token"]
+        for offset in range(0, 6, 2):
+            result = page(
+                session, include_signals=True, sort=sort, limit=2, offset=offset, token=token
+            )
+            seen.extend(item["id"] for item in result["items"])
+        assert seen == [item["id"] for item in full["items"]]
+        assert len(set(seen)) == 6
+        assert seen == [
+            item["id"] for item in page(session, include_signals=True, sort=sort)["items"]
+        ]
+        if sort in {"company", "project"}:
+            tied = [
+                item["id"]
+                for item in full["items"]
+                if isinstance(item[field], str) and item[field].casefold() == "alpha"
+            ]
+            assert tied == sorted(tied)
+        baseline = page(session, include_signals=True)
+        assert {i["id"]: i["representative_need_id"] for i in full["items"]} == {
+            i["id"]: i["representative_need_id"] for i in baseline["items"]
+        }
+        with pytest.raises(HTTPException) as mismatch:
+            page(session, include_signals=True, sort="updated", limit=2, offset=2, token=token)
+        assert mismatch.value.status_code == 409
+
+
+@pytest.mark.parametrize(
+    "first_title,expected_first",
+    [
+        ("Zulu · Alpha Asset", "Zulu · Alpha Asset"),
+        ("zulu · Alpha Asset", "Alpha · Beta Asset"),
+    ],
+)
+def test_project_sort_uses_visible_name_without_exact_company_prefix(
+    saved_db, first_title, expected_first
+):
+    from test_saved_browse import seed
+
+    seed(saved_db, count=2, histories=1)
+    rebuild(saved_db)
+    with saved_db.begin() as session:
+        generation = current_generation(session)
+        rows = session.scalars(
+            select(BrowseRow)
+            .where(BrowseRow.generation_id == generation.id)
+            .order_by(BrowseRow.need_id)
+        ).all()
+        for row, company, title in zip(
+            rows, ("Zulu", "Alpha"), (first_title, "Alpha · Beta Asset"), strict=True
+        ):
+            row.compact = {
+                **row.compact,
+                "project_metadata": {
+                    "title": title,
+                    "operator": company,
+                },
+            }
+    with saved_db() as session:
+        first = page(session, include_signals=True, sort="project", limit=1)
+        assert first["items"][0]["name"] == expected_first
+        second = page(
+            session,
+            include_signals=True,
+            sort="project",
+            limit=1,
+            offset=1,
+            token=first["cohort_token"],
+        )
+        assert {first["items"][0]["name"], second["items"][0]["name"]} == {
+            first_title,
+            "Alpha · Beta Asset",
+        }

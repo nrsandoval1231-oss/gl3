@@ -976,9 +976,10 @@ def _retained(
         .where(PowerNeed.project_id == project.id)
     )
     query = (
-        select(Evidence, Interpretation)
+        select(Evidence, Observation, Interpretation, Source)
         .join(Observation, Observation.id == Evidence.observation_id)
         .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+        .outerjoin(Source, Source.id == Observation.source_id)
         .where(
             or_(
                 Observation.id.in_(observations),
@@ -1003,8 +1004,16 @@ def _retained(
         rows = session.execute(page.limit(24)).all()
         if not rows:
             break
-        for evidence, _ in rows:
-            if _retained_evidence_current_for_project(session, project, evidence):
+        for evidence, observation, interpretation, source in rows:
+            if _retained_evidence_current_for_project(
+                session,
+                project,
+                evidence,
+                observation=observation,
+                interpretation=interpretation,
+                source=source,
+                preloaded=True,
+            ):
                 accepted.append(evidence)
                 if len(accepted) == 4:
                     break
