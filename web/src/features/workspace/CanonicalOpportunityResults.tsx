@@ -1,17 +1,18 @@
 import { Zap, ChartNoAxesColumnIncreasing, FileText, Download } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, type ProjectResult, type ProjectResultsPage } from '../../api/client'
+import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, type ProjectResult, type ProjectResultsPage, type ProjectResultsSort } from '../../api/client'
 import './canonical-opportunity-results.css'
 
 type Props = { selectedNeedId?: string; onNeed: (need: { id: string }) => void; onBrowseChange?: () => void }
 type Sector = 'all' | 'oil_gas' | 'data_centers'
+type Sort = Exclude<ProjectResultsSort, 'updated'>
 type CacheEntry = { page: ProjectResultsPage; savedAt: number }
 const cache = new Map<string, CacheEntry>()
 const CACHE_TTL = 60_000
 let cacheGeneration = 0
 if (typeof window !== 'undefined') window.addEventListener('gl3-clear-continuity', () => { cacheGeneration += 1; cache.clear() })
 const EMPTY_PROJECTS: ProjectResult[] = []
-const cacheKey = (search: string, sector: Sector, offset: number) => JSON.stringify([search, sector, offset])
+const cacheKey = (search: string, sector: Sector, offset: number, sort: Sort) => JSON.stringify([search, sector, offset, sort])
 function pageIsCurrent(page: ProjectResultsPage | null) {
   if (!page || !Array.isArray(page.items) || !Number.isSafeInteger(page.total) || page.total < 0 || !Number.isSafeInteger(page.limit) || page.limit <= 0 || !Number.isSafeInteger(page.offset) || page.offset < 0 || typeof page.cohort_token !== 'string') return false
   if (page.items.some(item => !item || typeof item.id !== 'string' || typeof item.name !== 'string' || !Array.isArray(item.needs))) return false
@@ -23,15 +24,17 @@ function pageIsCurrent(page: ProjectResultsPage | null) {
 }
 function readRoute() {
   const params = new URLSearchParams(location.search)
-  return { search: params.get('q') ?? '', sector: (['oil_gas', 'data_centers'].includes(params.get('sector') ?? '') ? params.get('sector') : 'all') as Sector, offset: Math.max(0, Number(params.get('offset') ?? 0) || 0) }
+  return { search: params.get('q') ?? '', sector: (['oil_gas', 'data_centers'].includes(params.get('sector') ?? '') ? params.get('sector') : 'all') as Sector, offset: Math.max(0, Number(params.get('offset') ?? 0) || 0), sort: (['priority_asc', 'company', 'project'].includes(params.get('sort') ?? '') ? params.get('sort') : 'priority') as Sort }
 }
-function updateUrl(search: string, sector: Sector, offset: number, cohort?: string) {
+function updateUrl(search: string, sector: Sector, offset: number, sort: Sort, cohort?: string, push = false) {
   const params = new URLSearchParams({ view: 'workspace' })
   if (search) params.set('q', search)
   if (sector !== 'all') params.set('sector', sector)
   if (offset) params.set('offset', String(offset))
+  if (sort !== 'priority') params.set('sort', sort)
   if (cohort) params.set('cohort_token', cohort)
-  history.replaceState(history.state, '', `/?${params}`)
+  if (push) history.pushState(history.state, '', `/?${params}`)
+  else history.replaceState(history.state, '', `/?${params}`)
 }
 function displayProjectName(project: ProjectResult) {
   return project.company && project.name.startsWith(`${project.company} · `) ? project.name.slice(project.company.length + 3) : project.name
@@ -51,8 +54,9 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   const [search, setSearch] = useState(initial.search)
   const [sector, setSector] = useState<Sector>(initial.sector)
   const [offset, setOffset] = useState(initial.offset)
+  const [sort, setSort] = useState<Sort>(initial.sort)
   const [page, setPage] = useState<ProjectResultsPage | null>(() => {
-    const entry = cache.get(cacheKey(initial.search, initial.sector, initial.offset))
+    const entry = cache.get(cacheKey(initial.search, initial.sector, initial.offset, initial.sort))
     return entry && Date.now() - entry.savedAt < CACHE_TTL && pageIsCurrent(entry.page) ? entry.page : null
   })
   const [error, setError] = useState('')
@@ -61,20 +65,18 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   const [region, setRegion] = useState('')
   const [stage, setStage] = useState('')
   const [priority, setPriority] = useState('')
-  const [sort, setSort] = useState<'priority' | 'company' | 'project'>('priority')
-  const [priorityAscending, setPriorityAscending] = useState(false)
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onBrowseChangeRef = useRef(onBrowseChange)
   onBrowseChangeRef.current = onBrowseChange
   const requestGeneration = useRef(0)
   const requestAbort = useRef<AbortController | null>(null)
-  const [pageKey, setPageKey] = useState(() => cacheKey(initial.search, initial.sector, initial.offset))
+  const [pageKey, setPageKey] = useState(() => cacheKey(initial.search, initial.sector, initial.offset, initial.sort))
   const cohortResetUsed = useRef(false)
   const [retryKey, setRetryKey] = useState(0)
   const [pageErrorNotice, setPageErrorNotice] = useState('')
 
   useEffect(() => {
-    const onPop = () => { const route = readRoute(); setSearchDraft(route.search); setSearch(route.search); setSector(route.sector); setOffset(route.offset) }
+    const onPop = () => { const route = readRoute(); setSearchDraft(route.search); setSearch(route.search); setSector(route.sector); setOffset(route.offset); setSort(route.sort); cohortResetUsed.current = false }
     const onClear = () => { requestGeneration.current += 1; requestAbort.current?.abort(); if (retryTimer.current) clearTimeout(retryTimer.current); cacheGeneration += 1; cache.clear(); setPage(null); setError('Your session ended. Sign in again.'); setLoading(false) }
     window.addEventListener('popstate', onPop)
     window.addEventListener('gl3-clear-continuity', onClear)
@@ -83,13 +85,13 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchDraft !== search) {
-        setSearch(searchDraft); setOffset(0); setSelectedRows([]); setRegion(''); setStage(''); setPriority(''); onBrowseChangeRef.current?.(); updateUrl(searchDraft, sector, 0)
+        setSearch(searchDraft); setOffset(0); setSelectedRows([]); setRegion(''); setStage(''); setPriority(''); onBrowseChangeRef.current?.(); updateUrl(searchDraft, sector, 0, sort)
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchDraft, search, sector])
+  }, [searchDraft, search, sector, sort])
   useEffect(() => {
-    const key = cacheKey(search, sector, offset)
+    const key = cacheKey(search, sector, offset, sort)
     const cached = cache.get(key)
     if (cached && Date.now() - cached.savedAt < CACHE_TTL && pageIsCurrent(cached.page)) setPage(cached.page)
     else setPage(null)
@@ -103,7 +105,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     let retries = 0
     const load = async () => {
       try {
-        const value = await client.projectResults({ search, sector, limit: 25, offset, cohort_token: new URLSearchParams(location.search).get('cohort_token') ?? undefined, sort: 'priority', include_signals: true }, controller.signal)
+        const value = await client.projectResults({ search, sector, limit: 25, offset, cohort_token: new URLSearchParams(location.search).get('cohort_token') ?? undefined, sort, include_signals: true }, controller.signal)
         if (!active || controller.signal.aborted || generation !== requestGeneration.current || cacheGenerationAtStart !== cacheGeneration) return
         if (!pageIsCurrent(value)) throw new Error('Current project results could not be confirmed. Refresh to retry.')
         cache.delete(key); cache.set(key, { page: value, savedAt: Date.now() }); while (cache.size > 5) cache.delete(cache.keys().next().value!)
@@ -117,7 +119,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
         }
         if (cause instanceof OpportunityCohortChangedError) {
           cache.clear(); setPage(null); setLoading(false); setPageErrorNotice('Results changed. Reloaded from the first page.')
-          updateUrl(search, sector, 0)
+          updateUrl(search, sector, 0, sort)
           if (offset) { cohortResetUsed.current = false; setOffset(0); return }
           if (!cohortResetUsed.current) { cohortResetUsed.current = true; setRetryKey(value => value + 1); return }
           setError('Results changed again while reloading. Refresh to try once more.'); return
@@ -127,18 +129,18 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     }
     void load()
     return () => { active = false; controller.abort(); if (requestAbort.current === controller) requestAbort.current = null; if (retryTimer.current) clearTimeout(retryTimer.current) }
-  }, [search, sector, offset, retryKey])
+  }, [search, sector, offset, sort, retryKey])
   useEffect(() => {
     if (!page?.valid_until) return
     const expires = Date.parse(page.valid_until)
     if (!Number.isFinite(expires)) return
     const delay = expires - Date.now()
     if (delay <= 0) { setPage(null); setRetryKey(value => value + 1); return }
-    const timer = setTimeout(() => { cache.delete(cacheKey(search, sector, offset)); setPage(null); setRetryKey(value => value + 1) }, delay)
+    const timer = setTimeout(() => { cache.delete(cacheKey(search, sector, offset, sort)); setPage(null); setRetryKey(value => value + 1) }, delay)
     return () => clearTimeout(timer)
-  }, [page?.valid_until, search, sector, offset])
+  }, [page?.valid_until, search, sector, offset, sort])
 
-  const requestedPageKey = cacheKey(search, sector, offset)
+  const requestedPageKey = cacheKey(search, sector, offset, sort)
   const visiblePage = pageKey === requestedPageKey && pageIsCurrent(page) ? page : null
   const canInteract = Boolean(visiblePage) && !loading && !error && searchDraft === search
   const items = visiblePage?.items ?? EMPTY_PROJECTS
@@ -147,24 +149,25 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   const visible = useMemo(() => items.filter(item =>
     (!region || item.location === region) && (!stage || item.event?.kind === stage) &&
     (!priority || (priority === 'ranked' ? item.priority_score != null : item.priority_score == null))
-  ).sort((a, b) => sort === 'company' ? (a.company ?? '').localeCompare(b.company ?? '') : sort === 'project' ? displayProjectName(a).localeCompare(displayProjectName(b)) : (priorityAscending ? 1 : -1) * ((a.priority_score ?? -1) - (b.priority_score ?? -1))), [items, region, stage, priority, sort, priorityAscending])
+  ), [items, region, stage, priority])
   useEffect(() => { setSelectedRows(current => { const next = current.filter(id => visible.some(item => item.id === id)); return next.length === current.length && next.every((id, index) => id === current[index]) ? current : next }) }, [visible])
   const exportRows = () => {
     const rows = [['Company', 'Project', 'Region', 'Power gap', 'Timing', 'Lifecycle event', 'Qualification', 'Priority score']]
     for (const item of visible) rows.push([item.company ?? 'Unavailable', displayProjectName(item), item.location ?? 'Unavailable', gapValue(item), item.event?.date ?? 'Unavailable', item.event?.label ?? 'Unavailable', item.needs.find(need => need.id === item.representative_need_id)?.tier ?? 'Unavailable', item.priority_score == null ? 'Unavailable' : String(item.priority_score)])
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([rows.map(row => row.map(safeCsvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })); link.download = 'gridlens-opportunities.csv'; link.click(); URL.revokeObjectURL(link.href)
   }
-  const selectSector = (value: Sector) => { if (value === sector) return; onBrowseChangeRef.current?.(); setSector(value); setOffset(0); setRegion(''); setStage(''); setPriority(''); setSelectedRows([]); updateUrl(search, value, 0) }
-  const clearFilters = () => { onBrowseChangeRef.current?.(); setSearchDraft(''); setSearch(''); setRegion(''); setStage(''); setPriority(''); setSector('all'); setOffset(0); setSelectedRows([]); updateUrl('', 'all', 0) }
+  const selectSector = (value: Sector) => { if (value === sector) return; onBrowseChangeRef.current?.(); setSector(value); setOffset(0); setRegion(''); setStage(''); setPriority(''); setSelectedRows([]); updateUrl(search, value, 0, sort) }
+  const clearFilters = () => { onBrowseChangeRef.current?.(); setSearchDraft(''); setSearch(''); setRegion(''); setStage(''); setPriority(''); setSector('all'); setOffset(0); setSelectedRows([]); updateUrl('', 'all', 0, sort) }
+  const selectSort = (value: Sort) => { if (value === sort) return; onBrowseChangeRef.current?.(); cohortResetUsed.current = false; setSort(value); setOffset(0); setSelectedRows([]); updateUrl(search, sector, 0, value, undefined, true) }
   const selectAll = (checked: boolean) => setSelectedRows(checked ? visible.map(item => item.id) : [])
   return <section className="canonical-flat-results" aria-label="Project opportunities" aria-busy={loading || searchDraft !== search}>
-    <header className="cfr-heading"><div><h1>Opportunities</h1><p>Commercial projects with material power demand in constrained markets.</p></div><div><span>{visiblePage ? `${visiblePage.total} ${visiblePage.count_unit} · ${visiblePage.results_scope === 'discovery' ? 'Signals included' : 'Qualified projects'}` : 'Unavailable'}<small className="cfr-filter-scope" title="Region, stage and priority filter the current page. Search and project type cover all results.">Page filters</small></span><label className="cfr-sort-label">Sort<select aria-label="Sort opportunities" disabled={!canInteract} value={sort} onChange={event => setSort(event.target.value as typeof sort)}><option value="priority">Priority</option><option value="company">Company</option><option value="project">Project</option></select></label><button type="button" onClick={exportRows} disabled={!visible.length || !canInteract}><Download size={13} aria-hidden="true"/> Export</button></div></header>
+    <header className="cfr-heading"><div><h1>Opportunities</h1><p>Commercial projects with material power demand in constrained markets.</p></div><div><span>{visiblePage ? `${visiblePage.total} ${visiblePage.count_unit} · ${visiblePage.results_scope === 'discovery' ? 'Signals included' : 'Qualified projects'}` : 'Unavailable'}<small className="cfr-filter-scope" title="Region, stage and priority filter the current page. Search and project type cover all results.">Page filters</small></span><label className="cfr-sort-label">Sort<select aria-label="Sort opportunities" disabled={!canInteract} value={sort} onChange={event => selectSort(event.target.value as Sort)}><option value="priority">Priority</option><option value="priority_asc">Priority (ascending)</option><option value="company">Company</option><option value="project">Project</option></select></label><button type="button" onClick={exportRows} disabled={!visible.length || !canInteract}><Download size={13} aria-hidden="true"/> Export</button></div></header>
     <div className="cfr-filters" aria-describedby="canonical-filter-scope"><input aria-label="Search opportunities" placeholder="Search opportunities…" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}/><select aria-label="Region" value={region} onChange={event => setRegion(event.target.value)}><option value="">All Regions</option>{regions.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Project type" value={sector} onChange={event => selectSector(event.target.value as Sector)}><option value="all">All Project Types</option><option value="oil_gas">Oil &amp; Gas</option><option value="data_centers">Data Centers</option></select><select aria-label="Stage" value={stage} onChange={event => setStage(event.target.value)}><option value="">All Stages</option>{stages.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Priority" value={priority} onChange={event => setPriority(event.target.value)}><option value="">All Priorities</option><option value="ranked">Ranked</option><option value="unranked">Unranked</option></select><button type="button" onClick={clearFilters}>Clear</button></div>
     <p className="cfr-scope" id="canonical-filter-scope">Region, stage and priority filter this page · Search and project type cover all results</p>
     {pageErrorNotice && <p role="status">{pageErrorNotice}</p>}{error && <p role="alert">{error} <button type="button" onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
     {loading && !page && !error && <p role="status">Loading current opportunities…</p>}
     {!loading && visiblePage && !visible.length && <p>No projects match these page filters.</p>}
-    {visiblePage && <div className="cfr-table-wrap"><table className="cfr-table"><thead><tr><th><input type="checkbox" aria-label="Select all visible projects" disabled={!canInteract} checked={visible.length > 0 && visible.every(item => selectedRows.includes(item.id))} onChange={event => selectAll(event.target.checked)}/></th><th>Company / Project</th><th>Region</th><th>Est. Power<br/>Need (MW)</th><th>Est. Power<br/>Gap (MW)</th><th>Timing</th><th>Stage</th><th aria-sort={sort === 'priority' ? (priorityAscending ? 'ascending' : 'descending') : 'none'}><button type="button" disabled={!canInteract} onClick={() => { setSort('priority'); setPriorityAscending(value => !value) }}>Priority {sort === 'priority' ? (priorityAscending ? '↑' : '↓') : '↕'}</button></th><th /></tr></thead><tbody>{visible.map(item => {
+    {visiblePage && <div className="cfr-table-wrap"><table className="cfr-table"><thead><tr><th><input type="checkbox" aria-label="Select all visible projects" disabled={!canInteract} checked={visible.length > 0 && visible.every(item => selectedRows.includes(item.id))} onChange={event => selectAll(event.target.checked)}/></th><th>Company / Project</th><th>Region</th><th>Est. Power<br/>Need (MW)</th><th>Est. Power<br/>Gap (MW)</th><th>Timing</th><th>Stage</th><th aria-sort={sort === 'priority_asc' ? 'ascending' : sort === 'priority' ? 'descending' : 'none'}><button type="button" disabled={!canInteract} onClick={() => selectSort(sort === 'priority' ? 'priority_asc' : 'priority')}>Priority {sort === 'priority_asc' ? '↑' : sort === 'priority' ? '↓' : '↕'}</button></th><th /></tr></thead><tbody>{visible.map(item => {
       const primaryNeedId = item.representative_need_id ?? item.needs[0]?.id
       const primary = item.needs.find(need => need.id === primaryNeedId) ?? item.needs[0]
       const selected = selectedNeedId && item.needs.some(need => need.id === selectedNeedId)
@@ -177,7 +180,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
         <td title="Server priority rank score; not a qualification or confidence rating">{item.priority_score == null ? '—' : item.priority_score}</td><td><button type="button" className="cfr-open" aria-label={`Open ${displayProjectName(item)}`} onClick={() => primaryNeedId && onNeed({ id: primaryNeedId })} disabled={!canInteract || !primaryNeedId}>›</button></td>
       </tr>
     })}</tbody></table></div>}
-    {visiblePage && <footer className="cfr-paging"><span>{visiblePage.total ? `${visiblePage.offset + 1}–${visiblePage.offset + visible.length} of ${visiblePage.total} projects` : '0 projects'}</span><button type="button" disabled={!canInteract || offset === 0} onClick={() => { const next = Math.max(0, offset - visiblePage.limit); setOffset(next); setSelectedRows([]); updateUrl(search, sector, next, visiblePage.cohort_token) }}>Previous</button><button type="button" disabled={!canInteract || offset + visiblePage.items.length >= visiblePage.total} onClick={() => { const next = offset + visiblePage.limit; setOffset(next); setSelectedRows([]); updateUrl(search, sector, next, visiblePage.cohort_token) }}>Next</button></footer>}
+    {visiblePage && <footer className="cfr-paging"><span>{visiblePage.items.length ? `${visiblePage.offset + 1}–${visiblePage.offset + visiblePage.items.length} of ${visiblePage.total} projects` : visiblePage.total ? `0 projects on this page · ${visiblePage.total} projects total` : '0 projects'}{(region || stage || priority) && ` · ${visible.length} of ${visiblePage.items.length} projects on this page match filters`}</span><button type="button" disabled={!canInteract || offset === 0} onClick={() => { const next = Math.max(0, offset - visiblePage.limit); setOffset(next); setSelectedRows([]); updateUrl(search, sector, next, sort, visiblePage.cohort_token) }}>Previous</button><button type="button" disabled={!canInteract || offset + visiblePage.items.length >= visiblePage.total} onClick={() => { const next = offset + visiblePage.limit; setOffset(next); setSelectedRows([]); updateUrl(search, sector, next, sort, visiblePage.cohort_token) }}>Next</button></footer>}
   </section>
 }
 

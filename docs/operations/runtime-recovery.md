@@ -1,6 +1,6 @@
 # Local database and source recovery commands
 
-This is a **local development** procedure. It is not the production deployment or backup/restore runbook. Production commands and rollback are UNKNOWN; use the [operations authority](README.md), which maintains the deployment hold.
+This is a **local development** procedure. It is not the production deployment or backup/restore runbook. Use the [operations authority](README.md) for dated production recovery evidence and the current verification boundary. Later release receipts record backup/restore and image rollback rehearsals; this local guide neither supplies production commands nor verifies current host state or authorizes a production action.
 
 ## Read-only status
 

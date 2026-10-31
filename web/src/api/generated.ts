@@ -4687,7 +4687,7 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 cohort_token?: string | null;
-                sort?: "priority" | "updated";
+                sort?: "priority" | "priority_asc" | "company" | "project" | "updated";
                 include_signals?: boolean;
             };
             header?: never;

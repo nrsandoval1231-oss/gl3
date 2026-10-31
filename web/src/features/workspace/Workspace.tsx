@@ -61,7 +61,7 @@ function currentAccountContext(): AccountContext | undefined {
 function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false, accountContext?: AccountContext) {
   const signalView = currentView() === 'signals'
   const p = signalView ? getParams() : workspaceParams(filters)
-  if (!signalView) for (const key of ['q', 'sector', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
+  if (!signalView) for (const key of ['q', 'sector', 'sort', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
   if (!signalView && accountContext) { p.set('account', accountContext.accountId); if (accountContext.projectId) p.set('project', accountContext.projectId) }
   if (signalView) { p.set('view', 'signals'); p.delete('need'); p.delete('section') }
   if (id) p.set('need', id)
@@ -290,7 +290,7 @@ export function WorkspaceHome() {
     if (view === 'signals') signalParams.current = getParams()
     const currentBrowse = getParams()
     const savedBrowse: Record<string, string> = view === 'opportunities'
-      ? Object.fromEntries(['q', 'sector', 'offset', 'cohort_token', 'groupBrowse'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
+      ? Object.fromEntries(['q', 'sector', 'sort', 'offset', 'cohort_token', 'groupBrowse'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
       : (history.state?.workspaceBrowse as Record<string, string> | undefined) ?? {}
     const params = nextView === 'opportunities' ? workspaceParams(filters)
       : nextView === 'signals' ? new URLSearchParams(signalParams.current ?? { view: 'signals', tier: 'Signals' })
@@ -352,7 +352,10 @@ export function WorkspaceHome() {
     <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>
         {!groupBrowse && <CanonicalOpportunityKpis/>}
-        <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => select(null)}/>
+        <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => {
+          updateSelectedNeedContext(null); ++selectionSequence.current
+          setDetailIdentity(null); setSelected(null); setPendingNeedId(null); setDetailLoading(false); setDetailError(''); setTab('Overview')
+        }}/>
         {(!groupBrowse || selected || pendingNeedId) && <DetailView item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} projectFirst={!accountBrowse} onTab={next => { setTab(next); if (selected) { const steps = history.state?.workspaceTabSteps ?? 0; const directEntry = history.state?.workspaceDirectEntry || !history.state?.workspaceDetail; writeUrl(filters, selected.id, next, true, currentAccountContext()); history.replaceState({ ...history.state, workspaceTabSteps: steps + 1, workspaceDirectEntry: directEntry }, '', location.href) } }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/>}
       </div>
     </main>

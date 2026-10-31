@@ -30,6 +30,8 @@ def page(
     """Return physical projects, consolidating only validated well API identities."""
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
+    if sort not in {"priority", "priority_asc", "company", "project", "updated"}:
+        raise HTTPException(422, "Unsupported project sort")
     generation = selected_generation or current_generation(session)
     term = (search or "").strip().casefold()
     cohort_payload = [
@@ -90,10 +92,46 @@ def page(
         THEN 'api:' || (compact #>> '{project_metadata,asset_identity,value}')
         ELSE 'project:' || project_id::text END"""
     asset_key_b = asset_key.replace("compact", "b.compact").replace("project_id", "b.project_id")
-    order = (
-        "priority_score DESC, updated_at DESC, asset_key"
-        if sort == "priority"
-        else "updated_at DESC, asset_key"
+    order = {
+        "priority": "priority_score DESC NULLS LAST, updated_at DESC NULLS LAST, asset_key",
+        "priority_asc": "priority_score ASC NULLS LAST, updated_at DESC NULLS LAST, asset_key",
+        "company": "company_sort ASC NULLS LAST, asset_key",
+        "project": "project_sort ASC NULLS LAST, asset_key",
+        "updated": "updated_at DESC NULLS LAST, asset_key",
+    }[sort]
+    # Sort keys come from exactly the representative need used below. Selecting
+    # them across the full cohort keeps pagination global without changing which
+    # physical project/need represents an asset or building all its JSON eagerly.
+    representative_order = (
+        "(b.need_id = :selected_need) DESC NULLS LAST, "
+        "b.rank_score DESC, b.updated_at DESC, b.need_id"
+    )
+    company_name = (
+        "coalesce(nullif(b.compact #>> '{project_metadata,operator}', ''), "
+        "nullif(b.compact #>> '{project_metadata,owner}', ''))"
+    )
+    project_name = (
+        "coalesce(nullif(b.compact #>> '{project_metadata,title}', ''), "
+        "nullif(b.compact #>> '{project_metadata,name}', ''), "
+        "nullif(b.compact->>'browse_title', ''), nullif(b.compact->>'name', ''))"
+    )
+    # Match the UI's displayProjectName: remove only the exact attributed company
+    # prefix before case folding, without changing the returned name or identity.
+    project_key = (
+        f"lower(CASE WHEN left({project_name}, length({company_name}) + 3) "
+        f"= {company_name} || ' · ' "
+        f"THEN substring({project_name} FROM length({company_name}) + 4) "
+        f"ELSE {project_name} END)"
+    )
+    company_sort = (
+        f"(array_agg(lower({company_name}) ORDER BY {representative_order}))[1]"
+        if sort == "company"
+        else "NULL::text"
+    )
+    project_sort = (
+        f"(array_agg({project_key} ORDER BY {representative_order}))[1]"
+        if sort == "project"
+        else "NULL::text"
     )
     # Rank and count scalar project groups across the cohort, but build JSON
     # aggregates only after limiting to the requested page.
@@ -108,7 +146,9 @@ def page(
               SELECT {asset_key_b} AS asset_key,
                      array_agg(DISTINCT b.project_id ORDER BY b.project_id) AS project_ids,
                      max(b.rank_score)::integer AS priority_score,
-                     max(b.updated_at) AS updated_at
+                     max(b.updated_at) AS updated_at,
+                     {company_sort} AS company_sort,
+                     {project_sort} AS project_sort
               FROM browse_rows b JOIN candidate_assets c ON c.asset_key = {asset_key_b}
               WHERE b.generation_id = :generation
               GROUP BY 1
@@ -127,7 +167,8 @@ def page(
               (SELECT count(*)::bigint FROM ranked_assets) AS total
             FROM page_assets p JOIN browse_rows b
               ON b.generation_id = :generation AND {asset_key_b} = p.asset_key
-            GROUP BY p.asset_key, p.project_ids, p.priority_score, p.updated_at
+            GROUP BY p.asset_key, p.project_ids, p.priority_score, p.updated_at,
+                     p.company_sort, p.project_sort
             ORDER BY {order}
             """
             ),
