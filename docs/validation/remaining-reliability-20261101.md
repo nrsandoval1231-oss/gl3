@@ -12,7 +12,7 @@ Baseline: main `9d3aedffea7b411a53d3b80bbf4a7c56c46f77dc` after PR163. This rece
 
 Local frontend typecheck/build and focused checks are being run on the candidate. An initial broad unit run recorded 2,298 passes, two skips, 28 failures and 31 setup errors; this is not a passing suite. The environment lacks a usable PostgreSQL process and httpx initially lacked the runtime proxy's optional SOCKS transport. No repository dependency or test guard was weakened. Browser installation returned a truncated/non-ZIP download. GitHub CI with disposable PostgreSQL and browser installation remains the required complete validation environment.
 
-Independent review found and prompted corrections to PostgreSQL query shape, source-backed sector/physical identity, Texas-local calendar handling, default-view mounting and KPI expiry. Final exact-candidate review is pending.
+Independent review found and prompted corrections to PostgreSQL query shape, source-backed sector/physical identity, Texas-local calendar handling, default-view mounting and KPI expiry. Final source review of the first published candidate found no further blocker. Local final checks passed 37 focused tests, backend lint/format/mypy and frontend types/build. CI run 41315456591 then reported 3,709 backend passes, one intentional skip and one failure: a newly parametrized budget test assumed two recent lanes, whereas flare has one. The fixture now verifies the correct lane count and exactly two persisted segment advances. Older synthetic browser sessions also need a mock for the newly added summary endpoint; real-backend acceptance remains unmocked. The corrected head requires a fresh complete CI pass.
 
 ## Remaining limitations
 

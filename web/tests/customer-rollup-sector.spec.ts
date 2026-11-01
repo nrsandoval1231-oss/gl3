@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const group = { id: 'sector-group', name: 'Sector Customer', role: 'customer', project_count: 1, need_count: 1, sectors: ['oil_gas', 'data_centers'] }
@@ -5,6 +6,7 @@ const group = { id: 'sector-group', name: 'Sector Customer', role: 'customer', p
 test('changing sector clears region and stage filters and their URL state', async ({ page }) => {
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     const url = new URL(route.request().url())
     requests.push(url)
@@ -33,6 +35,7 @@ test('changing sector clears region and stage filters and their URL state', asyn
 test('URL region and stage stay visibly selected when omitted from returned facets', async ({ page }) => {
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     requests.push(new URL(route.request().url()))
     return route.fulfill({ json: { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'arbitrary-filter-cohort', facets: { regions: ['Austin, TX'], stages: ['Construction notice'] } } })

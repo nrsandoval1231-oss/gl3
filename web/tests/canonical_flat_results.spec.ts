@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const pageFixture = {
@@ -11,6 +12,7 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   const requests: URL[] = []
   const demandRequests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/demand-summary?*', route => { demandRequests.push(new URL(route.request().url())); return route.fulfill({ json: { availability: 'available', sector: new URL(route.request().url()).searchParams.get('sector'), as_of: '2026-10-31T00:00:00Z', totals: { identified_records: 5, known_mw_records: 3, unknown_records: 2, conflicted_records: 1 }, classes: { documented: { mw: 8, record_count: 2 }, calculated: { mw: 4.5, record_count: 1 }, estimated: { mw: 6, record_count: 1 } }, provenance: { contract: 'equipment-demand-v1', source_count: 3, latest_evidence_at: '2026-10-30T00:00:00Z' }, limitations: [] } }) })
   await page.route('**/api/opportunities/projects?*', route => { requests.push(new URL(route.request().url())); return route.fulfill({ json: pageFixture }) })
   await page.goto('/?view=workspace&projectBrowse=1')
@@ -61,6 +63,7 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
 
 test('canonical KPI captions stay within their cards and above the opportunities heading', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/needs/**', route => route.fulfill({ json: { id: 'n1', project_id: 'p1', name: 'Northstar Mesa Compressor', browse_title: 'Northstar Mesa Compressor', location: 'Midland, TX', tier: 'Signal', activity: 'compression', priority_score: 42, required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Synthetic fixture', workflow_status: 'New' } }))
   await page.goto('/?view=workspace&projectBrowse=1')
@@ -101,6 +104,7 @@ test('canonical KPI captions stay within their cards and above the opportunities
 test('synthetic repeated cohort conflict stops after one reset and presents a retry', async ({ page }) => {
   let reads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => { reads += 1; return route.fulfill({ status: 409, json: { detail: 'cohort changed' } }) })
   await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('alert')).toContainText('Results changed again')
@@ -109,6 +113,7 @@ test('synthetic repeated cohort conflict stops after one reset and presents a re
 
 test('demand KPI keeps loading, unavailable, and unknown MW distinct from zero', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/demand-summary?*', route => route.fulfill({ status: 503, json: { detail: 'unavailable' } }))
   await page.goto('/?view=workspace&projectBrowse=1')
@@ -128,6 +133,7 @@ test('demand KPI aborts a pending private summary when continuity is cleared', a
   let started: (() => void) | undefined
   const requestStarted = new Promise<void>(resolve => { started = resolve })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/demand-summary?*', async route => {
     started?.()
@@ -148,6 +154,7 @@ test('demand KPI aborts a pending private summary when continuity is cleared', a
 test('demand KPI follows sector changes in the opportunity view and requests the matching scope', async ({ page }) => {
   const scopes: string[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/demand-summary?*', route => {
     const sector = new URL(route.request().url()).searchParams.get('sector') ?? 'all'
@@ -166,6 +173,7 @@ test('demand KPI refreshes after its bounded 60 second freshness window', async 
   let reads = 0
   await page.clock.install()
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/demand-summary?*', route => {
     reads += 1
@@ -181,6 +189,7 @@ test('demand KPI refreshes after its bounded 60 second freshness window', async 
 
 test('unknown-only unavailable summary keeps its record counts visible', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/demand-summary?*', route => route.fulfill({ json: { availability: 'unavailable', sector: 'all', as_of: null, totals: { identified_records: 2, known_mw_records: 0, unknown_records: 2, conflicted_records: 0 }, classes: { documented: { mw: null, record_count: 0 }, calculated: { mw: null, record_count: 0 }, estimated: { mw: null, record_count: 0 } }, provenance: { contract: 'equipment-demand-v1', source_count: 1, latest_evidence_at: null }, limitations: ['MW unknown'] } }))
   await page.goto('/?view=workspace&projectBrowse=1')
@@ -192,6 +201,7 @@ test('unknown-only unavailable summary keeps its record counts visible', async (
 
 test('incomplete over-budget counts never display zero while complete zero counts do', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/demand-summary?*', route => {
     const sector = new URL(route.request().url()).searchParams.get('sector')
@@ -203,7 +213,7 @@ test('incomplete over-budget counts never display zero while complete zero count
   await expect(kpi).toContainText('Record counts unavailable.')
   await expect(kpi).not.toContainText('0 identified')
   await kpi.getByText('Coverage and limitations').click()
-  await expect(kpi).toContainText('Candidate cohort exceeds supported summary bound')
+  await expect(kpi).toContainText('Candidate cohort exceeds the supported summary bound')
   await page.getByRole('combobox', { name: 'Project type' }).selectOption('oil_gas')
   await expect(kpi).toContainText('0 identified')
 })
@@ -215,6 +225,7 @@ test('synthetic logout while a request is pending cannot repopulate rows or cach
   const projectRequestStarted = new Promise<void>(resolve => { requestStarted = resolve })
   const projectRouteSettled = new Promise<void>(resolve => { routeSettled = resolve })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', async route => {
     requestStarted?.()
     await new Promise<void>(resolve => { release = resolve })
@@ -234,6 +245,7 @@ test('synthetic logout while results are unmounted clears module cache before re
   let projectReads = 0
   let holdNext = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', async route => {
     projectReads += 1
     if (holdNext) return new Promise<void>(() => {})
@@ -254,6 +266,7 @@ test('synthetic empty and error states do not produce repeated React update erro
   const consoleErrors: string[] = []
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()) })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ status: 503, json: { detail: 'unavailable' } }))
   await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('alert')).toContainText('Could not load projects')
@@ -263,6 +276,7 @@ test('synthetic empty and error states do not produce repeated React update erro
 test('synthetic related need navigation restores focus to its exact need control', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/needs/**', route => route.fulfill({ json: { id: 'n2', project_id: 'p1', name: 'Synthetic related need', browse_title: 'Synthetic related need', location: 'Midland, TX', tier: 'Prospect', activity: 'construction power', priority_score: 42, required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Synthetic fixture', workflow_status: 'New' } }))
   await page.goto('/?view=workspace&projectBrowse=1')
@@ -279,6 +293,7 @@ test('synthetic related need navigation restores focus to its exact need control
 test('synthetic unavailable browse response stays visible for explicit retry', async ({ page }) => {
   let reads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => { reads += 1; return route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'retry-after': '0' }, json: { detail: 'browse pending' } }) })
   await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('alert')).toContainText('Could not load projects (503)')
@@ -287,6 +302,7 @@ test('synthetic unavailable browse response stays visible for explicit retry', a
 
 test('malformed browse payload fails safely while an exact selected need remains available', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: [] }))
   await page.route('**/api/opportunities/needs/n2*', route => route.fulfill({ json: {
     id: 'n2', project_id: 'p1', name: 'Exact selected need', browse_title: 'Exact selected need',
