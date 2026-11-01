@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 import httpx
 import pytest
@@ -614,3 +614,69 @@ def test_worker_retry_policy_preserves_last_success(
         assert (source.health.get("retry_at") is not None) == (expected_job_status == "queued")
         if "retry_after_seconds" in diagnostics:
             assert finished.available_at >= datetime.now(UTC) + timedelta(seconds=118)
+
+
+def test_drilling_history_advances_closed_months_and_stops_at_previous_month(structured_db):
+    from gridlens.ingestion.structured_collection import (
+        apply_segment_result,
+        collection_continuation_needed,
+        collection_status,
+    )
+
+    definition = next(
+        item for item in load_registry() if item["id"] == "texas-rrc-drilling-permits"
+    )
+    today = date(2026, 11, 1)
+    now = datetime(2026, 11, 1, 12, tzinfo=UTC)
+    with structured_db.begin() as session:
+        session.add(
+            Source(
+                **{
+                    key: definition[key]
+                    for key in (
+                        "id",
+                        "publisher",
+                        "endpoint",
+                        "family",
+                        "geography",
+                        "industries",
+                        "retrieval_method",
+                        "cadence_hours",
+                    )
+                },
+                enabled=True,
+                registry_enabled=True,
+            )
+        )
+        session.flush()
+        recent, digest, lanes = prepare_collection_progress(session, definition, today=today)
+        assert recent.lane == "issue_recent"
+        apply_segment_result(
+            recent, {"window_complete": True, "cursor": {}, "partial": False}, now=now
+        )
+        for start, end in [
+            (date(2026, 8, 1), date(2026, 8, 31)),
+            (date(2026, 9, 1), date(2026, 9, 30)),
+            (date(2026, 10, 1), date(2026, 10, 31)),
+        ]:
+            history, _, _ = prepare_collection_progress(session, definition, today=today)
+            assert history.lane == "issue_history"
+            assert history.window_start.date() == start
+            assert history.window_end.date() == end
+            apply_segment_result(
+                history, {"window_complete": True, "cursor": {}, "partial": False}, now=now
+            )
+        session.flush()
+        assert collection_status(
+            session, definition["id"], digest, lanes, today=today, source=definition
+        ) == (True, True)
+        assert not collection_continuation_needed(
+            session, definition["id"], digest, lanes, source=definition, today=today
+        )
+        # After an outage, history resumes next month rather than rolling forward from today.
+        resumed, _, _ = prepare_collection_progress(
+            session, definition, today=date(2027, 2, 1), collection_jobs_remaining=6
+        )
+        assert resumed.lane == "issue_history"
+        assert resumed.window_start.date() == date(2026, 11, 1)
+        assert resumed.window_end.date() == date(2026, 11, 30)

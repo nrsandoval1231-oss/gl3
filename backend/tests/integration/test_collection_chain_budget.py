@@ -158,7 +158,9 @@ def _receipt(session, job_id):
 
 
 @pytest.mark.parametrize(
-    "chain_db", ["austin-building-permits", "texas-rrc-flare-vent-exceptions"], indirect=True
+    "chain_db",
+    ["austin-building-permits", "texas-rrc-flare-vent-exceptions", "texas-rrc-drilling-permits"],
+    indirect=True,
 )
 def test_two_job_chain_pauses_with_cursor_and_new_schedule_resumes(chain_db, monkeypatch):
     import gridlens.ingestion.service as service
@@ -203,9 +205,9 @@ def test_two_job_chain_pauses_with_cursor_and_new_schedule_resumes(chain_db, mon
         saved = {p.lane: dict(p.cursor) for p in progress}
         assert all(p.status == "incomplete" and p.completed_through is None for p in progress)
         assert len(calls) == 2
-        # Austin has two recent lanes; flare has one, so both jobs resume that
+        # Austin has two recent lanes; each RRC source has one, so both jobs resume that
         # same lane. In either case exactly two segment advances are retained.
-        expected_lanes = 1 if definition["retrieval_method"] == "rrc-flare-exceptions" else 2
+        expected_lanes = 2 if definition["retrieval_method"] == "socrata-permits" else 1
         assert sum(bool(cursor) for cursor in saved.values()) == expected_lanes
         assert sum(cursor.get("synthetic_offset", 0) for cursor in saved.values()) == 2
     # A normal scheduled job has no inherited chain marker or budget. Lane fairness

@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test, type Page } from '@playwright/test'
 
 // Synthetic UI fixtures only. The server order intentionally crosses a page boundary.
@@ -38,7 +39,8 @@ async function setup(page: Page) {
 for (const sort of ['company', 'project'] as const) {
   test(`${sort} sort requests the complete cohort and resets pagination`, async ({ page }) => {
     const requests = await setup(page)
-    await page.goto('/?view=workspace&projectBrowse=1')
+    await mockDemandSummary(page)
+  await page.goto('/?view=workspace&projectBrowse=1')
     await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
     await page.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(page.locator('.cfr-table tbody tr')).toHaveCount(1)
@@ -59,6 +61,7 @@ for (const sort of ['company', 'project'] as const) {
 test('priority ascending belongs to the server cohort and survives detail/back and reload', async ({ page }) => {
   const requests = await setup(page)
   await page.setViewportSize({ width: 390, height: 844 })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
   await page.getByRole('button', { name: 'Priority ↓', exact: true }).click()
@@ -78,6 +81,7 @@ test('priority ascending belongs to the server cohort and survives detail/back a
 
 test('browser Back restores sort and its cached cohort without mixing rows', async ({ page }) => {
   const requests = await setup(page)
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&projectBrowse=1&sort=project')
   await expect(page.locator('.cfr-table tbody tr').first()).toContainText('Alpha site')
   await expect(page.getByRole('combobox', { name: 'Sort opportunities' })).toHaveValue('project')
@@ -91,6 +95,7 @@ test('browser Back restores sort and its cached cohort without mixing rows', asy
 
 test('sorting beside an open desktop detail clears the need without undoing the new sort', async ({ page }) => {
   await setup(page)
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&projectBrowse=1')
   await page.getByRole('button', { name: 'Zulu site 00', exact: true }).click()
   await expect(page.locator('.cod-panel h2')).toContainText('Zulu site 00')
@@ -106,6 +111,7 @@ test('sorting beside an open desktop detail clears the need without undoing the 
 
 test('an empty filtered page reports visible matches separately from the cohort range', async ({ page }) => {
   await setup(page)
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
   await page.getByRole('button', { name: 'Next', exact: true }).click()
@@ -124,6 +130,7 @@ test('an empty server page beyond a smaller cohort reports no inverted range', a
     items: [], total: 10, count_unit: 'projects', offset: 25, limit: 25,
     cohort_token: 'synthetic-smaller-cohort', generation: 'synthetic-sort', results_scope: 'discovery',
   } }))
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&projectBrowse=1&offset=25&cohort_token=synthetic-smaller-cohort')
   await expect(page.locator('.cfr-paging')).toContainText('0 projects on this page · 10 projects total')
   await expect(page.locator('.cfr-paging')).not.toContainText('26–25')

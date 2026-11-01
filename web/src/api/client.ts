@@ -46,6 +46,24 @@ function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {
 }
 export type ProjectResultsPage = BrowseGenerationMetadata & { items: ProjectResult[]; total: number; count_unit: 'projects'; limit: number; offset: number; cohort_token: string; generation: string; results_scope?: 'qualified' | 'discovery' }
 export type DemandSummary = { counts_complete?: boolean; availability: 'available' | 'unavailable'; sector: 'all' | 'oil_gas' | 'data_centers'; as_of: string | null; totals: { identified_records: number; known_mw_records: number; unknown_records: number; conflicted_records: number }; classes: { documented: { mw: number | null; record_count: number }; calculated: { mw: number | null; record_count: number }; estimated: { mw: number | null; record_count: number } }; provenance: { contract: string; source_count: number; latest_evidence_at: string | null }; limitations: string[] }
+function parseDemandSummary(value: unknown, requestedSector: DemandSummary['sector']): DemandSummary {
+  const record = (input: unknown): input is Record<string, unknown> => typeof input === 'object' && input !== null && !Array.isArray(input)
+  const count = (input: unknown) => Number.isSafeInteger(input) && (input as number) >= 0
+  const nullableNumber = (input: unknown) => input === null || (typeof input === 'number' && Number.isFinite(input) && input >= 0)
+  const nullableDate = (input: unknown) => input === null || (typeof input === 'string' && Number.isFinite(Date.parse(input)))
+  const invalid = (): never => { throw new Error('Demand summary response is invalid.') }
+  const body = record(value) ? value : invalid()
+  const totals = body.totals
+  const classes = body.classes
+  const provenance = body.provenance
+  if (body.sector !== requestedSector || !['available', 'unavailable'].includes(String(body.availability)) ||
+      (body.counts_complete !== undefined && typeof body.counts_complete !== 'boolean') || !nullableDate(body.as_of) ||
+      !record(totals) || !['identified_records', 'known_mw_records', 'unknown_records', 'conflicted_records'].every(key => count(totals[key])) ||
+      !record(classes) || !(['documented', 'calculated', 'estimated'] as const).every(key => record(classes[key]) && nullableNumber(classes[key].mw) && count(classes[key].record_count)) ||
+      !record(provenance) || typeof provenance.contract !== 'string' || !count(provenance.source_count) || !nullableDate(provenance.latest_evidence_at) ||
+      !Array.isArray(body.limitations) || !body.limitations.every(item => typeof item === 'string')) invalid()
+  return body as unknown as DemandSummary
+}
 export type OpportunityGroup = { id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; group_kind?: 'resolved_identity' | 'same_name_unconfirmed' | 'unresolved'; identity_count?: number; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
 export type OpportunityGroupsPage = BrowseGenerationMetadata & { items: OpportunityGroup[]; total: number; count_unit: 'groups'; limit: number; offset: number; cohort_token: string; generation: string; facets?: { regions: string[]; stages: string[] } }
 export type CustomerRollupFilters = { region?: string; stage?: string; priority?: 'ranked' | 'unranked' | '' }
@@ -261,7 +279,7 @@ export const client = {
     const response = await fetch(`/api/opportunities/demand-summary?${new URLSearchParams({ sector })}`, { credentials: 'same-origin', signal })
     if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
     if (!response.ok) throw new Error(`Could not load identified power demand (${response.status}).`)
-    return response.json() as Promise<DemandSummary>
+    return parseDemandSummary(await response.json() as unknown, sector)
   },
   opportunityGroups: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<OpportunityGroupsPage> => {
     const params = new URLSearchParams()

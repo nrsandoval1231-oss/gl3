@@ -128,6 +128,17 @@ test('demand KPI keeps loading, unavailable, and unknown MW distinct from zero',
   await expect(kpi.locator('strong')).toHaveAttribute('aria-label', 'Unavailable')
 })
 
+test('malformed demand summary fails closed while opportunity results remain available', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
+  await page.route('**/api/opportunities/demand-summary?*', route => route.fulfill({ json: [] }))
+  await page.goto('/?view=workspace&projectBrowse=1')
+  await expect(page.locator('.cfr-table tbody tr')).toHaveCount(2)
+  const kpi = page.locator('.cfr-kpis article').first()
+  await expect(kpi).toContainText('Demand summary unavailable.')
+  await expect(kpi.locator('strong')).toHaveText('—')
+})
+
 test('demand KPI aborts a pending private summary when continuity is cleared', async ({ page }) => {
   let release: (() => void) | undefined
   let started: (() => void) | undefined
@@ -171,19 +182,22 @@ test('demand KPI follows sector changes in the opportunity view and requests the
 
 test('demand KPI refreshes after its bounded 60 second freshness window', async ({ page }) => {
   let reads = 0
+  let currentMw = 1
   await page.clock.install()
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/demand-summary?*', route => {
     reads += 1
-    return route.fulfill({ json: { availability: 'available', sector: 'all', as_of: '2026-10-20T00:00:00Z', totals: { identified_records: 1, known_mw_records: 1, unknown_records: 0, conflicted_records: 0 }, classes: { documented: { mw: reads, record_count: 1 }, calculated: { mw: null, record_count: 0 }, estimated: { mw: null, record_count: 0 } }, provenance: { contract: 'equipment-demand-v1', source_count: 1, latest_evidence_at: '2026-10-20T00:00:00Z' }, limitations: [] } })
+    return route.fulfill({ json: { availability: 'available', sector: 'all', as_of: '2026-10-20T00:00:00Z', totals: { identified_records: 1, known_mw_records: 1, unknown_records: 0, conflicted_records: 0 }, classes: { documented: { mw: currentMw, record_count: 1 }, calculated: { mw: null, record_count: 0 }, estimated: { mw: null, record_count: 0 } }, provenance: { contract: 'equipment-demand-v1', source_count: 1, latest_evidence_at: '2026-10-20T00:00:00Z' }, limitations: [] } })
   })
   await page.goto('/?view=workspace&projectBrowse=1')
   const value = page.locator('.cfr-kpis article').first().locator('strong')
   await expect(value).toHaveText('1 MW')
+  const baselineReads = reads
+  currentMw = 2
   await page.clock.fastForward(60_000)
-  await expect.poll(() => reads).toBeGreaterThan(1)
+  await expect.poll(() => reads).toBeGreaterThan(baselineReads)
   await expect(value).toHaveText('2 MW')
 })
 

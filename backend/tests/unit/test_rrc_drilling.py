@@ -1,13 +1,20 @@
 """Synthetic framing/admission fixtures; live snapshots are validated separately."""
 
 import base64
+import hashlib
 from datetime import date
 
 import pytest
 
 from gridlens.domain.permit_interpretation import assess_permit
 from gridlens.ingestion.adapters.federal_register import SourceParseError
-from gridlens.ingestion.adapters.rrc_drilling import parse_snapshot, records_from_snapshots
+from gridlens.ingestion.adapters.rrc_drilling import (
+    MONTHLY_PORTAL,
+    PORTAL,
+    amendment_snapshot_rank,
+    parse_snapshot,
+    records_from_snapshots,
+)
 
 
 def snapshot(sequence=99, status="A", *, amended="00000000", operator="EXAMPLE OPERATOR LLC"):
@@ -171,6 +178,154 @@ def test_rrc_retrieval_requests_previous_texas_month_not_previous_utc_month(monk
         (adapter.MONTHLY_PORTAL, "daf420.dat.08-31-2026", date(2026, 9, 30)),
         (adapter.PORTAL, "daf420.dat", date(2026, 9, 30)),
     ]
+
+
+def test_historical_archive_segment_downloads_one_exact_closed_month(monkeypatch):
+    import gridlens.ingestion.adapters.rrc_drilling_permits as segments
+
+    today = date(2026, 10, 1)
+    monkeypatch.setattr(segments, "source_today", lambda: today)
+    requested = []
+
+    def download(_http, portal, filename, selected_day, _deadline, *, archive_date):
+        requested.append((portal, filename, selected_day, archive_date))
+        return snapshot(), "2026-09-02"
+
+    monkeypatch.setattr(segments, "_download_listing_file", download)
+    result = segments.retrieve_collection_segment(
+        {"id": segments.SOURCE_ID, "endpoint": segments.PORTAL},
+        "issue_history",
+        date(2026, 8, 1),
+        date(2026, 8, 31),
+        {},
+        client=object(),
+    )
+    assert requested == [
+        (
+            segments.MONTHLY_PORTAL,
+            "daf420.dat.08-31-2026",
+            today,
+            date(2026, 8, 31),
+        )
+    ]
+    assert result["window_complete"] is True
+    assert result["records"][0]["document_number"] == "0999999"
+    assert result["cursor"] == {}
+
+
+def test_historical_archive_segment_rejects_partial_or_open_month(monkeypatch):
+    import gridlens.ingestion.adapters.rrc_drilling_permits as segments
+
+    source = {"id": segments.SOURCE_ID, "endpoint": segments.PORTAL}
+    today = date(2026, 10, 15)
+    # Freeze the publisher-local day so this rejects the current month without I/O.
+    monkeypatch.setattr(segments, "source_today", lambda: today)
+    with pytest.raises(SourceParseError, match="full month"):
+        segments.retrieve_collection_segment(
+            source, "issue_history", date(2026, 8, 2), date(2026, 8, 31), {}
+        )
+    with pytest.raises(SourceParseError, match="closed month"):
+        segments.retrieve_collection_segment(
+            source, "issue_history", date(2026, 10, 1), date(2026, 10, 31), {}
+        )
+
+
+def test_historical_archive_segments_page_with_digest_bound_cursor(monkeypatch):
+    import gridlens.ingestion.adapters.rrc_drilling_permits as segments
+
+    today = date(2026, 10, 1)
+    monkeypatch.setattr(segments, "source_today", lambda: today)
+    monkeypatch.setattr(
+        segments, "_download_listing_file", lambda *_a, **_k: (b"archive", "2026-09-02")
+    )
+    monkeypatch.setattr(
+        segments, "parse_snapshot", lambda *_a, **_k: [{"n": i} for i in range(2001)]
+    )
+    monkeypatch.setattr(segments, "records_from_snapshots", lambda snapshots: snapshots[0])
+    source = {"id": segments.SOURCE_ID, "endpoint": segments.PORTAL}
+    first = segments.retrieve_collection_segment(
+        source, "issue_history", date(2026, 8, 1), date(2026, 8, 31), {}, client=object()
+    )
+    assert len(first["records"]) == 1000
+    assert first["window_complete"] is False
+    assert first["cursor"] == {
+        "archive_sha256": hashlib.sha256(b"archive").hexdigest(),
+        "offset": 1000,
+    }
+    second = segments.retrieve_collection_segment(
+        source,
+        "issue_history",
+        date(2026, 8, 1),
+        date(2026, 8, 31),
+        first["cursor"],
+        client=object(),
+    )
+    assert len(second["records"]) == 1000
+    assert second["window_complete"] is False
+    third = segments.retrieve_collection_segment(
+        source,
+        "issue_history",
+        date(2026, 8, 1),
+        date(2026, 8, 31),
+        second["cursor"],
+        client=object(),
+    )
+    assert third["records"] == [{"n": 2000}]
+    assert third["window_complete"] is True and third["cursor"] == {}
+
+
+def test_changed_archive_restarts_cursor_instead_of_stalling(monkeypatch):
+    import gridlens.ingestion.adapters.rrc_drilling_permits as segments
+
+    monkeypatch.setattr(segments, "source_today", lambda: date(2026, 10, 1))
+    monkeypatch.setattr(
+        segments, "_download_listing_file", lambda *_a, **_k: (b"changed", "2026-09-02")
+    )
+    monkeypatch.setattr(segments, "parse_snapshot", lambda *_a, **_k: [{"row": 1}])
+    monkeypatch.setattr(segments, "records_from_snapshots", lambda snapshots: snapshots[0])
+    cursor = {"archive_sha256": "0" * 64, "offset": 1}
+    result = segments.retrieve_collection_segment(
+        {"id": segments.SOURCE_ID, "endpoint": segments.PORTAL},
+        "issue_history",
+        date(2026, 8, 1),
+        date(2026, 8, 31),
+        cursor,
+        client=object(),
+    )
+    assert result["partial"] is True
+    assert result["window_complete"] is False
+    assert result["error_class"] == "RrcSnapshotChanged"
+    assert result["cursor"] == {}
+
+    with pytest.raises(SourceParseError, match="bind an offset"):
+        segments.retrieve_collection_segment(
+            {"id": segments.SOURCE_ID, "endpoint": segments.PORTAL},
+            "issue_history",
+            date(2026, 8, 1),
+            date(2026, 8, 31),
+            {"offset": 1},
+            client=object(),
+        )
+
+
+def _ranked_abstract(sequence, filename, source_url):
+    import json
+
+    provenance = [{"sequence": sequence, "filename": filename, "source_url": source_url}]
+    return (
+        f"amendment_sequence: {sequence}\nSource segment provenance: "
+        + json.dumps(provenance)
+        + "\nOpaque source bytes (base64; not interpreted): {}"
+    )
+
+
+def test_snapshot_rank_allows_archive_progress_and_protects_live_snapshot():
+    august = _ranked_abstract(98, "daf420.dat.08-31-2026", MONTHLY_PORTAL)
+    september = _ranked_abstract(98, "daf420.dat.09-30-2026", MONTHLY_PORTAL)
+    live = _ranked_abstract(98, "daf420.dat", PORTAL)
+    assert amendment_snapshot_rank(august) < amendment_snapshot_rank(september)
+    assert amendment_snapshot_rank(september) < amendment_snapshot_rank(live)
+    assert amendment_snapshot_rank("amendment_sequence: 98") is None
 
 
 @pytest.mark.parametrize("flag", ["P", "F"])

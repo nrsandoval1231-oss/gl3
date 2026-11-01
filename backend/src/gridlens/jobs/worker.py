@@ -1042,6 +1042,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 "socrata-permits",
                 "boston-ckan-permits",
                 "rrc-flare-exceptions",
+                "rrc-drilling-permits",
             }:
                 # Validate within the worker failure boundary, before acquisition.
                 # Capture once: service checkpoints must never reset this chain.

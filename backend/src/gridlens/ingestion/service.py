@@ -1972,6 +1972,7 @@ def process_job(
         "socrata-permits",
         "boston-ckan-permits",
         "rrc-flare-exceptions",
+        "rrc-drilling-permits",
     }:
         checkpoint_job = session.get(Job, job_id)
         try:
@@ -2365,6 +2366,10 @@ def _process_structured_collection_segment(
         source_definition,
         records,
         client=client,
+        historical_snapshot=(
+            source_definition.get("retrieval_method") == "rrc-drilling-permits"
+            and lane == "issue_history"
+        ),
         commit=False,
         deadline=deadline,
         lease_expiry=lease_expiry,
@@ -2428,7 +2433,12 @@ def _process_structured_collection_segment(
         completed_at = session.scalar(text("SELECT clock_timestamp()"))
         apply_segment_result(latest_progress, result, now=completed_at)
         current_complete, all_complete = collection_status(
-            session, source.id, digest, lanes, today=collection_day(source_definition)
+            session,
+            source.id,
+            digest,
+            lanes,
+            today=collection_day(source_definition),
+            source=source_definition,
         )
         continuation = not progress_partial and collection_continuation_needed(
             session,
@@ -3163,6 +3173,7 @@ def process_records(
     allow_model: bool = True,
     deadline: float | None = None,
     lease_expiry: datetime | None = None,
+    historical_snapshot: bool = False,
 ) -> dict[str, Any]:
     """Apply canonical source records; targeted research owns its enclosing transaction."""
     if commit and (
@@ -3253,16 +3264,31 @@ def process_records(
             .where(Observation.source_id == source.id, Observation.external_id == external_id)
             .with_for_update()
         )
-        # Older amendments can recur in rollover snapshots. Retain their exact
-        # evidence but never let an older filing replace the current projection.
+        # Older amendments and historical snapshots can recur. Preserve their
+        # evidence, while only a strictly newer trusted month archive can update
+        # a same-sequence historical projection.
         if observation is not None and source.id == "texas-rrc-drilling-permits":
-            from gridlens.ingestion.adapters.rrc_drilling import amendment_sequence
+            from gridlens.ingestion.adapters.rrc_drilling import (
+                amendment_sequence,
+                amendment_snapshot_rank,
+            )
 
             retained_sequence = amendment_sequence(observation.abstract)
             incoming_sequence = amendment_sequence(record.get("abstract"))
             if retained_sequence is None or incoming_sequence is None:
                 raise ValueError("RRC amendment identity is missing")
-            if incoming_sequence > retained_sequence:
+            stale_same_sequence_history = False
+            if historical_snapshot and incoming_sequence == retained_sequence:
+                retained_rank = amendment_snapshot_rank(observation.abstract)
+                incoming_rank = amendment_snapshot_rank(record.get("abstract"))
+                stale_same_sequence_history = (
+                    retained_rank is None or incoming_rank is None or incoming_rank <= retained_rank
+                )
+            if incoming_sequence > retained_sequence or (
+                historical_snapshot
+                and incoming_sequence == retained_sequence
+                and stale_same_sequence_history
+            ):
                 prior = session.scalar(
                     select(Evidence.id).where(
                         Evidence.observation_id == observation.id,

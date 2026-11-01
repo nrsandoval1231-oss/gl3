@@ -190,6 +190,12 @@ def _retrieve_collection_segment_direct(
         )
 
         return retrieve_flare_segment(source, lane, start, end, cursor, client)
+    if method == "rrc-drilling-permits":
+        from gridlens.ingestion.adapters.rrc_drilling_permits import (
+            retrieve_collection_segment as retrieve_drilling_segment,
+        )
+
+        return retrieve_drilling_segment(source, lane, start, end, cursor, client)
     raise SourceParseError("Source has no resumable structured collection adapter")
 
 
