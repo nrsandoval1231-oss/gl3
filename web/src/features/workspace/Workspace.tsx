@@ -61,7 +61,7 @@ function currentAccountContext(): AccountContext | undefined {
 function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false, accountContext?: AccountContext) {
   const signalView = currentView() === 'signals'
   const p = signalView ? getParams() : workspaceParams(filters)
-  if (!signalView) for (const key of ['q', 'sector', 'sort', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
+  if (!signalView) for (const key of ['q', 'sector', 'sort', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'projectBrowse', 'region', 'stage', 'priority', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
   if (!signalView && accountContext) { p.set('account', accountContext.accountId); if (accountContext.projectId) p.set('project', accountContext.projectId) }
   if (signalView) { p.set('view', 'signals'); p.delete('need'); p.delete('section') }
   if (id) p.set('need', id)
@@ -109,7 +109,7 @@ export function WorkspaceHome() {
   const pageRef = useRef<{ page: WorkspacePage; request: string; revision: number } | null>(null)
   const requestKey = workspaceRequestKey(filters)
   const accountBrowse = getParams().get('accountBrowse') === '1'
-  const groupBrowse = getParams().get('groupBrowse') === '1'
+  const groupBrowse = getParams().get('projectBrowse') !== '1'
   const pageCurrent = Boolean(page && pageIdentity?.request === requestKey && pageIdentity.revision === revision && !loading && !error)
   const detailCurrent = Boolean(selected && detailIdentity?.id === selected.id && detailIdentity.revision === revision && !detailLoading && !detailError)
   useEffect(() => {
@@ -290,7 +290,7 @@ export function WorkspaceHome() {
     if (view === 'signals') signalParams.current = getParams()
     const currentBrowse = getParams()
     const savedBrowse: Record<string, string> = view === 'opportunities'
-      ? Object.fromEntries(['q', 'sector', 'sort', 'offset', 'cohort_token', 'groupBrowse'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
+      ? Object.fromEntries(['q', 'sector', 'sort', 'offset', 'cohort_token', 'groupBrowse', 'projectBrowse', 'region', 'stage', 'priority'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
       : (history.state?.workspaceBrowse as Record<string, string> | undefined) ?? {}
     const params = nextView === 'opportunities' ? workspaceParams(filters)
       : nextView === 'signals' ? new URLSearchParams(signalParams.current ?? { view: 'signals', tier: 'Signals' })

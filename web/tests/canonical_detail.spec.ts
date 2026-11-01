@@ -82,7 +82,7 @@ test('canonical detail tabs update browser history and render only source-backed
     return route.fulfill({ json: [] })
   })
 
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.locator('.cfr-table')).toContainText('Synthetic Phoenix Campus Fixture')
   await page.getByRole('button', { name: 'Open Synthetic Phoenix Campus Fixture' }).click()
   await expect(page.getByRole('heading', { name: 'Example Compute Holdings (test fixture) — Synthetic Phoenix Campus Fixture' })).toBeVisible()
@@ -175,12 +175,12 @@ test('canonical detail tabs update browser history and render only source-backed
   await expect(page).toHaveURL(/section=research/)
   await expect(page.getByRole('heading', { name: 'Automated research' })).toBeVisible()
 
-  await page.goto('/?view=workspace&need=need-canonical&section=power-gap')
+  await page.goto('/?view=workspace&projectBrowse=1&need=need-canonical&section=power-gap')
   await expect(page.getByText('Supply unknown or no supported remaining gap is available for this need.')).toBeVisible()
-  await page.goto('/?view=workspace&need=need-canonical')
+  await page.goto('/?view=workspace&projectBrowse=1&need=need-canonical')
   await expect(page.getByRole('link', { name: 'Call Example Compute Holdings' })).toBeVisible()
   await page.evaluate(() => {
-    window.history.pushState({}, '', '/?view=workspace&need=need-second')
+    window.history.pushState({}, '', '/?view=workspace&projectBrowse=1&need=need-second')
     window.dispatchEvent(new PopStateEvent('popstate'))
   })
   await expect(page.getByRole('heading', { name: 'Second Synthetic Holdings — Second Synthetic Campus Fixture' })).toBeVisible()
@@ -209,7 +209,7 @@ test('native equipment proposal preserves historical date and unknown capacity o
     if (path === '/api/opportunities/projects') return route.fulfill({ json: projects })
     return route.fulfill({ json: [] })
   })
-  await page.goto('/?view=workspace&need=need-canonical')
+  await page.goto('/?view=workspace&projectBrowse=1&need=need-canonical')
   const proposal = page.getByRole('region', { name: 'Source-reported equipment proposal' })
   for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport)

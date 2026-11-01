@@ -27,7 +27,7 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   })
   await page.route('**/api/opportunities/needs/need-shell?**', route => route.fulfill({ json: need }))
 
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
   await search.fill('Mesa')
   await expect.poll(() => searchQueries).toContain('Mesa')

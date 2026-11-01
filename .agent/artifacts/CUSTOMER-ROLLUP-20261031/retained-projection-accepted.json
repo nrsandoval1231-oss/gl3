@@ -1,0 +1,72 @@
+{
+  "candidate_source_sha256": "7ed484698789ac1ced9ce371e7ab6c15765857b6d276748b2c0daf38d8fcb773",
+  "mode": "READ ONLY selected-generation projection analysis; not runtime-policy or browser acceptance",
+  "samples": [
+    {
+      "company_identity_count": 3,
+      "distinct_project_ids": 3,
+      "elapsed_seconds": 0.618,
+      "group": {
+        "group_kind": "same_name_unconfirmed",
+        "id": "cg_ada07913fd6388f0526a330ea8ee51f8",
+        "identity_count": 3,
+        "name": "AMAZON DATA SERVICES, INC",
+        "need_count": 3,
+        "priority_score": 61,
+        "project_count": 3,
+        "role": "unresolved",
+        "sectors": [
+          "data_centers"
+        ]
+      },
+      "physical_projects_returned": 3,
+      "search": "AMAZON",
+      "sector": "data_centers"
+    },
+    {
+      "company_identity_count": 1,
+      "distinct_project_ids": 48,
+      "elapsed_seconds": 15.296,
+      "group": {
+        "group_kind": "resolved_identity",
+        "id": "cg_59dcbaa2c5cb6a630689a75f732cb7da",
+        "identity_count": 1,
+        "name": "DE CENTRAL OPERATING, LLC",
+        "need_count": 48,
+        "priority_score": 58,
+        "project_count": 48,
+        "role": "operator",
+        "sectors": [
+          "oil_gas"
+        ]
+      },
+      "physical_projects_returned": 48,
+      "search": "DE CENTRAL",
+      "sector": "oil_gas"
+    },
+    {
+      "company_identity_count": 1,
+      "distinct_project_ids": 159,
+      "elapsed_seconds": 36.668,
+      "group": {
+        "group_kind": "resolved_identity",
+        "id": "cg_3fa2f753ef176a17d88c3edfdada8df7",
+        "identity_count": 1,
+        "name": "DIAMONDBACK E&P LLC",
+        "need_count": 159,
+        "priority_score": 58,
+        "project_count": 159,
+        "role": "operator",
+        "sectors": [
+          "oil_gas"
+        ]
+      },
+      "physical_projects_returned": 159,
+      "search": "DIAMONDBACK",
+      "sector": "oil_gas"
+    }
+  ],
+  "snapshot_generation": "9b8aaa10-a0f1-42a9-b485-a7db29e1a50c",
+  "status": "PASS",
+  "writes_performed": false
+}

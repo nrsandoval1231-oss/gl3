@@ -23,7 +23,7 @@ test('project results preserve detail history, truthful gaps, and responsive nav
       const search = (url.searchParams.get('search') ?? '').toLowerCase()
       const matching = groups.filter(group => `${group.name} ${projects.find(project => `group-${project.id}` === group.id)?.name}`.toLowerCase().includes(search))
       const offset = Number(url.searchParams.get('offset') || 0)
-      return route.fulfill({ json: { items: matching.slice(offset, offset + 25), total: matching.length, offset, limit: 25, cohort_token: 'dashboard-group-cohort', generation: 1, count_unit: 'operators and customers' } })
+      return route.fulfill({ json: { items: matching.slice(offset, offset + 25), total: matching.length, offset, limit: 25, cohort_token: 'dashboard-group-cohort', generation: 1, count_unit: 'groups' } })
     }
     if (url.pathname.startsWith('/api/opportunities/groups/')) {
       const groupId = url.pathname.split('/')[4]
@@ -48,9 +48,9 @@ test('project results preserve detail history, truthful gaps, and responsive nav
     }
     return route.fulfill({ status: 503, json: { detail: 'Not supplied by this project results fixture' } })
   })
-  await page.goto('/?view=workspace&groupBrowse=1')
+  await page.goto('/?view=workspace')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
-  await expect(page.locator('.project-results-count')).toHaveText('26 operator/customer groups')
+  await expect(page.locator('.project-results-count')).toHaveText('26 groups')
   await expect(page.locator('.customer-group-toggle').first()).toBeVisible()
   await page.locator('.customer-group-toggle').first().click()
   await expect(page.locator('.project-card')).toHaveCount(1)
@@ -107,7 +107,7 @@ test('project results preserve detail history, truthful gaps, and responsive nav
   await page.getByRole('button', { name: 'Previous' }).click()
   await expect(page.locator('.customer-group')).toHaveCount(25)
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/?view=workspace&groupBrowse=1&need=need-1')
+  await page.goto('/?view=workspace&need=need-1')
   await expect(page.locator('.wh-detail h2')).toHaveText('Site development 2')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
 })

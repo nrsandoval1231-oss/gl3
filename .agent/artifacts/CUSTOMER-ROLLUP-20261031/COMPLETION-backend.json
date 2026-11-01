@@ -1,0 +1,59 @@
+{
+  "lane": "backend",
+  "status": "backend_frozen_pending_lead_final_rerun",
+  "started_at_utc": null,
+  "finished_at_utc": "2026-10-31T23:20:11Z",
+  "timing_note": "Initial start time was not recorded; elapsed time is UNKNOWN.",
+  "files_changed": [
+    "backend/src/gridlens/intelligence/customer_results.py",
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/integration/test_customer_results.py",
+    "backend/tests/integration/test_project_results.py"
+  ],
+  "implementation": [
+    "Added customer sorting by priority, priority_asc, company, and updated with deterministic tie-breaks before pagination.",
+    "Added exact region, event-stage, and ranked/unranked customer filters. Search and filters select a customer group across its full selected-sector cohort, while child project pages retain all related projects in that selected sector.",
+    "Bound search, sector, sort, region, stage, and priority context into parent and child cohort tokens; exposed full-sector region and stage facets.",
+    "Preserved existing validated well API consolidation and regulator/company UUID customer grouping. No loose-name identity matching, writes, migrations, or provider calls were added.",
+    "Parent and open group metadata now expose group_kind and identity_count; child group items expose snapshot customer_identity_id. Parent cohort token version includes the new presentation semantics.",
+    "Added display-only TDLR owner/developer same-name container, gated on exact UTF-8 organization bytes, exact owner_developer role and project owner, data_centers sector, exact texas-tdlr-tabs-data-centers source, nonempty event evidence_refs, no valid RRC anywhere in the asset, no conflicts, and one membership UUID per asset. Bucket IDs are deterministic display_container_key values; canonical identity_key and per-child customer_identity_id remain separate.",
+    "Parent and open group metadata expose group_kind and identity_count; child items expose snapshot customer_identity_id; parent token version binds these semantics."
+  ],
+  "static_checks": [
+    {
+      "command": "backend/.venv/Scripts/ruff.exe check backend/src/gridlens/intelligence/customer_results.py backend/src/gridlens/api/app.py backend/tests/integration/test_customer_results.py backend/tests/integration/test_project_results.py",
+      "result": "PASS after alias repair"
+    },
+    {
+      "command": "backend/.venv/Scripts/ruff.exe format --check backend/src/gridlens/intelligence/customer_results.py backend/src/gridlens/api/app.py backend/tests/integration/test_customer_results.py backend/tests/integration/test_project_results.py",
+      "result": "PASS after alias repair"
+    },
+    {
+      "command": "backend/.venv/Scripts/python.exe -m compileall -q backend/src/gridlens/intelligence/customer_results.py backend/src/gridlens/api/app.py backend/tests/integration/test_customer_results.py backend/tests/integration/test_project_results.py",
+      "result": "PASS after alias repair"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS after alias repair"
+    }
+  ],
+  "db_tests": {
+    "command": "$env:TEST_DATABASE_URL=postgresql+psycopg://gridlens@127.0.0.1:53475/gridlens_rollup_test; $env:DATABASE_URL=postgresql+psycopg://gridlens@127.0.0.1:53475/gridlens_rollup_runtime; $env:APP_PASSWORD_HASH=isolated-test-only; $env:SESSION_SECRET=isolated-rollup-validation-only; .venv/Scripts/python.exe -m pytest -q tests/integration/test_customer_results.py",
+    "repairs": "Updated assertion to 63 distinct canonical projects while existing endpoint asserts 62-project resolved operator group plus conflict isolation. Test-only monkeypatch bypasses contact privacy filtering only in this contact-isolation test; separate privacy tests remain unchanged.",
+    "files_for_lead": [
+      "backend/tests/integration/test_customer_results.py",
+      "backend/tests/integration/test_project_results.py"
+    ],
+    "result_before_final_repairs": "6 passed, 1 failed in 12.48s; failed assertions were 63 distinct physical project IDs incorrectly expected to be 62, and synthetic contacts filtered by required privacy gate.",
+    "result": "PARTIALLY_PASSING_BEFORE_FINAL_FIXTURE_REPAIRS; LEAD_RERUN_PENDING",
+    "final": "Not run after those repairs; lead owns rerun."
+  },
+  "limits": [
+    "No retained AMAZON/PECOS, DE CENTRAL/STORMCHASER, or Diamondback data probe was run by this lane.",
+    "Facets expose distinct saved project location strings and event kind values from the current published sector cohort; labels are exact stored values, with no normalization added.",
+    "No production, SSH, migration, retained-data write, or provider action was performed.",
+    "Retained AMAZON/PECOS generation-snapshot evidence supplied by the lead supports the bounded TDLR owner/developer presentation container only. This is not a canonical company merge; no account ID is created or reused.",
+    "Lead rerun of backend/tests/integration/test_customer_results.py is pending after the final fixture/contact-isolation repairs."
+  ],
+  "db_failure_followup": "Lead focused run was 11 passed / 9 failed in 34.17s. All nine failures traced to missing SQL alias g in grouped search filters. Repaired groups query, empty-page count query, and group metadata query to alias grouped as g. Awaiting lead rerun; this lane did not run DB tests."
+}

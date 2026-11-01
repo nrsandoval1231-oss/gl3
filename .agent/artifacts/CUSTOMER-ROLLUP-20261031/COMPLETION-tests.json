@@ -1,0 +1,62 @@
+{
+  "lane": "tests",
+  "status": "implemented_pending_browser_validation",
+  "started_at_utc": null,
+  "finished_at_utc": "2026-10-31T23:29:09Z",
+  "timing_note": "Start time and elapsed time were not measured.",
+  "files_changed": [
+    "web/tests/project_results.spec.ts",
+    "web/tests/dashboard.spec.ts",
+    "web/tests/workspace.spec.ts",
+    "web/tests/autonomous-research.spec.ts",
+    "web/tests/pr101-regressions.spec.ts",
+    "web/tests/environment.spec.ts",
+    "web/tests/evidence-content.spec.ts",
+    "web/tests/canonical_flat_results.spec.ts",
+    "web/tests/canonical_cohort_sort.spec.ts",
+    "web/tests/canonical_detail.spec.ts",
+    "web/tests/canonical_shell.spec.ts",
+    "web/tests/canonical_all_signals.spec.ts",
+    "web/tests/autonomous-research.spec.ts",
+    ".agent/artifacts/CUSTOMER-ROLLUP-20261031/COMPLETION-tests.json"
+  ],
+  "changes": [
+    "Added a synthetic browser contract case covering both / and /?view=workspace defaults, Opportunities header navigation, a customer with separate Oil & Gas and Data Centers child projects, parent and child cohort tokens, paging across 26 customer groups, and sector URL state.",
+    "The synthetic parent route applies company sorting and region, stage, priority, and search matching over the full fixture before slicing pages. The browser assertions check selected customer results, request query context, URL state, and filter changes resetting offset.",
+    "Corrected the page-two fixture assertion after the focused browser run showed that priority sorting places the two ranked synthetic customers first; the final row is Customer 24. The page count and cohort-token assertions remain in place.",
+    "Added mocked same_name_unconfirmed coverage for exact name-group caption and identity count while collapsed and expanded, three distinct PECOS project/customer identity IDs, isolated contact links, each exact need detail, and Back to all three projects.",
+    "Refined the sort proof to reflect localeCompare's full order: Cross Sector Customer first, then Customer 01; ranked Filter Edge Customer is second under priority order and moves to the final page under company order.",
+    "Detail assertions now verify each latest exact-need read and deduplicated project visit order while allowing a repeated read after Back navigation.",
+    "The default route/filter test now opens Filter Edge Site's exact need detail before Back and verifies the prior filtered customer search, sort, region, stage, priority, and expanded project are restored.",
+    "Added a deep-link normalization case for legacy sort=project and a negative offset; asserts grouped requests use priority and offset 0 and the invalid URL parameters are removed.",
+    "Aligned only grouped result count and empty-state expectations with the frontend's neutral group wording; numerical, project, identity, and error assertions remain intact.",
+    "Updated all mocked grouped response count_unit values in browser specs to the neutral `groups` contract. Updated the legacy workspace count and PR101/research empty-state assertions to match neutral group copy.",
+    "Updated autonomous research project-search detail assertions to use the rendered WorkspaceDetail `.wh-detail` and separately verify its project heading, company, and scoped contact link.",
+    "Moved grouped regression cases in project_results and dashboard onto the customer-rollup default. Retained one explicit groupBrowse=1 compatibility case. Existing accountBrowse=1 account paths were preserved.",
+    "Adapted flat-results-specific browser cases to use projectBrowse=1, including canonical table, cohort sorting, detail, shell, and legacy flat workspace flows."
+  ],
+  "checks": [
+    {
+      "command": "npx playwright test tests/project_results.spec.ts tests/dashboard.spec.ts tests/canonical_flat_results.spec.ts tests/canonical_cohort_sort.spec.ts tests/canonical_detail.spec.ts tests/canonical_shell.spec.ts tests/canonical_all_signals.spec.ts tests/autonomous-research.spec.ts tests/workspace.spec.ts --list",
+      "result": "PASS: Playwright listed 95 regression tests in 9 files; no browser tests were executed."
+    },
+    {
+      "command": "git diff --check -- web/tests",
+      "result": "PASS."
+    }
+  ],
+  "fixture_evidence": "The new customer-rollup proof uses mocked synthetic browser fixtures. It exercises UI request and state behavior; it does not prove live backend results or retained customer/project identities.",
+  "not_run": [
+    "A post-correction Playwright browser rerun; lead owns the disposable runtime and final suite.",
+    "Retained or live data sample validation."
+  ],
+  "unknowns": [
+    "The latest full browser run passed 173 of 182 tests before the current copy/fixture updates. The test-lane failures identified in autonomous-research detail selectors, empty-state copy, and workspace group count are corrected; a rerun remains pending.",
+    "The default route/search failure was not rerun after replacing list-only Back with a detail-history Back; its browser rerun remains pending.",
+    "Final integrated browser test outcomes are pending lead validation.",
+    "The new route-level browser fixture models full-cohort sorting and filtering; backend correctness must be established by backend tests and final integration checks."
+  ],
+  "limitations": [
+    "No live UI, SSH, provider, production, database, publication, or deployment action was performed."
+  ]
+}

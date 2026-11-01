@@ -1,0 +1,59 @@
+{
+  "verdict": "FIX",
+  "candidate_sha": "abf3a1ba19db01289e91284dca59e1a49764ec65",
+  "base_sha": "e0035d9e5bfb52f92bb4d21e6de0fac16d91adff",
+  "reviewer": "gpt-6-astra/high, independent read-only agent",
+  "findings": [
+    {
+      "priority": "P1",
+      "title": "Name containers split an already-resolved company",
+      "file": "backend/src/gridlens/intelligence/customer_results.py",
+      "line": 291,
+      "reproducer": "UUIDAowns eligibleTDLRP1 and ineligibleothersourceP2; UUIDBowns eligibleTDLRP3 withsamename. P1/P3bucket,P2companyA.",
+      "required_repair": "Identity-wide eligibility; keep all knownUUIDprojects together without absorbing unsupportedsource."
+    },
+    {
+      "priority": "P2",
+      "title": "Operator-number search predicate removed",
+      "file": "backend/src/gridlens/intelligence/customer_results.py",
+      "line": 132
+    },
+    {
+      "priority": "P2",
+      "title": "Explicit flat mode lost after URLupdates",
+      "file": "web/src/features/workspace/CanonicalOpportunityResults.tsx",
+      "line": 29
+    },
+    {
+      "priority": "P2",
+      "title": "Sector changes can leave invisible active filters",
+      "file": "web/src/features/workspace/ProjectResults.tsx",
+      "line": 327
+    },
+    {
+      "priority": "P2",
+      "title": "API count unit mislabels presentation groups",
+      "file": "backend/src/gridlens/intelligence/customer_results.py",
+      "line": 434
+    }
+  ],
+  "positive_checks": [
+    "Full-cohort parent selection precedesLIMIT/OFFSET",
+    "Filter/sort context bound to tokens/cache",
+    "Policy/input/clock fences retained",
+    "Project-scoped suppression filtering retained",
+    "ExactUTF8 namecomparison and explicituncertainty"
+  ],
+  "observed_validation": {
+    "browser": "173passed9failed before repairs; mix of realbugs/oldfixtureassertions",
+    "backend": "Fullgate pending withfailuremarker; notaccepted",
+    "retained_probe": "Read-only source-bound selectedgeneration analysis only"
+  },
+  "production_certification": false,
+  "remaining": [
+    "Replacement exactSHAreview",
+    "Passing backend+browsergates",
+    "Mixed-identity andcross-sector regressions",
+    "No native retained/live browser orproductiontiming acceptance"
+  ]
+}

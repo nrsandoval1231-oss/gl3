@@ -22,10 +22,33 @@ _ASSET = """CASE
 _ASSET_B = _ASSET.replace("compact", "b.compact").replace("project_id", "b.project_id")
 
 
-def _cohort(session, *, search: str | None, sector: str, sort: str, selected_generation=None):
+def _cohort(
+    session,
+    *,
+    search: str | None,
+    sector: str,
+    sort: str,
+    region: str | None = None,
+    stage: str | None = None,
+    priority: str | None = None,
+    selected_generation=None,
+):
     generation = selected_generation or current_generation(session)
     term = (search or "").strip().casefold()
-    payload: list[Any] = [str(generation.id), generation.digest, sector, sort, term, "", True, []]
+    payload: list[Any] = [
+        "customer-rollup-v2-tdlr-owner-namebucket",
+        str(generation.id),
+        generation.digest,
+        sector,
+        sort,
+        term,
+        region or "",
+        stage or "",
+        priority or "",
+        "",
+        True,
+        [],
+    ]
     token = "p1_" + hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode()).hexdigest()
     return generation, term, token
 
@@ -53,27 +76,104 @@ def _disable_jit_for_search(session, term: str) -> None:
 def _query_parts(generation, term, sector):
     clauses = ["b.generation_id = :generation"]
     params: dict[str, Any] = {"generation": generation.id, "term": term}
-    if term:
-        clauses.append(
-            "(strpos(b.search_text, :term) > 0 OR "
-            "strpos(lower(coalesce(b.compact->>'browse_title','')), :term) > 0 OR "
-            "strpos(lower(coalesce(b.compact->>'name','')), :term) > 0 OR "
-            "strpos(lower(coalesce(b.compact #>> '{project_metadata,operator}','')), :term) > 0 OR "
-            "strpos(lower(coalesce(b.compact #>> "
-            "'{project_metadata,oil_gas,operator_number}','')), :term) > 0 OR "
-            "EXISTS (SELECT 1 FROM browse_customer_memberships cm "
-            "WHERE cm.generation_id=b.generation_id AND cm.project_id=b.project_id "
-            "AND lower(cm.role) NOT IN ('contractor','general_contractor','epc','subcontractor') "
-            "AND strpos(lower(cm.organization_name), :term) > 0) OR "
-            "EXISTS (SELECT 1 FROM browse_unresolved_customers uc "
-            "WHERE uc.generation_id=b.generation_id AND uc.project_id=b.project_id "
-            "AND strpos(lower(uc.organization_name), :term) > 0))"
-        )
     if sector == "oil_gas":
         clauses.append("b.compact #>> '{project_metadata,sector}' = 'oil_gas'")
     elif sector == "data_centers":
         clauses.append("b.compact #>> '{project_metadata,sector}' = 'data_centers'")
     return " AND ".join(clauses), params
+
+
+def _group_filter(*, term, region, stage, priority, alias="g"):
+    """Select whole customer groups through any matching member project."""
+    clauses = ["TRUE"]
+    params: dict[str, Any] = {"term": term}
+    # Qualify from set-based group-key subqueries.  The previous correlated
+    # form walked assigned members and re-evaluated an all_rows project-id
+    # lookup for each candidate group/member.  These independent keysets keep
+    # the established any-member semantics while allowing PostgreSQL to build
+    # each matching set once.  Predicates intentionally remain separate:
+    # search, region, and stage may match different children of one group.
+    member_asset_projects = "SELECT DISTINCT ar.asset_key, ar.project_id FROM all_rows ar"
+    if region:
+        clauses.append(
+            f"{alias}.group_key IN (SELECT DISTINCT fa.group_key "
+            "FROM assigned fa JOIN (" + member_asset_projects + ") ar "
+            "ON ar.asset_key=fa.asset_key JOIN browse_rows fb "
+            "ON fb.generation_id=:generation AND fb.project_id=ar.project_id "
+            "WHERE fb.compact->>'location'=:region)"
+        )
+        params["region"] = region
+    if stage:
+        clauses.append(
+            f"{alias}.group_key IN (SELECT DISTINCT fa.group_key "
+            "FROM assigned fa JOIN (" + member_asset_projects + ") ar "
+            "ON ar.asset_key=fa.asset_key JOIN browse_rows fb "
+            "ON fb.generation_id=:generation AND fb.project_id=ar.project_id "
+            "WHERE fb.compact #>> '{project_metadata,event,kind}'=:stage)"
+        )
+        params["stage"] = stage
+    if priority == "ranked":
+        clauses.append(
+            f"{alias}.priority_score IS NOT NULL"
+            if alias == "g"
+            else f"EXISTS (SELECT 1 FROM assigned pf WHERE pf.group_key={alias}.group_key "
+            "AND pf.priority_score IS NOT NULL)"
+        )
+    elif priority == "unranked":
+        clauses.append(
+            f"{alias}.priority_score IS NULL"
+            if alias == "g"
+            else f"NOT EXISTS (SELECT 1 FROM assigned pf WHERE pf.group_key={alias}.group_key "
+            "AND pf.priority_score IS NOT NULL)"
+        )
+    if term:
+        name_column = "group_name" if alias == "a" else "name"
+        clauses.append(
+            f"(strpos(lower(coalesce({alias}.{name_column},'')), :term) > 0 OR "
+            f"{alias}.group_key IN (SELECT DISTINCT sa.group_key "
+            "FROM assigned sa JOIN (" + member_asset_projects + ") ar "
+            "ON ar.asset_key=sa.asset_key JOIN browse_rows sb "
+            "ON sb.generation_id=:generation AND sb.project_id=ar.project_id "
+            "WHERE ("
+            "strpos(sb.search_text,:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact->>'browse_title','')),:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact->>'name','')),:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact #>> '{project_metadata,title}','')),:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact #>> '{project_metadata,name}','')),:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact #>> '{project_metadata,operator}','')),:term)>0 OR "
+            "strpos(lower(coalesce(sb.compact #>> "
+            "'{project_metadata,oil_gas,operator_number}','')),:term)>0 OR "
+            "EXISTS (SELECT 1 FROM browse_customer_memberships cm "
+            "WHERE cm.generation_id=sb.generation_id AND cm.project_id=sb.project_id "
+            "AND lower(cm.role) NOT IN ('contractor','general_contractor','epc','subcontractor') "
+            "AND strpos(lower(cm.organization_name),:term)>0) OR "
+            "EXISTS (SELECT 1 FROM browse_unresolved_customers uc "
+            "WHERE uc.generation_id=sb.generation_id AND uc.project_id=sb.project_id "
+            "AND strpos(lower(uc.organization_name),:term)>0))))"
+        )
+    return " AND ".join(clauses), params
+
+
+def _facets(session, generation, sector):
+    where, params = _query_parts(generation, "", sector)
+    row = (
+        session.execute(
+            text(
+                "SELECT coalesce(array_agg(DISTINCT nullif(b.compact->>'location','') "
+                "ORDER BY nullif(b.compact->>'location','')) FILTER "
+                "(WHERE nullif(b.compact->>'location','') IS NOT NULL), ARRAY[]::text[]) regions, "
+                "coalesce(array_agg(DISTINCT nullif(b.compact #>> "
+                "'{project_metadata,event,kind}','') ORDER BY nullif(b.compact #>> "
+                "'{project_metadata,event,kind}','')) FILTER (WHERE nullif(b.compact #>> "
+                "'{project_metadata,event,kind}','') IS NOT NULL), ARRAY[]::text[]) stages "
+                "FROM browse_rows b WHERE " + where
+            ),
+            params,
+        )
+        .mappings()
+        .one()
+    )
+    return {"regions": row["regions"], "stages": row["stages"]}
 
 
 def _ctes(where: str) -> str:
@@ -89,7 +189,7 @@ def _ctes(where: str) -> str:
       SELECT %%ASSET%% AS asset_key, b.project_id, b.need_id, b.compact,
              b.rank_score, b.updated_at
       FROM browse_rows b JOIN candidate_assets c ON c.asset_key = %%ASSET%%
-      WHERE b.generation_id = :generation
+      WHERE %%WHERE%%
     ),"""
     )
     return (
@@ -142,34 +242,134 @@ def _ctes(where: str) -> str:
         UNION ALL
         SELECT asset_key, organization_name FROM recorded_conflicts
       ) conflicts GROUP BY asset_key
+    ), same_name_asset_eligible AS (
+      SELECT DISTINCT r.asset_key, sm.company_id, sm.organization_name, sm.role
+      FROM all_rows r
+      JOIN single_membership sm ON sm.asset_key = r.asset_key
+      LEFT JOIN unresolved_conflicts uc ON uc.asset_key = r.asset_key
+      WHERE uc.asset_key IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM all_rows nr
+          WHERE nr.asset_key = r.asset_key
+            AND nullif(nr.compact #>> '{project_metadata,oil_gas,operator_number}', '')
+                ~ '^[0-9]+$'
+        )
+        AND sm.role = 'owner_developer'
+        AND nullif(sm.organization_name, '') IS NOT NULL
+        AND r.compact #>> '{project_metadata,sector}' = 'data_centers'
+        AND convert_to(
+          r.compact #>> '{project_metadata,data_center,owner_developer}', 'UTF8'
+        ) = convert_to(sm.organization_name, 'UTF8')
+        AND r.compact #>> '{project_metadata,event,source}' = 'texas-tdlr-tabs-data-centers'
+        AND CASE
+          WHEN jsonb_typeof(r.compact #> '{project_metadata,event,evidence_refs}') = 'array'
+          THEN jsonb_array_length(r.compact #> '{project_metadata,event,evidence_refs}') > 0
+          ELSE false
+        END
+        -- An asset may enter a presentation bucket only when every project
+        -- represented by that canonical asset meets the same strict rule.
+        AND NOT EXISTS (
+          SELECT 1 FROM all_rows nr
+          WHERE nr.asset_key = r.asset_key AND (
+            nr.compact #>> '{project_metadata,sector}' = 'data_centers'
+            AND convert_to(
+              nr.compact #>> '{project_metadata,data_center,owner_developer}', 'UTF8'
+            ) = convert_to(sm.organization_name, 'UTF8')
+            AND nr.compact #>> '{project_metadata,event,source}' = 'texas-tdlr-tabs-data-centers'
+            AND CASE
+              WHEN jsonb_typeof(nr.compact #> '{project_metadata,event,evidence_refs}') = 'array'
+              THEN jsonb_array_length(nr.compact #> '{project_metadata,event,evidence_refs}') > 0
+              ELSE false
+            END
+          ) IS NOT TRUE
+        )
+    ), same_name_eligible AS (
+      -- Require every asset attached to this company UUID to be eligible.
+      -- This prevents a good TDLR project from pulling unsupported siblings
+      -- into the same-name display collection.
+      SELECT candidate.* FROM same_name_asset_eligible candidate
+      WHERE NOT EXISTS (
+        SELECT 1 FROM assets ca
+        JOIN single_membership csm ON csm.asset_key = ca.asset_key
+        WHERE csm.company_id = candidate.company_id
+          AND NOT EXISTS (
+            SELECT 1 FROM same_name_asset_eligible eligible
+            WHERE eligible.asset_key = ca.asset_key
+              AND eligible.company_id = csm.company_id
+              AND eligible.role = candidate.role
+              AND convert_to(eligible.organization_name, 'UTF8') =
+                  convert_to(candidate.organization_name, 'UTF8')
+          )
+      )
+    ), same_name_bucket_defs AS (
+      SELECT convert_to(organization_name, 'UTF8') AS organization_name_bytes, role,
+             min(organization_name) AS organization_name,
+             count(DISTINCT company_id)::integer AS identity_count
+      FROM same_name_eligible
+      GROUP BY convert_to(organization_name, 'UTF8'), role
+      HAVING count(DISTINCT company_id) > 1
+    ), same_name_bucket_assets AS (
+      SELECT DISTINCT e.asset_key,
+             'namebucket:' || e.role || ':' || encode(e.organization_name_bytes, 'hex')
+               AS display_key,
+             d.identity_count
+      FROM (
+        SELECT e.*, convert_to(e.organization_name, 'UTF8') AS organization_name_bytes
+        FROM same_name_eligible e
+      ) e
+      JOIN same_name_bucket_defs d
+        USING (organization_name_bytes, role)
     ), assigned AS (
       SELECT a.*, sm.company_id, sm.organization_name, sm.role AS membership_role,
              uc.organization_name AS unresolved_name,
-        CASE WHEN uc.asset_key IS NOT NULL THEN 'conflict:' || a.asset_key
+             nb.display_key AS display_container_key, nb.identity_count,
+        CASE WHEN nb.display_key IS NOT NULL THEN nb.display_key
+             WHEN uc.asset_key IS NOT NULL THEN 'conflict:' || a.asset_key
              WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'
                THEN 'rrc:' || r.operator_number
              WHEN sm.company_id IS NOT NULL THEN 'company:' || sm.company_id
              ELSE 'unresolved:' || a.asset_key END AS group_key,
+        CASE WHEN uc.asset_key IS NOT NULL THEN 'conflict:' || a.asset_key
+             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'
+               THEN 'rrc:' || r.operator_number
+             WHEN sm.company_id IS NOT NULL THEN 'company:' || sm.company_id
+             ELSE 'unresolved:' || a.asset_key END AS identity_key,
         CASE WHEN uc.asset_key IS NOT NULL
              THEN coalesce(nullif(r.project_title, ''), nullif(r.browse_title, ''),
                   'Unresolved project')
+             WHEN nb.display_key IS NOT NULL THEN sm.organization_name
              WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'
                THEN coalesce(nullif(r.operator_name, ''), 'RRC operator ' || r.operator_number)
              WHEN sm.company_id IS NOT NULL THEN sm.organization_name
              ELSE coalesce(nullif(r.project_title, ''), nullif(r.browse_title, ''),
                     'Unresolved project') END AS group_name,
-        CASE WHEN uc.asset_key IS NOT NULL THEN 'unresolved'
+        CASE WHEN nb.display_key IS NOT NULL THEN 'unresolved'
+             WHEN uc.asset_key IS NOT NULL THEN 'unresolved'
              WHEN nullif(r.operator_number, '') ~ '^[0-9]+$' THEN 'operator'
              WHEN sm.company_id IS NOT NULL AND lower(sm.role) LIKE '%operator%'
              THEN 'operator' WHEN sm.company_id IS NOT NULL THEN 'customer'
              ELSE 'unresolved' END AS group_role,
+        CASE WHEN nb.display_key IS NOT NULL THEN 'same_name_unconfirmed'
+             WHEN uc.asset_key IS NOT NULL THEN 'unresolved'
+             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$' OR sm.company_id IS NOT NULL
+               THEN 'resolved_identity'
+             ELSE 'unresolved' END AS group_kind,
         coalesce(nullif(r.sector, ''), 'unknown') AS sector
       FROM assets a JOIN representatives r USING (asset_key)
       LEFT JOIN single_membership sm USING (asset_key)
       LEFT JOIN unresolved_conflicts uc USING (asset_key)
+      LEFT JOIN same_name_bucket_assets nb USING (asset_key)
     ), grouped AS (
       SELECT group_key, (array_agg(group_name ORDER BY group_name))[1] AS name,
         (array_agg(group_role ORDER BY group_role))[1] AS role,
+        CASE WHEN bool_or(group_kind = 'same_name_unconfirmed')
+             THEN 'same_name_unconfirmed'
+             WHEN bool_or(group_kind = 'resolved_identity') THEN 'resolved_identity'
+             ELSE 'unresolved' END AS group_kind,
+        CASE WHEN bool_or(group_kind = 'same_name_unconfirmed')
+             THEN max(identity_count)
+             WHEN bool_or(group_kind = 'resolved_identity') THEN 1
+             ELSE NULL END AS identity_count,
         max(priority_score)::integer AS priority_score,
         count(*)::integer AS project_count, sum(need_count)::integer AS need_count,
         array_agg(DISTINCT sector ORDER BY sector) AS sectors,
@@ -202,27 +402,51 @@ def groups(
     offset=0,
     token=None,
     sort="priority",
+    region=None,
+    stage=None,
+    priority=None,
     selected_generation=None,
 ):
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
+    if sort not in {"priority", "priority_asc", "company", "updated"}:
+        raise HTTPException(422, "Unsupported customer sort")
+    if priority not in {None, "ranked", "unranked"}:
+        raise HTTPException(422, "priority must be ranked or unranked")
     generation, term, cohort = _cohort(
-        session, search=search, sector=sector, sort=sort, selected_generation=selected_generation
+        session,
+        search=search,
+        sector=sector,
+        sort=sort,
+        region=region,
+        stage=stage,
+        priority=priority,
+        selected_generation=selected_generation,
     )
     _validate_token(token, cohort, offset)
     _disable_jit_for_search(session, term)
-    where, params = _query_parts(generation, term, sector)
-    order = (
-        "priority_score DESC, name, group_key"
-        if sort == "priority"
-        else "updated_at DESC, group_key"
+    # Search qualifies whole groups below; keep every member in the aggregate
+    # so counts and child serialization remain complete when one project hits.
+    where, params = _query_parts(generation, "", sector)
+    order = {
+        "priority": "priority_score DESC NULLS LAST, name, group_key",
+        "priority_asc": "priority_score ASC NULLS LAST, name, group_key",
+        "company": "lower(name), group_key",
+        "updated": "updated_at DESC NULLS LAST, group_key",
+    }[sort]
+    selected, selected_params = _group_filter(
+        term=term, region=region, stage=stage, priority=priority
     )
+    params.update(selected_params)
+    params["generation"] = generation.id
     sql = _ctes(where)
     rows = (
         session.execute(
             text(
                 sql
-                + " SELECT grouped.*, count(*) OVER() AS total FROM grouped "
+                + " SELECT g.*, count(*) OVER() AS total FROM grouped g WHERE "
+                + selected
+                + " "
                 + f"ORDER BY {order} LIMIT :limit OFFSET :offset"
             ),
             {**params, "limit": limit, "offset": min(offset, generation.row_count)},
@@ -238,12 +462,16 @@ def groups(
     else:
         # An empty page may be out of range or an empty cohort. Keep the count
         # query for this uncommon case so totals remain exact.
-        total = session.execute(text(sql + " SELECT count(*) FROM grouped"), params).scalar_one()
+        total = session.execute(
+            text(sql + " SELECT count(*) FROM grouped g WHERE " + selected), params
+        ).scalar_one()
     items = [
         {
             "id": _group_id(row["group_key"]),
             "name": row["name"],
             "role": row["role"],
+            "group_kind": row["group_kind"],
+            "identity_count": row["identity_count"],
             "project_count": row["project_count"],
             "need_count": row["need_count"],
             "priority_score": row["priority_score"],
@@ -253,37 +481,58 @@ def groups(
     ]
     return {
         "items": items,
-        "count_unit": "operators and customers",
+        "count_unit": "groups",
         "total": total,
         "limit": limit,
         "offset": offset,
         "cohort_token": cohort,
         "generation": str(generation.id),
+        "facets": _facets(session, generation, sector),
         **_snapshot_metadata(generation),
     }
 
 
 def group_metadata(
-    session, group_id: str, *, search=None, sector="all", sort="priority", selected_generation=None
+    session,
+    group_id: str,
+    *,
+    search=None,
+    sector="all",
+    sort="priority",
+    region=None,
+    stage=None,
+    priority=None,
+    selected_generation=None,
 ):
     """Resolve one group against the entire filtered cohort without paging headers."""
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
     generation, term, _ = _cohort(
-        session, search=search, sector=sector, sort=sort, selected_generation=selected_generation
+        session,
+        search=search,
+        sector=sector,
+        sort=sort,
+        region=region,
+        stage=stage,
+        priority=priority,
+        selected_generation=selected_generation,
     )
-    where, params = _query_parts(generation, term, sector)
+    where, params = _query_parts(generation, "", sector)
     sql = _ctes(where)
+    selected, selected_params = _group_filter(
+        term=term, region=region, stage=stage, priority=priority
+    )
     row = (
         session.execute(
             text(
                 sql
                 + """
-                SELECT group_key, name, role, project_count, need_count, priority_score, sectors
-                FROM grouped WHERE 'cg_' || md5(group_key) = :id
-                """
+                SELECT group_key, name, role, group_kind, identity_count, project_count,
+                       need_count, priority_score, sectors
+                FROM grouped g WHERE 'cg_' || md5(group_key) = :id AND """
+                + selected
             ),
-            {**params, "id": group_id},
+            {**params, "id": group_id, "generation": generation.id, **selected_params},
         )
         .mappings()
         .first()
@@ -294,6 +543,8 @@ def group_metadata(
         "id": _group_id(row["group_key"]),
         "name": row["name"],
         "role": row["role"],
+        "group_kind": row["group_kind"],
+        "identity_count": row["identity_count"],
         "project_count": row["project_count"],
         "need_count": row["need_count"],
         "priority_score": row["priority_score"],
@@ -312,12 +563,26 @@ def group_projects(
     token=None,
     parent_token=None,
     sort="priority",
+    region=None,
+    stage=None,
+    priority=None,
     selected_generation=None,
 ):
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
+    if sort not in {"priority", "priority_asc", "company", "updated"}:
+        raise HTTPException(422, "Unsupported customer sort")
+    if priority not in {None, "ranked", "unranked"}:
+        raise HTTPException(422, "priority must be ranked or unranked")
     generation, term, cohort = _cohort(
-        session, search=search, sector=sector, sort=sort, selected_generation=selected_generation
+        session,
+        search=search,
+        sector=sector,
+        sort=sort,
+        region=region,
+        stage=stage,
+        priority=priority,
+        selected_generation=selected_generation,
     )
     if parent_token is None:
         raise HTTPException(422, "parent_cohort_token is required for customer projects")
@@ -326,21 +591,32 @@ def group_projects(
     group_token = cohort + ".group." + hashlib.sha256(group_id.encode()).hexdigest()[:16]
     _validate_token(token, group_token, offset)
     _disable_jit_for_search(session, term)
-    where, params = _query_parts(generation, term, sector)
+    where, params = _query_parts(generation, "", sector)
     sql = _ctes(where)
     # Resolve the opaque group id using built-in PostgreSQL md5 and collect only
     # the requested asset page's anchor project IDs for the shared serializer.
-    child_order = "a.priority_score DESC" if sort == "priority" else "a.updated_at DESC"
+    child_order = {
+        "priority": "a.priority_score DESC NULLS LAST, a.updated_at DESC NULLS LAST",
+        "priority_asc": "a.priority_score ASC NULLS LAST, a.updated_at DESC NULLS LAST",
+        "company": "lower(a.group_name), a.asset_key",
+        "updated": "a.updated_at DESC NULLS LAST",
+    }[sort]
+    selected, selected_params = _group_filter(
+        term=term, region=region, stage=stage, priority=priority, alias="a"
+    )
+    params.update(selected_params)
+    params["generation"] = generation.id
     rows = (
         session.execute(
             text(
                 sql
                 + f"""
-          SELECT a.anchor_project_id, a.asset_key, a.group_name, a.group_role,
+          SELECT a.anchor_project_id, a.asset_key, a.company_id, a.group_name, a.group_role,
+                 a.group_kind, a.identity_count,
                  a.priority_score, a.need_count, a.sector, a.updated_at,
                  count(*) OVER() AS total
           FROM assigned a
-          WHERE 'cg_' || md5(a.group_key) = :id
+          WHERE 'cg_' || md5(a.group_key) = :id AND {selected}
           ORDER BY {child_order}, a.asset_key
           LIMIT :limit OFFSET :offset
         """
@@ -358,10 +634,9 @@ def group_projects(
         count = session.execute(
             text(
                 sql
-                + """
-              SELECT count(*) FROM assigned a
-              WHERE 'cg_' || md5(a.group_key) = :id
-            """
+                + "SELECT count(*) FROM assigned a "
+                + "WHERE 'cg_' || md5(a.group_key) = :id AND "
+                + selected
             ),
             {**params, "id": group_id},
         ).scalar_one()
@@ -383,6 +658,16 @@ def group_projects(
         if project_ids
         else {"items": [], "generation": str(generation.id)}
     )
+    customer_identity_by_anchor = {str(row["anchor_project_id"]): row["company_id"] for row in rows}
+    for item in serialized["items"]:
+        item["customer_identity_id"] = next(
+            (
+                customer_identity_by_anchor[project_id]
+                for project_id in item["project_ids"]
+                if project_id in customer_identity_by_anchor
+            ),
+            None,
+        )
     return {
         "items": serialized["items"],
         "count_unit": "projects",
@@ -396,5 +681,135 @@ def group_projects(
             "id": group_id,
             "name": rows[0]["group_name"] if rows else "",
             "role": rows[0]["group_role"] if rows else "unresolved",
+            "group_kind": rows[0]["group_kind"] if rows else "unresolved",
+            "identity_count": rows[0]["identity_count"] if rows else None,
         },
+    }
+
+
+def group_open(
+    session,
+    group_id: str,
+    *,
+    search=None,
+    sector="all",
+    limit=25,
+    sort="priority",
+    region=None,
+    stage=None,
+    priority=None,
+    selected_generation=None,
+):
+    """Load a group header and its first project page in one cohort pass."""
+    if sector not in {"all", "oil_gas", "data_centers"}:
+        raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
+    if sort not in {"priority", "priority_asc", "company", "updated"}:
+        raise HTTPException(422, "Unsupported customer sort")
+    if priority not in {None, "ranked", "unranked"}:
+        raise HTTPException(422, "priority must be ranked or unranked")
+    generation, term, cohort = _cohort(
+        session,
+        search=search,
+        sector=sector,
+        sort=sort,
+        region=region,
+        stage=stage,
+        priority=priority,
+        selected_generation=selected_generation,
+    )
+    _disable_jit_for_search(session, term)
+
+    # Build assignments for the complete sector cohort. Search, region, and
+    # stage then qualify the group independently through member keysets;
+    # they do not trim the group before its full child list is paginated.
+    where, params = _query_parts(generation, "", sector)
+    selected, selected_params = _group_filter(
+        term=term, region=region, stage=stage, priority=priority
+    )
+    params.update(selected_params)
+    params.update({"generation": generation.id, "id": group_id, "limit": limit})
+    child_order = {
+        "priority": "a.priority_score DESC NULLS LAST, a.updated_at DESC NULLS LAST",
+        "priority_asc": "a.priority_score ASC NULLS LAST, a.updated_at DESC NULLS LAST",
+        "company": "lower(a.group_name), a.asset_key",
+        "updated": "a.updated_at DESC NULLS LAST, a.asset_key",
+    }[sort]
+    rows = (
+        session.execute(
+            text(
+                _ctes(where)
+                + f"""
+          SELECT g.group_key, g.name, g.role, g.group_kind, g.identity_count,
+                 g.project_count, g.need_count, g.priority_score, g.sectors,
+                 a.anchor_project_id, a.asset_key, a.company_id, a.group_name,
+                 a.group_role, a.group_kind AS asset_group_kind,
+                 a.identity_count AS asset_identity_count,
+                 a.priority_score AS asset_priority_score, a.need_count AS asset_need_count,
+                 a.sector AS asset_sector, a.updated_at AS asset_updated_at,
+                 count(*) OVER() AS child_total
+          FROM grouped g JOIN assigned a ON a.group_key = g.group_key
+          WHERE 'cg_' || md5(g.group_key) = :id AND {selected}
+          ORDER BY {child_order}, a.asset_key
+          LIMIT :limit
+        """
+            ),
+            params,
+        )
+        .mappings()
+        .all()
+    )
+    if not rows:
+        raise HTTPException(404, "Customer group not found in this cohort")
+
+    project_ids = [UUID(row["anchor_project_id"]) for row in rows]
+    serialized = project_page(
+        session,
+        search=None,
+        sector=sector,
+        limit=max(1, len(project_ids)),
+        offset=0,
+        sort=sort,
+        include_signals=True,
+        project_ids=project_ids,
+        selected_generation=generation,
+    )
+    customer_identity_by_anchor = {str(row["anchor_project_id"]): row["company_id"] for row in rows}
+    for item in serialized["items"]:
+        item["customer_identity_id"] = next(
+            (
+                customer_identity_by_anchor[project_id]
+                for project_id in item["project_ids"]
+                if project_id in customer_identity_by_anchor
+            ),
+            None,
+        )
+
+    first = rows[0]
+    group = {
+        "id": _group_id(first["group_key"]),
+        "name": first["name"],
+        "role": first["role"],
+        "group_kind": first["group_kind"],
+        "identity_count": first["identity_count"],
+        "project_count": first["project_count"],
+        "need_count": first["need_count"],
+        "priority_score": first["priority_score"],
+        "sectors": first["sectors"],
+    }
+    group_token = cohort + ".group." + hashlib.sha256(group_id.encode()).hexdigest()[:16]
+    projects = {
+        "items": serialized["items"],
+        "count_unit": "projects",
+        "total": first["child_total"],
+        "limit": limit,
+        "offset": 0,
+        "cohort_token": group_token,
+        "generation": str(generation.id),
+        **_snapshot_metadata(generation),
+    }
+    return {
+        "group": group,
+        "projects": projects,
+        "parent_cohort_token": cohort,
+        "generation": str(generation.id),
     }

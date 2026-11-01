@@ -49,7 +49,7 @@ test('synthetic All view requests discovery so Signals render, and pagination an
     return route.fulfill({ json: pageFor(url) })
   })
 
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('heading', { name: 'Opportunities' })).toBeVisible()
   await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
