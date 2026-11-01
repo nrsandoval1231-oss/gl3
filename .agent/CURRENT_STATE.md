@@ -6,6 +6,8 @@ The earlier Phase1 reliability candidate did not implement default rollup. Defau
 
 Production prior593cfd5 restored and verified after release hold. Candidate cutover did not occur. Stale controller3858829 was identity-verified and retired bySIGKILL without resumption; preserved evidence remains outside this feature repo in task/release-preparation. Prior paired backup/restore/recovery proof passed for its exact artifact pair only.
 
-NEXT: integrate three Luna lanes, validate disposable PostgreSQL18.6/backendPython3.11 + frontend build/browser suite, inspect retained AMAZON/PECOS,DECENTRAL/STORMCHASER,Diamondback read-only samples where available, and obtain independent Astra review. All final gates UNKNOWN until recorded.
+LOCAL CANDIDATE: integrated source `d30f9e35951a9288c642fce1fd3f6c78b9e98568`; product source unchanged from independently reviewed70c9646 except the assertion-preserving deterministic clock test fixture. Default grouped navigation, global cohort controls, safe identity keys and explicit unconfirmed source-name containers implemented. All project details/evidence/contacts remain separate. [Validation report](../docs/validation/customer-rollup-20261031.md).
+
+GATES: full backend3,695pass/2declaredskip/7subtests in196.53s; browser184pass plus phone namegroup1pass; nativeCompose1pass; focusedgrouped25pass; static/type/build/audits/schema/doclinks passed. Independent Astra exact-candidate review PASS, no blocking findings. No production, publication or merge action. NEXT: hand off accepted local branch and preserved evidence; keep release held pending separate owner instructions.
 
 Limits: earlier unexplained480s local timeout and ingestion catch-up gaps unresolved; no new release/readiness claim. Prior checkpoint bytes retained in archive/CUSTOMER-ROLLUP-20261031/.

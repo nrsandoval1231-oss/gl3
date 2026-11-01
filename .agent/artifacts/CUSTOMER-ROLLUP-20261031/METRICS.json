@@ -1,7 +1,7 @@
 {
   "task_id": "CUSTOMER-ROLLUP-20261031",
   "started_utc": "2026-10-31T23:05:27Z",
-  "finished_utc": null,
+  "finished_utc": "2026-11-01T00:00:39.691273+00:00",
   "lane": "full",
   "model": null,
   "config_identity": "Lead runtime model not exposed; requested Sol6.1/high. Spawned worker/reviewer model IDs are recorded explicitly.",
@@ -18,7 +18,7 @@
     "backend": "gpt-6-luna/low",
     "frontend": "gpt-6-luna/low",
     "browser_tests": "gpt-6-luna/low",
-    "review": "gpt-6-astra/high pending"
+    "review": "gpt-6-astra/high independent exact-candidate review"
   },
   "tokens": {
     "input_measured": null,
@@ -31,12 +31,42 @@
       "stage": "focused integration",
       "status": "FAIL_RETAINED",
       "notes": "SQL alias integration errors and fixture setup/ordering assumptions corrected without privacy weakening; full gates pending"
+    },
+    {
+      "stage": "native Windows full backend",
+      "status": "TIMEOUT_RETAINED",
+      "timeout_seconds": 480,
+      "root_cause": "UNKNOWN"
+    },
+    {
+      "stage": "Linux nonloopback/canonicalization setup",
+      "status": "FAIL_RETAINED",
+      "notes": "Guard correctly rejected nonloopback DB; canonical Git LF archive and actual loopback topology resolved setup without guard changes"
+    },
+    {
+      "stage": "Linux preclock full",
+      "status": "FAIL_RETAINED",
+      "passed": 3694,
+      "failed": 1,
+      "skipped": 2,
+      "notes": "Existing controlled-clock fixture crossed UTC midnight preparation window; deterministic-noon fixture repair retains assertions"
+    },
+    {
+      "stage": "Linux final d30f9e3 full",
+      "status": "PASS",
+      "passed": 3695,
+      "skipped": 2,
+      "subtests_passed": 7,
+      "pytest_seconds": 196.53,
+      "wrapper_seconds": 198.91,
+      "timeout_seconds": 480
     }
   ],
   "acceptance": {
-    "status": "UNKNOWN",
-    "accepted_at_utc": null,
-    "independent_review": null
+    "status": "ACCEPTED_LOCAL",
+    "accepted_at_utc": "2026-11-01T00:00:39.691273+00:00",
+    "independent_review": "REVIEW-final.json",
+    "source_commit": "d30f9e35951a9288c642fce1fd3f6c78b9e98568"
   },
   "notes": "No elapsed-speed claim; start is owner authorization timestamp, not measured active build time."
 }

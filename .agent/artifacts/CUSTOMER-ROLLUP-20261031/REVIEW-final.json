@@ -1,0 +1,121 @@
+{
+  "verdict": "PASS",
+  "scope": "LOCAL_IMPLEMENTATION_AND_VALIDATION_ACCEPTANCE",
+  "candidate_sha": "d30f9e35951a9288c642fce1fd3f6c78b9e98568",
+  "base_sha": "e0035d9e5bfb52f92bb4d21e6de0fac16d91adff",
+  "blocking_findings": [],
+  "review_basis": "Independent inspection of the integrated diff and successive repairs, source/test paths, exact test-only clock diff, and completed gate logs. Builder summaries were not used as acceptance evidence.",
+  "resolved_findings": [
+    "Name-container eligibility preserves canonical UUID groups and requires the same exact-byte name and role across participating assets.",
+    "Nullable owner/source predicates fail eligibility through IS NOT TRUE.",
+    "Operator-number and frozen project-title/name searches retain matching groups and complete selected-sector children, including separate conflicts.",
+    "Counts describe groups; unconfirmed name containers remain explicitly labeled and contacts remain project-bound.",
+    "Explicit flat mode survives URL updates; sector transitions clear incompatible region/stage selections and retain visible out-of-facet values."
+  ],
+  "source_binding": {
+    "canonical_archive_sha256": "15cfc7e65830688d306e5351b7262df225b22beedd2230cce26f51cd59a495d6",
+    "archive_manifest_files": 2141,
+    "archive_evidence": "canonical-source-postclock.json",
+    "frontend_equivalence": "git diff 7fa20906c6386de95ce7e60a1226f64b487d4582 d30f9e35951a9288c642fce1fd3f6c78b9e98568 -- web is empty.",
+    "change_since_source_approval": "Only deterministic-noon fixture setup in test_worker_publication_diagnostics.py; all original assertions retained."
+  },
+  "gates": {
+    "full_backend": {
+      "status": "PASS",
+      "passed": 3695,
+      "skipped": 2,
+      "subtests_passed": 7,
+      "warnings": 11,
+      "pytest_seconds": 196.53,
+      "wrapper_seconds": 198.91,
+      "returncode": 0,
+      "timed_out": false,
+      "timeout_seconds": 480,
+      "evidence": [
+        "backend-full-linux-final.log",
+        "backend-full-linux-final-status.json"
+      ]
+    },
+    "focused_backend": {
+      "status": "PASS",
+      "passed": 25,
+      "seconds": 31.3,
+      "evidence": "backend-focused-accepted.log"
+    },
+    "clock_fixture": {
+      "status": "PASS",
+      "passed": 2,
+      "seconds": 3.98,
+      "evidence": "clock-fixture-focused.log"
+    },
+    "browser": {
+      "status": "PASS",
+      "passed": 184,
+      "elapsed": "1.5m",
+      "evidence": "browser-full-frozen.log"
+    },
+    "additional_phone_namegroup": {
+      "status": "PASS",
+      "passed": 1,
+      "seconds": 6.2,
+      "viewport": "390x844",
+      "evidence": "mobile-namegroup.log"
+    },
+    "native_compose_contract": {
+      "status": "PASS",
+      "passed": 1,
+      "seconds": 1.1,
+      "evidence": "native-compose-contract.log"
+    },
+    "static": {
+      "status": "PASS",
+      "format_files": 426,
+      "mypy_source_files": 190,
+      "evidence": "linux-postclock-static.log"
+    },
+    "schema": {
+      "status": "PASS",
+      "result": "No new upgrade operations detected.",
+      "evidence": "linux-postclock-schema.log"
+    },
+    "docs": {
+      "status": "PASS",
+      "documents": 94,
+      "local_targets": 371,
+      "anchors": 3,
+      "evidence": "docs-final.log"
+    },
+    "git_diff_check": "PASS"
+  },
+  "retained_projection": {
+    "status": "PASS_WITH_LIMITED_SCOPE",
+    "evidence": "retained-projection-accepted.json",
+    "source_module_windows_sha256": "7ed484698789ac1ced9ce371e7ab6c15765857b6d276748b2c0daf38d8fcb773",
+    "source_module_git_lf_sha256": "f11a0614294a45accb986fe082cf6ee40169fda213d006d7cf0e8e71117ee80e",
+    "amazon": {
+      "groups": 1,
+      "projects": 3,
+      "separate_company_uuids": 3,
+      "group_kind": "same_name_unconfirmed"
+    },
+    "de_central": {
+      "groups": 1,
+      "projects": 48
+    },
+    "diamondback": {
+      "groups": 1,
+      "projects": 159
+    },
+    "limitation": "Read-only selected-generation customer_results source-module projection. Serializer/dependencies came from a prior isolated runtime. This is not complete-artifact, runtime-policy, native browser, ingestion, or performance acceptance.",
+    "stormchaser_specific_assertion": "Not captured."
+  },
+  "remaining_limits": [
+    "Linux full-suite skips cover the optional live NC Commerce probe and unavailable Docker Compose executable; the Compose contract passed separately in the native environment.",
+    "Earlier rejected runs, native Windows timeout, and clock-sensitive failure are superseded by the final passing local run, not erased.",
+    "Earlier unexplained 480-second Windows timeout and ingestion catch-up gaps remain unresolved operational limitations.",
+    "No fresh production, deployed runtime-policy, retained-data native browser, or live performance acceptance is established.",
+    "A mixed valid-plus-NULL row fixture within one asset would improve targeted coverage of the IS NOT TRUE guard; current source is correct by inspection."
+  ],
+  "reviewer_actions": "Read-only review plus writing this requested review receipt; no database tests, product edits, production actions, publication, merge, or deployment performed by reviewer.",
+  "production_certification": false
+}

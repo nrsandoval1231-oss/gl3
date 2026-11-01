@@ -1,0 +1,8 @@
+{
+  "source_commit": "d30f9e35951a9288c642fce1fd3f6c78b9e98568",
+  "files_verified_against_git_blobs": 2141,
+  "archive_sha256": "15cfc7e65830688d306e5351b7262df225b22beedd2230cce26f51cd59a495d6",
+  "customer_results_source_unchanged_from_reviewed_70c": true,
+  "per_command_core_autocrlf": false,
+  "persistent_git_config_changed": false
+}

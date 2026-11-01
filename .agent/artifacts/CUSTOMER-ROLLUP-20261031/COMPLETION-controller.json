@@ -1,0 +1,76 @@
+{
+  "task_id": "CUSTOMER-ROLLUP-20261031",
+  "status": "ACCEPTED_LOCAL",
+  "source_commit": "d30f9e35951a9288c642fce1fd3f6c78b9e98568",
+  "product_source_reviewed_commit": "70c964608d3c1385f2289df1e8a7b36c985e6b29",
+  "branch": "fix/default-customer-rollup-20261031",
+  "base": "e0035d9e5bfb52f92bb4d21e6de0fac16d91adff",
+  "recorded_utc": "2026-11-01T00:00:07.911040+00:00",
+  "production_changed": false,
+  "published": false,
+  "merged": false,
+  "gates": {
+    "backend": {
+      "passed": 3695,
+      "skipped": 2,
+      "subtests_passed": 7,
+      "seconds": 196.53,
+      "timeout_seconds": 480,
+      "timeout": false
+    },
+    "browser": {
+      "passed": 184,
+      "elapsed_report": "1.5m",
+      "source_equivalent": true
+    },
+    "additional_phone_namegroup": 1,
+    "native_compose_contract": 1,
+    "focused_grouped_backend": 25,
+    "clock_fixture": 2,
+    "ruff": "PASS",
+    "format": "PASS426files",
+    "mypy": "PASS190files",
+    "schema": "no new upgrade operations",
+    "frontend_typecheck": "PASS",
+    "frontend_build": "PASS",
+    "dependency_audits": "PASS high-severity gate;3existing moderate npmdev advisories",
+    "docs": "94documents371targets3anchors"
+  },
+  "retained_projection": {
+    "status": "PASS_READ_ONLY_PROJECTION_ONLY",
+    "amazon_projects": 3,
+    "amazon_identity_count": 3,
+    "amazon_kind": "same_name_unconfirmed",
+    "de_central_projects": 48,
+    "diamondback_projects": 159,
+    "stormchaser_title_assertion": "NOT_CAPTURED"
+  },
+  "limits": [
+    "Prior Windows480s timeout remains unexplained",
+    "No live candidate deployment, authenticated production candidate QA, rendered page timing or runtime-policy acceptance",
+    "Known ingestion catch-up gaps unresolved",
+    "Retained probe used candidate customer_results with prior isolated runtime dependencies/serializers",
+    "Optional live NC Commerce skipped; Linux Compose skip covered by native test"
+  ],
+  "evidence_sha256": {
+    "backend-full-linux-final.log": "11570a0d30e442c566b30737a58c74fef261767c4cd531ec9d9e2c257a0a4db4",
+    "backend-full-linux-final-status.json": "234af9572ff530a09af3405348996303533c46752396b56afe32dbb92318812a",
+    "browser-full-frozen.log": "ec084314b1357881dcdbf05c152a931e70c7aa8325cb8be6964e89b6ce850dd3",
+    "backend-focused-accepted.log": "7c276c69453c90357c59a804fbf0502cbef578ca6be77c000ab978039a890759",
+    "clock-fixture-focused.log": "dbbd769cc0600da6c6ee0576875f4893048d8cef654930eb65eb42ed1a343c7c",
+    "mobile-namegroup.log": "23790a0cc74785e4f48bc0d9e9c6a9be97edaccaa3946991effc73e67c48bca8",
+    "native-compose-contract.log": "b177d053b4899de4dc8112443e10d73e772fe291a790b657bf536c54079228e5",
+    "linux-postclock-static.log": "0181a06b8053577490f4559a073b2660fdfed287f0c1ef38f33385041436f317",
+    "linux-postclock-schema.log": "3aeb66b688f7d1bc2ee20b3150f6ddefba395010cbb8072fb4f99358d3bda7cd",
+    "docs-final.log": "a76971469dab58dc2a8a4dc4ac8bfcc21025836352bf0d3c86d1ed16962408bc",
+    "retained-projection-accepted.json": "8a1805aae089079c7a9acd7d933f842c77f051161bbea24d5b67ddd555042447",
+    "canonical-source-postclock.json": "cf12109813cfd4d6d44e34b71e543f356bd233ef77423b56d0e7577494ec919b",
+    "REVIEW-final.json": "02b3993a5c583d69f6f48cd2b1589485456cb54e84515fac3f511833dbe35807"
+  },
+  "independent_review": {
+    "verdict": "PASS",
+    "candidate_sha": "d30f9e35951a9288c642fce1fd3f6c78b9e98568",
+    "blocking_findings": 0,
+    "receipt": "REVIEW-final.json"
+  }
+}

@@ -18,12 +18,30 @@ Read-only candidate-source projection analysis against an existing network-isola
 | DE CENTRAL OPERATING, LLC | 1 | 48 | Resolved RRC operator102879 |
 | DIAMONDBACK E&P LLC | 1 | 159 | Resolved RRC operator217012 |
 
-All child pages were traversed and their IDs checked for uniqueness. The probe executed a read-only transaction with an explicitly selected frozen generation; it is projection analysis, not candidate runtime-policy, browser, ingestion or production acceptance. Total probe time included all parent/child requests: Amazon0.527s, DE CENTRAL7.620s, Diamondback19.279s. These are neither native rendered-page timing nor a live latency guarantee. The isolated snapshot was not rewritten.
+All child pages were traversed and their IDs checked for uniqueness. The probe executed a read-only transaction with an explicitly selected frozen generation; it is projection analysis, not candidate runtime-policy, browser, ingestion or production acceptance. Total probe time included all parent/child requests: Amazon0.618s, DE CENTRAL15.296s, Diamondback36.668s. These are neither native rendered-page timing nor a live latency guarantee. The isolated snapshot was not rewritten. DE CENTRAL company membership was checked; a separate STORMCHASER title-specific assertion was not captured. The accepted module byte hash is `7ed484698789ac1ced9ce371e7ab6c15765857b6d276748b2c0daf38d8fcb773` (Windows checkout); its canonical Git LF hash is `f11a0614294a45accb986fe082cf6ee40169fda213d006d7cf0e8e71117ee80e`.
 
 ## Validation status
 
-Final exact-candidate full backend/browser gates and independent Astra review are being recorded locally. Initial focused runs exposed SQL alias integration errors and fixture mistakes (raw63rows include a separate conflicted project; alphabetical order; normal refetch after Back). Failures were retained rather than represented as passing. Final gate totals and reviewer outcome will be updated before handoff.
+Product source was independently reviewed at `70c964608d3c1385f2289df1e8a7b36c985e6b29`. Exact backend validation candidate `d30f9e35951a9288c642fce1fd3f6c78b9e98568` adds only a deterministic test-clock fixture, with every original assertion retained. The 2,141-file canonical source archive was checked against Git blobs; SHA256 `15cfc7e65830688d306e5351b7262df225b22beedd2230cce26f51cd59a495d6`. The archive uses canonical LF bytes without changing persistent Git settings.
 
-Locked frontend typecheck/build, Ruff/format, mypy, schema check and documentation links have passed at their recorded checkpoints. Node22.23.4 and Python3.11.16 are used; PostgreSQL18.6 databases are new/disposable and loopback-only. The npm high-severity audit gate passes with three pre-existing moderate development-tool advisories; dependencies are unchanged by this feature.
+| Gate | Result |
+|---|---|
+| Full backend, Python3.11.17 / PostgreSQL18.6, four workers, 480s bound | 3,695 passed, 2 skipped, 7 subtests; 196.53s (wrapper198.91s), no timeout |
+| Focused grouped API/search/identity/query-budget integration | 25 passed, 31.30s |
+| Deterministic publication fixture, both parameters | 2 passed, 3.98s |
+| Full browser regression, verified Node22.23.4 | 184 passed, 1.5m |
+| Additional same-name group/detail/Back on phone390x844 | 1 passed, 6.2s; captured frame visually inspected |
+| Native Docker Compose contract | 1 passed, 1.10s |
+| Ruff / format / mypy | Passed; 426 formatted files, 190 typed source files |
+| Schema compatibility | Alembic check: no new upgrade operations, schema0049 |
+| Frontend typecheck and production build | Passed; frontend unchanged since full browser gate |
+| Locked dependency audits | pip-audit: no known vulnerabilities; npm high-severity gate passed, three existing moderate dev-tool advisories |
+| Independent Astra/high review | PASS: exact d30f9e3 local implementation/validation, no blocking findings |
+
+The Linux image lacks the Docker Compose executable, so that case is covered by the native one-test gate; the other declared backend skip is an explicitly optional live NC Commerce probe. Browser coverage includes actual local authentication/expiry, default navigation, full-cohort grouping/filter/sort/pagination, expansion, loading/error/503/cohort reset, details/Back and desktop/phone layouts. Retained snapshot projection is separate from these synthetic local browser tests.
+
+Failure history is retained. Initial integration and identity/UI review findings were corrected, not hidden. Native Windows full backend validation exceeded480s for an unexplained reason. A Linux attempt correctly failed the nonloopback database guard; it also exposed CRLF shell bytes from the Windows archive. These were corrected through genuine loopback topology and a byte-verified canonical archive, with no guard weakening. The next full run produced3,694pass/1fail/2skip: a pre-existing fixture crossed the UTC midnight preparation window. Freezing its controlled clock at noon before initial generation construction fixes the fixture; application behavior and assertions are unchanged. The final post-fix full run passed3,695 tests plus7subtests with2declared skips in196.53s (wrapper198.91s), without timeout.
+
+Logs and receipts are in `.agent/artifacts/CUSTOMER-ROLLUP-20261031/`. Historical builder receipts describe their own checkpoints and are superseded only by the final controller completion and independent review receipts.
 
 No production release or new live browser QA has occurred for this branch. Prior production `593cfd5` remains restored; the stale release controller was retired. Earlier unexplained480s local timeout and ingestion catch-up gaps remain unresolved limitations.
