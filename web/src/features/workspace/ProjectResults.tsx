@@ -185,7 +185,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     if (rawPriority !== null && !['ranked', 'unranked'].includes(rawPriority)) { params.delete('priority'); changed = true }
     if (changed) history.replaceState(history.state, '', `/?${params}`)
   }, [])
-  const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers', r = region, st = stage, p = priority, so = sort) => { parentReloadNotice.current = false; resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); setNotice(''); setSearchDraft(q); setSearch(q); setSector(s); setRegion(r); setStage(st); setPriority(p); setSort(so); setOffset(0); updateUrl(q, s, 0, undefined, r, st, p, so) }
+  const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers', r = region, st = stage, p = priority, so = sort) => { parentReloadNotice.current = false; resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); if (s !== sector) window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: s })); setNotice(''); setSearchDraft(q); setSearch(q); setSector(s); setRegion(r); setStage(st); setPriority(p); setSort(so); setOffset(0); updateUrl(q, s, 0, undefined, r, st, p, so) }
   const requestedKey = browseKey({ search, sector, offset, region, stage, priority, sort })
   const currentPage = pageKey === requestedKey && browsePageIsValid(page) ? page : null
   const previousPage = pageKey !== requestedKey && browsePageIsValid(page) ? page : null
@@ -321,7 +321,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   }
   const previousContext = previousPage ? `Showing prior operator/customer summaries for ${pageKeyContext(pageKey)} while the requested view loads. Expansion and project details are paused.${notice.toLowerCase().includes('still being prepared') ? ' The current cohort is still being prepared.' : ''}` : ''
   return <section className="project-results" aria-label="Project opportunities" aria-busy={busy}>
-    <header className="project-results-header"><div className="project-results-title"><h1>Search opportunities</h1><button type="button" aria-label="Refresh project results" disabled={loading} onClick={() => setRetryKey(value => value + 1)}>Refresh</button></div>
+    <header className="project-results-header"><div className="project-results-title"><h1>Search opportunities</h1><button type="button" aria-label="Refresh project results" disabled={loading} onClick={() => { window.dispatchEvent(new Event('gl3-demand-refresh')); setRetryKey(value => value + 1) }}>Refresh</button></div>
       <label><span className="project-search-label">Search opportunities</span><input aria-label="Search opportunities" placeholder="Project, operator, well or location" value={searchDraft} onChange={e => { setSearchDraft(e.target.value); updateUrl(e.target.value, sector) }}/></label>
     </header>
     <nav className="project-sector-tabs" aria-label="Project type">{([['all','All'],['oil_gas','Oil & Gas'],['data_centers','Data Centers']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={sector === value} onClick={() => setFilter(searchDraft, value, '', '', priority)}>{label}</button>)}</nav>

@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const need = {
@@ -16,6 +17,7 @@ const workspaceResponse = (items: readonly unknown[] = [need]) => ({ items, tota
 
 async function authenticated(page: import('@playwright/test').Page) {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
 }
 
 function opportunityHeaders(token: string, offset: number, nextOffset: number | null) {

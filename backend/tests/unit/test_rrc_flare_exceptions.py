@@ -11,6 +11,7 @@ from gridlens.ingestion.adapters.rrc_flare_exceptions import (
     SOURCE_ID,
     parse_results,
     retrieve,
+    retrieve_collection_segment,
 )
 from gridlens.ingestion.registry import load_registry
 
@@ -97,6 +98,37 @@ def test_same_filing_status_update_keeps_identity_and_changes_evidence_hash():
     _, amended = parse_results(_page(_row(status="Approved")), start=TODAY, end=TODAY)
     assert first[0]["document_number"] == amended[0]["document_number"] == "35964"
     assert first[0]["source_hash"] != amended[0]["source_hash"]
+
+
+def test_historical_segment_accepts_at_most_seven_days_and_replays_failure(monkeypatch):
+    from datetime import timedelta
+
+    start = date(2026, 7, 1)
+    end = start + timedelta(days=6)
+    calls = []
+
+    def successful(source, client, *, window_start, window_end):
+        calls.append((window_start, window_end))
+        return [{"document_number": "35964"}]
+
+    monkeypatch.setattr("gridlens.ingestion.adapters.rrc_flare_exceptions.retrieve", successful)
+    result = retrieve_collection_segment(SOURCE, "issue_history", start, end, {})
+    assert result["window_complete"] is True
+    assert result["partial"] is False
+    assert result["cursor"] == {}
+    assert result["records"] == [{"document_number": "35964"}]
+    assert calls == [(start, end)]
+
+    # A source exception propagates; the caller must retain its prior progress cursor.
+    def unavailable(*_args, **_kwargs):
+        raise SourceParseError("synthetic outage")
+
+    monkeypatch.setattr("gridlens.ingestion.adapters.rrc_flare_exceptions.retrieve", unavailable)
+    with pytest.raises(SourceParseError, match="synthetic outage"):
+        retrieve_collection_segment(SOURCE, "issue_history", start, end, {})
+
+    with pytest.raises(SourceParseError, match="window"):
+        retrieve_collection_segment(SOURCE, "issue_history", start, end + timedelta(days=1), {})
 
 
 def test_paginator_partial_xml_checks_page_offset_and_rotating_state():

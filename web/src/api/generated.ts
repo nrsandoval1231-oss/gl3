@@ -265,6 +265,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/opportunities/demand-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Opportunity Demand Summary */
+        get: operations["opportunity_demand_summary_api_opportunities_demand_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunities/groups": {
         parameters: {
             query?: never;
@@ -1770,6 +1787,64 @@ export interface components {
             /** Next Offset */
             next_offset?: number | null;
             account?: components["schemas"]["CustomerAccountOut"] | null;
+        };
+        /** DemandSummaryClassOut */
+        DemandSummaryClassOut: {
+            /** Mw */
+            mw: number | null;
+            /** Record Count */
+            record_count: number;
+        };
+        /** DemandSummaryOut */
+        DemandSummaryOut: {
+            /** Counts Complete */
+            counts_complete: boolean;
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "available" | "unavailable";
+            /**
+             * Sector
+             * @enum {string}
+             */
+            sector: "all" | "oil_gas" | "data_centers";
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            totals: components["schemas"]["DemandSummaryTotalsOut"];
+            /** Classes */
+            classes: {
+                [key: string]: components["schemas"]["DemandSummaryClassOut"];
+            };
+            provenance: components["schemas"]["DemandSummaryProvenanceOut"];
+            /** Limitations */
+            limitations: string[];
+        };
+        /** DemandSummaryProvenanceOut */
+        DemandSummaryProvenanceOut: {
+            /**
+             * Contract
+             * @constant
+             */
+            contract: "equipment-demand-v1";
+            /** Source Count */
+            source_count: number;
+            /** Latest Evidence At */
+            latest_evidence_at: string | null;
+        };
+        /** DemandSummaryTotalsOut */
+        DemandSummaryTotalsOut: {
+            /** Identified Records */
+            identified_records: number;
+            /** Known Mw Records */
+            known_mw_records: number;
+            /** Unknown Records */
+            unknown_records: number;
+            /** Conflicted Records */
+            conflicted_records: number;
         };
         /** EvidenceContentOut */
         EvidenceContentOut: {
@@ -4703,6 +4778,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    opportunity_demand_summary_api_opportunities_demand_summary_get: {
+        parameters: {
+            query?: {
+                sector?: "all" | "oil_gas" | "data_centers";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemandSummaryOut"];
                 };
             };
             /** @description Validation Error */

@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 import { resolve } from 'node:path'
 
@@ -17,6 +18,7 @@ const groupPage = { items: [group], total: 1, count_unit: 'groups', limit: 25, o
 test('default root and header navigation browse customer groups with project children and server-side cohort controls', async ({ page }) => {
   const parentRequests: URL[] = []
   const childRequests: URL[] = []
+  const demandScopes: string[] = []
   const customers = Array.from({ length: 26 }, (_, index) => ({
     ...group,
     id: index === 0 ? 'cross-sector-customer' : index === 25 ? 'filter-edge-customer' : `customer-${index}`,
@@ -38,6 +40,12 @@ test('default root and header navigation browse customer groups with project chi
   }
   let parentToken = 'default-customer-cohort'
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/demand-summary?*', route => {
+    const sector = new URL(route.request().url()).searchParams.get('sector') ?? 'all'
+    demandScopes.push(sector)
+    return route.fulfill({ json: { availability: 'available', sector, as_of: null, totals: { identified_records: 1, known_mw_records: 1, unknown_records: 0, conflicted_records: 0 }, classes: { documented: { mw: sector === 'oil_gas' ? 3 : sector === 'data_centers' ? 5 : 11, record_count: 1 }, calculated: { mw: null, record_count: 0 }, estimated: { mw: null, record_count: 0 } }, provenance: { contract: 'equipment-demand-v1', source_count: 1, latest_evidence_at: null }, limitations: [] } })
+  })
   await page.route('**/api/opportunities/groups?*', route => {
     const url = new URL(route.request().url())
     parentRequests.push(url)
@@ -76,6 +84,8 @@ test('default root and header navigation browse customer groups with project chi
     start_window: null, duration: null, evidence: [], missing_facts: [], rationale: 'Synthetic source-backed fixture.',
   } }))
   await page.goto('/')
+  await expect(page.locator('.cfr-kpis')).toBeVisible()
+  await expect(page.locator('.cfr-kpis article').first().locator('strong')).toHaveText('11 MW')
   await expect(page.locator('.customer-group')).toHaveCount(25)
   await expect(page.locator('.project-results-count')).toContainText('26')
   expect(parentRequests[0].searchParams.get('sector')).toBe('all')
@@ -91,6 +101,8 @@ test('default root and header navigation browse customer groups with project chi
   expect(childRequests[0].searchParams.get('sort')).toBe('priority')
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
   await expect.poll(() => parentRequests.at(-1)?.searchParams.get('sector')).toBe('data_centers')
+  await expect.poll(() => demandScopes.at(-1)).toBe('data_centers')
+  await expect(page.locator('.cfr-kpis article').first().locator('strong')).toHaveText('5 MW')
   expect(new URL(page.url()).searchParams.get('sector')).toBe('data_centers')
   await page.getByRole('button', { name: 'All', exact: true }).click()
   await page.getByRole('button', { name: 'Next', exact: true }).click()
@@ -166,6 +178,7 @@ test('default root and header navigation browse customer groups with project chi
 test('legacy flat sort and malformed offset links normalize to a valid default grouped URL and request', async ({ page }) => {
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     const url = new URL(route.request().url())
     requests.push(url)
@@ -207,6 +220,7 @@ test('synthetic same-name group keeps three source identities and contacts indep
   }
   const detailReads: string[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: {
     items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0,
     cohort_token: 'amazon-name-cohort', generation: 'synthetic-amazon-generation', facets: { regions: [], stages: [] },
@@ -276,6 +290,7 @@ test('synthetic same-name group keeps three source identities and contacts indep
 
 test('synthetic default All scope shows neutral group wording without a qualified-only empty message', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [], total: 0 } }))
   await page.goto('/')
   await expect(page.getByText('No groups match this search.')).toBeVisible()
@@ -283,6 +298,7 @@ test('synthetic default All scope shows neutral group wording without a qualifie
 
 test('legacy groupBrowse URL keeps unresolved groups explicit without implying a resolved organization', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [{ ...group, role: 'unresolved', name: 'Unresolved source entity' }] } }))
   await page.goto('/?groupBrowse=1')
   await expect(page.locator('.customer-group')).toContainText('Operator/customer unresolved')
@@ -292,6 +308,7 @@ test('legacy groupBrowse URL keeps unresolved groups explicit without implying a
 test('synthetic project results use the project contract, category filters, and honest contact/event labels', async ({ page }) => {
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', async route => {
     requests.push(new URL(route.request().url()))
     return route.fulfill({ json: groupPage })
@@ -323,6 +340,7 @@ test('synthetic project pagination retains its cohort and browser Back restores 
   const requests: URL[] = []
   let fail = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     const url = new URL(route.request().url()); requests.push(url)
     if (fail) return route.fulfill({ status: 503, json: { detail: 'Synthetic failure' } })
@@ -350,6 +368,7 @@ test('synthetic stale cohort conflict drops page token and reloads first page wi
   const requests: URL[] = []
   const oldItems = Array.from({ length: 25 }, (_, index) => ({ ...group, id: `old-${index}`, name: `Old cohort customer ${index}` }))
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', async route => {
     const url = new URL(route.request().url())
     requests.push(url)
@@ -380,6 +399,7 @@ test('synthetic stale cohort conflict drops page token and reloads first page wi
 test('synthetic operator groups expose every project through independent nested pagination', async ({ page }) => {
   const nestedRequests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     const url = new URL(route.request().url()); nestedRequests.push(url)
@@ -406,6 +426,7 @@ test('synthetic nested cohort conflict atomically opens the same group with its 
   let openReads = 0
   const otherGroup = { ...group, id: 'other-group', name: 'Unchanged Source Operator', role: 'operator' as const, project_count: 4 }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [group, otherGroup], total: 2, cohort_token: 'original-list-token' } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => { nestedReads += 1; return route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } }) })
   await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
@@ -441,6 +462,7 @@ test('synthetic paginated child conflict fresh-opens page one and keeps parent-l
   const groupRequests: URL[] = []
   let openReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => { const url = new URL(route.request().url()); groupRequests.push(url); return route.fulfill({ json: { ...groupPage, total: 50, cohort_token: 'original-list-token' } }) })
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     const url = new URL(route.request().url()); childRequests.push(url)
@@ -465,6 +487,7 @@ test('synthetic paginated child conflict fresh-opens page one and keeps parent-l
 test('synthetic nested conflict stops when atomic open reports the group missing', async ({ page }) => {
   let openReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ status: 409, json: { detail: 'parent cohort changed' } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => { openReads += 1; return route.fulfill({ status: 404, json: { detail: 'missing group' } }) })
@@ -480,6 +503,7 @@ test('synthetic delayed atomic open cannot restore a child after the search chan
   let openRequested: (() => void) | undefined
   const requested = new Promise<void>(resolve => { openRequested = resolve })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     const fresh = Boolean(new URL(route.request().url()).searchParams.get('search'))
     return route.fulfill({ json: { ...groupPage, items: [{ ...group, id: fresh ? 'fresh-group' : group.id, name: fresh ? 'Fresh Search Operator' : group.name }] } })
@@ -505,6 +529,7 @@ test('synthetic delayed child response cannot repopulate results after a search 
   let childRequested: (() => void) | undefined
   const requested = new Promise<void>(resolve => { childRequested = resolve })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     const url = new URL(route.request().url())
     const fresh = Boolean(url.searchParams.get('search'))
@@ -530,6 +555,7 @@ test('synthetic delayed child response cannot repopulate results after a search 
 test('operator group disclosure is visible and tappable on desktop and mobile', async ({ page }) => {
   const screenshotRoot = resolve(process.cwd(), '..', '.artifacts', 'release-operator-customer-20261027')
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ json: projectPage }))
   await page.goto('/')
@@ -560,6 +586,7 @@ test('synthetic detail reloads the selected project by exact need and fails clos
   let failPreparedRead = true
   const exactReads: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     return route.fulfill({ json: projectPage })
@@ -592,6 +619,7 @@ test('synthetic detail reloads the selected project by exact need and fails clos
 test('synthetic tablet selection opens detail in the viewport above an unfiltered 25-card list', async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 900 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [{ ...group, project_count: 25 }] } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ json: { ...projectPage, total: 25, items: Array.from({ length: 25 }, (_, index) => ({ ...sample, id: `tablet-${index}` })) } }))
   await page.route('**/api/opportunities/projects?*', route => { const url = new URL(route.request().url()); return route.fulfill({ json: { ...projectPage, items: [{ ...sample, name: url.searchParams.has('need_id') ? 'Synthetic tablet well' : sample.name }] } }) })
@@ -618,6 +646,7 @@ test('pending parent groups wait for Retry-After then reopen the same filtered c
   const requests: URL[] = []
   let pending = true
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', async route => {
     // Let the app mount, then freeze before any browse response creates timers.
     // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
@@ -658,6 +687,7 @@ test('pending first child read waits before atomic open of the same group', asyn
   const openRequests: URL[] = []
   const neighbor = { ...group, id: 'neighbor-group', name: 'Unchanged Operator', project_count: 4 }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [group, neighbor] } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     childRequests.push(new URL(route.request().url()))
@@ -708,6 +738,7 @@ test('409 opens atomically and a pending open retries to the fresh same-group pa
   const childRequests: URL[] = []
   const openRequests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, cohort_token: 'parent-list-cohort' } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     childRequests.push(new URL(route.request().url()))
@@ -761,6 +792,7 @@ test('parent pending retries stop after four active reads and manual retry start
   let requests = 0
   let pending = true
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', async route => {
     // Let the app mount, then freeze before any browse response creates timers.
     // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
@@ -813,6 +845,7 @@ for (const variant of generic503Variants) {
     let requests = 0
     let failing = true
     await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
     await page.route('**/api/opportunities/groups?*', route => {
       requests += 1
       if (failing) {
@@ -842,6 +875,7 @@ test('pending parent retry timer is cancelled when a new search supersedes it', 
   await page.clock.install()
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     const url = new URL(route.request().url())
     requests.push(url)
@@ -874,6 +908,7 @@ test('collapsing a group cancels its pending child retry before atomic reopen', 
   let childReads = 0
   let openReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     childReads += 1
@@ -914,6 +949,7 @@ test('pending atomic open exhaustion is bounded and manual retry starts a new cy
   let childReads = 0
   let openReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     childReads += 1
@@ -963,6 +999,7 @@ test('collapsing one pending group clears only its retry status and preserves th
   const childReads: string[] = []
   const openReads: string[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [first, second] } }))
   await page.route('**/api/opportunities/groups/*/projects?*', route => {
     const groupId = new URL(route.request().url()).pathname.split('/').at(-2)!
@@ -1008,6 +1045,7 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
   let childReads = 0
   let openReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     childReads += 1
@@ -1047,6 +1085,7 @@ test('rapid project searches debounce and an older response cannot replace the n
   const oldStarted = new Promise<void>(resolve => { oldRequested = resolve })
   const searches: string[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', async route => {
     const url = new URL(route.request().url()), query = url.searchParams.get('search') ?? ''
     searches.push(query)
@@ -1084,6 +1123,7 @@ test('refresh keeps the rendered cohort labeled as updating and clears it when t
   let dataCentersRequested: (() => void) | undefined
   const dataCentersStarted = new Promise<void>(resolve => { dataCentersRequested = resolve })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', async route => {
     const url = new URL(route.request().url())
     if (refresh && url.searchParams.get('sector') !== 'data_centers') return route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'Retry-After': '60' }, json: { detail: 'qualification pending' } })
@@ -1113,6 +1153,7 @@ test('refresh keeps the rendered cohort labeled as updating and clears it when t
 test('expanded project pages survive More-menu navigation and return to the same browse context', async ({ page }) => {
   let childReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: groupPage }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => { childReads += 1; return route.fulfill({ json: projectPage }) })
   await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
@@ -1138,6 +1179,7 @@ test('Signals and source health distinguish a loading request from terminal unav
   let healthRequested: (() => void) | undefined
   const healthStarted = new Promise<void>(resolve => { healthRequested = resolve })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities?*', route => failSignals ? route.fulfill({ status: 503, json: { detail: 'Signals workspace unavailable' } }) : route.fulfill({ json: [] }))
   await page.route('**/api/health', async route => {
     healthRequested?.()
@@ -1161,6 +1203,7 @@ test('Signals and source health distinguish a loading request from terminal unav
 
 test('source health labels latest check separately from recent schedule freshness', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/health', route => route.fulfill({ json: {
     backlog: 0,
     pending_interpretations: 0,
@@ -1177,6 +1220,7 @@ test('source health labels latest check separately from recent schedule freshnes
 
 test('source health preserves unknown outcome values when a partial payload omits them', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/health', route => route.fulfill({ json: {
     backlog: 0,
     pending_interpretations: 0,
@@ -1194,6 +1238,7 @@ test('a session failure removes the cached browse surface before a later return'
   let groupReads = 0
   let expireSession = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     groupReads += 1
     return expireSession ? route.fulfill({ status: 401, json: { detail: 'Authentication required' } }) : route.fulfill({ json: groupPage })
@@ -1220,6 +1265,7 @@ test('a session expiry from Signals clears the browse cache while results are un
   let groupReads = 0
   let serviceUnavailable = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => {
     groupReads += 1
     return serviceUnavailable ? route.fulfill({ status: 503, headers: { 'X-Qualification-State': 'pending', 'Retry-After': '60' }, json: { detail: 'qualification pending' } }) : route.fulfill({ json: groupPage })
@@ -1245,6 +1291,7 @@ test('cached browse context expires at the backend valid-until boundary', async 
   let groupReads = 0
   let expired = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', async route => {
     // Let the app mount, then freeze before any browse response creates timers.
     // StrictMode handlers share one pause; wall-time assertions cannot age TTLs.
@@ -1270,6 +1317,7 @@ test('mounted child details disappear at their independent generation expiry', a
   await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
   let childReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T11:59:00Z', valid_until: '2026-10-29T12:00:20Z', qualification_state: 'current', refresh_state: 'current' } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => {
     childReads += 1
@@ -1292,6 +1340,7 @@ test('mounted child details disappear at their independent generation expiry', a
 test('cache read drops an expired child generation while retaining the valid parent summary', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T11:59:00Z', valid_until: '2026-10-29T12:00:20Z', qualification_state: 'current', refresh_state: 'current' } }))
   await page.route('**/api/opportunities/groups/group-synthetic-1/projects?*', route => route.fulfill({ json: { ...projectPage, valid_until: '2026-10-29T12:00:02Z', qualification_state: 'current', refresh_state: 'current', items: [{ ...sample, contact: [{ kind: 'call', label: 'Expired cached contact', href: 'tel:+15555550100' }] }] } }))
   await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))

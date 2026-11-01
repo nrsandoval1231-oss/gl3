@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test, type Page, type Route } from '@playwright/test'
 import type { Opportunity } from '../src/api/client'
 
@@ -93,6 +94,7 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
 
 test('project-first results keep geographically unknown projects reachable and restore selected need', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX'), opportunity('d', null)])
+  await mockDemandSummary(page)
   await page.goto('/environment?groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await page.getByRole('button', { name: /Test project d/ }).click()
@@ -112,6 +114,7 @@ test('legacy action deep link restores selected need without retired call prepar
   await mock(page, [opportunity('a', 'Austin, TX')])
   const writes: string[] = []
   page.on('request', request => { if (request.method() === 'POST') writes.push(request.url()) })
+  await mockDemandSummary(page)
   await page.goto('/environment?view=environment&mode=action&state=Texas&need=a&groupBrowse=1')
   await expect(page.locator('.project-first-detail h2')).toHaveText('Test project a')
   await page.locator('.wh-account summary').click()
@@ -124,6 +127,7 @@ test('legacy environment URL reaches project results without workspace or map re
   const requests: string[] = []
   await mock(page, [opportunity('a', 'Austin, TX'), opportunity('dc', 'Washington, DC')])
   page.on('request', request => requests.push(new URL(request.url()).pathname))
+  await mockDemandSummary(page)
   await page.goto('/environment?groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Test project dc' })).toBeVisible()
@@ -136,6 +140,7 @@ test('secondary account browsing uses bounded server pagination instead of map-w
   const requests: URL[] = []
   await mock(page, Array.from({ length: 60 }, (_, i) => opportunity(`n${i}`, 'Austin, TX')))
   page.on('request', request => requests.push(new URL(request.url())))
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1')
   await expect(page.getByText('Showing 1–25 of 60')).toBeVisible()
   await page.getByRole('button', { name: 'Next', exact: true }).click()
@@ -165,6 +170,7 @@ test('Back and Forward wait for the matching page before restoring each queue po
     await route.fulfill({ json: { items: items.slice(offset, offset + 25), total: 60, counts: { action_now: 0, research: 0, watch: 0, reject: 0 }, offset, limit: 25, next_offset: offset < 50 ? offset + 25 : null, cohort_token: 'workspace-fixture', count_unit: 'power needs', changes_available: false } })
   })
   try {
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1')
     await expect(page.getByText('Showing 1–25 of 60')).toBeVisible()
     const first = page.locator('[data-need-row="history-7"]')
@@ -201,6 +207,7 @@ test('section navigation keeps Opportunities and Signals searches independent th
   const requests: URL[] = []
   await mock(page, [opportunity('alpha', 'Austin, TX')])
   page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/groups') requests.push(url) })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&q=alpha&groupBrowse=1')
   await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('alpha')
   await openSecondaryRoute(page, 'Signals')
@@ -222,6 +229,7 @@ test('section navigation keeps Opportunities and Signals searches independent th
 
 test('Research navigation keeps Opportunities search and selection state independent', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX')])
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&q=a&groupBrowse=1')
   await openSecondaryRoute(page, 'Research')
   await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()

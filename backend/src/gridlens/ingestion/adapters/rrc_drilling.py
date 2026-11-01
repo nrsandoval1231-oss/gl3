@@ -6,6 +6,7 @@ import base64
 import hashlib
 import json
 import re
+from calendar import monthrange
 from datetime import UTC, date, datetime, timedelta
 from email.message import Message
 from typing import Any
@@ -394,6 +395,46 @@ def reconstruct_retained_record(
 def amendment_sequence(abstract: str | None) -> int | None:
     values = re.findall(r"^amendment_sequence: (\d{1,2})$", abstract or "", re.M)
     return int(values[0]) if len(values) == 1 else None
+
+
+def amendment_snapshot_rank(abstract: str | None) -> int | None:
+    """Return the newest trusted snapshot rank supporting this winning amendment.
+
+    The daily product is newer than any month-end archive. Unknown or malformed
+    provenance is deliberately not ordered; callers must retain evidence without
+    replacing a current projection in that case.
+    """
+    try:
+        marker = "\nSource segment provenance: "
+        raw_marker = "\nOpaque source bytes (base64; not interpreted): "
+        if not isinstance(abstract, str) or abstract.count(marker) != 1:
+            return None
+        _prefix, tail = abstract.split(marker)
+        provenance_text, _raw = tail.split(raw_marker)
+        provenance = json.loads(provenance_text)
+        sequence = amendment_sequence(abstract)
+        if not isinstance(provenance, list) or sequence is None:
+            return None
+        ranks = []
+        for item in provenance:
+            if not isinstance(item, dict) or item.get("sequence") != sequence:
+                continue
+            filename, source_url = item.get("filename"), item.get("source_url")
+            if filename == "daf420.dat" and source_url == PORTAL:
+                ranks.append(99991231)
+                continue
+            if source_url != MONTHLY_PORTAL or not isinstance(filename, str):
+                return None
+            match = re.fullmatch(r"daf420\.dat\.(\d{2})-(\d{2})-(\d{4})", filename)
+            if not match:
+                return None
+            month_end = date(int(match[3]), int(match[1]), int(match[2]))
+            if month_end.day != monthrange(month_end.year, month_end.month)[1]:
+                return None
+            ranks.append(month_end.year * 10000 + month_end.month * 100 + month_end.day)
+        return max(ranks) if ranks else None
+    except (ValueError, TypeError, KeyError, json.JSONDecodeError):
+        return None
 
 
 def _official_url(base: str, path: str) -> str:

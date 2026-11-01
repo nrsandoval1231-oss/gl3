@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const need = {
@@ -20,6 +21,7 @@ test('default workspace shows project results and opens existing need detail wit
   const workspaceRequests: URL[] = []
   const project = { id: 'project-a', project_id: 'project-a', name: 'Test data center', company: 'Example operator', location: 'Austin, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: null, representative_need_id: 'need-a', needs: [{ id: 'need-a', project_id: 'project-a', activity: 'construction', browse_title: 'Test data center', location: 'Austin, TX' }], need_count: 1, event: { kind: 'permit_issued', label: 'Permit issued', date: '2026-10-18', source: 'Synthetic fixture', evidence_refs: [] }, contact: [], power_summary: 'Power need remains unconfirmed.', next_action: 'Review the source-backed project evidence.', updated_at: '2026-10-20T00:00:00Z' }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [{ id: 'group-project-a', name: 'Example operator', role: 'operator', project_count: 1, need_count: 1, sectors: ['data_centers'] }], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'group-cohort', generation: 1 } }))
   await page.route('**/api/opportunities/groups/group-project-a/projects?*', route => route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'project-cohort', generation: 1 } }))
   await page.route('**/api/opportunities/projects?need_id=*', route => route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'exact-project-cohort', generation: 1 } }))
@@ -43,6 +45,7 @@ test('default workspace shows project results and opens existing need detail wit
 test('browser Back re-reads the same selected need after identity is cleared', async ({ page }) => {
   let detailReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
   await page.route('**/api/opportunities/workspace/changes?*', route => {
     const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
@@ -88,6 +91,7 @@ test('table uses its source-backed browse title and settled detail recomputes fr
     evidence: [{ ...need.evidence[0], assessment_current: true, abstract: 'contractor_company_name: Current project electrician' }],
   }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([row]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: detail }))
   await page.goto('/?view=workspace&accountBrowse=1')
@@ -109,6 +113,7 @@ test('Signal ACTION NOW reads as a discovery call while Prospect and Lead dispos
     { ...need, id: 'signal-research', name: 'Signal research project', tier: 'Signal', commercial_disposition: 'RESEARCH' },
   ]
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: {
     ...response(rows), counts: { action_now: 3, research: 1, watch: 0, reject: 0 },
   } }))
@@ -138,6 +143,7 @@ test('off-page detail reload ignores historical company evidence and keeps the s
     evidence: [{ ...need.evidence[0], source_id: 'austin-building-permits', assessment_current: false, abstract: 'owner_company_name: Historical Owner LLC' }],
   }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: detail }))
   await page.goto('/?view=workspace&accountBrowse=1&need=need-a')
@@ -155,6 +161,7 @@ test('off-page detail reload ignores historical company evidence and keeps the s
 
 test('workspace gives an honest retry state when the current cohort is unavailable', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ status: 503, json: { detail: 'stale cohort' } }))
   await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('alert')).toContainText('Could not load operator/customer groups')
@@ -164,6 +171,7 @@ test('workspace gives an honest retry state when the current cohort is unavailab
 test('workspace selection switches to a full detail view on mobile and has a clear return', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
   await page.goto('/?view=workspace&accountBrowse=1')
@@ -186,6 +194,7 @@ test('mobile history Back keeps the selected shell through delayed readback and 
   const secondBResponse = new Promise<void>(resolve => { releaseSecondB = resolve })
   await page.setViewportSize({ width: 1280, height: 844 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
   await page.route('**/api/opportunities/needs/need-b*', async route => {
@@ -217,6 +226,7 @@ test('desktop history readback does not steal Search focus after resizing to pho
   const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
   await page.setViewportSize({ width: 1280, height: 844 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
   await page.route('**/api/opportunities/needs/need-b*', route => route.fulfill({ json: needB }))
@@ -247,6 +257,7 @@ test('mobile Back can leave a held history readback and late response cannot res
   const secondBFinished = new Promise<void>(resolve => { finishSecondB = resolve })
   await page.setViewportSize({ width: 1280, height: 844 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
   await page.route('**/api/opportunities/needs/need-b*', async route => {
@@ -288,6 +299,7 @@ test('mobile failed history readback keeps Retry and Back available', async ({ p
   let bReads = 0
   await page.setViewportSize({ width: 1280, height: 844 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
   await page.route('**/api/opportunities/needs/need-b*', route => {
@@ -325,6 +337,7 @@ test('mobile selected detail keeps the compact header and clear return', async (
   }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([realistic]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: realistic }))
   await page.goto('/?view=workspace&accountBrowse=1')
@@ -348,6 +361,7 @@ test('switching selected needs does not invoke title enrichment', async ({ page 
   const titleRequests: string[] = []
   page.on('request', request => { if (request.url().includes('/title')) titleRequests.push(request.url()) })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([need, second]) }))
   await page.route('**/api/opportunities/needs/*', route => route.fulfill({ json: route.request().url().includes('need-b') ? second : need }))
   await page.goto('/?view=workspace&accountBrowse=1')
@@ -365,6 +379,7 @@ test('selected opportunity uses its returned project title without enrichment re
   const titleRequests: string[] = []
   page.on('request', request => { if (request.url().includes('/title')) titleRequests.push(request.url()) })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([first, second]) }))
   await page.route('**/api/opportunities/needs/*', route => route.fulfill({ json: route.request().url().includes('need-b') ? second : first }))
   await page.goto('/?view=workspace&accountBrowse=1')
@@ -379,6 +394,7 @@ test('Signal tier deep links stay on workspace and a changed cohort resets pagin
   let pages = 0
   const requested: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', async route => {
     const url = new URL(route.request().url()); requested.push(url); pages += 1
     if (pages === 1) return route.fulfill({ status: 409, json: { detail: 'cohort changed' } })
@@ -396,6 +412,7 @@ test('stale list responses cannot replace a newer filter result', async ({ page 
   let resolveOld!: () => void
   const oldResponse = new Promise<void>(resolve => { resolveOld = resolve })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', async route => {
     const geo = new URL(route.request().url()).searchParams.get('geography')
     if (geo === 'Old') { await oldResponse; return route.fulfill({ json: response([{ ...need, id: 'old', name: 'Stale result' }]) }) }
@@ -416,6 +433,7 @@ test('a failed workspace filter hides rows, counts, and pagination from the prio
   const oldCohortAction = 'Austin cohort only action'
   const selectedRow = { ...need, name: 'Austin retained row', commercial_next_action: oldCohortAction }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => {
     const geography = new URL(route.request().url()).searchParams.get('geography')
     if (geography === 'Houston') return route.fulfill({ status: 503, json: { detail: 'workspace unavailable' } })
@@ -441,6 +459,7 @@ test('a failed workspace filter hides rows, counts, and pagination from the prio
 test('canonical priority score and reasons are explained separately from disposition', async ({ page }) => {
   const ranked = { ...need, rank_score: 8, rank_reasons: ['Near-term start', 'Supported project scale'], rank_version: 'rank-v1' }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([ranked]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: ranked }))
   await page.goto('/?view=workspace&accountBrowse=1')
@@ -476,6 +495,7 @@ test('active change links use canonical workspace readback instead of historical
     total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 },
   }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
   await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: activeChange }))
   await page.route('**/api/opportunities/needs/need-a?*', route => route.fulfill({ json: { ...need, tier: 'Signal' } }))
@@ -509,6 +529,7 @@ test('active change link hides a previously stored Lead while canonical readback
     total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 },
   }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
   await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: activeChange }))
   await page.route('**/api/opportunities/needs/need-a?*', route => route.fulfill({ status: 503, json: { detail: 'Fresh qualification unavailable' } }))
@@ -528,6 +549,7 @@ test('active change link hides a previously stored Lead while canonical readback
 test('tablet workspace has no horizontal overflow and retains readable layout', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 900 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
   await page.goto('/?view=workspace&accountBrowse=1')
   await expect(page.getByRole('heading', { name: 'Opportunities', exact: true })).toBeVisible()
@@ -537,6 +559,7 @@ test('tablet workspace has no horizontal overflow and retains readable layout', 
 test('tablet direct selection keeps detail and header reachable and restores the queue', async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 1024 })
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
   await page.goto('/?view=workspace&accountBrowse=1&need=need-a')
@@ -560,6 +583,7 @@ test('tablet direct selection keeps detail and header reachable and restores the
 
 test('legacy flat project results remain available explicitly and keep routine research queues out of the workspace', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'default-flat', generation: 'synthetic' } }))
   await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('heading', { name: 'Opportunities', exact: true })).toBeVisible()
@@ -583,6 +607,7 @@ test('industrial group filters canonical asset types, carries URL cohorts, and r
   ]
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', async route => {
     const url = new URL(route.request().url())
     requests.push(url)
@@ -634,6 +659,7 @@ test('Power gap shows only backend-qualified ranges and keeps null or conflicted
   const unknown = { ...need, id: 'need-unknown', name: 'Unknown power need', qualified_remaining_gap: null, qualification_version: null }
   const conflict = { ...need, id: 'need-conflict', name: 'Conflicted power need', conflict_state: 'CONFLICT', qualified_remaining_gap: null, qualification_version: null }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([qualified, unknown, conflict]) }))
   await page.route('**/api/opportunities/needs/*', route => {
     const id = new URL(route.request().url()).pathname.split('/').pop()
@@ -664,6 +690,7 @@ test('utility service status stays distinct from an energization date and facili
     completeness: { supported: 1, total: 2, percent: 50 }, last_intelligence_update: null, power_gap: null, evidence: [], research_enabled: false,
   }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([{ ...need, required_mw: '18 MW' }]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, required_mw: '18 MW', intelligence_card: card } }))
   await page.goto('/?view=workspace&accountBrowse=1')
@@ -710,6 +737,7 @@ for (const width of [1280, 390]) {
       },
     }
     await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
     await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
     await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: {
       ...need, asset_type: 'gas_processing_plant', lifecycle_state: 'operation',

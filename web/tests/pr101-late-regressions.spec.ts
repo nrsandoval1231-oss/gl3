@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const need = {
@@ -15,6 +16,7 @@ const need = {
 
 async function authenticated(page: import('@playwright/test').Page) {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
 }
 
 test('server-filtered SHOW group remains visible when only a REVIEW member is loaded', async ({ page }) => {

@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const accountRow = {
@@ -24,6 +25,7 @@ test('account queue uses server grouping, opens paginated projects, and retains 
     if (url.pathname === '/api/customer-accounts/unresolved') { const offset = Number(url.searchParams.get('offset') ?? 0); return route.fulfill({ json: { items: offset ? [] : [{ project_id: 'unresolved-1', project_name: 'West parcel', location: 'Austin, TX', organization: 'Northstar subcontractor', role: 'Electrical contractor', reason: 'Customer identity needs review.', need_id: 'need-unresolved' }, { project_id: 'unresolved-2', project_name: 'East parcel', location: null, organization: 'Electrical subcontractor', role: 'Electrical contractor', reason: 'No eligible power need.', need_id: null, no_eligible_need: true }], total: 26, limit: 25, offset } }) }
     return route.fulfill({ json: [] })
   })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1')
   await expect(page.getByRole('region', { name: 'Customer accounts' })).toBeVisible()
   expect(workspaceQueries[0]).toContain('group_by=account')
@@ -101,6 +103,7 @@ test('account deep links reload profile and filters remain server-side', async (
     if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
     return route.fulfill({ json: [] })
   })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1&account=company-1')
   await expect(page.getByRole('heading', { name: 'Northstar Compute' })).toBeVisible()
   await expect(page.locator('.ci-accounts')).toContainText('Also known as: Northstar')
@@ -130,6 +133,7 @@ test('primary account pages are server driven and preserve cohort and history', 
     if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
     return route.fulfill({ json: [] })
   })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1')
   await expect(page.locator('.ci-accounts .opportunity-select')).toHaveCount(25)
   const pager = page.getByRole('navigation', { name: 'Customer account pages' })
@@ -167,6 +171,7 @@ test('primary account pager resets a stale cohort on 409', async ({ page }) => {
     if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
     return route.fulfill({ json: [] })
   })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1&account=company-1')
   await expect(page.getByRole('heading', { name: 'Company 01' })).toBeVisible()
   await page.getByRole('navigation', { name: 'Customer account pages' }).getByRole('button', { name: 'Next' }).click()
@@ -195,6 +200,7 @@ test('expired workspace cohort restarts pagination and keeps the selected accoun
     if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
     return route.fulfill({ json: [] })
   })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1&account=company-1&offset=25&cohort_token=expired')
   await expect(page.getByRole('heading', { name: 'Northstar Compute' })).toBeVisible()
   await expect.poll(() => new URL(page.url()).searchParams.get('offset')).toBe('0')
@@ -219,6 +225,7 @@ test('account project errors expose an explicit retry without changing the accou
     if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
     return route.fulfill({ json: [] })
   })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1&account=company-1')
   await expect(page.locator('.ci-accounts')).toBeVisible()
   await expect(page.getByRole('alert')).toContainText('could not load this account')
@@ -244,6 +251,7 @@ test('unresolved customer project failures remain visible and retry successfully
     }
     return route.fulfill({ json: [] })
   })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1')
   await page.locator('.ci-unresolved summary').click()
   await expect(page.locator('.ci-unresolved')).toContainText('Unresolved customer projects could not be loaded')
@@ -273,6 +281,7 @@ test('account project page is deep-linked and restored through reload, Back, and
     return route.fulfill({ json: [] })
   })
 
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1&account=company-1&accountBrowse=1')
   await expect(page.getByRole('heading', { name: 'Project 01' })).toBeVisible()
   const pager = page.getByRole('navigation', { name: 'Account project pages' })
@@ -324,6 +333,7 @@ test('unresolved pagination resets on search and ignores the previous search res
 
   const unresolvedSection = page.locator('.ci-unresolved')
   const openUnresolved = async () => { if (!(await unresolvedSection.evaluate(element => (element as HTMLDetailsElement).open))) await unresolvedSection.locator('summary').click() }
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1')
   await page.getByLabel('Search workspace').fill('Alpha')
   await expect.poll(() => unresolvedQueries.some(query => query.search === 'Alpha' && query.offset === 0)).toBe(true)
@@ -360,7 +370,8 @@ for (const scenario of [
       if (url.pathname === '/api/customer-accounts/unresolved') return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
       return route.fulfill({ json: [] })
     })
-    await page.goto('/?view=workspace&accountBrowse=1&account=company-1&project=project-1&need=need-1')
+    await mockDemandSummary(page)
+  await page.goto('/?view=workspace&accountBrowse=1&account=company-1&project=project-1&need=need-1')
     await expect(page.locator('.wh-detail')).toBeVisible()
     await expect(page.locator('.wh-integrity')).toContainText(scenario.notice)
     await expect(page).toHaveURL(/need=need-1/)
@@ -387,6 +398,7 @@ test('company contacts remain actionable after refresh and generic routes requir
     if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
     return route.fulfill({ json: { items: [], counts: {}, total: 0 } })
   })
+  await mockDemandSummary(page)
   await page.goto('/?view=workspace&accountBrowse=1&account=company-1&accountBrowse=1')
   const contacts = page.getByRole('region', { name: 'Contacts & Buying Chain' })
   await expect(contacts).toContainText('Research Required')

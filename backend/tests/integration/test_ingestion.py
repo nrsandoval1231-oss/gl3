@@ -2126,15 +2126,35 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
         session.flush()
         job_id = job.id
 
-    def row(sequence, status="Approved", application_type="01"):
+    def row(
+        sequence,
+        status="Approved",
+        application_type="01",
+        filename="daf420.dat",
+        source_url=PORTAL,
+        external_id="9999999",
+    ):
         digest = hashlib.sha256(f"{sequence}:{status}:{application_type}".encode()).hexdigest()
+        provenance = json.dumps(
+            [
+                {
+                    "filename": filename,
+                    "source_url": source_url,
+                    "ordinal": 1,
+                    "sequence": sequence,
+                    "raw_sha256": "a" * 64,
+                }
+            ]
+        )
         return {
-            "document_number": "9999999",
+            "document_number": external_id,
             "title": "Drilling permit 9999999",
             "abstract": (
                 f"amendment_sequence: {sequence}\noperator: EXAMPLE OPERATOR LLC"
                 f"\nlease: Example\nwell: 1H\nstatus: {status}"
                 f"\napplication_type: {application_type}"
+                f"\nSource segment provenance: {provenance}"
+                "\nOpaque source bytes (base64; not interpreted): {}"
             ),
             "publication_date": "2026-09-01",
             "event_date": "2026-09-01",
@@ -2158,7 +2178,18 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
         }
 
     incoming = [row(98)]
-    monkeypatch.setattr(service, "retrieve_source", lambda *_: incoming)
+
+    def retrieve_segment(_definition, lane, _start, _end, _cursor, *_args, **_kwargs):
+        return {
+            "records": incoming,
+            "cursor": {},
+            "partial": False,
+            "window_complete": True,
+            "expected_count": len(incoming),
+            "observed_count": len(incoming),
+        }
+
+    monkeypatch.setattr(service, "retrieve_collection_segment", retrieve_segment)
 
     def run():
         with factory() as session:
@@ -2166,6 +2197,29 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
 
     assert run()["signals"] == 1
     assert run()["unchanged"] == 1
+    # A historical month archive can contain the same amendment sequence with
+    # stale row fields. Keep that evidence, but do not regress the live projection.
+    with factory() as session:
+        historical_counts = service.process_records(
+            session,
+            job_id,
+            "test",
+            1,
+            definition,
+            [
+                row(
+                    98,
+                    status="Pending",
+                    filename="daf420.dat.08-31-2026",
+                    source_url="https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+                )
+            ],
+            historical_snapshot=True,
+        )
+    assert historical_counts["older_amendments_retained"] == 1
+    with factory() as session:
+        assert "status: Approved" in session.scalar(select(Observation.abstract))
+
     from gridlens.intelligence.buying_chain import enrich_buying_chain
 
     fetched = []
@@ -2186,8 +2240,11 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
-        assert "amendment_sequence: 98" in session.scalar(select(Observation.abstract))
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+        current_abstract = session.scalar(
+            select(Observation.abstract).where(Observation.external_id == "9999999")
+        )
+        assert "amendment_sequence: 98" in current_abstract
         projection = session.scalar(select(ProjectLifecycle))
         assert projection.current_state == "drilling_permit"
         assert projection.time_to_power_start is None and projection.time_to_power_end is None
@@ -2206,8 +2263,109 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
     with factory() as session:
         assert session.scalar(select(PowerNeed.active)) is False
         assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 5
     assert api.opportunities(tier="Signal") == []
+
+
+def test_rrc_historical_same_sequence_advances_from_august_to_september(db):
+    import gridlens.ingestion.service as service
+    from gridlens.ingestion.adapters.rrc_drilling import MONTHLY_PORTAL, PORTAL
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "texas-rrc-drilling-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                **{
+                    key: definition[key]
+                    for key in (
+                        "id",
+                        "publisher",
+                        "endpoint",
+                        "family",
+                        "geography",
+                        "industries",
+                        "retrieval_method",
+                    )
+                },
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    def historical_row(status: str, filename: str):
+        provenance = json.dumps(
+            [
+                {
+                    "filename": filename,
+                    "source_url": MONTHLY_PORTAL,
+                    "ordinal": 1,
+                    "sequence": 97,
+                    "raw_sha256": "b" * 64,
+                }
+            ]
+        )
+        abstract = (
+            "amendment_sequence: 97\noperator: EXAMPLE OPERATOR LLC\n"
+            f"lease: Progression Lease\nwell: 1H\nstatus: {status}\n"
+            "application_type: 01\nSource segment provenance: "
+            f"{provenance}\nOpaque source bytes (base64; not interpreted): {{}}"
+        )
+        return {
+            "document_number": "8888888",
+            "title": "Drilling permit 8888888",
+            "abstract": abstract,
+            "publication_date": "2026-09-01",
+            "event_date": "2026-09-01",
+            "html_url": PORTAL,
+            "source_hash": hashlib.sha256(abstract.encode()).hexdigest(),
+            "extraction_location": "Synthetic monthly OGA049M fixture",
+            "permit": {
+                "source_type": definition["id"],
+                "project": "8888888",
+                "row_id": "8888888",
+                "lease": "Progression Lease",
+                "well": "1H",
+                "operator": "EXAMPLE OPERATOR LLC",
+                "location": "RRC county code 001, Texas",
+                "state": "TX",
+                "status": status,
+                "description": "Drilling permit 8888888",
+                "application_type": "01",
+                "sequence": 97,
+            },
+        }
+
+    for status, filename in (
+        ("Pending", "daf420.dat.08-31-2026"),
+        ("Approved", "daf420.dat.09-30-2026"),
+    ):
+        with factory() as session:
+            service.process_records(
+                session,
+                job_id,
+                "test",
+                1,
+                definition,
+                [historical_row(status, filename)],
+                historical_snapshot=True,
+            )
+    with factory() as session:
+        observation = session.scalar(
+            select(Observation).where(Observation.external_id == "8888888")
+        )
+        assert observation is not None
+        assert "status: Approved" in observation.abstract
 
 
 def test_interconnection_history_survives_real_rejected_correction(db):

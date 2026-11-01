@@ -1,6 +1,6 @@
 import { Zap, ChartNoAxesColumnIncreasing, FileText, Download } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, type ProjectResult, type ProjectResultsPage, type ProjectResultsSort } from '../../api/client'
+import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, type DemandSummary, type ProjectResult, type ProjectResultsPage, type ProjectResultsSort } from '../../api/client'
 import './canonical-opportunity-results.css'
 
 type Props = { selectedNeedId?: string; onNeed: (need: { id: string }) => void; onBrowseChange?: () => void }
@@ -157,8 +157,8 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     for (const item of visible) rows.push([item.company ?? 'Unavailable', displayProjectName(item), item.location ?? 'Unavailable', gapValue(item), item.event?.date ?? 'Unavailable', item.event?.label ?? 'Unavailable', item.needs.find(need => need.id === item.representative_need_id)?.tier ?? 'Unavailable', item.priority_score == null ? 'Unavailable' : String(item.priority_score)])
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([rows.map(row => row.map(safeCsvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })); link.download = 'gridlens-opportunities.csv'; link.click(); URL.revokeObjectURL(link.href)
   }
-  const selectSector = (value: Sector) => { if (value === sector) return; onBrowseChangeRef.current?.(); setSector(value); setOffset(0); setRegion(''); setStage(''); setPriority(''); setSelectedRows([]); updateUrl(search, value, 0, sort) }
-  const clearFilters = () => { onBrowseChangeRef.current?.(); setSearchDraft(''); setSearch(''); setRegion(''); setStage(''); setPriority(''); setSector('all'); setOffset(0); setSelectedRows([]); updateUrl('', 'all', 0, sort) }
+  const selectSector = (value: Sector) => { if (value === sector) return; onBrowseChangeRef.current?.(); setSector(value); window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: value })); setOffset(0); setRegion(''); setStage(''); setPriority(''); setSelectedRows([]); updateUrl(search, value, 0, sort) }
+  const clearFilters = () => { onBrowseChangeRef.current?.(); setSearchDraft(''); setSearch(''); setRegion(''); setStage(''); setPriority(''); setSector('all'); window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: 'all' })); setOffset(0); setSelectedRows([]); updateUrl('', 'all', 0, sort) }
   const selectSort = (value: Sort) => { if (value === sort) return; onBrowseChangeRef.current?.(); cohortResetUsed.current = false; setSort(value); setOffset(0); setSelectedRows([]); updateUrl(search, sector, 0, value, undefined, true) }
   const selectAll = (checked: boolean) => setSelectedRows(checked ? visible.map(item => item.id) : [])
   return <section className="canonical-flat-results" aria-label="Project opportunities" aria-busy={loading || searchDraft !== search}>
@@ -186,5 +186,56 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
 }
 
 export function CanonicalOpportunityKpis() {
-  return <div className="cfr-kpis" aria-label="Opportunity summary"><article><Zap aria-hidden="true"/><strong aria-label="Unavailable">—</strong><span>Identified Power Demand (MW)</span><small>Portfolio total unavailable · documented, calculated and estimated split unavailable · unknown is not zero.</small></article><article><ChartNoAxesColumnIncreasing aria-hidden="true"/><strong>—</strong><span>High Priority</span><small>Priority classification unavailable</small></article><article><FileText aria-hidden="true"/><strong>—</strong><span>New This Week</span><small>Creation date unavailable</small></article></div>
+  const [sector, setSector] = useState<Sector>(() => readRoute().sector)
+  const [summary, setSummary] = useState<DemandSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const [refreshRevision, setRefreshRevision] = useState(0)
+  const activeRequest = useRef<AbortController | null>(null)
+  const sessionCleared = useRef(false)
+  const lastFetchedAt = useRef(0)
+  useEffect(() => {
+    const syncRoute = () => setSector(readRoute().sector)
+    const syncSector = (event: Event) => setSector((event as CustomEvent<Sector>).detail)
+    const refresh = () => setRefreshRevision(value => value + 1)
+    const refreshOnFocus = () => { if (document.visibilityState === 'visible' && Date.now() - lastFetchedAt.current >= 60_000) refresh() }
+    const clear = () => { sessionCleared.current = true; activeRequest.current?.abort(); activeRequest.current = null; setSummary(null); setError(false); setLoading(false) }
+    window.addEventListener('popstate', syncRoute)
+    window.addEventListener('gl3-demand-sector-change', syncSector)
+    window.addEventListener('gl3-demand-refresh', refresh)
+    window.addEventListener('focus', refreshOnFocus)
+    document.addEventListener('visibilitychange', refreshOnFocus)
+    window.addEventListener('gl3-clear-continuity', clear)
+    return () => { window.removeEventListener('popstate', syncRoute); window.removeEventListener('gl3-demand-sector-change', syncSector); window.removeEventListener('gl3-demand-refresh', refresh); window.removeEventListener('focus', refreshOnFocus); document.removeEventListener('visibilitychange', refreshOnFocus); window.removeEventListener('gl3-clear-continuity', clear) }
+  }, [])
+  useEffect(() => {
+    if (sessionCleared.current) return
+    const controller = new AbortController()
+    activeRequest.current = controller
+    let active = true
+    setLoading(true); setError(false); setSummary(null)
+    client.demandSummary(sector, controller.signal).then(value => {
+      if (!active || controller.signal.aborted) return
+      lastFetchedAt.current = Date.now()
+      setSummary(value); setLoading(false)
+    }).catch(() => { if (active && !controller.signal.aborted) { setSummary(null); setError(true); setLoading(false) } })
+    return () => { active = false; controller.abort(); if (activeRequest.current === controller) activeRequest.current = null }
+  }, [sector, retry, refreshRevision])
+  useEffect(() => {
+    const timer = window.setTimeout(() => setRefreshRevision(value => value + 1), 60_000)
+    return () => window.clearTimeout(timer)
+  }, [refreshRevision])
+  const format = (value: number | null) => value == null || !Number.isFinite(value) ? 'Unavailable' : new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value)
+  const ready = !loading && !error && summary?.availability === 'available'
+  const classes = summary?.classes
+  const sectorLabel = sector === 'all' ? 'All sectors' : sector === 'oil_gas' ? 'Oil & Gas' : 'Data Centers'
+  const provenance = summary?.provenance
+  const knownClass = ready && classes ? (['documented', 'calculated', 'estimated'] as const).find(kind => classes[kind].mw != null && classes[kind].record_count > 0) : undefined
+  const classSummary = ready && classes ? `Documented ${format(classes.documented.mw)} MW (${classes.documented.record_count}) · Calculated ${format(classes.calculated.mw)} MW (${classes.calculated.record_count}) · Estimated ${format(classes.estimated.mw)} MW (${classes.estimated.record_count})` : null
+  const countsText = summary && summary.counts_complete !== false ? `${summary.totals.identified_records} identified records · ${summary.totals.known_mw_records} with MW · ${summary.totals.unknown_records} unknown · ${summary.totals.conflicted_records} conflicted.` : 'Record counts unavailable.'
+  const statusText = loading ? 'Loading demand summary…' : error ? 'Demand summary unavailable.' : !summary ? 'Demand summary unavailable; record counts are unavailable.' : `${countsText} Demand total unavailable; unknown is not zero.`
+  const asOfLabel = summary?.as_of && Number.isFinite(Date.parse(summary.as_of)) ? new Date(summary.as_of).toLocaleString() : null
+  const coverageDisclosure = summary ? <details className="cfr-demand-provenance"><summary>Coverage and limitations</summary><p>{provenance?.source_count ?? 0} contributing sources · {sectorLabel}{provenance?.latest_evidence_at ? ` · Latest evidence ${new Date(provenance.latest_evidence_at).toLocaleString()}` : ''}</p>{summary.limitations.length > 0 ? <ul>{summary.limitations.map((limitation, index) => <li key={`${index}-${limitation}`}>{limitation}</li>)}</ul> : <p>Coverage is limited to supported, safely aggregated equipment records.</p>}</details> : null
+  return <div className="cfr-kpis" aria-label="Opportunity summary"><article><Zap aria-hidden="true"/><strong aria-label={loading ? 'Loading' : error || !ready || !knownClass ? 'Unavailable' : `${format(classes![knownClass].mw)} MW ${knownClass}`}>{loading ? '…' : knownClass && classes ? `${format(classes[knownClass].mw)} MW` : '—'}</strong><span>Identified Power Demand (MW)</span><small>{loading || error || !ready ? <>{statusText}{error && <> <button type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></>}</> : <><b className="cfr-kpi-scope">Additional equipment only</b> · Bounded supported equipment records; not total portfolio demand. {knownClass ? `${knownClass[0].toUpperCase()}${knownClass.slice(1)} class.` : 'No known class amount.'} {classSummary}. {countsText} {sectorLabel}{asOfLabel ? ` · Updated ${asOfLabel}` : ''}.</>}</small>{coverageDisclosure}</article><article><ChartNoAxesColumnIncreasing aria-hidden="true"/><strong>—</strong><span>High Priority</span><small>Priority classification unavailable</small></article><article><FileText aria-hidden="true"/><strong>—</strong><span>New This Week</span><small>Creation date unavailable</small></article></div>
 }

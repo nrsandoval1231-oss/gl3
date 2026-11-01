@@ -1,0 +1,23 @@
+# Remaining reliability repair — November 1, 2026
+
+Baseline: main `9d3aedffea7b411a53d3b80bbf4a7c56c46f77dc` after PR163. This receipt describes a repository candidate, not deployed behavior.
+
+## Changes
+
+- RRC flare collection uses existing durable recent/history progress rows. Recent overlap remains three days; initial history begins 90 days back and advances at most seven days per segment. Count/byte/page limits remain enforced. Failed acquisition cannot advance completion, and evidence persistence precedes cursor advancement. The existing worker continuation budget applies. Source day is America/Chicago across progress and retrieval.
+- RRC drilling uses durable monthly archive catch-up, bootstrapped from the month containing the last 90 days. Digest-bound pages preserve the existing 1000-record segment limit; changed snapshots reset the cursor visibly. Historical same-amendment updates compare source snapshot chronology, preserving newer live projections while allowing newer archives to update older archives. No snapshot absence reconciliation is applied.
+- Demand summary reads current saved browse identities/sector metadata and revalidates current equipment packages. Candidate count is bounded; over-budget cohorts return unavailable instead of a partial total. Physical-asset overlaps are excluded conservatively. Unknown/conflicted demand never becomes numeric MW. Documented/calculated/estimated values remain separate.
+- Default grouped browsing displays the bounded additional-equipment KPI. Sector changes and refresh update it; session clearing aborts pending work and removes values. Periodic refresh bounds displayed staleness. The KPI explicitly is not total portfolio demand.
+
+## Validation
+
+Local frontend typecheck/build and focused checks are being run on the candidate. An initial broad unit run recorded 2,298 passes, two skips, 28 failures and 31 setup errors; this is not a passing suite. The environment lacks a usable PostgreSQL process and httpx initially lacked the runtime proxy's optional SOCKS transport. No repository dependency or test guard was weakened. Browser installation returned a truncated/non-ZIP download. GitHub CI with disposable PostgreSQL and browser installation remains the required complete validation environment.
+
+Independent review found and prompted corrections to PostgreSQL query shape, source-backed sector/physical identity, Texas-local calendar handling, default-view mounting and KPI expiry. Final source review of the first published candidate found no further blocker. Local final checks passed 37 focused tests, backend lint/format/mypy and frontend types/build. CI run 41315456591 then reported 3,709 backend passes, one intentional skip and one failure: a newly parametrized budget test assumed two recent lanes, whereas flare has one. The fixture now verifies the correct lane count and exactly two persisted segment advances. Older synthetic browser sessions also need a mock for the newly added summary endpoint; real-backend acceptance remains unmocked. The corrected head requires a fresh complete CI pass. Follow-up work adds malformed summary validation and drilling catch-up with chronology regression coverage; 72 focused RRC tests passed after chronology adjustment. CI run 41316355460 had 173 browser passes and 17 failures (remaining synthetic summary mocks, disclosure layout, and an initial-request count assumption); fixes preserve existing assertions. Its backend suite timed out at the unchanged 480-second bound without a completed result. These runs are not passing acceptance.
+
+## Remaining limitations
+
+- Flare submissions before the initial 90-day history boundary are not claimed complete. Completed historical submission intervals are not continuously revisited for later status changes.
+- RRC drilling archives before the bootstrap boundary and subsequent corrections to completed monthly archives are not continuously covered. Unknown or equal historical snapshot chronology retains evidence without replacing the current projection. A retained daily snapshot conservatively outranks monthly archives; same-sequence status correction of that retained daily projection needs a later daily retrieval. Missing archives fail visibly without advancement.
+- The summary measures supported additional equipment input, not every facility's total power demand. Unsupported/conflicted cohorts remain unavailable or excluded, with counts.
+- Production is unchanged. No production SSH execution capability is present in this workspace. Current images/schema, backup/restore/rollback, real source freshness and authenticated canary performance remain unverified.

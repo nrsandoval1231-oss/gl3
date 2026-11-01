@@ -131,6 +131,35 @@ def chicago_today(now: datetime | None = None) -> date:
     return current.astimezone(ZoneInfo("America/Chicago")).date()
 
 
+class DemandSummaryClassOut(BaseModel):
+    mw: float | None
+    record_count: int = Field(ge=0)
+
+
+class DemandSummaryTotalsOut(BaseModel):
+    identified_records: int = Field(ge=0)
+    known_mw_records: int = Field(ge=0)
+    unknown_records: int = Field(ge=0)
+    conflicted_records: int = Field(ge=0)
+
+
+class DemandSummaryProvenanceOut(BaseModel):
+    contract: Literal["equipment-demand-v1"]
+    source_count: int = Field(ge=0)
+    latest_evidence_at: datetime | None
+
+
+class DemandSummaryOut(BaseModel):
+    counts_complete: bool
+    availability: Literal["available", "unavailable"]
+    sector: Literal["all", "oil_gas", "data_centers"]
+    as_of: datetime
+    totals: DemandSummaryTotalsOut
+    classes: dict[Literal["documented", "calculated", "estimated"], DemandSummaryClassOut]
+    provenance: DemandSummaryProvenanceOut
+    limitations: list[str]
+
+
 class EvidenceOut(BaseModel):
     id: UUID
     title: str
@@ -2084,6 +2113,21 @@ def project_opportunities(
         if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
             raise HTTPException(413, "Project results exceed the response byte budget")
         return payload
+
+
+@app.get(
+    "/api/opportunities/demand-summary",
+    response_model=DemandSummaryOut,
+    dependencies=[Depends(require_session)],
+)
+def opportunity_demand_summary(
+    sector: Literal["all", "oil_gas", "data_centers"] = "all",
+):
+    from gridlens.intelligence.demand_summary import summarize
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        return summarize(session, sector)
 
 
 @app.get(

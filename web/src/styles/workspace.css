@@ -99,6 +99,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .wh-detail-content a,.wh-evidence a{color:var(--gl-deep-slate);text-underline-offset:2px}
 .wh-detail-content button{font:inherit}
 .wh-opportunity-layout .wh-detail.wh-empty-detail{display:grid;align-content:center;justify-items:center;min-height:300px;max-height:none;padding:28px;background:var(--gl-white);text-align:center}
+.project-first-main .project-first-layout>.cfr-kpis{grid-column:1/-1}
 .wh-opportunity-layout .wh-detail.wh-empty-detail p{font-size:12px;color:var(--gl-deep-slate)}
 @media(max-width:1150px){.wh-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.wh-metric:nth-child(4),.wh-metric:nth-child(5){min-height:76px}.wh-summary-columns{grid-template-columns:repeat(2,minmax(0,1fr))}.wh-summary-columns>section:last-child{grid-column:1/-1}}
 @media(max-width:1050px){.wh-layout.wh-opportunity-layout{grid-template-columns:clamp(300px,34vw,360px) minmax(0,1fr)}.wh-list,.wh-detail{max-height:calc(100vh - var(--wh-header-height))}.wh-record-hero{align-items:flex-start;flex-direction:column;gap:8px}.wh-record-actions{justify-content:flex-start;max-width:none}.wh-record-actions>span{text-align:left}}
