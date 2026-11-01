@@ -87,21 +87,29 @@ def _group_filter(*, term, region, stage, priority, alias="g"):
     """Select whole customer groups through any matching member project."""
     clauses = ["TRUE"]
     params: dict[str, Any] = {"term": term}
+    # Qualify from set-based group-key subqueries.  The previous correlated
+    # form walked assigned members and re-evaluated an all_rows project-id
+    # lookup for each candidate group/member.  These independent keysets keep
+    # the established any-member semantics while allowing PostgreSQL to build
+    # each matching set once.  Predicates intentionally remain separate:
+    # search, region, and stage may match different children of one group.
+    member_asset_projects = "SELECT DISTINCT ar.asset_key, ar.project_id FROM all_rows ar"
     if region:
         clauses.append(
-            "EXISTS (SELECT 1 FROM assigned fa JOIN browse_rows fb "
-            "ON fb.generation_id=:generation AND fb.project_id IN "
-            "(SELECT ar.project_id FROM all_rows ar WHERE ar.asset_key=fa.asset_key) "
-            f"WHERE fa.group_key={alias}.group_key AND fb.compact->>'location'=:region)"
+            f"{alias}.group_key IN (SELECT DISTINCT fa.group_key "
+            "FROM assigned fa JOIN (" + member_asset_projects + ") ar "
+            "ON ar.asset_key=fa.asset_key JOIN browse_rows fb "
+            "ON fb.generation_id=:generation AND fb.project_id=ar.project_id "
+            "WHERE fb.compact->>'location'=:region)"
         )
         params["region"] = region
     if stage:
         clauses.append(
-            "EXISTS (SELECT 1 FROM assigned fa JOIN browse_rows fb "
-            "ON fb.generation_id=:generation AND fb.project_id IN "
-            "(SELECT ar.project_id FROM all_rows ar WHERE ar.asset_key=fa.asset_key) "
-            f"WHERE fa.group_key={alias}.group_key "
-            "AND fb.compact #>> '{project_metadata,event,kind}'=:stage)"
+            f"{alias}.group_key IN (SELECT DISTINCT fa.group_key "
+            "FROM assigned fa JOIN (" + member_asset_projects + ") ar "
+            "ON ar.asset_key=fa.asset_key JOIN browse_rows fb "
+            "ON fb.generation_id=:generation AND fb.project_id=ar.project_id "
+            "WHERE fb.compact #>> '{project_metadata,event,kind}'=:stage)"
         )
         params["stage"] = stage
     if priority == "ranked":
@@ -121,11 +129,12 @@ def _group_filter(*, term, region, stage, priority, alias="g"):
     if term:
         name_column = "group_name" if alias == "a" else "name"
         clauses.append(
-            f"(strpos(lower(coalesce({alias}.{name_column},'')), :term) > 0 OR EXISTS ("
-            "SELECT 1 FROM assigned sa JOIN browse_rows sb "
-            "ON sb.generation_id=:generation AND sb.project_id IN "
-            "(SELECT ar.project_id FROM all_rows ar WHERE ar.asset_key=sa.asset_key) "
-            f"WHERE sa.group_key={alias}.group_key AND ("
+            f"(strpos(lower(coalesce({alias}.{name_column},'')), :term) > 0 OR "
+            f"{alias}.group_key IN (SELECT DISTINCT sa.group_key "
+            "FROM assigned sa JOIN (" + member_asset_projects + ") ar "
+            "ON ar.asset_key=sa.asset_key JOIN browse_rows sb "
+            "ON sb.generation_id=:generation AND sb.project_id=ar.project_id "
+            "WHERE ("
             "strpos(sb.search_text,:term)>0 OR "
             "strpos(lower(coalesce(sb.compact->>'browse_title','')),:term)>0 OR "
             "strpos(lower(coalesce(sb.compact->>'name','')),:term)>0 OR "
@@ -416,7 +425,9 @@ def groups(
     )
     _validate_token(token, cohort, offset)
     _disable_jit_for_search(session, term)
-    where, params = _query_parts(generation, term, sector)
+    # Search qualifies whole groups below; keep every member in the aggregate
+    # so counts and child serialization remain complete when one project hits.
+    where, params = _query_parts(generation, "", sector)
     order = {
         "priority": "priority_score DESC NULLS LAST, name, group_key",
         "priority_asc": "priority_score ASC NULLS LAST, name, group_key",
@@ -506,7 +517,7 @@ def group_metadata(
         priority=priority,
         selected_generation=selected_generation,
     )
-    where, params = _query_parts(generation, term, sector)
+    where, params = _query_parts(generation, "", sector)
     sql = _ctes(where)
     selected, selected_params = _group_filter(
         term=term, region=region, stage=stage, priority=priority
@@ -580,7 +591,7 @@ def group_projects(
     group_token = cohort + ".group." + hashlib.sha256(group_id.encode()).hexdigest()[:16]
     _validate_token(token, group_token, offset)
     _disable_jit_for_search(session, term)
-    where, params = _query_parts(generation, term, sector)
+    where, params = _query_parts(generation, "", sector)
     sql = _ctes(where)
     # Resolve the opaque group id using built-in PostgreSQL md5 and collect only
     # the requested asset page's anchor project IDs for the shared serializer.
@@ -673,4 +684,132 @@ def group_projects(
             "group_kind": rows[0]["group_kind"] if rows else "unresolved",
             "identity_count": rows[0]["identity_count"] if rows else None,
         },
+    }
+
+
+def group_open(
+    session,
+    group_id: str,
+    *,
+    search=None,
+    sector="all",
+    limit=25,
+    sort="priority",
+    region=None,
+    stage=None,
+    priority=None,
+    selected_generation=None,
+):
+    """Load a group header and its first project page in one cohort pass."""
+    if sector not in {"all", "oil_gas", "data_centers"}:
+        raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
+    if sort not in {"priority", "priority_asc", "company", "updated"}:
+        raise HTTPException(422, "Unsupported customer sort")
+    if priority not in {None, "ranked", "unranked"}:
+        raise HTTPException(422, "priority must be ranked or unranked")
+    generation, term, cohort = _cohort(
+        session,
+        search=search,
+        sector=sector,
+        sort=sort,
+        region=region,
+        stage=stage,
+        priority=priority,
+        selected_generation=selected_generation,
+    )
+    _disable_jit_for_search(session, term)
+
+    # Build assignments for the complete sector cohort. Search, region, and
+    # stage then qualify the group independently through member keysets;
+    # they do not trim the group before its full child list is paginated.
+    where, params = _query_parts(generation, "", sector)
+    selected, selected_params = _group_filter(
+        term=term, region=region, stage=stage, priority=priority
+    )
+    params.update(selected_params)
+    params.update({"generation": generation.id, "id": group_id, "limit": limit})
+    child_order = {
+        "priority": "a.priority_score DESC NULLS LAST, a.updated_at DESC NULLS LAST",
+        "priority_asc": "a.priority_score ASC NULLS LAST, a.updated_at DESC NULLS LAST",
+        "company": "lower(a.group_name), a.asset_key",
+        "updated": "a.updated_at DESC NULLS LAST, a.asset_key",
+    }[sort]
+    rows = (
+        session.execute(
+            text(
+                _ctes(where)
+                + f"""
+          SELECT g.group_key, g.name, g.role, g.group_kind, g.identity_count,
+                 g.project_count, g.need_count, g.priority_score, g.sectors,
+                 a.anchor_project_id, a.asset_key, a.company_id, a.group_name,
+                 a.group_role, a.group_kind AS asset_group_kind,
+                 a.identity_count AS asset_identity_count,
+                 a.priority_score AS asset_priority_score, a.need_count AS asset_need_count,
+                 a.sector AS asset_sector, a.updated_at AS asset_updated_at,
+                 count(*) OVER() AS child_total
+          FROM grouped g JOIN assigned a ON a.group_key = g.group_key
+          WHERE 'cg_' || md5(g.group_key) = :id AND {selected}
+          ORDER BY {child_order}, a.asset_key
+          LIMIT :limit
+        """
+            ),
+            params,
+        )
+        .mappings()
+        .all()
+    )
+    if not rows:
+        raise HTTPException(404, "Customer group not found in this cohort")
+
+    project_ids = [UUID(row["anchor_project_id"]) for row in rows]
+    serialized = project_page(
+        session,
+        search=None,
+        sector=sector,
+        limit=max(1, len(project_ids)),
+        offset=0,
+        sort=sort,
+        include_signals=True,
+        project_ids=project_ids,
+        selected_generation=generation,
+    )
+    customer_identity_by_anchor = {str(row["anchor_project_id"]): row["company_id"] for row in rows}
+    for item in serialized["items"]:
+        item["customer_identity_id"] = next(
+            (
+                customer_identity_by_anchor[project_id]
+                for project_id in item["project_ids"]
+                if project_id in customer_identity_by_anchor
+            ),
+            None,
+        )
+
+    first = rows[0]
+    group = {
+        "id": _group_id(first["group_key"]),
+        "name": first["name"],
+        "role": first["role"],
+        "group_kind": first["group_kind"],
+        "identity_count": first["identity_count"],
+        "project_count": first["project_count"],
+        "need_count": first["need_count"],
+        "priority_score": first["priority_score"],
+        "sectors": first["sectors"],
+    }
+    group_token = cohort + ".group." + hashlib.sha256(group_id.encode()).hexdigest()[:16]
+    projects = {
+        "items": serialized["items"],
+        "count_unit": "projects",
+        "total": first["child_total"],
+        "limit": limit,
+        "offset": 0,
+        "cohort_token": group_token,
+        "generation": str(generation.id),
+        **_snapshot_metadata(generation),
+    }
+    return {
+        "group": group,
+        "projects": projects,
+        "parent_cohort_token": cohort,
+        "generation": str(generation.id),
     }

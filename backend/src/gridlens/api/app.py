@@ -2172,37 +2172,13 @@ def customer_group_open(
     stage: str | None = None,
     priority: Literal["ranked", "unranked"] | None = None,
 ):
-    from gridlens.intelligence.customer_results import group_metadata, group_projects, groups
+    from gridlens.intelligence.customer_results import group_open
 
     with SessionLocal() as session:
         _begin_consistent_read(session)
         session.execute(text("SET TRANSACTION READ ONLY"))
         generation = current_generation(session)
-        # Group and project serializers consume this generation explicitly so
-        # a publication between reads cannot invalidate the parent selection.
-        parent = groups(
-            session,
-            search=search,
-            sector=sector,
-            limit=50,
-            sort=sort,
-            region=region,
-            stage=stage,
-            priority=priority,
-            selected_generation=generation,
-        )
-        group = group_metadata(
-            session,
-            group_id,
-            search=search,
-            sector=sector,
-            sort=sort,
-            region=region,
-            stage=stage,
-            priority=priority,
-            selected_generation=generation,
-        )
-        children = group_projects(
+        payload = group_open(
             session,
             group_id,
             search=search,
@@ -2212,16 +2188,8 @@ def customer_group_open(
             region=region,
             stage=stage,
             priority=priority,
-            parent_token=parent["cohort_token"],
             selected_generation=generation,
         )
-        children.pop("group", None)
-        payload = {
-            "group": group,
-            "projects": children,
-            "parent_cohort_token": parent["cohort_token"],
-            "generation": str(generation.id),
-        }
         _bounded_opportunity_payload(payload["projects"]["items"])
         if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
             raise HTTPException(413, "Project results exceed the response byte budget")

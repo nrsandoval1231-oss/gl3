@@ -1,0 +1,15 @@
+# Current checkpoint — customer rollup repair
+
+CURRENT: owner approved local fix and validation for one default customer/operator entry with all supported projects nested, across Data Centers and Industrial/Oil&Gas. [Packet](packets/CUSTOMER-ROLLUP-20261031.md), [graph](WORK_GRAPH.md), [canons](../AGENTS.md). Branchfix/default-customer-rollup-20261031, basee0035d9e5bfb52f92bb4d21e6de0fac16d91adff. No PR publication/merge/deployment, migrations, normalization/backfill, providers or production writes.
+
+The earlier Phase1 reliability candidate did not implement default rollup. Default route used flat project results; grouped and account routes were opt-in. Reuse evidenced identity/regulator-based group queries; do not merge unrelated entities by loose name. Search/filter/sort/count/pagination must operate server-side over the full customer cohort; nested projects retain individual identity/details/evidence/contacts. Conflicts/unresolved identities remain explicit.
+
+Production prior593cfd5 restored and verified after release hold. Candidate cutover did not occur. Stale controller3858829 was identity-verified and retired bySIGKILL without resumption; preserved evidence remains outside this feature repo in task/release-preparation. Prior paired backup/restore/recovery proof passed for its exact artifact pair only.
+
+LOCAL CANDIDATE: integrated source `d30f9e35951a9288c642fce1fd3f6c78b9e98568`; product source unchanged from independently reviewed70c9646 except the assertion-preserving deterministic clock test fixture. Default grouped navigation, global cohort controls, safe identity keys and explicit unconfirmed source-name containers implemented. All project details/evidence/contacts remain separate. [Validation report](../docs/validation/customer-rollup-20261031.md).
+
+GATES: full backend3,695pass/2declaredskip/7subtests in196.53s; browser184pass plus phone namegroup1pass; nativeCompose1pass; focusedgrouped25pass; static/type/build/audits/schema/doclinks passed. Independent Astra exact-candidate review PASS, no blocking findings. No production, publication or merge action. NEXT: hand off accepted local branch and preserved evidence; keep release held pending separate owner instructions.
+
+Limits: earlier unexplained480s local timeout and ingestion catch-up gaps unresolved; no new release/readiness claim. Prior checkpoint bytes retained in archive/CUSTOMER-ROLLUP-20261031/.
+
+NOVEMBER1CI: published draftPR163 at e827889. Remote backend failed2diagnostics cases because only saved_browseclock was frozen; fixture now synchronizes worker_browseclock too. Runtime source unchanged, every assertion retained. Corrected focusedcases pass; successor remoteCI must pass before release. Old images/controllerproposal remain pinned e827889 and must be repinned explicitly. No deployment/merge.
