@@ -11,3 +11,5 @@ LOCAL CANDIDATE: integrated source `d30f9e35951a9288c642fce1fd3f6c78b9e98568`; p
 GATES: full backend3,695pass/2declaredskip/7subtests in196.53s; browser184pass plus phone namegroup1pass; nativeCompose1pass; focusedgrouped25pass; static/type/build/audits/schema/doclinks passed. Independent Astra exact-candidate review PASS, no blocking findings. No production, publication or merge action. NEXT: hand off accepted local branch and preserved evidence; keep release held pending separate owner instructions.
 
 Limits: earlier unexplained480s local timeout and ingestion catch-up gaps unresolved; no new release/readiness claim. Prior checkpoint bytes retained in archive/CUSTOMER-ROLLUP-20261031/.
+
+NOVEMBER1CI: published draftPR163 at e827889. Remote backend failed2diagnostics cases because only saved_browseclock was frozen; fixture now synchronizes worker_browseclock too. Runtime source unchanged, every assertion retained. Corrected focusedcases pass; successor remoteCI must pass before release. Old images/controllerproposal remain pinned e827889 and must be repinned explicitly. No deployment/merge.

@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import sessionmaker
 from test_saved_browse import saved_db, seed  # noqa: F401
 
-from gridlens.intelligence import saved_browse
+from gridlens.intelligence import saved_browse, worker_browse
 from gridlens.intelligence.worker_browse import install_worker_publication
 from gridlens.persistence.models import BrowseGeneration, BrowseRow, BrowseState, PowerNeed
 from gridlens.settings import settings
@@ -23,6 +23,7 @@ def controlled_clock(monkeypatch, instant):
             return value.astimezone(tz) if tz else value.replace(tzinfo=None)
 
     monkeypatch.setattr(saved_browse, "datetime", Clock)
+    monkeypatch.setattr(worker_browse, "datetime", Clock)
     return clock
 
 

@@ -45,3 +45,9 @@ Failure history is retained. Initial integration and identity/UI review findings
 Logs and receipts are in `.agent/artifacts/CUSTOMER-ROLLUP-20261031/`. Historical builder receipts describe their own checkpoints and are superseded only by the final controller completion and independent review receipts.
 
 No production release or new live browser QA has occurred for this branch. Prior production `593cfd5` remains restored; the stale release controller was retired. Earlier unexplained480s local timeout and ingestion catch-up gaps remain unresolved limitations.
+
+## November 1 remote CI follow-up
+
+After publication as draft [PR163](https://github.com/nrsandoval1231-oss/gl3/pull/163), remote CI run41259625709 rejected e827889 with2publication-diagnostics failures,3,694passes and1optional skip. The local pass above remains a dated result, not a passing remote release gate. The test froze saved_browse at noon but left worker_browse on real UTC time; before noon the worker correctly rejected the future-valid generation as ineligible. The fixture now patches both module clocks to the same controlled instant. Every original assertion and both parameter cases remain; application code and production guards are unchanged. Both corrected cases pass locally before noon. Current successor-head CI checks on PR163 are authoritative; this historical receipt does not imply deployment.
+
+The earlier e827889 candidate images/controller proposal are exact-pinned to that old head and cannot silently certify a successor commit. Repin and verify the actual release head before requesting specific controller installation/execution approval. Production remains593cfd5; no cutover or merge occurred. Fresh exact-artifact backup/restore/current-data recovery and authenticated live acceptance remain future release gates.
