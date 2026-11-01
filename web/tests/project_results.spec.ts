@@ -17,6 +17,7 @@ const groupPage = { items: [group], total: 1, count_unit: 'groups', limit: 25, o
 test('default root and header navigation browse customer groups with project children and server-side cohort controls', async ({ page }) => {
   const parentRequests: URL[] = []
   const childRequests: URL[] = []
+  const demandScopes: string[] = []
   const customers = Array.from({ length: 26 }, (_, index) => ({
     ...group,
     id: index === 0 ? 'cross-sector-customer' : index === 25 ? 'filter-edge-customer' : `customer-${index}`,
@@ -38,6 +39,11 @@ test('default root and header navigation browse customer groups with project chi
   }
   let parentToken = 'default-customer-cohort'
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/demand-summary?*', route => {
+    const sector = new URL(route.request().url()).searchParams.get('sector') ?? 'all'
+    demandScopes.push(sector)
+    return route.fulfill({ json: { availability: 'available', sector, as_of: null, totals: { identified_records: 1, known_mw_records: 1, unknown_records: 0, conflicted_records: 0 }, classes: { documented: { mw: sector === 'oil_gas' ? 3 : sector === 'data_centers' ? 5 : 11, record_count: 1 }, calculated: { mw: null, record_count: 0 }, estimated: { mw: null, record_count: 0 } }, provenance: { contract: 'equipment-demand-v1', source_count: 1, latest_evidence_at: null }, limitations: [] } })
+  })
   await page.route('**/api/opportunities/groups?*', route => {
     const url = new URL(route.request().url())
     parentRequests.push(url)
@@ -76,6 +82,8 @@ test('default root and header navigation browse customer groups with project chi
     start_window: null, duration: null, evidence: [], missing_facts: [], rationale: 'Synthetic source-backed fixture.',
   } }))
   await page.goto('/')
+  await expect(page.locator('.cfr-kpis')).toBeVisible()
+  await expect(page.locator('.cfr-kpis article').first().locator('strong')).toHaveText('11 MW')
   await expect(page.locator('.customer-group')).toHaveCount(25)
   await expect(page.locator('.project-results-count')).toContainText('26')
   expect(parentRequests[0].searchParams.get('sector')).toBe('all')
@@ -91,6 +99,8 @@ test('default root and header navigation browse customer groups with project chi
   expect(childRequests[0].searchParams.get('sort')).toBe('priority')
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
   await expect.poll(() => parentRequests.at(-1)?.searchParams.get('sector')).toBe('data_centers')
+  await expect.poll(() => demandScopes.at(-1)).toBe('data_centers')
+  await expect(page.locator('.cfr-kpis article').first().locator('strong')).toHaveText('5 MW')
   expect(new URL(page.url()).searchParams.get('sector')).toBe('data_centers')
   await page.getByRole('button', { name: 'All', exact: true }).click()
   await page.getByRole('button', { name: 'Next', exact: true }).click()

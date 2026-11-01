@@ -1038,7 +1038,11 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 admission_context = None
                 return True
             collection_jobs_remaining = None
-            if definition.get("retrieval_method") in {"socrata-permits", "boston-ckan-permits"}:
+            if definition.get("retrieval_method") in {
+                "socrata-permits",
+                "boston-ckan-permits",
+                "rrc-flare-exceptions",
+            }:
                 # Validate within the worker failure boundary, before acquisition.
                 # Capture once: service checkpoints must never reset this chain.
                 job_checkpoint = _collection_checkpoint(finished_job.checkpoint, job_checkpoint)

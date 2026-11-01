@@ -351,7 +351,7 @@ export function WorkspaceHome() {
     </section>}
     <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>
-        {!groupBrowse && <CanonicalOpportunityKpis/>}
+        <CanonicalOpportunityKpis/>
         <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => {
           updateSelectedNeedContext(null); ++selectionSequence.current
           setDetailIdentity(null); setSelected(null); setPendingNeedId(null); setDetailLoading(false); setDetailError(''); setTab('Overview')

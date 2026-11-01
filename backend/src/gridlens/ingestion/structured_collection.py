@@ -6,6 +6,7 @@ import hashlib
 import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -21,6 +22,16 @@ WINDOW_DAYS = 7
 MAX_CURSOR_BYTES = 8192
 
 
+def collection_day(source: dict[str, Any], now: datetime | None = None) -> date:
+    current = now or datetime.now(UTC)
+    zone = (
+        ZoneInfo("America/Chicago")
+        if source.get("retrieval_method") == "rrc-flare-exceptions"
+        else UTC
+    )
+    return current.astimezone(zone).date()
+
+
 def collection_lanes(source: dict[str, Any]) -> tuple[str, ...]:
     method = source.get("retrieval_method")
     if method == "socrata-permits":
@@ -32,7 +43,7 @@ def collection_lanes(source: dict[str, Any]) -> tuple[str, ...]:
         if source_id == "austin-building-permits" and isinstance(backfill, dict):
             lanes.append("issue_backfill")
         return tuple(lanes)
-    if method == "boston-ckan-permits":
+    if method in {"boston-ckan-permits", "rrc-flare-exceptions"}:
         return ("issue_recent", "issue_history")
     return ()
 
@@ -68,6 +79,10 @@ def _date(value: datetime | None) -> date | None:
 def _new_window(
     lane: str, today: date, lookback_days: int, source: dict[str, Any]
 ) -> tuple[date, date]:
+    if source.get("retrieval_method") == "rrc-flare-exceptions":
+        days = source["query"]["window_days"] if lane.endswith("recent") else 90
+        start = max(date(2021, 5, 2), today - timedelta(days=days - 1))
+        return start, min(today, start + timedelta(days=WINDOW_DAYS - 1))
     if lane == "issue_backfill":
         backfill = source["query"]["data_center_backfill"]
         start, end = date.fromisoformat(backfill["start"]), date.fromisoformat(backfill["end"])
@@ -109,7 +124,7 @@ def prepare_collection_progress(
         raise SourceParseError("Source has no structured collection lanes")
     source_id = str(source["id"])
     digest = collection_policy_digest(source)
-    current_day = today or datetime.now(UTC).date()
+    current_day = today or collection_day(source)
     query = source.get("query") or {}
     lookback = int(query.get("window_days", 90))
     rows = session.scalars(
@@ -284,7 +299,7 @@ def collection_continuation_needed(
     today: date | None = None,
 ) -> bool:
     """Whether another bounded segment can advance a lane without waiting."""
-    current_day = today or datetime.now(UTC).date()
+    current_day = today or collection_day(source)
     rows = session.scalars(
         select(SourceCollectionProgress).where(
             SourceCollectionProgress.source_id == source_id,

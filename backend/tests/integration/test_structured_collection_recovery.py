@@ -234,6 +234,58 @@ def test_process_job_resumes_modified_history_after_long_outage(structured_db):
         assert progress.completed_through == first_range_end + timedelta(days=7)
 
 
+def test_rrc_flare_history_resumes_after_completed_interval(structured_db):
+    factory = structured_db
+    source_definition = next(
+        item for item in load_registry() if item["id"] == "texas-rrc-flare-vent-exceptions"
+    )
+    today = datetime.now(UTC).date()
+    digest = collection_policy_digest(source_definition)
+    through = today - timedelta(days=31)
+    start = through - timedelta(days=6)
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=source_definition["id"],
+                publisher=source_definition["publisher"],
+                endpoint=source_definition["endpoint"],
+                family=source_definition["family"],
+                geography=source_definition["geography"],
+                industries=source_definition["industries"],
+                retrieval_method=source_definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        row = SourceCollectionProgress(
+            source_id=source_definition["id"],
+            lane="issue_history",
+            policy_digest=digest,
+            window_start=datetime.combine(start, time.min, UTC),
+            window_end=datetime.combine(through, time.min, UTC),
+            completed_through=datetime.combine(through, time.min, UTC),
+            cursor={},
+            status="complete",
+        )
+        recent = SourceCollectionProgress(
+            source_id=source_definition["id"],
+            lane="issue_recent",
+            policy_digest=digest,
+            window_start=datetime.combine(today - timedelta(days=2), time.min, UTC),
+            window_end=datetime.combine(today, time.min, UTC),
+            completed_through=datetime.combine(today, time.min, UTC),
+            cursor={},
+            status="complete",
+        )
+        session.add_all([row, recent])
+        session.flush()
+        progress, _, _ = prepare_collection_progress(session, source_definition, today=today)
+        assert progress.lane == "issue_history"
+        assert progress.window_start.date() == through + timedelta(days=1)
+        assert progress.window_end.date() == through + timedelta(days=7)
+        assert progress.status == "incomplete"
+
+
 @pytest.mark.parametrize("disabled,stored_fence", [(True, 1), (False, 2)])
 def test_process_job_rejects_disabled_source_or_stale_fence_before_fetch(
     structured_db, disabled, stored_fence

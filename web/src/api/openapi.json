@@ -648,6 +648,51 @@
         }
       }
     },
+    "/api/opportunities/demand-summary": {
+      "get": {
+        "summary": "Opportunity Demand Summary",
+        "operationId": "opportunity_demand_summary_api_opportunities_demand_summary_get",
+        "parameters": [
+          {
+            "name": "sector",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "oil_gas",
+                "data_centers"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Sector"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemandSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/opportunities/groups": {
       "get": {
         "summary": "Customer Opportunity Groups",
@@ -6453,6 +6498,166 @@
           "offset"
         ],
         "title": "CustomerProjectsPageOut"
+      },
+      "DemandSummaryClassOut": {
+        "properties": {
+          "mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mw"
+          },
+          "record_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Record Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mw",
+          "record_count"
+        ],
+        "title": "DemandSummaryClassOut"
+      },
+      "DemandSummaryOut": {
+        "properties": {
+          "counts_complete": {
+            "type": "boolean",
+            "title": "Counts Complete"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Availability"
+          },
+          "sector": {
+            "type": "string",
+            "enum": [
+              "all",
+              "oil_gas",
+              "data_centers"
+            ],
+            "title": "Sector"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "title": "As Of"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DemandSummaryTotalsOut"
+          },
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DemandSummaryClassOut"
+            },
+            "propertyNames": {
+              "enum": [
+                "documented",
+                "calculated",
+                "estimated"
+              ]
+            },
+            "type": "object",
+            "title": "Classes"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DemandSummaryProvenanceOut"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "counts_complete",
+          "availability",
+          "sector",
+          "as_of",
+          "totals",
+          "classes",
+          "provenance",
+          "limitations"
+        ],
+        "title": "DemandSummaryOut"
+      },
+      "DemandSummaryProvenanceOut": {
+        "properties": {
+          "contract": {
+            "type": "string",
+            "const": "equipment-demand-v1",
+            "title": "Contract"
+          },
+          "source_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Source Count"
+          },
+          "latest_evidence_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Evidence At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contract",
+          "source_count",
+          "latest_evidence_at"
+        ],
+        "title": "DemandSummaryProvenanceOut"
+      },
+      "DemandSummaryTotalsOut": {
+        "properties": {
+          "identified_records": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Identified Records"
+          },
+          "known_mw_records": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Known Mw Records"
+          },
+          "unknown_records": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unknown Records"
+          },
+          "conflicted_records": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Conflicted Records"
+          }
+        },
+        "type": "object",
+        "required": [
+          "identified_records",
+          "known_mw_records",
+          "unknown_records",
+          "conflicted_records"
+        ],
+        "title": "DemandSummaryTotalsOut"
       },
       "EvidenceContentOut": {
         "properties": {

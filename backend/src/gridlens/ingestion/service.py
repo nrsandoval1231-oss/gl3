@@ -62,6 +62,7 @@ from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN
 from gridlens.ingestion.structured_collection import (
     apply_segment_result,
     collection_continuation_needed,
+    collection_day,
     collection_policy_digest,
     collection_status,
     prepare_collection_progress,
@@ -1970,6 +1971,7 @@ def process_job(
     if source_definition.get("retrieval_method") in {
         "socrata-permits",
         "boston-ckan-permits",
+        "rrc-flare-exceptions",
     }:
         checkpoint_job = session.get(Job, job_id)
         try:
@@ -2425,7 +2427,9 @@ def _process_structured_collection_segment(
         progress_partial = bool(result.get("partial"))
         completed_at = session.scalar(text("SELECT clock_timestamp()"))
         apply_segment_result(latest_progress, result, now=completed_at)
-        current_complete, all_complete = collection_status(session, source.id, digest, lanes)
+        current_complete, all_complete = collection_status(
+            session, source.id, digest, lanes, today=collection_day(source_definition)
+        )
         continuation = not progress_partial and collection_continuation_needed(
             session,
             source.id,

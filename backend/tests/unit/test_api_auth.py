@@ -7,7 +7,12 @@ from gridlens.api.app import app, chicago_today
 
 def test_private_api_routes_reject_missing_session():
     client = TestClient(app)
-    for path in ("/api/health", "/api/opportunities", "/api/changes"):
+    for path in (
+        "/api/health",
+        "/api/opportunities",
+        "/api/opportunities/demand-summary",
+        "/api/changes",
+    ):
         response = client.get(path)
         assert response.status_code == 401
     response = client.get("/api/search", params={"q": "Texas"})

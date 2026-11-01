@@ -157,6 +157,9 @@ def _receipt(session, job_id):
     ).check_counts
 
 
+@pytest.mark.parametrize(
+    "chain_db", ["austin-building-permits", "texas-rrc-flare-vent-exceptions"], indirect=True
+)
 def test_two_job_chain_pauses_with_cursor_and_new_schedule_resumes(chain_db, monkeypatch):
     import gridlens.ingestion.service as service
 
