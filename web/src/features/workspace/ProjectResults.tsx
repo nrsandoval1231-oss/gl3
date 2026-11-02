@@ -177,12 +177,12 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     if (rawPriority !== null && !['ranked', 'unranked'].includes(rawPriority)) { params.delete('priority'); changed = true }
     if (changed) history.replaceState(history.state, '', `/?${params}`)
   }, [])
-  const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers', r = region, st = stage, p = priority, so = sort) => { parentReloadNotice.current = false; resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); if (s !== sector) window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: s })); setNotice(''); setError(''); setSearchDraft(q); setSearch(q); setSector(s); setRegion(r); setStage(st); setPriority(p); setSort(so); setOffset(0); updateUrl(q, s, 0, undefined, r, st, p, so) }
+  const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers', r = region, st = stage, p = priority, so = sort) => { parentReloadNotice.current = false; resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); if (s !== sector) window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: s })); setNotice(''); setSearchDraft(q); setSearch(q); setSector(s); setRegion(r); setStage(st); setPriority(p); setSort(so); setOffset(0); updateUrl(q, s, 0, undefined, r, st, p, so) }
   const requestedKey = browseKey({ search, sector, offset, region, stage, priority, sort })
   const currentPage = pageKey === requestedKey && browsePageIsValid(page) ? page : null
   const previousPage = pageKey !== requestedKey && browsePageIsValid(page) ? page : null
   const searchDraftChanged = searchDraft !== search
-  const requestedPageLoading = (pageKey !== requestedKey && !error) || loading
+  const requestedPageLoading = pageKey !== requestedKey || loading
   const busy = requestedPageLoading || searchDraftChanged
   const canUseChildren = pageKey === requestedKey && searchDraft === search && !loading && !error && !notice.toLowerCase().includes('still being prepared')
   const canInteract = !busy && !error && pageKey === requestedKey && searchDraft === search
@@ -316,7 +316,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const previousContext = previousPage ? `Loading ${sector === 'oil_gas' ? 'Oil & Gas' : sector === 'data_centers' ? 'Data Centers' : 'All'} groups. Previous results are hidden until the requested view is ready.${notice.toLowerCase().includes('still being prepared') ? ' The current cohort is still being prepared.' : ''}` : ''
   return <section className="project-results" aria-label="Project opportunities" aria-busy={busy}>
     <header className="project-results-header"><div className="project-results-title"><h1>Search opportunities</h1><button type="button" aria-label="Refresh project results" disabled={loading} onClick={() => { window.dispatchEvent(new Event('gl3-demand-refresh')); setRetryKey(value => value + 1) }}>Refresh</button></div>
-      <label><span className="project-search-label">Search opportunities</span><input aria-label="Search opportunities" placeholder="Project, operator, well or location" value={searchDraft} onChange={e => { setError(''); setSearchDraft(e.target.value); updateUrl(e.target.value, sector) }}/></label>
+      <label><span className="project-search-label">Search opportunities</span><input aria-label="Search opportunities" placeholder="Project, operator, well or location" value={searchDraft} onChange={e => { setSearchDraft(e.target.value); updateUrl(e.target.value, sector) }}/></label>
     </header>
     <nav className="project-sector-tabs" aria-label="Project type">{([['all','All'],['oil_gas','Oil & Gas'],['data_centers','Data Centers']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={sector === value} onClick={() => setFilter(searchDraft, value, '', '', priority)}>{label}</button>)}</nav>
     <div className="customer-rollup-controls">
@@ -327,7 +327,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
     </div>
     <div className="project-results-count" aria-live="polite" role={busy ? 'status' : undefined}>{busy ? searchDraftChanged ? 'Updating search. Previous results are hidden while the new search settles.' : currentPage ? `${notice && !notice.toLowerCase().includes('still being prepared') ? `${notice} ` : ''}Updating results. ${currentPage.as_of ? `Showing results last prepared ${new Date(currentPage.as_of).toLocaleString()}; qualification may have changed.` : 'Showing previously loaded results while the current cohort is checked.'}` : previousContext || (notice && !notice.toLowerCase().includes('still being prepared') ? `${notice} Loading groups…` : page && !browsePageIsValid(page) ? 'Refreshing expired results; the previous generation is no longer shown.' : notice.toLowerCase().includes('still being prepared') ? 'Results are still being prepared. Retrying automatically…' : `Loading ${sector === 'oil_gas' ? 'Oil & Gas' : sector === 'data_centers' ? 'Data Centers' : 'All'} groups…`) : currentPage ? `${currentPage.total} ${currentPage.total === 1 ? 'group' : 'groups'}` : error ? 'Groups unavailable' : 'No groups'}</div>
     {!busy && notice && <p role="status" className="project-results-notice">{notice}</p>}
-    {error && <p role="alert">{error} <button onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
+    {error && pageKey === requestedKey && <p role="alert">{error} <button onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
     {!busy && !error && currentPage && !groups.length && <p className="project-empty">No groups match this search.</p>}
     {!error && currentPage && !searchDraftChanged && <div className="customer-group-list">{groups.map(group => { const childPageCurrent = !children[group.id] || browsePageIsValid(children[group.id]); const displayedGroup = canUseChildren && childPageCurrent ? openedGroups[group.id] ?? group : group; const unconfirmedNameGroup = displayedGroup.group_kind === 'same_name_unconfirmed'; return <section key={displayedGroup.id} className="customer-group" aria-label={`${displayedGroup.name} ${unconfirmedNameGroup ? 'name group' : 'customer group'}`}>
       <h2 className="customer-group-heading"><button className="customer-group-toggle" type="button" disabled={!canInteract} aria-expanded={canUseChildren && Boolean(expanded[group.id])} onClick={() => toggleGroup(group)}>

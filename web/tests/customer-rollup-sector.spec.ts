@@ -121,7 +121,7 @@ test('a rapid sector change ignores a late response from the previously requeste
   expect(requests.slice(-2)).toEqual(['data_centers', 'oil_gas'])
 })
 
-test('a failed delayed sector request leaves loading and retries into the requested cohort', async ({ page }) => {
+test('failed sector results keep retry through no-op filter clicks and reverted search drafts', async ({ page }) => {
   let releaseFailure!: () => void
   const failurePending = new Promise<void>(resolve => { releaseFailure = resolve })
   let dataCenterReads = 0
@@ -155,6 +155,25 @@ test('a failed delayed sector request leaves loading and retries into the reques
   await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
   await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'false')
   await expect(page.locator('.customer-group-list')).toHaveCount(0)
+
+  // Selecting the already-active sector does not start a new cohort request,
+  // so it must leave the actionable error state in place.
+  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
+  await expect(alert).toContainText('Could not load operator/customer groups (503)')
+  await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
+  expect(dataCenterReads).toBe(1)
+
+  // A draft that is reverted before debounce is not a request either; the
+  // failed cohort's retry remains available until a real read starts.
+  const search = page.getByRole('textbox', { name: 'Search opportunities' })
+  await search.fill('temporary draft')
+  await search.fill('')
+  await page.waitForTimeout(400)
+  await expect(alert).toContainText('Could not load operator/customer groups (503)')
+  await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
+  await expect(page.locator('.project-results-count')).not.toHaveText('No groups')
+  expect(dataCenterReads).toBe(1)
+
   await alert.getByRole('button', { name: 'Retry' }).click()
   await expect(page.getByRole('heading', { name: 'Recovered Data Center Group' })).toBeVisible()
   await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'false')
