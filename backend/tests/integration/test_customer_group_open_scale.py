@@ -198,11 +198,25 @@ def test_scale_corpus_global_customer_pagination_and_filter_cohorts(saved_db, mo
     client = _client(saved_db, monkeypatch)
     params = {"sector": "oil_gas", "sort": "priority_asc", "limit": 25}
 
-    first_response = client.get("/api/opportunities/groups", params=params)
+    first_response, read_statements = _capture_read_statements(
+        saved_db.kw["bind"],
+        lambda: client.get("/api/opportunities/groups", params=params),
+    )
     assert first_response.status_code == 200, first_response.text
     first = first_response.json()
-    assert first["total"] > 50
+    assert first["total"] == 304
     assert len(first["items"]) == 25
+
+    # Oil & Gas applies a real sector predicate. The cohort must reuse the
+    # matched subset for group expansion instead of rescanning the full row
+    # table with a second copy of the same asset expression and filter.
+    normalized_reads = [" ".join(statement.lower().split()) for statement in read_statements]
+    cohort_reads = [statement for statement in normalized_reads if "with matched as" in statement]
+    assert len(cohort_reads) == 1  # the window total shares the paged grouped read
+    for statement in cohort_reads:
+        assert "all_rows as (select * from matched)" in statement
+        assert statement.count("from browse_rows b where") == 1
+
     second_response = client.get(
         "/api/opportunities/groups",
         params={**params, "offset": 25, "cohort_token": first["cohort_token"]},
