@@ -37,13 +37,13 @@ These are target boundaries, not claims of current end-to-end operation. Athena 
 
 ## First implementation slice
 
-The candidate slice parses a bounded O&G pump/compressor cohort and computes electrical demand with `Decimal`. It uses `equipment-demand-v1` on existing `EvidencePackage` records, normal and unchanged-record ingestion hooks, and the existing intelligence-card API contract for demand records. No migration is planned. It preserves source efficiency/rating basis, count, operating/standby state, new/existing classification, and project/evidence binding. Engineer-owned deterministic tests cover arithmetic and negative cases. It is not the full six-layer pipeline or a production deployment.
+The deployed bounded slice parses an O&G pump/compressor cohort and computes electrical demand with `Decimal`. It uses `equipment-demand-v1` on existing `EvidencePackage` records, normal and unchanged-record ingestion hooks, and the existing intelligence-card API contract for demand records. The deployed slice required no new migration. It preserves source efficiency/rating basis, count, operating/standby state, new/existing classification, and project/evidence binding. Engineer-owned deterministic tests cover arithmetic and negative cases. It is included in the accepted application release, but it is not the full six-layer pipeline; see the [November 2 receipt](../validation/production-release-20261102.md) for dated runtime evidence and limits.
 
 ## Primary measure and presentation
 
 Primary KPI: **Identified Power Demand MW**. Report documented, calculated, and estimated MW separately, deduplicated by supported demand/equipment scope. Also report identified records whose MW is unknown. Inferred amounts do not enter documented/calculated/estimated totals.
 
-Demand-centered UI changes are implemented in the current candidate, but the Identified Power Demand MW KPI data is unavailable and must remain explicitly unavailable rather than fabricated. This candidate is not production shipped. The October 29 UI remains the dated production presentation. Preserve evidence access, responsive behavior, privacy, and authentication.
+Demand-centered UI changes are deployed within `ec6486a2`. At the November 2 verification, the demand summary had zero supported validated equipment records and remained explicitly unavailable rather than fabricated. The October 29 visual identity is retained with bounded November 2 loading/alignment/header refinements; equipment-only MW is not total portfolio demand. Preserve evidence access, responsive behavior, privacy, and authentication.
 
 ## Current runtime compatibility
 
@@ -59,6 +59,6 @@ The current application retains regional TX/OK/NM policy and Signal/Prospect/Lea
 | **REMOVE** | No historical data or code removal is authorized. Superseded active requirements are retained once in the dated archive. |
 | **DEFER** | Broad vertical coverage, advanced simulations, provider activation, automated model/policy promotion, new infrastructure/frameworks, and production rollout without current verification/authorization. |
 
-## Historical production boundary
+## Dated production boundary
 
-Latest available receipt is dated October 29, 2026: PR148 application `ca12443f5c57f3502584d8a353d83cdf7d5372b1`, migration `0049_scoped_identity_browse`, 74 public tables. It is historical production evidence, not a fresh inspection and not proof that the in-progress slice is deployed.
+Latest accepted application receipt is [November 2, 2026](../validation/production-release-20261102.md): `ec6486a2726758b2a9fb64a03e99276583a27a6e` (PR165), schema `0049_scoped_identity_browse`, 74 public tables. It records exact images, current-data recovery and authenticated responsive acceptance. It is dated evidence, not proof of subsequent runtime state or sustained source coverage. Earlier PR148/October 29 receipts remain historical.

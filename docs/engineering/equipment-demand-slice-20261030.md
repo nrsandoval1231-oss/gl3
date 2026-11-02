@@ -1,6 +1,6 @@
 # Power demand intelligence — first equipment slice
 
-**Candidate implementation, October 30, 2026; not deployed.** Authority: [product canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). Validation and limitations are recorded in [the candidate receipt](../validation/equipment-demand-20261030.md).
+**Implementation record, October 30, 2026.** At the time of this record the change was a candidate and had not been deployed. It is now included in accepted production main `ec6486a`; the November 2 [release receipt](../validation/production-release-20261102.md) reports zero current validated equipment-demand records and an unavailable demand summary. Deployment confirms the bounded code path, not broad live source coverage or portfolio demand. Authority: [product canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). Candidate-era validation and limitations are recorded in [the original receipt](../validation/equipment-demand-20261030.md).
 
 ## Audit: current versus target
 
@@ -34,7 +34,7 @@ Calculations use a fixed Decimal context: shaft hp × 0.745699872; electric inpu
 
 The record connects source-reported company and physical facility to existing project/need IDs. It retains classifications, inputs, model versions, lifecycle/timing, evidence, unknown buyer and recommended investigation. Company headers do not establish a verified company identity or buyer. Existing sourced contact attribution remains available on the enclosing intelligence card. Calculated equipment scope never overwrites legacy qualified MW, facility demand or a supply gap.
 
-The approved workspace gains a compact schedule assessment with planned/current labels, dates, capacities and next action. **Identified Power Demand (MW)** is explicitly unavailable: there is no defensible cohort-wide aggregate yet. No page-only sum, fake zero or verified-total claim is made.
+The workspace's bounded schedule assessment uses planned/current labels, dates, capacities and next action. **Identified Power Demand (MW)** remains explicitly unavailable: production observed no current validated equipment-demand records and no defensible cohort-wide aggregate. No page-only sum, fake zero or verified-total claim is made.
 
 ## Evaluation and next work
 
@@ -47,6 +47,6 @@ Next, in commercial-value order:
 3. Add deduplicated cohort-wide demand summaries and demand-first ranking, with explicit facility/equipment overlap and classification rules.
 4. Extend the same demand contract to data-center phases and additional equipment models, with separately validated scenarios and lifecycle rules.
 
-No live source coverage, buyer verification, deployment, or production readiness is established by this candidate. The latest available production receipt remains the dated October 29 PR148 application `ca12443f5c57f3502584d8a353d83cdf7d5372b1`, schema `0049_scoped_identity_browse`, 74 tables; it was not freshly inspected.
+At the time of candidate validation, this work had not established live source coverage, buyer verification, deployment or production readiness. The current November 2 receipt confirms deployment on `ec6486a`, schema `0049_scoped_identity_browse` and 74 tables, but still reports zero current validated equipment-demand records. It does not establish broad scheduled-source coverage, buyer verification or a supported portfolio MW total; see [current production evidence](../validation/production-release-20261102.md).
 
 The [Oklahoma source-intake follow-up](../validation/ok-deq-equipment-discovery-20261030.md) closes the listing-discovery exclusion for explicit compressor stations and gas-processing plants. It retains evidence without creating equipment or demand claims; attachment acquisition and engineering extraction remain next work.

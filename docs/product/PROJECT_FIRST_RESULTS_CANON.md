@@ -3,7 +3,7 @@
 **Status:** Active target presentation semantics · 2026-10-30
 **Authority:** Subordinate to the [Autonomous Power Demand Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md). Current released UI and API behavior are dated in [release receipts](../validation/).
 
-The prior operator/customer presentation specification is preserved as [dated pre-pivot history](../../.agent/archive/DEMAND-CENTERED-PIVOT-20261030/PROJECT_FIRST_RESULTS-pre-pivot-20261029.md). The October 29 UI remains released production truth. Demand-centered UI changes exist in the current candidate; the Identified Power Demand MW KPI data is unavailable and is not fabricated. Candidate changes are not production shipped.
+The prior operator/customer presentation specification is preserved as [dated pre-pivot history](../../.agent/archive/DEMAND-CENTERED-PIVOT-20261030/PROJECT_FIRST_RESULTS-pre-pivot-20261029.md). The accepted November 2 release is recorded in the [production receipt](../validation/production-release-20261102.md). It serves company/operator groups with nested projects and server-side search, filters, sorting and pagination. The deployed demand summary is scoped to additional equipment; at release verification it had zero validated records, so Identified Power Demand (MW) was honestly unavailable. It is not a whole-facility or portfolio total.
 
 ## Target result
 
@@ -21,12 +21,12 @@ Primary KPI: **Identified Power Demand MW**, with documented, calculated, and es
 
 Every displayed amount links to source or input evidence, units, scope, and relevant extraction/calculation version. Preserve conflicting and superseded claims. Keep facility capacity distinct from activity demand and connected capacity distinct from time-average energy.
 
-## Commercial context and current compatibility
+## Released presentation and current compatibility
 
-Show organization/project/equipment identity, location, dates, contacts, and commercial relevance only when supported. Contact method does not establish buyer authority. Current project table, filters, and Signal/Prospect/Lead labels remain legacy presentation/runtime behavior until updated; they are not target demand definitions. Do not rank demand primarily by residual supply gap or qualify it by shortage evidence.
+The released workspace presents company/operator groups with nested project detail, All / Oil & Gas / Data Centers filters, search, region/stage/priority filters, company/priority/recently updated sorting, and generation-bound paging. These are verified production behavior, not the complete target result. Existing Signal/Prospect/Lead qualification remains legacy runtime compatibility; those labels and any historical thresholds do not define a target demand record. Show organization/project/equipment identity, location, dates, contacts, and commercial relevance only when supported. Contact method does not establish buyer authority. Do not rank demand primarily by residual supply gap or qualify it by shortage evidence.
 
-Keep privacy, source provenance, safe pagination, and responsive access. The current candidate implements demand-centered UI, but KPI data remains unavailable. Do not describe candidate changes as shipped.
+Keep privacy, source provenance, safe pagination, and responsive access. The deployed `equipment-demand-v1` summary may only describe additional equipment records; unknown or unsupported amounts are not zero, and this summary is not total portfolio demand. Do not present unavailable data as a measured KPI.
 
-## Historical implementation boundary
+## Implementation boundary and release evidence
 
-The in-progress equipment slice uses existing `EvidencePackage` and intelligence-card API contracts, with no migration planned. The latest available production receipt is dated October 29, 2026: PR148 application `ca12443f5c57f3502584d8a353d83cdf7d5372b1`, schema `0049_scoped_identity_browse`, 74 public tables. This receipt does not show the equipment slice or demand-centered KPI in production.
+The bounded O&G equipment slice uses existing `EvidencePackage` and intelligence-card API contracts. It is included in accepted production main `ec6486a2726758b2a9fb64a03e99276583a27a6e`, deployed November 2, 2026, on schema `0049_scoped_identity_browse` with 74 public tables. See the [production release receipt](../validation/production-release-20261102.md) for the exact API/web image identities, recovery evidence, authenticated checks and limitations. The receipt reports zero validated equipment-demand records, an unavailable equipment-only summary, closed provider gates, and no broad scheduled-source or commercial-completeness claim. The October 29 PR148 receipt is retained as historical evidence.

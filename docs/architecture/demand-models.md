@@ -1,10 +1,10 @@
 # Electrical demand models
 
-Authority: [Autonomous Power Demand Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). These are target demand contracts; the bounded equipment implementation is a tested candidate, not deployed.
+Authority: [Autonomous Power Demand Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md). These are target demand contracts. The bounded equipment-demand implementation is deployed in main `ec6486a`; the November 2 production receipt observed zero current validated records, so the demand summary is unavailable and no portfolio MW total is supported. See [production release evidence](../validation/production-release-20261102.md).
 
 ## CURRENT
 
-Current runtime has source-quoted need facts, supply schedules, and deterministic Signal/Prospect/Lead qualification. These are legacy compatibility behavior. Target demand is represented independently of supply. No general drive-aware horsepower-to-electric-load model is established in the released runtime.
+Current runtime has source-quoted need facts, supply schedules, and deterministic Signal/Prospect/Lead qualification. These are legacy compatibility behavior. Target demand is represented independently of supply. A bounded drive-aware equipment calculation path is now in the released runtime, but zero current validated equipment-demand records were observed in production. Broader live coverage and supported aggregate demand are not established.
 
 ## TARGET — equipment-to-scenario contract
 
@@ -52,9 +52,9 @@ O&G and data-center examples must follow same schema but have separate equipment
 
 Each calculation stores model ID/version, unit-conversion version, formula, scenario timestamp/as-of, input claim IDs and hashes, explicit assumptions with source or calibration version, output unit/range, and validation results. Recompute deterministically from frozen inputs. A changed formula yields a new result version; prior results remain addressable.
 
-## CURRENT CANDIDATE — first bounded slice
+## CURRENT DEPLOYED SLICE — first bounded implementation
 
-The candidate implements source parsing and deterministic `Decimal` models for a bounded O&G electric pump/compressor cohort, retaining source efficiency, count, operating/standby state and new-versus-existing classification. Use existing `EvidencePackage`, normal and unchanged-record ingestion hooks, and intelligence-card API; no migration is planned. Deterministic regression and integration tests cover this candidate. This slice is not deployed; see [implementation plan](../engineering/equipment-demand-slice-20261030.md). Broader catalogs and lifecycle models follow separately. Candidate UI presents dated equipment capacity; cohort-wide KPI values remain unavailable.
+The deployed slice implements source parsing and deterministic `Decimal` models for bounded O&G electric-pump/compressor inputs, retaining source efficiency, count, operating/standby state and new-versus-existing classification. It uses existing `EvidencePackage`, normal and unchanged-record ingestion hooks, and intelligence-card API; no migration was needed. Deterministic regression and integration tests cover the implementation, while production observed zero current validated records and an unavailable demand summary. Broader catalogs and lifecycle models remain future work. Equipment-specific values stay distinct from cohort-wide KPIs; unavailable is not zero. See the dated [implementation record](../engineering/equipment-demand-slice-20261030.md).
 
 ## EXCLUDED
 
