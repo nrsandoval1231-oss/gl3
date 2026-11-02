@@ -1,12 +1,12 @@
 # GridLens GL3
 
-**GridLens — Autonomous Power Demand Intelligence.** GridLens discovers, classifies, and quantifies power demand from evidence, then tracks the entities, equipment, and lifecycle events behind it. This target direction is not a claim that the full engine is shipped. The [sole product canon](docs/product/AUTONOMOUS_INTELLIGENCE_CANON.md) defines six target layers and separates CURRENT, TARGET, NEXT, and DEFERRED capabilities. The October 29 UI is the dated released presentation; the candidate preserves that layout while adding demand terminology and equipment details.
+**GridLens — Autonomous Power Demand Intelligence.** GridLens discovers, classifies, and quantifies power demand from evidence, then tracks the entities, equipment, and lifecycle events behind it. The November 2 production release provides authenticated company/operator rollups and nested projects. Sector selection, search, region/stage/priority filters, sorting, and generation-bound pagination run against server data. The full six-layer intelligence engine remains a target, not a shipped claim. See the [accepted production release receipt](docs/validation/production-release-20261102.md) for the exact source, image identities, recovery evidence and live verification.
 
-The current FastAPI/PostgreSQL/worker/React system retains regional project discovery, evidence packages, and legacy Signal/Prospect/Lead qualification. The bounded Oil & Gas parser/model slice is implemented in this candidate; see its [implementation plan](docs/engineering/equipment-demand-slice-20261030.md). A [native FERC notice extension](docs/engineering/native-equipment-demand-20261030.md) connects a retained real equipment proposal to an investigation with unknown electrical capacity. The demand-centered UI is implemented in the current candidate, but KPI data is unavailable and the candidate is not production shipped.
+The current FastAPI/PostgreSQL/worker/React application retains source-backed project discovery, evidence packages and Signal/Prospect/Lead as legacy qualification compatibility. Its deployed `equipment-demand-v1` summary is scoped to additional equipment and separates supported amounts from unknown or conflicted records. At the November 2 release generation there were no validated equipment-demand records, so Identified Power Demand (MW) is shown as unavailable; this is not a total for all facility or portfolio demand. Do not convert unavailable or unknown values to zero. The bounded Oil & Gas equipment parser/model is described in its [implementation plan](docs/engineering/equipment-demand-slice-20261030.md); this slice does not complete the six-layer engine or establish broad scheduled-source coverage.
 
 ## Current status
 
-The [current repository checkpoint](.agent/CURRENT_STATE.md) records the inspected main head, engineering changes and unresolved live/commercial proof. The [delivery gates](docs/delivery/milestones.md) define acceptance boundaries. Dated [validation](docs/validation/) records apply only to their specific candidate and environment; none should be mistaken for a fresh production observation.
+The [current repository checkpoint](.agent/CURRENT_STATE.md) records active work. The [delivery gates](docs/delivery/milestones.md) distinguish the accepted November 2 release from longer-term operating and commercial gates. Dated [validation](docs/validation/) records apply only to their named candidate and environment; the [production release receipt](docs/validation/production-release-20261102.md) is the current accepted deployment evidence.
 
 ## Work areas
 
@@ -15,9 +15,10 @@ The [current repository checkpoint](.agent/CURRENT_STATE.md) records the inspect
 - [Source coverage](docs/sources/coverage.md)
 - [Operations status](docs/operations/README.md)
 - [Delivery gates](docs/delivery/milestones.md)
-- [Validation evidence](docs/validation/)
+- [November 2 production release and validation](docs/validation/production-release-20261102.md)
+- [Historical and candidate validation evidence](docs/validation/)
 
-Historical status narratives and reports are retained under [.agent/archive/STAGE1-20261009/](.agent/archive/STAGE1-20261009/) and existing dated validation records. They are not current state.
+Historical status narratives and reports are retained under [.agent/archive/STAGE1-20261009/](.agent/archive/STAGE1-20261009/) and existing dated validation records. They are not current state unless a current status page cites and revalidates them.
 
 ## Run locally
 
@@ -41,7 +42,7 @@ foreach ($line in Get-Content .env) {
 pwsh scripts/check.ps1
 ```
 
-A successful local check does not prove production operation. Do not infer the current production deployment or its authorization from local checks. Historical production observations, operational safeguards and open verification gates are documented in [operations status](docs/operations/README.md) and [delivery status](docs/delivery/milestones.md).
+A successful local check does not prove production operation. Do not infer the current production deployment or its authorization from local checks. The November 2 deployment is documented in its exact [release receipt](docs/validation/production-release-20261102.md); longer-term operating safeguards and open verification gates are summarized in [operations status](docs/operations/README.md) and [delivery status](docs/delivery/milestones.md).
 
 ## Documentation authorities and history
 

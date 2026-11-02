@@ -4,7 +4,7 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 
 ## CURRENT
 
-The worker runs source collection, durable jobs and interpretation. Retained observations/evidence feed project and company resolution, power-need qualification, lifecycle/change state, enrichment/research, deterministic commercial rules and server-owned browse projections. Exact current implementation is mapped in [overview](overview.md) and [data model](data-model.md). The current candidate adds bounded, deterministic equipment-demand records through these structures. The full six-layer target and live equipment coverage are not established capabilities.
+The worker runs source collection, durable jobs and interpretation. Retained observations/evidence feed project and company resolution, power-need qualification, lifecycle/change state, enrichment/research, deterministic commercial rules and server-owned browse projections. Exact current implementation is mapped in [overview](overview.md) and [data model](data-model.md). A bounded deterministic equipment-demand-v1 path is implemented and deployed in main `ec6486a`; the November 2 production receipt reports zero current validated records and an unavailable demand summary. This does not establish broad live equipment coverage or the full six-layer target.
 
 ## TARGET — six-layer contracts
 
@@ -29,9 +29,11 @@ Demand amount classes are **documented**, **calculated**, **estimated**, **infer
 
 Define an adapter contract `interpret(task, schema, evidence_refs, budget, deadline) -> validated proposal + provider/model/version + usage + trace`. The adapter has no database write, qualification, calculation, publication, or authority to modify evidence. Deterministic code validates JSON/schema, evidence citations, temporal scope, and policy. A no-provider path remains functional. Athena may implement the adapter later but is optional; provider credentials, endpoint, model and budget are configuration, and provider failure yields retry/partial/abstention. Do not duplicate Athena internals or make a model-specific payload canonical.
 
-## CURRENT CANDIDATE — bounded equipment slice
+## CURRENT DEPLOYED SLICE — bounded equipment demand
 
-The candidate implements bounded source equipment parsing and deterministic `Decimal` electric-pump/compressor models, preserving source efficiency, count, operating/standby, and new-versus-existing state. The contract uses existing `EvidencePackage`, normal and unchanged-record ingestion hooks, and intelligence-card API; no migration is planned. Engineer-owned independent tests validate behavior. This is not deployed; see [implementation plan](../engineering/equipment-demand-slice-20261030.md). Broaden graph relations only for demonstrated demand-model needs. The historical Phase 0 documentation slice included no runtime implementation.
+Deployed main implements bounded source equipment parsing and deterministic `Decimal` electric-pump/compressor models, preserving source efficiency, count, operating/standby, and new-versus-existing state. The contract uses existing `EvidencePackage`, normal and unchanged-record ingestion hooks, and intelligence-card API; no migration was needed. The production receipt reports zero current validated equipment-demand-v1 records, so the customer-facing demand summary remains unavailable and no portfolio MW amount is supported. An equipment claim or historical fixture is not a validated live record.
+
+The source scope remains narrow: explicit structured Oklahoma DEQ equipment schedules and selected layouts from the existing Federal Register/FERC notice source. The FERC environmental-assessment query shares the configured acquisition limits with the existing EIS query. The reviewed native-site example retains UNVERIFIED equipment claims and unknown electrical demand where rating basis, efficiency, or operating configuration is unsupported. The release confirms live readiness and bounded authenticated reads, not a completed scheduled-source cycle, complete notice coverage, or sustained ingestion. See the dated [implementation and validation record](../engineering/equipment-demand-slice-20261030.md), [native notice record](../engineering/native-equipment-demand-20261030.md), and [production receipt](../validation/production-release-20261102.md). Broader sector models, graph relations, and autonomous promotion remain future work. The historical Phase 0 documentation slice included no runtime implementation.
 
 ## EXCLUDED
 

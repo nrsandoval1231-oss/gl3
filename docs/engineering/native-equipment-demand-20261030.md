@@ -1,6 +1,6 @@
 # Native equipment evidence → demand investigation
 
-**October 30 candidate; not deployed.** This extends the [equipment-demand foundation](equipment-demand-slice-20261030.md), not the product architecture. Main was explicitly fetched at `d54646c1600ff4f658d765fa0acf749a4166803c`. Implementation baseline `1af5fa79` combines PR153 `9f77040d` and PR155 acquisition `7b0d5533`; PR154 is independent.
+**October 30 implementation record.** At the time described here this was a candidate, not a deployment. The bounded native-notice code is included in accepted production main `ec6486a`; the November 2 [release receipt](../validation/production-release-20261102.md) reports zero current validated equipment-demand records and an unavailable demand summary. The receipt does not establish a completed scheduled-source cycle or broad notice/equipment coverage, and the specific native equipment claims remain **UNVERIFIED**. This extends the [equipment-demand foundation](equipment-demand-slice-20261030.md), not the product architecture. Main was explicitly fetched at `d54646c1600ff4f658d765fa0acf749a4166803c`. Implementation baseline `1af5fa79` combines PR153 `9f77040d` and PR155 acquisition `7b0d5533`; PR154 is independent.
 
 ## Audit and reuse
 
@@ -42,11 +42,11 @@ Tests use retained PDF bytes through mocked retrieval and disposable PostgreSQL.
 
 Local integrated gate: **155 tests passed in 36.00 seconds** across engineering/extraction/card/regional admission and native/legacy equipment persistence/ingestion. Native DB cases alone: **8 passed**; independent unit review: **35 passed**. Existing/detail native browser cases: **2 passed in 15.7 seconds**, including desktop and mobile. Ruff lint/format, mypy (190 source files), TypeScript, web build, npm audit (zero vulnerabilities), brand validation (216 assets), maintained-doc links, Alembic drift check, API startup/unauthenticated-session and idle-worker startup/shutdown passed. The full CI gate remains separate and is recorded against the final commit in the PR.
 
-No production configuration/data, credentials, paid providers or deployment were changed. Latest production evidence remains the dated October 29 PR148/schema0049 receipt; it was not freshly inspected.
+During this October 30 candidate work, no production configuration/data, credentials, paid providers or deployment were changed. The then-latest observation was the dated October 29 PR148 receipt; it has since been superseded by the accepted November 2 production receipt linked above. That current receipt confirms deployment while keeping demand unavailable and scheduled-cycle coverage unclaimed.
 
 ## Discovery follow-through
 
-The candidate extends the existing `federal-register-eis` source, preserving its ID, daily cadence, primary EIS query and rolling window. One supplemental query uses `conditions[term]=environmental assessment` with `conditions[agencies][]=federal-energy-regulatory-commission`. The checked-in configuration shares **10 request pages, 20 MB and the acquisition deadline** across both queries; empty-query probes consume the same budget. No source or production worker was activated during implementation.
+The candidate extended the existing `federal-register-eis` source, preserving its ID, daily cadence, primary EIS query and rolling window. One supplemental query uses `conditions[term]=environmental assessment` with `conditions[agencies][]=federal-energy-regulatory-commission`. The checked-in configuration shares **10 request pages, 20 MB and the acquisition deadline** across both queries; empty-query probes consume the same budget. No source or production worker was activated during candidate implementation. The query configuration is included in the deployed release, but the current receipt does not establish a completed scheduled-source cycle.
 
 Each query must complete before records are returned. Explicit zero-result responses are healthy; malformed/empty nonzero pages, count/page drift, repeated same-query records or exhausted limits fail acquisition. Exact cross-query canonical duplicates are removed without changing retained record fields. Conflicting variants remain separate so existing ingestion quarantines every conflicting variant. No lexical checkpoint is used as a retrieval cursor and no new scheduler or schema is introduced.
 
@@ -60,7 +60,7 @@ The predecessor `484301b6f017b8487417372db5345c369c0bcfa0` passed [CI 4105885198
 
 ## Environmental-review schedule extension
 
-**Candidate; not deployed.** The next bounded layout is [FR-2024-00135](https://www.govinfo.gov/content/pkg/FR-2024-01-08/pdf/2024-00135.pdf), the January 8, 2024 environmental-review schedule for the same Texas-Louisiana Expansion Project. Original PDF: 207,153 bytes; SHA256 `b1ee9c1d389f8318c19605ee2a077b01acf104404cf27f9f301541aa92b84092`. The retained fixture and acquisition provenance are in `backend/tests/fixtures/ferc-review-schedule/`. The existing GovInfo adapter binds the notice's title, date, document number and footer and extracts pages 1–2 without surrounding notices.
+**Dated bounded-layout implementation; now deployed as code.** The retained example is [FR-2024-00135](https://www.govinfo.gov/content/pkg/FR-2024-01-08/pdf/2024-00135.pdf), the January 8, 2024 environmental-review schedule for the same Texas-Louisiana Expansion Project. Original PDF: 207,153 bytes; SHA256 `b1ee9c1d389f8318c19605ee2a077b01acf104404cf27f9f301541aa92b84092`. The retained fixture and acquisition provenance are in `backend/tests/fixtures/ferc-review-schedule/`. The existing GovInfo adapter binds the notice's title, date, document number and footer and extracts pages 1–2 without surrounding notices.
 
 The source explicitly proposes one new electric motor driven (EMD) compressor rated 18,340 hp at CS302. Existing uprates and re-wheels are retained separately; CS343's existing work is not assigned to CS302. The appurtenant-facilities paragraph remains unquantified project context. The additional title/layout recognition uses the same ingestion, immutable evidence, physical-project identity and equipment-demand projection. It introduces no source, provider, database migration, generic lifecycle processing or contact activation.
 
@@ -72,7 +72,7 @@ The reviewed scoping notice FR-2023-26762 remains outside this parser extension.
 
 ## Remaining work by commercial value
 
-1. Evaluate more engineering layouts and observe scheduled acquisition after an authorized deployment. The candidate now searches both EIS and FERC environmental assessments; read-only retrieval and historical replay do **not** establish deployed scheduling or complete equipment coverage.
+1. Evaluate more engineering layouts and observe a complete production scheduled-acquisition cycle. The deployed code searches both EIS and FERC environmental assessments; read-only retrieval and historical replay do **not** establish a completed scheduled cycle or complete equipment coverage.
 2. Resolve source-attributed companies and current project status, then investigate missing specifications and verified buyers through existing budgets/privacy controls.
 3. Support deliberate multi-site observation scoping and physical-unit deduplication before totals. Add demand-first portfolio ranking only with defensible overlap and timing rules.
 4. Extend the shared model to further equipment/layouts and data-center phases, using a measured corpus and independent regression gates. General prose/table extraction and autonomous model promotion remain deferred.
@@ -81,6 +81,6 @@ The reviewed scoping notice FR-2023-26762 remains outside this parser extension.
 
 Local PostgreSQL validation exposed a timezone-dependent receipt fingerprint: the same acquisition instant serialized as UTC on CI and Central time locally, causing an otherwise valid retained PR153 receipt to disappear. Aware acquisition timestamps now serialize in UTC, including native claim references; publication/retrieval date checks use the UTC date. Date-only and existing naive timestamp behavior remain unchanged. Tests retain the exact PR153 fixture and assert its complete payload/key under a Chicago database session, native reference normalization, and publication near UTC midnight.
 
-Immutable evidence and original packages are preserved. Previously created non-UTC candidate packages may require normal unchanged-source replay to create a canonical replacement; no backfill or historical rewrite is performed. The changes are repository candidates, not deployed behavior. Final integrated checks and independent review are recorded on PR156 and PR158.
+Immutable evidence and original packages are preserved. Previously created non-UTC candidate packages may require normal unchanged-source replay to create a canonical replacement; no backfill or historical rewrite is performed. These October 30 repository changes were candidates at the time and are included in deployed main `ec6486a`; no historical rewrite is implied. Final integrated checks and independent review are recorded on PR156 and PR158, with current runtime evidence in the [November 2 receipt](../validation/production-release-20261102.md).
 
 The final merge validation also makes the existing pending-request logout browser test wait for its held request before dispatching logout. The prior immediate-after-navigation event could precede component readiness. This is a test synchronization repair; privacy assertions and runtime code are unchanged. Targeted repeated and full browser results are recorded on PR158.
