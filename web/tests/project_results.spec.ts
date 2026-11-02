@@ -1109,12 +1109,44 @@ test('rapid project searches debounce and an older response cannot replace the n
   await oldStarted
   const latestRequest = page.waitForRequest(request => new URL(request.url()).searchParams.get('search') === 'Diamondback')
   await input.fill('Diamondback')
+  await expect(page.getByRole('status')).toContainText('Updating search. Previous results are hidden')
+  await expect(page.locator('.customer-group-list')).toHaveCount(0)
   await latestRequest
   await expect(page.getByRole('button', { name: /Diamondback Operator/ })).toBeVisible()
   releaseOld?.()
   await expect(page.getByRole('button', { name: /Diamondback Operator/ })).toBeVisible()
   await expect(page.getByText('Old search result')).toHaveCount(0)
   expect(searches.filter(value => ['D', 'Di'].includes(value))).toEqual([])
+})
+
+test('returning to a cached search shows only that cohort while its fresh read is pending', async ({ page }) => {
+  let holdSeed = false
+  let releaseSeed!: () => void
+  let seedPending = Promise.resolve()
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/groups?*', async route => {
+    const query = new URL(route.request().url()).searchParams.get('search') ?? ''
+    if (query === 'seed' && holdSeed) await seedPending
+    const item = query === 'seed'
+      ? { ...group, id: 'cached-seed-group', name: 'Cached Seed Group' }
+      : { ...group, id: 'other-search-group', name: 'Other Search Group' }
+    await route.fulfill({ json: { ...groupPage, items: [item], total: 1, cohort_token: `${query || 'empty'}-search-cohort` } })
+  })
+  await page.goto('/?q=seed')
+  await expect(page.getByRole('button', { name: /Cached Seed Group/ })).toBeVisible()
+  const input = page.getByRole('textbox', { name: 'Search opportunities' })
+  await input.fill('other')
+  await expect(page.getByRole('button', { name: /Other Search Group/ })).toBeVisible()
+  holdSeed = true
+  seedPending = new Promise<void>(resolveSeed => { releaseSeed = resolveSeed })
+  await input.fill('seed')
+  await expect(page.getByRole('status')).toContainText('Updating results')
+  await expect(page.getByRole('button', { name: /Cached Seed Group/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Other Search Group/ })).toHaveCount(0)
+  releaseSeed()
+  await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'false')
+  await expect(page.getByRole('button', { name: /Cached Seed Group/ })).toBeVisible()
 })
 
 test('refresh keeps the rendered cohort labeled as updating and clears it when the filter changes', async ({ page }) => {
@@ -1143,8 +1175,8 @@ test('refresh keeps the rendered cohort labeled as updating and clears it when t
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   await page.getByRole('button', { name: 'Data Centers' }).click()
   await dataCentersStarted
-  await expect(page.getByRole('status')).toContainText('Showing prior operator/customer summaries')
-  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeDisabled()
+  await expect(page.getByRole('status')).toContainText('Loading Data Centers groups. Previous results are hidden')
+  await expect(page.locator('.customer-group-list')).toHaveCount(0)
   releaseDataCenters?.()
   await expect(page.getByRole('button', { name: /Data Center Owner/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
