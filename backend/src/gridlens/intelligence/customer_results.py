@@ -177,23 +177,9 @@ def _facets(session, generation, sector):
 
 
 def _ctes(where: str) -> str:
-    # In the unfiltered All cohort, matched already contains every row in the
-    # generation. Reusing it avoids rescanning browse_rows and recomputing the
-    # validated asset identity for the same rows. Filtered cohorts still expand
-    # each matched asset to all of its generation rows below.
-    all_rows = (
-        "all_rows AS (SELECT * FROM matched),"
-        if where == "b.generation_id = :generation"
-        else """
-    all_rows AS (
-      SELECT %%ASSET%% AS asset_key, b.project_id, b.need_id, b.compact,
-             b.rank_score, b.updated_at
-      FROM browse_rows b JOIN candidate_assets c ON c.asset_key = %%ASSET%%
-      WHERE %%WHERE%%
-    ),"""
-    )
-    return (
-        """
+    # Both relations use the same cohort predicate, so the asset self-join
+    # cannot add rows beyond those already in matched.
+    return """
     WITH matched AS (
       SELECT %%ASSET%% AS asset_key, b.project_id, b.need_id, b.compact,
              b.rank_score, b.updated_at
@@ -201,7 +187,7 @@ def _ctes(where: str) -> str:
     ), candidate_assets AS (
       SELECT asset_key, min(project_id::text) AS anchor_project_id
       FROM matched GROUP BY asset_key
-    ), %%ALL_ROWS%% assets AS (
+    ), all_rows AS (SELECT * FROM matched), assets AS (
       SELECT a.asset_key, c.anchor_project_id,
              count(DISTINCT need_id)::integer AS need_count,
              max(rank_score)::integer AS priority_score, max(updated_at) AS updated_at
@@ -376,10 +362,7 @@ def _ctes(where: str) -> str:
         max(updated_at) AS updated_at
       FROM assigned GROUP BY group_key
     )
-    """.replace("%%ALL_ROWS%%", all_rows)
-        .replace("%%ASSET%%", _ASSET_B)
-        .replace("%%WHERE%%", where)
-    )
+    """.replace("%%ASSET%%", _ASSET_B).replace("%%WHERE%%", where)
 
 
 def _group_id(key: str) -> str:

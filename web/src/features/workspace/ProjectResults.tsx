@@ -7,14 +7,6 @@ const MAX_PENDING_RETRIES = 3
 const PENDING_EXHAUSTED_MESSAGE = 'Results are still being prepared. Please try again shortly.'
 const SEARCH_DEBOUNCE_MS = 300
 const browseKey = (route: ProjectBrowseRoute) => projectBrowseCacheKey(route)
-function pageKeyContext(key: string): string {
-  try {
-    const [search, sector, , , , , offset] = JSON.parse(key) as [string, ProjectBrowseRoute['sector'], string, string, string, CustomerRollupSort, number]
-    const sectorName = sector === 'oil_gas' ? 'Oil & Gas' : sector === 'data_centers' ? 'Data Centers' : 'All'
-    return `${sectorName}${search ? ` search “${search}”` : ''}, groups ${offset + 1}–${offset + 25}`
-  } catch { return 'the previous browse context' }
-}
-
 function waitForRetry(delayMs: number, signal: AbortSignal): Promise<boolean> {
   if (signal.aborted) return Promise.resolve(false)
   return new Promise(resolve => {
@@ -189,10 +181,12 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
   const requestedKey = browseKey({ search, sector, offset, region, stage, priority, sort })
   const currentPage = pageKey === requestedKey && browsePageIsValid(page) ? page : null
   const previousPage = pageKey !== requestedKey && browsePageIsValid(page) ? page : null
-  const busy = loading || searchDraft !== search
+  const searchDraftChanged = searchDraft !== search
+  const requestedPageLoading = pageKey !== requestedKey || loading
+  const busy = requestedPageLoading || searchDraftChanged
   const canUseChildren = pageKey === requestedKey && searchDraft === search && !loading && !error && !notice.toLowerCase().includes('still being prepared')
   const canInteract = !busy && !error && pageKey === requestedKey && searchDraft === search
-  const groups = (currentPage ?? previousPage)?.items ?? []
+  const groups = !searchDraftChanged ? currentPage?.items ?? [] : []
   useEffect(() => {
     if (!currentPage?.valid_until) return
     const validUntil = Date.parse(currentPage.valid_until)
@@ -319,7 +313,7 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
       }
     })
   }
-  const previousContext = previousPage ? `Showing prior operator/customer summaries for ${pageKeyContext(pageKey)} while the requested view loads. Expansion and project details are paused.${notice.toLowerCase().includes('still being prepared') ? ' The current cohort is still being prepared.' : ''}` : ''
+  const previousContext = previousPage ? `Loading ${sector === 'oil_gas' ? 'Oil & Gas' : sector === 'data_centers' ? 'Data Centers' : 'All'} groups. Previous results are hidden until the requested view is ready.${notice.toLowerCase().includes('still being prepared') ? ' The current cohort is still being prepared.' : ''}` : ''
   return <section className="project-results" aria-label="Project opportunities" aria-busy={busy}>
     <header className="project-results-header"><div className="project-results-title"><h1>Search opportunities</h1><button type="button" aria-label="Refresh project results" disabled={loading} onClick={() => { window.dispatchEvent(new Event('gl3-demand-refresh')); setRetryKey(value => value + 1) }}>Refresh</button></div>
       <label><span className="project-search-label">Search opportunities</span><input aria-label="Search opportunities" placeholder="Project, operator, well or location" value={searchDraft} onChange={e => { setSearchDraft(e.target.value); updateUrl(e.target.value, sector) }}/></label>
@@ -331,11 +325,11 @@ export function ProjectResults({ selectedNeedId, onNeed, onBrowseChange }: Props
       <label>Priority<select aria-label="Priority" value={priority} onChange={event => setFilter(searchDraft, sector, region, stage, event.target.value as CustomerRollupFilters['priority'])}><option value="">All priorities</option><option value="ranked">Ranked</option><option value="unranked">Unranked</option></select></label>
       <label>Sort opportunities<select aria-label="Sort opportunities" value={sort} onChange={event => setFilter(searchDraft, sector, region, stage, priority, event.target.value as CustomerRollupSort)}><option value="company">Company</option><option value="priority">Priority</option><option value="priority_asc">Priority (ascending)</option><option value="updated">Recently updated</option></select></label>
     </div>
-    <div className="project-results-count" aria-live="polite" role={busy ? 'status' : undefined}>{busy ? searchDraft !== search && currentPage ? `Updating search. Previous results for ${pageKeyContext(pageKey)} are still shown while this search settles; expansion and details are paused.` : currentPage ? `${notice && !notice.toLowerCase().includes('still being prepared') ? `${notice} ` : ''}Updating results. ${currentPage.as_of ? `Showing results last prepared ${new Date(currentPage.as_of).toLocaleString()}; qualification may have changed.` : 'Showing previously loaded results while the current cohort is checked.'}` : previousContext || (notice && !notice.toLowerCase().includes('still being prepared') ? `${notice} Loading groups…` : page && !browsePageIsValid(page) ? 'Refreshing expired results; the previous generation is no longer shown.' : searchDraft !== search ? 'Updating search…' : notice.toLowerCase().includes('still being prepared') ? 'Results are still being prepared. Retrying automatically…' : 'Loading groups…') : currentPage ? `${currentPage.total} ${currentPage.total === 1 ? 'group' : 'groups'}` : error ? 'Groups unavailable' : 'No groups'}</div>
+    <div className="project-results-count" aria-live="polite" role={busy ? 'status' : undefined}>{busy ? searchDraftChanged ? 'Updating search. Previous results are hidden while the new search settles.' : currentPage ? `${notice && !notice.toLowerCase().includes('still being prepared') ? `${notice} ` : ''}Updating results. ${currentPage.as_of ? `Showing results last prepared ${new Date(currentPage.as_of).toLocaleString()}; qualification may have changed.` : 'Showing previously loaded results while the current cohort is checked.'}` : previousContext || (notice && !notice.toLowerCase().includes('still being prepared') ? `${notice} Loading groups…` : page && !browsePageIsValid(page) ? 'Refreshing expired results; the previous generation is no longer shown.' : notice.toLowerCase().includes('still being prepared') ? 'Results are still being prepared. Retrying automatically…' : `Loading ${sector === 'oil_gas' ? 'Oil & Gas' : sector === 'data_centers' ? 'Data Centers' : 'All'} groups…`) : currentPage ? `${currentPage.total} ${currentPage.total === 1 ? 'group' : 'groups'}` : error ? 'Groups unavailable' : 'No groups'}</div>
     {!busy && notice && <p role="status" className="project-results-notice">{notice}</p>}
-    {error && <p role="alert">{error} <button onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
+    {error && pageKey === requestedKey && <p role="alert">{error} <button onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
     {!busy && !error && currentPage && !groups.length && <p className="project-empty">No groups match this search.</p>}
-    {!error && (currentPage || previousPage) && <div className="customer-group-list">{groups.map(group => { const childPageCurrent = !children[group.id] || browsePageIsValid(children[group.id]); const displayedGroup = canUseChildren && childPageCurrent ? openedGroups[group.id] ?? group : group; const unconfirmedNameGroup = displayedGroup.group_kind === 'same_name_unconfirmed'; return <section key={displayedGroup.id} className="customer-group" aria-label={`${displayedGroup.name} ${unconfirmedNameGroup ? 'name group' : 'customer group'}`}>
+    {!error && currentPage && !searchDraftChanged && <div className="customer-group-list">{groups.map(group => { const childPageCurrent = !children[group.id] || browsePageIsValid(children[group.id]); const displayedGroup = canUseChildren && childPageCurrent ? openedGroups[group.id] ?? group : group; const unconfirmedNameGroup = displayedGroup.group_kind === 'same_name_unconfirmed'; return <section key={displayedGroup.id} className="customer-group" aria-label={`${displayedGroup.name} ${unconfirmedNameGroup ? 'name group' : 'customer group'}`}>
       <h2 className="customer-group-heading"><button className="customer-group-toggle" type="button" disabled={!canInteract} aria-expanded={canUseChildren && Boolean(expanded[group.id])} onClick={() => toggleGroup(group)}>
         <span><strong className="customer-group-name">{displayedGroup.name}</strong>{unconfirmedNameGroup ? <><small className="customer-group-kind">Name group</small><small>Same source-reported name; company identities are not linked.</small>{displayedGroup.identity_count !== undefined && <small>{displayedGroup.identity_count} separate company identities</small>}</> : <small>{displayedGroup.role === 'operator' ? 'Operator' : displayedGroup.role === 'customer' ? 'Customer' : 'Operator/customer unresolved'}{displayedGroup.operator_number ? ` · Operator ${displayedGroup.operator_number}` : ''}</small>}</span>
         <span className="customer-group-count">{displayedGroup.project_count} {displayedGroup.project_count === 1 ? 'project' : 'projects'}</span>

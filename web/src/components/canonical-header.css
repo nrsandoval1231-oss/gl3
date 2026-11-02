@@ -3,7 +3,7 @@
   z-index: 30;
   top: 0;
   display: grid;
-  grid-template-columns: 290px minmax(400px,1fr) 430px;
+  grid-template-columns: 290px minmax(400px,1fr) 454px;
   align-items: center;
   gap: 18px;
   width: 100%;
@@ -84,7 +84,7 @@
   display: flex;
   align-items: center;
   justify-self: end;
-  gap: 141px;
+  gap: 165px;
   min-width: 0;
 }
 
@@ -101,7 +101,7 @@
 .canonical-header__search :is(input, [role='combobox']) {
   border-color: rgb(232 236 239 / 22%);
   background: rgb(232 236 239 / 8%);
-  backdrop-filter: blur(8px);
+  backdrop-filter: none;
 }
 
 .canonical-header__search :is(input, button),
@@ -109,7 +109,8 @@
   color: inherit;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
+  .canonical-header::before { display: none; }
   .canonical-header {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 12px;
