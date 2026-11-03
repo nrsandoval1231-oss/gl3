@@ -17,20 +17,19 @@ $pgBin = 'C:\Program Files\PostgreSQL\18\bin' # replace if PostgreSQL is install
 $data = Join-Path $PWD '.artifacts\local-postgres\data'
 if (Test-Path $data) { throw "Refusing to initialize existing cluster: $data" }
 New-Item -ItemType Directory -Force (Split-Path $data) | Out-Null
-& (Join-Path $pgBin 'initdb.exe') -D $data -U postgres -A scram-sha-256 -W
+& (Join-Path $pgBin 'initdb.exe') -D $data -U gridlens -A scram-sha-256 -W
 ```
 
-Start only this cluster on loopback port `<port>`, then connect as its `postgres` role. The password prompt is interactive; do not put passwords in command arguments or shell history.
+Start only this cluster on loopback port `<port>`, then connect as its `gridlens` superuser. The password prompt is interactive; do not put passwords in command arguments or shell history.
 
 ```powershell
 & (Join-Path $pgBin 'pg_ctl.exe') -D $data -l (Join-Path (Split-Path $data) 'server.log') -o '-h 127.0.0.1 -p <port>' start
-& (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p <port> -U postgres -d postgres
+& (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p <port> -U gridlens -d gridlens
 ```
 
-In the `psql` session, create an application role and two separate databases. `\password` prompts without echoing the value.
+The `initdb -U gridlens` bootstrap makes `gridlens` the cluster superuser, so no separate `postgres` role exists. In the `psql` session, create two separate databases. `\password` prompts without echoing the value; set it on the superuser if it was not already chosen at `initdb`.
 
 ```sql
-CREATE ROLE gridlens LOGIN CREATEDB;
 \password gridlens
 CREATE DATABASE gridlens OWNER gridlens;
 CREATE DATABASE gridlens_test OWNER gridlens;
@@ -75,7 +74,7 @@ The browser is at `http://127.0.0.1:5173`; Vite proxies `/api` to the API on por
 
 Starting `python -m gridlens.jobs.worker` with the code default `WORKER_AUTO_REFRESH=true` plans and fetches due sources on startup and hourly. Omit the worker for UI/API development. If starting it for an approved local acquisition, set `WORKER_AUTO_REFRESH=false` first unless you intend its scheduler behavior. It does not establish a cloud schedule or seven production cycles.
 
-For the repository's containerized local stack, use [`setup_compose.py`](../../scripts/setup_compose.py) and `docker compose --env-file .env.compose up`; that Compose network uses `db:5432`, not the native host's `127.0.0.1:55439`. Do not mix `.env` and `.env.compose`. See [runtime configuration](runtime-configuration.md) for code defaults and feature flags.
+For the repository's containerized local stack, use [`setup_compose.py`](../../scripts/setup_compose.py) and `docker compose --env-file .env.compose up`; that Compose network uses `db:5432`, not the native host's `127.0.0.1:<port>`. Do not mix `.env` and `.env.compose`. See [runtime configuration](runtime-configuration.md) for code defaults and feature flags.
 
 To stop only the native local cluster, use the same verified `$pgBin` and `$data`:
 
