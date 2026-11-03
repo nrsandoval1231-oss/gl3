@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Iterable
 from datetime import date
 from typing import TYPE_CHECKING, Any
 
@@ -13,6 +14,90 @@ if TYPE_CHECKING:
 
 POLICY_VERSION = "commercial-triage-v2.1"
 MAX_CARDS = 50
+
+OWNER_CATEGORIES = frozenset(
+    {"owner_developer", "asset_operator", "owner_construction", "owner_energy"}
+)
+
+# Typed next actions. The free-text `next_action` stays for compatibility; the type is stable.
+ACTION_CONFIRM_POWER_STRATEGY = "confirm_power_strategy_with_owner"
+ACTION_IDENTIFY_BUYER = "identify_buyer_via_contractor"
+ACTION_RESEARCH = "research_question"
+ACTION_MONITOR = "monitor_milestone"
+ACTION_NONE = "no_action"
+_LEGACY_CALL_ACTION = (
+    "Call the cited public project contact to confirm stage, need-specific MW, "
+    "timing, duration, and purchasing role."
+)
+
+
+def _action_target(contacts: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Pick the cited contact to call, preferring an owner/operator over any other role.
+
+    Only contacts already present on the card (public, source-cited, suppression-filtered) are
+    used. Nothing is inferred or invented.
+    """
+    reachable = [
+        c
+        for c in contacts
+        if c.get("value")
+        and c.get("source_url")
+        and re.search(r"phone|telephone|email", str(c.get("kind") or ""), re.I)
+    ]
+    if not reachable:
+        return None
+    reachable.sort(key=lambda c: 0 if c.get("category") in OWNER_CATEGORIES else 1)
+    chosen = reachable[0]
+    return {
+        key: chosen.get(key)
+        for key in ("organization", "person", "category", "role", "kind", "value", "source_url")
+    }
+
+
+def _call_action(target: dict[str, Any]) -> tuple[str, str]:
+    who = target.get("person") or target.get("organization") or "the cited contact"
+    org = target.get("organization")
+    where = f" at {org}" if org and who != org else ""
+    is_email = bool(re.search(r"email", str(target.get("kind") or ""), re.I))
+    verb, via = ("Email", "") if is_email else ("Call", "on ")
+    channel = f"{via}{target.get('kind')} {target.get('value')}"
+    cite = f" (source: {target['source_url']})" if target.get("source_url") else ""
+    if target.get("category") in OWNER_CATEGORIES:
+        label = str(target["category"]).replace("_", " ")
+        return (
+            ACTION_CONFIRM_POWER_STRATEGY,
+            f"{verb} {who}{where}, listed in the cited source as {label}, {channel}{cite} to "
+            "confirm stage, need-specific MW, timing, duration and who decides power supply.",
+        )
+    role = str(target.get("category") or target.get("role") or "contact").replace("_", " ")
+    return (
+        ACTION_IDENTIFY_BUYER,
+        f"{verb} {who}{where}, listed as {role} and not a verified buyer, {channel}{cite} to "
+        "identify the project owner or operator and who procures temporary or commissioning power.",
+    )
+
+
+def _legacy_contact_key(contact: dict[str, Any]) -> str:
+    """Identity and order key from before contacts carried a category.
+
+    Keeping it preserves the merged contact order, and therefore the research fingerprint.
+    """
+    return json.dumps({k: v for k, v in contact.items() if k != "category"}, sort_keys=True)
+
+
+def _merge_contacts(groups: Iterable[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    merged: dict[str, dict[str, Any]] = {}
+    for contacts in groups:
+        for contact in contacts:
+            key = _legacy_contact_key(contact)
+            kept = merged.get(key)
+            # The same cited contact under two roles keeps the owner/operator role.
+            if kept is None or (
+                kept.get("category") not in OWNER_CATEGORIES
+                and contact.get("category") in OWNER_CATEGORIES
+            ):
+                merged[key] = contact
+    return [merged[key] for key in sorted(merged)]
 
 
 def _iso(value: Any) -> str | None:
@@ -412,6 +497,7 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "organization": c.get("organization"),
             "person": c.get("person_name"),
             "role": c.get("title") or c.get("category"),
+            "category": c.get("category"),
             "kind": contact.get("kind"),
             "value": contact.get("value"),
             "source_url": contact.get("source_url"),
@@ -622,6 +708,7 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         contact
         for contact in contacts
         if contact.get("value")
+        and contact.get("source_url")
         and re.search(r"phone|telephone|email", str(contact.get("kind") or ""), re.I)
     ]
     if item.get("canonical_inactive"):
@@ -756,16 +843,22 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         question = "What dated evidence establishes when this specific project activity will start?"
     else:
         question = "What source establishes the expected duration of this specific activity?"
+    next_action_target = None
     if disposition == "RESEARCH":
+        next_action_type = ACTION_RESEARCH
         next_action = f"Research this exact question: {question}"
     elif disposition == "ACTION NOW":
-        next_action = (
-            "Call the cited public project contact to confirm stage, need-specific MW, "
-            "timing, duration, and purchasing role."
-        )
+        next_action_target = _action_target(contacts)
+        if next_action_target is not None:
+            next_action_type, next_action = _call_action(next_action_target)
+        else:
+            next_action_type = ACTION_RESEARCH
+            next_action = f"Research this exact question: {question}"
     elif stack_proof is not None and stack_proof.status == "verified":
+        next_action_type = ACTION_MONITOR
         next_action = stack_proof.next_action or reason
     else:
+        next_action_type = ACTION_NONE if disposition == "REJECT" else ACTION_MONITOR
         next_action = reason
     watch = None
     if disposition == "WATCH":
@@ -906,6 +999,8 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         "blockers": blockers,
         "next_question": question,
         "next_action": next_action,
+        "next_action_type": next_action_type,
+        "next_action_target": next_action_target,
         "watch": watch,
         "sources": sources,
         "conflict_state": "CONFLICT" if research_conflict else item.get("conflict_state"),
@@ -971,8 +1066,23 @@ def _semantic_card(card: dict) -> dict:
     result = {
         k: v
         for k, v in card.items()
-        if k not in {"input_hash", "owner_organizations", "intelligence_card"}
+        if k
+        not in {
+            "input_hash",
+            "owner_organizations",
+            "intelligence_card",
+            "next_action_type",
+            "next_action_target",
+        }
     }
+    if card.get("next_action_type") in {ACTION_CONFIRM_POWER_STRATEGY, ACTION_IDENTIFY_BUYER}:
+        # Call wording is presentation derived from hashed contacts; keep the established
+        # fingerprint so this rollout does not restart unchanged research.
+        result["next_action"] = _LEGACY_CALL_ACTION
+    if result.get("contacts"):
+        result["contacts"] = [
+            {k: v for k, v in contact.items() if k != "category"} for contact in result["contacts"]
+        ]
     if result.get("operator_fact_refs"):
         result["operator_fact_refs"] = [
             {
@@ -1063,14 +1173,16 @@ def group_cards(
         merged["related_project_ids"] = sorted({state["project_id"] for state in states})
         merged["related_need_states"] = states
         if len(group) > 1:
-            merged["contacts"] = sorted(
-                {
-                    json.dumps(contact, sort_keys=True): contact
-                    for card in group
-                    for contact in card["contacts"]
-                }.values(),
-                key=lambda value: json.dumps(value, sort_keys=True),
-            )
+            merged["contacts"] = _merge_contacts(card["contacts"] for card in group)
+            if merged.get("next_action_type") in {
+                ACTION_CONFIRM_POWER_STRATEGY,
+                ACTION_IDENTIFY_BUYER,
+            }:
+                # Prefer an owner/operator contact across every sibling in the group.
+                target = _action_target(merged["contacts"])
+                if target is not None:
+                    merged["next_action_target"] = target
+                    merged["next_action_type"], merged["next_action"] = _call_action(target)
             merged["lifecycle_timeline"] = sorted(
                 {
                     json.dumps(event, sort_keys=True, default=str): event
@@ -1151,6 +1263,8 @@ def group_cards(
                         "Reconcile contradictory same-work need states and source status before "
                         "any commercial action."
                     )
+                    merged["next_action_type"] = ACTION_RESEARCH
+                    merged["next_action_target"] = None
                     merged["conflict_state"] = "contradictory same-work need states"
         merged["input_hash"] = hashlib.sha256(
             json.dumps(

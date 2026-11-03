@@ -304,7 +304,9 @@ def test_rental_intermediary_is_excluded_even_when_relationship_is_direct():
         "reason": "Permit-listed organization",
         "stale": False,
         "evidence": [],
-        "public_contacts": [{"kind": "phone", "value": "555-0104"}],
+        "public_contacts": [
+            {"kind": "phone", "value": "555-0104", "source_url": "https://example.test/rental"}
+        ],
     }
     rental_summary = {
         "evidence_id": str(uuid4()),
@@ -325,7 +327,9 @@ def test_rental_intermediary_is_excluded_even_when_relationship_is_direct():
     owner = {
         **intermediary,
         "organization": "Campus Owner LLC",
-        "public_contacts": [{"kind": "phone", "value": "555-0105"}],
+        "public_contacts": [
+            {"kind": "phone", "value": "555-0105", "source_url": "https://example.test/owner"}
+        ],
     }
     mixed = build_card(
         item,
@@ -824,3 +828,230 @@ def test_negated_need_and_affirmative_scope_require_conflict_research():
         ]
     }
     assert build_card(item, chain, date(2026, 10, 5))["disposition"] == "RESEARCH"
+
+
+def _direct_candidate(category, organization, contact_value="555-0142"):
+    return {
+        "organization": organization,
+        "category": category,
+        "organization_relationship": "DIRECT",
+        "reason": "Source-cited project relationship",
+        "stale": False,
+        "evidence": [{"id": uuid4()}],
+        "public_contacts": [
+            {"kind": "phone", "value": contact_value, "source_url": "https://example.test/project"}
+        ],
+    }
+
+
+def test_owner_contact_action_names_the_owner_contact_and_source():
+    chain = {
+        "candidates": [_direct_candidate("owner_developer", "Circle T Owner LP", "571.731.1698")],
+        "permit_summaries": [],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    assert card["disposition"] == "ACTION NOW"
+    assert card["next_action_type"] == "confirm_power_strategy_with_owner"
+    assert card["next_action_target"]["organization"] == "Circle T Owner LP"
+    assert "Circle T Owner LP" in card["next_action"]
+    assert "571.731.1698" in card["next_action"]
+    assert "https://example.test/project" in card["next_action"]
+    assert "not a verified buyer" not in card["next_action"]
+
+
+def test_contractor_contact_action_identifies_buyer_and_never_claims_one():
+    chain = {
+        "candidates": [_direct_candidate("electrical_contractor", "Prism Electric Inc")],
+        "permit_summaries": [],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    assert card["disposition"] == "ACTION NOW"
+    assert card["next_action_type"] == "identify_buyer_via_contractor"
+    assert "not a verified buyer" in card["next_action"]
+    assert "Prism Electric Inc" in card["next_action"]
+    assert "buyer or responsible operator" in card["unknowns"]
+
+
+def test_owner_contact_is_preferred_over_contractor_contact():
+    chain = {
+        "candidates": [
+            _direct_candidate("general_contractor", "Novo Construction", "555-0100"),
+            _direct_candidate("owner_developer", "Beacon Point DC LLC", "555-0199"),
+        ],
+        "permit_summaries": [],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    assert card["next_action_target"]["organization"] == "Beacon Point DC LLC"
+    assert card["next_action_type"] == "confirm_power_strategy_with_owner"
+
+
+def test_permit_summary_contact_is_never_called_a_verified_buyer():
+    chain = {
+        "candidates": [],
+        "permit_summaries": [
+            {
+                "evidence_id": str(uuid4()),
+                "url": "https://example.test/permit",
+                "facts": [
+                    {"label": "Permit contractor trade", "value": "Electrician"},
+                    {"label": "Permit-listed contractor name", "value": "Blake Combs"},
+                    {"label": "Contractor phone", "value": "555-0100"},
+                ],
+            }
+        ],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    assert card["next_action_type"] == "identify_buyer_via_contractor"
+    assert "not a verified buyer" in card["next_action"]
+    assert "Blake Combs" in card["next_action"]
+
+
+def test_non_action_dispositions_carry_a_type_and_no_call_target():
+    card = build_card(_item(signal_display_decision="HOLD"), {"candidates": []}, date(2026, 10, 3))
+    assert card["disposition"] == "RESEARCH"
+    assert card["next_action_type"] == "research_question"
+    assert card["next_action_target"] is None
+
+
+def test_typed_action_survives_the_api_and_saved_snapshot_model():
+    from gridlens.domain.pursuits import CommercialTriageCard
+
+    chain = {
+        "candidates": [_direct_candidate("owner_developer", "Circle T Owner LP", "571.731.1698")],
+        "permit_summaries": [],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    dumped = CommercialTriageCard.model_validate(card).model_dump()
+    assert dumped["next_action_type"] == "confirm_power_strategy_with_owner"
+    assert dumped["next_action_target"]["value"] == "571.731.1698"
+    assert dumped["contacts"][0]["category"] == "owner_developer"
+    legacy = {
+        k: v for k, v in dumped.items() if k not in {"next_action_type", "next_action_target"}
+    }
+    assert CommercialTriageCard.model_validate(legacy).next_action_type is None  # old snapshots
+
+
+def test_call_wording_is_presentation_and_does_not_change_the_research_fingerprint():
+    from gridlens.domain.commercial_triage import _LEGACY_CALL_ACTION, _semantic_card
+
+    def card_for(phone):
+        chain = {
+            "candidates": [_direct_candidate("owner_developer", "Circle T Owner LP", phone)],
+            "permit_summaries": [],
+        }
+        return build_card(_item(id=UUID(int=7), project_id=UUID(int=7)), chain, date(2026, 10, 3))
+
+    card = card_for("571.731.1698")
+    semantic = _semantic_card(card)
+    assert semantic["next_action"] == _LEGACY_CALL_ACTION
+    assert "next_action_type" not in semantic and "next_action_target" not in semantic
+    assert all("category" not in contact for contact in semantic["contacts"])
+    assert card["input_hash"] != card_for("571.731.9999")["input_hash"]  # real change still counts
+
+
+def test_wording_edge_cases_never_invent_missing_parts():
+    from gridlens.domain.commercial_triage import _call_action
+
+    kind, text = _call_action(
+        {
+            "organization": None,
+            "person": None,
+            "category": None,
+            "role": None,
+            "kind": "email",
+            "value": "a@example.test",
+            "source_url": None,
+        }
+    )
+    assert kind == "identify_buyer_via_contractor"
+    assert text.startswith("Email the cited contact") or text.startswith("Email ")
+    assert "None" not in text and "on email" not in text and "source:" not in text
+    owner_kind, owner_text = _call_action(
+        {
+            "organization": "Acme Power LLC",
+            "person": "Pat Lee",
+            "category": "owner_construction",
+            "role": None,
+            "kind": "phone",
+            "value": "555-0101",
+            "source_url": "https://example.test/x",
+        }
+    )
+    assert owner_kind == "confirm_power_strategy_with_owner"
+    assert "listed in the cited source as owner construction" in owner_text
+    assert "Pat Lee at Acme Power LLC" in owner_text
+
+
+def test_merged_group_prefers_an_owner_contact_from_any_sibling():
+    contractor_item = _item(id=UUID(int=1), project_id=UUID(int=1))
+    owner_item = _item(id=UUID(int=2), project_id=UUID(int=2))
+    for item in (contractor_item, owner_item):
+        item["evidence"][0]["document_number"] = "shared-permit"
+    chains = {
+        str(UUID(int=1)): {
+            "candidates": [
+                _direct_candidate("general_contractor", "Novo Construction", "555-0100")
+            ],
+            "permit_summaries": [],
+        },
+        str(UUID(int=2)): {
+            "candidates": [_direct_candidate("owner_developer", "Beacon Point DC LLC", "555-0199")],
+            "permit_summaries": [],
+        },
+    }
+    result = cards([contractor_item, owner_item], chains, date(2026, 10, 3), limit=50)
+    assert len(result) == 1
+    assert result[0]["next_action_type"] == "confirm_power_strategy_with_owner"
+    assert result[0]["next_action_target"]["organization"] == "Beacon Point DC LLC"
+    assert "Beacon Point DC LLC" in result[0]["next_action"]
+
+
+def test_merged_group_contact_order_and_fingerprint_match_the_legacy_ordering():
+    import json as _json
+
+    owner = _direct_candidate("owner_developer", "Beacon Point DC LLC", "555-0199")
+    contractor = _direct_candidate("general_contractor", "Novo Construction", "555-0100")
+    first, second = (
+        _item(id=UUID(int=1), project_id=UUID(int=1)),
+        _item(id=UUID(int=2), project_id=UUID(int=2)),
+    )
+    for item in (first, second):
+        item["evidence"][0]["document_number"] = "shared-permit"
+    chains = {
+        str(UUID(int=1)): {"candidates": [contractor], "permit_summaries": []},
+        str(UUID(int=2)): {"candidates": [owner], "permit_summaries": []},
+    }
+    merged = cards([first, second], chains, date(2026, 10, 3), limit=50)[0]
+    legacy_keys = [
+        _json.dumps({k: v for k, v in c.items() if k != "category"}, sort_keys=True)
+        for c in merged["contacts"]
+    ]
+    assert legacy_keys == sorted(legacy_keys)  # the order the established fingerprint saw
+
+
+def test_same_contact_under_two_roles_keeps_the_owner_role_when_groups_merge():
+    from gridlens.domain.commercial_triage import _merge_contacts
+
+    contractor = {
+        "organization": "X",
+        "person": None,
+        "role": "r",
+        "category": "general_contractor",
+        "kind": "phone",
+        "value": "555",
+        "source_url": "u",
+        "evidence_ids": ["e"],
+    }
+    owner = {**contractor, "category": "owner_developer"}
+    for order in ((contractor, owner), (owner, contractor)):
+        merged = _merge_contacts([[order[0]], [order[1]]])
+        assert len(merged) == 1 and merged[0]["category"] == "owner_developer"
+
+
+def test_uncited_contact_is_never_an_action_target_or_action_now():
+    uncited = _direct_candidate("owner_developer", "Circle T Owner LP", "571.731.1698")
+    uncited["public_contacts"][0]["source_url"] = ""
+    card = build_card(_item(), {"candidates": [uncited], "permit_summaries": []}, date(2026, 10, 3))
+    assert card["next_action_target"] is None
+    assert card["disposition"] != "ACTION NOW"
+    assert "571.731.1698" not in card["next_action"]

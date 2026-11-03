@@ -103,6 +103,25 @@ _META = frozenset(
 )
 _CONTACT_LISTS = frozenset({"contacts", "candidates", "public_contacts", "reported_contacts"})
 _EVIDENCE_LISTS = frozenset({"sources", "evidence", "facts", "correction_history"})
+_SUPPRESSED_ACTION = (
+    "Research a replacement source-cited contact; the previously cited contact method was "
+    "removed under a privacy suppression."
+)
+
+
+def _target_method_keys(kind: Any, value: str) -> set[tuple[str, str]]:
+    """Suppression keys for a typed target.
+
+    Permit summaries label the method ("Contractor phone"), while suppressions are keyed by
+    canonical phone/email, so check both the raw label and the canonical type.
+    """
+    raw = str(kind or "")
+    keys = {_method_parts(raw, value)}
+    if re.search(r"phone|telephone|\btel\b", raw, re.I):
+        keys.add(_method_parts("phone", value))
+    if re.search(r"e-?mail", raw, re.I):
+        keys.add(_method_parts("email", value))
+    return keys
 
 
 def _uuid(value: Any) -> UUID | None:
@@ -288,6 +307,16 @@ def _redact(
             )
         return visible
     if isinstance(value, dict):
+        target = value.get("next_action_target")
+        if isinstance(target, dict) and isinstance(target.get("value"), str):
+            if _target_method_keys(target.get("kind"), target["value"]) & hidden_methods:
+                # The call text embeds the suppressed method, so it cannot be partially redacted.
+                value = {
+                    **value,
+                    "next_action_target": None,
+                    "next_action_type": "research_question",
+                    "next_action": _SUPPRESSED_ACTION,
+                }
         return {
             child_key: _redact(
                 child,
