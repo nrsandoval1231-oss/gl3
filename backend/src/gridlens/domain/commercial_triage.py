@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from gridlens.ingestion.adapters.retained_document import StackProof
 
-POLICY_VERSION = "commercial-triage-v2.2"
+POLICY_VERSION = "commercial-triage-v2.1"
 MAX_CARDS = 50
 
 OWNER_CATEGORIES = frozenset(
@@ -24,6 +24,10 @@ ACTION_IDENTIFY_BUYER = "identify_buyer_via_contractor"
 ACTION_RESEARCH = "research_question"
 ACTION_MONITOR = "monitor_milestone"
 ACTION_NONE = "no_action"
+_LEGACY_CALL_ACTION = (
+    "Call the cited public project contact to confirm stage, need-specific MW, "
+    "timing, duration, and purchasing role."
+)
 
 
 def _action_target(contacts: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -51,20 +55,22 @@ def _call_action(target: dict[str, Any]) -> tuple[str, str]:
     who = target.get("person") or target.get("organization") or "the cited contact"
     org = target.get("organization")
     where = f" at {org}" if org and who != org else ""
-    via = f"{target.get('kind')} {target.get('value')}"
+    is_email = bool(re.search(r"email", str(target.get("kind") or ""), re.I))
+    verb, via = ("Email", "") if is_email else ("Call", "on ")
+    channel = f"{via}{target.get('kind')} {target.get('value')}"
     cite = f" (source: {target['source_url']})" if target.get("source_url") else ""
     if target.get("category") in OWNER_CATEGORIES:
+        label = str(target["category"]).replace("_", " ")
         return (
             ACTION_CONFIRM_POWER_STRATEGY,
-            f"Call {who}{where}, the cited {str(target['category']).replace('_', ' ')}, on "
-            f"{via}{cite} to confirm stage, need-specific MW, timing, duration and who "
-            "decides power supply.",
+            f"{verb} {who}{where}, listed in the cited source as {label}, {channel}{cite} to "
+            "confirm stage, need-specific MW, timing, duration and who decides power supply.",
         )
     role = str(target.get("category") or target.get("role") or "contact").replace("_", " ")
     return (
         ACTION_IDENTIFY_BUYER,
-        f"Call {who}{where}, a cited {role} and not a verified buyer, on {via}{cite} to identify "
-        "the project owner or operator and who procures temporary or commissioning power.",
+        f"{verb} {who}{where}, listed as {role} and not a verified buyer, {channel}{cite} to "
+        "identify the project owner or operator and who procures temporary or commissioning power.",
     )
 
 
@@ -1033,8 +1039,23 @@ def _semantic_card(card: dict) -> dict:
     result = {
         k: v
         for k, v in card.items()
-        if k not in {"input_hash", "owner_organizations", "intelligence_card"}
+        if k
+        not in {
+            "input_hash",
+            "owner_organizations",
+            "intelligence_card",
+            "next_action_type",
+            "next_action_target",
+        }
     }
+    if card.get("next_action_type") in {ACTION_CONFIRM_POWER_STRATEGY, ACTION_IDENTIFY_BUYER}:
+        # Call wording is presentation derived from hashed contacts; keep the established
+        # fingerprint so this rollout does not restart unchanged research.
+        result["next_action"] = _LEGACY_CALL_ACTION
+    if result.get("contacts"):
+        result["contacts"] = [
+            {k: v for k, v in contact.items() if k != "category"} for contact in result["contacts"]
+        ]
     if result.get("operator_fact_refs"):
         result["operator_fact_refs"] = [
             {
@@ -1133,6 +1154,15 @@ def group_cards(
                 }.values(),
                 key=lambda value: json.dumps(value, sort_keys=True),
             )
+            if merged.get("next_action_type") in {
+                ACTION_CONFIRM_POWER_STRATEGY,
+                ACTION_IDENTIFY_BUYER,
+            }:
+                # Prefer an owner/operator contact across every sibling in the group.
+                target = _action_target(merged["contacts"])
+                if target is not None:
+                    merged["next_action_target"] = target
+                    merged["next_action_type"], merged["next_action"] = _call_action(target)
             merged["lifecycle_timeline"] = sorted(
                 {
                     json.dumps(event, sort_keys=True, default=str): event

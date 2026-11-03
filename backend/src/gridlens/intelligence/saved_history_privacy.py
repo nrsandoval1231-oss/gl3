@@ -103,6 +103,10 @@ _META = frozenset(
 )
 _CONTACT_LISTS = frozenset({"contacts", "candidates", "public_contacts", "reported_contacts"})
 _EVIDENCE_LISTS = frozenset({"sources", "evidence", "facts", "correction_history"})
+_SUPPRESSED_ACTION = (
+    "Research a replacement source-cited contact; the previously cited contact method was "
+    "removed under a privacy suppression."
+)
 
 
 def _uuid(value: Any) -> UUID | None:
@@ -288,6 +292,16 @@ def _redact(
             )
         return visible
     if isinstance(value, dict):
+        target = value.get("next_action_target")
+        if isinstance(target, dict) and isinstance(target.get("value"), str):
+            if _method_parts(str(target.get("kind") or ""), target["value"]) in hidden_methods:
+                # The call text embeds the suppressed method, so it cannot be partially redacted.
+                value = {
+                    **value,
+                    "next_action_target": None,
+                    "next_action_type": "research_question",
+                    "next_action": _SUPPRESSED_ACTION,
+                }
         return {
             child_key: _redact(
                 child,
