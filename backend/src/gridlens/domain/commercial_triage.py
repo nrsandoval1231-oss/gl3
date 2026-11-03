@@ -40,7 +40,9 @@ def _action_target(contacts: list[dict[str, Any]]) -> dict[str, Any] | None:
     reachable = [
         c
         for c in contacts
-        if c.get("value") and re.search(r"phone|telephone|email", str(c.get("kind") or ""), re.I)
+        if c.get("value")
+        and c.get("source_url")
+        and re.search(r"phone|telephone|email", str(c.get("kind") or ""), re.I)
     ]
     if not reachable:
         return None
@@ -706,6 +708,7 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         contact
         for contact in contacts
         if contact.get("value")
+        and contact.get("source_url")
         and re.search(r"phone|telephone|email", str(contact.get("kind") or ""), re.I)
     ]
     if item.get("canonical_inactive"):

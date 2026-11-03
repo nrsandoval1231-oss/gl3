@@ -109,6 +109,21 @@ _SUPPRESSED_ACTION = (
 )
 
 
+def _target_method_keys(kind: Any, value: str) -> set[tuple[str, str]]:
+    """Suppression keys for a typed target.
+
+    Permit summaries label the method ("Contractor phone"), while suppressions are keyed by
+    canonical phone/email, so check both the raw label and the canonical type.
+    """
+    raw = str(kind or "")
+    keys = {_method_parts(raw, value)}
+    if re.search(r"phone|telephone|\btel\b", raw, re.I):
+        keys.add(_method_parts("phone", value))
+    if re.search(r"e-?mail", raw, re.I):
+        keys.add(_method_parts("email", value))
+    return keys
+
+
 def _uuid(value: Any) -> UUID | None:
     try:
         return UUID(str(value))
@@ -294,7 +309,7 @@ def _redact(
     if isinstance(value, dict):
         target = value.get("next_action_target")
         if isinstance(target, dict) and isinstance(target.get("value"), str):
-            if _method_parts(str(target.get("kind") or ""), target["value"]) in hidden_methods:
+            if _target_method_keys(target.get("kind"), target["value"]) & hidden_methods:
                 # The call text embeds the suppressed method, so it cannot be partially redacted.
                 value = {
                     **value,

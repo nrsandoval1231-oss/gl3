@@ -304,7 +304,9 @@ def test_rental_intermediary_is_excluded_even_when_relationship_is_direct():
         "reason": "Permit-listed organization",
         "stale": False,
         "evidence": [],
-        "public_contacts": [{"kind": "phone", "value": "555-0104"}],
+        "public_contacts": [
+            {"kind": "phone", "value": "555-0104", "source_url": "https://example.test/rental"}
+        ],
     }
     rental_summary = {
         "evidence_id": str(uuid4()),
@@ -325,7 +327,9 @@ def test_rental_intermediary_is_excluded_even_when_relationship_is_direct():
     owner = {
         **intermediary,
         "organization": "Campus Owner LLC",
-        "public_contacts": [{"kind": "phone", "value": "555-0105"}],
+        "public_contacts": [
+            {"kind": "phone", "value": "555-0105", "source_url": "https://example.test/owner"}
+        ],
     }
     mixed = build_card(
         item,
@@ -1042,3 +1046,12 @@ def test_same_contact_under_two_roles_keeps_the_owner_role_when_groups_merge():
     for order in ((contractor, owner), (owner, contractor)):
         merged = _merge_contacts([[order[0]], [order[1]]])
         assert len(merged) == 1 and merged[0]["category"] == "owner_developer"
+
+
+def test_uncited_contact_is_never_an_action_target_or_action_now():
+    uncited = _direct_candidate("owner_developer", "Circle T Owner LP", "571.731.1698")
+    uncited["public_contacts"][0]["source_url"] = ""
+    card = build_card(_item(), {"candidates": [uncited], "permit_summaries": []}, date(2026, 10, 3))
+    assert card["next_action_target"] is None
+    assert card["disposition"] != "ACTION NOW"
+    assert "571.731.1698" not in card["next_action"]
