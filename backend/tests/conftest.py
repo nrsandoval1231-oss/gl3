@@ -7,7 +7,24 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
-from gridlens.settings import settings
+from gridlens.settings import Settings, settings
+
+
+def _base_test_database_url() -> str:
+    """Resolve the base test database URL without caching the settings singleton.
+
+    A direct environment export wins; the repository .env is the fallback so
+    parallel runs work without exporting anything. Settings() is constructed
+    fresh (never get_settings()) because workers must read the base URL before
+    the lazy singleton builds and gets pointed at a worker database.
+    """
+    base = os.environ.get("TEST_DATABASE_URL", "")
+    if base:
+        return base
+    try:
+        return Settings().test_database_url
+    except Exception:  # missing .env or required fields: behave as if unset
+        return ""
 
 
 def pytest_configure(config):
@@ -15,7 +32,7 @@ def pytest_configure(config):
     worker = os.environ.get("PYTEST_XDIST_WORKER")
     if not worker:
         return
-    base = os.environ.get("TEST_DATABASE_URL", "")
+    base = _base_test_database_url()
     if not base:
         return
     url = make_url(base)
@@ -36,7 +53,7 @@ def pytest_sessionstart(session):
     if num == "auto":
         num = os.cpu_count() or 1
     num = max(int(num), 1)
-    base = os.environ.get("TEST_DATABASE_URL", "")
+    base = _base_test_database_url()
     if not base:
         return
     url = make_url(base)
