@@ -11,8 +11,61 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from gridlens.ingestion.adapters.retained_document import StackProof
 
-POLICY_VERSION = "commercial-triage-v2.1"
+POLICY_VERSION = "commercial-triage-v2.2"
 MAX_CARDS = 50
+
+OWNER_CATEGORIES = frozenset(
+    {"owner_developer", "asset_operator", "owner_construction", "owner_energy"}
+)
+
+# Typed next actions. The free-text `next_action` stays for compatibility; the type is stable.
+ACTION_CONFIRM_POWER_STRATEGY = "confirm_power_strategy_with_owner"
+ACTION_IDENTIFY_BUYER = "identify_buyer_via_contractor"
+ACTION_RESEARCH = "research_question"
+ACTION_MONITOR = "monitor_milestone"
+ACTION_NONE = "no_action"
+
+
+def _action_target(contacts: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Pick the cited contact to call, preferring an owner/operator over any other role.
+
+    Only contacts already present on the card (public, source-cited, suppression-filtered) are
+    used. Nothing is inferred or invented.
+    """
+    reachable = [
+        c
+        for c in contacts
+        if c.get("value") and re.search(r"phone|telephone|email", str(c.get("kind") or ""), re.I)
+    ]
+    if not reachable:
+        return None
+    reachable.sort(key=lambda c: 0 if c.get("category") in OWNER_CATEGORIES else 1)
+    chosen = reachable[0]
+    return {
+        key: chosen.get(key)
+        for key in ("organization", "person", "category", "role", "kind", "value", "source_url")
+    }
+
+
+def _call_action(target: dict[str, Any]) -> tuple[str, str]:
+    who = target.get("person") or target.get("organization") or "the cited contact"
+    org = target.get("organization")
+    where = f" at {org}" if org and who != org else ""
+    via = f"{target.get('kind')} {target.get('value')}"
+    cite = f" (source: {target['source_url']})" if target.get("source_url") else ""
+    if target.get("category") in OWNER_CATEGORIES:
+        return (
+            ACTION_CONFIRM_POWER_STRATEGY,
+            f"Call {who}{where}, the cited {str(target['category']).replace('_', ' ')}, on "
+            f"{via}{cite} to confirm stage, need-specific MW, timing, duration and who "
+            "decides power supply.",
+        )
+    role = str(target.get("category") or target.get("role") or "contact").replace("_", " ")
+    return (
+        ACTION_IDENTIFY_BUYER,
+        f"Call {who}{where}, a cited {role} and not a verified buyer, on {via}{cite} to identify "
+        "the project owner or operator and who procures temporary or commissioning power.",
+    )
 
 
 def _iso(value: Any) -> str | None:
@@ -412,6 +465,7 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "organization": c.get("organization"),
             "person": c.get("person_name"),
             "role": c.get("title") or c.get("category"),
+            "category": c.get("category"),
             "kind": contact.get("kind"),
             "value": contact.get("value"),
             "source_url": contact.get("source_url"),
@@ -756,16 +810,22 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         question = "What dated evidence establishes when this specific project activity will start?"
     else:
         question = "What source establishes the expected duration of this specific activity?"
+    next_action_target = None
     if disposition == "RESEARCH":
+        next_action_type = ACTION_RESEARCH
         next_action = f"Research this exact question: {question}"
     elif disposition == "ACTION NOW":
-        next_action = (
-            "Call the cited public project contact to confirm stage, need-specific MW, "
-            "timing, duration, and purchasing role."
-        )
+        next_action_target = _action_target(contacts)
+        if next_action_target is not None:
+            next_action_type, next_action = _call_action(next_action_target)
+        else:
+            next_action_type = ACTION_RESEARCH
+            next_action = f"Research this exact question: {question}"
     elif stack_proof is not None and stack_proof.status == "verified":
+        next_action_type = ACTION_MONITOR
         next_action = stack_proof.next_action or reason
     else:
+        next_action_type = ACTION_NONE if disposition == "REJECT" else ACTION_MONITOR
         next_action = reason
     watch = None
     if disposition == "WATCH":
@@ -906,6 +966,8 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         "blockers": blockers,
         "next_question": question,
         "next_action": next_action,
+        "next_action_type": next_action_type,
+        "next_action_target": next_action_target,
         "watch": watch,
         "sources": sources,
         "conflict_state": "CONFLICT" if research_conflict else item.get("conflict_state"),
@@ -1151,6 +1213,8 @@ def group_cards(
                         "Reconcile contradictory same-work need states and source status before "
                         "any commercial action."
                     )
+                    merged["next_action_type"] = ACTION_RESEARCH
+                    merged["next_action_target"] = None
                     merged["conflict_state"] = "contradictory same-work need states"
         merged["input_hash"] = hashlib.sha256(
             json.dumps(

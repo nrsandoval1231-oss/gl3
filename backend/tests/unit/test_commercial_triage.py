@@ -824,3 +824,86 @@ def test_negated_need_and_affirmative_scope_require_conflict_research():
         ]
     }
     assert build_card(item, chain, date(2026, 10, 5))["disposition"] == "RESEARCH"
+
+
+def _direct_candidate(category, organization, contact_value="555-0142"):
+    return {
+        "organization": organization,
+        "category": category,
+        "organization_relationship": "DIRECT",
+        "reason": "Source-cited project relationship",
+        "stale": False,
+        "evidence": [{"id": uuid4()}],
+        "public_contacts": [
+            {"kind": "phone", "value": contact_value, "source_url": "https://example.test/project"}
+        ],
+    }
+
+
+def test_owner_contact_action_names_the_owner_contact_and_source():
+    chain = {
+        "candidates": [_direct_candidate("owner_developer", "Circle T Owner LP", "571.731.1698")],
+        "permit_summaries": [],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    assert card["disposition"] == "ACTION NOW"
+    assert card["next_action_type"] == "confirm_power_strategy_with_owner"
+    assert card["next_action_target"]["organization"] == "Circle T Owner LP"
+    assert "Circle T Owner LP" in card["next_action"]
+    assert "571.731.1698" in card["next_action"]
+    assert "https://example.test/project" in card["next_action"]
+    assert "not a verified buyer" not in card["next_action"]
+
+
+def test_contractor_contact_action_identifies_buyer_and_never_claims_one():
+    chain = {
+        "candidates": [_direct_candidate("electrical_contractor", "Prism Electric Inc")],
+        "permit_summaries": [],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    assert card["disposition"] == "ACTION NOW"
+    assert card["next_action_type"] == "identify_buyer_via_contractor"
+    assert "not a verified buyer" in card["next_action"]
+    assert "Prism Electric Inc" in card["next_action"]
+    assert "buyer or responsible operator" in card["unknowns"]
+
+
+def test_owner_contact_is_preferred_over_contractor_contact():
+    chain = {
+        "candidates": [
+            _direct_candidate("general_contractor", "Novo Construction", "555-0100"),
+            _direct_candidate("owner_developer", "Beacon Point DC LLC", "555-0199"),
+        ],
+        "permit_summaries": [],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    assert card["next_action_target"]["organization"] == "Beacon Point DC LLC"
+    assert card["next_action_type"] == "confirm_power_strategy_with_owner"
+
+
+def test_permit_summary_contact_is_never_called_a_verified_buyer():
+    chain = {
+        "candidates": [],
+        "permit_summaries": [
+            {
+                "evidence_id": str(uuid4()),
+                "url": "https://example.test/permit",
+                "facts": [
+                    {"label": "Permit contractor trade", "value": "Electrician"},
+                    {"label": "Permit-listed contractor name", "value": "Blake Combs"},
+                    {"label": "Contractor phone", "value": "555-0100"},
+                ],
+            }
+        ],
+    }
+    card = build_card(_item(), chain, date(2026, 10, 3))
+    assert card["next_action_type"] == "identify_buyer_via_contractor"
+    assert "not a verified buyer" in card["next_action"]
+    assert "Blake Combs" in card["next_action"]
+
+
+def test_non_action_dispositions_carry_a_type_and_no_call_target():
+    card = build_card(_item(signal_display_decision="HOLD"), {"candidates": []}, date(2026, 10, 3))
+    assert card["disposition"] == "RESEARCH"
+    assert card["next_action_type"] == "research_question"
+    assert card["next_action_target"] is None
