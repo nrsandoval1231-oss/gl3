@@ -4986,6 +4986,29 @@
             "type": "string",
             "title": "Next Action"
           },
+          "next_action_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action Type"
+          },
+          "next_action_target": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action Target"
+          },
           "watch": {
             "anyOf": [
               {
@@ -5102,6 +5125,17 @@
               }
             ],
             "title": "Role"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
           },
           "kind": {
             "anyOf": [

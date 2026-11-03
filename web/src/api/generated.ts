@@ -1295,6 +1295,12 @@ export interface components {
             next_question: string;
             /** Next Action */
             next_action: string;
+            /** Next Action Type */
+            next_action_type?: string | null;
+            /** Next Action Target */
+            next_action_target?: {
+                [key: string]: unknown;
+            } | null;
             /** Watch */
             watch?: {
                 [key: string]: unknown;
@@ -1318,6 +1324,8 @@ export interface components {
             person: string | null;
             /** Role */
             role: string | null;
+            /** Category */
+            category?: string | null;
             /** Kind */
             kind: string | null;
             /** Value */
