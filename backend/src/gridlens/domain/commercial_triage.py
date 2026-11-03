@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Iterable
 from datetime import date
 from typing import TYPE_CHECKING, Any
 
@@ -72,6 +73,29 @@ def _call_action(target: dict[str, Any]) -> tuple[str, str]:
         f"{verb} {who}{where}, listed as {role} and not a verified buyer, {channel}{cite} to "
         "identify the project owner or operator and who procures temporary or commissioning power.",
     )
+
+
+def _legacy_contact_key(contact: dict[str, Any]) -> str:
+    """Identity and order key from before contacts carried a category.
+
+    Keeping it preserves the merged contact order, and therefore the research fingerprint.
+    """
+    return json.dumps({k: v for k, v in contact.items() if k != "category"}, sort_keys=True)
+
+
+def _merge_contacts(groups: Iterable[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    merged: dict[str, dict[str, Any]] = {}
+    for contacts in groups:
+        for contact in contacts:
+            key = _legacy_contact_key(contact)
+            kept = merged.get(key)
+            # The same cited contact under two roles keeps the owner/operator role.
+            if kept is None or (
+                kept.get("category") not in OWNER_CATEGORIES
+                and contact.get("category") in OWNER_CATEGORIES
+            ):
+                merged[key] = contact
+    return [merged[key] for key in sorted(merged)]
 
 
 def _iso(value: Any) -> str | None:
@@ -1146,14 +1170,7 @@ def group_cards(
         merged["related_project_ids"] = sorted({state["project_id"] for state in states})
         merged["related_need_states"] = states
         if len(group) > 1:
-            merged["contacts"] = sorted(
-                {
-                    json.dumps(contact, sort_keys=True): contact
-                    for card in group
-                    for contact in card["contacts"]
-                }.values(),
-                key=lambda value: json.dumps(value, sort_keys=True),
-            )
+            merged["contacts"] = _merge_contacts(card["contacts"] for card in group)
             if merged.get("next_action_type") in {
                 ACTION_CONFIRM_POWER_STRATEGY,
                 ACTION_IDENTIFY_BUYER,

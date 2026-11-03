@@ -1000,3 +1000,45 @@ def test_merged_group_prefers_an_owner_contact_from_any_sibling():
     assert result[0]["next_action_type"] == "confirm_power_strategy_with_owner"
     assert result[0]["next_action_target"]["organization"] == "Beacon Point DC LLC"
     assert "Beacon Point DC LLC" in result[0]["next_action"]
+
+
+def test_merged_group_contact_order_and_fingerprint_match_the_legacy_ordering():
+    import json as _json
+
+    owner = _direct_candidate("owner_developer", "Beacon Point DC LLC", "555-0199")
+    contractor = _direct_candidate("general_contractor", "Novo Construction", "555-0100")
+    first, second = (
+        _item(id=UUID(int=1), project_id=UUID(int=1)),
+        _item(id=UUID(int=2), project_id=UUID(int=2)),
+    )
+    for item in (first, second):
+        item["evidence"][0]["document_number"] = "shared-permit"
+    chains = {
+        str(UUID(int=1)): {"candidates": [contractor], "permit_summaries": []},
+        str(UUID(int=2)): {"candidates": [owner], "permit_summaries": []},
+    }
+    merged = cards([first, second], chains, date(2026, 10, 3), limit=50)[0]
+    legacy_keys = [
+        _json.dumps({k: v for k, v in c.items() if k != "category"}, sort_keys=True)
+        for c in merged["contacts"]
+    ]
+    assert legacy_keys == sorted(legacy_keys)  # the order the established fingerprint saw
+
+
+def test_same_contact_under_two_roles_keeps_the_owner_role_when_groups_merge():
+    from gridlens.domain.commercial_triage import _merge_contacts
+
+    contractor = {
+        "organization": "X",
+        "person": None,
+        "role": "r",
+        "category": "general_contractor",
+        "kind": "phone",
+        "value": "555",
+        "source_url": "u",
+        "evidence_ids": ["e"],
+    }
+    owner = {**contractor, "category": "owner_developer"}
+    for order in ((contractor, owner), (owner, contractor)):
+        merged = _merge_contacts([[order[0]], [order[1]]])
+        assert len(merged) == 1 and merged[0]["category"] == "owner_developer"
