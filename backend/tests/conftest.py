@@ -47,6 +47,8 @@ def pytest_sessionstart(session):
     """Create one pristine database per xdist worker (controller process only)."""
     if os.environ.get("PYTEST_XDIST_WORKER"):
         return
+    if getattr(session.config.option, "collectonly", False):
+        return  # listing tests must not drop or create worker databases
     num = getattr(session.config.option, "numprocesses", None)
     if not num:
         return
