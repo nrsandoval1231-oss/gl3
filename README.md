@@ -18,7 +18,7 @@ The [current repository checkpoint](.agent/CURRENT_STATE.md) records active work
 - [November 2 production release and validation](docs/validation/production-release-20261102.md)
 - [Historical and candidate validation evidence](docs/validation/)
 
-Historical status narratives and reports are retained under [.agent/archive/STAGE1-20261009/](.agent/archive/STAGE1-20261009/) and existing dated validation records. They are not current state unless a current status page cites and revalidates them.
+Historical status narratives and reports were removed from the working tree in the 2026-11-03 evidence cleanup; they remain retrievable from git history prior to that commit. Existing dated validation records are not current state unless a current status page cites and revalidates them.
 
 ## Run locally
 
