@@ -661,8 +661,10 @@ def test_drilling_history_advances_closed_months_and_stops_at_previous_month(str
         ]:
             history, _, _ = prepare_collection_progress(session, definition, today=today)
             assert history.lane == "issue_history"
-            assert history.window_start.date() == start
-            assert history.window_end.date() == end
+            # Windows returns timestamptz in the session timezone; compare the
+            # UTC carrier date so the assertion holds on non-UTC machines.
+            assert history.window_start.astimezone(UTC).date() == start
+            assert history.window_end.astimezone(UTC).date() == end
             apply_segment_result(
                 history, {"window_complete": True, "cursor": {}, "partial": False}, now=now
             )
@@ -678,5 +680,5 @@ def test_drilling_history_advances_closed_months_and_stops_at_previous_month(str
             session, definition, today=date(2027, 2, 1), collection_jobs_remaining=6
         )
         assert resumed.lane == "issue_history"
-        assert resumed.window_start.date() == date(2026, 11, 1)
-        assert resumed.window_end.date() == date(2026, 11, 30)
+        assert resumed.window_start.astimezone(UTC).date() == date(2026, 11, 1)
+        assert resumed.window_end.astimezone(UTC).date() == date(2026, 11, 30)
