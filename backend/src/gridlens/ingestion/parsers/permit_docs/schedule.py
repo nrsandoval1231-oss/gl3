@@ -166,7 +166,8 @@ def build_schedule(
         build.demand_rows.append(row)
         lines.append(line)
         build.provenance[len(lines) - 1] = _row_provenance(row, canon, document_hash)
-    build.text = "\n".join(lines) + ("\n" if lines else "")
+    # Header lines alone are not a schedule: with no claim rows the text stays empty.
+    build.text = ("\n".join(lines) + "\n") if build.provenance else ""
     cursor = 0
     claim_rows = iter(build.demand_rows)
     for index, raw in enumerate(build.text.splitlines(keepends=True)):

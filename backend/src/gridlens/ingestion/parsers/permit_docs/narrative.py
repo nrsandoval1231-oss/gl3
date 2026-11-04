@@ -54,7 +54,7 @@ _NOUN_RE = re.compile(
     + r")",
     re.I,
 )
-_RANGE_BEFORE = re.compile(r"\d\s*(?:to|through|-|–)\s*$", re.I)
+_RANGE_BEFORE = re.compile(r"\d\s*(?:to|and|through|-|–)\s*$", re.I)
 _COUNT_BEFORE = re.compile(COUNT_RE.pattern + r"\s*(?:approximately\s+)?$", re.I)
 _ASSOCIATED = re.compile(r"associated\s+(?:[a-z]+\s+){0,2}(?P<name>[A-Z][A-Za-z0-9-]+)")
 _SENTENCE_END = re.compile(r"[.;:]\s|\n\n")
