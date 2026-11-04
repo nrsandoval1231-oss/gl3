@@ -376,8 +376,9 @@ def run_stage(
 ) -> stage.EarlyStageReport:
     """Read documents, fold their states into the records, add TPIT row records.
 
-    Documents not read this run (budget, deadline, rate limit) keep their earlier state when there
-    is one, else the record is withheld as ``presence_only`` rather than stored empty.
+    Documents not read this run (budget, deadline, rate limit, failure) keep their earlier state
+    when there is one; otherwise the record is dropped from this run's list rather than stored
+    empty. The stage report names the reason, and the next run asks again.
     """
     started = now()
     items = [item for record in records if (item := _item_for(record)) is not None]
@@ -408,31 +409,36 @@ def run_stage(
         if owns:
             http.close()
     extra: list[dict[str, Any]] = []
+    unread: list[dict[str, Any]] = []
     for record in records:
         key = record.get("state_key")
         state = run.states.get(str(key))
         if state is None:
             if _item_for(record) is not None:
-                record["presence_only"] = True
+                unread.append(record)
             continue
         stage.apply_state(record, state)
         if record.get("doc_kind") == "tpit":
             extra.extend(
                 tpit_row_records(state, prior_states.get(str(key)), record.get("publication_date"))
             )
+    records[:] = [r for r in records if not any(r is u for u in unread)]
     seen = {r["document_number"] for r in records}
     records.extend(r for r in extra if r["document_number"] not in seen)
+    report.counts["withheld_unread"] = len(unread)
     return report
 
 
 def apply_prior_states(records: list[dict[str, Any]], prior: dict[str, dict[str, Any]]) -> None:
     """Fold retained states into the records when the stage did not run (fault, disabled)."""
+    unread: list[dict[str, Any]] = []
     for record in records:
         state = prior.get(str(record.get("state_key")))
         if state is not None:
             stage.apply_state(record, state)
         elif _item_for(record) is not None:
-            record["presence_only"] = True
+            unread.append(record)
+    records[:] = [r for r in records if not any(r is u for u in unread)]
 
 
 # --------------------------------------------------------------------------- TPIT row records

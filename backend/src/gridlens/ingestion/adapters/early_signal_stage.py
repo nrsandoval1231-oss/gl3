@@ -14,8 +14,9 @@ TCEQ, OK DEQ and NMED discipline and reuses their pacer, typed failures, validat
   the check index; until it passes the stage makes no request;
 * permanent failures are remembered with validators and hash and not retried until the bytes
   change; environment failures retry three times, then rest seven days;
-* a document that was listed but not read in this run (budget, deadline, rate limit) is withheld
-  from processing (``presence_only``) rather than stored as an empty record;
+* a document that was listed but not read in this run (budget, deadline, rate limit, failure) is
+  left out of this run's records rather than stored as an empty record; the report names why and
+  the next run asks again;
 * no response content or exception text is ever stored; only codes and small integers.
 
 State per document lives in ``Evidence.provenance["early_signal"]`` and the check index in
@@ -234,7 +235,6 @@ def apply_state(record: dict[str, Any], state: dict[str, Any]) -> None:
     record["source_hash"] = hashlib.sha256(
         f"{base['source_hash']}:{state_digest(state)}".encode()
     ).hexdigest()
-    record.pop("presence_only", None)
 
 
 # --------------------------------------------------------------------------- runner

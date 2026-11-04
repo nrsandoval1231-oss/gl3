@@ -349,15 +349,16 @@ def test_single_project_document_attributes_all_pages_and_finds_substations():
 
 
 def test_scanned_pdf_is_an_abstention_not_zero():
-    origin = ercot_origin(status_body=er.extract.read_pdf_pages.__module__ and b"%PDF-1.4\n%%EOF")
+    origin = ercot_origin(status_body=b"%PDF-1.4\n%%EOF")
     records = listing(origin)
     report = stage(origin, records)
     assert any(
         r["error_code"].startswith("text_layer_") or r["error_code"] == "empty_text_layer"
         for r in report.rejections
     )
-    status = next(r for r in records if r["state_key"] == STATUS_PDF)
-    assert status.get("presence_only") is True and "early_signal" not in status
+    # An unread document is left out of the run, never stored as an empty record.
+    assert STATUS_PDF not in {r.get("state_key") for r in records}
+    assert report.counts["withheld_unread"] >= 1
 
 
 def test_html_in_place_of_a_pdf_is_js_shell():
@@ -474,8 +475,8 @@ def test_download_budget_defers_and_withholds_unread_documents():
     records = listing(origin)
     report = stage(origin, records, config=StageConfig(1, 20, 120.0, (), False))
     assert report.counts["downloads"] == 1 and report.counts.get("deferred_download_budget", 0) >= 1
-    held = [r for r in records if r.get("presence_only")]
-    assert held and all("early_signal" not in r for r in held)
+    kept = {r["state_key"] for r in records if r.get("state_key")}
+    assert len(kept) == 1 and report.counts["withheld_unread"] == 2
 
 
 # --------------------------------------------------------------------------- 429 / not_before
