@@ -2607,8 +2607,11 @@ def _enrich_with_application_documents(
     )
     from gridlens.ingestion.tceq_document_stage import (
         load_bookkeeping,
+        load_not_before,
         load_prior_states,
+        rest_until,
         save_bookkeeping,
+        save_not_before,
     )
 
     config = (
@@ -2623,11 +2626,19 @@ def _enrich_with_application_documents(
         session.commit()
     prior = load_prior_states(session, source_definition["id"])
     book = load_bookkeeping(session, source_definition["id"])
+    not_before = load_not_before(session, source_definition["id"])
     session.commit()
     if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
         # The publisher is already throttling this source: make no further requests.
         report = StageReport()
         report.bump("skipped_source_rate_limited")
+        apply_prior_states(records, prior)
+        _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+        return report
+    if not_before is not None and datetime.now(UTC) < not_before:
+        # An earlier 429/503 carried a Retry-After that has not passed yet.
+        report = StageReport()
+        report.bump("skipped_retry_after")
         apply_prior_states(records, prior)
         _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
         return report
@@ -2637,7 +2648,8 @@ def _enrich_with_application_documents(
         )
         if report.bookkeeping != book:
             save_bookkeeping(session, source_definition["id"], report.bookkeeping)
-            session.commit()
+        save_not_before(session, source_definition["id"], rest_until(report, datetime.now(UTC)))
+        session.commit()
     except Exception as error:
         # The stage is additive: an unexpected fault must not fail the ordinary listing run.
         # It is reported as a typed stage error, never swallowed silently.
