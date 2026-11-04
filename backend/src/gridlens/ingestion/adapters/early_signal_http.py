@@ -1,4 +1,4 @@
-"""Host-pinned, redirect-free, polite HTTP for the early-signal sources (ERCOT, PUCT Interchange).
+"""Host-pinned, redirect-free, polite HTTP for the early-signal sources (ERCOT, PUCT Interchange, and the workstream 4b hosts).
 
 Every request names a URL that the caller's policy function accepts (exact host and path shape),
 connects to a public DNS answer pinned for that request, never follows a redirect, caps the body
@@ -25,7 +25,13 @@ from gridlens.ingestion.adapters.tceq_application_documents import DocumentFailu
 USER_AGENT = shared.USER_AGENT
 ERCOT_HOST = "www.ercot.com"
 PUCT_HOST = "interchange.puc.texas.gov"
-ALLOWED_HOSTS = frozenset({ERCOT_HOST, PUCT_HOST})
+COMPTROLLER_HOST = "comptroller.texas.gov"
+OCC_HOST = "oklahoma.gov"
+HASKELL_HOST = "www.haskellcountytx.gov"
+TCEQ_HOST = "www.tceq.texas.gov"
+ALLOWED_HOSTS = frozenset(
+    {ERCOT_HOST, PUCT_HOST, COMPTROLLER_HOST, OCC_HOST, HASKELL_HOST, TCEQ_HOST}
+)
 MAX_URL_CHARS = 600
 _HTML = frozenset({"text/html", "application/xhtml+xml"})
 _PDF = frozenset({"application/pdf", "application/x-pdf"})
