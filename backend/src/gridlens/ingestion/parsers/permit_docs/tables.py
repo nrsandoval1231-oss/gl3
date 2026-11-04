@@ -20,13 +20,14 @@ from gridlens.ingestion.parsers.permit_docs.lexicon import (
     parse_number,
     state_from_text,
     type_from_text,
+    types_in_text,
     unit_from_text,
 )
 from gridlens.ingestion.parsers.permit_docs.models import ExtractedRow, FieldEvidence, Route
 from gridlens.ingestion.parsers.permit_docs.router import header_unit
 from gridlens.ingestion.parsers.permit_docs.text_layer import CanonicalText
 
-_GROUP = re.compile(r"^\s*EUG[- ]?\d+[A-Za-z]?\s*[:.\-]?\s*(?P<title>.*)$", re.I)
+GROUP_LINE = re.compile(r"^\s*EUG[- ]?\d+[A-Za-z]?\s*[:.\-]?\s*(?P<title>.*)$", re.I)
 _ID_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/\-]{0,39}$")
 _NUMBER_TOKEN = re.compile(rf"^{NUMBER_RE.pattern}$")
 _THRESHOLD_CELL = re.compile(r"[<>≥≤]|greater|less\s+than|more\s+than|\bto\b\s+\d", re.I)
@@ -132,7 +133,7 @@ def _extract_header_keyed(
         while index < len(lines):
             line = lines[index]
             line_start = offsets[index]
-            group_match = _GROUP.match(line)
+            group_match = GROUP_LINE.match(line)
             if group_match is not None:
                 active = None
                 group_title = line.strip()
@@ -224,12 +225,17 @@ def _build_row(
     if rating is None or rating <= 0:
         return None
     title = table.group_evidence
-    type_value = type_from_text(desc_text) if desc_text else None
+    title_types = types_in_text(title.quote) if title is not None else set()
+    desc_types = types_in_text(desc_text) if desc_text else set()
     type_source: tuple[str, int, int, int] | None = None
-    if type_value is not None:
+    if len(desc_types) > 1:
+        issues.append(f"Ambiguous equipment type for table row {id_text!r} on page {page}.")
+        return None
+    if desc_types:
         type_source = (desc_text, line_start + d_s, line_start + d_e, page)
-    elif title is not None and (type_value := type_from_text(title.quote)) is not None:
+    elif title is not None and len(title_types) == 1:
         type_source = (title.quote, title.start, title.end, title.page)
+    type_value = type_from_text(type_source[0]) if type_source is not None else None
     if type_value is None or type_source is None:
         issues.append(f"No equipment type stated for table row {id_text!r} on page {page}.")
         return None
@@ -242,14 +248,22 @@ def _build_row(
         "unit": table.unit_evidence,
     }
     drive = "unknown"
-    for quote, start, end, pg in (
-        (desc_text, line_start + d_s, line_start + d_e, page),
-        *(((title.quote, title.start, title.end, title.page),) if title else ()),
+    if desc_text and (found := drive_from_text(desc_text)) != "unknown":
+        drive = found
+        evidence["drive"] = FieldEvidence(
+            "drive", found, desc_text, line_start + d_s, line_start + d_e, page
+        )
+    elif (
+        title is not None
+        and len(title_types) == 1
+        and type_from_text(title.quote) == type_value
+        and (found := drive_from_text(title.quote)) != "unknown"
     ):
-        if quote and (found := drive_from_text(quote)) != "unknown":
-            drive = found
-            evidence["drive"] = FieldEvidence("drive", found, quote, start, end, pg)
-            break
+        # A title drive applies only to rows of the title's own (single) equipment noun.
+        drive = found
+        evidence["drive"] = FieldEvidence(
+            "drive", found, title.quote, title.start, title.end, title.page
+        )
     state = "unknown"
     if title is not None and (found_state := state_from_text(title.quote)) != "unknown":
         state = found_state
@@ -268,6 +282,7 @@ def _build_row(
         evidence=evidence,
         group=table.group,
         stitched=page != table.header_page,
+        group_span=(title.start, title.end) if title is not None else None,
     )
 
 
@@ -282,30 +297,66 @@ _CAPACITY_ROW = re.compile(
 )
 
 
+def blocking_ids(others: set[str], line_has_own_id: bool) -> set[str]:
+    """Other capacity-row ids that disqualify a neighbour line from describing this unit.
+
+    A line that also carries this row's own id is only disqualified by non-numeric ids:
+    bare row numbers ("Unit 3") collide with ordinary words and counts.
+    """
+    return {o for o in others if not (line_has_own_id and o.isdigit())}
+
+
+def _is_token(line: str, ident: str) -> bool:
+    return ident in (t.strip("(),;:") for t in line.split())
+
+
 def extract_capacity_tables(
     canon: CanonicalText, routes: dict[int, Route]
 ) -> tuple[list[ExtractedRow], list[str]]:
     rows: list[ExtractedRow] = []
     issues: list[str] = []
     for page in canon.pages:
-        if routes.get(page.page) in (None, "scan"):
+        if routes.get(page.page) != "table":
             continue
         if "Table 2-A" not in page.text and "Rated Capacity" not in page.text:
             continue
-        lines = page.text.split(chr(10))
-        offsets = []
+        lines = page.text.split("\n")
+        offsets: list[int] = []
         cursor = canon.page_starts[page.page - 1]
         for line in lines:
             offsets.append(cursor)
             cursor += len(line) + 1
+        matches: list[tuple[int, re.Match[str]]] = []
         for index, line in enumerate(lines):
             match = _CAPACITY_ROW.match(line)
-            if match is None or match.group("u1").lower() != match.group("u2").lower():
-                continue
-            row = _capacity_row(match, lines, offsets, index, page.page, issues)
+            if match is not None and match.group("u1").lower() == match.group("u2").lower():
+                matches.append((index, match))
+        page_ids = {m.group("id") for _, m in matches}
+        for index, match in matches:
+            row = _capacity_row(match, lines, offsets, index, page.page, page_ids, issues)
             if row is not None:
                 rows.append(row)
     return rows, issues
+
+
+def _capacity_context(
+    lines: list[str], offsets: list[int], index: int, own_id: str, page_ids: set[str]
+) -> list[tuple[str, int]]:
+    """Neighbour lines that may describe THIS unit: they must not carry another capacity
+    row's id, and must carry this row's id (or sit beside a neighbour that does)."""
+    others = page_ids - {own_id}
+    usable: list[tuple[str, int, bool]] = []
+    for neighbor in (index + 1, index - 1):
+        if not 0 <= neighbor < len(lines):
+            continue
+        text = lines[neighbor]
+        owns = _is_token(text, own_id)
+        if any(_is_token(text, other) for other in blocking_ids(others, owns)):
+            continue
+        lead = len(text) - len(text.lstrip())
+        usable.append((text.strip(), offsets[neighbor] + lead, owns))
+    confirmed = any(owns for _, _, owns in usable)
+    return [(text, start) for text, start, owns in usable if owns or confirmed]
 
 
 def _capacity_row(
@@ -314,6 +365,7 @@ def _capacity_row(
     offsets: list[int],
     index: int,
     page: int,
+    page_ids: set[str],
     issues: list[str],
 ) -> ExtractedRow | None:
     line_start = offsets[index]
@@ -326,11 +378,7 @@ def _capacity_row(
         return None
     mid = match.group("mid")
     candidates = [(mid, line_start + match.start("mid"))]
-    for neighbor in (index + 1, index - 1):
-        if 0 <= neighbor < len(lines):
-            text = lines[neighbor]
-            lead = len(text) - len(text.lstrip())
-            candidates.append((text.strip(), offsets[neighbor] + lead))
+    candidates += _capacity_context(lines, offsets, index, id_text, page_ids)
     type_value, type_quote, type_start = _capacity_type(candidates)
     if type_value is None:
         issues.append(f"No equipment type stated for capacity row {id_text!r} on page {page}.")
@@ -367,11 +415,13 @@ def _capacity_row(
             page,
         ),
     }
-    drive = drive_from_text(type_quote)
-    if drive != "unknown":
-        evidence["drive"] = FieldEvidence(
-            "drive", drive, type_quote, type_start, type_start + len(type_quote), page
-        )
+    drive = "unknown"
+    for text, start in candidates:
+        found = drive_from_text(_SERVICE_TAG.sub(" ", text))
+        if found != "unknown" and len(types_in_text(text)) <= 1:
+            drive = found
+            evidence["drive"] = FieldEvidence("drive", found, text, start, start + len(text), page)
+            break
     return ExtractedRow(
         origin="table",
         equipment_id=id_text,
@@ -395,7 +445,10 @@ def _capacity_type(candidates: list[tuple[str, int]]) -> tuple[str | None, str, 
     and a type that appears only inside a parenthetical service tag is not used."""
     found: list[tuple[str, str, int]] = []
     for text, start in candidates:
-        value = type_from_text(_SERVICE_TAG.sub(" ", text))
+        untagged = _SERVICE_TAG.sub(" ", text)
+        if len(types_in_text(untagged)) > 1:
+            continue  # a line naming two kinds of equipment does not say which this row is
+        value = type_from_text(untagged)
         if value is not None:
             found.append((value, text, start))
     for value, text, start in found:

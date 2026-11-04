@@ -163,6 +163,8 @@ _TYPE_ORDER = (
     ("motor", re.compile(r"\bmotors?\b", re.I)),
 )
 _COMPRESSOR_MOTOR = re.compile(r"\b(compressor|pump)\s+motors?\b", re.I)
+# "electric motor driven compressor": the motor/engine/turbine word names the driver, not the unit.
+_DRIVER_PHRASE = re.compile(r"(?:electric(?:al)?\s+)?(?:motor|engine|turbine)[\s-]+driven\b", re.I)
 
 
 def type_from_text(text: str) -> str | None:
@@ -170,6 +172,7 @@ def type_from_text(text: str) -> str | None:
     driven = _COMPRESSOR_MOTOR.search(text)
     if driven is not None and not _TYPE_ORDER[0][1].search(text):
         return driven.group(1).lower()
+    text = _DRIVER_PHRASE.sub(" ", text)
     for label, pattern in _TYPE_ORDER:
         if pattern.search(text):
             return label
@@ -179,9 +182,18 @@ def type_from_text(text: str) -> str | None:
 _EXISTING = re.compile(r"\bexisting\b", re.I)
 _PROPOSED = re.compile(r"\b(?:add|adding|install|installing|installation\s+of|propos\w+)\b", re.I)
 _NEW = re.compile(r"\bnew\b", re.I)
+# Equipment that is leaving service must never read as existing (or proposed) demand.
+RETIRED_RE = re.compile(
+    r"\b(?:remov\w*|replac\w*|retir\w*|decommission\w*|dismantl\w*|abandon\w*|demolish\w*"
+    r"|shut(?:\s|-)*down)\b",
+    re.I,
+)
 
 
 def state_from_text(text: str) -> str:
+    """State named by ``text``: a removal cue wins; otherwise one unambiguous cue or unknown."""
+    if RETIRED_RE.search(text):
+        return "retired"
     hits = [
         label
         for label, pattern in (("existing", _EXISTING), ("proposed", _PROPOSED), ("new", _NEW))
@@ -190,12 +202,12 @@ def state_from_text(text: str) -> str:
     return hits[0] if len(hits) == 1 else "unknown"
 
 
-def state_match(text: str) -> tuple[str, int, int] | None:
-    """(state, start, end) of the single state cue in ``text``; None when absent/mixed."""
-    found = [
-        (label, m.start(), m.end())
-        for label, pattern in (("existing", _EXISTING), ("proposed", _PROPOSED), ("new", _NEW))
-        for m in pattern.finditer(text)
-    ]
-    labels = {label for label, _, _ in found}
-    return found[0] if len(labels) == 1 else None
+_COMPOUND_MODIFIER = re.compile(
+    r"\b(?:compressor|pump)\s+(?=(?:engines?|motors?|drivers?|turbines?)\b)", re.I
+)
+
+
+def types_in_text(text: str) -> set[str]:
+    """Every equipment type named in ``text`` (`compressor engines` counts as engine only)."""
+    stripped = _COMPOUND_MODIFIER.sub("", _DRIVER_PHRASE.sub(" ", text))
+    return {label for label, pattern in _TYPE_ORDER if pattern.search(stripped)}

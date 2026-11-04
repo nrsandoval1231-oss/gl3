@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import date
+from decimal import Decimal
 from typing import Any, cast
 
 from gridlens.domain.equipment_demand import (
@@ -65,9 +66,8 @@ def _header_value(value: str | None) -> str | None:
     return cleaned[:160] or None
 
 
-def _plain(rating: Any) -> str:
-    text = format(rating.normalize(), "f")
-    return text
+def _plain(rating: Decimal) -> str:
+    return format(rating.normalize(), "f")
 
 
 def render_line(row: ExtractedRow) -> str:
@@ -84,6 +84,12 @@ def render_line(row: ExtractedRow) -> str:
         parts.append(f"Count: {row.count}")
     parts.append(f"State: {row.state}")
     return " | ".join(parts)
+
+
+def _bbox(canon: CanonicalText, offset: int) -> list[float] | None:
+    """Line bounding box (x0, top, x1, bottom) of the text line holding ``offset``."""
+    location = canon.locate(offset)
+    return list(location.bbox) if location is not None and location.bbox else None
 
 
 def _row_provenance(row: ExtractedRow, canon: CanonicalText, document_hash: str) -> dict[str, Any]:
@@ -112,6 +118,7 @@ def _row_provenance(row: ExtractedRow, canon: CanonicalText, document_hash: str)
                 "start": ev.start,
                 "end": ev.end,
                 "page": ev.page,
+                "bbox": _bbox(canon, ev.start),
             }
             for name, ev in row.evidence.items()
         },
@@ -171,7 +178,7 @@ def build_schedule(
     cursor = 0
     claim_rows = iter(build.demand_rows)
     for index, raw in enumerate(build.text.splitlines(keepends=True)):
-        stripped = raw.rstrip(chr(13) + chr(10))
+        stripped = raw.rstrip("\r\n")
         if index in build.provenance:
             row = next(claim_rows)
             build.claims.append(_make_claim(row, stripped, cursor))

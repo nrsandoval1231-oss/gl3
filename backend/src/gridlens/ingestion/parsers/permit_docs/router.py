@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from gridlens.ingestion.parsers.permit_docs.lexicon import NARRATIVE_UNIT, RATING_HEADERS
+from gridlens.ingestion.parsers.permit_docs.lexicon import NARRATIVE_UNIT, NUMBER, RATING_HEADERS
 from gridlens.ingestion.parsers.permit_docs.models import Route
 from gridlens.ingestion.parsers.permit_docs.text_layer import SCAN_CHAR_THRESHOLD
 
@@ -16,6 +16,9 @@ _ID_CUE = re.compile(
 _HEADER_CONTEXT = re.compile(r"description|serial|const|date|rated|unit|point", re.I)
 # Control-technology database listings describe OTHER facilities, not this permit's equipment.
 _REFERENCE_DB = re.compile(r"RBLC|RACT/BACT/LAER|Clearinghouse")
+_CAPACITY_PAIR = re.compile(
+    rf"{NUMBER}\s*(HP|hp|kW|KW|MW|MMBtu/hr)\s+{NUMBER}\s*(HP|hp|kW|KW|MW|MMBtu/hr)(?![A-Za-z])"
+)
 _EQUIPMENT_NOUN = r"(?:compressor|engine|turbine|generator|motor|pump|heater|RICE|driver)s?"
 _NARRATIVE_CUE = re.compile(
     rf"{NARRATIVE_UNIT}[\s,-]*(?:[\w.\-]+\s+){{0,4}}?{_EQUIPMENT_NOUN}\b",
@@ -48,7 +51,9 @@ def route_page(text: str, chars: int | None = None) -> Route:
         return "scan"
     if _REFERENCE_DB.search(text):
         return "irrelevant"
-    if has_rating_header(text):
+    if has_rating_header(text) or (
+        ("Table 2-A" in text or "Rated Capacity" in text) and _CAPACITY_PAIR.search(text)
+    ):
         return "table"
     if _NARRATIVE_CUE.search(text):
         return "narrative"

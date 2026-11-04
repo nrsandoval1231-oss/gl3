@@ -12,9 +12,9 @@ import re
 from decimal import Decimal
 
 from gridlens.ingestion.parsers.permit_docs.lexicon import (
-    COUNT_RE,
     NARRATIVE_UNIT,
     NUMBER,
+    RETIRED_RE,
     THRESHOLD_AFTER,
     THRESHOLD_BEFORE,
     WORD_NUMBERS,
@@ -42,7 +42,7 @@ _STOP = (
 # Short numeric / tag-like words ("1", "CT1", "S5") are table ids, not make or model names;
 # letting them bridge would pair a rating with the NEXT table row's equipment noun.
 _ROW_TAG = r"(?:\d{1,2}|[A-Za-z]{1,3}\d{1,2})(?=\s)"
-_MID = rf"(?:(?!{_STOP}\b|{_ROW_TAG})[A-Za-z0-9][\w./\-]*\s+){{0,4}}?"
+_MID = rf"(?:(?!{_STOP}\b|{_ROW_TAG})[A-Za-z0-9][\w./\-]*[ \t]+){{0,4}}?"
 _NOUNS = (
     # (pattern, type group or fixed type) in priority order
     (r"electric(?:ally)?[\s-]+(?:motor[\s-]+)?driven\s+(?P<t0>compressors?|pumps?)", "t0"),
@@ -61,29 +61,29 @@ _NOUNS = (
     (r"pumps?" + _DRIVER_AHEAD, "pump"),
 )
 _NOUN_RE = re.compile(
-    rf"^[\s,]*{_MID}(?P<noun>"
+    rf"^[ \t,]*{_MID}(?P<noun>"
     + "|".join(f"(?P<n{i}>{pattern})" for i, (pattern, _) in enumerate(_NOUNS))
     + r")",
     re.I,
 )
 _RANGE_BEFORE = re.compile(r"\d\s*(?:to|and|through|-|–)\s*$", re.I)
+_WORDS = "|".join(WORD_NUMBERS)
 _COUNT_BEFORE = re.compile(
-    r"(?:"
-    + COUNT_RE.pattern
-    + r"|(?<![\w-])(?P<bare>"
-    + "|".join(WORD_NUMBERS)
-    + r"))\s*(?:approximately\s+)?$",
+    rf"(?:(?:(?P<word>{_WORDS})\s+)?\((?P<digits>\d{{1,3}})\)"
+    rf"|(?<![\w-])(?P<bare>{_WORDS}))[ \t]*\Z",
     re.I,
 )
 _ASSOCIATED = re.compile(r"associated\s+(?:[a-z]+\s+){0,2}(?P<name>[A-Z][A-Za-z0-9-]+)")
-_SENTENCE_END = re.compile(r"[.;:]\s|\n\n")
+SENTENCE_END = re.compile(r"[.;:]\s|\n\n")
 _STATE_CUE = re.compile(r"(?P<existing>\bexisting\b)|(?P<proposed>\b(?:add|install)\b)", re.I)
 _STATE_WINDOW = 70
 _NEGATION_BEFORE = re.compile(r"(?:\bnon|\bnot|\bno|\bwithout)[\s-]*$", re.I)
 
 
 def extract_narrative(
-    canon: CanonicalText, routes: dict[int, Route]
+    canon: CanonicalText,
+    routes: dict[int, Route],
+    consumed: list[tuple[int, int]] | None = None,
 ) -> tuple[list[ExtractedRow], list[str]]:
     rows: list[ExtractedRow] = []
     issues: list[str] = []
@@ -93,10 +93,16 @@ def extract_narrative(
         text = page.text
         base = canon.page_starts[page.page - 1]
         for match in _RATING.finditer(text):
+            if consumed and _overlaps(consumed, base + match.start(), base + match.end()):
+                continue  # already read as part of a table row
             row = _row_for(match, text, base, page.page, issues)
             if row is not None:
                 rows.append(row)
     return rows, issues
+
+
+def _overlaps(spans: list[tuple[int, int]], start: int, end: int) -> bool:
+    return any(lo < end and start < hi for lo, hi in spans)
 
 
 def _row_for(
@@ -104,10 +110,10 @@ def _row_for(
 ) -> ExtractedRow | None:
     start, end = match.start(), match.end()
     before = text[max(0, start - 200) : start]
-    sentence_cut = [m.end() for m in _SENTENCE_END.finditer(before)]
+    sentence_cut = [m.end() for m in SENTENCE_END.finditer(before)]
     sentence_before = before[sentence_cut[-1] :] if sentence_cut else before
     after_raw = text[end : end + 140]
-    cut = _SENTENCE_END.search(after_raw)
+    cut = SENTENCE_END.search(after_raw)
     after = after_raw[: cut.start()] if cut else after_raw
     if THRESHOLD_BEFORE.search(before[-40:]) or _RANGE_BEFORE.search(before[-12:]):
         return None
@@ -161,20 +167,28 @@ def _row_for(
             "drive", drive, noun_text, base + noun_start, base + noun_end, page
         )
     count = None
-    count_match = _COUNT_BEFORE.search(before)
-    if count_match is not None:
+    sb_start = start - len(sentence_before)
+    count_match = _COUNT_BEFORE.search(sentence_before)
+    if count_match is not None and _count_is_countable(sentence_before, count_match):
         count = count_from_text(count_match.group(0))
         if count is not None:
             quote = count_match.group(0).strip()
-            quote = re.sub(r"\s*approximately$", "", quote, flags=re.I).strip()
-            offset = base + max(0, start - 200) + count_match.start()
+            offset = base + sb_start + count_match.start()
             evidence["count"] = FieldEvidence(
                 "count", str(count), quote, offset, offset + len(quote), page
             )
     state = "unknown"
+    removal = list(RETIRED_RE.finditer(sentence_before))
     window = sentence_before[-_STATE_WINDOW:]
     cues = list(_STATE_CUE.finditer(window))
-    if cues and len({m.lastgroup for m in cues}) == 1:
+    if removal:
+        cue = removal[-1]
+        state = "retired"
+        offset = base + sb_start + cue.start()
+        evidence["state"] = FieldEvidence(
+            "state", state, cue.group(0), offset, offset + len(cue.group(0)), page
+        )
+    elif cues and len({m.lastgroup for m in cues}) == 1:
         cue = cues[-1]
         state = "existing" if cue.lastgroup == "existing" else "proposed"
         offset = base + start - len(window) + cue.start()
@@ -194,3 +208,18 @@ def _row_for(
         evidence=evidence,
         link_hint=hint.group("name") if hint else "",
     )
+
+
+def count_is_countable(text: str, count_start: int, count_text: str) -> bool:
+    """A bare `(n)` counts only mid-sentence after a delimiter on the same line; a list
+    number such as `\n(4) 1,000-hp pump` or `units:\n(4)` needs the word form `four (4)`."""
+    if count_text[:1] != "(":
+        return True  # `four (4)` or a bare number word
+    prefix = text[:count_start].rsplit("\n", 1)[-1].rstrip()
+    if not prefix:
+        return False
+    return prefix.endswith((",", ";")) or re.search(r"\b(?:and|or)$", prefix) is not None
+
+
+def _count_is_countable(sentence_before: str, match: re.Match[str]) -> bool:
+    return count_is_countable(sentence_before, match.start(), match.group(0))

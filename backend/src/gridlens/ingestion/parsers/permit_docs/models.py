@@ -43,3 +43,4 @@ class ExtractedRow:
     stitched: bool = False
     linked_to: tuple[str, ...] = ()
     link_hint: str = ""
+    group_span: tuple[int, int] | None = None  # span of the row's own group title

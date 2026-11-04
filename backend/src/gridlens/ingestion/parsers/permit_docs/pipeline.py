@@ -71,6 +71,52 @@ def _dedupe(rows: list[ExtractedRow]) -> tuple[list[ExtractedRow], int]:
     return kept, len(rows) - len(kept)
 
 
+def _row_lines(canon: CanonicalText, rows: list[ExtractedRow]) -> list[tuple[int, int]]:
+    """Canonical-text line spans already read as table rows (narrative rules skip them)."""
+    spans: list[tuple[int, int]] = []
+    for row in rows:
+        at = row.evidence["id"].start
+        lo = canon.text.rfind("\n", 0, at) + 1
+        hi = canon.text.find("\n", at)
+        spans.append((lo, len(canon.text) if hi < 0 else hi))
+    return spans
+
+
+def _reconcile(rows: list[ExtractedRow]) -> tuple[list[ExtractedRow], list[str]]:
+    """One unit described in prose AND in a table must not become two claims.
+
+    Narrative and table rows with the same type, drive, rating and unit describe the same
+    units. When the prose count fits within the table rows (or is unknown) only the table
+    rows are kept; when the prose says more units than the table lists, only the prose row
+    is kept. Either way the conflict is reported.
+    """
+    key = lambda r: (r.equipment_type, r.drive, r.rating, r.unit)  # noqa: E731
+    table_index: dict[tuple[object, ...], list[int]] = {}
+    for index, row in enumerate(rows):
+        if row.origin == "table":
+            table_index.setdefault(key(row), []).append(index)
+    drop: set[int] = set()
+    issues: list[str] = []
+    for index, row in enumerate(rows):
+        matches = table_index.get(key(row)) if row.origin == "narrative" else None
+        if not matches or index in drop:
+            continue
+        if row.count is None or row.count <= len(matches):
+            drop.add(index)
+            issues.append(
+                f"Conflict: prose {row.equipment_id} ({row.equipment_type}, {row.rating}"
+                f" {row.unit},"
+                f" count {row.count}) repeats {len(matches)} table row(s); kept the table rows."
+            )
+        else:
+            drop.update(matches)
+            issues.append(
+                f"Conflict: prose {row.equipment_id} states {row.count} units but the table lists"
+                f" {len(matches)}; kept the prose row only."
+            )
+    return [row for index, row in enumerate(rows) if index not in drop], issues
+
+
 def _link(rows: list[ExtractedRow], canon: CanonicalText) -> list[ExtractedRow]:
     """Link a narrative row to table rows only through a name the permit itself uses."""
     linked: list[ExtractedRow] = []
@@ -105,13 +151,17 @@ def extract_from_canonical(
     result.needs_ocr_pages = [p for p, r in routes.items() if r == "scan"]
     result.scanned_pages = len(result.needs_ocr_pages)
     table_rows, table_issues = extract_tables(canon, routes)
-    narrative_rows, narrative_issues = extract_narrative(canon, routes)
+    narrative_rows, narrative_issues = extract_narrative(
+        canon, routes, _row_lines(canon, table_rows)
+    )
     result.issues.extend(table_issues + narrative_issues)
     report = verify_rows(table_rows + narrative_rows, canon)
     result.verified = len(report.verified)
     result.rejected = len(report.rejected)
     result.rejection_reasons = [(row.equipment_id, why) for row, why in report.rejected]
     rows, result.duplicates = _dedupe(report.verified)
+    rows, conflicts = _reconcile(rows)
+    result.issues.extend(conflicts)
     rows = _link(rows, canon)
     build = build_schedule(
         rows, canon, document_hash=document_hash, company=company, facility=facility, as_of=as_of
