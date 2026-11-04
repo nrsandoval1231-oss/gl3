@@ -136,7 +136,16 @@ def build_canonical_text(
                 if time.monotonic() - started > limits.max_seconds:
                     return TextLayerFailure("time_budget", "time budget exceeded", number)
                 page_started = time.monotonic()
-                lines = source_page.extract_text_lines(layout=False, strip=True, return_chars=False)
+                try:
+                    lines = source_page.extract_text_lines(
+                        layout=False, strip=True, return_chars=False
+                    )
+                except Exception:  # noqa: BLE001 - one bad page must not hide the others
+                    # Loud, not silent: listed in failed_pages and routed to OCR.
+                    failed.append(number)
+                    pages.append(_page(number, ""))
+                    line_data.append([])
+                    continue
                 texts = [(str(ln["text"]), _bbox(ln)) for ln in lines]
                 text = "\n".join(t for t, _ in texts)
                 if len(text) > limits.max_page_chars:

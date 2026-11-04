@@ -63,3 +63,21 @@ def test_page_text_seam_has_no_geometry() -> None:
     assert canon.scanned_pages == [2]
     location = canon.locate(3)
     assert location is not None and location.bbox is None
+
+
+def test_one_unreadable_page_is_reported_not_fatal(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import pdfplumber.page
+
+    original = pdfplumber.page.Page.extract_text_lines
+
+    def flaky(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if self.page_number == 2:
+            raise RuntimeError("broken content stream")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(pdfplumber.page.Page, "extract_text_lines", flaky)
+    pdf = make_pdf([["First page has enough text to count as a text layer."]] * 3)
+    canon = build_canonical_text(pdf)
+    assert isinstance(canon, CanonicalText)
+    assert canon.failed_pages == [2] and canon.scanned_pages == [2]
+    assert len(canon.pages) == 3 and canon.pages[0].chars > 40
