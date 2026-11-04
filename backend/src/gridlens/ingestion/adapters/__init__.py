@@ -63,6 +63,19 @@ def retrieve_source(
     return _retrieve_source_direct(source, client, request_headers, deadline)
 
 
+# Workstream 5 sector and regulation sources: all ship off in the registry.
+_SECTOR_RETRIEVERS = {
+    "faa-oeaaa-cases": ("faa_oeaaa", "retrieve"),
+    "msha-mines-zip": ("msha_mines", "retrieve"),
+    "tceq-aggregate-socrata": ("tceq_aggregate", "retrieve"),
+    "afdc-ev-stations": ("afdc_stations", "retrieve"),
+    "txdot-nevi-awards": ("nevi_awards", "retrieve"),
+    "sec-edgar-site-mw": ("sec_edgar_site_mw", "retrieve"),
+    "ercot-monthly-overview": ("ercot_monthly", "retrieve"),
+    "regulatory-event-feed": ("regulatory_events", "retrieve"),
+}
+
+
 def _retrieve_source_direct(
     source: dict[str, Any],
     client: httpx.Client | None = None,
@@ -127,6 +140,12 @@ def _retrieve_source_direct(
         return retrieve_puct_dockets(source, client)
     if method == "ercot-large-load-status":
         return retrieve_ercot_large_load_status(source, client)
+    if method in _SECTOR_RETRIEVERS:
+        import importlib
+
+        module_name, function = _SECTOR_RETRIEVERS[method]
+        module = importlib.import_module(f"gridlens.ingestion.adapters.{module_name}")
+        return getattr(module, function)(source, client)
     if method == "jeti-open-data":
         return retrieve_jeti(source, client)
     if method == "jeti-agreements":

@@ -32,6 +32,31 @@ def _valid_okdeq_documents(value: Any) -> bool:
     return valid_config(value)
 
 
+def _sector_validators() -> dict[str, Any]:
+    """Bounded-query validators of the workstream 5 sector and regulation sources."""
+    from gridlens.ingestion.adapters import (
+        afdc_stations,
+        ercot_monthly,
+        faa_oeaaa,
+        msha_mines,
+        nevi_awards,
+        regulatory_events,
+        sec_edgar_site_mw,
+        tceq_aggregate,
+    )
+
+    return {
+        "faa-oeaaa-cases": faa_oeaaa.valid_query,
+        "msha-mines-zip": msha_mines.valid_query,
+        "tceq-aggregate-socrata": tceq_aggregate.valid_query,
+        "afdc-ev-stations": afdc_stations.valid_query,
+        "txdot-nevi-awards": nevi_awards.valid_query,
+        "sec-edgar-site-mw": sec_edgar_site_mw.valid_query,
+        "ercot-monthly-overview": ercot_monthly.valid_query,
+        "regulatory-event-feed": regulatory_events.valid_query,
+    }
+
+
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("version") != 1 or not isinstance(raw.get("sources"), list):
@@ -103,6 +128,14 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "puct-interchange": {"interchange.puc.texas.gov"},
             "puct-docket-index": {"interchange.puc.texas.gov"},
             "ercot-large-load-status": {"www.ercot.com"},
+            "faa-oeaaa-cases": {"oeaaa.faa.gov"},
+            "msha-mines-zip": {"arlweb.msha.gov"},
+            "tceq-aggregate-socrata": {"data.texas.gov"},
+            "afdc-ev-stations": {"developer.nlr.gov"},
+            "txdot-nevi-awards": {"services.arcgis.com"},
+            "sec-edgar-site-mw": {"data.sec.gov"},
+            "ercot-monthly-overview": {"www.ercot.com"},
+            "regulatory-event-feed": {"gov.texas.gov"},
             "jeti-open-data": {"api.comptroller.texas.gov"},
             "jeti-agreements": {"comptroller.texas.gov"},
             "retained-document": {
@@ -150,6 +183,14 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "puct-interchange",
             "puct-docket-index",
             "ercot-large-load-status",
+            "faa-oeaaa-cases",
+            "msha-mines-zip",
+            "tceq-aggregate-socrata",
+            "afdc-ev-stations",
+            "txdot-nevi-awards",
+            "sec-edgar-site-mw",
+            "ercot-monthly-overview",
+            "regulatory-event-feed",
             "jeti-open-data",
             "jeti-agreements",
             "retained-document",
@@ -442,6 +483,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and query.get("status_pdf")
                 == "https://www.ercot.com/files/docs/2026/03/12/March-TAC-Report.pdf"
             )
+        elif source["retrieval_method"] in _sector_validators():
+            bounded = _sector_validators()[source["retrieval_method"]](source)
         elif source["retrieval_method"] == "jeti-agreements":
             bounded = (
                 source.get("id") == "texas-jeti-agreements"

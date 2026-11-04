@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "note": "Dated regulatory events, each quoted verbatim from an official source and checked against that source on verified_on. An event is added by hand through review; nothing infers an event, an end date or a scope beyond the quote.",
+  "events": [
+    {
+      "id": "tx-gov-20260803-puct-ercot-audit",
+      "date": "2026-08-03",
+      "issuer": "Office of the Texas Governor",
+      "source_url": "https://gov.texas.gov/news/post/governor-abbott-directs-comprehensive-data-center-audit",
+      "quote": "The PUCT and ERCOT must complete this audit before any data center project moves forward.",
+      "effect": "audit_required",
+      "scope": {"state": "TX", "agency": "ERCOT", "subject": "data_center_projects", "instrument": "interconnection"},
+      "verified_on": "2026-11-04"
+    },
+    {
+      "id": "tx-gov-20260914-twdb-water-survey",
+      "date": "2026-09-14",
+      "issuer": "Office of the Texas Governor",
+      "source_url": "https://gov.texas.gov/news/post/governor-abbott-directs-twdb-to-penalize-data-center-reporting-failures",
+      "quote": "A data center that fails to timely complete and return the survey is ineligible for TCEQ permits, amendments, or renewals under Chapter 11 of the Texas Water Code.",
+      "effect": "conditional_ineligibility",
+      "scope": {"state": "TX", "agency": "TCEQ", "subject": "data_center_projects", "instrument": "permits"},
+      "verified_on": "2026-11-04"
+    },
+    {
+      "id": "tx-gov-20260921-tceq-pause",
+      "date": "2026-09-21",
+      "issuer": "Office of the Texas Governor",
+      "source_url": "https://gov.texas.gov/uploads/files/press/TCEQ_Data_Center.pdf",
+      "quote": "I direct the TCEQ to pause the issuance of all permits related to data center projects until ERCOT completes its review.",
+      "effect": "pause_issuance",
+      "scope": {"state": "TX", "agency": "TCEQ", "subject": "data_center_projects", "instrument": "permits"},
+      "verified_on": "2026-11-04"
+    },
+    {
+      "id": "tx-tceq-20261019-pause-response",
+      "date": "2026-10-19",
+      "issuer": "Texas Commission on Environmental Quality",
+      "source_url": "https://www.tceq.texas.gov/downloads/response/tceq-response-gov-abbott-dc-directive.pdf",
+      "quote": "TCEQ has paused the issuance of all permits related to the construction or development of infrastructure directly supporting data centers.",
+      "effect": "pause_issuance",
+      "scope": {"state": "TX", "agency": "TCEQ", "subject": "data_center_projects", "instrument": "permits"},
+      "verified_on": "2026-11-04"
+    }
+  ]
+}
