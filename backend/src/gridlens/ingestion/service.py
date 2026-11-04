@@ -2822,7 +2822,7 @@ def _enrich_with_early_signal_documents(
                 deadline=deadline,
             )
         else:
-            report = ercot_rpg.run_stage(
+            report = module.run_stage(
                 records, prior, client=client, config=config, index=index, deadline=deadline
             )
         if report.index != index:
