@@ -77,7 +77,12 @@ def spend_report() -> dict[str, Any]:
     from gridlens.persistence.database import SessionLocal
 
     base = _caps()
-    providers = {"openai", "typesafe", *parse_provider_caps(settings.intelligence_provider_caps)}
+    providers = {
+        "openai",
+        "typesafe",
+        "firecrawl",
+        *parse_provider_caps(settings.intelligence_provider_caps),
+    }
     with SessionLocal() as session:
         rows = spend_status(
             session,
@@ -93,7 +98,9 @@ def spend_report() -> dict[str, Any]:
 def _spend_lines(spend: dict[str, Any] | None) -> list[str]:
     lines: list[str] = []
     for row in (spend or {}).get("rows", []):
-        label = "CAPPED OUT" if row["level"] == "CAPPED_OUT" else "near cap"
+        label = {"CAPPED_OUT": "CAPPED OUT", "LOW_HEADROOM": "low headroom"}.get(
+            row["level"], "near cap"
+        )
         unit = "USD" if row["metric"] == "usd" else "calls"
         lines.append(
             f"Spend {label}: {row['scope']} {row['period']} {unit} "

@@ -43,14 +43,15 @@ def test_scanned_page_is_routed_to_ocr_and_labelled():
     assert result.ocr["text_source"] == LABEL
     assert result.routes.get("scan", 0) == 0 and result.needs_ocr_pages == []
     assert result.scanned_pages == 1  # the document did have a scanned page
-    row = (result.demand_rows + result.supply_rows)[0]
+    row = (result.demand_rows + result.supply_rows + result.ocr_retained_rows)[0]
     assert row.text_source == LABEL and row.evidence["rating"].page == 2
 
 
 def test_ocr_rows_are_retained_with_lower_trust_but_not_demand_by_default():
     result = extract_from_pages([TEXT_PAGE, ""], document_hash=HASH, ocr=FakeOcr(ok({2: OCR_TEXT})))
     assert result.demand_rows == [] and result.claims == [] and result.schedule_text == ""
-    assert len(result.supply_rows) == 1
+    assert result.supply_rows == [] and len(result.ocr_retained_rows) == 1
+    assert result.rows_by_role["ocr_retained_demand_candidate"] == 1
     assert any("retained, not demand" in issue for issue in result.issues)
 
 
@@ -94,7 +95,7 @@ def test_a_failed_ocr_pass_leaves_the_scan_pages_unread_and_says_why(outcome):
 
 def test_ocr_text_is_span_checked_like_any_other_text():
     result = extract_from_pages([TEXT_PAGE, ""], document_hash=HASH, ocr=FakeOcr(ok({2: OCR_TEXT})))
-    row = (result.demand_rows + result.supply_rows)[0]
+    row = (result.demand_rows + result.supply_rows + result.ocr_retained_rows)[0]
     canon = CanonicalText.from_page_texts([TEXT_PAGE, OCR_TEXT])
     for ev in row.evidence.values():
         assert canon.text[ev.start : ev.end].split() == ev.quote.split()

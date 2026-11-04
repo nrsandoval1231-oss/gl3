@@ -11,8 +11,10 @@ from gridlens.ingestion.parsers.permit_docs.models import TEXT_LAYER, ExtractedR
 from gridlens.ingestion.parsers.permit_docs.narrative import extract_narrative
 from gridlens.ingestion.parsers.permit_docs.proposals import (
     EquipmentProposer,
+    OcrOutcome,
     PageForProposal,
     PageOcr,
+    ProposerOutcome,
     rows_from_proposals,
 )
 from gridlens.ingestion.parsers.permit_docs.router import route_page
@@ -43,6 +45,7 @@ class PermitExtractionResult:
     duplicates: int = 0
     claims: list[EquipmentClaim] = field(default_factory=list)
     supply_rows: list[ExtractedRow] = field(default_factory=list)
+    ocr_retained_rows: list[ExtractedRow] = field(default_factory=list)
     demand_rows: list[ExtractedRow] = field(default_factory=list)
     schedule_text: str = ""
     provenance: dict[int, dict[str, Any]] = field(default_factory=dict)
@@ -160,7 +163,10 @@ def _run_ocr(
     canon: CanonicalText, document_hash: str, ocr: PageOcr, result: PermitExtractionResult
 ) -> CanonicalText:
     pages = canon.scanned_pages
-    outcome = ocr.ocr_pages(pages, document_hash=document_hash)
+    try:
+        outcome = ocr.ocr_pages(pages, document_hash=document_hash)
+    except Exception as exc:  # noqa: BLE001 - an optional pass must never lose the rule rows
+        outcome = OcrOutcome("failed", type(exc).__name__)
     result.ocr = {
         "status": outcome.status,
         "reason": outcome.reason,
@@ -191,6 +197,72 @@ def _eligible_proposer_pages(
     ]
 
 
+def _one_row_per_rating(
+    proposed: list[ExtractedRow], rule_rows: list[ExtractedRow]
+) -> tuple[list[ExtractedRow], int]:
+    """At most one proposed row per rating span, and never over a rule-verified rating.
+
+    Proposed rows whose rating spans overlap are one claimed unit: identical rows collapse,
+    rows that disagree are all dropped (fail closed). A span that a rule row already holds
+    belongs to the rule row.
+    """
+    taken = [
+        (r.evidence["rating"].page, r.evidence["rating"].start, r.evidence["rating"].end)
+        for r in rule_rows
+    ]
+    taken_keys = {
+        (r.evidence["rating"].page, r.rating, r.unit, r.equipment_type) for r in rule_rows
+    }
+    groups: list[list[ExtractedRow]] = []
+    for row in proposed:
+        rating = row.evidence["rating"]
+        span = (rating.page, rating.start, rating.end)
+        if (
+            any(_overlap(span, t) for t in taken)
+            or (
+                rating.page,
+                row.rating,
+                row.unit,
+                row.equipment_type,
+            )
+            in taken_keys
+        ):
+            continue
+        for group in groups:
+            other = group[0].evidence["rating"]
+            if _overlap(span, (other.page, other.start, other.end)):
+                group.append(row)
+                break
+        else:
+            groups.append([row])
+    kept: list[ExtractedRow] = []
+    conflicts = 0
+    for group in groups:
+        first = group[0]
+        same = all(
+            (r.equipment_type, r.drive, r.rating, r.unit, r.count, r.state, r.in_service_date)
+            == (
+                first.equipment_type,
+                first.drive,
+                first.rating,
+                first.unit,
+                first.count,
+                first.state,
+                first.in_service_date,
+            )
+            for r in group
+        )
+        if same:
+            kept.append(first)
+        else:
+            conflicts += len(group)
+    return kept, conflicts
+
+
+def _overlap(a: tuple[int, int, int], b: tuple[int, int, int]) -> bool:
+    return a[0] == b[0] and a[1] < b[2] and b[1] < a[2]
+
+
 def _run_proposer(
     canon: CanonicalText,
     routes: dict[int, Route],
@@ -205,7 +277,10 @@ def _run_proposer(
     if not pages:
         return []
     page_texts = [PageForProposal(page, canon.pages[page - 1].text) for page in pages]
-    outcome = proposer.propose(page_texts, document_hash=document_hash)
+    try:
+        outcome = proposer.propose(page_texts, document_hash=document_hash)
+    except Exception as exc:  # noqa: BLE001 - an optional pass must never lose the rule rows
+        outcome = ProposerOutcome("failed", type(exc).__name__)
     result.proposer = {
         "status": outcome.status,
         "reason": outcome.reason,
@@ -217,24 +292,23 @@ def _run_proposer(
     if outcome.status != "ok":
         result.issues.append(f"Model proposer did not run ({outcome.status}: {outcome.reason}).")
         return []
-    built = rows_from_proposals(outcome.units, canon, outcome.label)
-    checked = verify_rows(built.rows, canon)
-    accepted = _stamp_text_source(checked.verified, canon)
-    # Rules win: a proposed row repeating a rule-verified unit on the same page is not added.
-    seen = {
-        (row.evidence["rating"].page, row.rating, row.unit, row.equipment_type) for row in verified
-    }
-    accepted = [
-        row
-        for row in accepted
-        if (row.evidence["rating"].page, row.rating, row.unit, row.equipment_type) not in seen
-    ]
+    try:
+        built = rows_from_proposals(outcome.units, canon, outcome.label)
+        checked = verify_rows(built.rows, canon)
+    except Exception as exc:  # noqa: BLE001 - never lose the rule rows
+        result.proposer.update(status="failed", reason=type(exc).__name__)
+        result.issues.append(f"Model proposals could not be checked ({type(exc).__name__}).")
+        return []
+    accepted, conflicts = _one_row_per_rating(_stamp_text_source(checked.verified, canon), verified)
+    if conflicts:
+        result.issues.append(f"{conflicts} proposed unit(s) disagreed about one rating; dropped.")
     result.proposer.update(
         proposed=len(outcome.units),
         unlocatable=len(built.dropped),
         standby_dropped=built.standby_dropped,
         verifier_rejected=len(checked.rejected),
         verified=len(accepted),
+        conflicting_dropped=conflicts,
         rejection_reasons=[why for _row, why in checked.rejected][:20],
         drop_reasons=[why for _i, why in built.dropped][:20],
     )
@@ -300,6 +374,7 @@ def extract_from_canonical(
     result.claims = build.claims
     result.demand_rows = build.demand_rows
     result.supply_rows = build.supply_rows
+    result.ocr_retained_rows = build.ocr_retained_rows
     result.schedule_text = build.text
     result.provenance = build.provenance
     result.rows_by_kind = dict(Counter(r.origin for r in rows))
@@ -307,6 +382,8 @@ def extract_from_canonical(
         "demand_claim": len(build.demand_rows),
         "supply_other": len(build.supply_rows),
     }
+    if build.ocr_retained_rows:
+        result.rows_by_role["ocr_retained_demand_candidate"] = len(build.ocr_retained_rows)
     if canon.failed_pages:
         result.issues.append(
             f"Text extraction failed on page(s) {canon.failed_pages}; treated as needing OCR."

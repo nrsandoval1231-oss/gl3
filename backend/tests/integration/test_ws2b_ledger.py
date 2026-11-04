@@ -465,7 +465,7 @@ def test_stage_ocr_reads_scanned_pages_labels_them_and_charges_the_ledger(sessio
     assert (counter.calls, caller.calls) == (1, 1)
     assert result.ocr["status"] == "ok" and result.ocr["pages_read"] == [2]
     assert result.ocr["text_source"] == "ocr:openai:gpt-6.1-sol"
-    row = (result.demand_rows + result.supply_rows)[0]
+    row = (result.demand_rows + result.supply_rows + result.ocr_retained_rows)[0]
     assert row.text_source == "ocr:openai:gpt-6.1-sol" and result.claims == []
     with sessions() as session:
         calls = {c.task_type: c for c in session.scalars(select(LogicalCall))}

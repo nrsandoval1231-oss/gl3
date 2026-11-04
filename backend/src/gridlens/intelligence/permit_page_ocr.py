@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
+import os
 import time
 from collections.abc import Callable
 from decimal import Decimal
@@ -54,7 +56,9 @@ from gridlens.intelligence.scanned_pdf_ocr import (
     _digest,
     _ledger_caps,
     _ocr_configuration_ready,
+    _ocr_response_ready,
     _preflight_context_digest,
+    _preflight_ready,
     _quarantine_ocr_response,
     _retention_source_ids,
     _validate_ocr_response_usage,
@@ -68,7 +72,10 @@ PREFLIGHT_TASK = "OCR_INPUT_PREFLIGHT"
 # Code-level ceiling: configuration may narrow this list but never extend it.
 HOST_CEILING = frozenset({"www.govinfo.gov", "www.tceq.texas.gov", "applications.deq.ok.gov"})
 MAX_PAGE_TEXT_CHARS = 20_000
-MAX_TRANSCRIPT_CHARS = 60_000
+# JSON-encoded (ensure_ascii) size of the stored transcript, kept under the 65,536-byte public
+# transcript bound with a margin; escapes can expand non-ASCII text up to six times.
+MAX_TRANSCRIPT_JSON_BYTES = 60_000
+MAX_SOURCE_PDF_BYTES = 130 * 1024 * 1024
 SUBSET_DEADLINE_SECONDS = 30.0
 
 
@@ -113,6 +120,8 @@ def _subset_worker(path: str, expected_sha256: str, pages: list[int], max_bytes:
     """Child process: verify the file, then write only the requested pages as a new PDF."""
     from pypdf import PdfReader, PdfWriter
 
+    if os.path.getsize(path) > MAX_SOURCE_PDF_BYTES:
+        raise ValueError("source PDF exceeds the size bound")
     with open(path, "rb") as handle:
         data = handle.read()
     if hashlib.sha256(data).hexdigest() != expected_sha256:
@@ -146,6 +155,10 @@ def cut_pages(path: str, document_hash: str, pages: list[int]) -> bytes:
 
 def _batches(pages: list[int]) -> list[list[int]]:
     return [pages[i : i + MAX_PDF_PAGES] for i in range(0, len(pages), MAX_PDF_PAGES)]
+
+
+class TranscriptRejected(ValueError):
+    """The provider answered, but its transcript fails a local limit."""
 
 
 class StagePdfOcr:
@@ -310,7 +323,12 @@ class StagePdfOcr:
                 return OcrOutcome("failed", "PREFLIGHT_REQUEST_MISMATCH")
         else:
             with SessionLocal() as session:
-                sent = mark_dispatched(session, count_res.call_id, fence_token=fence, enabled=True)
+                sent = mark_dispatched(
+                    session,
+                    count_res.call_id,
+                    fence_token=fence,
+                    enabled=_preflight_ready(preflight_cost),  # policy re-checked at dispatch
+                )
             if sent.status != "SENT_OUTCOME_UNKNOWN" or sent.blocked_reason:
                 return self._stop("blocked", sent.blocked_reason or "PREFLIGHT_NOT_DISPATCHED")
             try:
@@ -372,7 +390,12 @@ class StagePdfOcr:
         if res.status == "FAILED":
             return OcrOutcome("failed", "OCR_CALL_FAILED")
         with SessionLocal() as session:
-            sent = mark_dispatched(session, res.call_id, fence_token=fence, enabled=True)
+            sent = mark_dispatched(
+                session,
+                res.call_id,
+                fence_token=fence,
+                enabled=_ocr_response_ready(model, detail, response_cost),
+            )
         if sent.status != "SENT_OUTCOME_UNKNOWN" or sent.blocked_reason:
             return self._stop("blocked", sent.blocked_reason or "OCR_NOT_DISPATCHED")
         response: dict[str, Any] = {}
@@ -402,6 +425,11 @@ class StagePdfOcr:
                     "output_tokens": response.get("output_tokens"),
                 },
             }
+            if (
+                len(json.dumps(stored, ensure_ascii=True).encode("utf-8"))
+                > MAX_TRANSCRIPT_JSON_BYTES
+            ):
+                raise TranscriptRejected("OCR transcript exceeds the stored-size bound")
             with SessionLocal() as session:
                 complete_call(
                     session,
@@ -412,6 +440,21 @@ class StagePdfOcr:
                     result_digest=_digest(stored),
                     result_payload=stored,
                 )
+        except TranscriptRejected as exc:
+            # A well-formed, correctly billed response that fails our own local limits: a
+            # conclusive local rejection. It must not quarantine the provider.
+            request_id = response.get("provider_response_id")
+            if not request_id:
+                return self._stop("unknown", "OCR_OUTCOME_UNKNOWN")
+            with SessionLocal() as session:
+                fail_call(
+                    session,
+                    res.call_id,
+                    fence_token=fence,
+                    blocked_reason=type(exc).__name__,
+                    conclusive_response_ref=f"response:{request_id}",
+                )
+            return OcrOutcome("failed", "OCR_TRANSCRIPT_REJECTED")
         except Exception as exc:  # noqa: BLE001
             if _quarantine_ocr_response(
                 call_id=res.call_id,
@@ -430,9 +473,8 @@ class StagePdfOcr:
     def _parse_pages(output: Any, batch: list[int]) -> dict[int, str]:
         pages = output.get("pages") if isinstance(output, dict) else None
         if not isinstance(pages, list) or len(pages) != len(batch):
-            raise ValueError("OCR transcript page count does not match the request")
+            raise TranscriptRejected("OCR transcript page count does not match the request")
         texts: dict[int, str] = {}
-        total = 0
         for index, item in enumerate(pages, start=1):
             if (
                 not isinstance(item, dict)
@@ -442,11 +484,8 @@ class StagePdfOcr:
                 or not isinstance(item["text"], str)
                 or len(item["text"]) > MAX_PAGE_TEXT_CHARS
             ):
-                raise ValueError("OCR transcript entry is invalid")
-            total += len(item["text"])
+                raise TranscriptRejected("OCR transcript entry is invalid")
             texts[batch[index - 1]] = item["text"]
-        if total > MAX_TRANSCRIPT_CHARS:
-            raise ValueError("OCR transcript exceeds the bound")
         return texts
 
     def _from_stored(self, call_id: UUID, batch: list[int]) -> OcrOutcome:

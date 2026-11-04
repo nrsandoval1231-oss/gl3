@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
 from gridlens.ingestion.parsers.permit_docs.lexicon import (
+    RETIRED_RE,
     THRESHOLD_AFTER,
     THRESHOLD_BEFORE,
     count_from_text,
@@ -21,6 +22,7 @@ from gridlens.ingestion.parsers.permit_docs.lexicon import (
     parse_number,
     state_from_text,
     type_from_text,
+    types_in_text,
     unit_from_text,
 )
 from gridlens.ingestion.parsers.permit_docs.models import (
@@ -43,7 +45,6 @@ _DATE_VALUE = re.compile(
     re.I,
 )
 _NEGATED_DATE = re.compile(r"\b(?:no|not|never|without|denied|cancell?ed)\b", re.I)
-LLM_WINDOW_CHARS = 600
 _ID_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/\-]{0,39}\Z")
 _GROUP_TITLE_AT_LINE_START = re.compile(r"^[ \t]*EUG[- ]?\d+", re.I | re.M)
 
@@ -75,13 +76,14 @@ def _recompute_problem(ev: FieldEvidence, row: ExtractedRow) -> str | None:
     quote = ev.quote
     if ev.field == "id":
         synthetic = _SYNTHETIC_ID.fullmatch(ev.value)
-        if synthetic is not None:
-            ok = (
-                _SYNTHETIC_PREFIX.get(row.origin) == synthetic.group(1)
-                and int(synthetic.group(2)) == ev.page
-                and int(synthetic.group(3)) == ev.start
-            )
-            return None if ok else "synthetic id does not match its span"
+        if (
+            synthetic is not None
+            and _SYNTHETIC_PREFIX.get(row.origin) == synthetic.group(1)
+            and int(synthetic.group(2)) == ev.page
+            and int(synthetic.group(3)) == ev.start
+        ):
+            return None
+        # Anything else must be a real tag quoted verbatim (a table tag such as "L1-2" is fine).
         ok = quote.strip() == ev.value and _ID_TOKEN.fullmatch(ev.value) is not None
         return None if ok else "id not equal to quoted token"
     if ev.field == "type":
@@ -109,7 +111,7 @@ def _date_problem(ev: FieldEvidence) -> str | None:
     """A stated date must be literally in its quote, in a plain format, and not negated."""
     if _DATE_VALUE.match(ev.value) is None:
         return "date format is not a plain stated date"
-    found = re.search(re.escape(ev.value), ev.quote, re.I)
+    found = re.search(r"(?<![\w])" + re.escape(ev.value) + r"(?![\w])", ev.quote, re.I)
     if found is None:
         return "date not stated verbatim by quote"
     if _NEGATED_DATE.search(ev.quote[max(0, found.start() - 48) : found.start()]):
@@ -117,18 +119,85 @@ def _date_problem(ev: FieldEvidence) -> str | None:
     return None
 
 
+IN_SERVICE_CUE = re.compile(
+    r"\bcommission\w*|\bin[\s-]service\b|\bstart[\s-]?up\b|\bplaced\s+in\s+operation\b"
+    r"|\boperation(?:al)?\b|\bon[\s-]?line\b|\bgo(?:es)?\s+live\b|\bbegin\w*\s+operat\w*",
+    re.I,
+)
+STANDBY_RE = re.compile(r"\b(?:stand[\s-]?by|emergency|back[\s-]?up|spare)\b", re.I)
+
+
+def at_token_boundary(text: str, start: int, end: int) -> bool:
+    """A span may not begin or end inside a longer token or number ("500 hp" in "1,500 hp")."""
+    if start > 0 and text[start : start + 1].isalnum():
+        before = text[start - 1]
+        if before.isalnum() or before == "_":
+            return False
+        if before in ".,-/" and start >= 2 and text[start - 2].isalnum():
+            return False
+    if end < len(text) and text[end - 1 : end].isalnum():
+        after = text[end]
+        if after.isalnum() or after == "_":
+            return False
+        if after in ".,-/" and end + 1 < len(text) and text[end + 1].isalnum():
+            return False
+    return True
+
+
+def sentence_around(text: str, lo: int, hi: int, start: int, end: int) -> tuple[int, int]:
+    """Sentence span (same rules as the narrative rules) holding ``start:end``, within a page."""
+    before = text[max(lo, start - 400) : start]
+    cuts = [m.end() for m in SENTENCE_END.finditer(before)]
+    first = start - len(before) + (cuts[-1] if cuts else 0)
+    after = text[end : min(hi, end + 400)]
+    found = SENTENCE_END.search(after)
+    last = end + (found.start() if found else len(after))
+    return first, last
+
+
 def _llm_association(row: ExtractedRow, canon: CanonicalText) -> str | None:
-    """LLM rows: every quote on the rating's page, within one short window, no thresholds."""
+    """LLM rows get the narrative rules' strictness, judged on the canonical text itself.
+
+    Every quote must be on the rating's page, on a token boundary and inside the rating's own
+    sentence; a count must abut the rating; and the sentence as a whole (not only the quotes)
+    must agree with the row: one equipment type, the same stated drive and state, no
+    removal, standby, emergency, backup or spare cue, and no threshold around the rating.
+    """
     rating = row.evidence["rating"]
     spans = list(row.evidence.values())
     if any(ev.page != rating.page for ev in spans):
         return "quotes are on different pages"
-    if max(ev.end for ev in spans) - min(ev.start for ev in spans) > LLM_WINDOW_CHARS:
-        return "quotes are not within one passage"
     text = canon.text
+    if any(not at_token_boundary(text, ev.start, ev.end) for ev in spans):
+        return "a quote begins or ends inside a longer token or number"
+    lo, hi = canon.page_span(rating.page)
+    first, last = sentence_around(text, lo, hi, rating.start, rating.end)
+    if any(ev.start < first or ev.end > last for ev in spans):
+        return "a quote is outside the rating's sentence"
+    sentence = text[first:last]
+    count = row.evidence.get("count")
+    if count is not None:
+        if text[count.end : rating.start].strip(" 	") or count.end > rating.start:
+            return "count quote does not abut the rating"
+        prefix = text[max(first, count.start - 200) : count.start]
+        if not count_is_countable(prefix + count.quote, len(prefix), count.quote):
+            return "bare (n) count is a list number, not a count"
+    if STANDBY_RE.search(sentence):
+        return "standby, emergency, backup or spare cue in the rating's sentence"
+    if RETIRED_RE.search(sentence) and row.state != "retired":
+        return "removal cue in the rating's sentence"
+    if len(types_in_text(sentence)) > 1 or type_from_text(sentence) != row.equipment_type:
+        return "the rating's sentence names another equipment type"
+    if row.drive != "unknown" and drive_from_text(sentence) != row.drive:
+        return "the rating's sentence does not state this drive unambiguously"
+    if row.state != "unknown" and state_from_text(sentence) != row.state:
+        return "the rating's sentence does not state this status unambiguously"
     stated = row.evidence.get("date")
-    if stated is not None and _NEGATED_DATE.search(text[max(0, stated.start - 60) : stated.start]):
-        return "date is negated in its sentence"
+    if stated is not None:
+        if IN_SERVICE_CUE.search(sentence) is None:
+            return "date has no in-service cue in its sentence"
+        if _NEGATED_DATE.search(text[max(first, stated.start - 60) : stated.start]):
+            return "date is negated in its sentence"
     if THRESHOLD_BEFORE.search(text[max(0, rating.start - 40) : rating.start]):
         return "rating is a threshold, not a unit rating"
     if THRESHOLD_AFTER.match(text[rating.end : rating.end + 60]):

@@ -21,6 +21,11 @@ from typing import Any, Protocol
 
 from gridlens.ingestion.parsers.permit_docs.models import ExtractedRow, FieldEvidence
 from gridlens.ingestion.parsers.permit_docs.text_layer import CanonicalText
+from gridlens.ingestion.parsers.permit_docs.verifier import (
+    IN_SERVICE_CUE,
+    at_token_boundary,
+    sentence_around,
+)
 
 MAX_PROPOSED_UNITS = 40
 MAX_QUOTE_CHARS = 240
@@ -97,7 +102,9 @@ def _find(canon: CanonicalText, page: int, quote: str) -> list[tuple[int, int]]:
     if pattern is None or not 1 <= page <= len(canon.pages):
         return []
     lo, hi = canon.page_span(page)
-    return [(lo + m.start(), lo + m.end()) for m in pattern.finditer(canon.text[lo:hi])]
+    spans = [(lo + m.start(), lo + m.end()) for m in pattern.finditer(canon.text[lo:hi])]
+    # A quote must stand alone: "500 hp" is not found inside "1,500 hp", "C-1" not in "C-10".
+    return [span for span in spans if at_token_boundary(canon.text, span[0], span[1])]
 
 
 def _field(unit: dict[str, Any], name: str) -> dict[str, Any] | None:
@@ -125,7 +132,9 @@ def _build_row(unit: dict[str, Any], canon: CanonicalText, label: str) -> Extrac
     for name in _REQUIRED:
         if fields[name] is None:
             raise ValueError(f"{name} missing")
-    pages = {int(f["page"]) for f in fields.values() if f is not None and "page" in f}
+    pages = {f.get("page") for f in fields.values() if f is not None}
+    if any(type(page) is not int for page in pages):
+        raise ValueError("field page is not an integer")
     page_value = unit.get("page")
     if type(page_value) is not int or pages - {page_value}:
         raise ValueError("fields do not share one stated page")
@@ -150,10 +159,15 @@ def _build_row(unit: dict[str, Any], canon: CanonicalText, label: str) -> Extrac
         "unit": _evidence(canon, "unit", unit_name, rating_span, page),
     }
     values: dict[str, str] = {}
+    lo, hi = canon.page_span(page)
+    first, last = sentence_around(canon.text, lo, hi, rating_span[0], rating_span[1])
+    in_service_cue = IN_SERVICE_CUE.search(canon.text[first:last]) is not None
     for name in ("equipment_type", "quantity", "driver", "status", "in_service_date", "unit_id"):
         f = fields[name]
         if f is None:
             continue
+        if name == "in_service_date" and not in_service_cue:
+            continue  # a date without an in-service cue is only a stated date: not kept
         raw = f.get("value")
         if raw is None:
             continue

@@ -47,6 +47,8 @@ class ScheduleBuild:
     provenance: dict[int, dict[str, Any]] = field(default_factory=dict)
     demand_rows: list[ExtractedRow] = field(default_factory=list)
     supply_rows: list[ExtractedRow] = field(default_factory=list)
+    # Demand-shaped rows read from OCR text: retained with provenance, not fed to demand.
+    ocr_retained_rows: list[ExtractedRow] = field(default_factory=list)
     issues: list[str] = field(default_factory=list)
 
 
@@ -167,7 +169,7 @@ def build_schedule(
             build.issues.append(
                 f"Row {row.equipment_id} was read from {row.text_source}; retained, not demand."
             )
-            build.supply_rows.append(row)
+            build.ocr_retained_rows.append(row)
             continue
         if len(build.demand_rows) >= MAX_SCHEDULE_CLAIMS:
             build.issues.append("Schedule claim bound reached; remaining demand rows omitted.")

@@ -20,7 +20,7 @@ from typing import Any
 
 PERIODS = ("daily", "monthly")
 _CAP_KEYS = frozenset({"daily", "monthly", "daily_usd", "monthly_usd"})
-_PROVIDER_NAME = re.compile(r"[a-z][a-z0-9_-]{0,31}\Z")
+KNOWN_PROVIDERS = frozenset({"openai", "typesafe", "firecrawl"})
 _MAX_CALLS = 1_000_000
 _MAX_USD = Decimal("100000")
 # Reasons produced by logical_calls.reserve_call and intelligence_jobs._dispatch_policy.
@@ -29,6 +29,7 @@ _CAP_REASON = re.compile(
     r"(?:USD_)?CAP_(?P<kind>REACHED|ZERO|INVALID)\Z"
 )
 CAPPED_OUT = "CAPPED_OUT"
+LOW_HEADROOM = "LOW_HEADROOM"
 NEAR_CAP = "NEAR_CAP"
 
 
@@ -44,8 +45,11 @@ def parse_provider_caps(raw: str) -> dict[str, dict[str, int | Decimal]]:
         raise ValueError("INTELLIGENCE_PROVIDER_CAPS must be a JSON object of at most 8 providers")
     result: dict[str, dict[str, int | Decimal]] = {}
     for provider, limits in data.items():
-        if not isinstance(provider, str) or _PROVIDER_NAME.fullmatch(provider) is None:
-            raise ValueError("INTELLIGENCE_PROVIDER_CAPS provider names must be lowercase words")
+        if provider not in KNOWN_PROVIDERS:
+            raise ValueError(
+                "INTELLIGENCE_PROVIDER_CAPS providers must be one of "
+                + ", ".join(sorted(KNOWN_PROVIDERS))
+            )
         if not isinstance(limits, dict) or not limits or not set(limits) <= _CAP_KEYS:
             raise ValueError(f"INTELLIGENCE_PROVIDER_CAPS[{provider}] has unsupported keys")
         clean: dict[str, int | Decimal] = {}
@@ -161,8 +165,12 @@ def spend_status(
             blocks_next = (
                 metric == "usd" and max_call_usd > 0 and cap_value - used_value < max_call_usd
             )
-            if ratio >= 1 or blocks_next:
+            if ratio >= 1:
                 level = CAPPED_OUT
+            elif blocks_next:
+                # Below the cap, but less room than one call's ceiling: the next call of that
+                # size will be refused, though a smaller one may still fit.
+                level = LOW_HEADROOM
             elif ratio >= Decimal(str(threshold)):
                 level = NEAR_CAP
             else:

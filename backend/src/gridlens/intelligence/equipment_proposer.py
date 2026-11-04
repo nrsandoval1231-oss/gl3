@@ -231,11 +231,30 @@ def estimated_actual_cost(usage: dict[str, Any]) -> Decimal | None:
     details = usage.get("input_tokens_details")
     cached = details.get("cached_tokens") if isinstance(details, dict) else 0
     cached = cached if type(cached) is int and 0 <= cached <= input_tokens else 0
+    # An unset cached price falls back to the full input price: never understate the cost.
+    cached_rate = (
+        settings.intelligence_equipment_cached_input_usd_per_million
+        or settings.intelligence_equipment_input_usd_per_million
+    )
     return (
         Decimal(input_tokens - cached) * settings.intelligence_equipment_input_usd_per_million
-        + Decimal(cached) * settings.intelligence_equipment_cached_input_usd_per_million
+        + Decimal(cached) * cached_rate
         + Decimal(output_tokens) * settings.intelligence_equipment_output_usd_per_million
     ) / Decimal(1_000_000)
+
+
+def _usage_is_plausible(usage: dict[str, Any], request: dict[str, Any]) -> bool:
+    """Reported tokens must be nonnegative ints, output within the cap, input within the bound."""
+    input_tokens, output_tokens = usage.get("input_tokens"), usage.get("output_tokens")
+    for value in (input_tokens, output_tokens):
+        if value is not None and (type(value) is not int or not 0 <= value <= 2**63 - 1):
+            return False
+    if (
+        output_tokens is not None
+        and output_tokens > settings.intelligence_equipment_max_output_tokens
+    ):
+        return False
+    return input_tokens is None or input_tokens <= request_bytes(request)
 
 
 def _units_payload(units: list[ProposedUnit]) -> list[dict[str, Any]]:
@@ -347,8 +366,14 @@ class LedgerEquipmentProposer:
         with SessionLocal() as session:
             call = session.get(LogicalCall, call_id)
             stored = call.result_payload if call is not None else None
-        if not isinstance(stored, dict) or not isinstance(stored.get("units"), list):
-            return ProposerOutcome("failed", "PROPOSER_RESULT_MISSING", [], label, pages_sent)
+        if (
+            not isinstance(stored, dict)
+            or stored.get("valid") is not True
+            or not isinstance(stored.get("units"), list)
+        ):
+            return ProposerOutcome(
+                "failed", "PROPOSER_RESULT_MISSING_OR_INVALID", [], label, pages_sent
+            )
         return ProposerOutcome(
             "ok", "", stored["units"], label, pages_sent, {"replayed_from_ledger": True}
         )
@@ -398,6 +423,11 @@ class LedgerEquipmentProposer:
             # Billing identity mismatch: leave the call UNKNOWN for reconciliation.
             return ProposerOutcome(
                 "unknown", "MODEL_IDENTITY_MISMATCH", [], label, pages_sent, detail
+            )
+        if not _usage_is_plausible(usage, request):
+            # Unrepresentable or over-reservation usage: never write it into the ledger.
+            return ProposerOutcome(
+                "unknown", "INVALID_REPORTED_USAGE", [], label, pages_sent, detail
             )
         try:
             parsed = ProposalPayload.model_validate(response.get("output"))

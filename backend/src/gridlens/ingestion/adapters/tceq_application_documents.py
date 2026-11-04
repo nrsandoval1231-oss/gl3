@@ -445,7 +445,16 @@ def _supply_json(rows: list[Any]) -> list[dict[str, Any]]:
             "count": row.count,
             "state": row.state,
             "origin": row.origin,
-            "role": "supply_or_other",
+            "role": (
+                "supply_or_other"
+                if getattr(row, "text_source", "text_layer") == "text_layer"
+                else "ocr_retained_demand_candidate"
+            ),
+            # Where the quoted text came from and who proposed the row (additive provenance).
+            "text_source": getattr(row, "text_source", "text_layer"),
+            "proposed_by": getattr(row, "proposed_by", ""),
+            "method": getattr(row, "proposed_by", "") or "deterministic-rules",
+            "in_service_date": getattr(row, "in_service_date", "") or None,
             "evidence": {
                 name: {
                     "value": ev.value,
@@ -514,8 +523,8 @@ def _extract_pdf(
         "issues": [issue[:300] for issue in result.issues[:MAX_ISSUES_KEPT]],
         "schedule_text": result.schedule_text,
         "line_provenance": lines,
-        "supply": _supply_json(result.supply_rows),
-        "supply_total": len(result.supply_rows),
+        "supply": _supply_json(result.supply_rows + result.ocr_retained_rows),
+        "supply_total": len(result.supply_rows) + len(result.ocr_retained_rows),
     }
 
 
