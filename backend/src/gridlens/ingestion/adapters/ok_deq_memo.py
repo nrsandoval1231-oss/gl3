@@ -28,8 +28,10 @@ HEADER_CHARS = 4_000  # the header is on page one; nothing beyond this is read f
 _MEMO_DATE = re.compile(r"MEMORANDUM[ \t]+([A-Z][a-z]{2,8}\.?[ \t]+\d{1,2},[ \t]+\d{4})")
 _SUBJECT = re.compile(r"SUBJECT:[ \t]*", re.IGNORECASE)
 _PERMIT = re.compile(
-    r"No\.?[ \t]*(\d{4}-\d{2,5}-[A-Z]{1,4}\d{0,2}(?:[ \t]*\([ \t]*M-?\d{1,2}[ \t]*\))?)(?![\w-])"
+    r"No\.?[ \t]*(\d{4}-\d{2,5}-[A-Z]{1,4}\d{0,2}(?:[ \t]*\([ \t]*M-?\d{1,2}[ \t]*\)|[ \t]+M-?\d{1,2})?)(?![\w-])"
 )
+# Something that still looks like an amendment suffix after the match was not parsed: unknown.
+_UNPARSED_AMENDMENT = re.compile(r"[ \t]*\(?[ \t]*M[ -]?\d")
 _NOT_NAME = re.compile(
     r"^(?:section|sec\.|latitude|longitude|directions?|physical\s+address|[0-9])", re.IGNORECASE
 )
@@ -149,6 +151,8 @@ def parse_memo_header(
             next_end = head.find("\n", line_end + 1)
             window_end = len(head) if next_end == -1 else next_end
         found = _PERMIT.search(head, subject.end(), window_end)
+        if found is not None and _UNPARSED_AMENDMENT.match(head, found.end()):
+            found = None  # never link an amendment memo to its base permit number
     if found is not None:
         permit = quoted(found.start(1), found.end(1), found.group(1))
         following = _lines_after(text, found.end(), 6)

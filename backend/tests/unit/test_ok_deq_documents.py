@@ -78,6 +78,8 @@ def test_permit_numbers_normalize_to_the_listing_form():
         ("2002-279-O (M-2)", "2002-279-O M-2"),
         ("2017-0446-TV (M-3)", "2017-0446-TV M-3"),
         ("2019-0668-AD", "2019-0668-AD"),
+        ("2017-0987-C M-2", "2017-0987-C M-2"),
+        ("2017-0987-C  M2", "2017-0987-C M-2"),
     ],
 )
 def test_header_reads_the_permit_number_with_a_verbatim_span(subject, norm):
@@ -94,6 +96,15 @@ def test_header_reads_the_permit_number_with_a_verbatim_span(subject, norm):
     assert header.company.value == "Acme Gas, LLC"
     assert header.facility.value == "Acme Compressor Station"
     assert header.facility_id.value == "1627"
+
+
+@pytest.mark.parametrize("subject", ["2017-0987-C (M-2a)", "2017-0987-C M-2a", "2017-0987-C (M-"])
+def test_an_unparsed_amendment_suffix_is_unknown_not_the_base_permit(subject):
+    text = (
+        f"MEMORANDUM June 3, 2021\nSUBJECT:  Evaluation of Permit Application No. {subject}\nAcme\n"
+    )
+    header = parse_memo_header(text)
+    assert header.permit is None and header.permit_norm is None
 
 
 def test_header_without_a_readable_permit_number_is_unknown_not_guessed():
