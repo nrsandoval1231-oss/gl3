@@ -312,7 +312,10 @@ def test_rating_without_a_stated_driver_never_becomes_demand():
     assert extraction["demand_lines"] == 0 and extraction["schedule_text"] == ""
     assert extraction["supply_total"] == 1
     assert recs[0][nad.STATE_KEY]["document"]["abstain"]["note"].startswith("Abstention")
-    assert recs[0]["abstract"] == nad.record_for(DOC)["abstract"]
+    base = nad.record_for(DOC)["abstract"]
+    sha = recs[0][nad.STATE_KEY]["document"]["sha256"]
+    assert recs[0]["abstract"] == f"{base}\nSource document SHA-256: {sha}"
+    assert "Equipment ID" not in recs[0]["abstract"]
 
 
 def test_generator_only_is_supply_and_an_abstention():

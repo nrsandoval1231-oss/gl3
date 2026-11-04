@@ -530,6 +530,11 @@ def apply_state(record: dict[str, Any], state: dict[str, Any]) -> None:
     abstract = base["abstract"]
     if schedule:
         abstract = f"{abstract or ''}\n{schedule}"
+    # The document hash is part of the evidence text, so changed bytes always produce a new
+    # evidence version (the generic content hash covers title, abstract, date and URL only).
+    sha = (state.get("document") or {}).get("sha256")
+    if sha:
+        abstract = f"{abstract or ''}\nSource document SHA-256: {sha}"
     record["_document_base"] = base
     record[STATE_KEY] = copy.deepcopy(state)
     record["abstract"] = abstract
