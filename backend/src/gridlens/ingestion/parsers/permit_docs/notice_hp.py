@@ -105,6 +105,13 @@ def _row_json(
         # Explicit electric-drive wording in the rating's own phrase is required; a rating
         # alone, or a rating beside a non-electric driver, is supply context only.
         "electric_demand_evidenced": electric,
+        # A post-rating phrase ("2 units ... with a rating of N hp") does not say whether N is
+        # per unit or the total; the pre-rating shape ("two 2,500-hp motors") is per unit.
+        "rating_basis": (
+            "unstated_per_unit_or_total"
+            if row.group == "post-rating" and row.count not in (None, 1)
+            else "per_unit_as_stated"
+        ),
         "role": "demand_claim" if electric else "supply_other",
     }
 
@@ -148,10 +155,12 @@ def extract_notice_hp_driver(excerpt: str) -> NoticeHpResult:
         ):
             result.rejected += 1
             continue
-        key = (item["equipment_type"], item["drive"], item["rating"], item["unit"], item["count"])
+        # Dedupe by the rating's own span only: two stations that state the same rating are two
+        # rows. (Both shapes matching one phrase gives the same span, kept once.)
+        key = (item["evidence"]["rating"]["page"], item["evidence"]["rating"]["start"])
         seen[key] += 1
         if seen[key] > 1:
-            continue  # a repeated mention is one unit, not two
+            continue
         result.rows.append(item)
     if not result.rows:
         result.abstain = {

@@ -4,8 +4,12 @@ These notices state the rating after the equipment, in bullets such as
 ``Install one new electric motor driven compressor unit with a rating of 18,340 hp``. The
 permit-narrative rules read rating-then-noun, so this one explicit shape lives here. Every field
 is still checked by the shared exact-span and lexicon recomputation, and the association rule
-below keeps the rating inside the equipment's own phrase. Uprates ("increase the horsepower by
-1,600 hp"), re-wheels and ratings with no named unit do not match.
+below keeps the rating inside the equipment's own phrase. The words between the equipment
+phrase and "with a rating of" may only be a parenthesised unit id or "at <Name> Station"; any
+other equipment or driver noun, "and"/"or", or a replace word there rejects the row, as do
+threshold wording after the rating ("or greater", "to 6,000 hp") and re-wheel, uprate, increase,
+existing, replace or removal wording in the clause. The shape therefore names one unit; it does
+not read uprates, re-wheels, thresholds or removals as new equipment.
 """
 
 from __future__ import annotations
@@ -34,8 +38,9 @@ _POST_RATING = re.compile(
     r"(?:[ \t]+units?)?"
     r"|(?:natural[\s-]+)?gas[\s-]+turbine[\s-]+driven[ \t]+compressors?(?:[ \t]+units?)?"
     r"|(?:reciprocating[\s-]+)?engine[\s-]+driven[ \t]+compressors?(?:[ \t]+units?)?)"
-    r"(?P<gap>(?:[ \t]+[\w()/,-]+){0,6}?[ \t]+with[ \t]+an?[ \t]+(?:rated[ \t]+)?"
-    r"(?:rating|capacity)[ \t]+of[ \t]+)"
+    r"(?P<gap>(?:[ \t]+\([A-Za-z0-9 .-]{1,20}\))?"
+    r"(?:[ \t]+at[ \t]+(?:[A-Z][\w.-]*[ \t]+){0,3}(?:\(Compressor\)[ \t]+)?Station)?"
+    r"[ \t]+with[ \t]+an?[ \t]+(?:rated[ \t]+)?(?:rating|capacity)[ \t]+of[ \t]+)"
     rf"(?P<num>{NUMBER})[ \t]*[{_HYPHEN}]?[ \t]*(?P<unit>horsepower|hp)(?![\w/])",
     re.I,
 )
@@ -45,7 +50,19 @@ _COUNT_BEFORE = re.compile(
     r"[ \t]+(?:(?:new|additional|proposed)[ \t]+)*\Z",
     re.I,
 )
-_ACTION_CUE = re.compile(r"\b(?:install|add|construct)\w*", re.I)
+_ACTION_CUE = re.compile(r"\b(?:add|adding|install|installing)\b", re.I)
+# Words that make the clause something other than one new unit with a stated rating.
+_CLAUSE_BLOCK = re.compile(
+    r"re-?wheel|uprat|increas|existing|replac|retrofit|abandon|remov|decommission|\bnon-?electric",
+    re.I,
+)
+_THRESHOLD_AFTER_RATING = re.compile(
+    r"\s*(?:or|and)\s+(?:greater|more|less|fewer|above|below|higher|lower|up)\b"
+    r"|\s*(?:to|through|-|\u2013|\u2014)\s*\d",
+    re.I,
+)
+_STATION_WORD = re.compile(r"\(Compressor\)", re.I)
+_GAP_BLOCK = re.compile(r"\b(?:and|or|replac\w*)\b", re.I)
 _MAX_GAP_CHARS = 120
 
 
@@ -62,6 +79,18 @@ def post_rating_rows(canon: CanonicalText) -> list[ExtractedRow]:
             unit = unit_from_text(match.group("unit"))
             type_value = type_from_text(noun_text)
             if rating is None or rating <= 0 or unit is None or type_value is None:
+                continue
+            gap_text = _STATION_WORD.sub("", match.group("gap"))
+            if (
+                _GAP_BLOCK.search(gap_text)
+                or type_from_text(gap_text) is not None
+                or drive_from_text(gap_text) != "unknown"
+            ):
+                continue
+            after_rating = text[match.end("unit") : match.end("unit") + 200]
+            end_cut = SENTENCE_END.search(after_rating + " ")
+            tail = after_rating[: end_cut.start()] if end_cut else after_rating
+            if _THRESHOLD_AFTER_RATING.match(tail) or _CLAUSE_BLOCK.search(tail):
                 continue
             drive = drive_from_text(noun_text)
             noun_start = base + match.start("noun")
@@ -89,6 +118,8 @@ def post_rating_rows(canon: CanonicalText) -> list[ExtractedRow]:
             before = text[max(0, match.start("noun") - 120) : match.start("noun")]
             cuts = [m.end() for m in SENTENCE_END.finditer(before)]
             sentence = before[cuts[-1] :] if cuts else before
+            if _CLAUSE_BLOCK.search(sentence) or RETIRED_RE.search(sentence):
+                continue
             sentence_at = base + match.start("noun") - len(sentence)
             count = None
             counted = _COUNT_BEFORE.search(sentence)
@@ -124,6 +155,7 @@ def post_rating_rows(canon: CanonicalText) -> list[ExtractedRow]:
                     count=count,
                     state=state,
                     evidence=evidence,
+                    group="post-rating",
                 )
             )
     return rows
@@ -161,4 +193,11 @@ def post_rating_problem(row: ExtractedRow, canon: CanonicalText) -> str | None:
     gap = canon.text[type_ev.end : rating.start]
     if "\n" in gap or SENTENCE_END.search(gap + " ") or len(gap) > _MAX_GAP_CHARS:
         return "rating is not in the equipment phrase"
+    gap = _STATION_WORD.sub("", gap)
+    if (
+        _GAP_BLOCK.search(gap)
+        or type_from_text(gap) is not None
+        or drive_from_text(gap) != "unknown"
+    ):
+        return "another unit or driver sits between the equipment phrase and the rating"
     return None

@@ -140,7 +140,9 @@ def retrieve_companion(
                 if target_page_text.endswith("["):
                     target_page_text = target_page_text[:-1].rstrip()
                 end_page = page_number
-            page_fragments.append(f"[GovInfo PDF page {page_number}] {target_page_text}")
+            # Page text is untrusted: a spoofed page marker inside it must not become a marker.
+            safe_text = target_page_text.replace("[GovInfo PDF page", "(GovInfo PDF page")
+            page_fragments.append(f"[GovInfo PDF page {page_number}] {safe_text}")
             if end_page is not None:
                 break
         if start_page is None:
@@ -170,7 +172,15 @@ def retrieve_companion(
             # Additive and flag-gated: the ordinary citation fields above are unchanged.
             from gridlens.ingestion.parsers.permit_docs.notice_hp import extract_notice_hp_driver
 
-            citation["hp_driver"] = extract_notice_hp_driver(excerpt).as_json()
+            try:
+                citation["hp_driver"] = extract_notice_hp_driver(excerpt).as_json()
+            except Exception:  # an additive parser fault never costs the ordinary PDF evidence
+                from gridlens.ingestion.parsers.permit_docs.notice_hp import VERSION as HP_VERSION
+
+                citation["hp_driver"] = {
+                    "version": HP_VERSION,
+                    "abstain": {"reason": "parser_error"},
+                }
         return [citation]
     except SourceParseError:
         raise

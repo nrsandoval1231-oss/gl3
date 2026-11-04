@@ -65,7 +65,7 @@ def test_ceii_and_privileged_markers_are_rejected_anywhere(marker):
 
 
 def test_public_text_and_values_pass_the_gate():
-    fe.reject_nonpublic("Compressor Station 9 Project", None, 5, "CP22-123-000")
+    fe.reject_nonpublic("Compressor Station 9 Project", "CP22-123-000")
 
 
 @pytest.mark.parametrize(
@@ -130,3 +130,29 @@ def test_conflicting_or_absent_dockets_yield_no_reference():
     assert fe.docket_references(_context("No docket stated here.")) == []
     assert fe.docket_references(None) == []
     assert fe.docket_references({"status": "UNKNOWN", "normalized_full": "CP22-1-000"}) == []
+
+
+@pytest.mark.parametrize(
+    "disguised",
+    [
+        "C.E.I.I.",
+        "CE II",
+        "C%45II",
+        "%43EII",
+        "%2543EII",
+        "ＣＥＩＩ",
+        "Privileged_Material",
+        "p r i v i l e g e d",
+        "C-E-I-I",
+    ],
+)
+def test_disguised_markers_are_rejected(disguised):
+    with pytest.raises(fe.NonPublicRejected):
+        fe.reject_nonpublic(disguised)
+    assert fe.is_public_elibrary_url(SHEET + "CP22-123-000&q=" + disguised) is False
+
+
+@pytest.mark.parametrize("value", [b"CEII", b"ordinary", None, 5, 1.5, ["CEII"]])
+def test_non_text_values_are_rejected_outright(value):
+    with pytest.raises(fe.NonPublicRejected):
+        fe.reject_nonpublic(value)

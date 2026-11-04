@@ -18,8 +18,9 @@ be touched. ``reject_nonpublic`` is the one gate; it rejects on URL parts and on
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 HOST = "elibrary.ferc.gov"
 DOCKET_SHEET_PATH = "/eLibrary/docketsheet"
@@ -40,10 +41,41 @@ class NonPublicRejected(ValueError):
     """The URL or text is, or may be, CEII or privileged. Never fetch, store or quote it."""
 
 
+def _compact(value: str) -> str:
+    """Repeatedly percent-decoded, NFKC-folded, casefolded text with every separator removed."""
+    text = value
+    for _ in range(6):
+        decoded = unquote(text)
+        if decoded == text:
+            break
+        text = decoded
+    text = unicodedata.normalize("NFKC", text).casefold()
+    return "".join(ch for ch in text if ch.isalnum())
+
+
+_COMPACT_MARKERS = (
+    "ceii",
+    "criticalenergy",
+    "criticalelectric",
+    "privileged",
+    "privlg",
+    "nonpublic",
+    "nonpub",
+    "protectedmaterial",
+)
+
+
 def reject_nonpublic(*values: object) -> None:
-    """Raise ``NonPublicRejected`` when any value carries a CEII or privileged marker."""
+    """Raise ``NonPublicRejected`` when any value carries a CEII or privileged marker.
+
+    Values are matched as written and again in a compact form (percent-decoding repeated,
+    NFKC, casefold, separators removed) so ``C.E.I.I.``, ``CE II``, ``C%45II`` and fullwidth
+    spellings are caught. Anything that is not text (bytes, numbers, None) is rejected outright.
+    """
     for value in values:
-        if isinstance(value, str) and _NONPUBLIC.search(value):
+        if not isinstance(value, str):
+            raise NonPublicRejected("FERC guard accepts text only")
+        if _NONPUBLIC.search(value) or any(m in _compact(value) for m in _COMPACT_MARKERS):
             raise NonPublicRejected("FERC non-public marker rejected")
 
 

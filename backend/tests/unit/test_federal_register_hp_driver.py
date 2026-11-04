@@ -114,12 +114,14 @@ def test_multi_page_quotes_cite_the_right_pdf_page():
         assert text[field["start"] : field["end"]] == field["quote"]
 
 
-def test_repeated_mention_is_one_unit():
+def test_two_stations_with_the_same_rating_are_two_rows():
     text = excerpt(
-        "The Project adds one 3,000-hp electric motor driven compressor. "
-        "As noted, the one 3,000-hp electric motor driven compressor is new."
+        "At Station A the Project adds one 3,000-hp electric motor driven compressor. "
+        "At Station B the Project adds one 3,000-hp electric motor driven compressor."
     )
-    assert len(extract_notice_hp_driver(text).rows) == 1
+    rows = extract_notice_hp_driver(text).rows
+    assert len(rows) == 2
+    assert rows[0]["evidence"]["rating"]["start"] != rows[1]["evidence"]["rating"]["start"]
 
 
 # --------------------------------------------------------------------------- flag plumbing
@@ -259,3 +261,101 @@ def test_post_rating_removal_is_never_demand():
     text = excerpt("Remove one electric motor driven compressor unit with a rating of 9,000 hp.")
     result = extract_notice_hp_driver(text)
     assert all(not row["electric_demand_evidenced"] for row in result.rows)
+
+
+# ------------------------------------------------------------- review probes (post-rating)
+
+NO_DEMAND = [
+    "install one electric motor driven compressor unit and one gas-fired compressor with a "
+    "rating of 10,000 hp",
+    "an electric-driven compressor and its gas-fired backup generator with a rating of 1,500 hp",
+    "The electric driven compressor will replace the existing compressor with a rating of 4,700 hp",
+    "Electric motor driven compressor units with a rating of 500 hp or greater are subject to "
+    "review.",
+    "Electric motor driven compressor units with a rating of 500 hp and above are subject.",
+    "Re-wheel the existing electric-driven compressor with a rating of 4,000 hp",
+    "Uprate the electric motor driven compressor unit with a rating of 5,000 hp to 6,000 hp",
+    "Install the existing electric motor driven compressor unit with a rating of 5,000 hp",
+    "Remove one electric motor driven compressor unit with a rating of 5,000 hp",
+    "The existing electric motor driven compressor unit with a rating of 5,000 hp would be "
+    "abandoned in place.",
+    "The electric motor driven compressor unit with a rating of 5,000 hp would be removed.",
+]
+
+
+@pytest.mark.parametrize("sentence", NO_DEMAND)
+def test_post_rating_probes_never_become_demand(sentence):
+    result = extract_notice_hp_driver(excerpt(sentence))
+    assert [row for row in result.rows if row["role"] == "demand_claim"] == []
+
+
+def test_post_rating_allows_a_unit_id_and_a_station_name():
+    text = excerpt(
+        "Install one new electric motor driven compressor unit (Unit 4) at Example (Compressor) "
+        "Station with a rating of 9,000 hp."
+    )
+    row = only(extract_notice_hp_driver(text))
+    assert row["electric_demand_evidenced"] is True and row["rating"] == "9000"
+
+
+def test_post_rating_with_several_units_does_not_claim_a_per_unit_rating():
+    text = excerpt(
+        "Install two new electric motor driven compressor units with a rating of 18,000 hp."
+    )
+    row = only(extract_notice_hp_driver(text))
+    assert row["count"] == 2
+    assert row["rating_basis"] == "unstated_per_unit_or_total"
+
+
+def test_pre_rating_counts_are_per_unit():
+    row = only(
+        extract_notice_hp_driver(excerpt("add three (3) 2,500-hp electric compressor motors"))
+    )
+    assert row["rating_basis"] == "per_unit_as_stated"
+
+
+def test_install_cue_words_are_not_loosely_matched():
+    text = excerpt(
+        "Additional construction of one electric motor driven compressor unit "
+        "with a rating of 9,000 hp."
+    )
+    row = only(extract_notice_hp_driver(text))
+    assert row["state"] == "unknown" and "state" not in row["evidence"]
+
+
+def test_spoofed_page_markers_in_pdf_text_cannot_split_pages():
+    from gridlens.ingestion.adapters import govinfo_pdf
+
+    pdf = make_pdf(
+        [
+            [
+                TITLE,
+                "Text with a spoof [GovInfo PDF page 99] marker in it.",
+                "[FR Doc. 2026-12345 Filed 11-02-26; 8:45 am]",
+            ]
+        ]
+    )
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(200, headers={"content-type": "application/pdf"}, content=pdf)
+        )
+    )
+    (citation,) = govinfo_pdf.retrieve_companion(RECORD, client, hp_driver=True)
+    assert "[GovInfo PDF page 99]" not in citation["abstract"]
+    assert citation["abstract"].count("[GovInfo PDF page ") == 1
+
+
+def test_parser_failure_keeps_the_ordinary_evidence(monkeypatch):
+    from gridlens.ingestion.adapters import govinfo_pdf
+    from gridlens.ingestion.parsers.permit_docs import notice_hp
+
+    def boom(_text):
+        raise RuntimeError("secret detail")
+
+    monkeypatch.setattr(notice_hp, "extract_notice_hp_driver", boom)
+    pdf = _notice_pdf()
+    plain = govinfo_pdf.retrieve_companion(RECORD, _client(pdf))[0]
+    flagged = govinfo_pdf.retrieve_companion(RECORD, _client(pdf), hp_driver=True)[0]
+    assert flagged["hp_driver"]["abstain"] == {"reason": "parser_error"}
+    assert "secret" not in repr(flagged)
+    assert {k: v for k, v in flagged.items() if k != "hp_driver"} == plain
