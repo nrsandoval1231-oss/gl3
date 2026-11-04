@@ -318,6 +318,14 @@ def test_tpit_free_text_loses_emails_and_phone_numbers():
 # --------------------------------------------------------------------------- S13, S14, nits
 
 
+def test_fixture_workbooks_are_byte_identical_across_seconds():
+    """Root cause of an intermittent failure: openpyxl stamped builds with the current time, so
+    two builds of one workbook in different seconds had different hashes and ETags."""
+    first = workbook(SHEETS)
+    time.sleep(1.1)
+    assert workbook(SHEETS) == first
+
+
 def test_a_bare_compass_name_is_not_a_link_key():
     assert lk.norm_substation("North") is None
     assert lk.norm_substation("West Substation") is None

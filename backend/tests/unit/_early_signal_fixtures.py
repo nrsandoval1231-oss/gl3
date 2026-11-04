@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import hashlib
 import io
+import re
+import zipfile
 from collections.abc import Callable
+from datetime import datetime
 
 import httpx
 import openpyxl
@@ -33,6 +36,40 @@ TPIT_XLSX = f"https://{ERCOT}/files/docs/2022/03/02/ERCOT-October-TPIT-No-Cost-1
 SYSPLAN_PDF = (
     f"https://{ERCOT}/files/docs/2026/09/07/8-System-Planning-and-Weatherization-Update.pdf"
 )
+
+
+_FIXED = datetime(2026, 1, 1)
+
+
+def _xlsx_bytes(wb: openpyxl.Workbook) -> bytes:
+    """Byte-identical output for identical content.
+
+    openpyxl stamps the document properties and every zip entry with the current time, so two
+    builds of the same workbook in different seconds differ in bytes (and so in hash and ETag).
+    """
+    wb.properties.created = _FIXED
+    wb.properties.modified = _FIXED
+    raw = io.BytesIO()
+    wb.save(raw)
+    out = io.BytesIO()
+    with (
+        zipfile.ZipFile(io.BytesIO(raw.getvalue())) as source,
+        zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target,
+    ):
+        for info in source.infolist():
+            clone = zipfile.ZipInfo(info.filename, date_time=(2026, 1, 1, 0, 0, 0))
+            clone.compress_type = zipfile.ZIP_DEFLATED
+            clone.external_attr = info.external_attr
+            data = source.read(info.filename)
+            if info.filename == "docProps/core.xml":
+                # openpyxl resets "modified" to now on save, whatever the property says.
+                data = re.sub(
+                    rb"(<dcterms:(?:created|modified)[^>]*>)[^<]*(</dcterms:)",
+                    rb"\g<1>2026-01-01T00:00:00Z\g<2>",
+                    data,
+                )
+            target.writestr(clone, data)
+    return out.getvalue()
 
 
 def hub_html(*meetings: str) -> bytes:
@@ -184,9 +221,7 @@ def workbook(sheets: dict[str, list[dict[str, str | None]]]) -> bytes:
         ws.append(headers)
         for row in rows:
             ws.append([row.get(k) for k in keys])
-    out = io.BytesIO()
-    wb.save(out)
-    return out.getvalue()
+    return _xlsx_bytes(wb)
 
 
 def tpit_row(number: str, **kw: str | None) -> dict[str, str | None]:
@@ -266,9 +301,7 @@ def export_xlsx(rows: list[tuple[str, str, str, str]]) -> bytes:
     ws.append(["Control #", "Filings", "Utility", "Description (Case Style)"])
     for c, f, u, d in rows:
         ws.append([c, f, u, d])
-    out = io.BytesIO()
-    wb.save(out)
-    return out.getvalue()
+    return _xlsx_bytes(wb)
 
 
 def filings_html(control: str, items: list[tuple[str, str, str, str, str]]) -> bytes:
