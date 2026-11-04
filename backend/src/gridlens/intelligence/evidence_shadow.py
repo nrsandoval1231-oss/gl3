@@ -453,8 +453,8 @@ def run_shadow(
                             "evidence_judge_run_id": str(attempt.id),
                             "input_key": input_key,
                             "request_context": request_context,
-                            # Dates and datetimes in the projected context are stringified exactly as the
-                            # input key and checkpoint do, so the digest cannot fail on them.
+                            # Dates are stringified exactly as the input key and checkpoint do, so
+                            # the digest cannot fail on them.
                             "request_digest": _digest(
                                 json.loads(json.dumps(request_context, default=str))
                             ),

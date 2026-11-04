@@ -257,15 +257,15 @@ def _provider_answers(model=MODEL):
     return {"model": model, "answers": answers, "usage": {"input_tokens": 700, "output_tokens": 0}}
 
 
-def _run_worker(shadow_db, monkeypatch, provider):
-    _admit(shadow_db)
+def _run_worker(factory, monkeypatch, provider):
+    _admit(factory)
     from gridlens.integrations import intelligence_provider, legacy_calls
 
-    worker = _wire_worker(shadow_db, monkeypatch)
+    worker = _wire_worker(factory, monkeypatch)
     monkeypatch.setattr(worker, "WORKER_ID", "fixture-live-worker")
-    monkeypatch.setattr(legacy_calls, "SessionLocal", shadow_db)
+    monkeypatch.setattr(legacy_calls, "SessionLocal", factory)
     monkeypatch.setattr(intelligence_provider, "call_typesafe", provider)
-    with shadow_db() as session:
+    with factory() as session:
         assert run_shadow(session, limit=1)["attempted"] == 1
         job = session.scalar(select(Job).where(Job.kind == "evidence_shadow"))
         job_id = job.id
