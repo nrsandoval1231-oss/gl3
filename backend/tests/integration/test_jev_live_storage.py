@@ -130,6 +130,9 @@ def test_shadow_only_stores_no_live_record(shadow_db, monkeypatch):  # noqa: F81
         assert run_shadow(session, limit=1, judge=LiveJudge())["valid"] == 1
         run = session.scalar(select(EvidenceJudgeRun))
         assert "live" not in run.result and "live" not in run.deterministic
+        # Probabilities and the passage actually seen are kept even without live mode.
+        assert run.result["probabilities"]["relevant"] == pytest.approx(0.97)
+        assert "passage_bounds" in run.result
         assert accepted_labels(run.result) == {}
 
 
@@ -168,34 +171,63 @@ def test_live_decision_records_labels_and_cannot_change_any_value(shadow_db, mon
     assert json.loads(after["interpretations"][0][3])["demand_mw"] == 25
 
 
-def test_live_matching_acts_only_with_probability_and_a_deterministic_key(
-    shadow_db,  # noqa: F811
-    monkeypatch,
-):
-    project_id = seed_accepted(shadow_db)
-    with shadow_db.begin() as session:
-        project = session.get(Project, project_id)
-        project.identity_facts = {"county": "Travis"}
+class MatchJudge(LiveJudge):
+    def judge(self, state, evidence, candidates):
+        judgment, meta = super().judge(state, evidence, candidates)
+        data = judgment.model_dump()
+        data["same_project"] = "YES"
+        meta["probabilities"]["same_project"] = 0.99
+        return Judgment.model_validate(data), meta
+
+
+def _seed_keys(factory, project_facts, assessment_facts):
+    project_id = seed_accepted(factory)
+    with factory.begin() as session:
+        session.get(Project, project_id).identity_facts = project_facts
         interpretation = session.scalar(select(Interpretation))
-        interpretation.assessment = {**interpretation.assessment, "county": "Travis"}
+        interpretation.assessment = {**interpretation.assessment, **assessment_facts}
+
+
+def test_live_matching_acts_with_a_permit_number_key(shadow_db, monkeypatch):  # noqa: F811
+    # The evidence side is Interpretation.assessment (deterministic interpretation output);
+    # the project side is Project.identity_facts.
+    _seed_keys(
+        shadow_db,
+        {"permit_number": "NSR-123456", "county": "Travis"},
+        {"permit_number": "NSR-123456", "county": "Travis"},
+    )
     _live(monkeypatch, "matching")
-
-    class MatchJudge(LiveJudge):
-        def judge(self, state, evidence, candidates):
-            judgment, meta = super().judge(state, evidence, candidates)
-            data = judgment.model_dump()
-            data["same_project"] = "YES"
-            meta["probabilities"]["same_project"] = 0.99
-            return Judgment.model_validate(data), meta
-
     with shadow_db() as session:
         run_shadow(session, limit=1, judge=MatchJudge())
         run = session.scalar(select(EvidenceJudgeRun))
         labels = {item["field"]: item for item in run.result["live"]["labels"]}
         assert set(labels) == {"same_project"}
         assert labels["same_project"]["outcome"] == "accepted"
-        assert labels["same_project"]["corroboration"] == ["county"]
+        assert labels["same_project"]["corroboration"] == ["county", "permit_number"]
         assert accepted_labels(run.result) == {"same_project": "YES"}
+
+
+def test_live_matching_never_acts_on_county_alone(shadow_db, monkeypatch):  # noqa: F811
+    _seed_keys(shadow_db, {"county": "Travis"}, {"county": "Travis"})
+    _live(monkeypatch, "matching")
+    with shadow_db() as session:
+        run_shadow(session, limit=1, judge=MatchJudge())
+        run = session.scalar(select(EvidenceJudgeRun))
+        label = run.result["live"]["labels"][0]
+        assert label["outcome"] == "abstained"
+        assert label["reason"] == "NO_DETERMINISTIC_KEY_AGREES"
+        assert label["effective_value"] == "UNKNOWN"
+        assert accepted_labels(run.result) == {}
+
+
+def test_live_matching_is_inert_without_identity_fact_keys(shadow_db, monkeypatch):  # noqa: F811
+    # Today's writers store project_name/site only, so no deterministic key can agree.
+    _seed_keys(shadow_db, {"project_name": "Ambiguous Data Center", "site": "Austin, TX"}, {})
+    _live(monkeypatch, "matching")
+    with shadow_db() as session:
+        run_shadow(session, limit=1, judge=MatchJudge())
+        run = session.scalar(select(EvidenceJudgeRun))
+        assert accepted_labels(run.result) == {}
 
 
 @pytest.mark.parametrize(("outcome", "status"), [("timeout", "timeout"), ("invalid", "invalid")])
@@ -257,7 +289,7 @@ def _provider_answers(model=MODEL):
     return {"model": model, "answers": answers, "usage": {"input_tokens": 700, "output_tokens": 0}}
 
 
-def _run_worker(factory, monkeypatch, provider):
+def _run_worker(factory, monkeypatch, provider, before_worker=None):
     _admit(factory)
     from gridlens.integrations import intelligence_provider, legacy_calls
 
@@ -269,6 +301,8 @@ def _run_worker(factory, monkeypatch, provider):
         assert run_shadow(session, limit=1)["attempted"] == 1
         job = session.scalar(select(Job).where(Job.kind == "evidence_shadow"))
         job_id = job.id
+    if before_worker:
+        before_worker(factory, job_id)
     assert worker.run_one({}, job_ids=[job_id]) is True
 
 
@@ -305,6 +339,11 @@ def test_live_worker_path_uses_ledger_pin_full_passage_and_stores_decision(
         assert set(fields) == {"document_route", "new_large_load", "relevant"}
         assert fields["document_route"]["outcome"] == "accepted"
         assert fields["document_route"]["probability"] == pytest.approx(0.9)
+        assert run.result["probabilities"]["document_route"] == pytest.approx(0.9)
+        bounds = run.result["passage_bounds"]["abstract"]
+        assert bounds["truncated"] is False and bounds["chars_total"] == len(LONG_PASSAGE)
+        assert run.deterministic["passage_bounds"] == run.result["passage_bounds"]
+        assert run.deterministic["contract_version"] == "evidence-judge-v2"
 
 
 def test_live_worker_over_cap_job_is_visible_and_never_calls_the_provider(
@@ -339,6 +378,47 @@ def test_live_worker_provider_error_abstains(shadow_db, monkeypatch):  # noqa: F
         run = session.scalar(select(EvidenceJudgeRun))
         assert run.status == "failed" and run.result is None, run.error_class
         assert run.deterministic["live"]["outcome"] == "abstained"
+        assert run.deterministic["live"]["labels"] == []
+        # Class name only: provider/exception text is never persisted.
+        assert "fixture timeout" not in json.dumps(run.deterministic)
+        assert run.deterministic["failure_reason"].split(":")[0]
+
+
+def test_live_worker_early_block_writes_an_abstained_record(shadow_db, monkeypatch):  # noqa: F811
+    seed_accepted(shadow_db)
+    _enable_live_ledger(monkeypatch, "routing")
+    calls = []
+
+    def disable(*_args):
+        monkeypatch.setattr(settings, "intelligence_enabled_contracts", "")
+
+    _run_worker(shadow_db, monkeypatch, lambda **kw: calls.append(kw), before_worker=disable)
+    assert calls == []
+    with shadow_db() as session:
+        run = session.scalar(select(EvidenceJudgeRun))
+        assert run.status == "failed" and run.error_class == "CONTRACT_DISABLED"
+        assert run.deterministic["live"]["outcome"] == "abstained"
+        assert run.deterministic["live"]["reason"] == "BLOCKED:CONTRACT_DISABLED"
+
+
+def test_live_worker_does_not_replay_a_v1_contract_job(shadow_db, monkeypatch):  # noqa: F811
+    seed_accepted(shadow_db)
+    _enable_live_ledger(monkeypatch, "routing")
+    calls = []
+
+    def downgrade(factory, job_id):
+        with factory.begin() as session:
+            job = session.get(Job, job_id)
+            checkpoint = json.loads(job.checkpoint)
+            checkpoint["contract_version"] = "evidence-judge-v1"
+            job.checkpoint = json.dumps(checkpoint)
+
+    _run_worker(shadow_db, monkeypatch, lambda **kw: calls.append(kw), before_worker=downgrade)
+    assert calls == []
+    with shadow_db() as session:
+        run = session.scalar(select(EvidenceJudgeRun))
+        assert run.error_class == "LegacyContractReplayUnsupported"
+        assert run.deterministic["contract_version"] == "evidence-judge-v1"
         assert run.deterministic["live"]["labels"] == []
 
 

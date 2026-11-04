@@ -125,12 +125,29 @@ def test_every_live_setting_defaults_off_and_pinned():
             "jev_enabled": True,
             "intelligence_typesafe_model": "jev-1.12.0",
         },
-        {"jev_abstain_probability": 0.9, "jev_match_probability": 0.8},
+        {
+            "jev_live_mode": True,
+            "jev_enabled": True,
+            "intelligence_typesafe_model": MODEL,
+            "jev_abstain_probability": 0.9,
+            "jev_match_probability": 0.8,
+        },
+        {  # input ceiling cannot hold overhead + reserve + a minimum passage
+            "jev_live_mode": True,
+            "jev_enabled": True,
+            "intelligence_typesafe_model": MODEL,
+            "intelligence_typesafe_max_total_billable_input_tokens": 5_000,
+        },
     ],
 )
 def test_live_settings_validation_rejects_unsafe_combinations(overrides):
     with pytest.raises(ValueError):
         _settings(**overrides)
+
+
+def test_probability_ordering_is_only_enforced_when_live_mode_is_on():
+    shadow_only = _settings(jev_abstain_probability=0.9, jev_match_probability=0.8)
+    assert shadow_only.jev_live_mode is False
 
 
 def test_valid_live_configuration_is_accepted():
@@ -208,11 +225,23 @@ def test_missing_probability_abstains(monkeypatch):
 
 def test_matching_requires_probability_and_a_deterministic_key(monkeypatch):
     _live(monkeypatch, "matching")
-    keyed = Corroboration(("county",))
-    # High probability and key agree: acts.
+    keyed = Corroboration(("permit_number",))
+    # High probability and a non-county key agree: acts.
     accepted = _labels(derive_live_record(_judgment(), _probs(same_project=0.96), MODEL, keyed))
     assert accepted["same_project"]["outcome"] == "accepted"
-    assert accepted["same_project"]["corroboration"] == ["county"]
+    assert accepted["same_project"]["corroboration"] == ["permit_number"]
+    # County is only a supporting key: with a strong key it is recorded, alone it never acts.
+    both = Corroboration(("county", "substation"))
+    both_labels = _labels(derive_live_record(_judgment(), _probs(same_project=0.96), MODEL, both))
+    assert both_labels["same_project"]["corroboration"] == ["county", "substation"]
+    county_only = _labels(
+        derive_live_record(
+            _judgment(), _probs(same_project=0.99), MODEL, Corroboration(("county",))
+        )
+    )
+    assert county_only["same_project"]["outcome"] == "abstained"
+    assert county_only["same_project"]["reason"] == "NO_DETERMINISTIC_KEY_AGREES"
+    assert county_only["same_project"]["effective_value"] == "UNKNOWN"
     # High probability, no deterministic key: UNKNOWN.
     no_key = _labels(derive_live_record(_judgment(), _probs(same_project=0.99), MODEL))
     assert no_key["same_project"]["outcome"] == "abstained"
@@ -345,6 +374,55 @@ def test_accepted_labels_require_a_decided_pinned_record(monkeypatch):
     assert accepted_labels({"live": {**record, "model": "jev-latest"}}) == {}
     assert accepted_labels({"live": abstained_record("PROVIDER_TIMEOUT", MODEL)}) == {}
     assert accepted_labels({}) == {} and accepted_labels(None) == {}
+
+
+def test_accepted_labels_are_withdrawn_when_live_mode_or_the_authority_is_switched_off(
+    monkeypatch,
+):
+    _live(monkeypatch, "routing", "labels")
+    record = derive_live_record(_judgment(), _probs(), MODEL)
+    stored = {"live": record}
+    assert {"document_route", "driver"} <= set(accepted_labels(stored))
+    # One authority off: only its labels are withdrawn.
+    monkeypatch.setattr(settings, "jev_live_labels", False)
+    assert set(accepted_labels(stored)) == {"document_route"}
+    # Rollback (JEV_LIVE_MODE=false): every stored decision is withdrawn at once.
+    monkeypatch.setattr(settings, "jev_live_mode", False)
+    assert accepted_labels(stored) == {}
+    monkeypatch.setattr(settings, "jev_live_mode", True)
+    assert set(accepted_labels(stored)) == {"document_route"}
+    # A stored decision from a different model than the current pin is not honoured.
+    monkeypatch.setattr(settings, "jev_model", "jev-1.14.0")
+    assert accepted_labels(stored) == {}
+
+
+def test_derive_abstains_on_unpinned_model_and_on_too_short_passages(monkeypatch):
+    _live(monkeypatch, "routing", "labels")
+    record = derive_live_record(_judgment(), _probs(), "jev-1.14.0")
+    assert record["outcome"] == "abstained" and record["labels"] == []
+    for bounds in (
+        {"abstract": {"chars_total": 5_000, "chars_sent": 0, "truncated": True}},
+        {"abstract": {"chars_total": 5_000, "chars_sent": 150, "truncated": True}},
+    ):
+        record = derive_live_record(_judgment(), _probs(), MODEL, None, bounds)
+        assert record["outcome"] == "abstained"
+        assert record["reason"] == "PASSAGE_TRUNCATED_BELOW_MIN"
+        assert record["labels"] and all(
+            item["reason"] == "PASSAGE_TRUNCATED_BELOW_MIN" and item["outcome"] == "abstained"
+            for item in record["labels"]
+        )
+        assert accepted_labels({"live": record}) == {}
+    # A cut at or above the floor, or no cut at all, still decides.
+    ok = {"abstract": {"chars_total": 5_000, "chars_sent": 200, "truncated": True}}
+    assert derive_live_record(_judgment(), _probs(), MODEL, None, ok)["outcome"] == "decided"
+    whole = {"abstract": {"chars_total": 40, "chars_sent": 40, "truncated": False}}
+    assert derive_live_record(_judgment(), _probs(), MODEL, None, whole)["outcome"] == "decided"
+
+
+def test_request_overhead_floor_covers_the_real_question_set():
+    from gridlens.intelligence.jev_passages import REQUEST_OVERHEAD_FLOOR_BYTES
+
+    assert len(json.dumps(QUESTIONS)) < REQUEST_OVERHEAD_FLOOR_BYTES // 2
 
 
 def test_abstained_record_is_visible_and_empty(monkeypatch):
@@ -524,17 +602,32 @@ def test_total_input_ceiling_bounds_the_whole_request(monkeypatch):
     assert request["state"]["evidence"]["passage_bounds"]["abstract"]["truncated"] is True
 
 
-def test_estimate_policy_request_limit_is_respected(monkeypatch):
-    from gridlens.intelligence import intelligence_jobs
-
-    monkeypatch.setattr(
-        settings,
-        "intelligence_typesafe_billing_policy_id",
-        intelligence_jobs.TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID,
+def test_estimate_policy_request_is_within_the_limit_and_not_blocked(monkeypatch):
+    from test_intelligence_processing import (
+        _estimated_signal_configuration,
+        _estimated_signal_payload,
     )
-    payload = jev_request_payload(_signal_state("y " * 40_000))
-    size = len(json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode())
-    assert size <= intelligence_jobs.TYPESAFE_SIGNAL_REQUEST_MAX_BYTES + 400
+
+    from gridlens.intelligence import intelligence_jobs
+    from gridlens.intelligence.intelligence_jobs import (
+        TYPESAFE_SIGNAL_REQUEST_MAX_BYTES,
+        _estimated_signal_policy_block_reason,
+        _serialized_request_bytes,
+    )
+
+    observation_id = _estimated_signal_configuration(monkeypatch)
+    for abstract in ("y " * 40_000, "short filing text", 'é"\\' * 20_000):
+        payload = _estimated_signal_payload(observation_id)
+        payload["state"]["abstract"] = abstract
+        assert _estimated_signal_policy_block_reason(payload) == ""
+        request = jev_request_payload(payload["state"], model="jev-1.13.0")
+        assert _serialized_request_bytes(request) <= TYPESAFE_SIGNAL_REQUEST_MAX_BYTES
+    assert intelligence_jobs._estimated_signal_policy_selected()
+    # The cut is visible to the model and reported.
+    long_request = jev_request_payload(
+        {**_estimated_signal_payload(observation_id)["state"], "abstract": "y " * 40_000}
+    )
+    assert long_request["state"]["passage_bounds"]["abstract"]["truncated"] is True
 
 
 def test_bound_passage_is_unicode_safe_and_reports_sizes():

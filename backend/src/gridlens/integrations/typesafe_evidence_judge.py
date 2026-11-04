@@ -303,7 +303,11 @@ class TypesafeEvidenceJudge:
             for k, v in evidence.items()
         }
         # Reserve the worst-case passage_bounds metadata, added below, inside the budget.
-        reserved = {**stripped, "passage_bounds": PASSAGE_BOUNDS_WORST_CASE}
+        worst = PASSAGE_BOUNDS_WORST_CASE["abstract"]
+        reserved = {
+            **stripped,
+            "passage_bounds": {k: worst for k in PASSAGE_KEYS if evidence.get(k) is not None},
+        }
         budget = passage_budget_bytes(request_bytes(assemble(reserved)))
         evidence_value: dict[str, Any] = {}
         passage_meta: dict[str, Any] = {}

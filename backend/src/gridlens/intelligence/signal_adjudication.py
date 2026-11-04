@@ -173,6 +173,7 @@ def jev_request_payload(state: dict[str, str], *, model: str | None = None) -> d
     from gridlens.intelligence.jev_passages import (
         PASSAGE_BOUNDS_WORST_CASE,
         bound_passage,
+        escaped_len,
         passage_budget_bytes,
         request_bytes,
     )
@@ -208,8 +209,12 @@ def jev_request_payload(state: dict[str, str], *, model: str | None = None) -> d
     # Measure with the worst-case passage_bounds metadata present: it is added below whenever
     # the passage is cut, and must be inside the budget rather than appended after it.
     reserved = assemble("")
-    reserved["state"]["passage_bounds"] = PASSAGE_BOUNDS_WORST_CASE
-    budget = passage_budget_bytes(request_bytes(reserved), hard_cap_bytes=hard_cap)
+    plain_budget = passage_budget_bytes(request_bytes(reserved), hard_cap_bytes=hard_cap)
+    if escaped_len(state["abstract"]) <= plain_budget:
+        budget = plain_budget  # fits whole: no cut, so no metadata is added
+    else:
+        reserved["state"]["passage_bounds"] = PASSAGE_BOUNDS_WORST_CASE
+        budget = passage_budget_bytes(request_bytes(reserved), hard_cap_bytes=hard_cap)
     abstract, bounds = bound_passage(state["abstract"], budget)
     payload = assemble(abstract)
     if bounds["truncated"]:
