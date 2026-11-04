@@ -2610,7 +2610,19 @@ def _enrich_with_application_documents(
         session.commit()
     prior = load_prior_states(session, source_definition["id"])
     session.commit()
-    report = run_stage(records, prior, client=client, config=config, deadline=deadline)
+    try:
+        report = run_stage(records, prior, client=client, config=config, deadline=deadline)
+    except Exception as error:
+        # The stage is additive: an unexpected fault must not fail the ordinary listing run.
+        # It is reported as a typed stage error, never swallowed silently.
+        from gridlens.ingestion.adapters.tceq_application_documents import (
+            StageReport,
+            apply_prior_states,
+        )
+
+        report = StageReport()
+        report.reject("stage", "stage_error", error=type(error).__name__)
+        apply_prior_states(records, prior)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return report
 

@@ -329,3 +329,25 @@ def test_process_job_reports_document_failures_as_partial_without_blocking_the_l
         assert evidence is not None
         assert evidence.provenance["application_document"]["last_attempt"]["code"] == "js_shell"
         assert "Equipment ID" not in (evidence.abstract or "")
+
+
+def test_an_unexpected_stage_fault_is_reported_and_keeps_retained_schedules(stage_db, monkeypatch):
+    from gridlens.ingestion.service import _enrich_with_application_documents
+
+    definition, job_id = setup_source(stage_db)
+    ingest(stage_db, definition, job_id, portfolio([ELECTRIC]), monkeypatch)
+
+    def explode(*_args, **_kwargs):
+        raise RuntimeError("disk full /secret/path")
+
+    monkeypatch.setattr(docs, "run_stage", explode)
+    monkeypatch.setattr(docs, "config_from_source", lambda _s: docs.StageConfig(1, 5, 120.0))
+    record = nsr_record()
+    with stage_db() as session:
+        report = _enrich_with_application_documents(
+            session, job_id, WORKER, 1, definition, [record], None, deadline=None
+        )
+        session.commit()
+    assert report.rejections[0]["error_code"] == "stage_error"
+    assert report.rejections[0]["raw"] == {"error": "RuntimeError"}  # no message or path
+    assert "Equipment ID" in record["abstract"]  # the retained schedule is not dropped

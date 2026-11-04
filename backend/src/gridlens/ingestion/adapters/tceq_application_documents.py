@@ -630,10 +630,10 @@ def run_stage(
     )
     root = Path(tempfile.mkdtemp(prefix="tceq-docs-", dir=work_root))
     downloads = 0
+    chosen: dict[str, dict[str, Any]] = {}
     try:
         _check_shrink(links, prior_states, report)
         for position, link in enumerate(links):
-            record = by_project[link.project]
             prior = prior_states.get(link.project)
             state = prior
             if position >= config.max_checks:
@@ -658,13 +658,30 @@ def run_stage(
                 except TimeoutError:
                     report.bump("deferred_deadline")
             if state is not None:
-                apply_state(record, state)
+                chosen[link.project] = state
     finally:
         shutil.rmtree(root, ignore_errors=True)
         if owns_client:
             http.close()
+    # Records change only after the whole loop succeeds, so a fault leaves them untouched.
+    for project, state in chosen.items():
+        apply_state(by_project[project], state)
     report.counts["downloads"] = downloads
     return report
+
+
+def apply_prior_states(
+    records: list[dict[str, Any]], prior_states: dict[str, dict[str, Any]]
+) -> int:
+    """Fallback after a stage fault: keep every retained state on its record."""
+    applied = 0
+    for record in records:
+        permit = record.get("permit")
+        state = prior_states.get(str(permit.get("project"))) if isinstance(permit, dict) else None
+        if state is not None and not record.get("presence_only"):
+            apply_state(record, state)
+            applied += 1
+    return applied
 
 
 def _check_shrink(
@@ -773,7 +790,7 @@ def apply_state(record: dict[str, Any], state: dict[str, Any]) -> None:
     """
     document = state.get("document") or {}
     schedule = ((document.get("extraction") or {}).get("schedule_text") or "").rstrip("\n")
-    if schedule and "Company:" not in (record.get("abstract") or ""):
+    if schedule and schedule not in (record.get("abstract") or ""):
         record["abstract"] = f"{record.get('abstract') or ''}\n{schedule}"
     base_hash = record.get("source_hash")
     record["application_document"] = state
