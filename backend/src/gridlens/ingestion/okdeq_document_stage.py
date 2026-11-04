@@ -35,10 +35,10 @@ def load_prior_states(session: Session, source_id: str) -> dict[str, dict[str, A
     ).all()
     states: dict[str, dict[str, Any]] = {}
     for _external_id, provenance in rows:
-        state = provenance.get(STATE_KEY) if isinstance(provenance, dict) else None
-        norm = state.get("permit_norm") if isinstance(state, dict) else None
-        if isinstance(norm, str) and norm:
-            states[norm] = state
+        found = provenance.get(STATE_KEY) if isinstance(provenance, dict) else None
+        norm = found.get("permit_norm") if isinstance(found, dict) else None
+        if isinstance(found, dict) and isinstance(norm, str) and norm:
+            states[norm] = found
     return states
 
 

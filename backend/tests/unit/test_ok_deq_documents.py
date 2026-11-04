@@ -16,7 +16,6 @@ from _okdeq_fixtures import (
     BASE,
     GENERATORS,
     WEST_EDMOND_PROSE,
-    WEST_EDMOND_TABLE,
     Origin,
     listing_record,
     memo_pdf,
@@ -623,3 +622,107 @@ def test_in_process_failures_surface_as_typed_text_layer_failures():
     assert report.rejections[0]["error_code"].startswith("text_layer_")
     raw = report.rejections[0]["raw"]
     assert set(raw) <= {"stage"}  # only codes and small numbers
+
+
+# --------------------------------------------------------------------------- isolated child
+
+
+def test_the_real_isolated_child_path_reads_a_memo():
+    origin = west_edmond_origin()
+    record = listing_record()
+    config = dataclasses.replace(CONFIG, seed_keys=(8406,), isolate=True)
+    report = run(origin, [record], config=config)
+    assert report.rejections == [] and record["okdeq_document"]["current_key"] == 8406
+
+
+# --------------------------------------------------------------------------- data-center page
+
+DOCS = "/content/dam/ok/en/deq/documents/executive-offices/"
+_HEAD = """<html><body>
+<table id="adt-manual"><thead><tr><th>Agency</th><th>Jurisdiction</th></tr></thead>
+<tbody><tr><td>DEQ</td><td>Air</td></tr></tbody></table>
+<table id="adt-manual"><thead><tr><th>DIV</th><th>COUNTY</th><th>COMPANY</th><th>FACILITY</th>
+<th>PERMIT TYPE</th><th>STATUS</th><th>LINK</th></tr></thead><tbody>
+"""
+
+
+def _dc_row(company: str, facility: str, href: str) -> str:
+    return (
+        f"<tr><td><p>AQD</p></td><td><p>X</p></td><td><p>{company}</p></td>"
+        f"<td><p>{facility}</p></td><td><p>MINOR</p></td><td><p>ISSUED</p></td>"
+        f'<td><a href="{href}">LINK</a></td></tr>\n'
+    )
+
+
+DC_PAGE = (
+    _HEAD
+    + _dc_row("MIDDLE<br /> MILE<br /> LLC", "ROLAND OK", DOCS + "2021-0235-C%20M-2.pdf")
+    + _dc_row("SOLARITY", "SOLARITY POWER", DOCS + "Stillwater%20Data%20Center%20Permit.pdf")
+    + _dc_row("EVIL", "F", "https://evil.example/content/dam/ok/en/deq/documents/a/2021-0235-C.pdf")
+    + _dc_row("ACME", "ACME COMPRESSOR STATION", DOCS + "2017-0987-C%20M-2.pdf")
+    + "</tbody></table></body></html>"
+)
+PAGE_URL = "https://oklahoma.gov/deq/deq-information-on-data-centers.html"
+
+
+def test_data_center_page_rows_carry_provenance_and_unsafe_links_are_dropped():
+    from gridlens.ingestion.adapters import ok_deq_data_center_page as page
+
+    rows = page.parse_page(DC_PAGE.encode())
+    assert [r["company"] for r in rows] == ["MIDDLE MILE LLC", "SOLARITY", "EVIL", "ACME"]
+    assert rows[0]["permit_norm"] == "2021-0235-C M-2" and rows[0]["permit_basis"] == (
+        "from link file name"
+    )
+    assert rows[0]["document_url"].startswith("https://oklahoma.gov/content/dam/")
+    assert rows[1]["permit_norm"] is None and rows[1]["document_url"] is not None
+    assert rows[2]["document_url"] is None and rows[2]["permit_norm"] is None
+    with pytest.raises(SourceParseError):
+        page.parse_page(b"<html><table><tr><th>A</th></tr></table></html>")
+
+
+def test_data_center_page_is_joined_by_permit_number_as_discovery_and_supply_context():
+    origin = west_edmond_origin()
+    origin.other[PAGE_URL] = (200, {"content-type": "text/html; charset=utf-8"}, DC_PAGE.encode())
+    record = listing_record()
+    other = listing_record(permit_no="2021-0235-C M-2", facility="ROLAND OK")
+    base = other["source_hash"]
+    config = seeded(8406, data_center_page=True)
+    report = run(origin, [record, other], config=config)
+    assert report.rejections == [] and report.counts["data_center_rows"] == 4
+    # The West Edmond-style row joins the page row for 2017-0987-C M-2 AND its memo.
+    assert record["okdeq_document"]["data_center_page"]["rows"][0]["facility"] == (
+        "ACME COMPRESSOR STATION"
+    )
+    block = other["okdeq_document"]["data_center_page"]
+    assert (
+        block["role"] == "discovery_and_supply_context"
+        and "document" not in other["okdeq_document"]
+    )
+    assert "Equipment ID" not in other["abstract"]  # the page never contributes demand
+    assert other["source_hash"] != base
+    # A failed page fetch keeps the retained block instead of flapping the evidence hash.
+    origin.other.clear()
+    retained = other["okdeq_document"]
+    again = listing_record(permit_no="2021-0235-C M-2", facility="ROLAND OK")
+    failed = run(
+        origin, [again], config=config, prior={"2021-0235-C M-2": retained}, index=report.index
+    )
+    assert [r["error_code"] for r in failed.rejections] == ["http_status_404"]
+    assert again["source_hash"] == other["source_hash"]
+
+
+def test_data_center_page_is_one_request_and_off_by_default():
+    origin = west_edmond_origin()
+    origin.other[PAGE_URL] = (200, {"content-type": "text/html"}, DC_PAGE.encode())
+    run(origin, [listing_record()], config=seeded(8406))
+    assert not any("oklahoma.gov" in url for _, url in origin.log)
+    run(origin, [listing_record()], config=seeded(8406, data_center_page=True))
+    assert sum("oklahoma.gov" in url for _, url in origin.log) == 1
+
+
+def test_a_rate_limited_page_stops_the_whole_stage():
+    origin = west_edmond_origin()
+    origin.other[PAGE_URL] = (429, {"retry-after": "90"}, b"")
+    report = run(origin, [listing_record()], config=seeded(8406, data_center_page=True))
+    assert report.counts["aborted_rate_limited"] == 1 and report.retry_after_seconds == 90
+    assert origin.count("HEAD") == 0

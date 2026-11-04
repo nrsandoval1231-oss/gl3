@@ -53,6 +53,7 @@ def listing_record(
     permit_no: str = "2017-0987-C M-2",
     company: str = "ONEOK Gas Storage, L.L.C.",
     facility: str = "West Edmond Compressor Station",
+    event_date: str | None = None,
 ) -> dict:
     row = {
         "permit_no": permit_no,
@@ -65,7 +66,7 @@ def listing_record(
         "step": "Technical Review",
         "status": "Under DEQ Review",
         "location": "Logan County, OK",
-        "event_date": None,
+        "event_date": event_date,
         "html_url": "https://applications.deq.ok.gov/PermitsPublicReview/permitinformation.aspx?id=1",
         "tags": [],
     }

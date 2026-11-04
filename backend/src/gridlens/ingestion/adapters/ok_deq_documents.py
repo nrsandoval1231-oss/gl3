@@ -413,8 +413,6 @@ def extract_listing_document(
     header: MemoHeader,
     sha: str,
     key: int,
-    *,
-    company: str,
 ) -> dict[str, Any]:
     """Run the 1a extractor over the memo for a permit that joined the listing."""
     from gridlens.ingestion.parsers.permit_docs import extract_from_canonical
@@ -422,8 +420,10 @@ def extract_listing_document(
     result = extract_from_canonical(
         canon,
         document_hash=sha,
-        company=company,
-        facility=None,  # the listing abstract already carries the one Facility header
+        # The listing abstract already carries the one Company and Facility header; a second
+        # Company line would make the equipment parser's identity ambiguous and drop it.
+        company=None,
+        facility=None,
         as_of=header.memo_date.value if header.memo_date is not None else None,
     )
     file_name = f"storedpermits/{key}.pdf"
@@ -827,6 +827,34 @@ def _write_entry(run: _Run, key: int, **fields: Any) -> dict[str, Any]:
     return entry
 
 
+def _failure_note(entry: dict[str, Any]) -> dict[str, Any] | None:
+    """The remembered permanent failure for a key: its own, or one noted on an accepted key."""
+    if entry.get("status") == "failed":
+        return {
+            "code": entry.get("code"),
+            "validators": entry.get("validators"),
+            "sha256": entry.get("sha256"),
+        }
+    note = entry.get("last_failure")
+    return note if isinstance(note, dict) else None
+
+
+def _record_failure(
+    run: _Run,
+    key: int,
+    entry: dict[str, Any],
+    code: str,
+    validators: dict[str, Any] | None,
+    sha256: str | None,
+) -> None:
+    """Remember a permanent failure. An accepted document keeps its accepted facts."""
+    if entry.get("status") == "document":
+        note = {"code": code, "validators": validators, "sha256": sha256}
+        run.keys[str(key)] = {**entry, "last_failure": note, "at": _iso(run.now)}
+    else:
+        _write_entry(run, key, status="failed", code=code, validators=validators, sha256=sha256)
+
+
 def _examine(run: _Run, key: int) -> bool | None:
     """Check one key. Returns True when a PDF exists, False when absent, None when unknown.
 
@@ -849,12 +877,13 @@ def _examine(run: _Run, key: int) -> bool | None:
         if failure.retryable or failure.code.startswith("http_status_"):
             report.reject(str(key), failure.code, stage=1)
             return None
-        if entry.get("status") == "failed" and entry.get("code") == failure.code:
+        note = _failure_note(entry)
+        if note is not None and note["code"] == failure.code:
             report.bump("known_failed")
             report.known_failed.append(str(key))
             return False
         report.reject(str(key), failure.code, stage=1)
-        _write_entry(run, key, status="failed", code=failure.code, validators=None, sha256=None)
+        _record_failure(run, key, entry, failure.code, None, None)
         return False
     if validators is not None and entry.get("status") == "document":
         if shared.validators_match(entry.get("validators"), validators) and run.have_extraction(
@@ -863,11 +892,13 @@ def _examine(run: _Run, key: int) -> bool | None:
             report.bump("unchanged")
             run.keys[str(key)] = {**entry, "at": _iso(run.now)}
             run.keys[str(key)].pop("retry", None)
+            run.keys[str(key)].pop("last_failure", None)
             return True
+    note = _failure_note(entry)
     if (
         validators is not None
-        and entry.get("status") == "failed"
-        and shared.validators_match(entry.get("validators"), validators)
+        and note is not None
+        and shared.validators_match(note.get("validators"), validators)
     ):
         report.bump("known_failed")
         report.known_failed.append(str(key))
@@ -908,11 +939,13 @@ def _download_and_read(
 
     def already_known(candidate: dict[str, Any]) -> bool:
         seen.append(candidate)
-        known = entry.get("status") in {"document", "failed"}
+        note = _failure_note(entry)
+        if note is not None and shared.validators_match(note.get("validators"), candidate):
+            return True
         return (
-            known
+            entry.get("status") == "document"
             and shared.validators_match(entry.get("validators"), candidate)
-            and (entry.get("status") == "failed" or run.have_extraction(entry, key))
+            and run.have_extraction(entry, key)
         )
 
     download: Download | None = None
@@ -922,7 +955,11 @@ def _download_and_read(
             run.client, url, workdir / "doc.pdf", run.pace, run.stage_deadline, already_known
         )
         if download is None:
-            report.bump("known_failed" if entry.get("status") == "failed" else "unchanged")
+            known_failure = _failure_note(entry)
+            matched = known_failure is not None and shared.validators_match(
+                known_failure.get("validators"), seen[-1]
+            )
+            report.bump("known_failed" if matched else "unchanged")
             return True
         if (
             entry.get("status") == "document"
@@ -936,6 +973,12 @@ def _download_and_read(
                 "at": _iso(run.now),
             }
             run.keys[str(key)].pop("retry", None)
+            run.keys[str(key)].pop("last_failure", None)
+            return True
+        note = _failure_note(entry)
+        if note is not None and note.get("sha256") == download.sha256:
+            report.bump("known_failed")
+            report.known_failed.append(str(key))
             return True
         _read_and_record(run, key, download, entry)
         return True
@@ -967,7 +1010,7 @@ def _download_and_read(
                 },
             }
             return None
-        _write_entry(run, key, status="failed", code=failure.code, validators=used, sha256=sha)
+        _record_failure(run, key, entry, failure.code, used, sha)
         return False
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
@@ -1011,9 +1054,7 @@ def _read_and_record(run: _Run, key: int, download: Download, entry: dict[str, A
             memo_date=header.memo_date.value if header.memo_date is not None else None,
         )
         return
-    extraction = extract_listing_document(
-        canon, header, sha, key, company=str(record["permit"].get("applicant") or "")
-    )
+    extraction = extract_listing_document(canon, header, sha, key)
     if extraction["verified_rows"] == 0 and extraction["supply_total"] == 0:
         report.reject(str(key), "zero_verified_rows", pages=extraction["pages"])
     prior = run.states.get(norm)
