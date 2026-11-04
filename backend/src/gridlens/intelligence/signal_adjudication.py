@@ -171,6 +171,7 @@ def _signal_questions() -> dict[str, Any]:
 
 def jev_request_payload(state: dict[str, str], *, model: str | None = None) -> dict[str, Any]:
     from gridlens.intelligence.jev_passages import (
+        PASSAGE_BOUNDS_WORST_CASE,
         bound_passage,
         passage_budget_bytes,
         request_bytes,
@@ -201,10 +202,14 @@ def jev_request_payload(state: dict[str, str], *, model: str | None = None) -> d
     from gridlens.intelligence import intelligence_jobs
 
     if intelligence_jobs._estimated_signal_policy_selected():
-        # The narrow estimate policy refuses requests over its fixed size; keep passages
-        # inside it so a long retained passage is bounded instead of blocked.
+        # The narrow estimate policy refuses requests over its fixed size, so the passage is
+        # bounded to fit inside it.
         hard_cap = intelligence_jobs.TYPESAFE_SIGNAL_REQUEST_MAX_BYTES
-    budget = passage_budget_bytes(request_bytes(assemble("")), hard_cap_bytes=hard_cap)
+    # Measure with the worst-case passage_bounds metadata present: it is added below whenever
+    # the passage is cut, and must be inside the budget rather than appended after it.
+    reserved = assemble("")
+    reserved["state"]["passage_bounds"] = PASSAGE_BOUNDS_WORST_CASE
+    budget = passage_budget_bytes(request_bytes(reserved), hard_cap_bytes=hard_cap)
     abstract, bounds = bound_passage(state["abstract"], budget)
     payload = assemble(abstract)
     if bounds["truncated"]:
@@ -344,7 +349,7 @@ def adjudicate(
             decision = map_dimensions(
                 dimension_values, title=state["title"], abstract=state["abstract"]
             )
-            source, model, dims = "jev", str(result["model"]), dimension_values
+            source, model, dims = "jev", str(result["model"]), _with_question_set(dimension_values)
             reason = (
                 "GL3 display policy mapped retained factual Jev dimensions to a display decision."
             )
@@ -514,7 +519,7 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
         model_version = str(call.result["model"])
         source = "jev"
         reason = "GL3 display policy mapped retained factual Jev dimensions to a display decision."
-        dims: dict[str, Any] = dimensions
+        dims: dict[str, Any] = _with_question_set(dimensions)
     except Exception as exc:
         decision, source, model_version = "REVIEW", "jev_error", None
         status = failure_status(exc)
@@ -747,6 +752,12 @@ def _evidence_state(
     return fields
 
 
+def _with_question_set(dimensions: dict[str, float]) -> dict[str, Any]:
+    """Label which question set produced a stored decision (probabilities stay as scores)."""
+    label = QUESTION_SET if "new_large_load" in dimensions else "temporary-power-v2"
+    return {**dimensions, "question_set": label}
+
+
 def policy_dimensions(dimensions: dict[str, float]) -> dict[str, float]:
     """Map either question set onto the demand dimensions the display policy reads."""
     if "new_large_load" in dimensions:
@@ -768,8 +779,9 @@ def policy_dimensions(dimensions: dict[str, float]) -> dict[str, float]:
 def map_dimensions(dimensions: dict[str, float], *, title: str = "", abstract: str = "") -> str:
     """Apply GL3 policy to factual probabilities and retained source context."""
     dimensions = policy_dimensions(dimensions)
-    # Abstain (REVIEW) unless the model is at least as sure as the abstention probability.
-    confident = max(0.8, settings.jev_abstain_probability)
+    # Fixed display-policy threshold, independent of live-mode settings; anything less
+    # decisive abstains to REVIEW.
+    confident = 0.8
     if dimensions["transient_event"] >= confident:
         return "HOLD"
     if (

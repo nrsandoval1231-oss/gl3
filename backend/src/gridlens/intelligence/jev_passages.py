@@ -26,6 +26,18 @@ from gridlens.settings import settings
 
 # Reserve for provider wrapper tokens that client-side serialization cannot see.
 WRAPPER_RESERVE_BYTES = 2_048
+# Smallest passage worth a decision. A passage cut below this many characters (or to nothing)
+# makes every live authority abstain (PASSAGE_TRUNCATED_BELOW_MIN).
+MIN_PASSAGE_CHARS = 200
+MIN_PASSAGE_BYTES = 1_000
+# Conservative floor for request overhead (questions about 5 KB plus bounded project state).
+# Startup rejects a live configuration whose input ceiling cannot hold overhead, reserve and
+# a minimum passage; at run time the measured overhead is used and a shortfall abstains.
+REQUEST_OVERHEAD_FLOOR_BYTES = 12_000
+# Worst-case size of the passage_bounds metadata added when a passage is cut.
+PASSAGE_BOUNDS_WORST_CASE = {
+    "abstract": {"chars_total": 10**9, "chars_sent": 10**9, "truncated": True}
+}
 
 
 def request_bytes(request: Any) -> int:
@@ -43,6 +55,11 @@ def passage_budget_bytes(overhead_bytes: int, *, hard_cap_bytes: int | None = No
     return max(0, budget)
 
 
+def escaped_len(value: str) -> int:
+    """Bytes the string occupies inside the JSON request (escaping included)."""
+    return len(json.dumps(value, ensure_ascii=True).encode("utf-8")) - 2
+
+
 def bound_passage(text: str, budget_bytes: int) -> tuple[str, dict[str, Any]]:
     """Return the longest boundary-aligned prefix of ``text`` that fits ``budget_bytes``.
 
@@ -52,8 +69,7 @@ def bound_passage(text: str, budget_bytes: int) -> tuple[str, dict[str, Any]]:
 
     # json escaping can expand a byte (quotes, control characters, non-ASCII), so measure
     # the escaped size the request will actually carry.
-    def escaped(value: str) -> int:
-        return len(json.dumps(value, ensure_ascii=True).encode("utf-8")) - 2
+    escaped = escaped_len
 
     meta: dict[str, Any] = {"chars_total": total_chars, "truncated": False}
     if escaped(text) <= budget_bytes:

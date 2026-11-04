@@ -33,7 +33,13 @@ from gridlens.intelligence.evidence_judge import (
     Novelty,
     Side,
 )
-from gridlens.intelligence.jev_passages import bound_passage, passage_budget_bytes, request_bytes
+from gridlens.intelligence.jev_passages import (
+    PASSAGE_BOUNDS_WORST_CASE,
+    bound_passage,
+    escaped_len,
+    passage_budget_bytes,
+    request_bytes,
+)
 
 # Pinned, versioned model; `jev-latest` is never used. Runtime value comes from settings.
 MODEL = "jev-1.13.0"
@@ -296,13 +302,15 @@ class TypesafeEvidenceJudge:
             k: (None if k in PASSAGE_KEYS else (str(v)[:1200] if v is not None else None))
             for k, v in evidence.items()
         }
-        budget = passage_budget_bytes(request_bytes(assemble(stripped)))
+        # Reserve the worst-case passage_bounds metadata, added below, inside the budget.
+        reserved = {**stripped, "passage_bounds": PASSAGE_BOUNDS_WORST_CASE}
+        budget = passage_budget_bytes(request_bytes(assemble(reserved)))
         evidence_value: dict[str, Any] = {}
         passage_meta: dict[str, Any] = {}
         for key, value in evidence.items():
             if key in PASSAGE_KEYS and value is not None:
                 evidence_value[key], passage_meta[key] = bound_passage(str(value), budget)
-                budget = max(0, budget - len(evidence_value[key].encode("utf-8")))
+                budget = max(0, budget - escaped_len(evidence_value[key]))
             else:
                 evidence_value[key] = str(value)[:1200] if value is not None else None
         if passage_meta:

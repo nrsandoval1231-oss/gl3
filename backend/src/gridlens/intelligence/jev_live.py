@@ -35,6 +35,7 @@ from gridlens.intelligence.evidence_judge import (
     Novelty,
     Side,
 )
+from gridlens.intelligence.jev_passages import MIN_PASSAGE_CHARS
 from gridlens.settings import settings
 
 LIVE_RECORD_VERSION = "jev-live-v1"
@@ -82,6 +83,12 @@ _SETTING = {
     Authority.MATCHING: "jev_live_matching",
 }
 CORROBORATION_KEYS = ("county", "substation", "permit_number", "coordinates")
+# County is only a supporting key: it is too coarse to identify a project, so a match needs at
+# least one of these independent of it.
+STRONG_KEYS = frozenset({"substation", "permit_number", "coordinates"})
+AUTHORITY_OF_FIELD = {
+    name: authority for authority, fields in AUTHORITY_FIELDS.items() for name in fields
+}
 
 
 def live_authorities() -> tuple[Authority, ...]:
@@ -127,8 +134,13 @@ class LiveLabel:
         if self.outcome == "accepted":
             if self.jev_value == UNKNOWN:
                 raise ValueError("UNKNOWN can never be accepted")
-            if TIER[self.authority] == "corroborated" and not self.corroboration:
-                raise ValueError("corroborated authority requires a deterministic key")
+            if TIER[self.authority] == "corroborated" and not (
+                STRONG_KEYS & set(self.corroboration)
+            ):
+                raise ValueError(
+                    "corroborated authority requires a permit number, substation or "
+                    "coordinates key; county alone never acts"
+                )
             if any(key not in CORROBORATION_KEYS for key in self.corroboration):
                 raise ValueError("unknown corroboration key")
 
@@ -216,16 +228,42 @@ def derive_live_record(
     probabilities: Mapping[str, float],
     model: str,
     corroboration: Corroboration | None = None,
+    passage_bounds: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Turn one validated judgment into label decisions for the enabled authorities only."""
     abstain_below = settings.jev_abstain_probability
     match_at = settings.jev_match_probability
     labels: list[LiveLabel] = []
     enabled = live_authorities()
+    if model != settings.jev_model:
+        return abstained_record("MODEL_NOT_PINNED", None)
+    # A passage cut to nothing, or below the documented floor, is not enough to decide on.
+    too_short = any(
+        isinstance(bound, Mapping)
+        and bound.get("chars_total")
+        and (
+            bound.get("chars_sent", 0) == 0
+            or (bound.get("truncated") and bound.get("chars_sent", 0) < MIN_PASSAGE_CHARS)
+        )
+        for bound in (passage_bounds or {}).values()
+    )
     for authority in enabled:
         for name in AUTHORITY_FIELDS[authority]:
             value = str(getattr(judgment, name).value)
             probability = probabilities.get(name)
+            if too_short:
+                labels.append(
+                    LiveLabel(
+                        authority,
+                        name,
+                        UNKNOWN,
+                        0.0,
+                        model,
+                        "abstained",
+                        "PASSAGE_TRUNCATED_BELOW_MIN",
+                    )
+                )
+                continue
             if not isinstance(probability, int | float) or isinstance(probability, bool):
                 labels.append(
                     LiveLabel(
@@ -244,7 +282,8 @@ def derive_live_record(
                     outcome, reason = "abstained", "ONLY_YES_CAN_ACT"
                 elif probability < match_at:
                     outcome, reason = "abstained", "BELOW_MATCH_PROBABILITY"
-                elif not keys:
+                elif not (STRONG_KEYS & set(keys)):
+                    # No key, or county alone: county never identifies a project by itself.
                     outcome, reason = "abstained", "NO_DETERMINISTIC_KEY_AGREES"
                 else:
                     outcome, reason = "accepted", "PROBABILITY_AND_DETERMINISTIC_KEY_AGREE"
@@ -270,7 +309,8 @@ def derive_live_record(
         "model": model,
         "authorities": [a.value for a in enabled],
         "thresholds": {"abstain": abstain_below, "match": match_at},
-        "outcome": "decided",
+        "outcome": "abstained" if too_short else "decided",
+        **({"reason": "PASSAGE_TRUNCATED_BELOW_MIN"} if too_short else {}),
         "labels": [label.as_dict() for label in labels],
     }
 
@@ -312,14 +352,27 @@ def validate_live_record(record: Any) -> dict[str, Any]:
 
 
 def accepted_labels(result: Mapping[str, Any] | None) -> dict[str, str]:
-    """Labels a consumer may act on: accepted, from a pinned model, live record only."""
+    """Labels a consumer may act on right now.
+
+    Only accepted labels from a decided record whose model is the currently pinned
+    ``settings.jev_model``, and only while live mode and that label's own authority are still
+    enabled. Switching ``JEV_LIVE_MODE`` or one authority off therefore withdraws the stored
+    decisions immediately; they remain as history but nothing may act on them.
+    """
     live = (result or {}).get("live")
     if not isinstance(live, dict) or live.get("outcome") != "decided":
         return {}
-    if PINNED_MODEL.fullmatch(str(live.get("model") or "")) is None:
+    enabled = live_authorities()
+    if not enabled or live.get("model") != settings.jev_model:
         return {}
     accepted: dict[str, str] = {}
     for item in live.get("labels", []):
-        if item.get("outcome") == "accepted" and item.get("field") in LABEL_FIELDS:
-            accepted[item["field"]] = item["jev_value"]
+        field_name = item.get("field")
+        if (
+            item.get("outcome") == "accepted"
+            and field_name in LABEL_FIELDS
+            and AUTHORITY_OF_FIELD[field_name] in enabled
+            and item.get("model") == settings.jev_model
+        ):
+            accepted[field_name] = item["jev_value"]
     return accepted

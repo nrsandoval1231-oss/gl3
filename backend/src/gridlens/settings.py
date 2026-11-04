@@ -209,8 +209,22 @@ class Settings(BaseSettings):
                 raise ValueError("JEV_LIVE_MODE requires a pinned versioned JEV_MODEL")
             if self.intelligence_typesafe_model != self.jev_model:
                 raise ValueError("INTELLIGENCE_TYPESAFE_MODEL must equal JEV_MODEL in live mode")
-        if self.jev_match_probability < self.jev_abstain_probability:
-            raise ValueError("JEV_MATCH_PROBABILITY must be at least JEV_ABSTAIN_PROBABILITY")
+        if self.jev_live_mode:
+            if self.jev_match_probability < self.jev_abstain_probability:
+                raise ValueError("JEV_MATCH_PROBABILITY must be at least JEV_ABSTAIN_PROBABILITY")
+            from gridlens.intelligence.jev_passages import (
+                MIN_PASSAGE_BYTES,
+                REQUEST_OVERHEAD_FLOOR_BYTES,
+                WRAPPER_RESERVE_BYTES,
+            )
+
+            ceiling = self.intelligence_typesafe_max_total_billable_input_tokens
+            floor = REQUEST_OVERHEAD_FLOOR_BYTES + WRAPPER_RESERVE_BYTES + MIN_PASSAGE_BYTES
+            if 0 < ceiling < floor:
+                raise ValueError(
+                    "INTELLIGENCE_TYPESAFE_MAX_TOTAL_BILLABLE_INPUT_TOKENS must exceed request "
+                    f"overhead, wrapper reserve and a minimum passage ({floor})"
+                )
         return self
 
     @field_validator("intelligence_financial_budget_mode")

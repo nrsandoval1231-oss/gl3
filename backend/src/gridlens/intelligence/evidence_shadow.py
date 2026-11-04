@@ -53,7 +53,9 @@ def _live_corroboration(session: Session, project: Project, evidence: Evidence):
     )
 
 
-def _safe_live_record(session, project, evidence, judgment, probabilities, model) -> dict:
+def _safe_live_record(
+    session, project, evidence, judgment, probabilities, model, passage_bounds=None
+) -> dict:
     """Derive the live label record; any derivation problem abstains rather than guesses."""
     try:
         return validate_live_record(
@@ -62,6 +64,7 @@ def _safe_live_record(session, project, evidence, judgment, probabilities, model
                 probabilities or {},
                 model,
                 _live_corroboration(session, project, evidence),
+                passage_bounds,
             )
         )
     except Exception as exc:
@@ -496,6 +499,9 @@ def run_shadow(
                         "research_recommended": recommend_from_context(judgment, bounded_state)
                     },
                 }
+                # Always keep Jev's own probabilities and what passage it actually saw.
+                result["probabilities"] = meta.get("probabilities") or {}
+                result["passage_bounds"] = meta.get("passage_bounds") or {}
                 if live_active():
                     result["live"] = _safe_live_record(
                         session,
@@ -504,6 +510,7 @@ def run_shadow(
                         Judgment.model_validate(judgment),
                         meta.get("probabilities"),
                         meta.get("model") or model,
+                        meta.get("passage_bounds"),
                     )
                 valid += 1
             except InvalidJudgment:
@@ -542,7 +549,7 @@ def run_shadow(
 
 def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> None:
     """Run one queued EvidenceJudge attempt through the shared logical-call ledger."""
-    from gridlens.integrations.legacy_calls import perform_legacy_call
+    from gridlens.integrations.legacy_calls import LegacyCallBlocked, perform_legacy_call
     from gridlens.integrations.typesafe_evidence_judge import TypesafeEvidenceJudge
     from gridlens.jobs.queue import assert_fence
     from gridlens.persistence.database import SessionLocal
@@ -583,17 +590,47 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
             if attempt:
                 attempt.status, attempt.error_class = "failed", reason
                 attempt.finished_at = datetime.now(UTC)
+                if live_active():
+                    attempt.deterministic = {
+                        **attempt.deterministic,
+                        "live": abstained_record(f"BLOCKED:{reason}", None),
+                        "failure_reason": f"BLOCKED:{reason}",
+                    }
             job.status, job.error = "succeeded", reason
             job.lease_owner, job.lease_until = None, None
         return
+    # The checkpoint's own contract version is kept on every write. A job queued under the
+    # earlier question set is not replayed against the demand questions: its stored response
+    # shape differs, so it is closed visibly with a specific error class and no provider call.
+    contract_version = checkpoint.get("contract_version") or SCHEMA_VERSION
+    if contract_version != SCHEMA_VERSION:
+        with SessionLocal.begin() as session:
+            job = assert_fence(session, job_id, worker_id, fence)
+            attempt = session.get(EvidenceJudgeRun, job.target_id)
+            if attempt:
+                attempt.status, attempt.error_class = "failed", "LegacyContractReplayUnsupported"
+                attempt.finished_at = datetime.now(UTC)
+                attempt.deterministic = {
+                    **attempt.deterministic,
+                    "contract_version": contract_version,
+                    "status": "legacy_contract_not_replayed",
+                    **(
+                        {"live": abstained_record("LEGACY_CONTRACT_NOT_REPLAYED", None)}
+                        if live_active()
+                        else {}
+                    ),
+                }
+            job.status, job.error = "succeeded", "LEGACY_CONTRACT_NOT_REPLAYED"
+            job.lease_owner, job.lease_until = None, None
+        return
     judge = TypesafeEvidenceJudge(api_key, model=model)
+    passage_bounds: dict = {}
+    request_holder: dict = {}
 
     def invoke() -> tuple[dict, int | None, int | None]:
         from gridlens.integrations.intelligence_provider import call_typesafe
 
-        request = judge.build_request(
-            payload["project"], payload["evidence"], payload["candidates"], model=model
-        )
+        request = request_holder["request"]
         # Preserve raw response identity for the shared ledger guard before the
         # semantic parser can reject or normalize provider output.
         result = call_typesafe(
@@ -615,7 +652,7 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
                 **attempt.deterministic,
                 "logical_call_id": str(call_id),
                 "job_id": str(job_id),
-                "contract_version": SCHEMA_VERSION,
+                "contract_version": contract_version,
                 "status": "dispatching",
             }
             checkpoint = json.loads(job.checkpoint or "{}")
@@ -623,9 +660,13 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
 
     try:
+        request_holder["request"] = judge.build_request(
+            payload["project"], payload["evidence"], payload["candidates"], model=model
+        )
+        passage_bounds = request_holder["request"]["state"]["evidence"].get("passage_bounds", {})
         call = perform_legacy_call(
             task_type="EVIDENCE_SHADOW",
-            task_key=f"{attempt.input_key}:{checkpoint['contract_version']}",
+            task_key=f"{attempt.input_key}:{contract_version}",
             payload=payload,
             source_id=source_id,
             project_id=project_id,
@@ -648,14 +689,19 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
                     validated.model_dump(mode="json"), payload["project"]
                 )
             },
+            "probabilities": parsed.probabilities,
+            "passage_bounds": passage_bounds,
         }
         status, error_class = "valid", None
     except Exception as exc:
         result = None
         status, error_class = "failed", type(exc).__name__
         # Fail closed: provider error, timeout, invalid response and ledger cap/policy blocks
-        # all leave the attempt without a result; the reason below keeps the cap visible.
-        failure_reason = f"{type(exc).__name__}:{str(exc)[:160]}"
+        # all leave the attempt without a result. Only the class name and, for ledger policy
+        # blocks (a controlled vocabulary), the block reason are kept; never raw provider text.
+        failure_reason = type(exc).__name__
+        if isinstance(exc, LegacyCallBlocked):
+            failure_reason += f":{str(exc)[:120]}"
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence)
         attempt = session.get(EvidenceJudgeRun, job.target_id)
@@ -676,14 +722,20 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
                 **attempt.deterministic,
                 "logical_call_id": attempt.deterministic.get("logical_call_id"),
                 "job_id": str(job_id),
-                "contract_version": SCHEMA_VERSION,
+                "contract_version": contract_version,
                 "status": "stale_after_provider",
             }
             job.status, job.error = "succeeded", "STALE_SHADOW_INPUT_AFTER_PROVIDER"
         else:
             if status == "valid" and live_active() and result is not None:
                 result["live"] = _safe_live_record(
-                    session, project, evidence, validated, live_probabilities, live_model
+                    session,
+                    project,
+                    evidence,
+                    validated,
+                    live_probabilities,
+                    live_model,
+                    passage_bounds,
                 )
             attempt.status = status
             attempt.result = result
@@ -706,7 +758,8 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
                     else attempt.deterministic.get("logical_call_id")
                 ),
                 "job_id": str(job_id),
-                "contract_version": SCHEMA_VERSION,
+                "contract_version": contract_version,
+                "passage_bounds": passage_bounds,
                 "status": "completed" if status == "valid" else "failed",
             }
             job.status, job.error = "succeeded", error_class
