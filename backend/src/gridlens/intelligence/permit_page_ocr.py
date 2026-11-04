@@ -189,6 +189,7 @@ class StagePdfOcr:
         texts: dict[int, str] = {}
         failed: dict[str, str] = {}
         stop: OcrOutcome | None = None
+        replayed = False
         for batch in _batches(wanted):
             try:
                 sub_pdf = self.cut(self.pdf_path, document_hash, batch)
@@ -198,12 +199,15 @@ class StagePdfOcr:
             outcome = self._ocr_batch(sub_pdf, batch, document_hash, model)
             if outcome.status == "ok":
                 texts.update(outcome.texts)
+                replayed = replayed or bool(outcome.detail.get("replayed_from_ledger"))
                 continue
             if outcome.status in {"capped_out", "blocked", "unknown"}:
                 stop = outcome  # later batches would meet the same wall; stop spending
                 break
             failed[",".join(map(str, batch))] = outcome.reason
         detail: dict[str, Any] = {"pages_failed": failed}
+        if replayed:
+            detail["replayed_from_ledger"] = True
         if stop is not None:
             detail.update(stop.detail)
             detail["stopped"] = stop.reason
@@ -388,7 +392,11 @@ class StagePdfOcr:
                 "status": "OCR_UNVERIFIED",
                 "authority": "ADVISORY_ONLY",
                 "model": model,
-                "pages": [{"page": page, "text": text} for page, text in sorted(texts.items())],
+                # Entries are numbered within this request; source_pages maps them back.
+                "source_pages": batch,
+                "pages": [
+                    {"page": index, "text": texts[page]} for index, page in enumerate(batch, 1)
+                ],
                 "usage": {
                     "input_tokens": response.get("input_tokens"),
                     "output_tokens": response.get("output_tokens"),
