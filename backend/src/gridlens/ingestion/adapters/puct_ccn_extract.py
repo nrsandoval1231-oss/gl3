@@ -37,10 +37,17 @@ _STYLE_NEW_SUB = re.compile(
     r"\b(?:NEW|PROPOSED) ([A-Z][A-Z0-9.'-]*(?: [A-Z][A-Z0-9.'-]*){0,3}) SUBSTATION\b"
 )
 
-_KV_TEXT = re.compile(r"\b(\d{2,3})[\s-]*(?:kV|kilovolt)\b", re.I)
+# Only the project's own line: "a new double circuit 138 kilovolt", "operated at 138-kV". A kV
+# merely mentioned (an existing line, a rule threshold) is not the project voltage.
+_KV_TEXT = re.compile(
+    r"(?:\b(?:new|proposed)\s+(?:(?:double|single)[- ]circuit\s+)?|\boperated at\s+)"
+    r"(\d{2,3})[\s-]*(?:kV|kilovolt)\b",
+    re.I,
+)
 _COST = re.compile(
     r"\bestimated cost\b[^$]{0,120}?\$\s?(?P<a>\d[\d,]*(?:\.\d+)?)\s*(?P<ua>million|billion)?"
-    r"(?:\s*(?:to|-|–|and)\s*\$\s?(?P<b>\d[\d,]*(?:\.\d+)?)\s*(?P<ub>million|billion)?)?",
+    r"(?:\s*(?:to|-|–|and)\s*(?:a\s+high\s+of\s+)?\$\s?(?P<b>\d[\d,]*(?:\.\d+)?)"
+    r"\s*(?P<ub>million|billion)?)?",
     re.I,
 )
 _REQUEST = re.compile(

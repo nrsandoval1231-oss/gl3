@@ -171,6 +171,28 @@ The NMED source `new-mexico-nmed-air-applications` ([workstream 3](../engineerin
 - Evidence effect: records are retained evidence. No NMED equipment-demand admission rule exists, so enabling does not create demand, needs or cards; a rule is a separate, reviewed change. Dates are upload months only (`publication_date` is the first of the month, precision `month`).
 - Roll back by setting either `enabled` to `false`. Evidence versions and the check index stay.
 
+### ERCOT planning documents activation
+
+The source `texas-ercot-rpg-projects` ([workstream 4a](../engineering/early-signal-sources-20261103.md)) ships **off twice**: the entry has `"enabled": false`, and `query.documents.enabled` is `false`. It uses no paid provider, no credential and no environment variable, and needs no migration. To turn it on, in order and through the protected release:
+
+1. Set `enabled` to `true` on the entry. This alone makes about five requests per day (the RPG hub, up to `max_meetings` meeting pages, the planning page) and records the listed project PDFs and the TPIT workbook as listing records. No document is fetched.
+2. Optionally add owner-listed System Planning update PDFs to `query.documents.seed_urls` (at most 20; each an exact `https://www.ercot.com/files/docs/YYYY/MM/DD/<name>.pdf` URL).
+3. Set `query.documents.enabled` to `true` to fetch and read documents. Shipped bounds: `max_downloads` 6, `max_checks` 40, `extract_seconds` 300; at most one request per second to `www.ercot.com`; 40 MB per PDF and 12 MB for the workbook; the first 429 or 503 ends the stage and stores `not_before` in source health. Dated-path PDFs are asked again after 14 days; the TPIT workbook (replaced in place monthly) after about a day, and a changed hash starts the monthly diff.
+- Admission: the job holds the global public-acquisition admission for its run; watch the `application_documents` counts in the first enabled runs.
+- Evidence effect: retained evidence only. The first TPIT snapshot writes about 925 baseline row observations (labelled baseline, not new projects); later snapshots write only the diff rows. `Evidence.provenance["early_signal"]` holds the states; no schema change.
+- Memory: a PDF up to 40 MB is read into memory once for the extraction child; POSIX children are address-space capped, a Windows host is not.
+- Roll back by setting either `enabled` to `false`. Evidence versions and the check index stay.
+
+### PUCT certificate-docket activation
+
+The source `texas-puct-ccn-transmission-dockets` ships **off twice**: `"enabled": false` and `query.documents.enabled` `false`. No credential, provider, environment variable or migration. To turn it on, in order:
+
+1. Review the PUCT site policies (their sub-pages were not read during the build; `robots.txt` is a 404 and no challenge was seen). Then set `enabled` to `true`: four requests per day (two case-style searches and two Excel exports for the `window_days` window, default 60) and one listing record per matching certificate docket, carrying only case-style facts.
+2. Set `query.documents.enabled` to `true` to read filings. Shipped bounds: `max_downloads` 4 dockets per run (about five requests each: filings list, two document pages, two PDFs of at most 15 MB), `extract_seconds` 300, one request per second to `interchange.puc.texas.gov`; the first 429 or 503 ends the stage and stores `not_before`. `seed_urls` must stay empty.
+- Links to ERCOT projects are computed in the same run from the RPG source's retained evidence; with the ERCOT source off or empty every link is **unknown** and no link record is written. Activate the ERCOT source first if links are wanted.
+- Evidence effect: retained evidence only, no needs or cards. A stated customer request is documented text with its verbatim quote, not demand.
+- Roll back by setting either `enabled` to `false`.
+
 ### NMED air-facility layers
 
 `nmed_air_facilities.py` (ArcGIS MapServer, layers 0 to 6) is a bounded, read-only reader with no registry entry and no caller in the job path: the layers carry no AI or permit number and no date, so records would be dateless observations with no join. Nothing is shipped to activate. A future consumer (an identity join) is separate work; its config shape is validated by `nmed_air_facilities.valid_config` and the host is pinned in `nmed_http.py`.

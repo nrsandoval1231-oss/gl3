@@ -257,6 +257,19 @@ def test_multi_county_and_plural_style():
 # --------------------------------------------------------------------------- extraction
 
 
+def test_voltage_is_only_the_projects_own_line_and_a_cost_range_keeps_both_ends():
+    page = (
+        "The Proposed Project is a new double circuit 138 kilovolt (kV) transmission line. It taps "
+        "the existing 345 kV line and a 230kV or less rule applies. The total estimated cost for "
+        "the Proposed Project ranges between a low of $26.79 million to a high of $31.15 million."
+    )
+    fields = px.text_fields([page])
+    assert [v["value"] for v in fields["voltage_kv"]] == [138]
+    cost = fields["cost"]
+    assert (cost["low_usd"], cost["high_usd"], cost["range"]) == (26_790_000, 31_150_000, True)
+    assert cost["basis"] == "calculated"
+
+
 def test_customer_request_quote_and_cost_from_the_preliminary_order():
     origin = origin_with()
     records = listing(origin)

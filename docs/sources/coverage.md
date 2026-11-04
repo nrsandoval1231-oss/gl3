@@ -36,6 +36,16 @@ The `oklahoma-deq-public-review` entry carries an optional stage for DEQ evaluat
 
 Finding that shapes the design: the public-review listing does not expose the document key. Each row links only to a detail page whose "Related Documents" frame is an OnBase viewer served from a different, third-party host. Memos are therefore reached from owner-curated seed keys or an explicit, capped forward probe, and joined to the listing by the permit number printed in the memo, never by the integer key. Behavior, bounds, lineage rules, the data-center page, failure codes and the dated live smoke are in the [engineering note](../engineering/okdeq-permit-documents-20261103.md). Nothing here shows production retrieval, sustained scheduled cycles or source breadth.
 
+## November 4 early-signal sources (workstream 4a)
+
+Two sources and a deterministic link, all shipped **off** ([engineering note](../engineering/early-signal-sources-20261103.md), [activation](../strategy/ws0-production-env-changes-20261103.md#ercot-planning-documents-activation)). They are retained evidence only: no retrieval method here is in any signal-admission set, so enabling them creates no project, need or card.
+
+- **ERCOT Regional Planning Group.** `texas-ercot-rpg-projects` (`enabled: false`, `documents.enabled` false) lists the RPG hub and the most recent meeting pages (the files are listed with dates, not guessed from date paths), reads project PDFs for project ID, utility, tier, cost, in-service date, CCN requirement, a stated load (MW or GW) and counties and new substations where the project ID is on the same slide, each with page and verbatim quote; reads the monthly-replaced Transmission Project and Information Tracking workbook (925 relevant of 2,208 rows on 2026-11-04; a labelled baseline first, then a new/changed/removed diff as observations; contact column never read; MVA is not MW); and reads System Planning update PDFs only from owner-listed URLs (ERCOT-wide totals). RPG documents give project totals only: no customer, no MW per customer, no load type, no requested energization date.
+- **PUCT certificate dockets.** `texas-puct-ccn-transmission-dockets` (`enabled: false`, `documents.enabled` false) lists electric dockets whose case style names a certificate and a transmission line or substation (22 to 38 dockets with filings per month in 2026; 46 in the shipped 60-day window on 2026-11-04) and, for a bounded number per run, reads the first PDF of the application and of the preliminary order for county, voltage, cost and a stated customer request in MW with its verbatim quote. A docket usually names no customer; the request is documented text, not demand. Interchange has no `robots.txt` and showed no challenge; its policy sub-pages were not read.
+- **Links.** A docket links to an RPG project only on an exact stated key (a normalised substation name plus county on both sides, or a cited project ID), with evidence on both sides; no key, several candidate projects or conflicting keys mean **unknown**. Most RPG substations are on slides without a project ID and stay unattributed, so few links are expected from the current ERCOT deck format.
+
+Nothing here shows production retrieval, scheduled cycles, lead time or source breadth.
+
 
 ## November 4 widened document sources (workstream 3)
 
