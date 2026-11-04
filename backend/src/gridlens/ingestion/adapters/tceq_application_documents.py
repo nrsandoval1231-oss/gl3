@@ -58,6 +58,9 @@ PERSIST_RESERVE_MAX_SECONDS = 300.0
 STAGE_MARGIN_SECONDS = 30.0  # stage time kept back from any single child's bound
 CHILD_GRACE_SECONDS = 20.0  # start-up grace the child helpers add to their own bound
 MIN_EXTRACT_SECONDS = 30.0
+MIN_UNPACK_SECONDS = 15.0
+MIN_WORKBOOK_SECONDS = 10.0
+HEAD_MARGIN_SECONDS = 10.0  # on top of the read timeout
 RETRY_ATTEMPTS = 3  # counted failed heavy attempts before a back-off
 RETRY_BACKOFF_DAYS = 7
 MAX_BOOKKEEPING = 200
@@ -537,7 +540,7 @@ def build_state(
     unpack_budget = min(
         portfolio.UNPACK_SECONDS, left() - STAGE_MARGIN_SECONDS - CHILD_GRACE_SECONDS
     )
-    if unpack_budget < 15.0:
+    if unpack_budget < MIN_UNPACK_SECONDS:
         raise TimeoutError("not enough stage time left to unpack")
     unpacked = portfolio.unpack_portfolio(
         download.path, workdir / "embedded", isolate=config.isolate, max_seconds=unpack_budget
@@ -605,7 +608,7 @@ def build_state(
         if parsed >= MAX_WORKBOOKS_PARSED:
             break
         workbook_budget = min(WORKBOOK_SECONDS, left() - STAGE_MARGIN_SECONDS - CHILD_GRACE_SECONDS)
-        if workbook_budget < 10.0:
+        if workbook_budget < MIN_WORKBOOK_SECONDS:
             workbook_errors["workbook_time_budget"] = (
                 workbook_errors.get("workbook_time_budget", 0) + 1
             )
@@ -788,7 +791,7 @@ def run_stage(
             prior = prior_states.get(link.project)
             if position >= config.max_checks:
                 report.bump("deferred_check_budget")
-            elif left() < HTTP_READ_TIMEOUT_SECONDS + 10.0:
+            elif left() < HTTP_READ_TIMEOUT_SECONDS + HEAD_MARGIN_SECONDS:
                 # A HEAD can block for the whole read timeout.
                 report.bump("deferred_deadline")
             else:

@@ -104,11 +104,11 @@ def portfolio(inner_pages: list[list[str]]) -> bytes:
     )
 
 
-def stage_client(body: bytes) -> httpx.Client:
+def stage_client(body: bytes, etag: str = '"v1"') -> httpx.Client:
     def handler(request: httpx.Request) -> httpx.Response:
         headers = {
             "content-type": "application/pdf",
-            "etag": '"v1"',
+            "etag": etag,
             "last-modified": "Mon, 02 Nov 2026 10:00:00 GMT",
             "content-length": str(len(body)),
         }
@@ -148,7 +148,7 @@ def setup_source(factory):
         return definition, job.id
 
 
-def ingest(factory, definition, job_id, body: bytes, monkeypatch) -> dict:
+def ingest(factory, definition, job_id, body: bytes, monkeypatch, etag: str = '"v1"') -> dict:
     """Mirror process_job's order: stage over the retrieved records, then process_records."""
     from gridlens.ingestion.service import _enrich_with_application_documents, process_records
 
@@ -177,7 +177,7 @@ def ingest(factory, definition, job_id, body: bytes, monkeypatch) -> dict:
             1,
             config_definition,
             records,
-            stage_client(body),
+            stage_client(body, etag),
             deadline=None,
         )
         session.commit()
@@ -351,3 +351,136 @@ def test_an_unexpected_stage_fault_is_reported_and_keeps_retained_schedules(stag
     assert report.rejections[0]["error_code"] == "stage_error"
     assert report.rejections[0]["raw"] == {"error": "RuntimeError"}  # no message or path
     assert "Equipment ID" in record["abstract"]  # the retained schedule is not dropped
+
+
+# ----------------------------------------------------------------------------- review regressions
+
+
+def _patch_stage(monkeypatch):
+    monkeypatch.setattr("gridlens.ingestion.adapters.tceq_http._public_ip", lambda _h: "8.8.8.8")
+    monkeypatch.setattr(docs, "Pacer", lambda *a, **k: (lambda: None))
+    monkeypatch.setattr(
+        docs, "config_from_source", lambda _s: docs.StageConfig(1, 5, 120.0, isolate=False)
+    )
+
+
+def test_slow_extractor_cannot_consume_the_persistence_reserve(stage_db, monkeypatch):
+    """B1: a finite job deadline, an extractor that uses all the time it is given."""
+    import time
+
+    import gridlens.ingestion.service as service
+
+    definition, job_id = setup_source(stage_db)
+    _patch_stage(monkeypatch)
+    monkeypatch.setattr(docs, "persist_reserve", lambda _n: 4.0)
+    monkeypatch.setattr(docs, "STAGE_MARGIN_SECONDS", 1.0)
+    monkeypatch.setattr(docs, "CHILD_GRACE_SECONDS", 0.0)
+    monkeypatch.setattr(docs, "HTTP_READ_TIMEOUT_SECONDS", 0.5)
+    monkeypatch.setattr(docs, "HEAVY_RESERVE_SECONDS", 1.0)
+    monkeypatch.setattr(docs, "MIN_EXTRACT_SECONDS", 1.0)
+    monkeypatch.setattr(docs, "MIN_UNPACK_SECONDS", 1.0)
+    monkeypatch.setattr(docs, "MIN_WORKBOOK_SECONDS", 1.0)
+    monkeypatch.setattr(docs, "HEAD_MARGIN_SECONDS", 0.0)
+    monkeypatch.setattr(service, "retrieve_source", lambda *_a, **_k: [nsr_record()])
+    used = {}
+
+    def slow_extract(_path, _name, _sha, _link, budget, _isolate):
+        used["budget"] = budget
+        time.sleep(budget)  # a worst case: the extractor takes everything it is allowed
+        raise docs.DocumentFailure("text_layer_time_budget")
+
+    monkeypatch.setattr(docs, "_extract_pdf", slow_extract)
+    deadline = time.monotonic() + 12.0
+    with stage_db() as session:
+        counts = service.process_job(
+            session,
+            job_id,
+            WORKER,
+            1,
+            definition,
+            stage_client(portfolio([ELECTRIC])),
+            deadline=deadline,
+        )
+    assert time.monotonic() < deadline  # persistence finished inside the job deadline
+    assert used["budget"] <= 12.0 - 4.0 - 1.0  # never more than the stage's own share
+    assert counts["new"] == 1 and counts["permit_accepted"] == 1  # the listing persisted
+    assert counts["application_documents"]["failure_text_layer_time_budget"] == 1
+    with stage_db() as session:
+        evidence = session.scalar(select(Evidence))
+        assert evidence is not None and "application_document" not in evidence.provenance
+        health = session.get(Source, definition["id"]).health or {}
+        assert health["application_documents_attempts"]["900001"]["attempts"] in (0, 1)
+
+
+def test_a_rate_limited_acquisition_makes_no_document_requests(stage_db, monkeypatch):
+    """B2: the stage is skipped entirely when the listing run was throttled."""
+    from gridlens.ingestion.service import _enrich_with_application_documents
+
+    definition, job_id = setup_source(stage_db)
+    _patch_stage(monkeypatch)
+    requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.method)
+        return httpx.Response(200)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+    record = nsr_record()
+    acquisition = {
+        "records": [record],
+        "partial": True,
+        "rejected_count": 0,
+        "rejected_records": [],
+        "source_rate_limited": True,
+        "source_http_status": 429,
+    }
+    with stage_db() as session:
+        report = _enrich_with_application_documents(
+            session, job_id, WORKER, 1, definition, acquisition, client, deadline=None
+        )
+        session.commit()
+    assert requests == []
+    assert report.counts == {"skipped_source_rate_limited": 1}
+
+
+def test_stage_is_off_unless_the_registry_enables_it(stage_db):
+    """S3: the shipped registry entry has the stage disabled; it never runs."""
+    from gridlens.ingestion.service import _enrich_with_application_documents
+
+    definition, job_id = setup_source(stage_db)
+    assert definition["query"]["application_documents"]["enabled"] is False
+    with stage_db() as session:
+        assert (
+            _enrich_with_application_documents(
+                session, job_id, WORKER, 1, definition, [nsr_record()], None, deadline=None
+            )
+            is None
+        )
+
+
+def test_changed_bytes_and_revalidation_are_persisted_correctly(stage_db, monkeypatch):
+    """S7: DB-backed change detection: changed bytes -> new evidence; same bytes -> none."""
+    definition, job_id = setup_source(stage_db)
+    ingest(stage_db, definition, job_id, portfolio([ELECTRIC]), monkeypatch)
+    with stage_db() as session:
+        first_hash = session.scalar(select(Evidence.content_hash))
+        first_seen = session.scalar(select(Observation.first_seen_at))
+        assert session.scalar(select(func.count()).select_from(EvidencePackage)) == 1
+
+    # Re-validation with the same bytes: nothing new.
+    same = ingest(stage_db, definition, job_id, portfolio([ELECTRIC]), monkeypatch)
+    assert same["counts"]["unchanged"] == 1
+    with stage_db() as session:
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 1
+
+    # Changed bytes (the schedule is gone): a second evidence version, first-seen kept,
+    # the earlier evidence and package preserved.
+    changed = ingest(stage_db, definition, job_id, portfolio([GENERATORS]), monkeypatch, '"v2"')
+    assert changed["counts"]["changed"] == 1
+    with stage_db() as session:
+        versions = session.scalars(select(Evidence).order_by(Evidence.observed_at)).all()
+        assert len(versions) == 2 and versions[0].content_hash == first_hash
+        assert "Equipment ID" in (versions[0].abstract or "")
+        assert "Equipment ID" not in (versions[1].abstract or "")
+        assert session.scalar(select(Observation.first_seen_at)) == first_seen
+        assert session.scalar(select(func.count()).select_from(EvidencePackage)) >= 1
