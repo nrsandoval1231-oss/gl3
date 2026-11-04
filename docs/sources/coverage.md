@@ -47,6 +47,19 @@ Two sources and a deterministic link, all shipped **off** ([engineering note](..
 Nothing here shows production retrieval, scheduled cycles, lead time or source breadth.
 
 
+## November 4 more early-signal sources (workstream 4b)
+
+Four further sources, all shipped **off** ([engineering note](../engineering/early-signal-sources-more-20261103.md), [activation](../strategy/ws0-production-env-changes-20261103.md#more-early-signal-sources-workstream-4b-activation)). Retained evidence only: no retrieval method here is in any signal-admission set, so enabling them creates no project, need or card. Each was read live once on 2026-11-04 (a one-off, not production evidence).
+
+- **Texas Comptroller data-center registry.** `texas-comptroller-dc-registry` (`enabled: false`) reads the two registry tables (66 qualifying data centers and 111 large data-center projects on 2026-11-04): name, registration effective date, owner, occupant and operator names with `DC######` / `LD######` numbers, exemption end date. A changed row is a new evidence version. No county, address or MW is published; a registration is not a site, a load or a construction start.
+- **Oklahoma HB 2992 notices.** `oklahoma-occ-data-center-notices` (`enabled: false`, `documents.enabled` false). The OCC does publish "Notice of Intent Submissions" (3 listed between 2026-07-10 and 2026-10-15): the link text gives company, county and date; with the document stage on, the attestation form's company, land purchase date, county and planned utility provider are read from the first two pages. Two of the three forms are scans (abstentions). No MW; neighbours, the attestant and attachments are never stored.
+- **County abatement agendas.** `texas-county-abatement-agendas` (`enabled: false`, `documents.enabled` false) is a pilot for **Haskell County** only: agenda items that name a tax abatement, Chapter 312, a reinvestment zone or a data center, as verbatim quotes with page, plus an entity, investment, MW, acreage or location only when the item states it. About half of the agendas are scans. Milam County's PDF links redirect to a third-party CMS host and Medina County's agendas sit on a host whose `robots.txt` disallows crawling; neither is read.
+- **TCEQ pending water-right applications.** `texas-tceq-water-rights-pending` (`enabled: false`, `documents.enabled` false) lists 110 applications (applicant, WR number, county, dates) and, for notice packages, acre-feet figures with verbatim quotes and a role (requested, existing authorization, stated). No row names a data center; a water volume is not a power load.
+- **Sentinel-2 change detection** is a [research spike](../strategy/sentinel2-change-detection-spike-20261104.md) only; nothing is built.
+
+Nothing here shows production retrieval, scheduled cycles, lead time or source breadth.
+
+
 ## November 4 widened document sources (workstream 3)
 
 Three additions, all shipped **off** ([engineering note](../engineering/widen-document-sources-20261103.md), [activation](../strategy/ws0-production-env-changes-20261103.md#federal-register-hpdriver-evidence-activation)):
