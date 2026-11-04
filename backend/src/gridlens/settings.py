@@ -1,9 +1,10 @@
+import re
 from datetime import time
 from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -129,6 +130,18 @@ class Settings(BaseSettings):
     )
     intelligence_typesafe_total_input_bound_verified: bool = False
     jev_shadow_mode: bool = True
+    # Live Jev (WS2a). Everything defaults OFF; shadow mode remains the only active path
+    # unless the owner's protected release enables live mode and individual authorities.
+    jev_model: str = "jev-1.13.0"
+    jev_live_mode: bool = False
+    jev_live_routing: bool = False
+    jev_live_labels: bool = False
+    jev_live_materiality: bool = False
+    jev_live_triage: bool = False
+    jev_live_matching: bool = False
+    jev_abstain_probability: float = Field(default=0.80, ge=0.5, le=1.0)
+    jev_match_probability: float = Field(default=0.95, ge=0.5, le=1.0)
+    jev_passage_max_bytes: int = Field(default=24_000, ge=1_000, le=200_000)
     jev_shadow_batch_limit: int = 20
     jev_shadow_daily_limit: int = 20
     jev_shadow_timeout_seconds: int = 90
@@ -177,6 +190,28 @@ class Settings(BaseSettings):
         if value not in {"disabled", "evaluation", "advisory", "bounded_routing"}:
             raise ValueError("intelligence_mode must be a supported operating mode")
         return value
+
+    @model_validator(mode="after")
+    def _valid_live_jev_configuration(self) -> "Settings":
+        authorities = (
+            self.jev_live_routing,
+            self.jev_live_labels,
+            self.jev_live_materiality,
+            self.jev_live_triage,
+            self.jev_live_matching,
+        )
+        if any(authorities) and not self.jev_live_mode:
+            raise ValueError("Jev live authorities require JEV_LIVE_MODE")
+        if self.jev_live_mode:
+            if not self.jev_enabled:
+                raise ValueError("JEV_LIVE_MODE requires JEV_ENABLED")
+            if re.fullmatch(r"jev-\d+\.\d+\.\d+", self.jev_model) is None:
+                raise ValueError("JEV_LIVE_MODE requires a pinned versioned JEV_MODEL")
+            if self.intelligence_typesafe_model != self.jev_model:
+                raise ValueError("INTELLIGENCE_TYPESAFE_MODEL must equal JEV_MODEL in live mode")
+        if self.jev_match_probability < self.jev_abstain_probability:
+            raise ValueError("JEV_MATCH_PROBABILITY must be at least JEV_ABSTAIN_PROBABILITY")
+        return self
 
     @field_validator("intelligence_financial_budget_mode")
     @classmethod
