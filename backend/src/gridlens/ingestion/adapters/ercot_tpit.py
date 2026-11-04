@@ -133,7 +133,7 @@ def read_workbook(body: bytes) -> dict[str, Any]:
                 number = _clean(raw[columns["number"]]) if len(raw) > columns["number"] else None
                 if not number or not _SAFE_ID.fullmatch(number):
                     continue
-                row = {"sheet": family, "number": number}
+                row: dict[str, str | None] = {"sheet": family, "number": number}
                 for key, index in columns.items():
                     if key != "number":
                         row[key] = _clean(raw[index]) if index < len(raw) else None
@@ -242,7 +242,7 @@ def tpit_extraction(
     prior_rows = (prior_extraction or {}).get("rows") if prior_extraction else None
     rows: dict[str, dict[str, Any]] = {}
     for number, row in kept.items():
-        entry = {key: row.get(key) for key in _COMPARED if row.get(key) is not None}
+        entry: dict[str, Any] = {key: row.get(key) for key in _COMPARED if row.get(key) is not None}
         entry["h"] = row_hash(row)  # over the full kept fields
         if entry.get("description"):
             entry["description"] = entry["description"][:160]

@@ -1,4 +1,4 @@
-"""PUCT certificate (CCN) dockets for transmission lines and substations: an early large-load signal.
+"""PUCT certificate (CCN) dockets for transmission lines and substations (early signal).
 
 **Compliance finding (verified live 2026-11-04).** ``interchange.puc.texas.gov/robots.txt`` is a
 404 (no crawl restrictions published), the search pages and Excel exports are plain server-rendered
@@ -13,7 +13,7 @@ January to October 2026), of which roughly 1 to 10 were first seen in a month. T
 window therefore yields well under 100 dockets.
 
 Listing (``retrieve``) uses the Interchange case-style search plus its Excel export, cross-checked
-exactly as ``puct_docket_index`` does, restricted by ``DateFiledFrom`` / ``DateFiledTo`` and then to
+exactly as ``puct_docket_index`` does, restricted by ``DateFiledFrom`` and ``DateFiledTo`` to
 certificate-of-convenience-and-necessity styles that name a transmission line or substation. The
 document stage reads, for a bounded number of dockets, the filings list and the first PDF of the
 initial application and of the preliminary order. Case-style facts are kept even when no document
@@ -33,8 +33,8 @@ from urllib.parse import quote, urlencode, urljoin
 
 import httpx
 
-from gridlens.ingestion.adapters import early_signal_stage as stage
 from gridlens.ingestion.adapters import early_signal_link as link
+from gridlens.ingestion.adapters import early_signal_stage as stage
 from gridlens.ingestion.adapters import ercot_rpg_extract as rpg_extract
 from gridlens.ingestion.adapters import puct_ccn_extract as ex
 from gridlens.ingestion.adapters import tceq_application_documents as shared
@@ -67,9 +67,7 @@ _EXPORT = re.compile(
     r"&DateFiledFrom=\d{4}-\d{2}-\d{2}&DateFiledTo=\d{4}-\d{2}-\d{2}"
     r"&SortBy=ControlNumber&SortOrder=Ascending"
 )
-_FILINGS = re.compile(
-    r"https://interchange\.puc\.texas\.gov/Search/Filings\?ControlNumber=\d{1,6}"
-)
+_FILINGS = re.compile(r"https://interchange\.puc\.texas\.gov/Search/Filings\?ControlNumber=\d{1,6}")
 _DOC_PAGE = re.compile(
     r"https://interchange\.puc\.texas\.gov/search/documents/\?controlNumber=\d{1,6}"
     r"&itemNumber=\d{1,4}"
@@ -233,7 +231,9 @@ def retrieve(
 
         def get(url: str, media: frozenset[str]) -> bytes:
             try:
-                return fetcher.get(url, max_bytes=query["max_response_bytes"], media_types=media).body
+                return fetcher.get(
+                    url, max_bytes=query["max_response_bytes"], media_types=media
+                ).body
             except DocumentFailure as failure:
                 raise _listing_error(failure) from failure
 
@@ -315,7 +315,9 @@ def first_pdf(body: bytes, control: str, item: str) -> str | None:
     return None
 
 
-def _read_pdf(fetcher: EarlyFetcher, url: str, budget: float, isolate: bool) -> tuple[list[str], str]:
+def _read_pdf(
+    fetcher: EarlyFetcher, url: str, budget: float, isolate: bool
+) -> tuple[list[str], str]:
     fetched = fetcher.get(url, max_bytes=MAX_PDF_BYTES, media_types=PDF)
     assert fetched.sha256 is not None
     pages, _scanned = rpg_extract.read_pdf_pages(fetched.body, budget, isolate)
@@ -332,7 +334,7 @@ def read_docket(
     budget: float,
     isolate: bool,
 ) -> dict[str, Any]:
-    """Filings list, then the application and order PDFs not already read. Raises DocumentFailure."""
+    """Filings list, then the application and order PDFs not yet read. Raises DocumentFailure."""
     control = str(record["state_key"])
     page = fetcher.get(filings_url(control), max_bytes=2_000_000, media_types=HTML).body
     items = parse_items(page, control)
@@ -346,7 +348,9 @@ def read_docket(
         item = picked.get(role)
         if item is None or role in done:
             continue
-        listing = fetcher.get(doc_page_url(control, item["item"]), max_bytes=500_000, media_types=HTML)
+        listing = fetcher.get(
+            doc_page_url(control, item["item"]), max_bytes=500_000, media_types=HTML
+        )
         url = first_pdf(listing.body, control, item["item"])
         if url is None:
             continue
@@ -524,9 +528,7 @@ def _apply_style_only(record: dict[str, Any], state: dict[str, Any]) -> None:
         record["publication_date"] = published
 
 
-def apply_prior_states(
-    records: list[dict[str, Any]], prior: dict[str, dict[str, Any]]
-) -> None:
+def apply_prior_states(records: list[dict[str, Any]], prior: dict[str, dict[str, Any]]) -> None:
     for record in records:
         state = prior.get(str(record.get("state_key")))
         if state is not None:
@@ -546,9 +548,7 @@ def docket_summaries(
         if record.get("doc_kind") != "puct_docket":
             continue
         state = states.get(key)
-        fields = (
-            state["document"]["extraction"]["fields"] if state else record["case_style_fields"]
-        )
+        fields = state["document"]["extraction"]["fields"] if state else record["case_style_fields"]
         sha = state["document"]["sha256"] if state else None
         out.append(
             {

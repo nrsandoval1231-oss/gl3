@@ -27,7 +27,19 @@ from typing import Any
 VERSION = "early-signal-link-v1"
 KEY_TYPES = ("substation_county", "rpg_id")
 _DROP = frozenset(
-    {"substation", "station", "switching", "switch", "sub", "new", "proposed", "future", "tap", "the", "kv"}
+    {
+        "substation",
+        "station",
+        "switching",
+        "switch",
+        "sub",
+        "new",
+        "proposed",
+        "future",
+        "tap",
+        "the",
+        "kv",
+    }
 )
 _VOLTAGE = re.compile(r"^\d{2,3}(?:/\d{2,3})?(?:kv)?$")
 
@@ -36,7 +48,11 @@ def norm_substation(name: Any) -> str | None:
     if not isinstance(name, str):
         return None
     text = unicodedata.normalize("NFKC", name).casefold()
-    text = "".join(c if c.isalnum() else " " for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+    text = "".join(
+        c if c.isalnum() else " "
+        for c in unicodedata.normalize("NFKD", text)
+        if not unicodedata.combining(c)
+    )
     tokens = [t for t in text.split() if t not in _DROP and not _VOLTAGE.match(t)]
     joined = " ".join(tokens)
     return joined if len(joined.replace(" ", "")) >= 3 else None
@@ -118,7 +134,9 @@ def link_docket(docket: dict[str, Any], peers: list[dict[str, Any]]) -> dict[str
     fields = docket.get("fields") or {}
     docket_keys = _keys(fields)
     cited = {
-        str(e.get("value")): e for e in _list(fields.get("rpg_ids")) if isinstance(e.get("value"), str)
+        str(e.get("value")): e
+        for e in _list(fields.get("rpg_ids"))
+        if isinstance(e.get("value"), str)
     }
     held = {p["project_id"]: p for p in peers}
     candidates: dict[str, list[dict[str, Any]]] = {}
@@ -136,7 +154,9 @@ def link_docket(docket: dict[str, Any], peers: list[dict[str, Any]]) -> dict[str
                     "substation_norm": key[0],
                     "county_norm": key[1],
                     "docket": {
-                        "substation": _side(d_sub, docket.get("document_sha256"), docket.get("url")),
+                        "substation": _side(
+                            d_sub, docket.get("document_sha256"), docket.get("url")
+                        ),
                         "county": _side(d_county, docket.get("document_sha256"), docket.get("url")),
                     },
                     "project": {
@@ -151,7 +171,9 @@ def link_docket(docket: dict[str, Any], peers: list[dict[str, Any]]) -> dict[str
                 {
                     "type": "rpg_id",
                     "project_id": pid,
-                    "docket": {"rpg_id": _side(evidence, docket.get("document_sha256"), docket.get("url"))},
+                    "docket": {
+                        "rpg_id": _side(evidence, docket.get("document_sha256"), docket.get("url"))
+                    },
                     "project": {},
                 }
             )
@@ -164,7 +186,7 @@ def link_docket(docket: dict[str, Any], peers: list[dict[str, Any]]) -> dict[str
             "reason": "ambiguous_candidates",
             "candidates": sorted(candidates),
         }
-    (project_id, keys), = candidates.items()
+    ((project_id, keys),) = candidates.items()
     return {
         "status": "linked",
         "reason": None,
@@ -188,8 +210,7 @@ def link_record(docket: dict[str, Any], decision: dict[str, Any]) -> dict[str, A
     digest_source = "|".join(
         [control, pid, *key_names, str(docket.get("document_sha256"))]
         + sorted(
-            str(k["project"].get("substation", {}).get("document_sha256"))
-            for k in decision["keys"]
+            str(k["project"].get("substation", {}).get("document_sha256")) for k in decision["keys"]
         )
     )
     return {

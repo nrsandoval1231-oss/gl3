@@ -199,8 +199,13 @@ def text_fields(pages: list[str]) -> dict[str, Any]:
             if again and money and quote in norm:
                 redo = _money(again["a"], again["ua"], again["b"], again["ub"])
                 if redo == money:
-                    fields["cost"] = {**money, "value": money["low_usd"], "unit": "USD",
-                                      "page": number, "quote": quote}
+                    fields["cost"] = {
+                        **money,
+                        "value": money["low_usd"],
+                        "unit": "USD",
+                        "page": number,
+                        "quote": quote,
+                    }
         request = _REQUEST.search(norm)
         if request and "customer_request_mw" not in fields:
             quote = _context(norm, request.start(), request.end())
@@ -298,7 +303,8 @@ def summary_lines(control: str, fields: dict[str, Any]) -> list[str]:
     else:
         cost_text = f"USD {cost['low_usd']} ({cost['basis']})"
     return [
-        f"PUCT docket {control} fields: counties {many('counties')}; voltage kV {many('voltage_kv')};"
+        f"PUCT docket {control} fields: counties {many('counties')};"
+        f" voltage kV {many('voltage_kv')};"
         f" cost {cost_text}",
         f"Customer-requested load: {one('customer_request_mw', '{value} MW ({basis})')};"
         f" other stated load: {many('stated_load_mw')} MW",

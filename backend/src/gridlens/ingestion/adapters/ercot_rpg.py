@@ -101,9 +101,10 @@ def url_ok(url: Any) -> bool:
 
 
 def year_url_ok(url: Any) -> bool:
-    return isinstance(url, str) and re.fullmatch(
-        r"https://www\.ercot\.com/committees/other/rpg/20\d{2}", url
-    ) is not None
+    return (
+        isinstance(url, str)
+        and re.fullmatch(r"https://www\.ercot\.com/committees/other/rpg/20\d{2}", url) is not None
+    )
 
 
 # --------------------------------------------------------------------------- configuration
@@ -473,7 +474,8 @@ def tpit_row_records(
             f"ERCOT TPIT project {number}: {head}",
             f"Title: {row.get('title') or 'unknown'}",
             f"Transmission owner: {row.get('owner') or 'unknown'}",
-            f"Status: {row.get('status') or 'unknown'}; lifecycle sheet: {row.get('sheet') or 'unknown'}",
+            f"Status: {row.get('status') or 'unknown'}; "
+            f"lifecycle sheet: {row.get('sheet') or 'unknown'}",
             f"Service level kV: {row.get('kv') or 'unknown'}; planning tier: "
             f"{row.get('tier') or 'unknown'}; RPG number: {row.get('rpg') or 'unknown'}",
             f"County: {row.get('county') or 'unknown'}; ending county: "

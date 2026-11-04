@@ -46,9 +46,7 @@ _COST = re.compile(
     r"\bcost of (?:approximately )?\$\s?(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<u>million|billion)\b",
     re.I,
 )
-_ISD = re.compile(
-    r"in-service date(?: \(ISD\))? is (?P<d>(?:[A-Z][a-z]+ ){1,2}\d{4})\b"
-)
+_ISD = re.compile(r"in-service date(?: \(ISD\))? is (?P<d>(?:[A-Z][a-z]+ ){1,2}\d{4})\b")
 _CCN = re.compile(
     r"\bwill (?P<neg>not )?require a Certificate of Convenience and Necessity\b", re.I
 )
@@ -58,7 +56,8 @@ _LOAD = re.compile(
     re.I,
 )
 _COUNTIES = re.compile(
-    rf"\b(?:in|within|across)\s+(?P<c>{_COUNTY}(?:(?:, and |, | and ){_COUNTY})*)\s+[Cc]ount(?:y|ies)\b"
+    rf"\b(?:in|within|across)\s+(?P<c>{_COUNTY}(?:(?:, and |, | and ){_COUNTY})*)"
+    r"\s+[Cc]ount(?:y|ies)\b"
 )
 _SUBSTATION = re.compile(
     rf"\bNew (?P<n>{_WORD}(?: {_WORD}){{0,3}}) (?:\d{{2,3}}(?:/\d{{2,3}})?-?\s?kV )"
@@ -368,9 +367,7 @@ def summary_lines(projects: list[dict[str, Any]]) -> list[str]:
 
         load = fields["load"]
         load_text = (
-            "unknown"
-            if load.get("basis") == "unknown"
-            else f"{load['value']} MW ({load['basis']})"
+            "unknown" if load.get("basis") == "unknown" else f"{load['value']} MW ({load['basis']})"
         )
         cost = fields["cost"]
         cost_text = (
@@ -455,7 +452,9 @@ _AGGREGATES: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     (
         "non_large_load_dependent_usd",
-        re.compile(r"\$(?P<n>\d[\d,]*(?:\.\d+)?)\s*billion is Non-\s*Large Load-\s*dependent", re.I),
+        re.compile(
+            r"\$(?P<n>\d[\d,]*(?:\.\d+)?)\s*billion is Non-\s*Large Load-\s*dependent", re.I
+        ),
         "billion",
     ),
     (
@@ -466,7 +465,9 @@ _AGGREGATES: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "billion",
     ),
 )
-_YTD_PROJECTS = re.compile(r"\bYear to date (?P<y>20\d{2}),\s*(?P<n>\d[\d,]*)\s*new\s*projects", re.I)
+_YTD_PROJECTS = re.compile(
+    r"\bYear to date (?P<y>20\d{2}),\s*(?P<n>\d[\d,]*)\s*new\s*projects", re.I
+)
 _AS_OF = re.compile(r"\bAs of (?P<d>[A-Z][a-z]+ \d{1,2}, \d{4})")
 
 

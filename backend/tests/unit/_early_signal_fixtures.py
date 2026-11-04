@@ -30,7 +30,9 @@ STATUS_PDF = (
 OVERVIEW_PDF = f"https://{ERCOT}/files/docs/2026/07/17/16.-26RPG022-AEN-Dunlap-to-Decker-138-kV-Line-Project-Overview.pdf"
 AGENDA_PDF = f"https://{ERCOT}/files/docs/2026/07/17/1.-Agenda.pdf"
 TPIT_XLSX = f"https://{ERCOT}/files/docs/2022/03/02/ERCOT-October-TPIT-No-Cost-100126.xlsx"
-SYSPLAN_PDF = f"https://{ERCOT}/files/docs/2026/09/07/8-System-Planning-and-Weatherization-Update.pdf"
+SYSPLAN_PDF = (
+    f"https://{ERCOT}/files/docs/2026/09/07/8-System-Planning-and-Weatherization-Update.pdf"
+)
 
 
 def hub_html(*meetings: str) -> bytes:
@@ -41,10 +43,12 @@ def hub_html(*meetings: str) -> bytes:
 
 def listed_file(url: str, title: str, listed: str, kind: str = "pdf", size: str = "3.8 MB") -> str:
     return (
-        '<div class="row wrapper"><div class="col pl-2"><div class="row"><div class="col-12 col-md">'
+        '<div class="row wrapper"><div class="col pl-2"><div class="row">'
+        '<div class="col-12 col-md">'
         f'<a rel="noopener" target="_blank" href="{url}" title="{title}" class="d-block pb-2">'
-        f"{title}</a><div class=\"row\"><div $field=\"description_t\" class=\"col\"></div></div></div>"
-        f'<div class="mb-2 caption col-12 col-md-2"><span class="">{listed} - {kind} - {size}</span>'
+        f'{title}</a><div class="row"><div $field="description_t" class="col"></div></div></div>'
+        f'<div class="mb-2 caption col-12 col-md-2">'
+        f'<span class="">{listed} - {kind} - {size}</span>'
         "</div></div></div></div>"
     )
 
@@ -63,20 +67,28 @@ def planning_html(*, tpit_listed: str = "Oct 23, 2026") -> bytes:
             "zip",
         )
         + listed_file(
-            TPIT_XLSX, "Transmission Project and Information Tracking", tpit_listed, "xlsx", "566.8 KB"
+            TPIT_XLSX,
+            "Transmission Project and Information Tracking",
+            tpit_listed,
+            "xlsx",
+            "566.8 KB",
         )
         + "</body></html>"
     ).encode()
 
 
 STATUS_PAGES = [
-    ["Combined CPS Energy Large Load", "Additions Project (25RPG020) and STEC Medina County Load Project (25RPG046)"],
+    [
+        "Combined CPS Energy Large Load",
+        "Additions Project (25RPG020) and STEC Medina County Load Project (25RPG046)",
+    ],
     [
         "Introduction",
         "PUBLIC",
         "CPS Energy submitted the Large Load Additions Project (25RPG020) for ERCOT",
         "Regional Planning Group (RPG) review in June 2025",
-        "- This is a Tier 1 project with an estimated cost of approximately $333.7 million and will",
+        "- This is a Tier 1 project with an estimated cost of approximately $333.7 million",
+        "and will",
         "require a Certificate of Convenience and Necessity (CCN)",
         "- Estimated in-service date (ISD) is Summer Peak 2035",
         "- This project is needed to addresses post-contingency reliability in Bexar and Medina",
@@ -85,7 +97,8 @@ STATUS_PAGES = [
     [
         "Introduction",
         "PUBLIC",
-        "South Texas Electric Cooperative (STEC) submitted the Medina County Load Project (25RPG046)",
+        "South Texas Electric Cooperative (STEC) submitted the Medina County Load",
+        "Project (25RPG046)",
         "for ERCOT Regional Planning Group (RPG) review in December 2025",
         "- This is a Tier 1 project with an estimated cost of $492 million and will require a",
         "Certificate of Convenience and Necessity (CCN)",
@@ -100,7 +113,9 @@ STATUS_PAGES = [
     ],
 ]
 # "-" bullets are rendered as a middle-dot bullet (Latin-1 safe for the minimal PDF writer).
-STATUS_PAGES = [[ln.replace("- ", "· ", 1) if ln.startswith("- ") else ln for ln in p] for p in STATUS_PAGES]
+STATUS_PAGES = [
+    [ln.replace("- ", "· ", 1) if ln.startswith("- ") else ln for ln in p] for p in STATUS_PAGES
+]
 
 
 def status_pdf(pages: list[list[str]] | None = None) -> bytes:
@@ -110,7 +125,8 @@ def status_pdf(pages: list[list[str]] | None = None) -> bytes:
 OVERVIEW_PAGES = [
     [
         "26RPG022 AEN Dunlap to Decker 138-kV Line Project Overview",
-        "AEN submitted the Dunlap to Decker 138-kV Line Project (26RPG022) for RPG review in May 2026",
+        "AEN submitted the Dunlap to Decker 138-kV Line Project (26RPG022)",
+        "for RPG review in May 2026",
         "· This is a Tier 2 project with an estimated cost of $41.2 million and will not require a",
         "Certificate of Convenience and Necessity (CCN)",
         "· The project is in Travis County and adds a new Whitetail 138-kV substation",
@@ -144,8 +160,23 @@ def workbook(sheets: dict[str, list[dict[str, str | None]]]) -> bytes:
         "RPG Number",
     ]
     keys = [
-        "number", "title", "description", "comments", "from", "to", "status", "owner", "contact",
-        "isd", "actual", "kv", "mva", "county", "county_end", "tier", "rpg",
+        "number",
+        "title",
+        "description",
+        "comments",
+        "from",
+        "to",
+        "status",
+        "owner",
+        "contact",
+        "isd",
+        "actual",
+        "kv",
+        "mva",
+        "county",
+        "county_end",
+        "tier",
+        "rpg",
     ]
     for name, rows in sheets.items():
         ws = wb.create_sheet(name)
@@ -179,13 +210,26 @@ def tpit_row(number: str, **kw: str | None) -> dict[str, str | None]:
 SHEETS = {
     "FutureTPIT100126NoCost": [
         tpit_row("100305"),
-        tpit_row("90051", title="Riley: Construct New 345 kV Terminal", description="Interconnect the Sabey Data Center load", county="Wilbarger"),
-        tpit_row("110828", title="STEC Mesquite Large Load Project Phase 1", tier="Tier 2", owner="STEC"),
+        tpit_row(
+            "90051",
+            title="Riley: Construct New 345 kV Terminal",
+            description="Interconnect the Sabey Data Center load",
+            county="Wilbarger",
+        ),
+        tpit_row(
+            "110828", title="STEC Mesquite Large Load Project Phase 1", tier="Tier 2", owner="STEC"
+        ),
         tpit_row("99999", description="Replace breaker", title="Breaker", tier="Tier 4"),
     ],
-    "PlannedTPIT100126NoCost": [tpit_row("73025", tier="Tier 1", rpg="22RPG005", description="New substation")],
-    "CompletedTPIT100126NoCost": [tpit_row("81726", status="In-Service", tier="Tier 3", description="Mobile substation")],
-    "CancelledTPIT100126NoCost": [tpit_row("81573", status="Conceptual", description="Interconnect the Alpha load")],
+    "PlannedTPIT100126NoCost": [
+        tpit_row("73025", tier="Tier 1", rpg="22RPG005", description="New substation")
+    ],
+    "CompletedTPIT100126NoCost": [
+        tpit_row("81726", status="In-Service", tier="Tier 3", description="Mobile substation")
+    ],
+    "CancelledTPIT100126NoCost": [
+        tpit_row("81573", status="Conceptual", description="Interconnect the Alpha load")
+    ],
 }
 
 
@@ -209,7 +253,8 @@ CASE_GEN = (
 
 def search_html(rows: list[tuple[str, str, str, str]]) -> bytes:
     body = "".join(
-        f'<tr><td><a href="/Search/Filings?ControlNumber={c}">{c}</a></td><td>{f}</td><td>{u}</td><td>{d}</td></tr>'
+        f'<tr><td><a href="/Search/Filings?ControlNumber={c}">{c}</a></td>'
+        f"<td>{f}</td><td>{u}</td><td>{d}</td></tr>"
         for c, f, u, d in rows
     )
     return f"<html><body>{len(rows)} record(s) found<table>{body}</table></body></html>".encode()
@@ -228,7 +273,8 @@ def export_xlsx(rows: list[tuple[str, str, str, str]]) -> bytes:
 
 def filings_html(control: str, items: list[tuple[str, str, str, str, str]]) -> bytes:
     rows = "".join(
-        f'<tr><td><strong><a href="/search/documents/?controlNumber={control}&amp;itemNumber={i}">{i}</a>'
+        f'<tr><td><strong><a href="/search/documents/?controlNumber={control}'
+        f'&amp;itemNumber={i}">{i}</a>'
         f"</strong></td><td> {d} </td><td> {p} </td><td> {t} </td><td> {desc} </td></tr>"
         for i, d, p, t, desc in items
     )
@@ -257,7 +303,8 @@ APPLICATION_PAGES = [
 ]
 ORDER_PAGES = [
     [
-        "In addition to the general area load growth, a commercial customer has submitted a request",
+        "In addition to the general area load growth, a commercial customer has submitted",
+        "a request",
         "for approximately 10 megawatts of load capacity to be served from the Sierra Vista",
         "substation transformer number 2. The estimated cost for the proposed single routing",
         "option is approximately $9.82 million.",
@@ -319,9 +366,13 @@ class Origin:
         status, headers, body = route
         if status != 200:
             return httpx.Response(status, headers={"location": "https://x.example/"})
-        if request.headers.get("if-none-match") and request.headers["if-none-match"] == headers.get("etag"):
+        if request.headers.get("if-none-match") and request.headers["if-none-match"] == headers.get(
+            "etag"
+        ):
             return httpx.Response(304, headers={"etag": headers["etag"]})
-        return httpx.Response(200, headers={**headers, "content-length": str(len(body))}, content=body)
+        return httpx.Response(
+            200, headers={**headers, "content-length": str(len(body))}, content=body
+        )
 
     def client(self) -> httpx.Client:
         return httpx.Client(transport=httpx.MockTransport(self.handler), follow_redirects=False)
@@ -337,7 +388,11 @@ def ercot_origin(status_body: bytes | None = None, tpit_body: bytes | None = Non
         MEETING,
         meeting_html(
             (STATUS_PDF, "6. StatusUpdate_Combined_CPS Energy Large Load", "Jul 17, 2026"),
-            (OVERVIEW_PDF, "16. 26RPG022 AEN Dunlap to Decker 138-kV Line Project Overview", "Jul 17, 2026"),
+            (
+                OVERVIEW_PDF,
+                "16. 26RPG022 AEN Dunlap to Decker 138-kV Line Project Overview",
+                "Jul 17, 2026",
+            ),
             (AGENDA_PDF, "1. Agenda", "Jul 17, 2026"),
         ),
     )

@@ -2607,10 +2607,12 @@ def _nmed_rest_error(seconds: int) -> SourceParseError:
 def _stage_index_helpers(method: str | None) -> Any:
     """The check-index load/save pair of the stage that owns this retrieval method."""
     if method in EARLY_SIGNAL_METHODS:
-        from gridlens.ingestion import early_signal_state as module
-    else:
-        from gridlens.ingestion import nmed_document_stage as module
-    return module
+        from gridlens.ingestion import early_signal_state
+
+        return early_signal_state
+    from gridlens.ingestion import nmed_document_stage
+
+    return nmed_document_stage
 
 
 def _skip_nmed_listing_while_resting(
@@ -2783,7 +2785,12 @@ def _enrich_with_early_signal_documents(
     try:
         if method == "puct-ccn-dockets":
             report = puct_ccn_dockets.run_stage(
-                records, prior, client=client, config=config, index=index, peers=peers,
+                records,
+                prior,
+                client=client,
+                config=config,
+                index=index,
+                peers=peers,
                 deadline=deadline,
             )
         else:

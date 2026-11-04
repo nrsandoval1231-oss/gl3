@@ -19,7 +19,6 @@ from _early_signal_fixtures import (
     STATUS_PDF,
     SYSPLAN_PDF,
     TPIT_XLSX,
-    Origin,
     ercot_origin,
     pdf,
     planning_html,
@@ -72,7 +71,11 @@ def stage(origin, records, *, prior=None, index=None, now=NOW, config=CONFIG):
 
 
 def states_of(records):
-    return {r["state_key"]: r["early_signal"] for r in records if r.get("state_key") and "early_signal" in r}
+    return {
+        r["state_key"]: r["early_signal"]
+        for r in records
+        if r.get("state_key") and "early_signal" in r
+    }
 
 
 # --------------------------------------------------------------------------- registry / ships off
@@ -88,7 +91,10 @@ def test_ships_off_and_validates():
     assert not er.valid_query(bad)
     assert not er.valid_query({**definition["query"], "documents": {"enabled": True}})
     # An unlisted host or path cannot be a seed.
-    seeds = {**definition["query"]["documents"], "seed_urls": ["https://evil.example/files/docs/2026/01/01/a.pdf"]}
+    seeds = {
+        **definition["query"]["documents"],
+        "seed_urls": ["https://evil.example/files/docs/2026/01/01/a.pdf"],
+    }
     assert not er.valid_query({**definition["query"], "documents": seeds})
 
 
@@ -145,14 +151,17 @@ def test_fetcher_refuses_outside_policy_without_a_request():
         fetcher.get("http://169.254.169.254/latest/meta-data", max_bytes=1000, media_types=PDF)
     assert caught.value.code == "url_policy"
     with pytest.raises(DocumentFailure):
-        fetcher.get("https://www.ercot.com/files/docs/2026/07/17/a.pdf?x=1", max_bytes=1000, media_types=PDF)
+        fetcher.get(
+            "https://www.ercot.com/files/docs/2026/07/17/a.pdf?x=1", max_bytes=1000, media_types=PDF
+        )
     assert origin.log == []
 
 
 def test_fetcher_does_not_follow_redirects_and_pins_dns(monkeypatch):
     pinned: list[str] = []
     monkeypatch.setattr(
-        "gridlens.ingestion.adapters.tceq_http._public_ip", lambda host: pinned.append(host) or "8.8.8.8"
+        "gridlens.ingestion.adapters.tceq_http._public_ip",
+        lambda host: pinned.append(host) or "8.8.8.8",
     )
     origin = ercot_origin()
     origin.put(STATUS_PDF, b"", status=302)
@@ -232,7 +241,10 @@ def test_listing_one_request_per_second_with_the_shared_pacer():
     sleeps: list[float] = []
     from gridlens.ingestion.adapters.tceq_application_documents import Pacer
 
-    pacer = Pacer(clock=lambda: now["t"], sleep=lambda s: (sleeps.append(s), now.__setitem__("t", now["t"] + s)))
+    pacer = Pacer(
+        clock=lambda: now["t"],
+        sleep=lambda s: (sleeps.append(s), now.__setitem__("t", now["t"] + s)),
+    )
     er.retrieve(source(), origin.client(), pacer=pacer, today=date(2026, 11, 4))
     assert len(origin.log) == 3 and len(sleeps) == 3 and all(abs(s - 1.0) < 1e-6 for s in sleeps)
 
@@ -285,15 +297,17 @@ def test_every_value_reproduces_from_its_own_quote():
 def test_unknown_is_not_zero_when_nothing_is_stated():
     pages = [["25RPG099 Some Project", "A routine status page with no figures."]]
     projects, loose = rx.extract_projects(text_pages(pages))
-    assert projects[0]["fields"]["load"] == {"value": None, "basis": "unknown", "reason": "not_stated"}
+    assert projects[0]["fields"]["load"] == {
+        "value": None,
+        "basis": "unknown",
+        "reason": "not_stated",
+    }
     assert projects[0]["fields"]["cost"]["value"] is None
     assert loose == {"counties": [], "substations": []}
 
 
 def test_conflicting_statements_stay_unknown_with_both_quotes():
-    pages = [
-        ["25RPG001 Project", "· This is a Tier 1 project", "· This is a Tier 2 project"]
-    ]
+    pages = [["25RPG001 Project", "· This is a Tier 1 project", "· This is a Tier 2 project"]]
     projects, _ = rx.extract_projects(text_pages(pages))
     tier = projects[0]["fields"]["tier"]
     assert tier["value"] is None and tier["reason"] == "conflicting_statements"
@@ -313,7 +327,9 @@ def test_fields_are_not_attributed_across_projects_or_to_a_page_without_an_id():
 
 
 def test_places_without_a_project_are_kept_apart():
-    pages = [["25RPG001 and 25RPG002", "· New Load Stations", "– Rogers Road, tapped between X and Y"]]
+    pages = [
+        ["25RPG001 and 25RPG002", "· New Load Stations", "– Rogers Road, tapped between X and Y"]
+    ]
     projects, loose = rx.extract_projects(text_pages(pages))
     assert projects == [] and [s["value"] for s in loose["substations"]] == ["Rogers Road"]
 
@@ -336,7 +352,10 @@ def test_scanned_pdf_is_an_abstention_not_zero():
     origin = ercot_origin(status_body=er.extract.read_pdf_pages.__module__ and b"%PDF-1.4\n%%EOF")
     records = listing(origin)
     report = stage(origin, records)
-    assert any(r["error_code"].startswith("text_layer_") or r["error_code"] == "empty_text_layer" for r in report.rejections)
+    assert any(
+        r["error_code"].startswith("text_layer_") or r["error_code"] == "empty_text_layer"
+        for r in report.rejections
+    )
     status = next(r for r in records if r["state_key"] == STATUS_PDF)
     assert status.get("presence_only") is True and "early_signal" not in status
 
@@ -372,15 +391,28 @@ def test_unchanged_rerun_is_idempotent_and_skips_downloads():
     origin = ercot_origin()
     records = listing(origin)
     stage(origin, records)
-    first = {r["document_number"]: (r["source_hash"], r["abstract"]) for r in records if r.get("state_key") and "early_signal" in r}
+    first = {
+        r["document_number"]: (r["source_hash"], r["abstract"])
+        for r in records
+        if r.get("state_key") and "early_signal" in r
+    }
     prior = states_of(records)
     again_origin = ercot_origin()
     again = listing(again_origin)
-    report = stage(again_origin, again, prior=prior, index={"urls": {k: {"status": "document", "at": NOW.isoformat()} for k in prior}})
+    report = stage(
+        again_origin,
+        again,
+        prior=prior,
+        index={"urls": {k: {"status": "document", "at": NOW.isoformat()} for k in prior}},
+    )
     # Pre-existing states inside the recheck window make no document request at all.
     document_gets = [u for u in again_origin.urls() if "/files/docs/" in u and u != TPIT_XLSX]
     assert document_gets == [] and report.counts.get("fresh_skipped", 0) >= 2
-    second = {r["document_number"]: (r["source_hash"], r["abstract"]) for r in again if r.get("state_key") and "early_signal" in r}
+    second = {
+        r["document_number"]: (r["source_hash"], r["abstract"])
+        for r in again
+        if r.get("state_key") and "early_signal" in r
+    }
     assert second == first
 
 
@@ -392,7 +424,13 @@ def test_conditional_get_304_and_hash_equality_skip_extraction():
     later = NOW + timedelta(days=20)
     again_origin = ercot_origin()
     again = listing(again_origin)
-    report = stage(again_origin, again, prior=prior, index={"urls": {k: {"status": "document", "at": NOW.isoformat()} for k in prior}}, now=later)
+    report = stage(
+        again_origin,
+        again,
+        prior=prior,
+        index={"urls": {k: {"status": "document", "at": NOW.isoformat()} for k in prior}},
+        now=later,
+    )
     assert report.counts.get("unchanged", 0) >= 1 or report.counts.get("unchanged_by_hash", 0) >= 1
     assert report.counts.get("new", 0) == 0 and report.counts.get("updated", 0) == 0
     # An identical body with a new ETag is unchanged by hash.
@@ -447,7 +485,9 @@ def test_429_stops_the_stage_and_sets_not_before_from_retry_after():
     origin = ercot_origin()
     from httpx import Response
 
-    origin.force = lambda url: Response(429, headers={"retry-after": "600"}) if url == STATUS_PDF else None
+    origin.force = (
+        lambda url: Response(429, headers={"retry-after": "600"}) if url == STATUS_PDF else None
+    )
     records = listing(origin)
     origin.log.clear()
     report = stage(origin, records)
@@ -455,7 +495,9 @@ def test_429_stops_the_stage_and_sets_not_before_from_retry_after():
     assert report.index["not_before"] == (NOW + timedelta(seconds=600)).isoformat()
     n = len(origin.log)
     # While resting no request is made.
-    again = stage(origin, listing(ercot_origin()), index=report.index, now=NOW + timedelta(seconds=100))
+    again = stage(
+        origin, listing(ercot_origin()), index=report.index, now=NOW + timedelta(seconds=100)
+    )
     assert again.counts.get("skipped_retry_after") == 1 and len(origin.log) == n
     assert again.index["not_before"] == report.index["not_before"]
     # After it passes the stage works again.
@@ -484,7 +526,11 @@ def test_retry_back_off_after_three_environment_failures():
     records = listing(origin)
     index: dict = {"urls": {}}
     key = STATUS_PDF
-    index["urls"][key] = {"status": "pending", "at": NOW.isoformat(), "retry": {"code": "network_error", "attempts": 3, "at": NOW.isoformat()}}
+    index["urls"][key] = {
+        "status": "pending",
+        "at": NOW.isoformat(),
+        "retry": {"code": "network_error", "attempts": 3, "at": NOW.isoformat()},
+    }
     report = stage(origin, records, index=index, now=NOW + timedelta(days=1))
     assert report.counts.get("backed_off") == 1
     assert DocumentFailure("network_error").retryable
@@ -529,7 +575,12 @@ def test_tpit_snapshot_keeps_only_relevant_rows_and_never_contacts():
 
 def test_tpit_baseline_rows_are_observations_labelled_baseline():
     records, _ = tpit_state()
-    rows = [r for r in records if r["document_number"].startswith("ERCOT-TPIT-") and r.get("early_signal", {}).get("kind") == "tpit_row"]
+    rows = [
+        r
+        for r in records
+        if r["document_number"].startswith("ERCOT-TPIT-")
+        and r.get("early_signal", {}).get("kind") == "tpit_row"
+    ]
     assert rows and all(r["early_signal"]["change"] == "baseline" for r in rows)
     one = next(r for r in rows if r["early_signal"]["project"] == "90051")
     assert "baseline, not a new project" in one["abstract"]
@@ -543,11 +594,15 @@ def test_tpit_monthly_diff_new_changed_removed_and_first_seen_carried():
     records, _ = tpit_state()
     prior = states_of(records)
     sheets = {k: [dict(r) for r in v] for k, v in SHEETS.items()}
-    sheets["FutureTPIT100126NoCost"] = [r for r in sheets["FutureTPIT100126NoCost"] if r["number"] != "100305"]
+    sheets["FutureTPIT100126NoCost"] = [
+        r for r in sheets["FutureTPIT100126NoCost"] if r["number"] != "100305"
+    ]
     for row in sheets["FutureTPIT100126NoCost"]:
         if row["number"] == "110828":
             row["isd"] = "2029-06-30"
-    sheets["FutureTPIT100126NoCost"].append(tpit_row("120000", title="New Data Center sub", description="serve a data center"))
+    sheets["FutureTPIT100126NoCost"].append(
+        tpit_row("120000", title="New Data Center sub", description="serve a data center")
+    )
     origin = ercot_origin(tpit_body=workbook(sheets))
     origin.put(PLANNING, planning_html(tpit_listed="Nov 25, 2026"))
     later = NOW + timedelta(days=30)
@@ -559,14 +614,24 @@ def test_tpit_monthly_diff_new_changed_removed_and_first_seen_carried():
     assert changes["110828"]["change"] == "changed" and "isd" in changes["110828"]["fields"]
     assert changes["100305"]["change"] == "removed"
     assert "99999" not in changes
-    rows = {r["early_signal"]["project"]: r for r in records2 if r.get("early_signal", {}).get("kind") == "tpit_row"}
+    rows = {
+        r["early_signal"]["project"]: r
+        for r in records2
+        if r.get("early_signal", {}).get("kind") == "tpit_row"
+    }
     assert set(rows) == {"120000", "110828", "100305"}
     assert rows["100305"]["early_signal"]["change"] == "removed"
-    assert rows["100305"]["early_signal"]["first_seen_at"] == "2026-11-04"  # carried from the baseline
+    assert (
+        rows["100305"]["early_signal"]["first_seen_at"] == "2026-11-04"
+    )  # carried from the baseline
     assert rows["120000"]["early_signal"]["first_seen_at"] == "2026-11-04"  # snapshot listing day
     assert "Fields changed: isd" in rows["110828"]["abstract"]
     # Row observation identities are per snapshot, so a re-run does not duplicate them.
-    again = {r["document_number"] for r in records2 if r.get("early_signal", {}).get("kind") == "tpit_row"}
+    again = {
+        r["document_number"]
+        for r in records2
+        if r.get("early_signal", {}).get("kind") == "tpit_row"
+    }
     assert len(again) == 3
 
 
@@ -579,8 +644,9 @@ def test_tpit_unchanged_snapshot_adds_no_rows():
 
 def test_tpit_changed_columns_is_a_typed_failure():
     bad = workbook({"FutureTPIT100126NoCost": []})
-    import openpyxl
     import io
+
+    import openpyxl
 
     book = openpyxl.load_workbook(io.BytesIO(bad))
     ws = book["FutureTPIT100126NoCost"]
@@ -616,8 +682,16 @@ def test_tpit_isolated_child_matches_in_process():
 
 def test_system_planning_aggregates_are_ercot_wide_with_evidence():
     pages = [
-        ["As of July 31, 2026, ERCOT has", "endorsed transmission projects totaling $12.111 billion."],
-        ["Of the $22.947 billion of RPG Projects", "ERCOT is currently reviewing:", "· $21.311 billion is Large Load-", "dependent and may not move forward"],
+        [
+            "As of July 31, 2026, ERCOT has",
+            "endorsed transmission projects totaling $12.111 billion.",
+        ],
+        [
+            "Of the $22.947 billion of RPG Projects",
+            "ERCOT is currently reviewing:",
+            "· $21.311 billion is Large Load-",
+            "dependent and may not move forward",
+        ],
         ["Year to date 2026, 1,114 new projects have been submitted."],
     ]
     origin = ercot_origin()

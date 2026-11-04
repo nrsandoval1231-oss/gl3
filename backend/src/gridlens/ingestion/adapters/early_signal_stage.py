@@ -353,7 +353,9 @@ def order(run: Run, items: list[DocItem]) -> list[DocItem]:
     unfinished = [
         i
         for i in items
-        if i.key in run.urls and i.key not in run.states and run.urls[i.key].get("status") != "absent"
+        if i.key in run.urls
+        and i.key not in run.states
+        and run.urls[i.key].get("status") != "absent"
     ]
     rest = [i for i in items if i.key in run.states]
     unfinished.sort(key=lambda i: str(run.urls[i.key].get("at") or ""))
@@ -371,7 +373,10 @@ def run_documents(run: Run, items: list[DocItem]) -> None:
                 failed = (run.urls.get(item.key) or {}).get("status") == "failed"
                 report.bump("known_failed" if failed else "fresh_skipped")
                 continue
-            if checked >= run.config.max_checks or run.left() < shared.HTTP_READ_TIMEOUT_SECONDS + 10:
+            if (
+                checked >= run.config.max_checks
+                or run.left() < shared.HTTP_READ_TIMEOUT_SECONDS + 10
+            ):
                 report.bump("deferred_check_budget")
                 break
             checked += 1
