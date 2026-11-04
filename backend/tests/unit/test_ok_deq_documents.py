@@ -9,8 +9,8 @@ from __future__ import annotations
 import dataclasses
 import socket
 import time
-from decimal import Decimal
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import httpx
 import pytest
