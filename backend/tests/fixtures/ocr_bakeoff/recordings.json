@@ -1,0 +1,29 @@
+{
+  "description": "SYNTHETIC recorded transcripts; not real vendor output. Costs are illustrative.",
+  "providers": {
+    "openai-vision": {
+      "cost_per_page_usd": "0.012",
+      "transcripts": {
+        "s01": "The facility will install two (2) 1,500 hp electric motor driven compressors at the station.",
+        "s02": "The station will add one (1) 800 hp gas engine driven compressor and three (3) 250 kW electric motor driven pumps.",
+        "s03": "Existing equipment includes a 2,000 hp electric motor driven compressor that will be removed."
+      }
+    },
+    "textract": {
+      "cost_per_page_usd": "0.0015",
+      "transcripts": {
+        "s01": "The facility will install two (2) l,500 hp electric motor driven compressors at the station.",
+        "s02": "The station will add one (1) 800 hp gas engine driven compressor and three (3) 250 kW electric motor driven pumps.",
+        "s03": "Existing equipment includes a 2,000 hp electric motor driven compressor that will be removed."
+      }
+    },
+    "mistral-ocr": {
+      "cost_per_page_usd": "0.001",
+      "transcripts": {
+        "s01": "The facility will install two (2) 1,500 hp electric motor driven compressors at the station.",
+        "s02": "The station will add one (1) 8OO hp gas engine driven compressor and three (3) 250 kW electric motor driven pumps.",
+        "s03": "Existing equipment includes a 2,000 hp electric motor driven compressor that will be removed."
+      }
+    }
+  }
+}

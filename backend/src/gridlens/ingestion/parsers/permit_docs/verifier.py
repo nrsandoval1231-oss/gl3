@@ -126,6 +126,9 @@ def _llm_association(row: ExtractedRow, canon: CanonicalText) -> str | None:
     if max(ev.end for ev in spans) - min(ev.start for ev in spans) > LLM_WINDOW_CHARS:
         return "quotes are not within one passage"
     text = canon.text
+    stated = row.evidence.get("date")
+    if stated is not None and _NEGATED_DATE.search(text[max(0, stated.start - 60) : stated.start]):
+        return "date is negated in its sentence"
     if THRESHOLD_BEFORE.search(text[max(0, rating.start - 40) : rating.start]):
         return "rating is a threshold, not a unit rating"
     if THRESHOLD_AFTER.match(text[rating.end : rating.end + 60]):
