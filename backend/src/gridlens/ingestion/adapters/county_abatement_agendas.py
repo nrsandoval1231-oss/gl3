@@ -235,33 +235,39 @@ def _mw(match: re.Match[str]) -> tuple[int | str, str]:
     return _exact(number), "documented"
 
 
-def _scalar(name: str, text: str) -> tuple[Any, str, re.Match[str]] | None:
-    """The first match of a field pattern in ``text`` as (value, basis, match)."""
+def _candidates(name: str, text: str) -> list[tuple[Any, str, re.Match[str]]]:
+    found: list[tuple[Any, str, re.Match[str]]] = []
     if name == "entity":
-        found = _ENTITY.search(text)
-        return (more.norm(found["v"]), "documented", found) if found else None
-    if name == "investment_usd":
+        found = [(more.norm(m["v"]), "documented", m) for m in _ENTITY.finditer(text)]
+    elif name == "investment_usd":
         for pattern in (_MONEY_SCALED, _MONEY_PLAIN):
-            found = pattern.search(text)
-            if found:
-                value, basis = _money(found)  # type: ignore[misc]
-                return value, basis, found
+            for m in pattern.finditer(text):
+                value, basis = _money(m)
+                found.append((value, basis, m))
+    elif name == "stated_mw":
+        for m in _MW.finditer(text):
+            value, basis = _mw(m)
+            found.append((value, basis, m))
+    elif name == "acres":
+        found = [
+            (_exact(Decimal(m["n"].replace(",", ""))), "documented", m)
+            for m in _ACRES.finditer(text)
+        ]
+    elif name == "location":
+        found = [(more.norm(m["v"]), "documented", m) for m in _LOCATION.finditer(text)]
+    return sorted(found, key=lambda c: c[2].start())
+
+
+def _scalar(name: str, text: str) -> tuple[Any, str, re.Match[str]] | None:
+    """The stated value of a field in ``text`` as (value, basis, first match).
+
+    Two different values for one field in the same agenda item are a conflict, and a conflict is
+    unknown: no value is chosen (for example a dollar investment next to a road fund).
+    """
+    found = _candidates(name, text)
+    if not found or len({str(c[0]) for c in found}) > 1:
         return None
-    if name == "stated_mw":
-        found = _MW.search(text)
-        if found:
-            value, basis = _mw(found)
-            return value, basis, found
-        return None
-    if name == "acres":
-        found = _ACRES.search(text)
-        return (
-            (_exact(Decimal(found["n"].replace(",", ""))), "documented", found) if found else None
-        )
-    if name == "location":
-        found = _LOCATION.search(text)
-        return (more.norm(found["v"]), "documented", found) if found else None
-    return None
+    return found[0]
 
 
 _FIELD_NAMES = ("entity", "investment_usd", "stated_mw", "acres", "location")
