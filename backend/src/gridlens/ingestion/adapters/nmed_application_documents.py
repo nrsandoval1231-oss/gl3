@@ -86,7 +86,7 @@ _UPLOAD_PATH = re.compile(
     r"/(?P<year>20\d{2})/(?P<month>0[1-9]|1[0-2])/(?P<name>[A-Za-z0-9][A-Za-z0-9._()+-]{0,150})\.pdf"
 )
 _APPLICATION_NAME = re.compile(r"application", re.I)
-_AIR_QUALITY_NAME = re.compile(r"air[-_ ]?quality|\bAQB", re.I)
+_AIR_QUALITY_NAME = re.compile(r"air[-_ ]?quality|\bAQB|\bNSR\b|Title[-_ ]?V\b|\bTV\b", re.I)
 _NOT_AN_APPLICATION = re.compile(
     r"approval|letter|hearing|\bnotice[-_ ]of\b|public[-_ ]notice|spanish|transmittal|comment",
     re.I,

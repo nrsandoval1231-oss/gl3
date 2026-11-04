@@ -137,9 +137,13 @@ def test_the_shared_notices_site_keeps_only_files_that_name_air_quality():
     air = shared_site + "A-199L-CRSWF-Air-Quality-Permit-Application.pdf"
     other = shared_site + "Groundwater-Discharge-Permit-Application.pdf"
     aqb = shared_site + "AQBP-Application-12345.pdf"
+    nsr = shared_site + "Dagger-Draw-NSR-Application-0001M12.pdf"
+    title_v = shared_site + "Wildcat-CS_Title-V-Application_Revisions.pdf"
+    vague = shared_site + "Application.pdf"
     assert nad.document_url_ok(other)  # path policy only; scope is the name filter
-    assert nad.parse_listing_links(listing_html(air, other, aqb)) == sorted(
-        [air, aqb], key=lambda item: (nad.upload_month(item), item), reverse=True
+    wanted = [air, aqb, nsr, title_v]
+    assert nad.parse_listing_links(listing_html(air, other, aqb, nsr, title_v, vague)) == sorted(
+        wanted, key=lambda item: (nad.upload_month(item), item), reverse=True
     )
 
 

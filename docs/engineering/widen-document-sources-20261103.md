@@ -13,7 +13,7 @@ Rules held throughout: evidence or nothing (hash, page and location with every v
 | `elibrary.ferc.gov` | `robots.txt` is a 404. `/eLibrary/search` and `/eLibrary/docketsheet` return the same 22 KB Angular shell (no data). The shell's `assets/config/app-settings.json` names an internal service (`/eLibraryWebAPI/api/`) with a client token embedded in the public script; the script also contains group checks for non-public and CEII access. FERC documents no API for it. |
 | `www.ferc.gov` | `robots.txt` readable. Its RSS and eSubscription help pages answered **403 with a Cloudflare managed challenge** ("Just a moment", needs JavaScript and cookies). Not bypassed. No FERC RSS or feed URL could be confirmed. |
 | `mercator.env.nm.gov` | The handoff path `/arcgis/rest/services/...` is a 404; the live base is `/server/rest/services`. `aqb/air_facilities/MapServer` has seven layers (details below), `maxRecordCount` 2000, formats JSON, geoJSON and PBF, `resultOffset` paging supported. |
-| `www.env.nm.gov` | `robots.txt` disallows only `/wp-admin/`. The WordPress media REST endpoint of the air-quality site lists only **5 PDFs** in total (none are applications); application PDFs are not in that library. A known application upload (`.../sites/2/2020/08/AQBP-Application-6567M6.pdf`) answers HEAD with 200, 7.6 MB, an ETag and `Last-Modified`. `https://www.env.nm.gov/public-notices/` (1.3 MB HTML, 747 PDF links) links 54 PDFs under the air-quality uploads, 10 named as applications, newest upload month 2025-07. |
+| `www.env.nm.gov` | `robots.txt` disallows only `/wp-admin/`. The WordPress media REST endpoint of the air-quality site lists only **5 PDFs** in total (none are applications); application PDFs are not in that library. A known application upload (`.../sites/2/2020/08/AQBP-Application-6567M6.pdf`) answers HEAD with 200, 7.6 MB, an ETag and `Last-Modified`. `https://www.env.nm.gov/public-notices/` (1.3 MB HTML, 747 PDF links across all NMED programs) links 46 PDFs whose names say "application"; many are air permits (NSR, Title V, gas plants, compressor stations, crushers, asphalt plants) stored under the shared `public-notices/.../sites/32` uploads, others sit under `air-quality/.../sites/2`. After the scope filter below 23 remain (9 on the air-quality site, 14 on the shared site), uploaded 2022-09 to 2025-07; sizes run from 1.2 MB to 38 MB, 11 of them over 10 MB. |
 
 ### NMED facility layer schema (verified)
 
@@ -54,7 +54,7 @@ It is **not wired to a registry source or job**: the layers have no date and no 
 
 ### Application documents (`nmed_application_documents.py`, source `new-mexico-nmed-air-applications`)
 
-Discovery is the NMED public notices page (one request, at most 3 MB), whose links are filtered by an exact upload-path policy (`https://www.env.nm.gov/{air-quality/wp-content/uploads/sites/2|public-notices/wp-content/uploads/sites/32}/YYYY/MM/<name>.pdf`, no query, fragment, userinfo, port, traversal, or archive host) and a name filter (contains "application"; not approval, letter, hearing, notice-of, spanish, transmittal, comment), plus an owner `seed_urls` list (at most 50). Records are dated only by the upload month: `publication_date` is the first of that month with `publication_date_precision: month`, and the application date, applicant and facility are not read from the listing.
+Discovery is the NMED public notices page (one request, at most 3 MB), whose links are filtered by an exact upload-path policy (`https://www.env.nm.gov/{air-quality/wp-content/uploads/sites/2|public-notices/wp-content/uploads/sites/32}/YYYY/MM/<name>.pdf`, no query, fragment, userinfo, port, traversal, or archive host) and a name filter (contains "application"; not approval, letter, hearing, notice-of, spanish, transmittal, comment; and on the shared notices site, which carries every NMED program, the file name must also say air quality, AQB, NSR or Title V, so water and waste applications are out of scope), plus an owner `seed_urls` list (at most 50). Records are dated only by the upload month: `publication_date` is the first of that month with `publication_date_precision: month`, and the application date, applicant and facility are not read from the listing.
 
 The stage follows the TCEQ and OK DEQ discipline:
 
@@ -67,7 +67,7 @@ The stage follows the TCEQ and OK DEQ discipline:
 
 Limits and risks:
 
-- The notices page is a thin source: about ten application files, the newest uploaded in 2025-07. Most applications (for example the Black River application in the research note) are reached only through owner `seed_urls`.
+- The notices page is a thin, uneven source: 23 in-scope application files, the newest uploaded in 2025-07, and a file-name filter that is a judgement (an air permit whose name says none of the above, such as a bare `Application.pdf`, is excluded). Other applications (for example the Black River application in the research note, in neither list) are reached only through owner `seed_urls`.
 - No facility join. Without an AI or permit number in the public data the application cannot be tied to a facility, and nothing is guessed from file names.
 - **No NMED admission rule exists.** The records are retained evidence; they do not create demand, needs or cards. Electric inlet compression is often stated only in a process flow sheet, which no extractor reads, so many applications will be abstentions.
 - Scanned pages are counted and not read (OCR is out of scope here). The Windows host has no address-space cap for the reading child.
@@ -80,4 +80,14 @@ Limits and risks:
 
 ## One-off live smoke (not proof of operation)
 
-See the section appended below by the live run.
+Real code, real httpx client, at most one request per second, work files outside the repository, isolated reading child, 2026-11-04. about 31 requests in all (one facility page, one notices page, 23 size HEADs, then 3 HEADs and 3 downloads, 84 s end to end), plus a 2-request re-read of the Dagger Draw file to print its line.
+
+| Check | Result |
+| --- | --- |
+| Facility layer 0, O&G only, one page | 93 rows, not truncated, 1 request; `permit_number` and `ai_number` null; sample "Roswell Compressor Station", Chaves, `O&G-Compressor Station`, coordinates valid. |
+| Notices page | 1 request, 23 in-scope application records (46 application-named links before the scope filter). One link (`P278R1_Application.pdf`) failed its HEAD with a typed failure (not investigated). |
+| `Application-Update-10267.pdf` (1.2 MB, 12 pages) | no equipment schedule: abstention, `zero_verified_rows` notice, 0 supply rows. |
+| `TV-updated-application-P275R1.pdf` (3.1 MB, 161 pages, 28 scanned) | 5 verified supply rows, 0 demand lines; the 28 scanned pages were not read. |
+| `Dagger-Draw-Initial-NSR-Application-0001M12.pdf` (3.1 MB, 90 pages, 1 scanned) | exactly 1 demand line, page 47: the verbatim quote "two 2250 horsepower electric driven compressors" (electric stated, count 2, rating 2,250 hp), state unknown; 0 supply rows. |
+
+Totals: 3 documents downloaded, 3 new states, 0 failures. The smoke shows the real files fetch, read and yield a verified, quoted electric-drive line within the bounds on one machine. It shows nothing about scheduled operation, whether that 2023 upload reflects built or running equipment, yield across the other 20 documents (11 are over 10 MB and unread here), or demand: no NMED admission rule exists.
