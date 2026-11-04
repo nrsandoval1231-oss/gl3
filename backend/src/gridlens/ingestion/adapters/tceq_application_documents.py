@@ -629,8 +629,9 @@ def build_state(
     if budget < MIN_EXTRACT_SECONDS:
         raise TimeoutError("not enough stage time left to extract")
     try:
+        extra = {"hooks": hooks} if hooks is not None else {}
         extraction = _extract_pdf(
-            pdf_path, pdf_name, download.sha256, link, budget, config.isolate, hooks
+            pdf_path, pdf_name, download.sha256, link, budget, config.isolate, **extra
         )
     except DocumentFailure as failure:
         # A budget cut by the job deadline is an environment limit, not a property of the bytes.
