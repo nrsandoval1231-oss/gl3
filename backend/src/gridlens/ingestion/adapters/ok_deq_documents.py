@@ -915,14 +915,17 @@ def _examine(run: _Run, key: int) -> bool | None:
             and not changed
         ):
             report.bump("backed_off")
-            return True
+            return True if validators is not None else None
+    # Without HEAD validators nothing confirms the key exists: stay unknown, write nothing.
+    deferred = None
     if run.downloads >= run.config.max_downloads:
-        report.bump("deferred_download_budget")
-        if entry.get("status") not in {"document", "failed"}:
-            _write_entry(run, key, status="pending", validators=validators)
-        return True
-    if run.left() < HEAVY_RESERVE_SECONDS:
-        report.bump("deferred_deadline")
+        deferred = "deferred_download_budget"
+    elif run.left() < HEAVY_RESERVE_SECONDS:
+        deferred = "deferred_deadline"
+    if deferred is not None:
+        report.bump(deferred)
+        if validators is None:
+            return None
         if entry.get("status") not in {"document", "failed"}:
             _write_entry(run, key, status="pending", validators=validators)
         return True

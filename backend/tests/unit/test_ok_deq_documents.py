@@ -737,3 +737,15 @@ def test_a_rate_limited_page_stops_the_whole_stage():
     report = run(origin, [listing_record()], config=seeded(8406, data_center_page=True))
     assert report.counts["aborted_rate_limited"] == 1 and report.retry_after_seconds == 90
     assert origin.count("HEAD") == 0
+
+
+def test_probe_without_head_support_does_not_run_the_frontier_past_unconfirmed_keys():
+    origin = Origin()
+    origin.head_status = 405  # the server rejects HEAD, so only a GET can confirm a key
+    origin.put(8406, memo_pdf())
+    config = probe_config(frontier=8405, max_probes=10, misses=3)
+    config = dataclasses.replace(config, max_downloads=1)
+    report = run(origin, [listing_record()], config=config)
+    assert report.index["frontier"] == 8406  # confirmed by a completed read, not beyond
+    assert set(report.index["keys"]) == {"8406"}  # no pending entry for an unconfirmed key
+    assert origin.count("GET") == 1
