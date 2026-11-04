@@ -141,7 +141,14 @@ def parse_memo_header(
     subject = _SUBJECT.search(head)
     found = None
     if subject is not None:
-        found = _PERMIT.search(head, subject.end(), min(len(head), subject.end() + 160))
+        # The number is on the SUBJECT line; it may wrap only directly after "No.".
+        line_end = head.find("\n", subject.end())
+        line_end = len(head) if line_end == -1 else line_end
+        window_end = line_end
+        if re.search(r"No\.?\s*$", head[subject.end() : line_end]):
+            next_end = head.find("\n", line_end + 1)
+            window_end = len(head) if next_end == -1 else next_end
+        found = _PERMIT.search(head, subject.end(), window_end)
     if found is not None:
         permit = quoted(found.start(1), found.end(1), found.group(1))
         following = _lines_after(text, found.end(), 6)

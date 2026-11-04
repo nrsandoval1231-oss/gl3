@@ -954,6 +954,7 @@ def _download_and_read(
             counted = 0 if failure.budget_limited else 1
             current = dict(entry.get("retry") or {})
             fields = {k: v for k, v in entry.items() if k not in {"retry", "at"}}
+            fields.setdefault("status", "pending")  # unfinished: picked up again next run
             run.keys[str(key)] = {
                 **fields,
                 "at": entry.get("at") or _iso(run.now),
