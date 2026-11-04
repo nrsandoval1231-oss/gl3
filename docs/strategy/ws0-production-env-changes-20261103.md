@@ -208,7 +208,9 @@ Notes for the owner:
 # Shared scopes: the combined backstop. These are the existing settings.
 INTELLIGENCE_GLOBAL_MONTHLY_USD=100
 INTELLIGENCE_GLOBAL_DAILY_USD=5
-INTELLIGENCE_PROVIDER_MONTHLY_USD=100       # shared provider scope; the map below tightens it
+INTELLIGENCE_PROVIDER_MONTHLY_USD=100       # replaces the 90 in the caps section above: this is the shared
+                                            # provider scope (the combined ceiling); the map below tightens it
+                                            # per provider. The model-scope 90 above stays.
 INTELLIGENCE_PROVIDER_DAILY_USD=5
 # New. smaller value wins per provider, so this can only tighten:
 INTELLIGENCE_PROVIDER_CAPS={"openai":{"monthly_usd":90,"daily_usd":4.5},"typesafe":{"monthly_usd":10,"daily_usd":0.5}}
@@ -238,7 +240,9 @@ PERMIT_LLM_PROPOSER_MAX_PAGE_CHARS=12000
 # INTELLIGENCE_MAX_ACTIVE_CALLS, INTELLIGENCE_MAX_CALL_USD (>= the per-call bound: about 0.03 for one short page, up to about 0.17 for six full pages).
 ```
 
-The fast and reasoning slots (`INTELLIGENCE_OPENAI_FAST_*`, `..._REASONING_*`) are separate and unchanged. `INTELLIGENCE_MAX_CALL_USD=0.25` clears the proposer's bound of about $0.03 to $0.17. Pricing stays `false` (blocking the proposer) until the owner confirms.
+The fast and reasoning slots (`INTELLIGENCE_OPENAI_FAST_*`, `..._REASONING_*`) are separate and unchanged.
+
+**`INTELLIGENCE_MAX_CALL_USD` (owner decision).** It is one global ceiling, not per task. The 2a block above shows `0.01` for live Jev; the proposer cannot run under that (its bound is $0.03 to $0.17). This release proposes `0.25` for both. That does not let Jev spend more per call: Jev's reservation is its verified token ceiling times its price (`INTELLIGENCE_TYPESAFE_MAX_TOTAL_BILLABLE_INPUT_TOKENS` x $0.042 per million, about $0.0017 at 40,000), and its protection is that ceiling plus the TypeSafe provider cap of $10, not this setting. If the owner wants a hard per-task or per-provider call ceiling, that is a small code change and is not shipped. The `0.01` line in the 2a block is superseded when 2b is enabled. `0.25` clears the proposer's bound of about $0.03 to $0.17. Pricing stays `false` (blocking the proposer) until the owner confirms.
 
 ### OCR for TCEQ and OK DEQ stage PDFs
 
@@ -270,7 +274,7 @@ An OCR request is a sub-PDF of at most 5 scanned pages and 750,000 bytes; with t
 
 ### Owner inputs still needed for 2b
 
-- OpenAI dashboard confirmation of `gpt-6.1-sol` input, cached and output prices (flip the three `*_PRICING_VERIFIED` flags), and that it accepts PDF input for OCR.
+- OpenAI dashboard confirmation of `gpt-6.1-sol` input, cached and output prices (flip the two `*_PRICING_VERIFIED` flags: equipment and OCR; the OpenAI fast and reasoning slots have their own), and that it accepts PDF input for OCR.
 - OCR retention reference and the preflight cost-bound reference.
 - Whether OCR-read rows may ever feed demand (default no).
 - The bake-off gold set and recorded vendor runs (see the engineering doc), if a different OCR provider should replace OpenAI vision.

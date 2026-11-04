@@ -326,7 +326,7 @@ def test_threshold_setting_controls_the_alert(sessions, monkeypatch):
     assert not any(r["scope"] == "provider:typesafe" for r in alerts.spend_report()["rows"])
 
 
-def test_a_call_that_cannot_fit_another_reservation_reads_as_capped_out(sessions, monkeypatch):
+def test_a_call_that_cannot_fit_another_reservation_reads_as_low_headroom(sessions, monkeypatch):
     _caps(
         monkeypatch,
         monthly_usd="100",
@@ -335,7 +335,10 @@ def test_a_call_that_cannot_fit_another_reservation_reads_as_capped_out(sessions
     )
     _reserve(sessions, "typesafe", "t1", "9.9")  # 99%: below 100% but under the 0.25 call ceiling
     row = next(r for r in alerts.spend_report()["rows"] if r["scope"] == "provider:typesafe")
-    assert row["fraction"] < 1 and row["level"] == "CAPPED_OUT"
+    assert row["fraction"] < 1 and row["level"] == "LOW_HEADROOM"
+    health = {"sources": [], "worker_liveness": "LIVE", "collection_freshness": "FRESH"}
+    assert "Spend low headroom" in alerts.summarize(health, {}, alerts.spend_report())[1]
+    assert "CAPPED OUT" not in alerts.summarize(health, {}, alerts.spend_report())[1]
 
 
 def test_capped_out_jobs_are_counted_from_their_typed_checkpoint(sessions):
@@ -542,9 +545,17 @@ def test_stage_ocr_keeps_pages_from_good_batches_and_reports_the_bad_one(session
 
     outcome = _stage_ocr(Counter(), TwoBatches([])).ocr_pages(list(range(2, 8)), document_hash=HASH)
     assert outcome.status == "ok" and sorted(outcome.texts) == [2, 3, 4, 5, 6]
-    # The short answer is a transcript that does not match its request: billed, so the ledger
-    # keeps it UNKNOWN and the loop stops spending rather than retrying.
-    assert outcome.detail["stopped"] == "OCR_OUTCOME_UNKNOWN"
+    # The short answer fails our own page-count check: a conclusive local rejection that
+    # fails that one call, does not quarantine the provider and does not stop other batches.
+    assert list(outcome.detail["pages_failed"]) == ["7"]
+    assert outcome.detail["pages_failed"]["7"] == "OCR_TRANSCRIPT_REJECTED"
+    with sessions() as session:
+        statuses = {
+            c.status
+            for c in session.scalars(select(LogicalCall))
+            if c.task_type == "OCR_EXTRACTION"
+        }
+        assert statuses == {"COMPLETED", "FAILED"}
 
 
 def test_stage_ocr_page_bound(sessions, monkeypatch):
@@ -575,3 +586,62 @@ def test_subset_worker_cuts_only_the_requested_pages(tmp_path: Path):
         ocr._subset_worker(str(path), sha, [9], 750_000)
     with pytest.raises(ValueError, match="byte bound"):
         ocr._subset_worker(str(path), sha, [1, 2, 3], 10)
+
+
+# ---- review regressions on the ledger ----------------------------------------------------
+
+
+def test_oversize_ocr_transcript_is_a_local_rejection_that_does_not_quarantine(
+    sessions, monkeypatch
+):
+    _ocr_on(monkeypatch)
+    big = "\u00e9" * 12_000  # 12,000 characters, 72,000 bytes once JSON-escaped
+    outcome = _stage_ocr(Counter(), OcrCaller([big])).ocr_pages([2], document_hash=HASH)
+    assert outcome.status == "failed" and outcome.reason == "OCR_NO_PAGES_READ"
+    assert outcome.detail["pages_failed"]["2"] == "OCR_TRANSCRIPT_REJECTED"
+    with sessions() as session:
+        call = next(
+            c for c in session.scalars(select(LogicalCall)) if c.task_type == "OCR_EXTRACTION"
+        )
+        assert call.status == "FAILED" and "QUARANTINE" not in str(call.blocked_reason)
+    # The provider is still usable: a normal page goes through afterwards.
+    again = _stage_ocr(Counter(), OcrCaller(["a normal page"])).ocr_pages(
+        [3], document_hash="f" * 64
+    )
+    assert again.status == "ok"
+
+
+def test_invalid_reported_usage_leaves_the_call_unknown_and_adds_no_rows(sessions, monkeypatch):
+    _proposer_on(monkeypatch)
+
+    class Greedy(Caller):
+        def __call__(self, *, api_key, request):
+            data = super().__call__(api_key=api_key, request=request)
+            data["output_tokens"] = 999_999
+            return data
+
+    result = extract_from_pages([PAGE], document_hash=HASH, proposer=_proposer(Greedy()))
+    assert result.verified == 0 and result.proposer["reason"] == "INVALID_REPORTED_USAGE"
+    with sessions() as session:
+        assert session.scalars(select(LogicalCall)).one().status == "SENT_OUTCOME_UNKNOWN"
+
+
+def test_a_completed_but_invalid_call_is_not_replayed_as_ok(sessions, monkeypatch):
+    _proposer_on(monkeypatch)
+    caller = Caller(output={"units": [UNIT], "note": "extra"})
+    first = extract_from_pages([PAGE], document_hash=HASH, proposer=_proposer(caller))
+    assert first.proposer["reason"] == "OUTPUT_SCHEMA_INVALID"
+    second = extract_from_pages([PAGE], document_hash=HASH, proposer=_proposer(caller))
+    assert caller.calls == 1
+    assert second.proposer["status"] == "failed"
+    assert second.proposer["reason"] == "PROPOSER_RESULT_MISSING_OR_INVALID"
+    assert second.verified == 0
+
+
+def test_ocr_dispatch_rechecks_policy(sessions, monkeypatch):
+    _ocr_on(monkeypatch)
+    counter, caller = Counter(), OcrCaller([OCR_TEXT])
+    instance = _stage_ocr(counter, caller)
+    monkeypatch.setattr(ocr, "_preflight_ready", lambda cost: False)
+    outcome = instance.ocr_pages([2], document_hash=HASH)
+    assert outcome.status in {"blocked", "failed"} and counter.calls == 0 and caller.calls == 0
