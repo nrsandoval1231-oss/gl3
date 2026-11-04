@@ -169,7 +169,12 @@ NOW = datetime(2026, 11, 4, 12, tzinfo=UTC)
 
 
 def run(**kw):
-    base = {"at": (NOW - timedelta(hours=1)).isoformat(), "docs": 0, "in_scope": 10}
+    base = {
+        "at": (NOW - timedelta(hours=1)).isoformat(),
+        "mode": "discovery",
+        "docs": 0,
+        "in_scope": 10,
+    }
     base.update(kw)
     return base
 
@@ -194,10 +199,14 @@ def test_a_healthy_source_has_no_findings():
     assert evaluate(runs, new_observations_recent=3, observations_total=40) == []
 
 
-def test_wrong_content_type_and_js_shell_are_reported_from_the_latest_run():
+def test_wrong_content_type_sums_the_last_day_not_just_the_latest_run():
     assert codes(evaluate([run(failures={"js_shell": 2})])) == [da.WRONG_CONTENT_TYPE]
     assert codes(evaluate([run(failures={"wrong_content_type": 1})])) == [da.WRONG_CONTENT_TYPE]
-    assert evaluate([run(failures={"js_shell": 1}), run()]) == []  # cleared in the latest run
+    # A later clean job run does not hide a shell seen earlier the same day.
+    clean_job = run(mode="document_extraction")
+    assert codes(evaluate([run(failures={"js_shell": 1}), clean_job])) == [da.WRONG_CONTENT_TYPE]
+    old = run(at=(NOW - timedelta(hours=30)).isoformat(), failures={"js_shell": 1})
+    assert evaluate([old, run()]) == []  # older than the window
 
 
 def test_empty_text_layer_counts_failures_and_scanned_documents():
@@ -230,6 +239,24 @@ def test_listing_shrink_from_the_notice_or_the_counts():
         da.LISTING_SHRINK
     ]
     assert evaluate([run(in_scope=40), run(in_scope=30)]) == []
+
+
+def test_single_document_job_runs_never_look_like_a_listing_shrink():
+    runs = [run(in_scope=40) for _ in range(3)]
+    runs.append(run(mode="document_extraction", in_scope=1))
+    assert evaluate(runs) == []
+
+
+def test_fully_scanned_runs_with_no_extracted_documents_still_alert():
+    runs = [run(docs=0, failures={"empty_text_layer": 1}) for _ in range(3)]
+    found = evaluate(runs)
+    assert codes(found) == [da.EMPTY_TEXT_LAYER]
+    assert found[0].values == {"empty": 3, "documents": 3}
+
+
+def test_overdue_is_skipped_when_the_registry_turned_the_stage_off():
+    old = (NOW - timedelta(hours=24 * 3)).isoformat()
+    assert evaluate([run(at=old)], stage_enabled=False) == []
 
 
 def test_overdue_uses_the_cadence_multiplier():
@@ -319,17 +346,20 @@ def test_capped_out_fields_are_lifted_from_the_pass_result():
     assert fields["cap_scope"] == "provider" and fields["cap_period"] == "daily"
 
 
-def test_pending_state_wins_only_when_strictly_newer():
-    def doc(sha, at):
-        return {"document": {"sha256": sha, "fetched_at": at}}
+def test_pending_state_wins_only_when_the_job_ended_after_the_evidence():
+    def doc(sha, at="2026-11-01T00:00:00+00:00", etag="a"):
+        return {"document": {"sha256": sha, "fetched_at": at, "validators": {"etag": etag}}}
 
-    old, new = (
-        doc("a" * 64, "2026-11-01T00:00:00+00:00"),
-        doc("b" * 64, "2026-11-02T00:00:00+00:00"),
-    )
-    merged, taken = merge_pending({"1": old}, {"1": new, "2": new})
+    t1, t2, t3 = (datetime(2026, 11, d, tzinfo=UTC) for d in (1, 2, 3))
+    old, new = doc("a" * 64), doc("b" * 64)
+    merged, taken = merge_pending({"1": old}, {"1": (new, t2), "2": (new, t2)}, {"1": t1})
     assert merged["1"] is new and merged["2"] is new and taken == 2
-    merged, taken = merge_pending({"1": new}, {"1": old})
-    assert merged["1"] is new and taken == 0  # an older job result never replaces evidence
-    merged, taken = merge_pending({"1": new}, {"1": dict(new)})
-    assert taken == 0  # already folded
+    # Evidence written after the job ended already folded it (or superseded it).
+    merged, taken = merge_pending({"1": new}, {"1": (old, t1)}, {"1": t2})
+    assert merged["1"] is new and taken == 0
+    merged, taken = merge_pending({"1": new}, {"1": (dict(new), t3)}, {"1": t2})
+    assert taken == 0  # identical to the retained state
+    # Same bytes, refreshed validators: the old fetch time must not hide the newer decision.
+    refreshed = doc("a" * 64, etag="b")
+    merged, taken = merge_pending({"1": old}, {"1": (refreshed, t3)}, {"1": t2})
+    assert merged["1"] is refreshed and taken == 1

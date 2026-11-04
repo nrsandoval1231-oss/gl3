@@ -2632,9 +2632,17 @@ def _enrich_with_application_documents(
     discovery_only = settings.document_extraction_jobs_enabled
     if discovery_only:
         # Finished extraction jobs not yet folded into evidence are retained state too.
-        from gridlens.jobs.document_extraction import load_pending_states, merge_pending
+        from gridlens.jobs.document_extraction import (
+            load_evidence_times,
+            load_pending_states,
+            merge_pending,
+        )
 
-        prior, _taken = merge_pending(prior, load_pending_states(session, source_definition["id"]))
+        prior, _taken = merge_pending(
+            prior,
+            load_pending_states(session, source_definition["id"]),
+            load_evidence_times(session, source_definition["id"]),
+        )
     session.commit()
     if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
         # The publisher is already throttling this source: make no further requests.
@@ -2657,7 +2665,12 @@ def _enrich_with_application_documents(
         if discovery_only:
             from gridlens.jobs.document_extraction import discovery_callback
 
-            on_changed = discovery_callback(session, source_definition["id"], side)
+            on_changed = discovery_callback(
+                session,
+                source_definition["id"],
+                side,
+                limit=settings.document_extraction_max_enqueue_per_run or config.max_downloads,
+            )
         report = run_stage(
             records,
             prior,

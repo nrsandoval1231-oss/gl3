@@ -177,7 +177,8 @@ class Settings(BaseSettings):
     # WS6 runtime: document extraction as its own leased job (ships off; the listing job then
     # keeps running the stage in-line exactly as before).
     document_extraction_jobs_enabled: bool = False
-    document_extraction_max_enqueue_per_run: int = Field(default=25, ge=1, le=200)
+    # None: the stage's own max_downloads per run.
+    document_extraction_max_enqueue_per_run: int | None = Field(default=None, ge=1, le=200)
     document_extraction_failed_retry_hours: int = Field(default=24, ge=1, le=720)
     # WS6 document-source health alerts (typed, daily message). Safe defaults.
     doc_alert_min_baseline_docs: int = Field(default=5, ge=1, le=1000)

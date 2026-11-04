@@ -23,13 +23,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid5
 
-from sqlalchemy import select
+from sqlalchemy import case, cast, func, literal, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
 from gridlens.ingestion.adapters import tceq_application_documents as tceq
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
-from gridlens.persistence.models import Job, Source
+from gridlens.persistence.models import Evidence, Job, Observation, Source
 from gridlens.settings import settings
 
 KIND = "document_extraction"
@@ -78,8 +79,13 @@ def enqueue_document_extraction(
     validators: dict[str, Any] | None,
     now: datetime | None = None,
     not_before: datetime | None = None,
-) -> tuple[UUID, str]:
-    """Queue the extraction of one document version. Returns (job id, 'created' | 'existing')."""
+    allow_create: bool = True,
+) -> tuple[UUID | None, str]:
+    """Queue the extraction of one document version.
+
+    Returns (job id, 'created' | 'existing'). With ``allow_create`` false a version that has
+    no job yet is not queued and the result is (None, 'deferred').
+    """
     now = now or datetime.now(UTC)
     source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
     if source is None or not source.enabled or not source.registry_enabled:
@@ -91,12 +97,12 @@ def enqueue_document_extraction(
         .where(Job.kind == KIND, Job.source_id == source_id, Job.target_id == key)
         .order_by(Job.created_at.desc())
     ).all()
-    rest = timedelta(hours=settings.document_extraction_failed_retry_hours)
-    for job in existing:
-        if job.status in {"queued", "running", "succeeded"}:
-            return job.id, "existing"
-        if job.created_at is not None and job.created_at > now - rest:
-            return job.id, "existing"  # a failed version rests before it is tried again
+    if any(job.status in {"queued", "running"} for job in existing):
+        return next(j.id for j in existing if j.status in {"queued", "running"}), "existing"
+    if existing and _blocks_requeue(existing[0], now):
+        return existing[0].id, "existing"
+    if not allow_create:
+        return None, "deferred"
     job = Job(
         source_id=source_id,
         kind=KIND,
@@ -119,12 +125,29 @@ def enqueue_document_extraction(
     return job.id, "created"
 
 
-def _state_time(state: dict[str, Any]) -> datetime | None:
-    document = state.get("document")
-    attempt = state.get("last_attempt")
-    raw = (document.get("fetched_at") if isinstance(document, dict) else None) or (
-        attempt.get("at") if isinstance(attempt, dict) else None
+def _blocks_requeue(job: Job, now: datetime) -> bool:
+    """Whether the newest finished job for a version still stands in for a new one.
+
+    A decided success (the stage settled the version: unchanged, known-failed or a new
+    state) blocks for as long as its state can still be loaded (``PENDING_DAYS``). A failed
+    job, or a success that decided nothing (backed off, deferred by the deadline, disabled),
+    only rests: ``rest_hours`` after it ended, the version can be queued again.
+    """
+    try:
+        body = json.loads(job.checkpoint or "{}")
+    except ValueError:
+        body = {}
+    created = job.created_at or now
+    if job.status == "succeeded" and body.get("decided", True):
+        return created > now - timedelta(days=PENDING_DAYS)
+    rest = timedelta(
+        hours=float(body.get("rest_hours", settings.document_extraction_failed_retry_hours))
     )
+    ended = _parse_time(body.get("finished_at")) or created
+    return now < ended + rest
+
+
+def _parse_time(raw: Any) -> datetime | None:
     try:
         value = datetime.fromisoformat(str(raw))
     except ValueError:
@@ -132,63 +155,108 @@ def _state_time(state: dict[str, Any]) -> datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
-def load_pending_states(session: Session, source_id: str) -> dict[str, dict[str, Any]]:
-    """Newest finished extraction state per project, from succeeded jobs (bounded)."""
+def _checkpoint_json() -> Any:
+    return case(
+        (func.pg_input_is_valid(Job.checkpoint, "jsonb"), cast(Job.checkpoint, JSONB)),
+        else_=literal("{}").cast(JSONB),
+    )
+
+
+def load_pending_states(
+    session: Session, source_id: str
+) -> dict[str, tuple[dict[str, Any], datetime]]:
+    """Newest finished extraction state per project: (state, job end time). One row each."""
     since = datetime.now(UTC) - timedelta(days=PENDING_DAYS)
-    rows = session.scalars(
-        select(Job.checkpoint)
+    body = _checkpoint_json()
+    project = body["project"].as_string()
+    rows = session.execute(
+        select(project, body["state"], body["finished_at"].as_string(), Job.created_at)
         .where(
             Job.kind == KIND,
             Job.source_id == source_id,
             Job.status == "succeeded",
             Job.created_at >= since,
-            Job.checkpoint.like('%"state":%'),
+            body.op("?")("state"),
         )
-        .order_by(Job.created_at.desc())
-        .limit(MAX_PENDING_ROWS)
+        .distinct(project)
+        .order_by(project, Job.created_at.desc())
     ).all()
-    states: dict[str, dict[str, Any]] = {}
-    for raw in rows:
-        try:
-            body = json.loads(raw or "{}")
-        except ValueError:
-            continue
-        project, state = body.get("project"), body.get("state")
-        if isinstance(project, str) and isinstance(state, dict) and project not in states:
-            states[project] = state
+    states: dict[str, tuple[dict[str, Any], datetime]] = {}
+    for name, state, finished, created in rows:
+        if isinstance(name, str) and isinstance(state, dict):
+            states[name] = (state, _parse_time(finished) or created)
     return states
 
 
+def load_evidence_times(session: Session, source_id: str) -> dict[str, datetime]:
+    """When the newest evidence that carries a document state was recorded, per project."""
+    rows = session.execute(
+        select(Observation.external_id, Evidence.observed_at)
+        .join(Evidence, Evidence.observation_id == Observation.id)
+        .where(
+            Observation.source_id == source_id,
+            Evidence.provenance.op("?")(tceq_stage_key()),
+        )
+        .distinct(Observation.external_id)
+        .order_by(Observation.external_id, Evidence.observed_at.desc())
+    ).all()
+    return {external.removeprefix("TCEQ-"): observed for external, observed in rows}
+
+
+def tceq_stage_key() -> str:
+    from gridlens.ingestion.tceq_document_stage import STATE_KEY
+
+    return STATE_KEY
+
+
 def merge_pending(
-    prior: dict[str, dict[str, Any]], pending: dict[str, dict[str, Any]]
+    prior: dict[str, dict[str, Any]],
+    pending: dict[str, tuple[dict[str, Any], datetime]],
+    evidence_times: dict[str, datetime] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], int]:
-    """Pending states that are strictly newer than the retained state replace it."""
+    """A finished job's state replaces the retained one when it ended after that evidence.
+
+    Ordering is by completion, not by the state's own fetch time: an unchanged-bytes check
+    with refreshed validators, or a failed attempt on an accepted document, carries the old
+    fetch time but is still the newer decision. A state equal to the retained one is skipped.
+    """
     merged, taken = dict(prior), 0
-    for project, state in pending.items():
+    times = evidence_times or {}
+    for project, (state, ended) in pending.items():
         retained = merged.get(project)
         if retained is not None and tceq.state_digest(retained) == tceq.state_digest(state):
             continue
-        new_time, old_time = _state_time(state), _state_time(retained or {})
-        if retained is None or (new_time is not None and (old_time is None or new_time > old_time)):
+        seen = times.get(project)
+        if retained is None or seen is None or ended > seen:
             merged[project] = state
             taken += 1
     return merged, taken
 
 
 def discovery_callback(
-    session: Session, source_id: str, report: tceq.StageReport
+    session: Session, source_id: str, report: tceq.StageReport, *, limit: int
 ) -> Callable[[tceq.ApplicationLink, dict[str, Any] | None], None]:
-    """The ``on_changed`` callback for ``run_stage``: queue one job per changed document."""
-    limit = settings.document_extraction_max_enqueue_per_run
+    """The ``on_changed`` callback for ``run_stage``: queue one job per changed document.
+
+    ``limit`` bounds the jobs this run creates; versions that already have a job do not
+    spend it.
+    """
 
     def callback(link: tceq.ApplicationLink, validators: dict[str, Any] | None) -> None:
-        if report.counts.get("enqueued", 0) + report.counts.get("already_queued", 0) >= limit:
-            report.bump("deferred_enqueue_budget")
-            return
         _job_id, outcome = enqueue_document_extraction(
-            session, source_id, link=link, validators=validators
+            session,
+            source_id,
+            link=link,
+            validators=validators,
+            allow_create=report.counts.get("enqueued", 0) < limit,
         )
-        report.bump("enqueued" if outcome == "created" else "already_queued")
+        report.bump(
+            {
+                "created": "enqueued",
+                "existing": "already_queued",
+                "deferred": "deferred_enqueue_budget",
+            }[outcome]
+        )
         session.commit()  # release the source row lock before the next network call
 
     return callback
@@ -225,6 +293,7 @@ def _finish(
         job = assert_fence(session, job_id, worker_id, fence)
         body = json.loads(job.checkpoint or "{}")
         body.update(update)
+        body["finished_at"] = datetime.now(UTC).isoformat()
         job.checkpoint = _canonical(body)
         job.lease_owner, job.lease_until, job.error = None, None, None
         if requeue_at is not None:
@@ -266,7 +335,7 @@ def process_document_extraction_job(
             or not isinstance(record, dict)
         ):
             session.rollback()
-            _finish(job_id, worker_id, fence, {"outcome": "disabled", "extracted": False})
+            _finish(job_id, worker_id, fence, _undecided("disabled"))
             return
         not_before = load_not_before(session, source_id)
         if not_before is not None and datetime.now(UTC) < not_before:
@@ -280,7 +349,11 @@ def process_document_extraction_job(
             )
             return
         prior = load_prior_states(session, source_id)
-        prior, _ = merge_pending(prior, load_pending_states(session, source_id))
+        prior, _ = merge_pending(
+            prior,
+            load_pending_states(session, source_id),
+            load_evidence_times(session, source_id),
+        )
         book = load_bookkeeping(session, source_id)
         session.rollback()
 
@@ -304,6 +377,7 @@ def process_document_extraction_job(
         deadline=deadline,
         bookkeeping=book,
         hooks=hooks,
+        check_shrink=False,  # one record is not a listing
     )
     state = record.get("application_document")
     changed = isinstance(state, dict) and (
@@ -315,7 +389,13 @@ def process_document_extraction_job(
             save_bookkeeping(session, source_id, report.bookkeeping)
         rest = rest_until(report, datetime.now(UTC))
         save_not_before(session, source_id, rest)
-        fresh = [state] if changed and isinstance(state, dict) else []
+        from gridlens.ingestion.service import _fetched_since
+
+        fresh = (
+            [state]
+            if changed and isinstance(state, dict) and _fetched_since(state, started)
+            else []
+        )
         record_run(session, source_id, build_run_summary(KIND, report.counts, fresh, at=started))
     if rest is not None:
         _finish(
@@ -329,8 +409,34 @@ def process_document_extraction_job(
     retryable = [r for r in report.rejections if _retryable(r.get("error_code"))]
     if retryable and not changed:
         raise DocumentExtractionRetry(str(retryable[0].get("error_code"))[:60])
+    counts = report.counts
+    decided = bool(changed) or any(
+        counts.get(key) for key in ("unchanged", "unchanged_by_hash", "known_failed")
+    )
+    if not decided:
+        # Nothing was settled (backed off, deferred by the deadline, ...): not a result.
+        reason = next(
+            (
+                key
+                for key in ("backed_off", "deferred_deadline", "deferred_check_budget")
+                if counts.get(key)
+            ),
+            "no_decision",
+        )
+        _finish(
+            job_id,
+            worker_id,
+            fence,
+            {
+                **_undecided(reason),
+                "counts": counts,
+                "rejections": report.rejections[:5],
+            },
+        )
+        return
     update: dict[str, Any] = {
         "outcome": "extracted" if changed else "unchanged",
+        "decided": True,
         "extracted": bool(changed),
         "counts": report.counts,
         "rejections": report.rejections[:5],
@@ -343,7 +449,21 @@ def process_document_extraction_job(
         update.update(_cap_fields(document.get("extraction") or {}))
     _finish(job_id, worker_id, fence, update)
     if changed:
-        _request_refresh(source_id)
+        _request_refresh(source_id, job_id)
+
+
+def _undecided(reason: str) -> dict[str, Any]:
+    """A finished job that settled nothing: the version may be queued again after a rest."""
+    rest = tceq.RETRY_BACKOFF_DAYS * 24 if reason == "backed_off" else None
+    out: dict[str, Any] = {
+        "outcome": f"undecided_{reason}",
+        "decided": False,
+        "extracted": False,
+    }
+    out["rest_hours"] = (
+        rest if rest is not None else settings.document_extraction_failed_retry_hours
+    )
+    return out
 
 
 def _retryable(code: Any) -> bool:
@@ -377,12 +497,27 @@ def _ocr(path: str, url: str, source_id: str, job_id: UUID, worker_id: str, fenc
     )
 
 
-def _request_refresh(source_id: str) -> None:
-    """Queue (or reuse) the listing job that folds the finished state into evidence."""
+def _request_refresh(source_id: str, job_id: UUID) -> None:
+    """Queue (or reuse) the listing job that folds finished states into evidence.
+
+    Coalesced: skipped while another extraction job for the source is still queued or
+    running, because that job will request the refresh when it finishes.
+    """
     from gridlens.jobs.queue import enqueue
 
     try:
         with SessionLocal.begin() as session:
-            enqueue(session, source_id)
+            others = session.scalar(
+                select(func.count())
+                .select_from(Job)
+                .where(
+                    Job.kind == KIND,
+                    Job.source_id == source_id,
+                    Job.id != job_id,
+                    Job.status.in_(("queued", "running")),
+                )
+            )
+            if not others:
+                enqueue(session, source_id)
     except ValueError:
         pass  # source disabled meanwhile: the state stays pending, nothing is lost

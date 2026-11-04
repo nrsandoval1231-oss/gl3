@@ -295,7 +295,8 @@ An OCR request is a sub-PDF of at most 5 scanned pages and 750,000 bytes; with t
 
 ```env
 DOCUMENT_EXTRACTION_JOBS_ENABLED=false
-DOCUMENT_EXTRACTION_MAX_ENQUEUE_PER_RUN=25      # extraction jobs one listing run may queue
+# DOCUMENT_EXTRACTION_MAX_ENQUEUE_PER_RUN unset: the stage's own max_downloads (1-5 per run);
+# set 1-200 to queue more jobs per listing run
 DOCUMENT_EXTRACTION_FAILED_RETRY_HOURS=24       # a failed document version rests this long
 # Document-source alert thresholds (daily ntfy message)
 DOC_ALERT_MIN_BASELINE_DOCS=5                   # documents needed before a yield baseline exists
@@ -312,7 +313,7 @@ No new infrastructure. The worker already runs every job kind; `document_extract
 
 ### Proposed per-source schedule (America/Chicago; for the owner to confirm)
 
-Nothing here is applied. Times are staggered so no publisher sees two sources at once, and sit in the 03:00-04:00 window after overnight publisher batches. `run_at` is local wall-clock time and follows daylight saving time (a skipped spring-forward time runs at the next valid minute; an ambiguous fall-back time runs once).
+Nothing here is applied. Times sit in the 03:00-04:00 window after overnight publisher batches and are spread out so sources on one host do not start together (the three TCEQ sources are ten minutes apart). There is no cross-source host lock: only a per-source admission, so a long run can still overlap its neighbour, and each stage paces its own requests to at most one per second. `run_at` is local wall-clock time and follows daylight saving time (a skipped spring-forward time runs at the next valid minute; an ambiguous fall-back time runs once).
 
 | Source id | Today | Proposed registry fields |
 | --- | --- | --- |

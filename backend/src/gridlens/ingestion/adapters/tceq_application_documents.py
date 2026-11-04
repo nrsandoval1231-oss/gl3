@@ -793,6 +793,7 @@ def run_stage(
     bookkeeping: dict[str, dict[str, Any]] | None = None,
     hooks: ExtractionHooks | None = None,
     on_changed: Callable[[ApplicationLink, dict[str, Any] | None], None] | None = None,
+    check_shrink: bool = True,
 ) -> StageReport:
     """Run the stage over NSR records and fold each resulting state into its record.
 
@@ -834,7 +835,8 @@ def run_stage(
         if prior_states.get(link.project) is not None
     }
     try:
-        _check_shrink(links, prior_states, report)
+        if check_shrink:
+            _check_shrink(links, prior_states, report)
         for position, link in enumerate(links):
             prior = prior_states.get(link.project)
             if position >= config.max_checks:

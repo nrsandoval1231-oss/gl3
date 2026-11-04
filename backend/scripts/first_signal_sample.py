@@ -14,6 +14,8 @@ def main() -> None:
     parser.add_argument("--since", help="ISO timestamp (first_seen_at lower bound)")
     args = parser.parse_args()
     since = datetime.fromisoformat(args.since) if args.since else None
+    if since is not None and since.tzinfo is None:
+        parser.error("--since must include a UTC offset, for example 2026-11-01T00:00:00+00:00")
     with SessionLocal() as session:
         for row in first_signal_sample(session, source_ids=args.sources, since=since):
             print(json.dumps(row, default=str, sort_keys=True))

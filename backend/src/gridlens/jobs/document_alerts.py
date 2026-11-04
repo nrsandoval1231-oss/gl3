@@ -71,13 +71,22 @@ def _code_count(run: dict[str, Any], bucket: str, code: str) -> int:
     return _n(codes, code) if isinstance(codes, dict) else 0
 
 
+LISTING_MODES = frozenset({"inline", "discovery"})
+CONTENT_TYPE_WINDOW = timedelta(hours=24)
+
+
+def _attempts(run: dict[str, Any]) -> int:
+    """Documents a run examined: extracted ones plus those that failed as empty."""
+    return _n(run, "docs") + _code_count(run, "failures", EMPTY_TEXT_LAYER)
+
+
 def _split(runs: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """(baseline, recent): the last RECENT_RUNS runs that extracted documents are 'recent'."""
-    active = [i for i, run in enumerate(runs) if _n(run, "docs") > 0]
+    active = [i for i, run in enumerate(runs) if _attempts(run) > 0]
     if len(active) <= RECENT_RUNS:
         return [], [runs[i] for i in active]
     cut = active[-RECENT_RUNS]
-    return [r for r in runs[:cut] if _n(r, "docs") > 0], [runs[i] for i in active[-RECENT_RUNS:]]
+    return [r for r in runs[:cut] if _attempts(r) > 0], [runs[i] for i in active[-RECENT_RUNS:]]
 
 
 def parse_time(raw: Any) -> datetime | None:
@@ -97,6 +106,7 @@ def evaluate(
     thresholds: Thresholds | None = None,
     new_observations_recent: int | None = None,
     observations_total: int = 0,
+    stage_enabled: bool = True,
 ) -> list[Finding]:
     """Findings for one document source. ``runs`` is oldest-first."""
     limit = thresholds or Thresholds.from_settings()
@@ -105,8 +115,11 @@ def evaluate(
         return findings
     latest = runs[-1]
 
-    wrong = _code_count(latest, "failures", "js_shell") + _code_count(
-        latest, "failures", WRONG_CONTENT_TYPE
+    window = max(CONTENT_TYPE_WINDOW, timedelta(hours=cadence_hours))
+    wrong = sum(
+        _code_count(r, "failures", "js_shell") + _code_count(r, "failures", WRONG_CONTENT_TYPE)
+        for r in runs
+        if (when := parse_time(r.get("at"))) is not None and now - when <= window
     )
     if wrong:
         findings.append(
@@ -114,7 +127,8 @@ def evaluate(
                 WRONG_CONTENT_TYPE,
                 source_id,
                 f"{wrong} document(s) answered with a web page or other non-PDF type in the "
-                "latest run (the publisher may have put a script shell in front of the PDFs)",
+                f"last {window.total_seconds() / 3600:.0f} h (the publisher may have put a "
+                "script shell in front of the PDFs)",
                 {"count": wrong},
             )
         )
@@ -165,12 +179,15 @@ def evaluate(
                 )
             )
 
-    earlier_scope = max((_n(r, "in_scope") for r in runs[:-1]), default=0)
-    shrink_notice = _code_count(latest, "notices", LISTING_SHRINK)
-    now_scope = _n(latest, "in_scope")
+    # Only listing runs know the listing size; single-document jobs say nothing about it.
+    listing = [r for r in runs if r.get("mode") in LISTING_MODES]
+    last_listing = listing[-1] if listing else {}
+    earlier_scope = max((_n(r, "in_scope") for r in listing[:-1]), default=0)
+    shrink_notice = _code_count(last_listing, "notices", LISTING_SHRINK)
+    now_scope = _n(last_listing, "in_scope")
     if shrink_notice or (
         earlier_scope >= 4
-        and "in_scope" in latest
+        and "in_scope" in last_listing
         and now_scope < earlier_scope * limit.listing_shrink_ratio
     ):
         findings.append(
@@ -184,8 +201,10 @@ def evaluate(
         )
 
     last_run = parse_time(latest.get("at"))
-    if last_run is not None and now - last_run > timedelta(
-        hours=cadence_hours * limit.overdue_multiplier
+    if (
+        stage_enabled
+        and last_run is not None
+        and now - last_run > timedelta(hours=cadence_hours * limit.overdue_multiplier)
     ):
         findings.append(
             Finding(
@@ -209,15 +228,40 @@ def evaluate(
     return findings
 
 
+def _stage_enabled(definition: dict[str, Any] | None) -> bool:
+    """Whether the registry still turns this source's document stage on."""
+    if definition is None:
+        return False
+    method = definition.get("retrieval_method")
+    from gridlens.ingestion.adapters import ok_deq_documents, tceq_application_documents
+
+    readers = {
+        "tceq-nsr-pending": tceq_application_documents.config_from_source,
+        "ok-deq-public-review": ok_deq_documents.config_from_source,
+    }
+    reader = readers.get(str(method))
+    if reader is None:
+        return True
+    try:
+        return reader(definition) is not None
+    except Exception:  # noqa: BLE001 - an invalid stage block is not a running stage
+        return False
+
+
 def document_report(now: datetime | None = None) -> list[Finding]:
     """Read-only findings for every enabled source that reports document-stage runs."""
     from sqlalchemy import func, select
 
+    from gridlens.ingestion.registry import load_registry
     from gridlens.persistence.database import SessionLocal
     from gridlens.persistence.models import Observation, Source
 
     now = now or datetime.now(UTC)
     limit = Thresholds.from_settings()
+    try:
+        definitions = {item["id"]: item for item in load_registry()}
+    except Exception:  # noqa: BLE001 - registry trouble is reported elsewhere; keep checking
+        definitions = {}
     findings: list[Finding] = []
     with SessionLocal() as session:
         for source in session.scalars(select(Source).where(Source.enabled.is_(True))):
@@ -247,6 +291,9 @@ def document_report(now: datetime | None = None) -> list[Finding]:
                     thresholds=limit,
                     new_observations_recent=int(recent or 0),
                     observations_total=int(total or 0),
+                    stage_enabled=_stage_enabled(definitions.get(source.id))
+                    if definitions
+                    else True,
                 )
             )
     return findings

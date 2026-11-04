@@ -352,7 +352,7 @@ def test_a_failed_job_stage_never_marks_the_source_unhealthy(stage_db, monkeypat
         health = session.get(Source, SOURCE_ID).health
     # The WS6 run summary ("document_stage") feeds the daily alert; it carries no status field.
     assert set(health) - {"document_stage"} == {"okdeq_documents"}
-    assert "status" not in health.get("document_stage", {})
+    assert set(health.get("document_stage", {})) <= {"runs"}
 
 
 def test_retry_after_is_stored_in_health_and_honoured_by_the_next_run(stage_db, monkeypatch):

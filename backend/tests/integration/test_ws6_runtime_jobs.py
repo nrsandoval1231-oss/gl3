@@ -6,12 +6,16 @@ Disposable test database only. HTTP is a MockTransport; the model passes are fak
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from uuid import uuid4
 
 import httpx
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import create_engine, func, select, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import sessionmaker
 from test_tceq_application_documents_ingestion import (  # noqa: F401  (fixtures and helpers)
     BASE,
     ELECTRIC,
@@ -31,6 +35,7 @@ from gridlens.intelligence.first_signal import first_signal_sample, lead_time_da
 from gridlens.intelligence.spend_caps import recent_capped_out_jobs
 from gridlens.jobs import document_alerts as da
 from gridlens.persistence import database
+from gridlens.persistence.database import Base
 from gridlens.persistence.models import Evidence, Job, Observation, Project, Source
 from gridlens.settings import settings
 
@@ -44,11 +49,12 @@ class Publisher:
         self.body, self.etag = body, etag
         self.requests: list[str] = []
         self.status = 200
+        self.content_type = "application/pdf"
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request.method)
         headers = {
-            "content-type": "application/pdf",
+            "content-type": self.content_type,
             "etag": self.etag,
             "last-modified": "Mon, 02 Nov 2026 10:00:00 GMT",
             "content-length": str(len(self.body)),
@@ -565,3 +571,304 @@ def test_federal_register_timestamps_are_complete_and_first_seen_is_kept(world):
     with world.factory() as session:
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
         assert session.scalar(select(Observation.first_seen_at)) == first_seen
+
+
+# ------------------------------------------------------------------ review fixes
+
+
+def finish_age(world, job_id, *, hours=0.0, days=0.0):
+    """Pretend a finished job ended (and was created) this long ago."""
+    ago = datetime.now(UTC) - timedelta(hours=hours, days=days)
+    with world.factory.begin() as session:
+        job = session.get(Job, job_id)
+        body = json.loads(job.checkpoint)
+        body["finished_at"] = ago.isoformat()
+        job.checkpoint = json.dumps(body, sort_keys=True, separators=(",", ":"))
+        job.created_at = ago
+
+
+def current_validators(publisher):
+    return docs._validators(
+        httpx.Headers(
+            {
+                "etag": publisher.etag,
+                "last-modified": "Mon, 02 Nov 2026 10:00:00 GMT",
+                "content-length": str(len(publisher.body)),
+            }
+        )
+    )
+
+
+def enqueue_again(world, publisher):
+    with world.factory.begin() as session:
+        return djob.enqueue_document_extraction(
+            session,
+            world.definition["id"],
+            link=link(),
+            validators=current_validators(publisher),
+        )
+
+
+def test_a_fourth_attempt_that_is_backed_off_decides_nothing_and_is_requeued_later(world):
+    publisher = Publisher(portfolio([ELECTRIC]))
+    use_publisher(world, publisher)
+    discover(world, publisher)
+    (job,) = extraction_jobs(world)
+    with world.factory.begin() as session:  # three counted environment failures on these bytes
+        source = session.get(Source, world.definition["id"])
+        source.health = {
+            **source.health,
+            "application_documents_attempts": {
+                "900001": {
+                    "code": "text_layer_memory_limit",
+                    "attempts": 3,
+                    "at": datetime.now(UTC).isoformat(),
+                    "sha256": None,
+                    "validators": current_validators(publisher),
+                }
+            },
+        }
+    lease(world, job.id)
+    djob.process_document_extraction_job(job.id, WORKER, 1, deadline=None)
+    with world.factory() as session:
+        assert session.get(Job, job.id).status == "succeeded"
+        body = json.loads(session.get(Job, job.id).checkpoint)
+    assert body["outcome"] == "undecided_backed_off" and body["decided"] is False
+    assert "state" not in body and body["rest_hours"] == 168
+    assert enqueue_again(world, publisher)[1] == "existing"  # still resting
+    finish_age(world, job.id, days=8)
+    new_id, how = enqueue_again(world, publisher)
+    assert how == "created" and new_id != job.id  # the version is tried again after the rest
+
+
+def test_a_job_with_no_time_left_defers_and_is_requeued_after_its_rest(world):
+    from time import monotonic
+
+    publisher = Publisher(portfolio([ELECTRIC]))
+    use_publisher(world, publisher)
+    discover(world, publisher)
+    (job,) = extraction_jobs(world)
+    lease(world, job.id)
+    before = len(publisher.requests)
+    djob.process_document_extraction_job(job.id, WORKER, 1, deadline=monotonic() + 5)
+    assert len(publisher.requests) == before  # no time even for a HEAD: nothing requested
+    with world.factory() as session:
+        body = json.loads(session.get(Job, job.id).checkpoint)
+    assert body["outcome"].startswith("undecided_") and body["decided"] is False
+    assert enqueue_again(world, publisher)[1] == "existing"
+    finish_age(world, job.id, hours=30)
+    assert enqueue_again(world, publisher)[1] == "created"
+
+
+def test_pending_states_older_than_the_lookback_are_requeued_not_lost(world):
+    publisher = Publisher(portfolio([ELECTRIC]))
+    job_id = run_job(world, publisher)
+    assert enqueue_again(world, publisher)[1] == "existing"
+    with world.factory() as session:
+        assert set(djob.load_pending_states(session, world.definition["id"])) == {"900001"}
+    finish_age(world, job_id, days=djob.PENDING_DAYS + 1)
+    with world.factory() as session:
+        assert djob.load_pending_states(session, world.definition["id"]) == {}
+    assert enqueue_again(world, publisher)[1] == "created"  # the unfolded state is produced again
+
+
+def test_pending_states_are_one_newest_row_per_project(world):
+    base = {"project": "900001", "outcome": "extracted", "decided": True}
+    with world.factory.begin() as session:
+        for index, sha in enumerate(("a", "b", "c")):
+            session.add(
+                Job(
+                    source_id=world.definition["id"],
+                    kind=djob.KIND,
+                    status="succeeded",
+                    created_at=datetime.now(UTC) - timedelta(hours=3 - index),
+                    checkpoint=json.dumps({**base, "state": {"document": {"sha256": sha}}}),
+                )
+            )
+    with world.factory() as session:
+        got = djob.load_pending_states(session, world.definition["id"])
+    assert list(got) == ["900001"] and got["900001"][0]["document"]["sha256"] == "c"
+
+
+def test_budget_counts_created_jobs_only(world):
+    report = docs.StageReport()
+    first = link()
+    other = replace(first, project="900002", url=BASE + "900002-tc.pdf")
+    third = replace(first, project="900003", url=BASE + "900003-tc.pdf")
+    with world.factory() as session:
+        callback = djob.discovery_callback(session, world.definition["id"], report, limit=1)
+        callback(first, {"etag": "a"})
+        callback(first, {"etag": "a"})  # already queued: spends nothing
+        callback(other, {"etag": "b"})  # the budget (1) is spent: deferred, not queued
+        callback(third, {"etag": "c"})
+    assert report.counts == {"enqueued": 1, "already_queued": 1, "deferred_enqueue_budget": 2}
+    assert len(extraction_jobs(world)) == 1
+
+
+def test_refresh_requests_are_coalesced_per_source(world):
+    with world.factory.begin() as session:
+        session.get(Job, world.ingestion_job).status = "succeeded"
+    ids = []
+    for etag in ("a", "b"):
+        with world.factory.begin() as session:
+            ids.append(
+                djob.enqueue_document_extraction(
+                    session, world.definition["id"], link=link(), validators={"etag": etag}
+                )[0]
+            )
+
+    def queued_ingestion():
+        with world.factory() as session:
+            return session.scalar(
+                select(func.count())
+                .select_from(Job)
+                .where(Job.kind == "ingestion", Job.status == "queued")
+            )
+
+    djob._request_refresh(world.definition["id"], ids[0])
+    assert queued_ingestion() == 0  # a sibling job will ask when it finishes
+    with world.factory.begin() as session:
+        session.get(Job, ids[1]).status = "succeeded"
+    djob._request_refresh(world.definition["id"], ids[0])
+    assert queued_ingestion() == 1
+
+
+def test_run_history_is_capped_per_mode(world):
+    from gridlens.ingestion.document_health import record_run
+
+    with world.factory.begin() as session:
+        for index in range(5):
+            record_run(session, world.definition["id"], {"mode": "discovery", "n": index})
+        for index in range(45):
+            record_run(session, world.definition["id"], {"mode": "document_extraction", "n": index})
+    with world.factory() as session:
+        runs = session.get(Source, world.definition["id"]).health["document_stage"]["runs"]
+    assert sum(r["mode"] == "discovery" for r in runs) == 5  # not pushed out by job runs
+    jobs = [r for r in runs if r["mode"] == "document_extraction"]
+    assert len(jobs) == 30 and jobs[-1]["n"] == 44
+
+
+def test_job_summaries_omit_the_listing_size():
+    from gridlens.ingestion.document_health import build_run_summary
+
+    at = datetime(2026, 11, 4, tzinfo=UTC)
+    assert "in_scope" not in build_run_summary("document_extraction", {"in_scope": 1}, [], at=at)
+    assert build_run_summary("discovery", {"in_scope": 7}, [], at=at)["in_scope"] == 7
+
+
+def test_a_capped_out_pass_is_visible_on_a_real_job(world):
+    from gridlens.ingestion.parsers.permit_docs.proposals import OcrOutcome
+
+    class CappedOcr:
+        def ocr_pages(self, pages, *, document_hash):
+            return OcrOutcome(
+                "capped_out",
+                "CAP",
+                {},
+                "",
+                {"cap_scope": "provider", "cap_period": "daily", "cap_reason": "daily_usd"},
+            )
+
+    world.monkeypatch.setattr(djob, "_ocr", lambda *a, **k: CappedOcr())
+    # Page 2 has no text layer: the OCR pass is asked for it and is capped out.
+    job_id = run_job(world, Publisher(portfolio([ELECTRIC, ["."]])))
+    with world.factory() as session:
+        body = json.loads(session.get(Job, job_id).checkpoint)
+        assert body["capped_out"] is True and body["cap_pass"] == "ocr"
+        assert body["cap_scope"] == "provider" and body["cap_period"] == "daily"
+        assert recent_capped_out_jobs(session)["jobs"] == 1
+
+
+def test_run_one_runs_the_new_kind_through_admission_and_the_generic_retry(world):
+    import gridlens.jobs.worker as worker
+
+    world.monkeypatch.setattr(worker, "SessionLocal", world.factory)
+    publisher = Publisher(portfolio([ELECTRIC]))
+    use_publisher(world, publisher)
+    discover(world, publisher)
+    (job,) = extraction_jobs(world)
+    publisher.status = 500  # a retryable publisher failure
+    assert worker.run_one({}, job_ids=[job.id]) is True
+    with world.factory() as session:
+        again = session.get(Job, job.id)
+        assert again.status == "queued" and again.attempts == 1
+        assert again.error == "DocumentExtractionRetry"
+        assert again.available_at > datetime.now(UTC) + timedelta(seconds=5)
+        assert again.lease_owner is None
+        again.available_at = datetime.now(UTC) - timedelta(seconds=1)
+        session.commit()
+    publisher.status = 200
+    assert worker.run_one({}, job_ids=[job.id]) is True
+    with world.factory() as session:
+        done = session.get(Job, job.id)
+        assert done.status == "succeeded" and done.attempts == 2
+        assert json.loads(done.checkpoint)["outcome"] == "extracted"
+
+
+def test_job_mode_and_inline_mode_produce_the_same_evidence_hashes(stage_db, monkeypatch):  # noqa: F811
+    """Same publisher sequence, flag on versus off: identical source_hash at every step."""
+    shell = Publisher(b"<html><script>x()</script></html>")
+    shell.content_type = "text/html"
+    steps = [
+        Publisher(portfolio([ELECTRIC]), '"v1"'),
+        Publisher(portfolio([ELECTRIC]), '"v2"'),  # same bytes, refreshed validators
+        shell,  # the accepted schedule survives a script shell
+    ]
+
+    monkeypatch.setattr("gridlens.ingestion.adapters.tceq_http._public_ip", lambda _h: "8.8.8.8")
+    monkeypatch.setattr(docs, "Pacer", lambda *a, **k: (lambda: None))
+    monkeypatch.setattr(
+        docs, "config_from_source", lambda _s: docs.StageConfig(1, 5, 120.0, isolate=False)
+    )
+
+    def sequence(factory, job_mode: bool):
+        monkeypatch.setattr(settings, "document_extraction_jobs_enabled", job_mode)
+        monkeypatch.setattr(djob, "SessionLocal", factory)
+        monkeypatch.setattr(database, "SessionLocal", factory)
+        definition, ingestion = setup_source(factory)
+        world = SimpleNamespace(
+            factory=factory,
+            definition=definition,
+            ingestion_job=ingestion,
+            monkeypatch=monkeypatch,
+        )
+        seen, docs_per_run = [], []
+        for publisher in steps:
+            use_publisher(world, publisher)
+            if job_mode:
+                discover(world, publisher)
+                for queued in [j for j in extraction_jobs(world) if j.status == "queued"]:
+                    lease(world, queued.id)
+                    djob.process_document_extraction_job(queued.id, WORKER, 1, deadline=None)
+            _, records = discover(world, publisher)
+            with factory() as session:
+                process_records(
+                    session, ingestion, WORKER, 1, definition, records, allow_model=False
+                )
+            seen.append((records[0]["source_hash"], records[0]["abstract"]))
+            with factory() as session:
+                runs = session.get(Source, definition["id"]).health["document_stage"]["runs"]
+            docs_per_run.append(
+                sum(r["docs"] for r in runs if r["mode"] in {"inline", "discovery"})
+            )
+        return seen, docs_per_run
+
+    schema_b = "ws6_equiv_" + uuid4().hex
+    target = make_url(settings.test_database_url)
+    admin = create_engine(target)
+    with admin.begin() as connection:
+        connection.execute(text(f'CREATE SCHEMA "{schema_b}"'))
+    engine_b = create_engine(target, connect_args={"options": f"-csearch_path={schema_b}"})
+    Base.metadata.create_all(engine_b)
+    try:
+        inline, inline_docs = sequence(stage_db, False)
+        jobbed, job_docs = sequence(sessionmaker(engine_b, expire_on_commit=False), True)
+    finally:
+        engine_b.dispose()
+        with admin.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA "{schema_b}" CASCADE'))
+        admin.dispose()
+    assert len({h for h, _ in inline}) == 3  # each step really is a distinct evidence version
+    assert jobbed == inline
+    # Copies of an accepted state (unchanged bytes, failed attempt) are not new documents.
+    assert inline_docs == [1, 1, 1] and job_docs == [0, 0, 0]

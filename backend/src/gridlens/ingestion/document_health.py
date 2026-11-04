@@ -13,12 +13,13 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.persistence.models import Source
 
 HEALTH_KEY = "document_stage"
-MAX_RUNS = 60
+MAX_RUNS_PER_MODE = 30  # listing (inline/discovery) and job runs are capped separately
 MAX_CODES = 20
 
 
@@ -73,13 +74,15 @@ def build_run_summary(
         for key, value in counts.items()
         if key.startswith("notice_")
     }
+    # A single-document job has no listing: it reports no in_scope rather than 0.
+    listing_keys = () if mode == "document_extraction" else ("in_scope",)
     summary: dict[str, Any] = {
         "at": at.astimezone(UTC).isoformat(),
         "mode": mode,
         **{
             key: _int(counts.get(key))
             for key in (
-                "in_scope",
+                *listing_keys,
                 "checked",
                 "new",
                 "updated",
@@ -98,14 +101,35 @@ def build_run_summary(
     return summary
 
 
+def locked_source(session: Session, source_id: str) -> Source | None:
+    """The source row, locked and refreshed, for a read-modify-write of ``health``.
+
+    Pending changes are flushed first so the refresh cannot discard them.
+    """
+    session.flush()
+    return session.scalar(
+        select(Source)
+        .where(Source.id == source_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
 def record_run(session: Session, source_id: str, summary: dict[str, Any]) -> None:
     """Append ``summary`` to the source's bounded run history (caller commits)."""
-    source = session.get(Source, source_id)
+    source = locked_source(session, source_id)
     if source is None:
         return
     health = dict(source.health or {})
     block = health.get(HEALTH_KEY)
     runs = list(block.get("runs", [])) if isinstance(block, dict) else []
     runs.append(summary)
-    health[HEALTH_KEY] = {"runs": runs[-MAX_RUNS:]}
+    kept: list[dict[str, Any]] = []
+    seen: dict[str, int] = {}
+    for run in reversed(runs):  # newest first, so the cap drops the oldest of each kind
+        kind = "job" if run.get("mode") == "document_extraction" else "listing"
+        seen[kind] = seen.get(kind, 0) + 1
+        if seen[kind] <= MAX_RUNS_PER_MODE:
+            kept.append(run)
+    health[HEALTH_KEY] = {"runs": kept[::-1]}
     source.health = health
