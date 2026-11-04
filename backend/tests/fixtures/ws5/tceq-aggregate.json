@@ -1,0 +1,157 @@
+[
+ {
+  "registration": "AP0000007",
+  "registration_status": "ACTIVE",
+  "customer_number": "CN600985337",
+  "customer_name": "Smart Materials, Inc.",
+  "regulated_number": "RN105418263",
+  "regulated_entity_name": "LIBERTY SAND PIT",
+  "site_name": "LIBERTY SAND PIT",
+  "county": "LIBERTY",
+  "site_latitude": "29.5931",
+  "site_longitude": "-94.4522",
+  "site_address_description": "APPROXIMATELY 500 BLOCK OF CR 142",
+  "city": "LIBERTY",
+  "organization_name": "SMART MATERIALS INC",
+  "mailing_address": "1404 WALLISVILLE RD LIBERTY, TX  77575-9145",
+  "registration_start_date": "2012-09-13T00:00:00.000",
+  "last_application_submitted": "2026-09-01T00:00:00.000",
+  "last_application_type": "RENEWAL",
+  "last_applicaiton_status": "APPROVED",
+  "last_application_status_date": "2026-09-01T00:00:00.000",
+  "current_expiration_date": "2027-09-13T00:00:00.000",
+  "material_type": "SAND",
+  "area_disturbed": "43",
+  "coordinates_decimal_degrees_": {
+   "type": "Point",
+   "coordinates": [
+    -94.4522,
+    29.5931
+   ]
+  }
+ },
+ {
+  "registration": "AP0000016",
+  "registration_status": "ACTIVE",
+  "customer_number": "CN601585011",
+  "customer_name": "FRIESENHAHN, DAVID",
+  "regulated_number": "RN103045423",
+  "regulated_entity_name": "DAVID FRIESENHAHN SITE",
+  "site_name": "FRIESENHAHN FARMS + MATERIAL",
+  "county": "BEXAR",
+  "site_latitude": "29.285886",
+  "site_longitude": "-98.528035",
+  "site_address_description": "1440 MAUERMANN RD SAN ANTONIO, TX  78224-3103",
+  "city": "SAN ANTONIO",
+  "organization_name": "FRIESENHAHN, DAVID",
+  "mailing_address": "PO BOX 638 SOMERSET, TX  78069-0638",
+  "registration_start_date": "2012-09-25T00:00:00.000",
+  "last_application_submitted": "2026-10-03T00:00:00.000",
+  "last_application_type": "RENEWAL",
+  "last_applicaiton_status": "APPROVED",
+  "last_application_status_date": "2026-10-03T00:00:00.000",
+  "current_expiration_date": "2027-10-17T00:00:00.000",
+  "material_type": "SOIL",
+  "area_disturbed": "30",
+  "coordinates_decimal_degrees_": {
+   "type": "Point",
+   "coordinates": [
+    -98.528035,
+    29.285886
+   ]
+  }
+ },
+ {
+  "registration": "AP0000031",
+  "registration_status": "ACTIVE",
+  "customer_number": "CN603403973",
+  "customer_name": "CEMEX Construction Materials South, LLC",
+  "regulated_number": "RN102437274",
+  "regulated_entity_name": "CEMEX BALCONES QUARRY",
+  "site_name": "CEMEX NEW BRAUNFELS BALCONES QUARRY",
+  "county": "COMAL",
+  "site_latitude": "29.672347",
+  "site_longitude": "-98.189165",
+  "site_address_description": "2682 WALD RD NEW BRAUNFELS, TX  78132-4900",
+  "city": "NEW BRAUNFELS",
+  "organization_name": "CEMEX CONSTRUCTION MATERIALS SOUTH LLC",
+  "mailing_address": "16100 DILLARD DR JERSEY VILLAGE, TX  77040-2077",
+  "registration_start_date": "2012-10-09T00:00:00.000",
+  "last_application_submitted": "2025-10-24T00:00:00.000",
+  "last_application_type": "MODIFICATION",
+  "last_applicaiton_status": "APPROVED",
+  "last_application_status_date": "2025-10-24T00:00:00.000",
+  "current_expiration_date": "2027-10-09T00:00:00.000",
+  "material_type": "LIMESTONE",
+  "area_disturbed": "1500",
+  "coordinates_decimal_degrees_": {
+   "type": "Point",
+   "coordinates": [
+    -98.189165,
+    29.672347
+   ]
+  }
+ },
+ {
+  "registration": "AP0000047",
+  "registration_status": "ACTIVE",
+  "customer_number": "CN603089707",
+  "customer_name": "Angelina Excavating, INC.",
+  "regulated_number": "RN105684062",
+  "regulated_entity_name": "ANGELINA EXCAVATING SAND PIT",
+  "site_name": "ANGELINA EXCAVATING SAND PIT",
+  "county": "ANGELINA",
+  "site_latitude": "31.3838",
+  "site_longitude": "-94.84778",
+  "site_address_description": "FM 2021 400 YDS FROM TX 103",
+  "city": "LUFKIN",
+  "organization_name": "ANGELINA EXCAVATING INC",
+  "mailing_address": "PO BOX 151708 LUFKIN, TX  75915-1708",
+  "registration_start_date": "2012-10-15T00:00:00.000",
+  "last_application_submitted": "2026-10-08T00:00:00.000",
+  "last_application_type": "RENEWAL",
+  "last_applicaiton_status": "APPROVED",
+  "last_application_status_date": "2026-10-08T00:00:00.000",
+  "current_expiration_date": "2027-10-15T00:00:00.000",
+  "material_type": "SAND; SOIL",
+  "area_disturbed": "60",
+  "coordinates_decimal_degrees_": {
+   "type": "Point",
+   "coordinates": [
+    -94.84778,
+    31.3838
+   ]
+  }
+ },
+ {
+  "registration": "AP0000055",
+  "registration_status": "ACTIVE",
+  "customer_number": "CN606114726",
+  "customer_name": "Martin Marietta Materials Southwest, LLC",
+  "regulated_number": "RN103016002",
+  "regulated_entity_name": "CUSTOM READY MIX HELOTES PLANT",
+  "site_name": "MM - HELOTES",
+  "county": "BEXAR",
+  "site_latitude": "29.6105",
+  "site_longitude": "-98.7166",
+  "site_address_description": "17982 BANDERA RD HELOTES, TX  78023-2916",
+  "city": "HELOTES",
+  "organization_name": "MARTIN MARIETTA MATERIALS SOUTHWEST LLC",
+  "mailing_address": "5221 N O CONNOR BLVD STE 700 ATTN ENVIRONMENTAL IRVING, TX  75039-4428",
+  "registration_start_date": "2012-10-17T00:00:00.000",
+  "last_application_submitted": "2026-10-01T00:00:00.000",
+  "last_application_type": "RENEWAL",
+  "last_applicaiton_status": "APPROVED",
+  "last_application_status_date": "2026-10-01T00:00:00.000",
+  "current_expiration_date": "2027-10-17T00:00:00.000",
+  "material_type": "LIMESTONE",
+  "area_disturbed": "160",
+  "coordinates_decimal_degrees_": {
+   "type": "Point",
+   "coordinates": [
+    -98.7166,
+    29.6105
+   ]
+  }
+ }
+]

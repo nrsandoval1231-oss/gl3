@@ -75,8 +75,10 @@ def valid_query(source: dict[str, Any]) -> bool:
 
 
 def _page_url(offset: int) -> str:
-    return ENDPOINT + "?" + urlencode(
-        {"$order": "registration", "$limit": PAGE_SIZE, "$offset": offset}
+    return (
+        ENDPOINT
+        + "?"
+        + urlencode({"$order": "registration", "$limit": PAGE_SIZE, "$offset": offset})
     )
 
 
@@ -116,7 +118,11 @@ def build_record(row: dict[str, Any]) -> dict[str, Any]:
         f"Operator: {row['organization_name'] or row['customer_name'] or 'not stated'}",
         f"County: {row['county'] or 'not stated'}; city: {row['city'] or 'not stated'}",
         f"Material: {row['material_type'] or 'not stated'}; area disturbed (acres): "
-        + (f"{row['area_disturbed_acres']:g}" if row["area_disturbed_acres"] is not None else "not stated"),
+        + (
+            f"{row['area_disturbed_acres']:g}"
+            if row["area_disturbed_acres"] is not None
+            else "not stated"
+        ),
         f"Registered since {row['registration_start_date'] or 'date not stated'}; "
         f"expires {row['current_expiration_date'] or 'date not stated'}",
         f"Last application: {row['last_application_type'] or 'not stated'}, "

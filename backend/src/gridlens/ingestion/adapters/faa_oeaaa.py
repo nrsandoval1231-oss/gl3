@@ -41,7 +41,7 @@ ENDPOINT = "https://oeaaa.faa.gov/oeaaa/services/caseList/date/OE"
 ROW_CAP = 8000
 EARTH_RADIUS_M = 6_371_008.8
 MAX_CAMPUSES = 200
-_ASN = re.compile(r"^\d{4}-[A-Z]{3}-\d{1,7}-[A-Z]{2}$")
+_ASN = re.compile(r"^\d{4}-[A-Z]{3}-\d{1,7}-[A-Z]{2,4}$")
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _FIELDS = (
     "asn",

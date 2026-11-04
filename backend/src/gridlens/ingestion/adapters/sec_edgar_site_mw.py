@@ -50,16 +50,58 @@ MAX_QUOTE = 600
 _CIK = re.compile(r"^[0-9]{10}$")
 _ACCESSION = re.compile(r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$")
 _PRIMARY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.htm$")
-_BLOCK = {"p", "div", "br", "tr", "td", "th", "li", "ul", "ol", "table", "h1", "h2", "h3", "h4",
-          "h5", "h6", "section", "article", "body"}
+_BLOCK = {
+    "p",
+    "div",
+    "br",
+    "tr",
+    "td",
+    "th",
+    "li",
+    "ul",
+    "ol",
+    "table",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "section",
+    "article",
+    "body",
+}
 _SKIP = {"script", "style", "head", "ix:header", "title"}
-_FIGURE = re.compile(r"(?<![\w.,])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(MW|GW|megawatts?|gigawatts?)\b")
+_FIGURE = re.compile(
+    r"(?<![\w.,])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(MW|GW|megawatts?|gigawatts?)\b"
+)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z“\"(])")
 _SITE = re.compile(
     r"\b((?:[A-Z][A-Za-z0-9&'’-]*\s+){1,3}?)(Facility|Campus|Data Center|Site|Project|Plant)\b"
 )
-_LEADING_STOP = {"The", "Our", "This", "That", "Each", "Its", "A", "An", "Of", "At", "In", "For",
-                 "These", "Those", "Both", "Such", "Their", "Any", "All", "Another", "With"}
+_LEADING_STOP = {
+    "The",
+    "Our",
+    "This",
+    "That",
+    "Each",
+    "Its",
+    "A",
+    "An",
+    "Of",
+    "At",
+    "In",
+    "For",
+    "These",
+    "Those",
+    "Both",
+    "Such",
+    "Their",
+    "Any",
+    "All",
+    "Another",
+    "With",
+}
 
 
 def valid_query(source: dict[str, Any]) -> bool:
@@ -71,8 +113,14 @@ def valid_query(source: dict[str, Any]) -> bool:
         and source.get("cadence_hours") == 24
         and source.get("family") == "company-filings"
         and set(query)
-        == {"ciks", "forms", "max_filings_per_cik", "max_submission_bytes",
-            "max_document_bytes", "max_statements"}
+        == {
+            "ciks",
+            "forms",
+            "max_filings_per_cik",
+            "max_submission_bytes",
+            "max_document_bytes",
+            "max_statements",
+        }
         and isinstance(query["ciks"], list)
         and len(query["ciks"]) <= 10
         and all(isinstance(c, str) and _CIK.fullmatch(c) for c in query["ciks"])
@@ -143,9 +191,11 @@ def extract_statements(text: str, *, limit: int) -> list[dict[str, Any]]:
         if not sentence or len(sentence) > MAX_QUOTE:
             continue
         figures = [
-            {"stated": found.group(0), "value": float(found.group(1).replace(",", "")
-                                                      + (found.group(2) or "")),
-             "unit": "GW" if found.group(3).lower().startswith("g") else "MW"}
+            {
+                "stated": found.group(0),
+                "value": float(found.group(1).replace(",", "") + (found.group(2) or "")),
+                "unit": "GW" if found.group(3).lower().startswith("g") else "MW",
+            }
             for found in _FIGURE.finditer(sentence)
         ]
         site = _site_name(sentence)
@@ -154,14 +204,17 @@ def extract_statements(text: str, *, limit: int) -> list[dict[str, Any]]:
         stop = begin + len(sentence)
         if text[begin:stop] != sentence:
             continue  # never keep a quote that is not exactly the text at its span
-        out.append({"quote": sentence, "start": begin, "end": stop, "site": site,
-                    "figures": figures})
+        out.append(
+            {"quote": sentence, "start": begin, "end": stop, "site": site, "figures": figures}
+        )
         if len(out) >= limit:
             break
     return out
 
 
-def _recent_filings(submission: dict[str, Any], forms: list[str], limit: int) -> list[dict[str, str]]:
+def _recent_filings(
+    submission: dict[str, Any], forms: list[str], limit: int
+) -> list[dict[str, str]]:
     recent = submission.get("filings", {}).get("recent") if isinstance(submission, dict) else None
     if not isinstance(recent, dict):
         raise SourceParseError("SEC submissions lack a recent filing list")
@@ -197,7 +250,7 @@ def build_record(
         f"Site named in the sentence: {statement['site']}",
         f"Figures stated: {'; '.join(f['stated'] for f in statement['figures'])}",
         f"Quote (characters {start}-{statement['end']} of the normalised filing text):",
-        f"\"{statement['quote']}\"",
+        f'"{statement["quote"]}"',
         "The sentence is kept verbatim and is not classified as capacity, load or target.",
     ]
     return candidate_record(
@@ -256,9 +309,15 @@ def retrieve(
     records: list[dict[str, Any]] = []
     try:
         for cik in query["ciks"]:
-            _, body = fetch(http, f"{ENDPOINT}CIK{cik}.json", hosts=HOSTS,
-                            max_bytes=query["max_submission_bytes"],
-                            media_types={"application/json"}, pacer=pace, headers=headers)
+            _, body = fetch(
+                http,
+                f"{ENDPOINT}CIK{cik}.json",
+                hosts=HOSTS,
+                max_bytes=query["max_submission_bytes"],
+                media_types={"application/json"},
+                pacer=pace,
+                headers=headers,
+            )
             try:
                 submission = json.loads(body)
             except ValueError as exc:
@@ -272,9 +331,15 @@ def retrieve(
                     f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
                     f"{accession.replace('-', '')}/{filing['primaryDocument']}"
                 )
-                _, doc = fetch(http, url, hosts=HOSTS, max_bytes=query["max_document_bytes"],
-                               media_types={"text/html", "application/xhtml+xml"},
-                               pacer=pace, headers=headers)
+                _, doc = fetch(
+                    http,
+                    url,
+                    hosts=HOSTS,
+                    max_bytes=query["max_document_bytes"],
+                    media_types={"text/html", "application/xhtml+xml"},
+                    pacer=pace,
+                    headers=headers,
+                )
                 text = filing_text(doc)
                 for statement in extract_statements(text, limit=query["max_statements"]):
                     records.append(

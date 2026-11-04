@@ -42,9 +42,7 @@ DEFINITION_URL = "https://arlweb.msha.gov/OpenGovernmentData/DataSets/Mines_Defi
 MEMBER = "Mines.txt"
 MAX_RATIO = 30
 STATES = frozenset({"TX", "OK", "NM"})
-STATUSES = frozenset(
-    {"Active", "New Mine", "Intermittent", "Temporarily Idled", "NonProducing"}
-)
+STATUSES = frozenset({"Active", "New Mine", "Intermittent", "Temporarily Idled", "NonProducing"})
 _MINE_ID = re.compile(r"^[0-9]{7}$")
 _COLUMNS = (
     "MINE_ID",
@@ -239,7 +237,9 @@ def retrieve(
             max_records=query["max_records"],
         )
         modified = clean(headers.get("last-modified"), 40)
-        return [build_record(row, modified) for row in sorted(rows, key=lambda r: r["MINE_ID"] or "")]
+        return [
+            build_record(row, modified) for row in sorted(rows, key=lambda r: r["MINE_ID"] or "")
+        ]
     finally:
         if client is None:
             http.close()

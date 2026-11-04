@@ -187,14 +187,18 @@ def retrieve(
     try:
         total = None
         for page in range(query["max_pages"]):
-            url = ENDPOINT + "?" + urlencode(
-                {
-                    "fuel_type": "ELEC",
-                    "state": ",".join(query["states"]),
-                    "status": ",".join(query["statuses"]),
-                    "limit": PAGE_SIZE,
-                    "offset": page * PAGE_SIZE,
-                }
+            url = (
+                ENDPOINT
+                + "?"
+                + urlencode(
+                    {
+                        "fuel_type": "ELEC",
+                        "state": ",".join(query["states"]),
+                        "status": ",".join(query["statuses"]),
+                        "limit": PAGE_SIZE,
+                        "offset": page * PAGE_SIZE,
+                    }
+                )
             )
             _, body = fetch(
                 http,

@@ -38,8 +38,18 @@ HOST = "www.ercot.com"
 ENDPOINT = "https://www.ercot.com/committees/board/index.html"
 MAX_PDF_PAGES = 60
 MONTHS = [
-    "January", "February", "March", "April", "May", "June", "July", "August", "September",
-    "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ]
 _LINK = re.compile(
     r'href="(https://www\.ercot\.com/files/docs/(20\d{2})/(\d{2})/(\d{2})/'
@@ -113,7 +123,10 @@ def parse_overview(body: bytes) -> dict[str, Any]:
 
 
 def build_record(parsed: dict[str, Any], url: str, posted: str) -> dict[str, Any]:
-    approved, observed = parsed["approved_to_energize_mw"], parsed["observed_nonsimultaneous_peak_mw"]
+    approved, observed = (
+        parsed["approved_to_energize_mw"],
+        parsed["observed_nonsimultaneous_peak_mw"],
+    )
     ratio = round(observed / approved, 3) if approved and observed is not None else None
     month = parsed["report_month"]
     lines = [
@@ -168,15 +181,27 @@ def retrieve(
     http = client or new_client()
     pace = pacer or Pacer()
     try:
-        _, page = fetch(http, ENDPOINT, hosts={HOST}, max_bytes=query["max_response_bytes"],
-                        media_types={"text/html"}, pacer=pace)
+        _, page = fetch(
+            http,
+            ENDPOINT,
+            hosts={HOST},
+            max_bytes=query["max_response_bytes"],
+            media_types={"text/html"},
+            pacer=pace,
+        )
         links = report_links(page)[: query["max_reports"]]
         if not links:
             raise SourceParseError("ERCOT board page links no monthly overview PDF")
         records = []
         for link in links:
-            _, body = fetch(http, link["url"], hosts={HOST}, max_bytes=query["max_pdf_bytes"],
-                            media_types={"application/pdf"}, pacer=pace)
+            _, body = fetch(
+                http,
+                link["url"],
+                hosts={HOST},
+                max_bytes=query["max_pdf_bytes"],
+                media_types={"application/pdf"},
+                pacer=pace,
+            )
             records.append(build_record(parse_overview(body), link["url"], link["posted"]))
         return sorted(records, key=lambda r: r["document_number"])
     finally:

@@ -67,13 +67,20 @@ def validate_event(event: Any) -> dict[str, Any]:
     except (TypeError, ValueError) as exc:
         raise SourceParseError("Regulatory event date is invalid") from exc
     parts = urlsplit(event["source_url"])
-    if parts.scheme != "https" or parts.hostname not in OFFICIAL_HOSTS or parts.username or parts.port:
+    if (
+        parts.scheme != "https"
+        or parts.hostname not in OFFICIAL_HOSTS
+        or parts.username
+        or parts.port
+    ):
         raise SourceParseError("Regulatory event source is not an official https URL")
     if event["effect"] not in EFFECT_LABELS:
         raise SourceParseError("Regulatory event effect is not in the closed vocabulary")
     scope = event["scope"]
-    if not isinstance(scope, dict) or set(scope) != _SCOPE_KEYS or not all(
-        isinstance(v, str) and v for v in scope.values()
+    if (
+        not isinstance(scope, dict)
+        or set(scope) != _SCOPE_KEYS
+        or not all(isinstance(v, str) and v for v in scope.values())
     ):
         raise SourceParseError("Regulatory event scope is invalid")
     if len(event["quote"]) > 600 or "\n" in event["quote"]:
@@ -132,7 +139,7 @@ def build_record(event: dict[str, Any]) -> dict[str, Any]:
     label = EFFECT_LABELS[event["effect"]]
     lines = [
         f"{event['issuer']}, {event['date']}: {event['effect'].replace('_', ' ')}",
-        f"Quote: \"{event['quote']}\"",
+        f'Quote: "{event["quote"]}"',
         f"Scope: {scope['state']} / {scope['agency']} / {scope['subject']} / {scope['instrument']}",
         "Status label for matching pending filings: " + (label or "none (no label is inferred)"),
         f"Source: {event['source_url']} (read {event['verified_on']})",

@@ -155,7 +155,11 @@ def build_record(row: dict[str, Any]) -> dict[str, Any]:
     nameplate = calculated_nameplate_kw(row)
     lines = [
         f"TxDOT NEVI site {nid} (NEVI ID {row['nevi_id'] or 'not stated'}): "
-        + ("no applications received" if row["no_applications_received"] else row["applicant"] or "applicant not stated"),
+        + (
+            "no applications received"
+            if row["no_applications_received"]
+            else row["applicant"] or "applicant not stated"
+        ),
         f"Study area: {row['study_area'] or 'not stated'}; corridor type: "
         f"{row['corridor_type'] or 'not stated'}",
         f"Status: {row['status'] or 'not stated'}; published {row['published'] or 'not stated'}",
