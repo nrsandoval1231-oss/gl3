@@ -38,8 +38,12 @@ def _title_pattern(title: str) -> re.Pattern[str]:
 
 
 def retrieve_companion(
-    record: dict[str, Any], client: httpx.Client | None = None, *, deadline: float | None = None
-) -> list[dict[str, str]]:
+    record: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
+    hp_driver: bool = False,
+) -> list[dict[str, Any]]:
     """Return one bounded complete notice whose PDF and pages match the FR record."""
     url = record.get("pdf_url")
     if not url:
@@ -150,20 +154,24 @@ def retrieve_companion(
             raise SourceParseError("GovInfo target notice is empty")
         if len(excerpt) > MAX_NOTICE_CHARS:
             raise SourceParseError("GovInfo target notice exceeds the text character bound")
-        return [
-            {
-                "content_hash": hashlib.sha256(content).hexdigest(),
-                "title": record["title"],
-                "abstract": excerpt,
-                "url": url,
-                "published_at": published.isoformat(),
-                "extraction_location": (
-                    f"GovInfo PDF page {start_page}"
-                    if start_page == end_page
-                    else f"GovInfo PDF pages {start_page}-{end_page}"
-                ),
-            }
-        ]
+        citation: dict[str, Any] = {
+            "content_hash": hashlib.sha256(content).hexdigest(),
+            "title": record["title"],
+            "abstract": excerpt,
+            "url": url,
+            "published_at": published.isoformat(),
+            "extraction_location": (
+                f"GovInfo PDF page {start_page}"
+                if start_page == end_page
+                else f"GovInfo PDF pages {start_page}-{end_page}"
+            ),
+        }
+        if hp_driver:
+            # Additive and flag-gated: the ordinary citation fields above are unchanged.
+            from gridlens.ingestion.parsers.permit_docs.notice_hp import extract_notice_hp_driver
+
+            citation["hp_driver"] = extract_notice_hp_driver(excerpt).as_json()
+        return [citation]
     except SourceParseError:
         raise
     except Exception as exc:

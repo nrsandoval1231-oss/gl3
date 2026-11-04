@@ -178,7 +178,12 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 "max_response_bytes",
                 "max_run_bytes",
                 "supplemental_queries",
+                "hp_driver_evidence",
             }
+            hp_flag_valid = "hp_driver_evidence" not in query or (
+                type(query["hp_driver_evidence"]) is bool
+                and source.get("id") == "federal-register-eis"
+            )
             supplemental = query.get("supplemental_queries", [])
             supplemental_valid = type(supplemental) is list and len(supplemental) <= 1
             if supplemental_declared:
@@ -204,6 +209,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and integer_fields_valid
                 and set(query).issubset(allowed_query_fields)
                 and supplemental_valid
+                and hp_flag_valid
                 and 1 <= query["window_days"] <= 90
                 and 1 <= query["max_pages"] <= 10
                 and query["per_page"] == 100

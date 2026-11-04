@@ -3111,13 +3111,19 @@ def _retrieve_companion_outside_transaction(
     client: httpx.Client | None,
     *,
     deadline: float | None = None,
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
+    # Flag-gated, default off: the call below is unchanged unless the source opts in.
+    extra: dict[str, Any] = (
+        {"hp_driver": True}
+        if (source_definition.get("query") or {}).get("hp_driver_evidence") is True
+        else {}
+    )
     citations = (
-        retrieve_companion(record, client)
+        retrieve_companion(record, client, **extra)
         if deadline is None
-        else retrieve_companion(record, client, deadline=deadline)
+        else retrieve_companion(record, client, deadline=deadline, **extra)
     )
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
@@ -3590,7 +3596,7 @@ def process_records(
             )
             if not eligible:
                 counts["pdf_skipped_not_signal"] += 1
-                pdf_citations: list[dict[str, str]] = []
+                pdf_citations: list[dict[str, Any]] = []
             else:
                 counts["pdf_eligible"] += 1
                 if pdf_documents >= MAX_PDFS_PER_RUN:
@@ -3638,6 +3644,11 @@ def process_records(
                             published_at=_optional_date(pdf.get("published_at")),
                             extraction_location=pdf["extraction_location"],
                             event_date=None,
+                            **(
+                                {"provenance": {"fr_hp_driver": pdf["hp_driver"]}}
+                                if isinstance(pdf.get("hp_driver"), dict)
+                                else {}
+                            ),
                         )
                     )
                     remaining_seconds(deadline)

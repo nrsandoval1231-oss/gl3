@@ -36,7 +36,7 @@ def _validate_query(source: dict[str, Any]) -> tuple[dict[str, Any], list[dict[s
         "max_response_bytes",
         "max_run_bytes",
     }
-    optional = {"supplemental_queries"}
+    optional = {"supplemental_queries", "hp_driver_evidence"}
     if not required <= query.keys() or query.keys() - required - optional:
         raise SourceParseError("Federal Register query fields are invalid")
     if (
@@ -46,6 +46,10 @@ def _validate_query(source: dict[str, Any]) -> tuple[dict[str, Any], list[dict[s
         or not query["document_type"].strip()
     ):
         raise SourceParseError("Federal Register search term or document type is invalid")
+    if "hp_driver_evidence" in query and (
+        type(query["hp_driver_evidence"]) is not bool or source.get("id") != _FERC_EIS_SOURCE_ID
+    ):
+        raise SourceParseError("Federal Register hp/driver evidence flag is invalid")
     for key in ("window_days", "per_page", "max_pages", "max_response_bytes", "max_run_bytes"):
         if type(query[key]) is not int:
             raise SourceParseError(f"Federal Register {key} must be an integer")
