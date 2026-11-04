@@ -14,6 +14,8 @@ _ID_CUE = re.compile(
     re.I,
 )
 _HEADER_CONTEXT = re.compile(r"description|serial|const|date|rated|unit|point", re.I)
+# Control-technology database listings describe OTHER facilities, not this permit's equipment.
+_REFERENCE_DB = re.compile(r"RBLC|RACT/BACT/LAER|Clearinghouse")
 _EQUIPMENT_NOUN = r"(?:compressor|engine|turbine|generator|motor|pump|heater|RICE|driver)s?"
 _NARRATIVE_CUE = re.compile(
     rf"{NARRATIVE_UNIT}[\s,-]*(?:[\w.\-]+\s+){{0,4}}?{_EQUIPMENT_NOUN}\b",
@@ -44,6 +46,8 @@ def route_page(text: str, chars: int | None = None) -> Route:
     measured = chars if chars is not None else sum(1 for c in text if not c.isspace())
     if measured < SCAN_CHAR_THRESHOLD:
         return "scan"
+    if _REFERENCE_DB.search(text):
+        return "irrelevant"
     if has_rating_header(text):
         return "table"
     if _NARRATIVE_CUE.search(text):

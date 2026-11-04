@@ -93,13 +93,14 @@ def unit_from_text(text: str) -> str | None:
     """Canonical unit named in ``text`` (header word or rating suffix), else None."""
     if re.search(r"mmbtu", text, re.I):
         return "MMBtu/hr"
-    if re.search(r"(?i:horsepower|bhp|\bhp)\b", text):
+    # A digit may run straight into the unit ("231MW"); a letter may not ("PMW").
+    if re.search(r"(?<![A-Za-z])(?i:horsepower|bhp|hp)\b", text):
         return "hp"
-    if re.search(r"\bkWe?\b", text, re.I):
+    if re.search(r"(?<![A-Za-z])kWe?\b", text, re.I):
         return "kW"
-    if re.search(r"\bkVA\b", text, re.I):
+    if re.search(r"(?<![A-Za-z])kVA\b", text, re.I):
         return "kVA"
-    if re.search(r"\bMW\b", text):
+    if re.search(r"(?<![A-Za-z])MW\b", text):
         return "MW"
     return None
 

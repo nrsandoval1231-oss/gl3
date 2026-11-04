@@ -46,8 +46,11 @@ _NOUNS = (
     (r"(?:gas\s+|steam\s+)?turbines?", "turbine"),
     (r"(?:emergency\s+)?generators?", "generator"),
     (r"(?:heaters?|boilers?)", "heater"),
-    (r"compressors?(?!\s+(?:engines?|turbines?|motors?|drivers?|skids?))", "compressor"),
-    (r"pumps?(?!\s+(?:engines?|turbines?|motors?|drivers?|skids?))", "pump"),
+    (
+        r"compressors?(?!\s+(?:engines?|turbines?|motors?|drivers?|skids?)|\s*\n|\s+\d)",
+        "compressor",
+    ),
+    (r"pumps?(?!\s+(?:engines?|turbines?|motors?|drivers?|skids?)|\s*\n|\s+\d)", "pump"),
 )
 _NOUN_RE = re.compile(
     rf"^[\s,]*{_MID}(?P<noun>"

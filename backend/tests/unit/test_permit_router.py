@@ -27,6 +27,10 @@ NARRATIVE = "The station adds three (3) 2,500-hp Siemens electric compressor mot
             "The rule applies to engines greater than 500 hp at a major source of emissions.",
             "irrelevant",
         ),
+        (
+            "RBLC Entries for NOx from Simple Cycle Turbines\nGeneric Power 190MW turbine design",
+            "irrelevant",
+        ),
         ("Fig. 3", "scan"),
         ("", "scan"),
     ],
