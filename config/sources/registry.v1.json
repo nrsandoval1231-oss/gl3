@@ -488,6 +488,7 @@
       "query": {
         "max_summaries": 30,
         "application_documents": {
+          "enabled": false,
           "max_downloads": 2,
           "max_checks": 60,
           "extract_seconds": 420

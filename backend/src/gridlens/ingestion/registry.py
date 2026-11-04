@@ -14,8 +14,9 @@ def _valid_application_documents(value: Any) -> bool:
         return True
     return (
         isinstance(value, dict)
-        and set(value) == {"max_downloads", "max_checks", "extract_seconds"}
-        and all(type(item) is int for item in value.values())
+        and set(value) == {"enabled", "max_downloads", "max_checks", "extract_seconds"}
+        and type(value["enabled"]) is bool
+        and all(type(item) is int for key, item in value.items() if key != "enabled")
         and 1 <= value["max_downloads"] <= 5
         and 1 <= value["max_checks"] <= 120
         and 60 <= value["extract_seconds"] <= 900

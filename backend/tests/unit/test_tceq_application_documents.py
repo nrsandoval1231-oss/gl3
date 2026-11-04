@@ -406,17 +406,26 @@ def test_url_policy_rejects_other_hosts_and_redirects_off_the_allowlist():
     ):
         with pytest.raises(SourceParseError), open_tceq_application(client, url):
             pass
-    calls = {"n": 0}
 
-    def hop(_request):
-        calls["n"] += 1
-        if calls["n"] == 1:
-            return httpx.Response(301, headers={"location": f"{BASE}900001-tc.pdf"})
-        return httpx.Response(200, headers={"content-type": "application/pdf"})
+    def redirect_to(target: str):
+        calls = {"n": 0}
 
-    client = httpx.Client(transport=httpx.MockTransport(hop), follow_redirects=False)
+        def hop(_request):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return httpx.Response(301, headers={"location": target})
+            return httpx.Response(200, headers={"content-type": "application/pdf"})
+
+        return httpx.Client(transport=httpx.MockTransport(hop), follow_redirects=False), calls
+
+    # The same document may be redirected; another project or kind may not.
+    client, calls = redirect_to(f"{BASE}900002-tc.pdf")
     with open_tceq_application(client, f"{BASE}900002-tc.pdf") as response:
         assert response.status_code == 200 and calls["n"] == 2
+    for target in (f"{BASE}900001-tc.pdf", f"{BASE}900002-ac.pdf"):
+        client, _ = redirect_to(target)
+        with pytest.raises(SourceParseError), open_tceq_application(client, f"{BASE}900002-tc.pdf"):
+            pass
 
 
 # ----------------------------------------------------------------------------- change detection
@@ -463,7 +472,7 @@ def test_head_not_supported_falls_back_to_get_and_hash_comparison():
     run(origin, [first])
     second = nsr_record()
     report = run(origin, [second], {"900001": first["application_document"]})
-    assert report.counts["unchanged_by_hash"] == 1
+    assert report.counts["unchanged"] == 1  # GET headers matched: the body was never read
     assert second["source_hash"] == first["source_hash"]
 
 
@@ -548,7 +557,7 @@ def test_non_empty_document_with_zero_verified_rows_is_a_visible_notice_and_abst
     )
     record = nsr_record()
     report = run(origin, [record])
-    assert report.rejections[0]["error_code"] == "zero_verified_rows"
+    assert report.rejections == [] and report.notices[0]["error_code"] == "zero_verified_rows"
     document = record["application_document"]["document"]
     assert document["status"] == "no_equipment_schedule"
     assert document["abstain"]["reason"] == "no equipment schedule found"
@@ -560,7 +569,7 @@ def test_listing_shrink_is_a_typed_notice():
     origin = Tceq()
     prior = {str(900000 + i): {"document": {"sha256": "x", "validators": {}}} for i in range(1, 7)}
     report = run(origin, [nsr_record("900001")], prior)
-    shrink = [r for r in report.rejections if r["error_code"] == "listing_shrink"]
+    shrink = [r for r in report.notices if r["error_code"] == "listing_shrink"]
     assert len(shrink) == 1 and shrink[0]["raw"] == {"previously": "6", "listed_now": "1"}
 
 
@@ -642,21 +651,31 @@ def test_state_digest_ignores_fetch_time_only():
     assert docs.state_digest(state) == docs.state_digest(other) != docs.state_digest(changed)
 
 
-def test_registry_accepts_bounded_stage_and_rejects_loose_bounds(tmp_path):
+def test_registry_ships_the_stage_off_and_validates_every_bound(tmp_path):
     from gridlens.ingestion.registry import REGISTRY_PATH, load_registry
 
     raw = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
     source = next(s for s in raw["sources"] if s["id"] == "texas-tceq-nsr-pending")
+    assert source["query"]["application_documents"]["enabled"] is False
+    assert docs.config_from_source(source) is None  # off: the stage never runs
+    source["query"]["application_documents"]["enabled"] = True
     assert docs.config_from_source(source) == docs.StageConfig(2, 60, 420.0)
+    good = {"enabled": True, "max_downloads": 2, "max_checks": 60, "extract_seconds": 420}
     for bad in (
-        {"max_downloads": 0, "max_checks": 60, "extract_seconds": 420},
-        {"max_downloads": 2, "max_checks": 500, "extract_seconds": 420},
-        {"max_downloads": 2, "max_checks": 60, "extract_seconds": 5000},
-        {"max_downloads": 2, "max_checks": 60},
-        {"max_downloads": 2, "max_checks": 60, "extract_seconds": 420, "extra": 1},
+        {**good, "max_downloads": 0},
+        {**good, "max_checks": 500},
+        {**good, "extract_seconds": 5000},
+        {**good, "enabled": "yes"},
+        {k: v for k, v in good.items() if k != "enabled"},
+        {k: v for k, v in good.items() if k != "extract_seconds"},
+        {**good, "extra": 1},
     ):
         source["query"]["application_documents"] = bad
         path = tmp_path / "registry.json"
         path.write_text(json.dumps(raw), encoding="utf-8")
         with pytest.raises(ValueError):
             load_registry(path)
+    source["query"]["application_documents"] = good
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    assert load_registry(path)

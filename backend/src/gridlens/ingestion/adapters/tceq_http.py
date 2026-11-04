@@ -188,6 +188,9 @@ def open_tceq_application(
     if client.follow_redirects:
         raise SourceParseError("TCEQ client must not automatically follow redirects")
     current = _route(url, "application")
+    origin = _APPLICATION_PATH.fullmatch(urlsplit(current).path)
+    assert origin is not None
+    wanted = (origin.group(1), origin.group(2).lower())
     for _hop in range(_MAX_REDIRECTS + 1):
         host = urlsplit(current).hostname or ""
         ip = _public_ip(host)
@@ -206,6 +209,10 @@ def open_tceq_application(
                 if not location:
                     raise SourceParseError("TCEQ redirect has no destination")
                 current = _route(urljoin(current, location), "application")
+                target = _APPLICATION_PATH.fullmatch(urlsplit(current).path)
+                # A redirect may move host or path but never to another project or kind.
+                if target is None or (target.group(1), target.group(2).lower()) != wanted:
+                    raise SourceParseError("TCEQ redirect changed the application document")
             else:
                 yield response
                 return

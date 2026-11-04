@@ -13,6 +13,7 @@ Combustion units are supply: they never feed demand.
 
 from __future__ import annotations
 
+import multiprocessing
 import re
 import warnings
 import zipfile
@@ -24,7 +25,10 @@ MAX_WORKBOOK_BYTES = 64 * 1024 * 1024
 MAX_ZIP_UNCOMPRESSED_BYTES = 400 * 1024 * 1024
 MAX_ZIP_MEMBERS = 2_000
 MAX_UNIT_ROWS = 20_000
-MAX_UNITS_LISTED = 400
+MAX_UNITS_LISTED = 25  # a sample; unit_count and units_by_type cover every unit
+WORKBOOK_SECONDS = 60.0
+WORKBOOK_MEMORY_BYTES = 1024**3
+_SPAWN_GRACE_SECONDS = 20.0
 MAX_DESCRIPTIONS = 5
 MAX_DESCRIPTION_CHARS = 400
 MAX_TEXT_ROWS = 200
@@ -237,3 +241,56 @@ def _read_text(book: Any, summary: WorkbookSummary) -> None:
                                 "note": "text mention; whether supply or demand is not stated here",
                             }
                         )
+
+
+def _workbook_worker(sender: Any, path: str, name: str) -> None:
+    from gridlens.ingestion.adapters.tceq_portfolio import cap_address_space
+
+    cap_address_space(WORKBOOK_MEMORY_BYTES)
+    try:
+        sender.send(("ok", read_pi1_workbook(Path(path), name)))
+    except WorkbookError as exc:
+        sender.send(("error", exc.code))
+    except BaseException:  # the parent reads any fault as a typed failure
+        sender.send(("error", "workbook_unreadable"))
+    finally:
+        sender.close()
+
+
+def read_pi1_workbook_isolated(
+    path: Path,
+    display_name: str,
+    *,
+    max_seconds: float = WORKBOOK_SECONDS,
+    isolate: bool = True,
+) -> WorkbookSummary:
+    """``read_pi1_workbook`` in a spawned child the parent kills at the time bound.
+
+    A hostile or pathological workbook cannot hang the caller or run past the stage deadline.
+    Callers that spawn from a script need an ``if __name__ == "__main__":`` guard.
+    """
+    if not isolate:
+        return read_pi1_workbook(path, display_name)
+    context = multiprocessing.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    child = context.Process(
+        target=_workbook_worker, args=(sender, str(path), display_name), daemon=True
+    )
+    child.start()
+    sender.close()
+    try:
+        if not receiver.poll(max_seconds + _SPAWN_GRACE_SECONDS):
+            raise WorkbookError("workbook_time_budget")
+        try:
+            kind, value = receiver.recv()
+        except (EOFError, OSError) as exc:
+            raise WorkbookError("workbook_unreadable") from exc
+    finally:
+        receiver.close()
+        if child.is_alive():
+            child.kill()
+        child.join(5)
+    if kind == "ok":
+        summary: WorkbookSummary = value
+        return summary
+    raise WorkbookError(str(value))

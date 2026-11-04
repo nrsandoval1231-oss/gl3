@@ -13,6 +13,7 @@ higher than ``MAX_EMBEDDED_FILE_BYTES``; any stream above it is listed as oversi
 from __future__ import annotations
 
 import hashlib
+import importlib
 import multiprocessing
 import multiprocessing.connection
 import re
@@ -24,6 +25,7 @@ MAX_EMBEDDED_FILES = 64
 MAX_EMBEDDED_FILE_BYTES = 128 * 1024 * 1024
 MAX_TOTAL_EMBEDDED_BYTES = 512 * 1024 * 1024
 UNPACK_SECONDS = 240.0
+UNPACK_MEMORY_BYTES = 2 * 1024**3  # POSIX RLIMIT_AS for the child; Windows has none
 _SPAWN_GRACE_SECONDS = 20.0
 _MAX_NAME_CHARS = 120
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9._ ()+\-]")
@@ -181,7 +183,18 @@ def _unpack(path: str, out_dir: str) -> PortfolioResult:
     return PortfolioResult(files, bool(files))
 
 
+def cap_address_space(limit: int) -> None:
+    """POSIX address-space cap for a child. Windows has no RLIMIT_AS: there the bound is
+    the byte, count and time limits only."""
+    try:
+        resource: Any = importlib.import_module("resource")
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    except (ImportError, ValueError, OSError):
+        pass
+
+
 def _worker(sender: multiprocessing.connection.Connection, path: str, out_dir: str) -> None:
+    cap_address_space(UNPACK_MEMORY_BYTES)
     try:
         sender.send(_unpack(path, out_dir))
     except BaseException as exc:  # the parent reads any failure as a typed result

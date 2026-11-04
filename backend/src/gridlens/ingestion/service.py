@@ -2593,10 +2593,16 @@ def _enrich_with_application_documents(
     None when the source does not configure the stage.
     """
     from gridlens.ingestion.adapters.tceq_application_documents import (
+        StageReport,
+        apply_prior_states,
         config_from_source,
         run_stage,
     )
-    from gridlens.ingestion.tceq_document_stage import load_prior_states
+    from gridlens.ingestion.tceq_document_stage import (
+        load_bookkeeping,
+        load_prior_states,
+        save_bookkeeping,
+    )
 
     config = (
         config_from_source(source_definition)
@@ -2609,17 +2615,26 @@ def _enrich_with_application_documents(
     if session.in_transaction():
         session.commit()
     prior = load_prior_states(session, source_definition["id"])
+    book = load_bookkeeping(session, source_definition["id"])
     session.commit()
+    if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
+        # The publisher is already throttling this source: make no further requests.
+        report = StageReport()
+        report.bump("skipped_source_rate_limited")
+        apply_prior_states(records, prior)
+        _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+        return report
     try:
-        report = run_stage(records, prior, client=client, config=config, deadline=deadline)
+        report = run_stage(
+            records, prior, client=client, config=config, deadline=deadline, bookkeeping=book
+        )
+        if report.bookkeeping != book:
+            save_bookkeeping(session, source_definition["id"], report.bookkeeping)
+            session.commit()
     except Exception as error:
         # The stage is additive: an unexpected fault must not fail the ordinary listing run.
         # It is reported as a typed stage error, never swallowed silently.
-        from gridlens.ingestion.adapters.tceq_application_documents import (
-            StageReport,
-            apply_prior_states,
-        )
-
+        session.rollback()
         report = StageReport()
         report.reject("stage", "stage_error", error=type(error).__name__)
         apply_prior_states(records, prior)
