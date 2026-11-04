@@ -70,6 +70,14 @@ This is implemented as **discovery only**: with `data_center_page.enabled` the r
 | Pages and time per page | 1a limits: 1,200 pages, 60 s per page |
 | Retention | key index at most 800 entries in source health |
 
+## Review fixes (2026-11-04)
+
+- An amendment memo is never linked to its base permit: both `No. 2017-0987-C (M-2)` and `No. 2017-0987-C M-2` parse; a trailing amendment-looking suffix that is not parsed (`(M-2a)`) makes the permit unknown.
+- On a server without HEAD, a deferred download or deadline leaves the key unknown: no pending entry is written and the probe frontier moves only on a confirmed read.
+- A 429 or 503 stores `not_before` (Retry-After, or one hour when absent) in the key index; until it passes the stage makes no request (`skipped_retry_after`). The TCEQ stage does the same via `application_documents_not_before` in source health.
+- The data-center page fetch pins DNS to a public address exactly like the document fetch, caps each cell at 200 characters (an overflowing row is dropped and counted as `data_center_rows_rejected`), and a disabled page drops any retained block.
+- Unverified-permit seeds are re-checked weekly; two listing rows with one permit number are skipped as `ambiguous_permit_number`; `identity_check` and `listing_event_date` are recomputed from the current listing row on every fold and are not part of the content digest; `header_quote_mismatch` also fires when the permit quote does not normalise to the stored join key.
+
 ## Failure classes
 
 Same model as TCEQ. Real failures are rejection records (stage `okdeq_document`, a `[a-z0-9_]` code, only codes and small integers; exception text and response content are never stored) in the job's `rejected_records`; the job becomes `partial` with `parse_failures`, but `collection_status` is not set, so the listing's cooldown and retry scheduling are not moved. Notices (`zero_verified_rows`, `unverified_permit_number`) are results, not failures.
