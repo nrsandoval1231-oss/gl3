@@ -143,6 +143,10 @@ PERMIT_RETRIEVAL_METHODS = {
 }
 
 
+EARLY_SIGNAL_METHODS = frozenset({"ercot-rpg-projects", "puct-ccn-dockets"})
+_STAGE_REST_METHODS = frozenset({"nmed-air-applications"}) | EARLY_SIGNAL_METHODS
+
+
 def _optional_date(value: str | None) -> date | None:
     return date.fromisoformat(value) if value else None
 
@@ -193,6 +197,9 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
     nmed_document = record.get("nmed_document")
     if isinstance(nmed_document, dict):
         provenance["nmed_document"] = nmed_document
+    early_signal = record.get("early_signal")
+    if isinstance(early_signal, dict):
+        provenance["early_signal"] = early_signal
     return provenance
 
 
@@ -2569,9 +2576,10 @@ def _retrieve_source_outside_transaction(
     *,
     deadline: float | None = None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
-    is_nmed = source_definition.get("retrieval_method") == "nmed-air-applications"
+    method = source_definition.get("retrieval_method")
+    is_nmed = method in _STAGE_REST_METHODS
     if is_nmed:
-        _skip_nmed_listing_while_resting(session, source_definition["id"])
+        _skip_nmed_listing_while_resting(session, source_definition["id"], method)
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
     try:
@@ -2582,7 +2590,7 @@ def _retrieve_source_outside_transaction(
         )
     except Exception as error:
         if is_nmed:
-            _remember_nmed_rate_limit(session, source_definition["id"], error)
+            _remember_nmed_rate_limit(session, source_definition["id"], error, method)
         raise
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
@@ -2596,9 +2604,20 @@ def _nmed_rest_error(seconds: int) -> SourceParseError:
     return error
 
 
-def _skip_nmed_listing_while_resting(session: Session, source_id: str) -> None:
+def _stage_index_helpers(method: str | None) -> Any:
+    """The check-index load/save pair of the stage that owns this retrieval method."""
+    if method in EARLY_SIGNAL_METHODS:
+        from gridlens.ingestion import early_signal_state as module
+    else:
+        from gridlens.ingestion import nmed_document_stage as module
+    return module
+
+
+def _skip_nmed_listing_while_resting(
+    session: Session, source_id: str, method: str | None = "nmed-air-applications"
+) -> None:
     """No listing request while an earlier 429/503 Retry-After (``not_before``) has not passed."""
-    from gridlens.ingestion.nmed_document_stage import load_index
+    load_index = _stage_index_helpers(method).load_index
 
     resting = load_index(session, source_id).get("not_before")
     session.commit()
@@ -2613,14 +2632,20 @@ def _skip_nmed_listing_while_resting(session: Session, source_id: str) -> None:
             raise _nmed_rest_error(int(remaining) + 1)
 
 
-def _remember_nmed_rate_limit(session: Session, source_id: str, error: BaseException) -> None:
+def _remember_nmed_rate_limit(
+    session: Session,
+    source_id: str,
+    error: BaseException,
+    method: str | None = "nmed-air-applications",
+) -> None:
     """Store ``not_before`` in source health when the listing itself was rate limited."""
     if getattr(error, "acquisition_code", None) not in {"http_status_429", "http_status_503"}:
         return
     seconds = getattr(error, "acquisition_retry_after_seconds", None)
     delay = seconds if type(seconds) is int and seconds > 0 else 3600
     try:
-        from gridlens.ingestion.nmed_document_stage import load_index, save_index
+        helpers = _stage_index_helpers(method)
+        load_index, save_index = helpers.load_index, helpers.save_index
 
         session.rollback()
         index = load_index(session, source_id)
@@ -2650,6 +2675,10 @@ def _enrich_with_application_documents(
     """
     if source_definition.get("retrieval_method") == "nmed-air-applications":
         return _enrich_with_nmed_documents(
+            session, job_id, worker_id, fence, source_definition, acquisition, client, deadline
+        )
+    if source_definition.get("retrieval_method") in EARLY_SIGNAL_METHODS:
+        return _enrich_with_early_signal_documents(
             session, job_id, worker_id, fence, source_definition, acquisition, client, deadline
         )
     if source_definition.get("retrieval_method") == "ok-deq-public-review":
@@ -2714,6 +2743,61 @@ def _enrich_with_application_documents(
         report = StageReport()
         report.reject("stage", "stage_error", error=type(error).__name__)
         apply_prior_states(records, prior)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return report
+
+
+def _enrich_with_early_signal_documents(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    acquisition: list[dict[str, Any]] | dict[str, Any],
+    client: httpx.Client | None,
+    deadline: float | None,
+) -> Any:
+    """Run the bounded early-signal document stage (ERCOT planning, PUCT CCN dockets).
+
+    Same contract as the NMED stage: no transaction or source lock is held while the network and
+    extraction run, the lock is retaken afterwards, and a fault in the additive stage is a typed
+    stage error that leaves the listing run and retained state intact. Returns the stage report,
+    or None when the source does not enable the stage.
+    """
+    from gridlens.ingestion import early_signal_state as state_store
+    from gridlens.ingestion.adapters import ercot_rpg, puct_ccn_dockets
+    from gridlens.ingestion.adapters.early_signal_stage import EarlyStageReport
+
+    method = source_definition.get("retrieval_method")
+    module = ercot_rpg if method == "ercot-rpg-projects" else puct_ccn_dockets
+    config = module.config_from_source(source_definition)
+    if config is None:
+        return None
+    records = acquisition if isinstance(acquisition, list) else acquisition["records"]
+    if session.in_transaction():
+        session.commit()
+    prior = state_store.load_prior_states(session, source_definition["id"])
+    index = state_store.load_index(session, source_definition["id"])
+    peers = state_store.load_peers(session) if method == "puct-ccn-dockets" else None
+    session.commit()
+    try:
+        if method == "puct-ccn-dockets":
+            report = puct_ccn_dockets.run_stage(
+                records, prior, client=client, config=config, index=index, peers=peers,
+                deadline=deadline,
+            )
+        else:
+            report = ercot_rpg.run_stage(
+                records, prior, client=client, config=config, index=index, deadline=deadline
+            )
+        if report.index != index:
+            state_store.save_index(session, source_definition["id"], report.index)
+            session.commit()
+    except Exception as error:
+        session.rollback()
+        report = EarlyStageReport()
+        report.reject("stage", "stage_error", error=type(error).__name__)
+        module.apply_prior_states(records, prior)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return report
 
