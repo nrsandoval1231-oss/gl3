@@ -1,6 +1,7 @@
 """Texas Comptroller registered data-center lists (qualifying data centers and large projects).
 
-**Discovery (verified live 2026-11-04; see docs/engineering/early-signal-sources-more-20261103.md).**
+**Discovery (verified live 2026-11-04;
+see docs/engineering/early-signal-sources-more-20261103.md).**
 ``https://comptroller.texas.gov/taxes/data-centers/data-center-lists.php`` is a server-rendered
 public page with two tables, "Registered Qualifying Data Center Projects" and "Registered
 Qualifying Large Data Center Projects". Each row carries the project name, the registration
@@ -216,7 +217,9 @@ def retrieve(
     http = client or stage.new_client()
     try:
         fetcher = EarlyFetcher(http, pacer or shared.Pacer(), url_ok)
-        html = more.fetch_page(fetcher, ENDPOINT, query["max_response_bytes"], deadline, "Comptroller")
+        html = more.fetch_page(
+            fetcher, ENDPOINT, query["max_response_bytes"], deadline, "Comptroller"
+        )
     finally:
         if own:
             http.close()

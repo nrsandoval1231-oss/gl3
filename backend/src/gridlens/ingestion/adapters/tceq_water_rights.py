@@ -1,6 +1,7 @@
 """TCEQ pending surface-water right applications (applicant, county, dates, notice volumes).
 
-**Discovery (verified live 2026-11-04; see docs/engineering/early-signal-sources-more-20261103.md).**
+**Discovery (verified live 2026-11-04;
+see docs/engineering/early-signal-sources-more-20261103.md).**
 ``https://www.tceq.texas.gov/permitting/water_rights/wr-permitting/view-wr-pend-apps`` is a
 server-rendered public page, refreshed weekly, with one table per river basin (accordion). Each row
 has the applicant, the WR number, the county, the date received by TCEQ, and links to the
@@ -10,7 +11,8 @@ acre-feet. ``robots.txt`` does not disallow the page or the downloads.
 
 Neither the listing nor a notice states an end use of "data center"; most applicants are cities,
 districts and farms. The listing facts are evidence on their own; the document stage reads the
-text layer of the first pages of a *notice* package only, and keeps each stated acre-feet figure with
+text layer of the first pages of a *notice* package only, and keeps each stated acre-feet figure
+with
 its verbatim quote and a deterministic role (requested, existing authorization, or just stated).
 Figures are never summed and a volume is never converted to a demand. The notice packages can be
 large (observed 32 MB, 165 pages); the size cap is 40 MB and a bounded number is read per run. The
@@ -230,7 +232,9 @@ _PURPOSES = (
     "hydroelectric",
     "cooling",
 )
-_PURPOSE = re.compile(r"\b(?:for|of)\s+(?P<p>" + "|".join(_PURPOSES) + r")\s+(?:purposes?|use)\b", re.I)
+_PURPOSE = re.compile(
+    r"\b(?:for|of)\s+(?P<p>" + "|".join(_PURPOSES) + r")\s+(?:purposes?|use)\b", re.I
+)
 _DATA_CENTER = re.compile(r"\bdata[- ]?centers?\b", re.I)
 
 
@@ -270,7 +274,12 @@ def extract_notice(
                 continue
             seen.add(key)
             item = more.evidence(
-                value, "documented", number, quote_, page_norm, unit="acre-feet",
+                value,
+                "documented",
+                number,
+                quote_,
+                page_norm,
+                unit="acre-feet",
                 role=_volume_role(quote_),
             )
             if item is not None:
@@ -281,8 +290,10 @@ def extract_notice(
             if again is None or again["p"].casefold() != match["p"].casefold():
                 continue
             item = more.evidence(match["p"].casefold(), "documented", number, quote_, page_norm)
-            if item is not None and len(purposes) < 6 and all(
-                p["value"] != item["value"] for p in purposes
+            if (
+                item is not None
+                and len(purposes) < 6
+                and all(p["value"] != item["value"] for p in purposes)
             ):
                 purposes.append(item)
         if data_center is None and (found := _DATA_CENTER.search(page_norm)):
@@ -293,9 +304,11 @@ def extract_notice(
             if at >= 0:
                 quote_ = more.window(page_norm, at, at + len(applicant), 40, 80)
                 if applicant.casefold() in quote_.casefold():
-                    applicant_named = more.evidence(applicant, "documented", number, quote_, page_norm)
+                    applicant_named = more.evidence(
+                        applicant, "documented", number, quote_, page_norm
+                    )
     lines = [
-        f"Acre-feet stated (page {v['page']}, {v['role']}): {v['value']} (\"{v['quote'][:200]}\")"
+        f'Acre-feet stated (page {v["page"]}, {v["role"]}): {v["value"]} ("{v["quote"][:200]}")'
         for v in volumes
     ]
     lines += [f"Purpose stated (page {p['page']}): {p['value']}" for p in purposes]

@@ -1,10 +1,12 @@
 """Oklahoma Corporation Commission data-center land-purchase notices (HB 2992, 17 O.S. 906).
 
-**Discovery (verified live 2026-11-04; see docs/engineering/early-signal-sources-more-20261103.md).**
+**Discovery (verified live 2026-11-04;
+see docs/engineering/early-signal-sources-more-20261103.md).**
 The notices ARE published. The OCC page
 ``https://oklahoma.gov/occ/divisions/public-utility/energy/electric-utility/data-center-customer-ratepayer-protection-act.html``
 has a "Notice of Intent Submissions" list of PDFs under
-``/content/dam/ok/en/occ/documents/pu/data-center-act/notice-of-intent-submissions/``. Each link text
+``/content/dam/ok/en/occ/documents/pu/data-center-act/notice-of-intent-submissions/``. Each link
+text
 names the company, (sometimes a project) the county and a date. The PDF is the OCC "Oklahoma Data
 Center Attestation" form: page 1 states the large-load customer company name, the land purchase
 date, the county and the planned utility provider; later pages are the signature page and
@@ -90,7 +92,11 @@ def _date_iso(text: str) -> str | None:
     if found is None:
         return None
     try:
-        return datetime.strptime(f"{found['mon']} {found['d']} {found['y']}", "%B %d %Y").date().isoformat()
+        return (
+            datetime.strptime(f"{found['mon']} {found['d']} {found['y']}", "%B %d %Y")
+            .date()
+            .isoformat()
+        )
     except ValueError:
         return None
 
@@ -194,9 +200,7 @@ _FIELDS: dict[str, re.Pattern[str]] = {
     "company": re.compile(
         r"Large Load Customer Company Name:\s*(?P<v>[^:]{2,160}?)\s+Land Purchase Date:"
     ),
-    "land_purchase_date": re.compile(
-        r"Land Purchase Date:\s*(?P<v>\d{1,2}/\d{1,2}/\d{4})(?!\d)"
-    ),
+    "land_purchase_date": re.compile(r"Land Purchase Date:\s*(?P<v>\d{1,2}/\d{1,2}/\d{4})(?!\d)"),
     "county": re.compile(
         r"County\(ies\):\s*(?P<v>[A-Z][A-Za-z .,'-]{1,80}?)\s*_*\s+Planned Utility Provider"
     ),

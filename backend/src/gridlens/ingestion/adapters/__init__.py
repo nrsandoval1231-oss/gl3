@@ -147,6 +147,26 @@ def _retrieve_source_direct(
         from gridlens.ingestion.adapters.puct_ccn_dockets import retrieve as retrieve_puct_ccn
 
         return retrieve_puct_ccn(source, client, deadline=deadline)
+    if method == "comptroller-dc-registry":
+        from gridlens.ingestion.adapters.comptroller_dc_registry import (
+            retrieve as retrieve_comptroller_registry,
+        )
+
+        return retrieve_comptroller_registry(source, client, deadline=deadline)
+    if method == "ok-occ-dc-notices":
+        from gridlens.ingestion.adapters.ok_occ_dc_notices import retrieve as retrieve_occ_notices
+
+        return retrieve_occ_notices(source, client, deadline=deadline)
+    if method == "tx-county-abatement-agendas":
+        from gridlens.ingestion.adapters.county_abatement_agendas import (
+            retrieve as retrieve_county_agendas,
+        )
+
+        return retrieve_county_agendas(source, client, deadline=deadline)
+    if method == "tceq-water-rights-pending":
+        from gridlens.ingestion.adapters.tceq_water_rights import retrieve as retrieve_water_rights
+
+        return retrieve_water_rights(source, client, deadline=deadline)
     if method == "ok-deq-public-review":
         return retrieve_ok_deq(source, client)
     if method == "spp-interconnection-queue":

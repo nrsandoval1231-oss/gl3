@@ -1,4 +1,6 @@
-"""Host-pinned, redirect-free, polite HTTP for the early-signal sources (ERCOT, PUCT Interchange, and the workstream 4b hosts).
+"""Host-pinned, redirect-free, polite HTTP for the early-signal sources.
+
+Hosts: ERCOT, PUCT Interchange and the workstream 4b hosts (Comptroller, OCC, Haskell County, TCEQ).
 
 Every request names a URL that the caller's policy function accepts (exact host and path shape),
 connects to a public DNS answer pinned for that request, never follows a redirect, caps the body

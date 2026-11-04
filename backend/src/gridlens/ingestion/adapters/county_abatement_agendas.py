@@ -1,9 +1,11 @@
 """County commissioners' court agendas that mention tax abatements or data centers (pilot: Haskell).
 
-**Discovery (verified live 2026-11-04; see docs/engineering/early-signal-sources-more-20261103.md).**
+**Discovery (verified live 2026-11-04;
+see docs/engineering/early-signal-sources-more-20261103.md).**
 Three Texas counties with data-center abatement activity were examined:
 
-* **Haskell County** (Crusoe; Homebound data-center abatements): ``www.haskellcountytx.gov`` serves a
+* **Haskell County** (Crusoe; Homebound data-center abatements): ``www.haskellcountytx.gov``
+serves a
   server-rendered Commissioners Court page, ``/page/haskell.Commissioners.Court``, that links every
   2026 agenda under ``/upload/page/7690/``; the files answer 200 directly. No ``robots.txt``
   (404). Implemented. About half of the agendas have a text layer; the rest are scans (an
@@ -74,9 +76,7 @@ _ENTITY = re.compile(
     r"between\s+[A-Z][a-z]+ County(?:,? Texas)?\s+and)\s+"
     rf"(?P<v>[A-Z][A-Za-z0-9&.'’ -]{{1,80}}?,? {_COMPANY_SUFFIX})(?=[\s,;.)]|$)"
 )
-_MONEY_SCALED = re.compile(
-    r"\$\s?(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<u>million|billion)\b", re.I
-)
+_MONEY_SCALED = re.compile(r"\$\s?(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<u>million|billion)\b", re.I)
 _MONEY_PLAIN = re.compile(r"\$\s?(?P<n>\d{1,3}(?:,\d{3})+)(?![\d,])")
 _MW = re.compile(
     r"(?<![\w.])(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<u>MW|megawatts?|GW|gigawatts?)\b", re.I
@@ -123,7 +123,11 @@ def _label_date(label: str) -> str | None:
         return None
     for fmt in ("%B %d %Y", "%b %d %Y"):
         try:
-            return datetime.strptime(f"{found['mon']} {found['d']} {found['y']}", fmt).date().isoformat()
+            return (
+                datetime.strptime(f"{found['mon']} {found['d']} {found['y']}", fmt)
+                .date()
+                .isoformat()
+            )
         except ValueError:
             continue
     return None
@@ -159,7 +163,8 @@ def record_for(doc: dict[str, Any], listed_on: str) -> dict[str, Any]:
         "load.",
     ]
     return {
-        "document_number": "TXCOUNTY-HASKELL-" + hashlib.sha256(doc["url"].encode()).hexdigest()[:16],
+        "document_number": "TXCOUNTY-HASKELL-"
+        + hashlib.sha256(doc["url"].encode()).hexdigest()[:16],
         "title": f"Haskell County Commissioners Court agenda: {doc['label'] or name}"[:250],
         "abstract": "\n".join(lines),
         "publication_date": None,
@@ -250,7 +255,9 @@ def _scalar(name: str, text: str) -> tuple[Any, str, re.Match[str]] | None:
         return None
     if name == "acres":
         found = _ACRES.search(text)
-        return (_exact(Decimal(found["n"].replace(",", ""))), "documented", found) if found else None
+        return (
+            (_exact(Decimal(found["n"].replace(",", ""))), "documented", found) if found else None
+        )
     if name == "location":
         found = _LOCATION.search(text)
         return (more.norm(found["v"]), "documented", found) if found else None
@@ -321,15 +328,17 @@ def extract_agenda(pages: list[str], scanned: list[int]) -> dict[str, Any]:
         head = f"Agenda item {flags['agenda_item'] or '?'} (page {item['page']}): "
         lines.append(head + item["quote"][:240])
         for name, field in item["fields"].items():
-            lines.append(f"  {name}: {field['value']} (\"{field['quote'][:160]}\")")
+            lines.append(f'  {name}: {field["value"]} ("{field["quote"][:160]}")')
     return {
         "extractor": EXTRACT_VERSION,
         "pages": len(pages),
         "scanned_pages": scanned,
         "items": items,
         "summary_lines": lines
-        or ["No tax-abatement or data-center agenda item found in the text layer (not a statement "
-            "that none was discussed)."],
+        or [
+            "No tax-abatement or data-center agenda item found in the text layer (not a statement "
+            "that none was discussed)."
+        ],
         "abstain": None
         if items
         else {"reason": "no abatement or data-center agenda item", "note": "Abstention, not zero."},
