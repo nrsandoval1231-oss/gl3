@@ -218,7 +218,7 @@ def _exact(value: Decimal) -> int | str:
     return format(value.normalize(), "f")
 
 
-def _money(match: re.Match[str]) -> tuple[int | str, str] | None:
+def _money(match: re.Match[str]) -> tuple[int | str, str]:
     number = Decimal(match["n"].replace(",", ""))
     unit = (match.groupdict().get("u") or "").casefold()
     if unit == "million":
