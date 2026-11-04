@@ -104,10 +104,63 @@ def _names(cell: more.Cell) -> list[str]:
     return [s[:160] for s in (cell.items or ([cell.text] if cell.text else []))][:12]
 
 
+# The page has typos ("DC 358218-OW1", "LD693418-0P1"): a number cell only has to look like
+# a registration, so a misaligned column (a name or a date in a number cell) is what fails.
+_NUMBER_LIKE = re.compile(r"(?:DC|LD)\s?\d")
+
+
+def _canonical(row: dict[str, Any]) -> str:
+    return "|".join(
+        [
+            row["root"],
+            row["name"],
+            row["effective"],
+            *row["numbers"],
+            *row["owners"],
+            *row["occupants"],
+            *row["operators"],
+            row["end"],
+        ]
+    )
+
+
+def _readable_row(cells: list[more.Cell]) -> list[more.Cell] | None:
+    """The nine cells of a row, or None when the row cannot be read as a registry row.
+
+    A row of eight cells is padded (end date "not listed") only when its seventh cell is a
+    registration number, so a row that lost another cell is skipped rather than shifted.
+    """
+    if any(c.span != 1 for c in cells):
+        return None
+    if len(cells) == len(_COLUMNS) - 1:
+        if _NUMBER_LIKE.search(cells[-1].text) is None:
+            return None
+        cells = [*cells, more.Cell()]
+    if len(cells) != len(_COLUMNS):
+        return None
+    named = dict(zip(_COLUMNS, cells, strict=True))
+    for key in ("name", "owner", "occupant", "operator"):
+        if any(_REGISTRATION.search(v) for v in _names(named[key]) + [named[key].text]):
+            return None  # a number in a name column: the columns have shifted
+    for key in ("owner_no", "occupant_no", "operator_no"):
+        values = _names(named[key])
+        if any(_NUMBER_LIKE.search(v) is None for v in values):
+            return None  # a name or date in a number column
+    if _DATE_LIKE.search(named["effective"].text) is None:
+        return None
+    return cells
+
+
+_DATE_LIKE = re.compile(r"\d{1,2}/\d")
+
+
 def parse_registry(html: bytes) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Registry rows (policy-checked, deterministic) and counts of what was skipped."""
-    rows: dict[str, dict[str, Any]] = {}
-    skipped = {"no_registration": 0, "duplicate": 0, "tables": 0}
+    """Registry rows (policy-checked, deterministic) and counts of what was skipped.
+
+    The counts include ``rows`` (rows seen) so the caller can fail loudly on a layout change.
+    """
+    candidates: dict[str, list[dict[str, Any]]] = {}
+    skipped = {"unreadable_row": 0, "no_registration": 0, "duplicate": 0, "tables": 0, "rows": 0}
     for table in more.parse_tables(html):
         if not table:
             continue
@@ -115,12 +168,11 @@ def parse_registry(html: bytes) -> tuple[list[dict[str, Any]], dict[str, int]]:
         if header != _HEADER:
             continue
         skipped["tables"] += 1
-        for cells in table[1:]:
-            if len(cells) == len(_COLUMNS) - 1:
-                # A row that omits the trailing exemption-end cell: the end date is not listed.
-                cells = [*cells, more.Cell()]
-            if len(cells) != len(_COLUMNS):
-                skipped["no_registration"] += 1
+        for raw in table[1:]:
+            skipped["rows"] += 1
+            cells = _readable_row(raw)
+            if cells is None:
+                skipped["unreadable_row"] += 1
                 continue
             row = dict(zip(_COLUMNS, cells, strict=True))
             numbers = [
@@ -135,21 +187,27 @@ def parse_registry(html: bytes) -> tuple[list[dict[str, Any]], dict[str, int]]:
                 skipped["no_registration"] += 1
                 continue
             root = roots[0]
-            if root in rows:
-                skipped["duplicate"] += 1
-                continue
-            rows[root] = {
-                "root": root,
-                "kind": _KIND[root[:2]],
-                "name": row["name"].text[:200],
-                "effective": row["effective"].text[:20],
-                "owners": _names(row["owner"]),
-                "occupants": _names(row["occupant"]),
-                "operators": _names(row["operator"]),
-                "numbers": sorted(set(numbers)),
-                "end": row["end"].text[:20],
-            }
-    return list(rows.values()), skipped
+            candidates.setdefault(root, []).append(
+                {
+                    "root": root,
+                    "kind": _KIND[root[:2]],
+                    "name": row["name"].text[:200],
+                    "effective": row["effective"].text[:20],
+                    "owners": _names(row["owner"]),
+                    "occupants": _names(row["occupant"]),
+                    "operators": _names(row["operator"]),
+                    "numbers": sorted(set(numbers)),
+                    "end": row["end"].text[:20],
+                }
+            )
+    rows: list[dict[str, Any]] = []
+    for root in sorted(candidates):
+        found = candidates[root]
+        # The same root twice: keep the smallest canonical text, so the choice does not depend on
+        # the order the rows appear in.
+        rows.append(min(found, key=_canonical))
+        skipped["duplicate"] += len(found) - 1
+    return rows, skipped
 
 
 def _join(names: list[str]) -> str:
@@ -169,18 +227,7 @@ def record_for(row: dict[str, Any], listed_on: str) -> dict[str, Any]:
         "The registry lists names, registration numbers and dates only: no county, address or MW "
         "(unknown is not zero). A registration is not a site, a load or a construction start.",
     ]
-    canonical = "|".join(
-        [
-            row["root"],
-            row["name"],
-            row["effective"],
-            *row["numbers"],
-            *row["owners"],
-            *row["occupants"],
-            *row["operators"],
-            row["end"],
-        ]
-    )
+    canonical = _canonical(row)
     return {
         "document_number": "TXCOMP-" + row["root"],
         "title": f"Comptroller {row['kind']}: {row['name'] or row['root']}"[:250],
@@ -205,7 +252,7 @@ def retrieve(
     deadline: float | None = None,
     pacer: Callable[[], None] | None = None,
     today: date | None = None,
-) -> list[dict[str, Any]]:
+) -> Any:
     if source.get("id") != SOURCE_ID or source.get("endpoint") != ENDPOINT:
         raise SourceParseError("Comptroller registry source is not the reviewed endpoint")
     query = source.get("query")
@@ -223,8 +270,14 @@ def retrieve(
     finally:
         if own:
             http.close()
-    rows, _skipped = parse_registry(html)
+    rows, counts = parse_registry(html)
     if not rows:
         # A layout change or an error page is a loud failure, never an empty "nothing registered".
         raise SourceParseError("Comptroller registry page has no recognisable registry rows")
-    return [record_for(row, listed_on) for row in rows][: query["max_records"]]
+    records = [record_for(row, listed_on) for row in rows][: query["max_records"]]
+    # Rows that were seen but not read are reported, and too many of them fail the run. A
+    # duplicate registration number is reported too (the smallest row is kept).
+    skipped = {
+        k: v for k, v in counts.items() if k in {"unreadable_row", "no_registration", "duplicate"}
+    }
+    return more.acquisition_result(records, skipped, counts["rows"], "Comptroller")

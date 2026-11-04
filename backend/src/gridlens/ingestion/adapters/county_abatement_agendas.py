@@ -64,11 +64,9 @@ _FILE = re.compile(
 _SKIP_LABEL = re.compile(r"cancel", re.I)
 _LABEL_DATE = re.compile(r"\b(?P<mon>[A-Z][a-z]{2,8})\.? (?P<d>\d{1,2}), (?P<y>20\d{2})\b")
 _AGENDA_START = re.compile(r"(?:^|(?<=\s))(?P<n>\d{1,2})\.\s+(?=[A-Z])")
-_ABATEMENT = re.compile(
-    r"\b(?:tax abatements?|property tax abatements?|abatement agreements?|chapter 312|"
-    r"reinvestment zones?)\b",
-    re.I,
-)
+# "abatement" alone is not enough ("abatement of neighborhood nuisances"): a tax abatement,
+# Chapter 312 or a reinvestment zone must be named.
+_ABATEMENT = re.compile(r"\b(?:tax abatements?|chapter 312|reinvestment zones?)\b", re.I)
 _DATA_CENTER = re.compile(r"\b(?:data[- ]?centers?|large[- ]loads?|hyperscale)\b", re.I)
 _COMPANY_SUFFIX = r"(?:LLC|L\.L\.C\.|LP|L\.P\.|Inc\.?|Corp\.?|Corporation|Company|Co\.|Ltd\.?|LLP)"
 _ENTITY = re.compile(
@@ -78,8 +76,14 @@ _ENTITY = re.compile(
 )
 _MONEY_SCALED = re.compile(r"\$\s?(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<u>million|billion)\b", re.I)
 _MONEY_PLAIN = re.compile(r"\$\s?(?P<n>\d{1,3}(?:,\d{3})+)(?![\d,])")
+# Not an energy quantity: "MWh", "MW-hours", "GW hr".
 _MW = re.compile(
-    r"(?<![\w.])(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<u>MW|megawatts?|GW|gigawatts?)\b", re.I
+    r"(?<![\w.])(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<u>MW|megawatts?|GW|gigawatts?)\b"
+    r"(?![-\s]?h(?:ours?|r)?\b)",
+    re.I,
+)
+_INVESTMENT_CUE = re.compile(
+    r"\b(?:invest\w*|capital|project cost|total cost|expenditures?|will spend)\b", re.I
 )
 _ACRES = re.compile(r"(?<![\w.])(?P<n>\d[\d,]*(?:\.\d+)?)[- ]acres?\b", re.I)
 _LOCATION = re.compile(
@@ -87,8 +91,16 @@ _LOCATION = re.compile(
 )
 
 
+_ENCODED_SEPARATOR = re.compile(r"%(?:2[fF]|5[cC]|2[eE]|00)")
+
+
 def file_url_ok(url: Any) -> bool:
-    return isinstance(url, str) and len(url) <= 400 and _FILE.fullmatch(url) is not None
+    return (
+        isinstance(url, str)
+        and len(url) <= 400
+        and _FILE.fullmatch(url) is not None
+        and _ENCODED_SEPARATOR.search(url) is None
+    )
 
 
 def url_ok(url: Any) -> bool:
@@ -149,8 +161,16 @@ def parse_listing(html: bytes, limit: int) -> list[dict[str, Any]]:
         if not file_url_ok(url) or _SKIP_LABEL.search(label):
             continue
         docs.setdefault(url, {"url": url, "label": label[:200], "meeting": _label_date(label)})
-    ordered = sorted(docs.values(), key=lambda d: (d["meeting"] or "", d["url"]), reverse=True)
-    return ordered[:limit]
+    # Agendas whose label carries no date are all kept (the cap never drops an unknown date);
+    # dated ones are newest first, up to the cap.
+    undated = sorted((d for d in docs.values() if not d["meeting"]), key=lambda d: d["url"])
+    dated = sorted(
+        (d for d in docs.values() if d["meeting"]), key=lambda d: (d["meeting"], d["url"])
+    )
+    result = [*undated, *dated[::-1][:limit]]
+    if not result:
+        raise SourceParseError("Haskell agenda page has no readable agenda PDFs")
+    return result
 
 
 def record_for(doc: dict[str, Any], listed_on: str) -> dict[str, Any]:
@@ -271,58 +291,102 @@ def _scalar(name: str, text: str) -> tuple[Any, str, re.Match[str]] | None:
 
 
 _FIELD_NAMES = ("entity", "investment_usd", "stated_mw", "acres", "location")
+_SUFFIX = re.compile(_COMPANY_SUFFIX.replace("\\.", "\\.") + r"(?=[\s,;.)]|$)")
+QUOTE_LIMIT = 300
 
 
-def _item_fields(item: str, page: int, page_norm: str) -> dict[str, Any]:
+class _Pages:
+    """The pages joined into one text, so an item that spans a page break is not lost."""
+
+    def __init__(self, pages: list[str]) -> None:
+        self.norms = [more.norm(p) for p in pages]
+        self.offsets: list[int] = []
+        parts: list[str] = []
+        cursor = 0
+        for page in self.norms:
+            self.offsets.append(cursor)
+            parts.append(page)
+            cursor += len(page) + 1
+        self.full = " ".join(parts)
+
+    def page_of(self, position: int) -> int:
+        index = 0
+        for i, offset in enumerate(self.offsets):
+            if offset <= position:
+                index = i
+        return index
+
+    def quote(self, start: int, end: int, before: int, after: int) -> tuple[int, str, int]:
+        """(page index, quote, offset of the quote in that page) around [start, end)."""
+        page = self.page_of(start)
+        base = self.offsets[page]
+        text = self.norms[page]
+        lo, hi = more.window_span(
+            text, start - base, min(end - base, len(text)), before, after, QUOTE_LIMIT
+        )
+        return page, text[lo:hi], lo
+
+
+def _item_fields(pages: _Pages, begin: int, text: str) -> dict[str, Any]:
     fields: dict[str, Any] = {}
     for name in _FIELD_NAMES:
-        found = _scalar(name, item)
+        found = _scalar(name, text)
         if found is None:
             continue
         value, basis, match = found
-        quote_ = more.window(item, match.start(), match.end())
+        page, quote_, lo = pages.quote(begin + match.start(), begin + match.end(), 80, 120)
         again = _scalar(name, quote_)
         if again is None or again[0] != value:
             continue
-        evidence = more.evidence(value, basis, page, quote_, page_norm)
+        if name == "investment_usd" and _INVESTMENT_CUE.search(quote_) is None:
+            continue  # a fee, a fine or a bond is not an investment
+        evidence = more.evidence(value, basis, page + 1, quote_, pages.norms[page], start=lo)
         if evidence is not None:
             fields[name] = evidence
     return fields
 
 
-def extract_items(pages: list[str]) -> list[dict[str, Any]]:
+def extract_items(pages_in: list[str]) -> list[dict[str, Any]]:
+    pages = _Pages(pages_in)
+    starts = [(m.start(), m["n"]) for m in _AGENDA_START.finditer(pages.full)]
+    if not starts or starts[0][0] > 0:
+        starts.insert(0, (0, ""))  # the preamble before the first numbered item
     items: list[dict[str, Any]] = []
-    for number, page in enumerate(pages, start=1):
-        page_norm = more.norm(page)
-        starts = list(_AGENDA_START.finditer(page_norm))
-        bounds = [(m.start(), m["n"]) for m in starts]
-        if not bounds:
-            bounds = [(0, "")]
-        for position, (begin, label) in enumerate(bounds):
-            end = bounds[position + 1][0] if position + 1 < len(bounds) else len(page_norm)
-            text = page_norm[begin:end].strip()
-            abatement = _ABATEMENT.search(text)
-            data_center = _DATA_CENTER.search(text)
-            if abatement is None and data_center is None:
-                continue
-            quote_ = text[: more.MAX_QUOTE]
-            item = more.evidence(
-                {
-                    "agenda_item": label or None,
-                    "names_abatement": abatement is not None,
-                    "names_data_center": data_center is not None,
-                },
-                "documented",
-                number,
-                quote_,
-                page_norm,
-            )
-            if item is None:
-                continue
-            item["fields"] = _item_fields(text, number, page_norm)
-            items.append(item)
-            if len(items) >= MAX_ITEMS:
-                return items
+    for position, (begin, label) in enumerate(starts):
+        end = starts[position + 1][0] if position + 1 < len(starts) else len(pages.full)
+        text = pages.full[begin:end]
+        abatement = _ABATEMENT.search(text)
+        data_center = _DATA_CENTER.search(text)
+        keyword = abatement or data_center
+        if keyword is None:
+            continue
+        personal = more.has_address(text) or more.has_person(text)
+        if personal and _SUFFIX.search(text) is None:
+            continue  # a person's name or address and no company: abstain
+        page, quote_, lo = pages.quote(begin + keyword.start(), begin + keyword.end(), 120, 150)
+        item = more.evidence(
+            {
+                "agenda_item": label or None,
+                "numbered": bool(label),
+                "names_abatement": abatement is not None,
+                "names_data_center": data_center is not None,
+            },
+            "documented",
+            page + 1,
+            quote_,
+            pages.norms[page],
+            start=lo,
+        )
+        if item is None:
+            continue
+        # Fields only for a numbered item that itself names a data center or large-load facility:
+        # a wind farm's abatement or an unnumbered preamble yields the quote and nothing else.
+        item["fields"] = (
+            _item_fields(pages, begin, text) if label and data_center is not None else {}
+        )
+        items.append(item)
+        if len(items) >= MAX_ITEMS:
+            break
     return items
 
 

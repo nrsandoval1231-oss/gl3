@@ -21,6 +21,8 @@ from _early_more_fixtures import (
     HASKELL_SCAN,
     HASKELL_URL,
     LD_ROW,
+    LD_SHORT_ROW,
+    NO_NUMBER_ROW,
     NOTICE_PAGES,
     OCC_EMERALD,
     OCC_GOOGLE,
@@ -289,10 +291,6 @@ def test_listing_429_is_typed_with_retry_after_and_503_without(module, origin_fa
 def test_listing_js_shell_and_layout_change_fail_loudly(module, origin_factory, url):
     origin = origin_factory()
     origin.put(url, b"<html><body><div id='app'></div></body></html>")
-    if module is ca:
-        # A page with no agenda link is an empty listing, never a failure to read one.
-        assert listing(module, origin) == []
-        return
     with pytest.raises(SourceParseError):
         listing(module, origin)
     origin.put(url, b"%PDF-1.4", ctype="application/pdf")
@@ -338,7 +336,9 @@ def test_registry_rows_are_parsed_with_kind_names_numbers_and_dates():
 
 
 def test_registry_row_without_a_registration_number_is_skipped():
-    rows, skipped = cr.parse_registry(registry_origin().routes[REGISTRY_URL][2])
+    rows, skipped = cr.parse_registry(
+        registry_html([DC_ROW, DC_MULTI_ROW], [LD_ROW, LD_SHORT_ROW, NO_NUMBER_ROW])
+    )
     assert len(rows) == 4 and skipped["no_registration"] == 1 and skipped["tables"] == 2
 
 
@@ -397,7 +397,8 @@ def test_occ_listing_parses_label_fields_from_the_heading_list_only():
     google = next(r for r in records if r["doc_url"] == OCC_GOOGLE)
     assert "Company (per link text): Google, LLC" in google["abstract"]
     assert "County (per link text): Tulsa" in google["abstract"]
-    assert google["publication_date"] == "2026-10-15"
+    assert google["publication_date"] is None and google["event_date"] == "2026-10-15"
+    assert google["event_date_label"] == "date in link text"
     emerald = next(r for r in records if r["doc_url"] == OCC_EMERALD)
     assert "Project (per link text): Battles 112" in emerald["abstract"]
     assert "County (per link text): Pittsburg" in emerald["abstract"]
@@ -579,8 +580,8 @@ def test_agenda_items_are_verbatim_quotes_and_fields_reproduce_from_their_quotes
             assert field["quote"] in page
     abatement, data_center = items
     assert abatement["value"]["names_abatement"] is True
-    assert abatement["fields"]["entity"]["value"] == "Crusoe Energy Systems, LLC"
-    assert set(abatement["fields"]) == {"entity"}  # no MW, money or acreage is stated there
+    # The item names an abatement but not a data center: its quote only, no fields.
+    assert abatement["fields"] == {} and abatement["value"]["names_data_center"] is False
     fields = data_center["fields"]
     assert data_center["value"]["names_data_center"] is True
     assert fields["stated_mw"]["value"] == 300 and fields["acres"]["value"] == 1200
@@ -800,3 +801,363 @@ def test_more_helpers_normalise_and_quote():
     assert item is not None and item["span"] == [6, 16] and item["page"] == 2
     assert more.evidence(1, "documented", 1, "missing", page) is None
     assert more.window("one two three four", 4, 7, 2, 2) == "one two three"
+
+
+# --------------------------------------------------------------------------- review fixes (WS4b)
+
+
+def volumes_of(text: str, applicant: str | None = None, organisation: bool = True):
+    return tw.extract_notice([text], [], applicant, organisation)["volumes"]
+
+
+def test_water_role_comes_from_the_clause_that_holds_the_figure():
+    text = (
+        "The Certificate authorizes the diversion of 500 acre-feet; the Applicant requests an "
+        "additional 200 acre-feet."
+    )
+    assert [(v["value"], v["role"]) for v in volumes_of(text)] == [
+        (500, "existing_authorization"),
+        (200, "requested"),
+    ]
+    text = (
+        "Owner holds a right which authorizes 300 acre-feet per year. Applicant seeks 40 "
+        "acre-feet per year."
+    )
+    assert [(v["value"], v["role"]) for v in volumes_of(text)] == [
+        (300, "existing_authorization"),
+        (40, "requested"),
+    ]
+
+
+def test_water_clause_with_both_verb_classes_or_no_verb_is_just_stated():
+    both = "The right authorizes 500 acre-feet and applicant requests 600 acre-feet per year."
+    assert {v["role"] for v in volumes_of(both)} == {"stated"}
+    assert [v["role"] for v in volumes_of("A flow of 12 acre-feet per year is mentioned.")] == [
+        "stated"
+    ]
+
+
+def test_water_every_figure_in_a_window_keeps_its_own_value():
+    text = "Applicant requests 200 acre-feet per year and 300 acre-feet per year for storage."
+    found = volumes_of(text)
+    assert [v["value"] for v in found] == [200, 300]
+    page = " ".join(text.split())
+    for v in found:
+        assert page[v["span"][0] : v["span"][1]] == v["quote"]
+
+
+PERSONAL_NOTICE = (
+    "John Smith, 1234 County Road 5, Anytown, Texas 76000, Applicant, seeks to divert 50 "
+    "acre-feet of water per year for irrigation use."
+)
+
+
+def test_individual_applicant_is_withheld_everywhere():
+    html = tceq_html(
+        [
+            water_row(
+                "John Smith",
+                "12-9999",
+                "Brazos",
+                "5/1/2026",
+                "6/2/2026",
+                ("john-smith-12-9999-notice.pdf", "9/1/2026"),
+            ),
+            water_row("Palo Pinto County MWD 1", "12-4031", "Palo Pinto", "9/8/2026"),
+        ]
+    )
+    origin = tceq_origin()
+    origin.put(TCEQ_URL, html)
+    records = listing(tw, origin)
+    blob = repr(records)
+    assert "John" not in blob and "Smith" not in blob and "john-smith" not in blob
+    person = next(r for r in records if r["document_number"] == "TCEQWR-12-9999")
+    assert "individual applicant (name withheld)" in person["title"] + person["abstract"]
+    assert person["doc_url"] is None and person["state_key"] is None
+    assert person["html_url"] == TCEQ_URL and person["applicant"] is None
+    origin.put(TCEQ_URL, html.replace(b"John Smith", b"Jane Doe"))
+    again = next(r for r in listing(tw, origin) if r["document_number"] == "TCEQWR-12-9999")
+    assert again["source_hash"] == person["source_hash"]
+
+
+def test_a_quote_with_the_applicant_name_or_an_address_is_dropped():
+    out = tw.extract_notice([PERSONAL_NOTICE], [], "John Smith", organisation=False)
+    assert out["volumes"] == [] and out["purposes"] == [] and out["applicant_named"] is None
+    assert out["withheld_statements"] >= 1
+    blob = repr(out)
+    assert "John" not in blob and "Smith" not in blob and "1234" not in blob and "76000" not in blob
+    out = tw.extract_notice(
+        ["Acme Water LLC, 12 Main Street, Austin, TX 78701, requests 90 acre-feet per year."],
+        [],
+        "Acme Water LLC",
+    )
+    assert out["volumes"] == [] and "78701" not in repr(out)
+    out = tw.extract_notice(
+        ["Ingram Readymix No. 87, L.L.C. seeks to amend its right and requests 5 acre-feet."],
+        [],
+        "Ingram Readymix No. 87, L.L.C",
+    )
+    assert out["applicant_named"]["value"] == "Ingram Readymix No. 87, L.L.C"
+    assert [v["value"] for v in out["volumes"]] == [5]
+
+
+def test_organisation_shapes():
+    for name in (
+        "City of Bryan",
+        "Palo Pinto County Municipal Water District 1",
+        "Luminant Generation Co",
+        "Kimberlin On the Brazos, LLC",
+        "North Texas Municipal Water Authority",
+        "Travis County WCID 17",
+    ):
+        assert more.is_organisation(name), name
+    for name in ("John Smith", "Mary Ann Cosper", "Kniffen Revocable Living Trust"):
+        assert not more.is_organisation(name), name
+
+
+def test_water_absolute_notice_href_is_matched_after_joining():
+    row = water_row("Acme Water LLC", "12-1111", "Brazos", "1/1/2026")
+    link = (
+        '<td><a href="https://www.tceq.texas.gov/downloads/permitting/water-rights/pending/'
+        'notice/acme-12-1111-notice.pdf">9/1/2026</a></td><td></td></tr>'
+    )
+    absolute = row.replace("<td></td><td></td></tr>", link)
+    assert absolute != row
+    rows = tw.parse_listing(tceq_html([absolute]))
+    assert rows[0]["notice_url"].endswith("/notice/acme-12-1111-notice.pdf")
+    foreign = absolute.replace("www.tceq.texas.gov", "evil.example")
+    assert tw.parse_listing(tceq_html([foreign]))[0]["notice_url"] is None
+
+
+def test_water_malformed_rows_are_counted_and_too_many_fail_loudly():
+    good = [water_row(f"Acme {n} LLC", f"12-10{n:02d}", "Brazos", "1/1/2026") for n in range(40)]
+    broken = '<tr><td colspan="2">Acme LLC</td><td>12-2000</td><td>x</td></tr>'
+    origin = tceq_origin()
+    origin.put(TCEQ_URL, tceq_html([*good, broken]))
+    result = listing(tw, origin)
+    assert result["partial"] is True and result["rejected_count"] == 1
+    assert result["rejected_records"][0]["error_code"] == "malformed_row"
+    assert len(result["records"]) == 40
+    origin.put(TCEQ_URL, tceq_html([*good, broken, broken, broken, broken]))
+    with pytest.raises(SourceParseError, match="skipped too many"):
+        listing(tw, origin)
+
+
+def test_water_zero_readable_rows_fails_loudly():
+    origin = tceq_origin()
+    origin.put(TCEQ_URL, tceq_html([water_row("A", "12-1", "x", "1/1/2026")]))
+    with pytest.raises(SourceParseError):
+        listing(tw, origin)
+
+
+def test_text_layer_read_stops_after_the_first_pages_without_a_page_limit_failure(monkeypatch):
+    from gridlens.ingestion.adapters import ercot_rpg_extract as rx
+
+    body = pdf([[f"Page {n} states 5 acre-feet of water per year, municipal."] for n in range(6)])
+    pages, _scanned = rx.read_pdf_pages(body, 60.0, False, first_pages=2)
+    assert len(pages) == 2
+    monkeypatch.setattr(rx, "MAX_PAGES", 3)
+    with pytest.raises(DocumentFailure) as caught:
+        rx.read_pdf_pages(body, 60.0, False)
+    assert caught.value.code == "text_layer_too_many_pages"
+    assert len(rx.read_pdf_pages(body, 60.0, False, first_pages=2)[0]) == 2
+
+
+def test_agenda_fee_wind_farm_and_energy_units_do_not_become_data_center_facts():
+    text = (
+        "9. Consider payment of $25,000 application fee for a tax abatement with Wind Farm LLC "
+        "for a 200 MW wind project."
+    )
+    item = ca.extract_agenda([text], [])["items"][0]
+    assert item["fields"] == {} and item["value"]["names_data_center"] is False
+    dc = "9. Consider a data center tax abatement for 40 MWh of storage and a $25,000 fee."
+    fields = ca.extract_agenda([dc], [])["items"][0]["fields"]
+    assert "stated_mw" not in fields and "investment_usd" not in fields
+    cue = "9. Consider a data center tax abatement with a $2,000,000 capital investment."
+    assert (
+        ca.extract_agenda([cue], [])["items"][0]["fields"]["investment_usd"]["value"] == 2_000_000
+    )
+    hours = "9. Consider a data center tax abatement for a 100 MW-hours study."
+    assert "stated_mw" not in ca.extract_agenda([hours], [])["items"][0]["fields"]
+
+
+def test_bare_abatement_agreement_is_not_a_tax_abatement():
+    for text in (
+        "7. Discuss the abatement agreement for the neighborhood nuisance at Elm Street.",
+        "8. Discuss procedures for the abatement of neighborhood nuisances.",
+    ):
+        assert ca.extract_items([text]) == []
+    assert len(ca.extract_items(["7. Consider a Chapter 312 agreement."])) == 1
+
+
+def test_unnumbered_text_gets_a_quote_but_no_fields():
+    text = "The court may take up a data center project of 300 MW proposed by Alpha Data LLC."
+    item = ca.extract_items([text])[0]
+    assert item["fields"] == {} and item["value"]["numbered"] is False
+
+
+def test_an_item_that_spans_a_page_break_is_not_lost():
+    first = "1. Call to order. 7. Discuss a data center tax abatement with Alpha Data LLC for"
+    second = "a 300 MW campus on 1,200 acres. 8. Adjourn"
+    items = ca.extract_items([first, second])
+    assert len(items) == 1 and items[0]["fields"]["stated_mw"]["page"] == 2
+    assert items[0]["fields"]["entity"]["page"] == 1
+    for f in items[0]["fields"].values():
+        page = " ".join((first, second)[f["page"] - 1].split())
+        assert page[f["span"][0] : f["span"][1]] == f["quote"]
+
+
+def test_agenda_quotes_are_short_and_personal_items_abstain():
+    long = "7. Consider a tax abatement " + "filler words " * 80 + "with Alpha Data LLC."
+    quote = ca.extract_items([long])[0]["quote"]
+    assert len(quote) <= 300 and "tax abatement" in quote
+    personal = "7. Mr. Jones of 123 County Road 5 asks about the tax abatement for his land."
+    assert ca.extract_items([personal]) == []
+    with_company = "7. Alpha Data LLC at 123 County Road 5 requests a tax abatement."
+    assert len(ca.extract_items([with_company])) == 1
+
+
+def test_haskell_listing_keeps_undated_labels_and_rejects_encoded_separators():
+    links = [
+        ("/upload/page/7690/docs/Agenda 1.pdf", "Special Called"),
+        ("/upload/page/7690/docs/Agenda 2.pdf", "May 12, 2026"),
+        ("/upload/page/7690/docs/Agenda 3.pdf", "June 1, 2026"),
+        ("/upload/page/7690/docs/a%2Fb.pdf", "June 2, 2026"),
+        ("/upload/page/7690/docs/a%5Cb.pdf", "June 3, 2026"),
+    ]
+    html = (
+        "<ul>" + "".join(f"<li><a href='{h}'>{label}</a></li>" for h, label in links) + "</ul>"
+    ).encode()
+    docs = ca.parse_listing(html, 1)
+    assert [d["meeting"] for d in docs] == [None, "2026-06-01"]
+    assert not ca.file_url_ok("https://www.haskellcountytx.gov/upload/page/7690/a%2Fb.pdf")
+    with pytest.raises(SourceParseError):
+        ca.parse_listing(b"<a href='/elsewhere.pdf'>x</a>", 5)
+
+
+def test_occ_hyphen_in_a_company_name_does_not_split_and_empty_lists_fail():
+    parsed = oc.parse_label("ACME - North LLC - Tulsa County - October 15, 2026")
+    assert parsed["company"] == "ACME - North LLC" and parsed["county"] == "Tulsa"
+    both = oc.parse_label("Emerald Inc – Battles 112 – Pittsburg County - July 10, 2026")
+    assert both["project"] == "Battles 112" and both["company"] == "Emerald Inc"
+    foreign = occ_html([("https://evil.example/x.pdf", "A - B County - May 1, 2026")])
+    for body in (occ_html([]), foreign):
+        origin = occ_origin()
+        origin.put(OCC_URL, body)
+        with pytest.raises(SourceParseError):
+            listing(oc, origin)
+
+
+def test_occ_lists_after_the_first_ul_are_read():
+    base = occ_html(occ_links()).decode()
+    second = (
+        '<ul><li><a href="/content/dam/ok/en/occ/documents/pu/data-center-act/'
+        'notice-of-intent-submissions/2026-11-01-acme-osage-county.pdf">'
+        "Acme LLC - Osage County - November 1, 2026</a></li></ul>"
+    )
+    origin = occ_origin()
+    origin.put(OCC_URL, base.replace("</ul>", "</ul>" + second, 1).encode())
+    assert len(listing(oc, origin)) == 3
+
+
+def test_parser_handles_nesting_unclosed_cells_and_spans():
+    html = (
+        b"<table><tr><th>A</th><th>B</th></tr>"
+        b"<tr><td>1<td>2<tr><td>3<td>4</table>"
+        b"<table><tr><td>x<table><tr><td>inner</td></tr></table>y</td><td>z</td></tr></table>"
+        b"<table><tr><td colspan='2'>wide</td></tr></table>"
+    )
+    first, second, third = more.parse_tables(html)
+    assert [[c.text for c in r] for r in first] == [["A", "B"], ["1", "2"], ["3", "4"]]
+    assert [c.text for c in second[0]] == ["xy", "z"]
+    assert third[0][0].span == 2
+
+
+def test_registry_shifted_or_misaligned_rows_are_skipped_not_shifted():
+    shifted = registry_row(
+        "Shifted",
+        "01/01/2025",
+        "A LLC",
+        "Some Name",
+        "B LLC",
+        "DC111111-OC1",
+        "C LLC",
+        "DC111111-OP1",
+    )
+    short_bad = (
+        "<tr><th>Short</th><td>01/01/2025</td><td>A LLC</td><td>DC222222-OW1</td><td>B LLC</td>"
+        "<td>DC222222-OC1</td><td>C LLC</td></tr>"
+    )
+    named = registry_row(
+        "DC333333-OW1",
+        "01/01/2025",
+        "A LLC",
+        "DC333333-OW1",
+        "B LLC",
+        "DC333333-OC1",
+        "C",
+        "DC333333-OP1",
+    )
+    rows, skipped = cr.parse_registry(registry_html([shifted, short_bad, named, DC_ROW], [LD_ROW]))
+    assert [r["root"] for r in rows] == ["DC046706", "LD549949"]
+    assert skipped["unreadable_row"] == 3
+    many_good = [
+        registry_row(
+            f"Site {n}",
+            "01/01/2025",
+            "A LLC",
+            f"DC9{n:05d}-OW1",
+            "A",
+            f"DC9{n:05d}-OC1",
+            "A",
+            f"DC9{n:05d}-OP1",
+        )
+        for n in range(30)
+    ]
+    origin = registry_origin(dc_rows=[shifted, *many_good], ld_rows=[LD_ROW])
+    result = listing(cr, origin)
+    assert result["partial"] is True
+    assert result["rejected_records"][0]["error_code"] == "unreadable_row"
+    many = registry_origin(dc_rows=[shifted, shifted, shifted, DC_ROW], ld_rows=[LD_ROW])
+    with pytest.raises(SourceParseError, match="skipped too many"):
+        listing(cr, many)
+
+
+def test_registry_duplicate_roots_are_chosen_independent_of_page_order():
+    a = registry_row(
+        "Zeta",
+        "01/01/2025",
+        "A LLC",
+        "DC555555-OW1",
+        "A LLC",
+        "DC555555-OC1",
+        "A LLC",
+        "DC555555-OP1",
+    )
+    b = registry_row(
+        "Alpha",
+        "01/01/2025",
+        "B LLC",
+        "DC555555-OW1",
+        "B LLC",
+        "DC555555-OC1",
+        "B LLC",
+        "DC555555-OP1",
+    )
+    first, _ = cr.parse_registry(registry_html([a, b], [LD_ROW]))
+    second, skipped = cr.parse_registry(registry_html([b, a], [LD_ROW]))
+    assert first == second and skipped["duplicate"] == 1
+    assert next(r for r in first if r["root"] == "DC555555")["name"] == "Alpha"
+
+
+def test_anchors_read_single_quoted_hrefs():
+    found = more.anchors(b"<a class=x href='/a b.pdf'>One</a><a href=\"/c.pdf\">Two</a>")
+    assert found == [("/a b.pdf", "One"), ("/c.pdf", "Two")]
+
+
+def test_evidence_uses_the_known_offset_not_the_first_occurrence():
+    page = "five acre-feet. five acre-feet."
+    first = more.evidence(5, "documented", 1, "five acre-feet.", page)
+    second = more.evidence(5, "documented", 1, "five acre-feet.", page, start=16)
+    assert first["span"] == [0, 15] and second["span"] == [16, 31]
+    assert more.evidence(5, "documented", 1, "five acre-feet.", page, start=3) is None

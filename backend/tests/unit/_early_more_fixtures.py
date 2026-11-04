@@ -393,7 +393,7 @@ def registry_origin(dc_rows=None, ld_rows=None) -> MoreOrigin:
         REGISTRY_URL,
         registry_html(
             dc_rows if dc_rows is not None else [DC_ROW, DC_MULTI_ROW],
-            ld_rows if ld_rows is not None else [LD_ROW, LD_SHORT_ROW, NO_NUMBER_ROW],
+            ld_rows if ld_rows is not None else [LD_ROW, LD_SHORT_ROW],
         ),
     )
     return origin

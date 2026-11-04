@@ -186,7 +186,6 @@ def test_occ_documents_carry_quoted_form_fields_into_provenance(stage_db, monkey
     assert fields["land_purchase_date"]["value"] == "2026-08-21"
     assert fields["land_purchase_date"]["quote"] == "Land Purchase Date: 8/21/2026"
     assert f"Source document SHA-256: {state['document']['sha256']}" in google.abstract
-    assert str(google.published_at) == "2026-10-15"
     # The scanned notice stays a listing-only observation, not an empty document record.
     scanned = [ev for url, ev in by_url.items() if "emerald" in url][0]
     assert "early_signal" not in scanned.provenance
@@ -199,7 +198,8 @@ def test_agenda_and_water_documents_carry_quotes_into_provenance(stage_db, monke
     ingest(stage_db, definition, job_id, ca, origin, listing(ca, origin), monkeypatch)
     agenda = next(ev for _e, ev in evidences(stage_db, ca.SOURCE_ID) if ev.url == HASKELL_AGENDA)
     items = agenda.provenance["early_signal"]["document"]["extraction"]["items"]
-    assert items[0]["fields"]["entity"]["value"] == "Crusoe Energy Systems, LLC"
+    # The abatement item names the company in its quote; it names no data center, so no fields.
+    assert "Crusoe Energy Systems, LLC" in items[0]["quote"] and items[0]["fields"] == {}
     # The scanned June agenda was never stored as an empty record.
     assert len(evidences(stage_db, ca.SOURCE_ID)) == 1
 
@@ -362,3 +362,33 @@ def test_a_real_listing_429_stores_not_before_and_the_next_run_skips_the_listing
     with stage_db() as session, pytest.raises(SourceParseError):
         service.process_job(session, job_id, WORKER, 1, definition, origin.client())
     assert len(origin.log) == 1  # resting: no second request
+
+
+def test_individual_water_applicant_is_never_stored(stage_db, monkeypatch):
+    from _early_more_fixtures import TCEQ_URL, tceq_html, water_row
+
+    definition, job_id = setup_source(stage_db, tw.SOURCE_ID)
+    origin = tceq_origin()
+    origin.put(
+        TCEQ_URL,
+        tceq_html(
+            [
+                water_row(
+                    "John Smith",
+                    "12-9999",
+                    "Brazos",
+                    "5/1/2026",
+                    "6/2/2026",
+                    ("john-smith-12-9999-notice.pdf", "9/1/2026"),
+                ),
+                water_row("Kimberlin On the Brazos, LLC", "12-4013D", "Palo Pinto", "9/25/2026"),
+            ]
+        ),
+    )
+    ingest(stage_db, definition, job_id, tw, origin, listing(tw, origin), monkeypatch)
+    rows = evidences(stage_db, tw.SOURCE_ID)
+    assert len(rows) == 2
+    for _ext, ev in rows:
+        blob = repr((ev.title, ev.abstract, ev.url, ev.provenance, ev.content_hash))
+        assert "John" not in blob and "Smith" not in blob and "john-smith" not in blob
+    assert not [u for u in origin.urls() if "john-smith" in u]  # the notice was never requested

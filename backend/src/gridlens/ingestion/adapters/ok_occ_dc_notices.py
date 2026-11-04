@@ -58,7 +58,6 @@ _FILE = re.compile(re.escape(FILE_BASE) + r"[A-Za-z0-9][A-Za-z0-9._-]{0,150}\.pd
 _HEADING = ">Notice of Intent Submissions</h2>"
 _SEPARATOR = re.compile(r"\s+[-–—][-–—\s]*")
 _DATE_TEXT = re.compile(r"^(?P<mon>[A-Z][a-z]+) (?P<d>\d{1,2}), (?P<y>\d{4})$")
-_COUNTY_TEXT = re.compile(r"^(?P<c>[A-Z][A-Za-z .'-]{1,40}?) County$")
 
 
 def file_url_ok(url: Any) -> bool:
@@ -101,33 +100,51 @@ def _date_iso(text: str) -> str | None:
         return None
 
 
+_LABEL = re.compile(
+    r"^(?P<head>.+?)\s+[-\u2013\u2014]\s+(?P<county>[A-Z][A-Za-z .']{1,40}?) County"
+    r"\s+[-\u2013\u2014]\s+(?P<date>[A-Z][a-z]+ \d{1,2}, \d{4})$"
+)
+_EM_SEPARATOR = re.compile(r"\s+[\u2013\u2014]\s+")
+
+
 def parse_label(label: str) -> dict[str, Any]:
-    """Company, project, county and date from a link text; anything unmatched stays absent."""
-    parts = [p.strip() for p in _SEPARATOR.split(label) if p.strip()]
-    result: dict[str, Any] = {}
-    if len(parts) >= 3 and (when := _date_iso(parts[-1])) is not None:
-        county = _COUNTY_TEXT.fullmatch(parts[-2])
-        if county is not None:
-            result = {"company": parts[0][:160], "county": county["c"], "date": when}
-            if len(parts) >= 4:
-                result["project"] = " ".join(parts[1:-2])[:120]
+    """Company, project, county and date from a link text; anything unmatched stays absent.
+
+    The county and the date are read from the right. Between company and project only an en or em
+    dash separates; a plain hyphen with spaces stays inside the company name.
+    """
+    found = _LABEL.match(label.replace("\ufffd", " ").strip())
+    if found is None or (when := _date_iso(found["date"])) is None:
+        return {}
+    head = _EM_SEPARATOR.split(found["head"], maxsplit=1)
+    result: dict[str, Any] = {
+        "company": head[0].strip()[:160],
+        "county": found["county"],
+        "date": when,
+    }
+    if len(head) == 2 and head[1].strip():
+        result["project"] = head[1].strip()[:120]
     return result
 
 
 def parse_listing(html: bytes) -> list[dict[str, Any]]:
+    """Notices under the heading, up to the next heading (every list in between is read)."""
     text = html.decode("utf-8", errors="replace")
     start = text.find(_HEADING)
-    if start < 0:
+    if start < 0 or text.find("<ul", start) < 0:
         raise SourceParseError("OCC notice page has no Notice of Intent Submissions list")
-    region_start = text.find("<ul", start)
-    region_end = text.find("</ul>", region_start) if region_start >= 0 else -1
-    if region_start < 0 or region_end < 0:
-        raise SourceParseError("OCC notice page has no Notice of Intent Submissions list")
+    end = text.find("<h2", start + len(_HEADING))
+    region = text[start : end if end >= 0 else len(text)]
+    seen = 0
     docs: dict[str, dict[str, Any]] = {}
-    for href, label in more.anchors(text[region_start:region_end].encode("utf-8")):
+    for href, label in more.anchors(region.encode("utf-8")):
+        seen += 1
         url = urljoin(ENDPOINT, href)
         if file_url_ok(url):
             docs.setdefault(url, {"url": url, "label": label[:250], "parsed": parse_label(label)})
+    if not docs:
+        # An empty or fully rejected list is a layout change until proven otherwise.
+        raise SourceParseError(f"OCC notice list has no readable notices ({seen} links seen)")
     return list(docs.values())
 
 
@@ -144,7 +161,9 @@ def record_for(doc: dict[str, Any], listed_on: str) -> dict[str, Any]:
         if parsed.get("project"):
             lines.append(f"Project (per link text): {parsed['project']}")
         lines.append(f"County (per link text): {parsed['county']}")
-        lines.append(f"Date in link text: {parsed['date']}")
+        lines.append(
+            f"Date in the link text (not a verified filing or posting date): {parsed['date']}"
+        )
     else:
         lines.append("The link text did not match the expected shape; fields are unknown.")
     lines.append(f"Document: {name}")
@@ -156,8 +175,10 @@ def record_for(doc: dict[str, Any], listed_on: str) -> dict[str, Any]:
         "document_number": "OKOCC-" + hashlib.sha256(doc["url"].encode()).hexdigest()[:16],
         "title": f"OCC data-center notice: {doc['label']}"[:250],
         "abstract": "\n".join(lines),
-        "publication_date": parsed.get("date"),
-        "event_date": None,
+        # Only the date printed in the link text; not claimed as a publication date.
+        "publication_date": None,
+        "event_date": parsed.get("date"),
+        "event_date_label": "date in link text" if parsed.get("date") else None,
         "html_url": doc["url"],
         "extraction_location": "OCC Notice of Intent Submissions list",
         "source_hash": hashlib.sha256(f"{doc['url']}|{doc['label']}".encode()).hexdigest(),
@@ -233,10 +254,12 @@ def extract_form(pages: list[str], scanned: list[int]) -> dict[str, Any]:
                 continue
             value = _value(name, found)
             quote = found.group(0)[: more.MAX_QUOTE]
+            # The quote is the pattern's own match, so this re-read checks the value, not the
+            # context; the form's labels are the context.
             again = pattern.search(quote)
             if value is None or again is None or _value(name, again) != value:
                 continue
-            item = more.evidence(value, "documented", number, quote, page_norm)
+            item = more.evidence(value, "documented", number, quote, page_norm, start=found.start())
             if item is not None:
                 fields[name] = item
     lines: list[str] = []
@@ -265,7 +288,7 @@ def extract_form(pages: list[str], scanned: list[int]) -> dict[str, Any]:
 def _extract(
     body: bytes, item: stage.DocItem, prior: dict[str, Any] | None, budget: float, isolate: bool
 ) -> dict[str, Any]:
-    pages, scanned = pdf_text.read_pdf_pages(body, budget, isolate)
+    pages, scanned = pdf_text.read_pdf_pages(body, budget, isolate, first_pages=FORM_PAGES)
     return extract_form(pages, scanned)
 
 
