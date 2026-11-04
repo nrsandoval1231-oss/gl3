@@ -97,7 +97,7 @@ class MemoHeader:
 
 def _clean_name(raw: str) -> str:
     cleaned = _SIC_TAIL.sub("", raw)
-    return " ".join(cleaned.strip(" \t.;,").split())
+    return " ".join(cleaned.strip(" \t;,").split())
 
 
 def _lines_after(text: str, offset: int, limit: int) -> list[tuple[int, int]]:
