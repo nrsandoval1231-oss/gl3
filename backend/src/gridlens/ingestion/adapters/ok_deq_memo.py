@@ -31,7 +31,7 @@ _PERMIT = re.compile(
     r"No\.?[ \t]*(\d{4}-\d{2,5}-[A-Z]{1,4}\d{0,2}(?:[ \t]*\([ \t]*M-?\d{1,2}[ \t]*\)|[ \t]+M-?\d{1,2})?)(?![\w-])"
 )
 # Something that still looks like an amendment suffix after the match was not parsed: unknown.
-_UNPARSED_AMENDMENT = re.compile(r"[ \t]*\(?[ \t]*M[ -]?\d")
+_UNPARSED_AMENDMENT = re.compile(r"[ \t]*(?:\([ \t]*M|M[ -]?\d)")
 _NOT_NAME = re.compile(
     r"^(?:section|sec\.|latitude|longitude|directions?|physical\s+address|[0-9])", re.IGNORECASE
 )
