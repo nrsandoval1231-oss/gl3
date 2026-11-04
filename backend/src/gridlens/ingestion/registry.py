@@ -55,8 +55,6 @@ def _validate_run_at(source: dict[str, Any], schedule_mode: str, cadence: int) -
                 raise ValueError("run_at entries must not carry a timezone")
         if len(set(run_at)) != len(run_at):
             raise ValueError("run_at entries must be distinct")
-        if cadence != 24:
-            raise ValueError("run_at requires a one-day cadence")
     if weekday is not None and (
         type(weekday) is not int or not 0 <= weekday <= 6 or cadence % 168 != 0
     ):
