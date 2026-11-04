@@ -17,7 +17,7 @@ _HEADER_CONTEXT = re.compile(r"description|serial|const|date|rated|unit|point", 
 # Control-technology database listings describe OTHER facilities, not this permit's equipment.
 _REFERENCE_DB = re.compile(r"RBLC|RACT/BACT/LAER|Clearinghouse")
 _CAPACITY_PAIR = re.compile(
-    rf"{NUMBER}\s*(HP|hp|kW|KW|MW|MMBtu/hr)\s+{NUMBER}\s*(HP|hp|kW|KW|MW|MMBtu/hr)(?![A-Za-z])"
+    rf"(?<![\w.,]){NUMBER}\s*(HP|hp|kW|KW|MW|MMBtu/hr)\s+{NUMBER}\s*(HP|hp|kW|KW|MW|MMBtu/hr)(?![A-Za-z])"
 )
 _EQUIPMENT_NOUN = r"(?:compressor|engine|turbine|generator|motor|pump|heater|RICE|driver)s?"
 _NARRATIVE_CUE = re.compile(

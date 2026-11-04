@@ -181,10 +181,16 @@ def _row_for(
     removal = list(RETIRED_RE.finditer(sentence_before))
     window = sentence_before[-_STATE_WINDOW:]
     cues = list(_STATE_CUE.finditer(window))
-    if removal:
-        cue = removal[-1]
+    removal_after = RETIRED_RE.search(after, noun.end("noun"))
+    if removal or removal_after is not None:
+        if removal:
+            cue = removal[-1]
+            offset = base + sb_start + cue.start()
+        else:
+            assert removal_after is not None
+            cue = removal_after
+            offset = base + end + cue.start()
         state = "retired"
-        offset = base + sb_start + cue.start()
         evidence["state"] = FieldEvidence(
             "state", state, cue.group(0), offset, offset + len(cue.group(0)), page
         )

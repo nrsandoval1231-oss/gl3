@@ -214,9 +214,10 @@ def extract_permit_document(
     facility: str | None = None,
     as_of: str | None = None,
     limits: TextLayerLimits | None = None,
+    isolate: bool = True,
 ) -> PermitExtractionResult:
     """Offline extraction of a permit PDF. Text-layer failure yields a typed failure result."""
-    canon = build_canonical_text(pdf_bytes, limits)
+    canon = build_canonical_text(pdf_bytes, limits, isolate=isolate)
     if isinstance(canon, TextLayerFailure):
         return PermitExtractionResult(failure=canon, issues=[f"{canon.code}: {canon.message}"])
     return extract_from_canonical(

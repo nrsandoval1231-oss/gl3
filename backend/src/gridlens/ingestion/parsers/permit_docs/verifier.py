@@ -28,6 +28,7 @@ from gridlens.ingestion.parsers.permit_docs.models import (
     FieldEvidence,
 )
 from gridlens.ingestion.parsers.permit_docs.narrative import SENTENCE_END, count_is_countable
+from gridlens.ingestion.parsers.permit_docs.tables import blocking_ids
 from gridlens.ingestion.parsers.permit_docs.text_layer import CanonicalText
 
 VERIFIER = "exact-span-v1"
@@ -130,9 +131,15 @@ def _narrative_association(row: ExtractedRow, canon: CanonicalText) -> str | Non
             return "bare (n) count is a list number, not a count"
     state = row.evidence.get("state")
     if state is not None:
-        if state.page != rating.page or state.end > rating.start:
+        if state.page != rating.page:
+            return "state cue is on another page"
+        if state.end <= rating.start:
+            if SENTENCE_END.search(text[state.end : rating.start] + " "):
+                return "state cue is in another sentence"
+        elif state.start < rating.end or state.value != "retired":
             return "state cue is not before the rating"
-        if SENTENCE_END.search(text[state.end : rating.start] + " "):
+        elif SENTENCE_END.search(text[rating.end : state.start] + " "):
+            return "state cue is in another sentence"
             return "state cue is in another sentence"
     return None
 

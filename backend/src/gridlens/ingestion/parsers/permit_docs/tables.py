@@ -328,7 +328,7 @@ def extract_capacity_tables(
             cursor += len(line) + 1
         matches: list[tuple[int, re.Match[str]]] = []
         for index, line in enumerate(lines):
-            match = _CAPACITY_ROW.match(line)
+            match = _CAPACITY_ROW.match(line) if len(line) <= 600 else None
             if match is not None and match.group("u1").lower() == match.group("u2").lower():
                 matches.append((index, match))
         page_ids = {m.group("id") for _, m in matches}

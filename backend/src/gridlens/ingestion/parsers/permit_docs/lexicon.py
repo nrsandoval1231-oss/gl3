@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 from decimal import Decimal, InvalidOperation
 
-NUMBER = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+# Digit runs are bounded so a hostile 100,000-digit token cannot cause quadratic matching.
+NUMBER = r"(?:\d{1,3}(?:,\d{3}){1,5}|\d{1,15})(?:\.\d{1,9})?"
 NUMBER_RE = re.compile(NUMBER)
 YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 

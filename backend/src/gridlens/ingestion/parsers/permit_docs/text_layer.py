@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import io
+import multiprocessing
+import multiprocessing.connection
+import multiprocessing.process
+import sys
 import time
 from bisect import bisect_right
 from dataclasses import dataclass, field
@@ -12,7 +16,14 @@ SCAN_CHAR_THRESHOLD = 40
 PAGE_SEPARATOR = "\n\n"
 
 FailureCode = Literal[
-    "too_large", "too_many_pages", "unreadable", "encrypted", "time_budget", "page_too_long"
+    "too_large",
+    "too_many_pages",
+    "unreadable",
+    "encrypted",
+    "time_budget",
+    "page_too_long",
+    "memory_limit",
+    "worker_failed",
 ]
 BBox = tuple[float, float, float, float]
 
@@ -24,6 +35,7 @@ class TextLayerLimits:
     max_page_chars: int = 120_000
     max_seconds: float = 180.0
     max_seconds_per_page: float = 20.0
+    max_memory_bytes: int = 2 * 1024 * 1024 * 1024  # enforced only where RLIMIT_AS exists
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,13 +122,85 @@ def _join(pages: list[PageText]) -> tuple[str, list[int]]:
     return "".join(parts), starts
 
 
+# The parent waits max_seconds plus this for interpreter start-up and pickling, then kills.
+_SPAWN_GRACE_SECONDS = 20.0
+
+
 def build_canonical_text(
-    pdf_bytes: bytes, limits: TextLayerLimits | None = None
+    pdf_bytes: bytes, limits: TextLayerLimits | None = None, *, isolate: bool = True
 ) -> CanonicalText | TextLayerFailure:
-    """Extract the text layer with pdfplumber. Any bound breach returns a typed failure."""
+    """Extract the text layer with pdfplumber. Any bound breach returns a typed failure.
+
+    With ``isolate`` (the default) parsing, including the page-tree walk, runs in a spawned
+    child process that the parent kills at ``max_seconds`` plus a start-up grace, so a
+    hostile or pathological PDF cannot hang or exhaust the caller. A POSIX child also gets
+    an address-space cap (``max_memory_bytes``); Windows has no RLIMIT_AS, so there the
+    memory bound is the byte, page and per-page character limits plus the wall-clock kill.
+    Callers that spawn from a script must guard their entry point with ``__main__``.
+    """
     limits = limits or TextLayerLimits()
     if len(pdf_bytes) > limits.max_bytes:
         return TextLayerFailure("too_large", f"PDF exceeds {limits.max_bytes} bytes")
+    if not isolate:
+        return _extract_in_process(pdf_bytes, limits)
+    context = multiprocessing.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    child = context.Process(target=_worker, args=(sender, pdf_bytes, limits), daemon=True)
+    child.start()
+    sender.close()
+    outcome: CanonicalText | TextLayerFailure
+    try:
+        if receiver.poll(limits.max_seconds + _SPAWN_GRACE_SECONDS):
+            try:
+                outcome = receiver.recv()
+            except (EOFError, OSError):
+                outcome = TextLayerFailure(
+                    "worker_failed", f"extraction worker exited with code {_exit_code(child)}"
+                )
+        else:
+            outcome = TextLayerFailure("time_budget", "hard wall-clock limit hit; worker killed")
+    finally:
+        receiver.close()
+        if child.is_alive():
+            child.kill()
+        child.join(5)
+    return outcome
+
+
+def _exit_code(child: multiprocessing.process.BaseProcess) -> int | None:
+    child.join(2)
+    return child.exitcode
+
+
+def _worker(
+    sender: multiprocessing.connection.Connection, pdf_bytes: bytes, limits: TextLayerLimits
+) -> None:
+    outcome: CanonicalText | TextLayerFailure
+    try:
+        _cap_memory(limits.max_memory_bytes)
+        outcome = _extract_in_process(pdf_bytes, limits)
+    except MemoryError:
+        outcome = TextLayerFailure("memory_limit", "extraction exceeded the memory cap")
+    except BaseException as exc:  # noqa: BLE001 - the parent must always get a typed answer
+        outcome = TextLayerFailure("unreadable", f"{type(exc).__name__}: {str(exc)[:200]}")
+    sender.send(outcome)
+    sender.close()
+
+
+def _cap_memory(limit: int) -> None:
+    if sys.platform == "win32":
+        return  # no RLIMIT_AS on Windows; see build_canonical_text
+    try:
+        import resource
+
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    except (ImportError, ValueError, OSError):  # pragma: no cover - platform dependent
+        return
+
+
+def _extract_in_process(
+    pdf_bytes: bytes, limits: TextLayerLimits
+) -> CanonicalText | TextLayerFailure:
     try:
         import pdfplumber  # local import keeps module import cheap
     except ImportError:  # pragma: no cover - dependency is pinned
