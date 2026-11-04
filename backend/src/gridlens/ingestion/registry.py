@@ -95,6 +95,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "san-antonio-permits": {"data.sanantonio.gov"},
             "tdlr-tabs": {"www.tdlr.texas.gov"},
             "ok-deq-public-review": {"applications.deq.ok.gov"},
+            "nmed-air-applications": {"www.env.nm.gov"},
             "spp-interconnection-queue": {"opsportal.spp.org"},
             "cabq-building-permits": {"data.cabq.gov"},
             "tceq-egu-search": {"www2.tceq.texas.gov"},
@@ -153,6 +154,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "jeti-agreements",
             "retained-document",
             "ok-deq-public-review",
+            "nmed-air-applications",
             "spp-interconnection-queue",
             "cabq-building-permits",
         } or (type(query.get("window_days")) is int and 1 <= query.get("window_days", 0) <= 90)
@@ -487,6 +489,22 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and query.get("max_response_bytes") == 2_000_000
                 and query.get("max_records") == 400
                 and _valid_okdeq_documents(query.get("application_documents"))
+            )
+        elif source["retrieval_method"] == "nmed-air-applications":
+            from gridlens.ingestion.adapters.nmed_application_documents import (
+                SOURCE_ID as nmed_source_id,
+            )
+            from gridlens.ingestion.adapters.nmed_application_documents import (
+                valid_query as nmed_valid_query,
+            )
+
+            bounded = (
+                source.get("id") == nmed_source_id
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "construction-permits"
+                and source.get("geography") == "New Mexico"
+                and source.get("state") == "NM"
+                and nmed_valid_query(query)
             )
         elif source["retrieval_method"] == "spp-interconnection-queue":
             bounded = (
