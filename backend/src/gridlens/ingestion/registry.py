@@ -23,6 +23,15 @@ def _valid_application_documents(value: Any) -> bool:
     )
 
 
+def _valid_okdeq_documents(value: Any) -> bool:
+    """Optional bounded Oklahoma DEQ document stage; absent means not configured."""
+    if value is None:
+        return True
+    from gridlens.ingestion.adapters.ok_deq_documents import valid_config
+
+    return valid_config(value)
+
+
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("version") != 1 or not isinstance(raw.get("sources"), list):
@@ -465,9 +474,13 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and source.get("family") == "construction-permits"
                 and source.get("geography") == "Oklahoma"
                 and source.get("state") == "OK"
-                and set(query) == {"max_response_bytes", "max_records"}
+                and set(query).issubset(
+                    {"max_response_bytes", "max_records", "application_documents"}
+                )
+                and {"max_response_bytes", "max_records"}.issubset(query)
                 and query.get("max_response_bytes") == 2_000_000
                 and query.get("max_records") == 400
+                and _valid_okdeq_documents(query.get("application_documents"))
             )
         elif source["retrieval_method"] == "spp-interconnection-queue":
             bounded = (

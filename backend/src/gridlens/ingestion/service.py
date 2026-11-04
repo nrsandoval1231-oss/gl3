@@ -187,6 +187,9 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
     application_document = record.get("application_document")
     if isinstance(application_document, dict):
         provenance["application_document"] = application_document
+    okdeq_document = record.get("okdeq_document")
+    if isinstance(okdeq_document, dict):
+        provenance["okdeq_document"] = okdeq_document
     return provenance
 
 
@@ -2592,6 +2595,10 @@ def _enrich_with_application_documents(
     source lock is retaken exactly as after ordinary retrieval. Returns the stage report, or
     None when the source does not configure the stage.
     """
+    if source_definition.get("retrieval_method") == "ok-deq-public-review":
+        return _enrich_with_okdeq_documents(
+            session, job_id, worker_id, fence, source_definition, acquisition, client, deadline
+        )
     from gridlens.ingestion.adapters.tceq_application_documents import (
         StageReport,
         apply_prior_states,
@@ -2636,6 +2643,62 @@ def _enrich_with_application_documents(
         # It is reported as a typed stage error, never swallowed silently.
         session.rollback()
         report = StageReport()
+        report.reject("stage", "stage_error", error=type(error).__name__)
+        apply_prior_states(records, prior)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return report
+
+
+def _enrich_with_okdeq_documents(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    acquisition: list[dict[str, Any]] | dict[str, Any],
+    client: httpx.Client | None,
+    deadline: float | None,
+) -> Any:
+    """Run the bounded Oklahoma DEQ permit-document stage over the retrieved listing rows.
+
+    Same contract as the TCEQ stage: no transaction or source lock is held while the network
+    and extraction run, the lock is retaken afterwards, and a fault in the additive stage is a
+    typed stage error that leaves the listing run and every retained state intact. Returns the
+    stage report, or None when the source does not enable the stage.
+    """
+    from gridlens.ingestion.adapters.ok_deq_documents import (
+        OkStageReport,
+        apply_prior_states,
+        config_from_source,
+        run_stage,
+    )
+    from gridlens.ingestion.okdeq_document_stage import load_index, load_prior_states, save_index
+
+    config = config_from_source(source_definition)
+    if config is None:
+        return None
+    records = acquisition if isinstance(acquisition, list) else acquisition["records"]
+    if session.in_transaction():
+        session.commit()
+    prior = load_prior_states(session, source_definition["id"])
+    index = load_index(session, source_definition["id"])
+    session.commit()
+    if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
+        report = OkStageReport()
+        report.bump("skipped_source_rate_limited")
+        apply_prior_states(records, prior)
+        _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+        return report
+    try:
+        report = run_stage(
+            records, prior, client=client, config=config, index=index, deadline=deadline
+        )
+        if report.index != index:
+            save_index(session, source_definition["id"], report.index)
+            session.commit()
+    except Exception as error:
+        session.rollback()
+        report = OkStageReport()
         report.reject("stage", "stage_error", error=type(error).__name__)
         apply_prior_states(records, prior)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
