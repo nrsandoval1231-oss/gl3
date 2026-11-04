@@ -228,3 +228,15 @@ def test_alert_is_unchanged_without_spend():
 
 def test_default_threshold_is_eighty_percent():
     assert settings.intelligence_spend_alert_threshold == 0.8
+
+
+def test_configured_passes_are_none_while_their_settings_are_off(monkeypatch):
+    from gridlens.intelligence import permit_page_ocr
+
+    assert ep.configured_proposer(source_id="s") is None
+    assert (
+        permit_page_ocr.configured_stage_ocr(pdf_path="x.pdf", source_url="u", source_id="s")
+        is None
+    )
+    monkeypatch.setattr(settings, "permit_llm_proposer_enabled", True)
+    assert ep.configured_proposer(source_id="s") is not None

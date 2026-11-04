@@ -427,3 +427,27 @@ class LedgerEquipmentProposer:
         if not valid:
             return ProposerOutcome("failed", "OUTPUT_SCHEMA_INVALID", [], label, pages_sent, detail)
         return ProposerOutcome("ok", "", units, label, pages_sent, detail)
+
+
+def configured_proposer(
+    *,
+    source_id: str | None,
+    project_id: UUID | None = None,
+    job_id: UUID | None = None,
+    worker_id: str | None = None,
+    fence_token: int = 0,
+) -> LedgerEquipmentProposer | None:
+    """The proposer to pass to the permit_docs pipeline, or ``None`` while the setting is off.
+
+    Callers need a leased job or an explicit standalone run because every call is reserved in
+    the shared ledger; the DB-free fetch stages do not call this yet.
+    """
+    if not settings.permit_llm_proposer_enabled:
+        return None
+    return LedgerEquipmentProposer(
+        source_id=source_id,
+        project_id=project_id,
+        job_id=job_id,
+        worker_id=worker_id,
+        fence_token=fence_token,
+    )

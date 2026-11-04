@@ -477,3 +477,27 @@ class StagePdfOcr:
                 )
             return OcrOutcome("failed", type(exc).__name__)
         return self._stop("unknown", "OCR_OUTCOME_UNKNOWN")
+
+
+def configured_stage_ocr(
+    *,
+    pdf_path: str,
+    source_url: str,
+    source_id: str,
+    project_id: UUID | None = None,
+    job_id: UUID | None = None,
+    worker_id: str | None = None,
+    fence_token: int = 0,
+) -> StagePdfOcr | None:
+    """The OCR object to pass to the permit_docs pipeline, or ``None`` while the setting is off."""
+    if not settings.permit_ocr_enabled:
+        return None
+    return StagePdfOcr(
+        pdf_path=pdf_path,
+        source_url=source_url,
+        source_id=source_id,
+        project_id=project_id,
+        job_id=job_id,
+        worker_id=worker_id,
+        fence_token=fence_token,
+    )
