@@ -111,10 +111,10 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * EARTH_RADIUS_M * math.asin(min(1.0, math.sqrt(a)))
 
 
-def parse_cases(body: bytes) -> list[dict[str, str]]:
+def parse_case_list(body: bytes) -> tuple[list[dict[str, str]], int]:
     """Cases from one caseList response. DTDs and entities are refused before parsing."""
-    head = body[:4096].lower()
-    if b"<!doctype" in head or b"<!entity" in body[:65536].lower():
+    lowered = body.lower()
+    if b"<!doctype" in lowered or b"<!entity" in lowered:
         raise SourceParseError("FAA caseList contains a DTD or entity declaration")
     try:
         root = ET.fromstring(body)  # DTD and entities refused above
@@ -123,13 +123,19 @@ def parse_cases(body: bytes) -> list[dict[str, str]]:
     if root.tag != "caseList":
         raise SourceParseError("FAA response is not a caseList")
     cases: list[dict[str, str]] = []
+    nodes = 0
     for node in root:
         if node.tag != "OECase":
             continue
+        nodes += 1
         fields = {name: (node.findtext(name) or "").strip() for name in _FIELDS}
         if _ASN.fullmatch(fields["asn"]):
             cases.append(fields)
-    return cases
+    return cases, nodes
+
+
+def parse_cases(body: bytes) -> list[dict[str, str]]:
+    return parse_case_list(body)[0]
 
 
 def match_campuses(
@@ -211,6 +217,7 @@ def retrieve(
     *,
     today: date | None = None,
     pacer: Pacer | None = None,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     require_source(source, SOURCE_ID, ENDPOINT)
     if not valid_query(source):
@@ -221,7 +228,7 @@ def retrieve(
         return []  # nothing to join against: no request, no claim
     end_day = today or datetime.now(UTC).date()
     http = client or new_client()
-    pace = pacer or Pacer()
+    pace = pacer or Pacer(deadline=deadline)
     records: dict[str, dict[str, Any]] = {}
     try:
         for offset in range(query["window_days"]):
@@ -235,8 +242,8 @@ def retrieve(
                 media_types={"application/xml", "text/xml"},
                 pacer=pace,
             )
-            cases = parse_cases(body)
-            if len(cases) >= ROW_CAP:
+            cases, nodes = parse_case_list(body)
+            if nodes >= ROW_CAP:  # raw OECase nodes, not only the rows that parsed
                 raise SourceParseError("FAA day reached the 8,000-row cap and may be incomplete")
             for case in cases:
                 matches = match_campuses(case, campuses, query["radius_m"])

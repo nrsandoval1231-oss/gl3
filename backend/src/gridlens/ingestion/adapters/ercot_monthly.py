@@ -99,19 +99,29 @@ def report_links(page: bytes) -> list[dict[str, Any]]:
 def parse_overview(body: bytes) -> dict[str, Any]:
     try:
         reader = PdfReader(io.BytesIO(body))
-    except Exception as exc:
+        if reader.is_encrypted or len(reader.pages) > MAX_PDF_PAGES:
+            raise SourceParseError("ERCOT overview PDF is encrypted or longer than its page bound")
+        text = " ".join(" ".join((page.extract_text() or "") for page in reader.pages).split())
+    except SourceParseError:
+        raise
+    except Exception as exc:  # pypdf raises many types on damaged files
         raise SourceParseError("ERCOT overview PDF could not be read") from exc
-    if reader.is_encrypted or len(reader.pages) > MAX_PDF_PAGES:
-        raise SourceParseError("ERCOT overview PDF is encrypted or longer than its page bound")
-    text = " ".join(" ".join((page.extract_text() or "") for page in reader.pages).split())
     title = _TITLE.search(text)
     if not title:
         raise SourceParseError("ERCOT overview PDF does not state its report month")
     month = MONTHS.index(title.group(1)) + 1
     year = int(title.group(2))
-    fact = _FACT.search(text)
+    # The sentence for the title month, wherever it falls among other months' sentences.
+    fact = next(
+        (
+            found
+            for found in _FACT.finditer(text)
+            if found.group(3) == title.group(1) and int(found.group(4)) == year
+        ),
+        None,
+    )
     approved = observed = None
-    if fact and fact.group(3) == title.group(1) and int(fact.group(4)) == year:
+    if fact:
         approved = int(fact.group(1).replace(",", ""))
         observed = int(fact.group(2).replace(",", ""))
     return {
@@ -172,14 +182,18 @@ def build_record(parsed: dict[str, Any], url: str, posted: str) -> dict[str, Any
 
 
 def retrieve(
-    source: dict[str, Any], client: httpx.Client | None = None, *, pacer: Pacer | None = None
+    source: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    pacer: Pacer | None = None,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     require_source(source, SOURCE_ID, ENDPOINT)
     if not valid_query(source):
         raise SourceParseError("ERCOT monthly query bounds are invalid")
     query = source["query"]
     http = client or new_client()
-    pace = pacer or Pacer()
+    pace = pacer or Pacer(deadline=deadline)
     try:
         _, page = fetch(
             http,
@@ -192,7 +206,7 @@ def retrieve(
         links = report_links(page)[: query["max_reports"]]
         if not links:
             raise SourceParseError("ERCOT board page links no monthly overview PDF")
-        records = []
+        by_month: dict[str, dict[str, Any]] = {}
         for link in links:
             _, body = fetch(
                 http,
@@ -202,8 +216,11 @@ def retrieve(
                 media_types={"application/pdf"},
                 pacer=pace,
             )
-            records.append(build_record(parse_overview(body), link["url"], link["posted"]))
-        return sorted(records, key=lambda r: r["document_number"])
+            parsed = parse_overview(body)
+            # Links are newest first: a revised PDF for a month already seen is the older one.
+            if parsed["report_month"] not in by_month:
+                by_month[parsed["report_month"]] = build_record(parsed, link["url"], link["posted"])
+        return sorted(by_month.values(), key=lambda r: r["document_number"])
     finally:
         if client is None:
             http.close()

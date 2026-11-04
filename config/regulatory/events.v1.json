@@ -9,7 +9,7 @@
       "source_url": "https://gov.texas.gov/news/post/governor-abbott-directs-comprehensive-data-center-audit",
       "quote": "The PUCT and ERCOT must complete this audit before any data center project moves forward.",
       "effect": "audit_required",
-      "scope": {"state": "TX", "agency": "ERCOT", "subject": "data_center_projects", "instrument": "interconnection"},
+      "scope": {"state": "TX", "agency": "PUCT+ERCOT", "subject": "data_center_projects", "instrument": "project_advancement"},
       "verified_on": "2026-11-04"
     },
     {
@@ -28,7 +28,7 @@
       "issuer": "Office of the Texas Governor",
       "source_url": "https://gov.texas.gov/uploads/files/press/TCEQ_Data_Center.pdf",
       "quote": "I direct the TCEQ to pause the issuance of all permits related to data center projects until ERCOT completes its review.",
-      "effect": "pause_issuance",
+      "effect": "pause_directed",
       "scope": {"state": "TX", "agency": "TCEQ", "subject": "data_center_projects", "instrument": "permits"},
       "verified_on": "2026-11-04"
     },
@@ -38,7 +38,7 @@
       "issuer": "Texas Commission on Environmental Quality",
       "source_url": "https://www.tceq.texas.gov/downloads/response/tceq-response-gov-abbott-dc-directive.pdf",
       "quote": "TCEQ has paused the issuance of all permits related to the construction or development of infrastructure directly supporting data centers.",
-      "effect": "pause_issuance",
+      "effect": "pause_screening",
       "scope": {"state": "TX", "agency": "TCEQ", "subject": "data_center_projects", "instrument": "permits"},
       "verified_on": "2026-11-04"
     }

@@ -140,7 +140,9 @@ def build_record(row: dict[str, Any]) -> dict[str, Any]:
         abstract_lines=lines,
         url=ENDPOINT,
         extraction_location=f"AFDC alt-fuel-stations v1 station id {sid}",
-        semantic={"row": row},
+        semantic={
+            "row": {k: v for k, v in row.items() if k not in {"updated_at", "date_last_confirmed"}}
+        },
         publication_date=row["updated_at"],
         event_date=row["open_date"],
         event_date_label="AFDC station open date",
@@ -170,6 +172,7 @@ def retrieve(
     *,
     api_key: str | None = None,
     pacer: Pacer | None = None,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     require_source(source, SOURCE_ID, ENDPOINT)
     if not valid_query(source):
@@ -183,7 +186,7 @@ def retrieve(
         raise SourceParseError("AFDC_API_KEY is not configured")
     query = source["query"]
     http = client or new_client()
-    pace = pacer or Pacer()
+    pace = pacer or Pacer(deadline=deadline)
     rows: dict[int, dict[str, Any]] = {}
     try:
         total = None

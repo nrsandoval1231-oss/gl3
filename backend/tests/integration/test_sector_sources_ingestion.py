@@ -33,6 +33,13 @@ FIX = Path(__file__).parents[1] / "fixtures" / "ws5"
 WORKER = "ws5-worker"
 
 
+@pytest.fixture(autouse=True)
+def public_dns(monkeypatch):
+    from gridlens.ingestion.adapters import sector_common
+
+    monkeypatch.setattr(sector_common, "resolve_public", lambda _host: "8.8.8.8")
+
+
 @pytest.fixture
 def stage_db():
     target = make_url(settings.test_database_url)
@@ -256,3 +263,42 @@ def test_a_rate_limited_origin_ingests_nothing_and_keeps_prior_evidence(stage_db
         )
     with stage_db() as session:
         assert session.scalar(select(func.count()).select_from(Evidence)) == len(rows)
+
+
+def test_published_at_null_where_unstated_and_sec_accessions_are_remembered(stage_db):
+    from gridlens.ingestion.service import _known_sec_accessions
+
+    rows = json.loads((FIX / "tceq-aggregate.json").read_text(encoding="utf-8"))
+    definition, job_id = setup_source(stage_db, "texas-tceq-aggregate-production")
+    ingest(
+        stage_db,
+        definition,
+        job_id,
+        [tceq_aggregate.build_record(tceq_aggregate.normalize(row)) for row in rows],
+    )
+    sec_text = sec_edgar_site_mw.filing_text((FIX / "sec-10k-excerpt.htm").read_bytes())
+    sec_definition, sec_job = setup_source(stage_db, "sec-edgar-site-mw")
+    filing = {
+        "accessionNumber": "0001104659-26-022322",
+        "filingDate": "2026-03-02",
+        "reportDate": "2025-12-31",
+        "form": "10-K",
+    }
+    ingest(
+        stage_db,
+        sec_definition,
+        sec_job,
+        [
+            sec_edgar_site_mw.build_record(
+                st, company="Riot", cik="0001167419", filing=filing, url="https://www.sec.gov/x.htm"
+            )
+            for st in sec_edgar_site_mw.extract_statements(sec_text, limit=50)
+        ],
+    )
+    with stage_db() as session:
+        tceq = session.scalars(
+            select(Evidence).join(Observation).where(Observation.source_id == definition["id"])
+        ).all()
+        assert tceq and all(e.published_at is None for e in tceq)
+        assert all(e.observed_at is not None for e in tceq)
+        assert _known_sec_accessions(session, "sec-edgar-site-mw") == ["0001104659-26-022322"]

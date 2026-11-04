@@ -20,6 +20,7 @@ from gridlens.ingestion.adapters import (
     nevi_awards,
     regulatory_events,
     sec_edgar_site_mw,
+    sector_common,
     tceq_aggregate,
 )
 from gridlens.ingestion.adapters.diagnostics import acquisition_diagnostics
@@ -27,6 +28,7 @@ from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.sector_common import Pacer
 from gridlens.ingestion.registry import load_registry
 
+REAL_RESOLVE = sector_common.resolve_public
 FIX = Path(__file__).parents[1] / "fixtures" / "ws5"
 ROOT = Path(__file__).resolve().parents[3]
 TODAY = date(2026, 10, 27)
@@ -40,6 +42,12 @@ WS5_IDS = [
     "texas-ercot-monthly-overview",
     "regulatory-event-feed",
 ]
+
+
+@pytest.fixture(autouse=True)
+def public_dns(monkeypatch):
+    """Mock origins have fake hosts; the resolver guard has its own test."""
+    monkeypatch.setattr(sector_common, "resolve_public", lambda _host: "8.8.8.8")
 
 
 def source(source_id: str) -> dict:
@@ -771,6 +779,9 @@ def test_sec_declares_the_contact_and_quotes_only_named_site_statements():
     sites = sorted({r["permit"]["facility"] for r in records})
     assert sites == ["Corsicana Facility", "Kentucky Facility", "Rockdale Facility"]
     assert len(records) == 4  # the "1,200 MW across sites" sentence and hidden header are not read
+    assert all(
+        re.fullmatch(r"SEC-0001167419-[0-9-]+-[0-9a-f]{12}", r["document_number"]) for r in records
+    )
     quotes = [r["permit"]["quote"] for r in records]
     assert (
         "The Kentucky Facility currently has approximately 137 MW of developed capacity." in quotes
@@ -919,8 +930,12 @@ def test_every_event_quote_is_in_its_official_source_text():
     assert len(events) == 4
     for event in events:
         assert event["source_url"] in texts, event["id"]
-        # The TCEQ letter's PDF text layer has stray spaces inside words, so compare compactly.
-        assert _compact(event["quote"]) in _compact(texts[event["source_url"]]), event["id"]
+        text = texts[event["source_url"]]
+        if event["source_url"].endswith("tceq-response-gov-abbott-dc-directive.pdf"):
+            # Only this PDF's text layer has stray spaces inside words, so compare compactly.
+            assert _compact(event["quote"]) in _compact(text), event["id"]
+        else:
+            assert " ".join(event["quote"].split()) in " ".join(text.split()), event["id"]
 
 
 def test_event_records_are_dated_sourced_and_evidence_only():
@@ -936,7 +951,9 @@ def test_event_records_are_dated_sourced_and_evidence_only():
     assert pause["publication_date"] == pause["event_date"] == "2026-09-21"
     assert pause["html_url"].startswith("https://gov.texas.gov/")
     assert "pause the issuance of all permits related to data center projects" in pause["abstract"]
-    assert pause["permit"]["status"] == "pending — paused"
+    # The directive orders a pause but says nothing of any single filing: no label.
+    assert pause["permit"]["status"] is None
+    assert records[3]["permit"]["status"] == "pending — pause may apply (TCEQ screening)"
     assert records[1]["permit"]["status"] is None  # conditional: no label is inferred
     assert assess_permit(pause, as_of=TODAY)["decision"] == "rejected"
 
@@ -952,15 +969,12 @@ FILING = {
 
 def test_event_to_scope_to_status_model():
     events = regulatory_events.load_events()
-    assert (
-        regulatory_events.status_for(FILING, events, date(2026, 9, 20)) is None
-    )  # before the pause
-    hit = regulatory_events.status_for(FILING, events, date(2026, 9, 21))
-    assert (
-        hit
-        and hit["label"] == "pending — paused"
-        and hit["event_id"] == "tx-gov-20260921-tceq-pause"
-    )
+    # The Governor's directive alone (09-21) labels nothing; TCEQ's own reply (10-19) does.
+    for day in (date(2026, 9, 20), date(2026, 9, 21), date(2026, 10, 18)):
+        assert regulatory_events.status_for(FILING, events, day) is None
+    hit = regulatory_events.status_for(FILING, events, date(2026, 10, 19))
+    assert hit and hit["label"] == "pending — pause may apply (TCEQ screening)"
+    assert hit["event_id"] == "tx-tceq-20261019-pause-response"
     later = regulatory_events.status_for(FILING, events, date(2026, 11, 4))
     assert later and later["event_id"] == "tx-tceq-20261019-pause-response"
     # No inference: not explicitly a data center, not pending, other agency or state: unknown.
@@ -973,17 +987,19 @@ def test_event_to_scope_to_status_model():
     ):
         assert regulatory_events.status_for({**FILING, **patch}, events, date(2026, 11, 4)) is None
     audit = regulatory_events.status_for(
-        {**FILING, "agency": "ERCOT", "instrument": "interconnection"}, events, date(2026, 11, 4)
+        {**FILING, "agency": "PUCT+ERCOT", "instrument": "project_advancement"},
+        events,
+        date(2026, 11, 4),
     )
     assert audit and audit["label"] == "pending — audit required"
 
 
 def test_only_a_later_lift_event_clears_a_pause():
     events = regulatory_events.load_events()
-    lift = {**events[2], "id": "zz-lift", "date": "2027-01-10", "effect": "lift_pause"}
+    lift = {**events[3], "id": "zz-lift", "date": "2027-01-10", "effect": "lift_pause"}
     assert (
         regulatory_events.status_for(FILING, [*events, lift], date(2027, 1, 9))["label"]
-        == "pending — paused"
+        == "pending — pause may apply (TCEQ screening)"
     )
     assert regulatory_events.status_for(FILING, [*events, lift], date(2027, 1, 10)) is None
 
@@ -1006,6 +1022,8 @@ def test_event_file_validation(tmp_path):
         {**event, "quote": ""},
         {**event, "scope": {"state": "TX"}},
         {**event, "extra": 1},
+        {**event, "verified_on": "2026-09-20"},  # verified before the event happened
+        {**event, "source_url": "https://gov.texas.gov:99999/x"},  # invalid port
     ):
         with pytest.raises(SourceParseError):
             load_with(mutated)
@@ -1016,3 +1034,297 @@ def test_event_file_validation(tmp_path):
     path.write_text("not json", encoding="utf-8")
     with pytest.raises(SourceParseError, match="unreadable"):
         regulatory_events.load_events(path)
+
+
+# ---------------------------------------------------------------- review fixes
+
+
+def test_ercot_keeps_only_the_newest_pdf_for_a_report_month():
+    board = (
+        '<a href="https://www.ercot.com/files/docs/2026/10/16/ERCOT-Monthly-Operational-Overview-September.pdf">a</a>'
+        '<a href="https://www.ercot.com/files/docs/2026/10/20/ERCOT-Monthly-Operational-Overview-September-Revised.pdf">b</a>'
+    )
+    old_pdf, new_pdf = pdf_bytes(SEPT), pdf_bytes(SEPT.replace("4,132", "4,200"))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("index.html"):
+            return httpx.Response(
+                200, headers={"content-type": "text/html"}, content=board.encode()
+            )
+        body = new_pdf if "Revised" in request.url.path else old_pdf
+        return httpx.Response(200, headers={"content-type": "application/pdf"}, content=body)
+
+    records = ercot_monthly.retrieve(
+        source("texas-ercot-monthly-overview"), make_client(handler), pacer=fast_pacer()
+    )
+    assert len(records) == 1
+    assert records[0]["permit"]["stated_aggregates"]["observed_nonsimultaneous_peak_mw"] == 4200
+    assert records[0]["publication_date"] == "2026-10-20"
+
+
+def test_ercot_picks_the_sentence_for_the_title_month_and_wraps_pdf_errors():
+    other = (
+        "Of the 8,000 MW that have received Approval to Energize, ERCOT has observed a "
+        "non-simultaneous monthly peak consumption of 3,000 MW in August 2026. "
+    )
+    parsed = ercot_monthly.parse_overview(
+        pdf_bytes(SEPT.replace("PUBLIC 9 Loads", other + "PUBLIC 9 Loads"))
+    )
+    assert parsed["approved_to_energize_mw"] == 9456
+    for broken in (b"%PDF-1.4 garbage", b""):
+        with pytest.raises(SourceParseError):
+            ercot_monthly.parse_overview(broken)
+
+
+def sec_statements(text: str) -> list[dict]:
+    return sec_edgar_site_mw.extract_statements(text, limit=20)
+
+
+def test_sec_probe_energy_units_are_not_power():
+    assert sec_statements("The Kentucky Facility used 400 megawatt-hours of power last year.") == []
+    assert sec_statements("The Kentucky Facility used 400 MWh and 2 GWh in 2025.") == []
+    assert sec_statements("The Kentucky Facility used 400 megawatt hours.") == []
+    assert len(sec_statements("The Kentucky Facility has 400 MW of capacity.")) == 1
+
+
+def test_sec_probe_financing_facilities_are_not_sites():
+    assert sec_statements("We drew 200 MW worth under the Revolving Credit Facility.") == []
+    assert sec_statements("The Term Loan Facility funds the 300 MW build.") == []
+    assert sec_statements("The Credit Facility supports 50 MW of expansion.") == []
+
+    sentence = "The Rockdale Facility hosts mining; the Corsicana Facility has 1 GW of capacity."
+
+
+def test_sec_probe_two_sites_in_one_sentence_are_dropped():
+    sentence = "The Rockdale Facility hosts mining; separately the Corsicana Facility has 1 GW of capacity."
+    assert sec_statements(sentence) == []
+    assert len(sec_statements("The Rockdale Facility (the Rockdale Facility) has 700 MW.")) == 1
+
+
+def test_sec_probe_tables_and_unfinished_text_yield_nothing():
+    table = "<table><tr><td>The Kentucky Facility has 137 MW of capacity.</td></tr></table>"
+    assert sec_edgar_site_mw.filing_text(table.encode()) == ""
+    assert sec_statements("The Kentucky Facility has 137 MW of capacity") == []
+    assert len(sec_statements('We said "the Kentucky Facility has 137 MW."')) == 1
+
+
+def test_sec_contact_is_secret_ascii_and_never_echoed():
+    from pydantic import SecretStr
+
+    requests: list = []
+    records = sec_edgar_site_mw.retrieve(
+        sec_config(),
+        sec_client(requests),
+        contact=SecretStr("owner@example.test"),
+        pacer=fast_pacer(),
+    )
+    assert records and "owner@example.test" in requests[0].headers["user-agent"]
+    assert "owner@example.test" not in repr(SecretStr("owner@example.test"))
+    for bad in ("caf\u00e9@example.test", "line\nbreak@example.test"):
+        with pytest.raises(SourceParseError) as caught:
+            sec_edgar_site_mw.retrieve(
+                sec_config(), sec_client([]), contact=bad, pacer=fast_pacer()
+            )
+        assert bad not in str(caught.value)
+
+
+def test_sec_skips_accessions_already_ingested_and_row_id_follows_the_quote():
+    requests: list = []
+    cfg = sec_config()
+    cfg["known_accessions"] = ["0001104659-26-022322"]
+    assert (
+        sec_edgar_site_mw.retrieve(
+            cfg, sec_client(requests), contact="c@example.test", pacer=fast_pacer()
+        )
+        == []
+    )
+    assert [r.url.host for r in requests] == ["data.sec.gov"]  # the filing itself was not fetched
+    cfg["known_accessions"] = ["not-an-accession"]
+    with pytest.raises(SourceParseError):
+        sec_edgar_site_mw.retrieve(
+            cfg, sec_client([]), contact="c@example.test", pacer=fast_pacer()
+        )
+    first = sec_edgar_site_mw.retrieve(
+        sec_config(), sec_client([]), contact="c@example.test", pacer=fast_pacer()
+    )
+    again = sec_edgar_site_mw.retrieve(
+        sec_config(), sec_client([]), contact="c@example.test", pacer=fast_pacer()
+    )
+    assert [r["document_number"] for r in first] == [r["document_number"] for r in again]
+
+
+def test_afdc_hash_ignores_updated_at_and_last_confirmed_only():
+    base = afdc_stations.build_record(afdc_stations.normalize(STATION))
+    touched = afdc_stations.build_record(
+        afdc_stations.normalize(
+            {**STATION, "updated_at": "2026-12-01T00:00:00Z", "date_last_confirmed": "2026-12-01"}
+        )
+    )
+    assert touched["source_hash"] == base["source_hash"]
+    assert touched["publication_date"] == "2026-12-01" and base["publication_date"] == "2026-11-03"
+    moved = afdc_stations.build_record(afdc_stations.normalize({**STATION, "ev_dc_fast_num": 12}))
+    assert moved["source_hash"] != base["source_hash"]
+
+
+def test_fetch_refuses_a_host_that_resolves_to_a_private_address(monkeypatch):
+    import socket
+
+    monkeypatch.setattr(sector_common, "resolve_public", REAL_RESOLVE)
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.1", 443))],
+    )
+    requests: list = []
+    client = make_client(lambda r: httpx.Response(200, content=b"[]"), requests)
+    with pytest.raises(SourceParseError, match="non-public"):
+        sector_common.fetch(
+            client,
+            "https://data.texas.gov/resource/9ixa-7k3m.json",
+            hosts={"data.texas.gov"},
+            max_bytes=10,
+            media_types={"application/json"},
+            pacer=fast_pacer(),
+        )
+    assert requests == []
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *a, **k: [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 443)),
+        ],
+    )
+    with pytest.raises(SourceParseError, match="non-public"):  # one bad address is enough
+        sector_common.fetch(
+            client,
+            "https://data.texas.gov/x",
+            hosts={"data.texas.gov"},
+            max_bytes=10,
+            media_types={"application/json"},
+            pacer=fast_pacer(),
+        )
+    assert requests == []
+
+
+def test_a_503_is_one_request_and_surfaces_for_the_worker():
+    requests: list = []
+    client = make_client(lambda r: httpx.Response(503, headers={"retry-after": "120"}), requests)
+    with pytest.raises(httpx.HTTPStatusError) as caught:
+        tceq_aggregate.retrieve(
+            source("texas-tceq-aggregate-production"), client, pacer=fast_pacer()
+        )
+    assert len(requests) == 1
+    assert acquisition_diagnostics(caught.value)["error_code"] == "http_status_503"
+    assert acquisition_diagnostics(caught.value)["retry_after_seconds"] == 120
+
+
+def test_published_at_is_stated_only_where_the_source_states_it():
+    rows = json.loads((FIX / "tceq-aggregate.json").read_text(encoding="utf-8"))
+    features = json.loads((FIX / "nevi-features.json").read_text(encoding="utf-8"))["features"]
+    mine = msha_mines.parse_mines(
+        (FIX / "msha-mines.txt").read_bytes(),
+        states=["TX"],
+        statuses=["Active"],
+        max_records=10,
+    )[0]
+    faa = faa_oeaaa.build_record(
+        faa_oeaaa.parse_cases((FIX / "faa-cases.xml").read_bytes())[0],
+        [{"campus_id": "C", "name": "n", "m": 5}],
+    )
+    sec_text = sec_edgar_site_mw.filing_text((FIX / "sec-10k-excerpt.htm").read_bytes())
+    sec = sec_edgar_site_mw.build_record(
+        sec_edgar_site_mw.extract_statements(sec_text, limit=1)[0],
+        company="Riot",
+        cik="0001167419",
+        filing={
+            "accessionNumber": "0001104659-26-022322",
+            "filingDate": "2026-03-02",
+            "reportDate": "2025-12-31",
+            "form": "10-K",
+        },
+        url="https://www.sec.gov/x.htm",
+    )
+    ercot = ercot_monthly.build_record(
+        ercot_monthly.parse_overview(pdf_bytes(SEPT)), "https://www.ercot.com/x.pdf", "2026-10-16"
+    )
+    stated = {
+        "faa": faa["publication_date"],
+        "nevi": nevi_awards.build_record(nevi_awards.normalize(features[0]["attributes"]))[
+            "publication_date"
+        ],
+        "sec": sec["publication_date"],
+        "ercot": ercot["publication_date"],
+        "events": regulatory_events.build_record(regulatory_events.load_events()[0])[
+            "publication_date"
+        ],
+        "afdc": afdc_stations.build_record(afdc_stations.normalize(STATION))["publication_date"],
+    }
+    assert all(stated.values()), stated
+    # MSHA and the TCEQ registry publish no publication date: published_at stays NULL.
+    assert msha_mines.build_record(mine, None)["publication_date"] is None
+    assert (
+        tceq_aggregate.build_record(tceq_aggregate.normalize(rows[0]))["publication_date"] is None
+    )
+
+
+def test_faa_cap_counts_raw_nodes_and_dtd_is_refused_anywhere():
+    one = re.search(rb"<OECase>.*?</OECase>", (FIX / "faa-cases.xml").read_bytes(), re.S).group(0)
+    bad_asn = one.replace(re.search(rb"<asn>(.*?)</asn>", one).group(0), b"<asn>junk</asn>")
+    body = b"<caseList>" + bad_asn * faa_oeaaa.ROW_CAP + b"</caseList>"
+    cases, nodes = faa_oeaaa.parse_case_list(body)
+    assert cases == [] and nodes == faa_oeaaa.ROW_CAP  # unparsed rows still count toward the cap
+    cfg = faa_config([{"id": "X", "name": "x", "latitude": 1.0, "longitude": 1.0}])
+    client = make_client(
+        lambda r: httpx.Response(200, headers={"content-type": "text/xml"}, content=body)
+    )
+    with pytest.raises(SourceParseError, match="8,000-row cap"):
+        faa_oeaaa.retrieve(cfg, client, today=TODAY, pacer=fast_pacer())
+    late = b"<caseList>" + b" " * 70000 + b"<!DOCTYPE x></caseList>"
+    with pytest.raises(SourceParseError, match="DTD"):
+        faa_oeaaa.parse_case_list(late)
+
+
+def test_msha_fails_above_a_small_number_of_malformed_rows():
+    lines = (FIX / "msha-mines.txt").read_bytes().decode("latin-1").splitlines()
+    kw = {"states": ["TX"], "statuses": ["Active"], "max_records": 50}
+    few = "\r\n".join([*lines, *["short|row"] * 3]).encode("latin-1")
+    msha_mines.parse_mines(few, **kw)  # three skipped rows are tolerated
+    many = "\r\n".join([*lines, *["short|row"] * (msha_mines.MAX_MALFORMED_ROWS + 1)]).encode(
+        "latin-1"
+    )
+    with pytest.raises(SourceParseError, match="malformed"):
+        msha_mines.parse_mines(many, **kw)
+
+
+def test_nevi_prints_a_stated_zero_grant_as_zero():
+    features = json.loads((FIX / "nevi-features.json").read_text(encoding="utf-8"))["features"]
+    attrs = {**features[0]["attributes"], "CONSTRUCTION_GRANT": 0}
+    record = nevi_awards.build_record(nevi_awards.normalize(attrs))
+    assert "Construction grant (USD): 0" in record["abstract"]
+    attrs["CONSTRUCTION_GRANT"] = None
+    assert (
+        "Construction grant (USD): not stated"
+        in nevi_awards.build_record(nevi_awards.normalize(attrs))["abstract"]
+    )
+
+
+def test_candidate_record_asserts_its_own_source_type():
+    record = sector_common.candidate_record(
+        source_id="msha-mines",
+        row_id="X-1",
+        title="t",
+        abstract_lines=["a"],
+        url="https://example.test/",
+        extraction_location="loc",
+        semantic={},
+        permit={"source_type": "texas-jeti-agreements", "data_center": True},
+    )
+    assert record["permit"]["source_type"] == "msha-mines"
+    assert record["permit"]["data_center"] is False
+
+
+def test_pacer_stops_at_the_job_deadline():
+    pacer = Pacer(deadline=0.0)  # long past on the monotonic clock
+    with pytest.raises(TimeoutError):
+        pacer.wait()

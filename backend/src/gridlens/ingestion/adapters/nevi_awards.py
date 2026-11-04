@@ -171,7 +171,12 @@ def build_record(row: dict[str, Any]) -> dict[str, Any]:
         + (f"{nameplate:g} kW" if nameplate is not None else "unknown"),
         f"Construction start: {row['construction_start'] or 'not stated'}; "
         f"open date: {row['open_date'] or 'not stated'}",
-        f"Construction grant (USD): {row['construction_grant_usd'] or 'not stated'}",
+        "Construction grant (USD): "
+        + (
+            f"{row['construction_grant_usd']:g}"
+            if row["construction_grant_usd"] is not None
+            else "not stated"
+        ),
     ]
     place = f"{row['study_area']}, TX" if row["study_area"] else None
     return candidate_record(
@@ -210,14 +215,18 @@ def build_record(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def retrieve(
-    source: dict[str, Any], client: httpx.Client | None = None, *, pacer: Pacer | None = None
+    source: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    pacer: Pacer | None = None,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     require_source(source, SOURCE_ID, ENDPOINT)
     if not valid_query(source):
         raise SourceParseError("NEVI query bounds are invalid")
     query = source["query"]
     http = client or new_client()
-    pace = pacer or Pacer()
+    pace = pacer or Pacer(deadline=deadline)
     kwargs = {
         "hosts": {HOST},
         "max_bytes": query["max_response_bytes"],

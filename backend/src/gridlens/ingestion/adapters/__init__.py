@@ -145,7 +145,7 @@ def _retrieve_source_direct(
 
         module_name, function = _SECTOR_RETRIEVERS[method]
         module = importlib.import_module(f"gridlens.ingestion.adapters.{module_name}")
-        return getattr(module, function)(source, client)
+        return getattr(module, function)(source, client, deadline=deadline)
     if method == "jeti-open-data":
         return retrieve_jeti(source, client)
     if method == "jeti-agreements":

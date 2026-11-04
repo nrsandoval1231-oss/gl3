@@ -41,6 +41,7 @@ ENDPOINT = "https://arlweb.msha.gov/OpenGovernmentData/DataSets/Mines.zip"
 DEFINITION_URL = "https://arlweb.msha.gov/OpenGovernmentData/DataSets/Mines_Definition_File.txt"
 MEMBER = "Mines.txt"
 MAX_RATIO = 30
+MAX_MALFORMED_ROWS = 10
 STATES = frozenset({"TX", "OK", "NM"})
 STATUSES = frozenset({"Active", "New Mine", "Intermittent", "Temporarily Idled", "NonProducing"})
 _MINE_ID = re.compile(r"^[0-9]{7}$")
@@ -138,9 +139,13 @@ def parse_mines(
         raise SourceParseError("MSHA Mines.txt lacks reviewed columns")
     rows: list[dict[str, str | None]] = []
     seen: set[str] = set()
+    malformed = 0
     try:
         for raw in reader:
             if len(raw) != len(header):
+                malformed += 1
+                if malformed > MAX_MALFORMED_ROWS:
+                    raise SourceParseError("MSHA Mines.txt has too many malformed rows")
                 continue
             row = {name: clean(raw[index[name]], 200) for name in _COLUMNS}
             if row["STATE"] not in states or row["CURRENT_MINE_STATUS"] not in statuses:
@@ -213,7 +218,11 @@ def build_record(row: dict[str, str | None], last_modified: str | None) -> dict[
 
 
 def retrieve(
-    source: dict[str, Any], client: httpx.Client | None = None, *, pacer: Pacer | None = None
+    source: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    pacer: Pacer | None = None,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     require_source(source, SOURCE_ID, ENDPOINT)
     if not valid_query(source):
@@ -227,7 +236,7 @@ def retrieve(
             hosts={HOST},
             max_bytes=query["max_zip_bytes"],
             media_types={"application/x-zip-compressed", "application/zip"},
-            pacer=pacer or Pacer(),
+            pacer=pacer or Pacer(deadline=deadline),
         )
         data = read_member(body, max_uncompressed=query["max_uncompressed_bytes"])
         rows = parse_mines(

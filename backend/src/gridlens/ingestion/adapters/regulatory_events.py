@@ -8,7 +8,9 @@ reply). The reader makes no request, so nothing here can drift from the file, an
 changing an event is a reviewed change.
 
 The model is deterministic and small: event -> affected scope -> status label, through a fixed
-table. ``pause_issuance`` gives "pending — paused" for a filing in the event's scope that is
+table. ``pause_directed`` (the Governor's letter) gives no label: a directive is not a statement
+about any filing. ``pause_screening`` (TCEQ's reply, which says staff are screening pending
+applications) gives "pending — pause may apply (TCEQ screening)" for a filing in scope that is
 explicitly a data-center project and still pending; ``audit_required`` gives "pending — audit
 required". Nothing is inferred beyond the quote: a filing that is not explicitly a data-center
 project gets no label (unknown), an event with a conditional effect gives no label, no end date is
@@ -36,7 +38,11 @@ OFFICIAL_HOSTS = frozenset({"gov.texas.gov", "www.tceq.texas.gov"})
 MAX_EVENTS = 100
 # effect -> (status label for matching pending filings, or None)
 EFFECT_LABELS: dict[str, str | None] = {
-    "pause_issuance": "pending — paused",
+    # The Governor's letter directs a pause; it does not say any single filing is paused.
+    "pause_directed": None,
+    # TCEQ's reply says staff are screening pending applications and pausing those subject to
+    # the directive, so a pending data-center filing is only *possibly* paused.
+    "pause_screening": "pending — pause may apply (TCEQ screening)",
     "lift_pause": None,
     "audit_required": "pending — audit required",
     "conditional_ineligibility": None,
@@ -66,13 +72,14 @@ def validate_event(event: Any) -> dict[str, Any]:
         date.fromisoformat(event["verified_on"])
     except (TypeError, ValueError) as exc:
         raise SourceParseError("Regulatory event date is invalid") from exc
-    parts = urlsplit(event["source_url"])
-    if (
-        parts.scheme != "https"
-        or parts.hostname not in OFFICIAL_HOSTS
-        or parts.username
-        or parts.port
-    ):
+    if date.fromisoformat(event["date"]) > date.fromisoformat(event["verified_on"]):
+        raise SourceParseError("Regulatory event is dated after it was verified")
+    try:
+        parts = urlsplit(event["source_url"])
+        port = parts.port
+    except ValueError as exc:
+        raise SourceParseError("Regulatory event source URL is invalid") from exc
+    if parts.scheme != "https" or parts.hostname not in OFFICIAL_HOSTS or parts.username or port:
         raise SourceParseError("Regulatory event source is not an official https URL")
     if event["effect"] not in EFFECT_LABELS:
         raise SourceParseError("Regulatory event effect is not in the closed vocabulary")
@@ -117,7 +124,7 @@ def status_for(
         and e["scope"]["state"] == filing.get("state")
         and e["scope"]["agency"] == filing.get("agency")
         and e["scope"]["instrument"] == filing.get("instrument")
-        and e["effect"] in ("pause_issuance", "lift_pause", "audit_required")
+        and e["effect"] in ("pause_directed", "pause_screening", "lift_pause", "audit_required")
     ]
     if not relevant:
         return None
@@ -176,7 +183,11 @@ def build_record(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def retrieve(
-    source: dict[str, Any], client: httpx.Client | None = None, *, path: Path = EVENTS_PATH
+    source: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    path: Path = EVENTS_PATH,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     require_source(source, SOURCE_ID, ENDPOINT)
     if not valid_query(source):

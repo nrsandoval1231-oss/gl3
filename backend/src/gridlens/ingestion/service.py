@@ -2580,13 +2580,21 @@ def _retrieve_source_outside_transaction(
     is_nmed = source_definition.get("retrieval_method") == "nmed-air-applications"
     if is_nmed:
         _skip_nmed_listing_while_resting(session, source_definition["id"])
+    fetch_definition = source_definition
+    if source_definition.get("retrieval_method") == "sec-edgar-site-mw":
+        # SEC filings are immutable: accessions that already produced evidence are not fetched.
+        fetch_definition = {
+            **source_definition,
+            "known_accessions": _known_sec_accessions(session, source_definition["id"]),
+        }
+        session.commit()
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
     try:
         result = (
-            retrieve_source(source_definition, client)
+            retrieve_source(fetch_definition, client)
             if deadline is None
-            else retrieve_source(source_definition, client, deadline=deadline)
+            else retrieve_source(fetch_definition, client, deadline=deadline)
         )
     except Exception as error:
         if is_nmed:
@@ -2595,6 +2603,20 @@ def _retrieve_source_outside_transaction(
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return _normalize_source_acquisition(source_definition, result)
+
+
+_SEC_ROW_ID = re.compile(r"^SEC-[0-9]{10}-([0-9]{10}-[0-9]{2}-[0-9]{6})-[0-9a-f]{12}$")
+
+
+def _known_sec_accessions(session: Session, source_id: str) -> list[str]:
+    """Accession numbers that already have SEC site-statement observations (bounded)."""
+    rows = session.scalars(
+        select(Observation.external_id).where(
+            Observation.source_id == source_id, Observation.external_id.like("SEC-%")
+        )
+    ).all()
+    found = {m.group(1) for row in rows if (m := _SEC_ROW_ID.fullmatch(str(row)))}
+    return sorted(found)[:5000]
 
 
 def _nmed_rest_error(seconds: int) -> SourceParseError:

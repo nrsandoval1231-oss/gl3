@@ -23,6 +23,7 @@ target is left to the quote.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from html.parser import HTMLParser
@@ -74,7 +75,33 @@ _BLOCK = {
 _SKIP = {"script", "style", "head", "ix:header", "title"}
 _FIGURE = re.compile(
     r"(?<![\w.,])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(MW|GW|megawatts?|gigawatts?)\b"
+    r"(?![-\s]?h(?:ours?)?\b)"  # megawatt-hours and GWh are energy, not a power rating
 )
+_SENTENCE_OK = re.compile(r"[.!?][\"”’)]*$")
+# Words that make a "... Facility" a financing instrument, not a site.
+_FINANCING = {
+    "Credit",
+    "Loan",
+    "Loans",
+    "Revolving",
+    "Term",
+    "Financing",
+    "Lending",
+    "Senior",
+    "Note",
+    "Notes",
+    "Debt",
+    "Bridge",
+    "Warehouse",
+    "Lease",
+    "Equipment",
+    "Receivables",
+    "Delayed",
+    "Draw",
+    "Secured",
+    "Convertible",
+    "Purchase",
+}
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z“\"(])")
 _SITE = re.compile(
     r"\b((?:[A-Z][A-Za-z0-9&'’-]*\s+){1,3}?)(Facility|Campus|Data Center|Site|Project|Plant)\b"
@@ -143,21 +170,26 @@ class _Text(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
         self._skip = 0
+        self._cell = 0  # table cells are not read: a figure in a table is not a sentence
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in _SKIP:
             self._skip += 1
         elif tag in _BLOCK:
             self.parts.append(" ")
+        if tag in {"td", "th"}:
+            self._cell += 1
 
     def handle_endtag(self, tag: str) -> None:
         if tag in _SKIP and self._skip:
             self._skip -= 1
         elif tag in _BLOCK:
             self.parts.append(" ")
+        if tag in {"td", "th"} and self._cell:
+            self._cell -= 1
 
     def handle_data(self, data: str) -> None:
-        if not self._skip:
+        if not self._skip and not self._cell:
             self.parts.append(data)
 
 
@@ -169,14 +201,16 @@ def filing_text(body: bytes) -> str:
     return " ".join("".join(parser.parts).replace("\xa0", " ").split())
 
 
-def _site_name(sentence: str) -> str | None:
+def _site_names(sentence: str) -> set[str]:
+    """Distinct site names in the sentence; financing "facilities" are not sites."""
+    names: set[str] = set()
     for found in _SITE.finditer(sentence):
         words = found.group(1).split()
         while words and words[0] in _LEADING_STOP:
             words.pop(0)
-        if words:
-            return " ".join([*words, found.group(2)])
-    return None
+        if words and not any(word in _FINANCING for word in words):
+            names.add(" ".join([*words, found.group(2)]))
+    return names
 
 
 def extract_statements(text: str, *, limit: int) -> list[dict[str, Any]]:
@@ -198,9 +232,11 @@ def extract_statements(text: str, *, limit: int) -> list[dict[str, Any]]:
             }
             for found in _FIGURE.finditer(sentence)
         ]
-        site = _site_name(sentence)
-        if not figures or not site:
+        names = _site_names(sentence)
+        # One sentence, one site: a sentence naming two sites cannot say which figure is whose.
+        if not figures or len(names) != 1 or not _SENTENCE_OK.search(sentence):
             continue
+        site = next(iter(names))
         stop = begin + len(sentence)
         if text[begin:stop] != sentence:
             continue  # never keep a quote that is not exactly the text at its span
@@ -244,7 +280,8 @@ def build_record(
 ) -> dict[str, Any]:
     accession = filing["accessionNumber"]
     start = statement["start"]
-    row_id = f"SEC-{cik}-{accession}-{start}"
+    digest = hashlib.sha256(statement["quote"].encode()).hexdigest()[:12]
+    row_id = f"SEC-{cik}-{accession}-{digest}"
     lines = [
         f"{company or cik} {filing['form']} filed {filing['filingDate']} (accession {accession})",
         f"Site named in the sentence: {statement['site']}",
@@ -289,23 +326,33 @@ def retrieve(
     source: dict[str, Any],
     client: httpx.Client | None = None,
     *,
-    contact: str | None = None,
+    contact: Any = None,
     pacer: Pacer | None = None,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     require_source(source, SOURCE_ID, ENDPOINT)
     if not valid_query(source):
         raise SourceParseError("SEC query bounds are invalid")
+    known = source.get("known_accessions", [])
+    if (
+        not isinstance(known, list)
+        or len(known) > 5000
+        or not all(isinstance(a, str) and _ACCESSION.fullmatch(a) for a in known)
+    ):
+        raise SourceParseError("SEC known accession list is invalid")
     if contact is None:
         from gridlens.settings import get_settings
 
         contact = get_settings().sec_edgar_contact
+    if hasattr(contact, "get_secret_value"):
+        contact = contact.get_secret_value()
     contact = (contact or "").strip()
-    if not contact or len(contact) > 200 or not contact.isprintable():
+    if not contact or len(contact) > 200 or not contact.isascii() or not contact.isprintable():
         raise SourceParseError("SEC_EDGAR_CONTACT is not configured (SEC fair access)")
     headers = {"User-Agent": f"{USER_AGENT} ({contact})"}
     query = source["query"]
     http = client or new_client()
-    pace = pacer or Pacer()
+    pace = pacer or Pacer(deadline=deadline)
     records: list[dict[str, Any]] = []
     try:
         for cik in query["ciks"]:
@@ -327,6 +374,8 @@ def retrieve(
                 raise SourceParseError("SEC submissions answer for a different CIK")
             for filing in _recent_filings(submission, query["forms"], query["max_filings_per_cik"]):
                 accession = filing["accessionNumber"]
+                if accession in known:
+                    continue  # an accession is immutable: already ingested, so not fetched again
                 url = (
                     f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
                     f"{accession.replace('-', '')}/{filing['primaryDocument']}"

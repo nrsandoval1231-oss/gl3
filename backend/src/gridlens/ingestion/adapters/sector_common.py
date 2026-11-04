@@ -15,9 +15,12 @@ import time
 from collections.abc import Callable, Collection
 from datetime import date
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
+from gridlens.ingestion.adapters import tceq_http
+from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.public_source_http import USER_AGENT, read_public_response
 
@@ -34,14 +37,17 @@ class Pacer:
         *,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
+        deadline: float | None = None,
     ) -> None:
         self.interval = interval
+        self.deadline = deadline
         self._clock = clock
         self._sleep = sleep
         self._last: float | None = None
         self.requests = 0
 
     def wait(self) -> None:
+        remaining_seconds(self.deadline)  # TimeoutError once the job deadline has passed
         now = self._clock()
         if self._last is not None:
             remaining = self.interval - (now - self._last)
@@ -62,7 +68,17 @@ def fetch(
     pacer: Pacer,
     headers: dict[str, str] | None = None,
 ) -> tuple[httpx.Headers, bytes]:
-    """One paced, host-pinned, redirect-free, size-capped GET."""
+    """One paced, host-allowlisted, redirect-free, size-capped GET.
+
+    The host must resolve only to public (global) addresses immediately before the request; a
+    private, loopback or link-local answer is refused. A single attempt is made: a 429 or 503
+    surfaces at once so the worker's diagnostics store its ``Retry-After`` instead of this
+    helper retrying inside the one-request-per-second budget.
+    """
+    host = urlsplit(url).hostname or ""
+    if host not in {h.casefold().rstrip(".") for h in hosts}:
+        raise SourceParseError("Public source host is not allowed")
+    resolve_public(host)
     pacer.wait()
     return read_public_response(
         client,
@@ -71,8 +87,13 @@ def fetch(
         allowed_media_types=media_types,
         allowed_hosts=hosts,
         headers=headers,
-        attempts=2,
+        attempts=1,
     )
+
+
+def resolve_public(host: str) -> str:
+    """Refuse a host whose DNS answer includes any non-global address (SSRF guard)."""
+    return tceq_http._public_ip(host)
 
 
 def new_client() -> httpx.Client:
@@ -149,6 +170,7 @@ def candidate_record(
         "document_links": {"source": url},
     }
     body.update(permit)
+    body["source_type"] = source_id
     body["data_center"] = False
     body["power_signals"] = []
     return {
