@@ -7,7 +7,9 @@ address, and pacing uses a fake clock. PDFs are synthetic text pages.
 from __future__ import annotations
 
 import dataclasses
+import socket
 import time
+from decimal import Decimal
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -22,12 +24,14 @@ from _okdeq_fixtures import (
 )
 
 import gridlens.ingestion.adapters.ok_deq_documents as okd
+import gridlens.ingestion.adapters.tceq_http as tceq_http
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.ok_deq_memo import normalize_permit, parse_memo_header
 from gridlens.ingestion.parsers.equipment import extract_equipment_claims
 from gridlens.ingestion.registry import load_registry
 
 NOW = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
+REAL_PUBLIC_IP = tceq_http._public_ip
 CONFIG = okd.StageConfig(max_downloads=3, max_checks=10, extract_seconds=120.0, isolate=False)
 
 
@@ -138,6 +142,13 @@ def test_west_edmond_memo_yields_exactly_one_electric_compressor_claim_and_suppl
         "compressor",
         3,
     )
+    claim = claims[0]
+    assert (claim.rating, claim.unit, claim.rating_basis) == (
+        Decimal("2500"),
+        "hp",
+        "mechanical_output",
+    )
+    assert not any(c.rating == Decimal("5200") for c in claims)
     # The driven compressors are supply with an unknown drive, never a demand claim.
     supply = {item["equipment_id"]: item for item in extraction["supply"]}
     assert {"C-0701", "C-0801", "C-0901"} <= set(supply)
@@ -749,3 +760,169 @@ def test_probe_without_head_support_does_not_run_the_frontier_past_unconfirmed_k
     assert report.index["frontier"] == 8406  # confirmed by a completed read, not beyond
     assert set(report.index["keys"]) == {"8406"}  # no pending entry for an unconfirmed key
     assert origin.count("GET") == 1
+
+
+# --------------------------------------------------------------------------- review fixes
+
+
+def test_page_fetch_pins_dns_and_a_private_resolving_host_is_refused(monkeypatch):
+    origin = west_edmond_origin()
+    origin.other[PAGE_URL] = (200, {"content-type": "text/html"}, DC_PAGE.encode())
+    monkeypatch.setattr(tceq_http, "_public_ip", REAL_PUBLIC_IP)
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("10.0.0.5", 443))])
+    report = run(origin, [listing_record()], config=seeded(8406, data_center_page=True))
+    assert [r["error_code"] for r in report.rejections][0] == "url_policy"
+    assert not any("oklahoma.gov" in url for _, url in origin.log)  # no request was made
+    # A public answer is pinned: the connection goes to the IP with the real Host header.
+    seen = []
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("8.8.4.4", 443))])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.host, request.headers["host"]))
+        return httpx.Response(200, headers={"content-type": "text/html"}, content=DC_PAGE.encode())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+    okd.fetch_data_center_page(client, lambda: None)
+    assert seen == [("8.8.4.4", "oklahoma.gov")]
+
+
+def test_overlong_page_cells_reject_the_row():
+    from gridlens.ingestion.adapters import ok_deq_data_center_page as page
+
+    long_row = _dc_row("X" * 201, "F", DOCS + "2021-0235-C.pdf")
+    body = _HEAD + long_row + _dc_row("OK", "F", DOCS + "2021-0236-C.pdf") + "</tbody></table>"
+    rows, rejected = page.parse_page_checked(body.encode())
+    assert rejected == 1 and [r["company"] for r in rows] == ["OK"]
+    origin = west_edmond_origin()
+    origin.other[PAGE_URL] = (200, {"content-type": "text/html"}, body.encode())
+    report = run(origin, [listing_record()], config=seeded(8406, data_center_page=True))
+    assert report.counts["data_center_rows_rejected"] == 1
+
+
+def test_a_disabled_page_drops_the_stale_block_and_rate_limit_identity_names_the_page():
+    origin = west_edmond_origin()
+    origin.other[PAGE_URL] = (200, {"content-type": "text/html"}, DC_PAGE.encode())
+    first_record = listing_record()
+    first = run(origin, [first_record], config=seeded(8406, data_center_page=True))
+    state = first_record["okdeq_document"]
+    assert "data_center_page" in state
+    off = listing_record()
+    run(origin, [off], config=seeded(8406), prior={state["permit_norm"]: state}, index=first.index)
+    assert "data_center_page" not in off["okdeq_document"]
+    limited = Origin()
+    limited.other[PAGE_URL] = (429, {}, b"")
+    report = run(limited, [listing_record()], config=seeded(8406, data_center_page=True))
+    assert report.rejections[0]["identity"] == "data-center-page"
+
+
+def test_retry_after_is_honoured_by_the_next_run():
+    origin = Origin()
+    origin.put(1, memo_pdf())
+    origin.head_status = 429  # carries Retry-After: 120
+    first = run(origin, [listing_record()], config=seeded(1))
+    assert first.index["not_before"] == (NOW + timedelta(seconds=120)).isoformat()
+    origin.log.clear()
+    origin.head_status = None
+    soon = run(
+        origin,
+        [listing_record()],
+        config=seeded(1),
+        index=first.index,
+        now=NOW + timedelta(seconds=60),
+    )
+    assert origin.log == [] and soon.counts["skipped_retry_after"] == 1
+    assert soon.index["not_before"] == first.index["not_before"]
+    later = run(
+        origin,
+        [listing_record()],
+        config=seeded(1),
+        index=soon.index,
+        now=NOW + timedelta(seconds=121),
+    )
+    assert origin.count("HEAD") == 1 and "not_before" not in later.index
+    # No usable Retry-After: a default rest still applies.
+    bare = Origin()
+    bare.docs[1] = {
+        "body": b"",
+        "etag": "x",
+        "ctype": "application/pdf",
+        "status": 503,
+        "last_modified": "x",
+    }
+    bare.docs[1]["status"] = 503
+    report = run(bare, [listing_record()], config=seeded(1))
+    assert "not_before" in report.index
+
+
+def test_unverified_permit_seeds_are_revalidated_weekly():
+    origin = west_edmond_origin(permit=None)
+    first = run(origin, [listing_record()], config=seeded(8406))
+    assert first.index["keys"]["8406"]["permit"] is None
+    run(
+        origin,
+        [listing_record()],
+        config=seeded(8406),
+        index=first.index,
+        now=NOW + timedelta(days=1),
+    )
+    assert origin.count("HEAD") == 1
+    run(
+        origin,
+        [listing_record()],
+        config=seeded(8406),
+        index=first.index,
+        now=NOW + timedelta(days=8),
+    )
+    assert origin.count("HEAD") == 2
+
+
+def test_a_permit_quote_that_does_not_match_its_normalised_value_is_a_typed_failure(monkeypatch):
+    origin = west_edmond_origin()
+    real = okd.parse_memo_header
+
+    def skewed(text, page_of):
+        header = real(text, page_of)
+        return dataclasses.replace(header, permit_norm="2017-0987-C M-9")
+
+    monkeypatch.setattr(okd, "parse_memo_header", skewed)
+    report = run(origin, [listing_record()], config=seeded(8406))
+    assert [r["error_code"] for r in report.rejections] == ["header_quote_mismatch"]
+
+
+def test_two_listing_rows_with_one_permit_number_are_ambiguous_and_skipped():
+    origin = west_edmond_origin()
+    one, two = listing_record(), listing_record()
+    report = run(origin, [one, two], config=seeded(8406))
+    assert [n["error_code"] for n in report.notices] == ["ambiguous_permit_number"]
+    assert "okdeq_document" not in one and "okdeq_document" not in two
+    assert report.counts["unjoined"] == 1
+
+
+def test_identity_fields_follow_the_current_listing_row_without_changing_the_hash():
+    origin = west_edmond_origin()
+    first_record = listing_record(event_date="2026-10-04")
+    first = run(origin, [first_record], config=seeded(8406))
+    state = first_record["okdeq_document"]
+    assert state["document"]["identity_check"]["facility_matches"] is True
+    assert state["dates"]["listing_event_date"] == "2026-10-04"
+    renamed = listing_record(facility="Totally Different Plant", event_date="2026-10-20")
+    run(
+        origin,
+        [renamed],
+        config=seeded(8406),
+        prior={state["permit_norm"]: state},
+        index=first.index,
+    )
+    check = renamed["okdeq_document"]["document"]["identity_check"]
+    assert check["listing_facility"] == "Totally Different Plant" and not check["facility_matches"]
+    assert renamed["okdeq_document"]["dates"]["listing_event_date"] == "2026-10-20"
+    # The content digest ignores those listing-derived fields (replaying the snapshot is stable).
+    again = listing_record(event_date="2026-10-04")
+    run(
+        origin,
+        [again],
+        config=seeded(8406),
+        prior={state["permit_norm"]: renamed["okdeq_document"]},
+        index=first.index,
+    )
+    assert again["source_hash"] == first_record["source_hash"]

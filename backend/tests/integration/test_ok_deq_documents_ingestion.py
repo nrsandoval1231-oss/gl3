@@ -163,6 +163,8 @@ def test_west_edmond_memo_flows_to_one_electric_compressor_claim(stage_db, monke
         assert package.payload["facility"] == "West Edmond Compressor Station"
         # The Ariel table rows (5,200 hp, drive unstated) never become claims.
         assert all(item["rating"] != "5200" for item in claims)
+        assert (str(claim["rating"]), claim["unit"]) == ("2500", "hp")
+        assert claim["rating_basis"] == "mechanical_output"
 
     # Idempotent replay with the retained state: no new evidence, no second package.
     replay = ingest(stage_db, definition, job_id, origin, monkeypatch)

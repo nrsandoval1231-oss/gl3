@@ -51,7 +51,6 @@ from gridlens.ingestion.adapters import tceq_application_documents as shared
 from gridlens.ingestion.adapters import tceq_http
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.ok_deq_memo import MemoHeader, normalize_permit, parse_memo_header
-from gridlens.ingestion.adapters.public_source_http import read_public_response
 from gridlens.ingestion.adapters.tceq_application_documents import (
     DocumentFailure,
     Pacer,
@@ -77,10 +76,13 @@ MAX_EXTRACT_SECONDS = 900.0
 MAX_INDEX_KEYS = 800
 MAX_VERSIONS = 20
 ABSENT_RECHECK_DAYS = 7
+DEFAULT_RATE_LIMIT_REST_SECONDS = 3600  # when a 429/503 carries no usable Retry-After
 HEAVY_RESERVE_SECONDS = 150.0  # stage time left below which no download starts
 RETRY_ATTEMPTS = shared.RETRY_ATTEMPTS
 RETRY_BACKOFF_DAYS = shared.RETRY_BACKOFF_DAYS
-NOTICE_CODES = frozenset({"zero_verified_rows", "unverified_permit_number"})
+NOTICE_CODES = frozenset(
+    {"zero_verified_rows", "unverified_permit_number", "ambiguous_permit_number"}
+)
 HEALTH_KEY = "okdeq_documents"
 STATE_KEY = "okdeq_document"
 RETRYABLE = shared.RETRYABLE_CODES
@@ -205,7 +207,7 @@ class OkStageReport(StageReport):
         if len(target) < 50:
             target.append(
                 {
-                    "identity": f"OKDEQ-DOC-{project}",
+                    "identity": f"OKDEQ-DOC-{project}" if project.isdigit() else project,
                     "stage": STAGE,
                     "error_code": code,
                     "selected_fields": sorted(values),
@@ -349,31 +351,44 @@ def download_document(
     return value
 
 
-def fetch_data_center_page(client: httpx.Client, pacer: Callable[[], None]) -> list[dict[str, Any]]:
-    """One request for the data-center page rows.
+def fetch_data_center_page(
+    client: httpx.Client, pacer: Callable[[], None]
+) -> tuple[list[dict[str, Any]], int]:
+    """One request for the data-center page rows, with the same host pin as ``open_document``.
 
-    Raises ``DocumentFailure`` for transport and status problems and ``SourceParseError`` when
-    the table is absent or its columns changed.
+    Exact ``oklahoma.gov`` URL, public DNS answer pinned for the connection, redirects never
+    followed. Returns the rows and the count of rows rejected for an overlong cell. Raises
+    ``DocumentFailure`` for transport and status problems and ``SourceParseError`` when the
+    table is absent or its columns changed.
     """
+    if client.follow_redirects:
+        raise SourceParseError("Oklahoma DEQ client must not automatically follow redirects")
 
     def run() -> bytes:
+        ip = tceq_http._public_ip(dc_page.PAGE_HOST)
+        pinned = httpx.URL(dc_page.PAGE_URL).copy_with(host=ip)
         pacer()
-        try:
-            _, body = read_public_response(
-                client,
-                dc_page.PAGE_URL,
-                max_bytes=dc_page.MAX_PAGE_BYTES,
-                allowed_media_types={"text/html"},
-                allowed_hosts=frozenset({dc_page.PAGE_HOST}),
-                attempts=1,
-                headers={"User-Agent": USER_AGENT},
-            )
-        except httpx.HTTPStatusError as exc:
-            raise shared._status_failure(exc.response) from exc
-        return body
+        headers = {"Host": dc_page.PAGE_HOST, "User-Agent": USER_AGENT, "Accept": "text/html"}
+        with client.stream(
+            "GET", str(pinned), headers=headers, extensions={"sni_hostname": dc_page.PAGE_HOST}
+        ) as response:
+            _check_status(response)
+            if shared._media_type(response.headers) != "text/html":
+                raise DocumentFailure("wrong_content_type")
+            declared = response.headers.get("content-length", "")
+            if declared.isdigit() and int(declared) > dc_page.MAX_PAGE_BYTES:
+                raise DocumentFailure("oversize", declared)
+            parts: list[bytes] = []
+            size = 0
+            for chunk in response.iter_bytes():
+                size += len(chunk)
+                if size > dc_page.MAX_PAGE_BYTES:
+                    raise DocumentFailure("oversize", str(size))
+                parts.append(chunk)
+        return b"".join(parts)
 
     body: bytes = shared._guard_network(run)
-    return dc_page.parse_page(body)
+    return dc_page.parse_page_checked(body)
 
 
 # --------------------------------------------------------------------------- extraction
@@ -405,6 +420,8 @@ def read_document(
     for fact in (header.permit, header.memo_date, header.company, header.facility):
         if fact is not None and canon.text[fact.start : fact.end] != fact.quote:
             raise DocumentFailure("header_quote_mismatch")
+    if header.permit is not None and normalize_permit(header.permit.quote) != header.permit_norm:
+        raise DocumentFailure("header_quote_mismatch")
     return canon, header, sha
 
 
@@ -463,6 +480,12 @@ def _iso(moment: datetime) -> str:
 def state_digest(state: dict[str, Any]) -> str:
     """Content digest that ignores fetch and first-seen times, so a re-run is idempotent."""
     copy_ = json.loads(json.dumps(state, default=str))
+    # Recomputed from the listing record on every fold, so never part of the content digest.
+    copy_.pop("identity_check", None)
+    if isinstance(copy_.get("dates"), dict):
+        copy_["dates"].pop("listing_event_date", None)
+    if isinstance(copy_.get("document"), dict):
+        copy_["document"].pop("identity_check", None)
     if isinstance(copy_.get("document"), dict):
         copy_["document"].pop("fetched_at", None)
     for version in copy_.get("versions") or []:
@@ -532,8 +555,6 @@ def merge_document(
     )
     # A newer key replaces the current document; an older key found later only adds a version.
     if key >= prior_current or not state.get("document"):
-        listing_facility = str(record["permit"].get("facility") or "")
-        memo_facility = header.facility.value if header.facility is not None else None
         state["document"] = {
             "status": status,
             "key": key,
@@ -543,11 +564,6 @@ def merge_document(
             "validators": download.validators,
             "fetched_at": _iso(now),
             "memo": header.as_json(),
-            "identity_check": {
-                "listing_facility": listing_facility,
-                "memo_facility": memo_facility,
-                "facility_matches": _facility_matches(listing_facility, memo_facility),
-            },
             "extraction": extraction,
             "abstain": None
             if extraction["schedule_text"]
@@ -569,7 +585,6 @@ def merge_document(
                 "Evidence.published_at stays null: the memo date is the draft's internal date, "
                 "recorded here with its quote, not a verified public posting date"
             ),
-            "listing_event_date": record.get("event_date"),
         }
     return state
 
@@ -620,14 +635,15 @@ def _tier_sort(run: _Run) -> list[int]:
         status = entry.get("status")
         if status == "pending":
             unfinished.append(key)
-        elif status == "document":
-            norm = entry.get("permit")
-            if norm and norm in run.joinable:
-                if not run.have_extraction(entry, key):
-                    unfinished.append(key)
-                else:
-                    revalidate.append((str(entry.get("at") or ""), key))
-        elif status in {"absent", "failed"} and key in config.seed_keys:
+        elif status == "document" and entry.get("permit") in run.joinable:
+            if not run.have_extraction(entry, key):
+                unfinished.append(key)
+            else:
+                revalidate.append((str(entry.get("at") or ""), key))
+        elif key in config.seed_keys and (
+            status in {"absent", "failed"} or (status == "document" and not entry.get("permit"))
+        ):
+            # Absent, failed and unverified-permit seeds are looked at again weekly.
             at = _parse_time(entry.get("at"))
             if at is None or run.now - at >= timedelta(days=ABSENT_RECHECK_DAYS):
                 revalidate.append((str(entry.get("at") or ""), key))
@@ -644,7 +660,7 @@ def _parse_time(value: Any) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
-def _note_rate_limit(report: OkStageReport, key: int, failure: DocumentFailure) -> None:
+def _note_rate_limit(report: OkStageReport, key: int | str, failure: DocumentFailure) -> None:
     report.reject(str(key), failure.code)
     report.bump("aborted_rate_limited")
     if failure.retry_after is not None:
@@ -690,11 +706,19 @@ def run_stage(
         if str(k).isdigit() and isinstance(v, dict)
     }
     joinable: dict[str, dict[str, Any]] = {}
+    collided: set[str] = set()
     for record in records:
         permit = record.get("permit")
         numbers = permit.get("permit_numbers") if isinstance(permit, dict) else None
         if numbers and not record.get("presence_only"):
-            joinable[normalize_permit(str(numbers[0]))] = record
+            norm = normalize_permit(str(numbers[0]))
+            if norm in joinable:
+                collided.add(norm)
+            joinable[norm] = record
+    for norm in sorted(collided):
+        # Two listing rows with one permit number: a document cannot be assigned to either.
+        del joinable[norm]
+        report.reject(norm[:40], "ambiguous_permit_number")
     frontier = max(int(stored.get("frontier") or 0), config.probe_frontier)
     report.counts["in_scope"] = len(joinable)
     states = {norm: copy.deepcopy(state) for norm, state in prior_states.items()}
@@ -720,9 +744,16 @@ def run_stage(
         states=states,
         frontier=frontier,
     )
-    pages: dict[str, dict[str, Any]] | None = None
+    # A disabled page keeps no block; an enabled one that fails to load keeps the retained one.
+    pages: dict[str, dict[str, Any]] | None = None if config.data_center_page else {}
+    not_before = _parse_time(stored.get("not_before"))
+    resting = not_before is not None and run.now < not_before
+    if resting:
+        report.bump("skipped_retry_after")  # the publisher asked us to wait: no request at all
     try:
         try:
+            if resting:
+                raise _StageAbort
             if config.data_center_page and run.left() >= shared.HTTP_READ_TIMEOUT_SECONDS + 10:
                 pages = _load_page(run)
             _check_keys(run)
@@ -750,15 +781,20 @@ def run_stage(
         "frontier": run.frontier or None,
         "keys": _prune_index(keys, set(joinable)),
     }
+    if resting and not_before is not None:
+        report.index["not_before"] = _iso(not_before)
+    elif report.counts.get("aborted_rate_limited"):
+        seconds = report.retry_after_seconds or DEFAULT_RATE_LIMIT_REST_SECONDS
+        report.index["not_before"] = _iso(run.now + timedelta(seconds=seconds))
     return report
 
 
 def _load_page(run: _Run) -> dict[str, dict[str, Any]] | None:
     try:
-        rows = fetch_data_center_page(run.client, run.pace)
+        rows, too_long = fetch_data_center_page(run.client, run.pace)
     except DocumentFailure as failure:
         if failure.rate_limited:
-            _note_rate_limit(run.report, 0, failure)
+            _note_rate_limit(run.report, "data-center-page", failure)
             raise _StageAbort from failure
         run.report.reject("data-center-page", failure.code)
         return None
@@ -766,6 +802,8 @@ def _load_page(run: _Run) -> dict[str, dict[str, Any]] | None:
         run.report.reject("data-center-page", "page_parse_failed")
         return None
     run.report.counts["data_center_rows"] = len(rows)
+    if too_long:
+        run.report.counts["data_center_rows_rejected"] = too_long
     blocks = dc_page.page_blocks(rows)
     run.report.counts["data_center_joinable"] = sum(1 for norm in blocks if norm in run.joinable)
     return blocks
@@ -1109,6 +1147,15 @@ def apply_state(record: dict[str, Any], state: dict[str, Any]) -> None:
     if document:
         location = shared._extraction_location(str(location or ""), state)
     snapshot = copy.deepcopy(state)
+    if document:
+        memo_facility = ((document.get("memo") or {}).get("facility") or {}).get("value")
+        listing_facility = str((record.get("permit") or {}).get("facility") or "")
+        snapshot["document"]["identity_check"] = {
+            "listing_facility": listing_facility,
+            "memo_facility": memo_facility,
+            "facility_matches": _facility_matches(listing_facility, memo_facility),
+        }
+        snapshot.setdefault("dates", {})["listing_event_date"] = record.get("event_date")
     record["_document_base"] = base
     record[STATE_KEY] = snapshot
     record["source_hash"] = new_hash

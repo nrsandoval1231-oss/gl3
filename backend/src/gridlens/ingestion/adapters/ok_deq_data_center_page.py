@@ -28,6 +28,7 @@ PAGE_HOST = "oklahoma.gov"
 PAGE_URL = "https://oklahoma.gov/deq/deq-information-on-data-centers.html"
 MAX_PAGE_BYTES = 2_000_000
 MAX_ROWS = 200
+MAX_CELL_CHARS = 200
 _COLUMNS = ["DIV", "COUNTY", "COMPANY", "FACILITY", "PERMIT TYPE", "STATUS", "LINK"]
 _PDF_PATH = re.compile(r"/content/dam/ok/en/deq/documents/(?:[A-Za-z0-9_.-]+/)+[^/\\]+\.pdf")
 _FILE_PERMIT = re.compile(
@@ -113,7 +114,15 @@ def _file_permit(url: str | None) -> str | None:
 
 
 def parse_page(body: bytes) -> list[dict[str, Any]]:
-    """Rows of the issued/pending permits table. Raises when the table is absent or changed."""
+    """Rows of the issued/pending permits table (see ``parse_page_checked``)."""
+    return parse_page_checked(body)[0]
+
+
+def parse_page_checked(body: bytes) -> tuple[list[dict[str, Any]], int]:
+    """Rows and the count of rows rejected for an overlong cell.
+
+    Raises when the table is absent or its columns changed.
+    """
     try:
         text = body.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -131,9 +140,13 @@ def parse_page(body: bytes) -> list[dict[str, Any]]:
     if table is None:
         raise SourceParseError("Oklahoma DEQ data-center page table columns changed")
     result: list[dict[str, Any]] = []
+    rejected = 0
     for cells, href in table[1:]:
         if len(cells) != len(_COLUMNS):
             raise SourceParseError("Oklahoma DEQ data-center page row has an unexpected shape")
+        if any(len(cell) > MAX_CELL_CHARS for cell in cells):
+            rejected += 1  # never store an overflowing cell; the row is counted and dropped
+            continue
         row = dict(zip(_COLUMNS, cells, strict=True))
         link = _link(href)
         norm = _file_permit(link)
@@ -152,7 +165,7 @@ def parse_page(body: bytes) -> list[dict[str, Any]]:
         )
     if len(result) > MAX_ROWS:
         raise SourceParseError("Oklahoma DEQ data-center page row count exceeds its bound")
-    return result
+    return result, rejected
 
 
 def page_blocks(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
