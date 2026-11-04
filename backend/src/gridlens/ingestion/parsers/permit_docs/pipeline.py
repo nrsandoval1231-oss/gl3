@@ -44,20 +44,30 @@ class PermitExtractionResult:
 
 
 def _dedupe(rows: list[ExtractedRow]) -> tuple[list[ExtractedRow], int]:
-    """Drop repeated mentions so one unit is never counted twice (undercount > overcount)."""
-    seen: set[tuple[object, ...]] = set()
+    """Drop repeated mentions so one unit is never counted twice (undercount > overcount).
+
+    A repeated narrative mention keeps the first row, upgraded to a later one only when the
+    later mention is the one that states lifecycle state.
+    """
+    index: dict[tuple[object, ...], int] = {}
     kept: list[ExtractedRow] = []
     for row in rows:
         if row.origin == "narrative":
             key: tuple[object, ...] = (
-                "n", row.equipment_type, row.drive, row.rating, row.unit, row.count, row.state,
+                "n",
+                row.equipment_type,
+                row.drive,
+                row.rating,
+                row.unit,
+                row.count,
             )
         else:
             key = ("t", row.equipment_id, row.equipment_type, row.rating, row.unit)
-        if key in seen:
-            continue
-        seen.add(key)
-        kept.append(row)
+        if key not in index:
+            index[key] = len(kept)
+            kept.append(row)
+        elif kept[index[key]].state == "unknown" and row.state != "unknown":
+            kept[index[key]] = row
     return kept, len(rows) - len(kept)
 
 

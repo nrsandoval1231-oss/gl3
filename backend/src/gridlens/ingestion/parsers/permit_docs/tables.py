@@ -140,7 +140,9 @@ def extract_tables(
                 continue
             if _is_header_line(line):
                 block_lo = index
-                while block_lo > 0 and index - block_lo < 2 and _is_header_line(lines[block_lo - 1]):
+                while (
+                    block_lo > 0 and index - block_lo < 2 and _is_header_line(lines[block_lo - 1])
+                ):
                     block_lo -= 1
                 block_hi = index
                 while block_hi + 1 < len(lines) and block_hi - index < 2:
@@ -149,9 +151,7 @@ def extract_tables(
                     block_hi += 1
                 block = list(range(block_lo, block_hi + 1))
                 units = [
-                    (i, found)
-                    for i in block
-                    if (found := _find_unit_token(lines[i])) is not None
+                    (i, found) for i in block if (found := _find_unit_token(lines[i])) is not None
                 ]
                 words = [_norm(t) for i in block for t in lines[i].split()]
                 if units and _is_header_line(lines[units[0][0]]):

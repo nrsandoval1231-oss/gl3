@@ -86,9 +86,7 @@ def render_line(row: ExtractedRow) -> str:
     return " | ".join(parts)
 
 
-def _row_provenance(
-    row: ExtractedRow, canon: CanonicalText, document_hash: str
-) -> dict[str, Any]:
+def _row_provenance(row: ExtractedRow, canon: CanonicalText, document_hash: str) -> dict[str, Any]:
     rating = row.evidence["rating"]
     near = [
         ev
@@ -131,7 +129,10 @@ def build_schedule(
 ) -> ScheduleBuild:
     build = ScheduleBuild()
     lines: list[str] = []
-    for label, value in (("Company", _header_value(company)), ("Facility", _header_value(facility))):
+    for label, value in (
+        ("Company", _header_value(company)),
+        ("Facility", _header_value(facility)),
+    ):
         if value:
             lines.append(f"{label}: {value}")
     if as_of:

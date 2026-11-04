@@ -161,6 +161,6 @@ def build_canonical_text(
 def _bbox(line: dict[str, object]) -> BBox:
     def num(key: str) -> float:
         value = line.get(key, 0.0)
-        return float(value) if isinstance(value, (int, float)) else 0.0
+        return float(value) if isinstance(value, int | float) else 0.0
 
     return (num("x0"), num("top"), num("x1"), num("bottom"))

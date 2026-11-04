@@ -9,9 +9,7 @@ NUMBER = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
 NUMBER_RE = re.compile(NUMBER)
 YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 
-NARRATIVE_UNIT = (
-    r"(?:(?i:hp|bhp|horsepower)|kWe?|MW|kVA)(?![\w/]|-hr|\s*/\s*hr)"
-)
+NARRATIVE_UNIT = r"(?:(?i:hp|bhp|horsepower)|kWe?|MW|kVA)(?![\w/]|-hr|\s*/\s*hr)"
 # Header words that name a rating column, with the canonical unit they imply.
 RATING_HEADERS = (
     (re.compile(r"^(?:rated\s+)?horsepower$|^hp$|^bhp$", re.I), "hp"),
@@ -124,7 +122,9 @@ _ELECTRIC = re.compile(
     r"|electrical\s+drivers?|electric\s+inlet\s+compression|motor[\s-]*driven",
     re.I,
 )
-_GAS_ENGINE = re.compile(r"\bgas(?:[\s-]*fired)?\s+(?:reciprocating\s+)?engines?|\bgas[\s-]*engine", re.I)
+_GAS_ENGINE = re.compile(
+    r"\bgas(?:[\s-]*fired)?\s+(?:reciprocating\s+)?engines?|\bgas[\s-]*engine", re.I
+)
 _DIESEL = re.compile(r"\bdiesel\b", re.I)
 _STEAM = re.compile(r"\bsteam\s+turbines?", re.I)
 

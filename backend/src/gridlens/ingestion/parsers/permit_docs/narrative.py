@@ -13,11 +13,11 @@ from decimal import Decimal
 
 from gridlens.ingestion.parsers.permit_docs.lexicon import (
     COUNT_RE,
-    count_from_text,
     NARRATIVE_UNIT,
     NUMBER,
     THRESHOLD_AFTER,
     THRESHOLD_BEFORE,
+    count_from_text,
     drive_from_text,
     parse_number,
     type_from_text,
@@ -125,7 +125,12 @@ def _row_for(
             "id", f"N{page}-{rating_start}", rating_quote, rating_start, base + end, page
         ),
         "type": FieldEvidence(
-            "type", type_value, type_text, base + type_start, base + type_start + len(type_text), page
+            "type",
+            type_value,
+            type_text,
+            base + type_start,
+            base + type_start + len(type_text),
+            page,
         ),
         "rating": FieldEvidence(
             "rating", str(rating), rating_quote, rating_start, base + end, page
