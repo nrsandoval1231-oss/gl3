@@ -49,6 +49,7 @@ def bound_passage(text: str, budget_bytes: int) -> tuple[str, dict[str, Any]]:
     The returned metadata always reports the full size so a cut is visible.
     """
     total_chars = len(text)
+
     # json escaping can expand a byte (quotes, control characters, non-ASCII), so measure
     # the escaped size the request will actually carry.
     def escaped(value: str) -> int:

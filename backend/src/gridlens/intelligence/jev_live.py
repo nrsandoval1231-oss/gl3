@@ -189,8 +189,9 @@ def corroborating_keys(
     both sides carry them and they are within about 1 km.
     """
     agreed: list[str] = []
-    county, evidence_county = _normalized(project_facts.get("county")), _normalized(
-        evidence_facts.get("county")
+    county, evidence_county = (
+        _normalized(project_facts.get("county")),
+        _normalized(evidence_facts.get("county")),
     )
     if county and county == evidence_county:
         agreed.append("county")

@@ -224,8 +224,7 @@ QUESTIONS: dict[str, dict] = {
         {"DEMAND": "Demand", "SUPPLY": "Supply", "UNKNOWN": "Insufficient"},
     ),
     "lifecycle_phase": choice_question(
-        "What lifecycle phase does the passage evidence for the described facility or "
-        "equipment?",
+        "What lifecycle phase does the passage evidence for the described facility or equipment?",
         {
             "planned": "Announced or planned",
             "permitted": "Permit or approval issued or pending",
@@ -282,9 +281,7 @@ class TypesafeEvidenceJudge:
                         "project": {
                             "project_id": state.get("project_id"),
                             "state": state.get("state", {}),
-                            "organizations_and_roles": state.get("organizations_and_roles", [])[
-                                :8
-                            ],
+                            "organizations_and_roles": state.get("organizations_and_roles", [])[:8],
                         },
                         "evidence": evidence_value,
                         "candidate_projects": candidates[:8],
