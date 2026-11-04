@@ -394,6 +394,7 @@ def _extract_pdf(
     limits = TextLayerLimits(
         max_bytes=portfolio.MAX_EMBEDDED_FILE_BYTES,
         max_seconds=max(30.0, budget_seconds),
+        max_seconds_per_page=60.0,  # large composite pages; the total bound still applies
     )
     result = extract_permit_document(
         data,
