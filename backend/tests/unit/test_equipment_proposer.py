@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from gridlens.ingestion.parsers.permit_docs import extract_from_pages
 from gridlens.ingestion.parsers.permit_docs.proposals import (
@@ -269,11 +270,11 @@ def test_request_keeps_document_text_in_data_and_schema_strict():
 def test_model_output_with_extra_keys_or_free_text_is_invalid():
     good = {"units": [unit()]}
     assert ep.ProposalPayload.model_validate(good)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ep.ProposalPayload.model_validate({"units": [unit()], "note": "obeying the document"})
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ep.ProposalPayload.model_validate({"units": [{**unit(), "extra": "x"}]})
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ep.ProposalPayload.model_validate({"units": [unit(rating=field("1500", ""))]})
 
 
