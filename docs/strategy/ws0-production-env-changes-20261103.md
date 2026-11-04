@@ -164,7 +164,7 @@ Nothing to activate: GridLens makes no FERC eLibrary request (there is no compli
 The NMED source `new-mexico-nmed-air-applications` ([workstream 3](../engineering/widen-document-sources-20261103.md#c-nmed)) ships **off twice**: the entry has `"enabled": false`, and `query.application_documents.enabled` is `false`. It uses no paid provider and no environment variable. To turn it on, in order and through the protected release:
 
 1. Set `enabled` to `true` on the entry. This alone makes one request per day to `https://www.env.nm.gov/public-notices/` (about 1.3 MB) and records the application PDF links as listing records. No PDF is fetched.
-2. Optionally add owner-curated exact upload URLs to `query.application_documents.seed_urls` (at most 50; each must match the upload-path policy in the engineering note).
+2. Optionally add owner-curated exact upload URLs to `query.application_documents.seed_urls` (at most 50; each must already be in the canonical spelling `https://www.env.nm.gov/...` with no port, query or fragment, and match the upload-path policy in the engineering note).
 3. Set `query.application_documents.enabled` to `true` to fetch and read documents. Shipped bounds: `max_downloads` 2, `max_checks` 40, `extract_seconds` 300; at most one request per second to `www.env.nm.gov`; 40 MB per file; the first 429 or 503 ends the stage and stores `not_before` in source health.
 - Admission: the job holds the global public-acquisition admission for its whole run; with the stage on that can reach the 600 s lease less the persistence reserve. Watch the `application_documents` counts in the first enabled runs.
 - Memory: a file up to 40 MB is read into memory once for the extraction child; POSIX children are address-space capped, a Windows host is not.

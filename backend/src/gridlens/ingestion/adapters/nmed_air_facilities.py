@@ -293,6 +293,9 @@ def fetch_facilities(
                     seen.add(record["object_id"])
                     result.records.append(record)
                     info["rows"] += 1
+                if not features and exceeded:
+                    # The server says more exists but returned nothing: not a complete layer.
+                    info["truncated"] = True
                 offset += len(features)
                 # A full page is followed by one more request even when the server omits
                 # exceededTransferLimit, so a complete layer is only claimed on a short page.

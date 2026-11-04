@@ -382,3 +382,14 @@ def test_config_validation():
         assert not nf.valid_config(item), item
     with pytest.raises(ValueError):
         nf.config_from_dict(bad[0])
+
+
+def test_exceeded_flag_with_no_features_is_a_truncated_layer():
+    arc = Arc()
+    arc.forced[0] = httpx.Response(
+        200,
+        headers={"content-type": "application/json"},
+        json={"features": [], "exceededTransferLimit": True},
+    )
+    result = run(arc)
+    assert result.layers[0]["truncated"] is True and result.records == []

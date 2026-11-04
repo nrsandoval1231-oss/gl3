@@ -2569,16 +2569,66 @@ def _retrieve_source_outside_transaction(
     *,
     deadline: float | None = None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
+    is_nmed = source_definition.get("retrieval_method") == "nmed-air-applications"
+    if is_nmed:
+        _skip_nmed_listing_while_resting(session, source_definition["id"])
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
-    result = (
-        retrieve_source(source_definition, client)
-        if deadline is None
-        else retrieve_source(source_definition, client, deadline=deadline)
-    )
+    try:
+        result = (
+            retrieve_source(source_definition, client)
+            if deadline is None
+            else retrieve_source(source_definition, client, deadline=deadline)
+        )
+    except Exception as error:
+        if is_nmed:
+            _remember_nmed_rate_limit(session, source_definition["id"], error)
+        raise
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return _normalize_source_acquisition(source_definition, result)
+
+
+def _nmed_rest_error(seconds: int) -> SourceParseError:
+    error = SourceParseError("NMED publisher asked for a pause")
+    error.acquisition_code = "http_status_429"  # type: ignore[attr-defined]
+    error.acquisition_retry_after_seconds = max(1, seconds)  # type: ignore[attr-defined]
+    return error
+
+
+def _skip_nmed_listing_while_resting(session: Session, source_id: str) -> None:
+    """No listing request while an earlier 429/503 Retry-After (``not_before``) has not passed."""
+    from gridlens.ingestion.nmed_document_stage import load_index
+
+    resting = load_index(session, source_id).get("not_before")
+    session.commit()
+    if isinstance(resting, str):
+        try:
+            until = datetime.fromisoformat(resting)
+        except ValueError:
+            return
+        until = until if until.tzinfo else until.replace(tzinfo=UTC)
+        remaining = (until - datetime.now(UTC)).total_seconds()
+        if remaining > 0:
+            raise _nmed_rest_error(int(remaining) + 1)
+
+
+def _remember_nmed_rate_limit(session: Session, source_id: str, error: BaseException) -> None:
+    """Store ``not_before`` in source health when the listing itself was rate limited."""
+    if getattr(error, "acquisition_code", None) not in {"http_status_429", "http_status_503"}:
+        return
+    seconds = getattr(error, "acquisition_retry_after_seconds", None)
+    delay = seconds if type(seconds) is int and seconds > 0 else 3600
+    try:
+        from gridlens.ingestion.nmed_document_stage import load_index, save_index
+
+        session.rollback()
+        index = load_index(session, source_id)
+        index["not_before"] = (datetime.now(UTC) + timedelta(seconds=delay)).isoformat()
+        save_index(session, source_id, index)
+        session.commit()
+    except Exception:  # never mask the original acquisition error
+        session.rollback()
 
 
 def _enrich_with_application_documents(
@@ -2702,12 +2752,6 @@ def _enrich_with_nmed_documents(
     prior = load_prior_states(session, source_definition["id"])
     index = load_index(session, source_definition["id"])
     session.commit()
-    if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
-        report = NmedStageReport()
-        report.bump("skipped_source_rate_limited")
-        apply_prior_states(records, prior)
-        _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
-        return report
     try:
         report = run_stage(
             records, prior, client=client, config=config, index=index, deadline=deadline

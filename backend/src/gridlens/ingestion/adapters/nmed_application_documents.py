@@ -83,10 +83,11 @@ NOTICE_CODES = frozenset({"zero_verified_rows"})
 # Exact upload-path policy: the two WordPress sites NMED uses for air-quality notices.
 _UPLOAD_PATH = re.compile(
     r"/(?:air-quality/wp-content/uploads/sites/2|public-notices/wp-content/uploads/sites/32)"
-    r"/(?P<year>20\d{2})/(?P<month>0[1-9]|1[0-2])/(?P<name>[A-Za-z0-9][A-Za-z0-9._()+-]{0,150})\.pdf"
+    r"/(?P<year>20\d{2})/(?P<month>0[1-9]|1[0-2])/(?P<name>[A-Za-z0-9][A-Za-z0-9._()+-]{0,150})"
+    r"\.(?i:pdf)"
 )
 _APPLICATION_NAME = re.compile(r"application", re.I)
-_AIR_QUALITY_NAME = re.compile(r"air[-_ ]?quality|\bAQB|\bNSR\b|Title[-_ ]?V\b|\bTV\b", re.I)
+_AIR_QUALITY_NAME = re.compile(r"air[-_ ]?quality|\bAQB|\bNSR\b|Title[-_ ]?V\b", re.I)
 _NOT_AN_APPLICATION = re.compile(
     r"approval|letter|hearing|\bnotice[-_ ]of\b|public[-_ ]notice|spanish|transmittal|comment",
     re.I,
@@ -96,16 +97,39 @@ _NOT_AN_APPLICATION = re.compile(
 # --------------------------------------------------------------------------- URL policy
 
 
-def document_url_ok(url: Any) -> bool:
-    """Exact host, https, an upload-path PDF, no query, fragment, userinfo or odd port."""
-    if not isinstance(url, str):
-        return False
+def canonical_url(raw: Any) -> str | None:
+    """The one spelling of an upload URL, or None.
+
+    ``https://www.env.nm.gov`` plus the exact upload path. Scheme and host case are folded;
+    whitespace or control characters, an explicit port (even 443), userinfo, any query or
+    fragment (even an empty ``?`` or ``#``) and any other path are refused, so variant
+    spellings of one file can never become two keys.
+    """
+    if not isinstance(raw, str) or len(raw) > 1000:
+        return None
+    if any(ord(ch) <= 32 or ord(ch) == 127 for ch in raw) or "?" in raw or "#" in raw:
+        return None
     try:
-        nmed_http.check_host(url, HOST)
-        parts = urlsplit(url)
-    except (SourceParseError, ValueError):
-        return False
-    return not parts.query and _UPLOAD_PATH.fullmatch(parts.path) is not None
+        parts = urlsplit(raw)
+        port = parts.port
+    except ValueError:
+        return None
+    if (
+        parts.scheme != "https"
+        or parts.hostname != HOST
+        or parts.username is not None
+        or parts.password is not None
+        or port is not None
+        or ":" in parts.netloc
+        or _UPLOAD_PATH.fullmatch(parts.path) is None
+    ):
+        return None
+    return f"https://{HOST}{parts.path}"
+
+
+def document_url_ok(url: Any) -> bool:
+    """True only for a URL already in its canonical spelling."""
+    return isinstance(url, str) and canonical_url(url) == url
 
 
 def upload_month(url: str) -> str | None:
@@ -147,10 +171,10 @@ def parse_listing_links(html: bytes, base_url: str = LISTING_URL) -> list[str]:
     seen: dict[str, None] = {}
     for href in parser.hrefs:
         try:
-            absolute = urljoin(base_url, href.strip())
+            absolute = canonical_url(urljoin(base_url, href.strip()))
         except ValueError:
             continue
-        if document_url_ok(absolute) and looks_like_application(absolute):
+        if absolute is not None and looks_like_application(absolute):
             seen.setdefault(absolute, None)
     return sorted(seen, key=lambda url: (upload_month(url) or "", url), reverse=True)
 
@@ -264,7 +288,14 @@ def retrieve(
         try:
             body: bytes = shared._guard_network(run)
         except DocumentFailure as failure:
-            raise SourceParseError(f"NMED listing fetch failed: {failure.code}") from failure
+            error = SourceParseError(f"NMED listing fetch failed: {failure.code}")
+            if failure.rate_limited:
+                # The ingestion worker reads these to classify the failure as transient and to
+                # schedule the retry after Retry-After; the service also stores not_before.
+                error.acquisition_code = failure.code  # type: ignore[attr-defined]
+                if failure.retry_after is not None:
+                    error.acquisition_retry_after_seconds = failure.retry_after  # type: ignore[attr-defined]
+            raise error from failure
         links = parse_listing_links(body)
         seeds = query["application_documents"]["seed_urls"]
         ordered = list(dict.fromkeys([*seeds, *links]))[: query["max_records"]]
@@ -301,6 +332,10 @@ class NmedStageReport(StageReport):
 
 class _StageAbort(Exception):
     """The publisher rate-limited the stage: stop making requests this run."""
+
+
+class _StageDeadline(Exception):
+    """The stage ran out of its own time: keep what is done and stop for this run."""
 
 
 def _ident(url: str) -> str:
@@ -626,6 +661,7 @@ def _note_rate_limit(report: NmedStageReport, url: str, failure: DocumentFailure
 def _order(run: _Run, records: list[dict[str, Any]]) -> list[str]:
     """Unfinished first, then never-seen (newest upload first), then oldest re-validation."""
     unfinished: list[str] = []
+    unfinished_at: dict[str, str] = {}
     fresh: list[str] = []
     revalidate: list[tuple[str, str]] = []
     for record in records:
@@ -637,6 +673,7 @@ def _order(run: _Run, records: list[dict[str, Any]]) -> list[str]:
             entry.get("status") == "document" and not run.have_state(url, entry)
         ):
             unfinished.append(url)
+            unfinished_at[url] = str(entry.get("at") or "")
         elif entry.get("status") in {"document", "absent", "failed"}:
             at = _parse_time(entry.get("at"))
             if (
@@ -645,6 +682,7 @@ def _order(run: _Run, records: list[dict[str, Any]]) -> list[str]:
                 or (run.now - at >= timedelta(days=RECHECK_DAYS))
             ):
                 revalidate.append((str(entry.get("at") or ""), url))
+    unfinished.sort(key=lambda item: unfinished_at[item])  # oldest first: a deferred one goes last
     return [*unfinished, *fresh, *(url for _, url in sorted(revalidate))]
 
 
@@ -705,7 +743,13 @@ def run_stage(
                     report.bump("deferred_check_budget")
                     break
                 checked += 1
-                _examine(run, url)
+                try:
+                    _examine(run, url)
+                except (TimeoutError, _StageDeadline):
+                    # Out of stage time: states already built are kept, the index is saved, and
+                    # the next run picks the unfinished document up behind older ones.
+                    report.bump("deferred_deadline")
+                    break
     except _StageAbort:
         pass
     finally:
@@ -748,6 +792,7 @@ def _examine(run: _Run, url: str) -> None:
         note = _failure_note(entry)
         if note is not None and note["code"] == failure.code:
             report.bump("known_failed")
+            run.urls[url] = {**entry, "at": _iso(run.now)}
             return
         report.reject(_ident(url), failure.code, stage=1)
         _record_failure(run, url, entry, failure.code, None, None)
@@ -768,6 +813,7 @@ def _examine(run: _Run, url: str) -> None:
         and shared.validators_match(note.get("validators"), validators)
     ):
         report.bump("known_failed")
+        run.urls[url] = {**entry, "at": _iso(run.now)}
         return
     retry = entry.get("retry") or {}
     if retry.get("attempts", 0) >= RETRY_ATTEMPTS:
@@ -795,6 +841,36 @@ def _examine(run: _Run, url: str) -> None:
     _download_and_read(run, url, entry, validators)
 
 
+def _defer_unfinished(
+    run: _Run, url: str, entry: dict[str, Any], download: Download | None
+) -> None:
+    """Remember a document that ran out of stage time as pending, behind the older ones.
+
+    The deferral is not a failed attempt, so it does not count toward the back-off, but three
+    in a row are counted once so that a file too slow for any run's time left cannot hold the
+    front of the queue forever.
+    """
+    fields = {k: v for k, v in entry.items() if k not in {"at", "deferrals"}}
+    fields.setdefault("status", "pending")
+    if download is not None and "validators" not in fields:
+        fields["validators"] = download.validators
+    deferrals = int(entry.get("deferrals", 0)) + 1
+    if deferrals >= 3:
+        retry = dict(fields.get("retry") or {})
+        retry.update(
+            {
+                "code": "text_layer_time_budget",
+                "attempts": int(retry.get("attempts", 0)) + 1,
+                "at": _iso(run.now),
+                "validators": fields.get("validators"),
+            }
+        )
+        fields["retry"] = retry
+        deferrals = 0
+    run.urls[url] = {**fields, "at": _iso(run.now), "deferrals": deferrals}
+    run.report.bump("deferred_deadline_documents")
+
+
 def _download_and_read(
     run: _Run, url: str, entry: dict[str, Any], validators: dict[str, Any] | None
 ) -> None:
@@ -820,6 +896,8 @@ def _download_and_read(
         )
         if download is None:
             report.bump("unchanged")
+            if entry:
+                run.urls[url] = {**entry, "at": _iso(run.now)}
             return
         if (
             entry.get("status") == "document"
@@ -834,13 +912,15 @@ def _download_and_read(
         note = _failure_note(entry)
         if note is not None and note.get("sha256") == download.sha256:
             report.bump("known_failed")
+            run.urls[url] = {**entry, "at": _iso(run.now)}
             return
         budget = min(
             run.config.extract_seconds,
             run.left() - shared.STAGE_MARGIN_SECONDS - shared.CHILD_GRACE_SECONDS,
         )
         if budget < shared.MIN_EXTRACT_SECONDS:
-            raise TimeoutError("not enough stage time left to read the document")
+            _defer_unfinished(run, url, entry, download)
+            raise _StageDeadline
         try:
             extraction = read_and_extract(download.path, url, budget, run.config.isolate)
         except DocumentFailure as failure:
@@ -855,6 +935,10 @@ def _download_and_read(
         _write(run, url, status="document", sha256=download.sha256, validators=download.validators)
         report.bump("updated" if prior and prior.get("document") else "new")
         report.bump(f"status_{run.states[url]['document']['status']}")
+    except TimeoutError:
+        # The download ran past the stage deadline.
+        _defer_unfinished(run, url, entry, download)
+        raise _StageDeadline from None
     except DocumentFailure as failure:
         if failure.rate_limited:
             _note_rate_limit(report, url, failure)
@@ -873,7 +957,7 @@ def _download_and_read(
             fields.setdefault("status", "pending")
             run.urls[url] = {
                 **fields,
-                "at": entry.get("at") or _iso(run.now),
+                "at": _iso(run.now),
                 "retry": {
                     "code": failure.code,
                     "attempts": int(current.get("attempts", 0)) + counted,

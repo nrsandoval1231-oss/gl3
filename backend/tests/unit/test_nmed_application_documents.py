@@ -673,3 +673,153 @@ def test_retryable_failures_count_attempts_and_rest_after_three(monkeypatch):
     changed_etag.put(DOC, application_pdf(), etag='"new"')
     woke = run(changed_etag, records_for(DOC), index=index, now=NOW + timedelta(days=4))
     assert woke.counts.get("backed_off", 0) == 0
+
+
+# --------------------------------------------------------------------------- canonical URLs
+
+
+def test_variant_spellings_of_one_file_become_one_url():
+    path = "/air-quality/wp-content/uploads/sites/2/2025/01/A-1092-Jal3-Full-Application.pdf"
+    html = listing_html(
+        f"https://{HOST}{path}",
+        f"HTTPS://WWW.ENV.NM.GOV{path}",
+        f"//{HOST}{path}",
+        path,
+        f"  https://{HOST}{path}  ",
+    )
+    assert nad.parse_listing_links(html) == [DOC]
+    assert nad.canonical_url(f"HTTPS://WWW.ENV.NM.GOV{path}") == DOC
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        DOC.replace("https://www.env.nm.gov", "https://www.env.nm.gov:443"),
+        DOC + "?",
+        DOC + "#",
+        DOC + "?x=1",
+        DOC.replace("Jal3", "Jal 3"),
+        DOC.replace("Jal3", "Jal\t3"),
+        DOC + "\n",
+        DOC.replace("https://", "https://u@"),
+        DOC.replace("/2025/01/", "/2025/01//"),
+    ],
+)
+def test_noncanonical_spellings_are_refused(bad):
+    assert nad.canonical_url(bad) is None
+    assert nad.document_url_ok(bad) is False
+
+
+def test_pdf_extension_is_case_insensitive_and_seeds_must_be_canonical():
+    upper = DOC.replace(".pdf", ".PDF")
+    assert nad.document_url_ok(upper)
+    assert not nad.valid_config({**GOOD, "seed_urls": [DOC.replace("https://www", "HTTPS://www")]})
+
+
+# --------------------------------------------------------------------------- deadline handling
+
+
+def test_a_timeout_on_the_second_document_keeps_the_first_state_and_the_index(monkeypatch):
+    origin = Origin()
+    origin.put(DOC, application_pdf())
+    origin.put(SECOND, application_pdf(ELECTRIC_PROSE))
+    real = nad.read_and_extract
+    calls = []
+
+    def flaky(path, url, budget, isolate):
+        calls.append(url)
+        if url == SECOND:
+            raise TimeoutError("deadline")
+        return real(path, url, budget, isolate)
+
+    monkeypatch.setattr(nad, "read_and_extract", flaky)
+    recs = records_for(DOC, SECOND)
+    report = run(origin, recs)
+    assert report.counts["deferred_deadline"] == 1 and report.counts["new"] == 1
+    assert set(states_of(recs)) == {DOC}
+    assert report.index["urls"][DOC]["status"] == "document"
+    pending = report.index["urls"][SECOND]
+    assert pending["status"] == "pending" and pending["deferrals"] == 1
+    assert "retry" not in pending  # a deferral is not a failed attempt
+    assert report.rejections == []
+
+
+def test_deferred_document_goes_behind_older_unfinished_ones_and_finishes_next_run(monkeypatch):
+    origin = Origin()
+    origin.put(DOC, application_pdf())
+    origin.put(SECOND, application_pdf(ELECTRIC_PROSE))
+    real = nad.read_and_extract
+
+    def only_second_times_out(path, url, budget, isolate):
+        if url == SECOND:
+            raise TimeoutError("deadline")
+        return real(path, url, budget, isolate)
+
+    monkeypatch.setattr(nad, "read_and_extract", only_second_times_out)
+    first = records_for(DOC, SECOND)
+    report = run(origin, first)
+    monkeypatch.setattr(nad, "read_and_extract", real)
+    second = records_for(DOC, SECOND)
+    again = run(
+        origin,
+        second,
+        prior=states_of(first),
+        index=report.index,
+        now=NOW + timedelta(days=1),
+    )
+    assert set(states_of(second)) == {DOC, SECOND}
+    assert again.index["urls"][SECOND]["status"] == "document"
+
+
+def test_repeated_deferrals_are_eventually_counted_so_a_slow_file_cannot_starve_the_stage(
+    monkeypatch,
+):
+    origin = Origin()
+    origin.put(DOC, application_pdf())
+    monkeypatch.setattr(
+        nad, "read_and_extract", lambda *a, **k: (_ for _ in ()).throw(TimeoutError("t"))
+    )
+    index = None
+    for day in range(3):
+        report = run(origin, records_for(DOC), index=index, now=NOW + timedelta(days=day))
+        index = report.index
+    entry = index["urls"][DOC]
+    assert entry["retry"]["attempts"] == 1 and entry["deferrals"] == 0
+
+
+def test_a_download_past_the_stage_deadline_is_a_deferral_not_a_lost_run(monkeypatch):
+    origin = Origin()
+    origin.put(DOC, application_pdf())
+    monkeypatch.setattr(
+        nad, "download_document", lambda *a, **k: (_ for _ in ()).throw(TimeoutError("t"))
+    )
+    report = run(origin, records_for(DOC))
+    assert report.counts["deferred_deadline"] == 1
+    assert report.index["urls"][DOC]["status"] == "pending"
+
+
+# --------------------------------------------------------------------------- listing rate limit
+
+
+@pytest.mark.parametrize(("status", "retry"), [(429, "120"), (503, None)])
+def test_listing_rate_limit_carries_the_retry_hint(status, retry):
+    origin = Origin()
+    headers = {"retry-after": retry} if retry else {}
+    origin.listing = (status, headers, b"")
+    with pytest.raises(SourceParseError) as raised:
+        nad.retrieve(source(), origin.client())
+    assert raised.value.acquisition_code == f"http_status_{status}"
+    assert getattr(raised.value, "acquisition_retry_after_seconds", None) == (
+        int(retry) if retry else None
+    )
+
+
+def test_a_known_failure_refreshes_its_timestamp_so_it_does_not_crowd_revalidation():
+    origin = Origin()
+    origin.put(DOC, b"<html><script>x</script></html>")
+    first = run(origin, records_for(DOC))
+    assert first.index["urls"][DOC]["status"] == "failed"
+    later = NOW + timedelta(days=8)
+    again = run(origin, records_for(DOC), index=first.index, now=later)
+    assert again.counts["known_failed"] == 1
+    assert again.index["urls"][DOC]["at"] == later.isoformat()

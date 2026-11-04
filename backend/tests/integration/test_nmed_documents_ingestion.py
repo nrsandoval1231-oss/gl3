@@ -252,20 +252,41 @@ def test_stage_fault_is_a_typed_error_and_the_listing_still_ingests(stage_db, mo
     assert "SECRET" not in repr(counts)
 
 
-def test_a_rate_limited_listing_makes_no_document_requests(stage_db, monkeypatch):
-    from gridlens.ingestion.service import _enrich_with_application_documents
+def test_a_real_listing_429_stores_not_before_and_the_next_run_skips_the_listing(
+    stage_db, monkeypatch
+):
+    import gridlens.ingestion.service as service
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
 
     definition, job_id = setup_source(stage_db)
-    monkeypatch.setattr(nad, "config_from_source", lambda _s: CONFIG)
     origin = Origin()
-    origin.put(DOC, application_pdf())
-    acquisition = {
-        "records": [nad.record_for(DOC)],
-        "partial": True,
-        "source_rate_limited": True,
-    }
+    origin.listing = (429, {"retry-after": "600"}, b"")
+    with stage_db() as session, pytest.raises(SourceParseError) as raised:
+        service.process_job(session, job_id, WORKER, 1, definition, origin.client())
+    assert raised.value.acquisition_code == "http_status_429"
+    assert raised.value.acquisition_retry_after_seconds == 600
+    assert len(origin.log) == 1
     with stage_db() as session:
-        report = _enrich_with_application_documents(
-            session, job_id, WORKER, 1, definition, acquisition, origin.client(), deadline=None
-        )
-    assert report.counts["skipped_source_rate_limited"] == 1 and origin.log == []
+        health = session.get(Source, nad.SOURCE_ID).health["nmed_documents"]
+        until = datetime.fromisoformat(health["not_before"])
+    assert timedelta(seconds=540) < until - datetime.now(UTC) <= timedelta(seconds=600)
+
+    # While not_before is in the future the listing is not requested at all.
+    with stage_db() as session, pytest.raises(SourceParseError) as resting:
+        service.process_job(session, job_id, WORKER, 1, definition, origin.client())
+    assert resting.value.acquisition_code == "http_status_429"
+    assert len(origin.log) == 1  # no second request
+
+    # After it passes the listing is read again.
+    with stage_db.begin() as session:
+        source = session.get(Source, nad.SOURCE_ID)
+        health = dict(source.health)
+        health["nmed_documents"] = {
+            **health["nmed_documents"],
+            "not_before": (datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+        }
+        source.health = health
+    origin.listing = (200, {"content-type": "text/html"}, b"<html></html>")
+    with stage_db() as session:
+        service.process_job(session, job_id, WORKER, 1, definition, origin.client())
+    assert len(origin.log) == 2
