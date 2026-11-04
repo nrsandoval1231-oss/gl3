@@ -27,30 +27,38 @@ from gridlens.ingestion.parsers.permit_docs.lexicon import (
 from gridlens.ingestion.parsers.permit_docs.models import ExtractedRow, FieldEvidence, Route
 from gridlens.ingestion.parsers.permit_docs.text_layer import CanonicalText
 
-_RATING = re.compile(rf"(?<![\w./,\-])(?P<num>{NUMBER})\s*-?\s*(?P<unit>{NARRATIVE_UNIT})")
+# Hyphen variants include U+2010..U+2015 (PDF text layers often carry a true hyphen glyph).
+_HYPHEN = "-‐‑‒–—―"
+_RATING = re.compile(
+    rf"(?<![\w./,{_HYPHEN}])(?P<num>{NUMBER})\s*[{_HYPHEN}]?\s*(?P<unit>{NARRATIVE_UNIT})"
+)
+_DRIVER_AHEAD = (
+    r"(?!\s+(?:[\w-]+\s+){0,2}?(?:engines?|turbines?|motors?|drivers?|skids?)\b|\s*\n|\s+\d)"
+)
 _STOP = (
     r"(?:is|are|was|were|for|to|of|the|and|or|with|that|which|will|be|has|have|from|by|in|on|at|as"
     r"|each|total|combined|rated|capacity)"
 )
-_MID = rf"(?:(?!{_STOP}\b)[A-Za-z0-9][\w./\-]*\s+){{0,4}}?"
+# Short numeric / tag-like words ("1", "CT1", "S5") are table ids, not make or model names;
+# letting them bridge would pair a rating with the NEXT table row's equipment noun.
+_ROW_TAG = r"(?:\d{1,2}|[A-Za-z]{1,3}\d{1,2})(?=\s)"
+_MID = rf"(?:(?!{_STOP}\b|{_ROW_TAG})[A-Za-z0-9][\w./\-]*\s+){{0,4}}?"
 _NOUNS = (
     # (pattern, type group or fixed type) in priority order
     (r"electric(?:ally)?[\s-]+(?:motor[\s-]+)?driven\s+(?P<t0>compressors?|pumps?)", "t0"),
     (r"electric(?:al)?\s+(?P<t1>(?:compressor|pump)\s+motors?)", "t1"),
     (r"electric(?:al)?\s+motors?", "motor"),
     (
-        r"(?:(?:natural\s+)?gas[\s-]*fired\s+|diesel\s+|reciprocating\s+|four[\s-]stroke\s+|"
-        r"lean[\s-]burn\s+)*(?:internal\s+combustion\s+)?engines?\b|RICE\b",
+        r"(?:(?:natural[\s-]+)?gas[\s-]*fired\s+|diesel[\s-]*(?:fired|fueled)?\s*|"
+        r"reciprocating\s+|four[\s-]stroke\s+|lean[\s-]burn\s+)*"
+        r"(?:internal\s+combustion\s+)?engines?\b|RICE\b",
         "engine",
     ),
     (r"(?:gas\s+|steam\s+)?turbines?", "turbine"),
     (r"(?:emergency\s+)?generators?", "generator"),
     (r"(?:heaters?|boilers?)", "heater"),
-    (
-        r"compressors?(?!\s+(?:engines?|turbines?|motors?|drivers?|skids?)|\s*\n|\s+\d)",
-        "compressor",
-    ),
-    (r"pumps?(?!\s+(?:engines?|turbines?|motors?|drivers?|skids?)|\s*\n|\s+\d)", "pump"),
+    (r"compressors?" + _DRIVER_AHEAD, "compressor"),
+    (r"pumps?" + _DRIVER_AHEAD, "pump"),
 )
 _NOUN_RE = re.compile(
     rf"^[\s,]*{_MID}(?P<noun>"
