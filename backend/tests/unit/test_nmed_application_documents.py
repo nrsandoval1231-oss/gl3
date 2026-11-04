@@ -132,6 +132,17 @@ def test_listing_links_keep_only_air_quality_application_pdfs_newest_first():
     assert len(links) == len(set(links)) == 3
 
 
+def test_the_shared_notices_site_keeps_only_files_that_name_air_quality():
+    shared_site = f"https://{HOST}/public-notices/wp-content/uploads/sites/32/2023/03/"
+    air = shared_site + "A-199L-CRSWF-Air-Quality-Permit-Application.pdf"
+    other = shared_site + "Groundwater-Discharge-Permit-Application.pdf"
+    aqb = shared_site + "AQBP-Application-12345.pdf"
+    assert nad.document_url_ok(other)  # path policy only; scope is the name filter
+    assert nad.parse_listing_links(listing_html(air, other, aqb)) == sorted(
+        [air, aqb], key=lambda item: (nad.upload_month(item), item), reverse=True
+    )
+
+
 def test_listing_parser_tolerates_broken_markup_and_huge_hrefs():
     html = b"<a href='" + b"x" * 5000 + b"'><a href=" + DOC.encode() + b">unterminated <b>"
     assert nad.parse_listing_links(html) == [DOC]

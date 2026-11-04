@@ -145,3 +145,32 @@ The Oklahoma DEQ permit-document stage ([workstream 1c](../engineering/okdeq-per
 - Memory: a file up to 40 MB is read into memory once for the extraction child; POSIX children are address-space capped, a Windows host is not.
 - Evidence effect: a verified schedule reaches the domain only for rows the existing OK DEQ admission accepts, which needs a stated event date (a public-comment window start). Other rows keep the document as evidence and provenance only.
 - Roll back by setting `enabled` to `false`: the next run builds listing-only evidence, so current evidence goes back to listing-only. Older evidence versions stay in the database; the key index in source health is kept but unused.
+
+
+### Federal Register hp/driver evidence activation
+
+The notice hp/driver parser ([workstream 3](../engineering/widen-document-sources-20261103.md#a-federal-register-hpdriver-evidence)) ships **off**. To turn it on, add `"hp_driver_evidence": true` to `query` on the `federal-register-eis` entry in `config/sources/registry.v1.json` through the protected release. It uses no paid provider, no environment variable and no new request: it reads the GovInfo PDF text the existing companion fetch already captures.
+
+- Effect: for a PDF captured in a run, `Evidence.provenance["fr_hp_driver"]` carries verified hp/kW/MW ratings with driver, count, state and verbatim quotes (PDF page, character span inside `Evidence.abstract`). Electric drive counts as `electric_demand_evidenced` only when the same phrase states it. Nothing else changes: the evidence hash, abstract, interpretation and equipment admission are identical with the flag on or off.
+- Not retroactive: evidence is immutable and keyed by the PDF hash, so a notice whose PDF was already stored is not re-annotated. Only newly seen PDF bytes carry the block.
+- The flag is validated as a boolean on `federal-register-eis` only. Roll back by removing it or setting `false`; stored blocks stay.
+
+### FERC eLibrary
+
+Nothing to activate: GridLens makes no FERC eLibrary request (there is no compliant machine-readable path; see the [finding](../engineering/widen-document-sources-20261103.md#b-ferc-elibrary)). `ferc_elibrary.py` only builds a reference link from a docket a notice already states and rejects CEII/privileged markers. No registry entry exists and no environment change is needed.
+
+### NMED application documents activation
+
+The NMED source `new-mexico-nmed-air-applications` ([workstream 3](../engineering/widen-document-sources-20261103.md#c-nmed)) ships **off twice**: the entry has `"enabled": false`, and `query.application_documents.enabled` is `false`. It uses no paid provider and no environment variable. To turn it on, in order and through the protected release:
+
+1. Set `enabled` to `true` on the entry. This alone makes one request per day to `https://www.env.nm.gov/public-notices/` (about 1.3 MB) and records the application PDF links as listing records. No PDF is fetched.
+2. Optionally add owner-curated exact upload URLs to `query.application_documents.seed_urls` (at most 50; each must match the upload-path policy in the engineering note).
+3. Set `query.application_documents.enabled` to `true` to fetch and read documents. Shipped bounds: `max_downloads` 2, `max_checks` 40, `extract_seconds` 300; at most one request per second to `www.env.nm.gov`; 40 MB per file; the first 429 or 503 ends the stage and stores `not_before` in source health.
+- Admission: the job holds the global public-acquisition admission for its whole run; with the stage on that can reach the 600 s lease less the persistence reserve. Watch the `application_documents` counts in the first enabled runs.
+- Memory: a file up to 40 MB is read into memory once for the extraction child; POSIX children are address-space capped, a Windows host is not.
+- Evidence effect: records are retained evidence. No NMED equipment-demand admission rule exists, so enabling does not create demand, needs or cards; a rule is a separate, reviewed change. Dates are upload months only (`publication_date` is the first of the month, precision `month`).
+- Roll back by setting either `enabled` to `false`. Evidence versions and the check index stay.
+
+### NMED air-facility layers
+
+`nmed_air_facilities.py` (ArcGIS MapServer, layers 0 to 6) is a bounded, read-only reader with no registry entry and no caller in the job path: the layers carry no AI or permit number and no date, so records would be dateless observations with no join. Nothing is shipped to activate. A future consumer (an identity join) is separate work; its config shape is validated by `nmed_air_facilities.valid_config` and the host is pinned in `nmed_http.py`.

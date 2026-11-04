@@ -86,6 +86,7 @@ _UPLOAD_PATH = re.compile(
     r"/(?P<year>20\d{2})/(?P<month>0[1-9]|1[0-2])/(?P<name>[A-Za-z0-9][A-Za-z0-9._()+-]{0,150})\.pdf"
 )
 _APPLICATION_NAME = re.compile(r"application", re.I)
+_AIR_QUALITY_NAME = re.compile(r"air[-_ ]?quality|\bAQB", re.I)
 _NOT_AN_APPLICATION = re.compile(
     r"approval|letter|hearing|\bnotice[-_ ]of\b|public[-_ ]notice|spanish|transmittal|comment",
     re.I,
@@ -117,6 +118,10 @@ def looks_like_application(url: str) -> bool:
     if match is None:
         return False
     name = match["name"]
+    if "/public-notices/" in urlsplit(url).path and not _AIR_QUALITY_NAME.search(name):
+        # The shared notices site carries every NMED program (water, waste, radiation...);
+        # only a file whose own name says air quality is in scope there.
+        return False
     return bool(_APPLICATION_NAME.search(name)) and not _NOT_AN_APPLICATION.search(name)
 
 
