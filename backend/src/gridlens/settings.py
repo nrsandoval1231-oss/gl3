@@ -180,7 +180,6 @@ class Settings(BaseSettings):
     document_extraction_max_enqueue_per_run: int = Field(default=25, ge=1, le=200)
     document_extraction_failed_retry_hours: int = Field(default=24, ge=1, le=720)
     # WS6 document-source health alerts (typed, daily message). Safe defaults.
-    doc_alert_window_runs: int = Field(default=14, ge=3, le=60)
     doc_alert_min_baseline_docs: int = Field(default=5, ge=1, le=1000)
     doc_alert_yield_drop_ratio: float = Field(default=0.5, gt=0.0, lt=1.0)
     doc_alert_empty_text_ratio: float = Field(default=0.5, gt=0.0, le=1.0)

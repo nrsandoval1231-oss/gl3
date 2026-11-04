@@ -279,3 +279,59 @@ An OCR request is a sub-PDF of at most 5 scanned pages and 750,000 bytes; with t
 - Whether OCR-read rows may ever feed demand (default no).
 - The bake-off gold set and recorded vendor runs (see the engineering doc), if a different OCR provider should replace OpenAI vision.
 
+
+## Workstream 6 runtime: schedule, extraction jobs and document alerts
+
+**Prepared:** 2026-11-04 · **Status:** proposal only. Code ships with everything below **off or absent**; the registry was not changed. Design: [runtime jobs](../engineering/runtime-jobs-20261103.md).
+
+### Order to enable
+
+1. Release the code (flag off, no `run_at` in the registry). Behaviour is the in-line stages exactly as before. The daily alert now also lists any document-source finding.
+2. Registry PR with the schedule table below (`run_at`, `run_weekday`). Reversible by deleting the fields; the worker then falls back to `cadence_hours` and the 07:00 Central anchor. Watch one night: the first slots after the change are the new times.
+3. `DOCUMENT_EXTRACTION_JOBS_ENABLED=true`. The TCEQ listing job then only discovers and queues `document_extraction` jobs; run one night of rule-only extraction in jobs before any model pass.
+4. Then follow the 2b order above (caps, pricing, OCR allowlist, `PERMIT_LLM_PROPOSER_ENABLED`). The proposer and stage OCR are now passed from the extraction job, so the 2b note "stages do not pass a proposer yet" is closed for TCEQ once step 3 is on. They are still never passed from the in-line TCEQ path or the OK DEQ stage.
+
+### New settings (all optional; shown with defaults)
+
+```env
+DOCUMENT_EXTRACTION_JOBS_ENABLED=false
+DOCUMENT_EXTRACTION_MAX_ENQUEUE_PER_RUN=25      # extraction jobs one listing run may queue
+DOCUMENT_EXTRACTION_FAILED_RETRY_HOURS=24       # a failed document version rests this long
+# Document-source alert thresholds (daily ntfy message)
+DOC_ALERT_MIN_BASELINE_DOCS=5                   # documents needed before a yield baseline exists
+DOC_ALERT_YIELD_DROP_RATIO=0.5                  # recent rows per document <= baseline x (1 - this)
+DOC_ALERT_EMPTY_TEXT_RATIO=0.5                  # share of recent documents with no text layer
+DOC_ALERT_LISTING_SHRINK_RATIO=0.5              # in-scope filings now vs the earlier maximum
+DOC_ALERT_ZERO_NEW_DAYS=14                      # no new record for this many days
+DOC_ALERT_OVERDUE_MULTIPLIER=2.5                # x cadence_hours with no document-stage run
+DOC_ALERT_REJECTION_SPIKE_RATIO=0.6             # verifier-rejected share of candidate rows
+DOC_ALERT_REJECTION_MIN_ROWS=10
+```
+
+No new infrastructure. The worker already runs every job kind; `document_extraction` takes the same per-source public-acquisition admission and lease renewal as `ingestion`.
+
+### Proposed per-source schedule (America/Chicago; for the owner to confirm)
+
+Nothing here is applied. Times are staggered so no publisher sees two sources at once, and sit in the 03:00-04:00 window after overnight publisher batches. `run_at` is local wall-clock time and follows daylight saving time (a skipped spring-forward time runs at the next valid minute; an ambiguous fall-back time runs once).
+
+| Source id | Today | Proposed registry fields |
+| --- | --- | --- |
+| `texas-tceq-nsr-pending` | 24 h at 07:00 | `"run_at": ["03:00"]` |
+| `texas-tceq-egu-registrations` | 24 h at 07:00 | `"run_at": ["03:10"]` |
+| `texas-tceq-construction-noi` | 24 h at 07:00 | `"run_at": ["03:20"]` |
+| `texas-tceq-temporary-batch-plants` | 24 h at 07:00 | `"run_at": ["03:30"]` |
+| `oklahoma-deq-public-review` | 24 h at 07:00 | `"run_at": ["03:40"]` |
+| `texas-rrc-drilling-permits` (pending) | 24 h at 07:00 | `"run_at": ["03:35", "12:00"]` |
+| `texas-rrc-flare-vent-exceptions` | 24 h at 07:00 | `"run_at": ["03:50"]` |
+| `federal-register-eis` | 24 h at 07:00 | `"run_at": ["03:15"]` |
+| `texas-puct-large-load-filings`, `texas-puct-large-load-dockets` | 24 h at 07:00 | `"run_at": ["03:25"]`, `["03:45"]` |
+| `texas-ercot-large-load-status`, `spp-thermal-interconnection` | 24 h at 07:00 | `"run_at": ["03:55"]`, `["03:05"]` |
+| `texas-jeti-applications`, `texas-jeti-agreements` | 24 h at 07:00 | `"run_at": ["03:12"]`, `["03:22"]` |
+| `texas-tdlr-tabs-data-centers`, `taylor-development-newsflash` | 24 h at 07:00 | `"run_at": ["03:18"]`, `["03:28"]` |
+| City permit feeds (Austin, Fort Worth, San Antonio, Albuquerque, El Paso) | 24 h at 07:00 | `"run_at"` from `03:32` in 4-minute steps |
+| `houston-weekly-permits` | 24 h at 07:00 | weekly: `"cadence_hours": 168, "run_at": ["04:00"], "run_weekday": 0` (owner: confirm the publisher's weekday) |
+| `dallas-monthly-permits` (slow) | 24 h at 07:00 | weekly: `"cadence_hours": 168, "run_at": ["04:00"], "run_weekday": 6` |
+| Annual stack-claim sources (`f17-*`, disabled) | 8760 h | unchanged |
+| News feeds (`*-news`, 1 h) | hourly | unchanged (hourly UTC cadence) |
+
+Two limits. `run_at` needs a local-daily schedule (a multiple of 24 hours), so it cannot express "every 12 hours"; twice a day is two clock times. A weekly source with `run_at` and no `run_weekday` falls on the weekday its schedule epoch was created. Changing the fields starts a new schedule epoch (the existing mechanism); history is kept.

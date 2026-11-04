@@ -506,3 +506,62 @@ def test_first_signal_sample_lists_each_project_with_its_first_sighting(world):
         assert rows[0]["first_event_date"].isoformat() == "2026-09-25"
         assert first_signal_sample(session, since=seen + timedelta(days=1)) == []
     assert lead_time_days(seen, seen + timedelta(days=30)) == 30.0
+
+
+def test_federal_register_timestamps_are_complete_and_first_seen_is_kept(world):
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.ingestion.service import process_job
+
+    definition = next(s for s in load_registry() if s["id"] == "federal-register-eis")
+    with world.factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=definition["cadence_hours"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="t",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    def run(abstract: str) -> None:
+        row = {
+            "document_number": "TEST-0001",
+            "title": "Silver Ridge Mine: Synthetic Test Notice",
+            "abstract": abstract,
+            "publication_date": "2026-09-14",
+            "html_url": "https://www.federalregister.gov/documents/2026/09/14/TEST-0001/x",
+        }
+        payload = {"total_pages": 1, "count": 1, "results": [row]}
+        client = REAL_CLIENT(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200, json=payload))
+        )
+        with world.factory() as session:
+            process_job(session, job_id, "t", 1, definition, client)
+
+    run("The proposed Mine Plan of Operations would develop the mine.")
+    with world.factory() as session:
+        first_seen = session.scalar(select(Observation.first_seen_at))
+        assert session.scalar(select(Observation.published_at)) == datetime(2026, 9, 14).date()
+        evidence = session.scalar(select(Evidence))
+        assert evidence.published_at == datetime(2026, 9, 14).date()
+        assert evidence.observed_at.tzinfo is not None and first_seen.tzinfo is not None
+    run("The proposed Mine Plan of Operations would develop the mine and a new haul road.")
+    with world.factory() as session:
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert session.scalar(select(Observation.first_seen_at)) == first_seen
