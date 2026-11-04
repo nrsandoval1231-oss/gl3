@@ -69,6 +69,8 @@ def load_index(session: Session, source_id: str) -> dict[str, Any]:
     }
     if isinstance(stored.get("not_before"), str):
         result["not_before"] = stored["not_before"]
+    if type(stored.get("listed_count")) is int:
+        result["listed_count"] = stored["listed_count"]
     return result
 
 

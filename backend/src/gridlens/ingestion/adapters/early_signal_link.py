@@ -26,6 +26,19 @@ from typing import Any
 
 VERSION = "early-signal-link-v1"
 KEY_TYPES = ("substation_county", "rpg_id")
+_COMPASS = frozenset(
+    {
+        "north",
+        "south",
+        "east",
+        "west",
+        "northeast",
+        "northwest",
+        "southeast",
+        "southwest",
+        "central",
+    }
+)
 _DROP = frozenset(
     {
         "substation",
@@ -55,6 +68,8 @@ def norm_substation(name: Any) -> str | None:
     )
     tokens = [t for t in text.split() if t not in _DROP and not _VOLTAGE.match(t)]
     joined = " ".join(tokens)
+    if len(tokens) == 1 and tokens[0] in _COMPASS:
+        return None  # a bare compass name ("North", "West") is not a place
     return joined if len(joined.replace(" ", "")) >= 3 else None
 
 
@@ -117,14 +132,22 @@ def peers_from_states(states: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     return [merged[k] for k in sorted(merged)]
 
 
-def _side(ev: dict[str, Any], default_sha: Any = None, default_url: Any = None) -> dict[str, Any]:
+def _side(ev: dict[str, Any], default_url: Any = None) -> dict[str, Any]:
+    """One side's evidence with the identity the value itself carries.
+
+    A value read from a filing keeps that filing's own hash; a value read from the case style has
+    no document hash and keeps the docket record's hash. A combined docket hash is never used.
+    """
     return {
         "value": ev.get("value"),
         "basis": ev.get("basis"),
         "page": ev.get("page"),
         "quote": ev.get("quote"),
         "location": ev.get("location"),
-        "document_sha256": ev.get("document_sha256") or default_sha,
+        "role": ev.get("role"),
+        "item": ev.get("item"),
+        "document_sha256": ev.get("document_sha256"),
+        "record_source_hash": ev.get("record_source_hash"),
         "url": ev.get("url") or default_url,
     }
 
@@ -154,10 +177,8 @@ def link_docket(docket: dict[str, Any], peers: list[dict[str, Any]]) -> dict[str
                     "substation_norm": key[0],
                     "county_norm": key[1],
                     "docket": {
-                        "substation": _side(
-                            d_sub, docket.get("document_sha256"), docket.get("url")
-                        ),
-                        "county": _side(d_county, docket.get("document_sha256"), docket.get("url")),
+                        "substation": _side(d_sub, docket.get("url")),
+                        "county": _side(d_county, docket.get("url")),
                     },
                     "project": {
                         "substation": _side(p_sub),
@@ -171,9 +192,7 @@ def link_docket(docket: dict[str, Any], peers: list[dict[str, Any]]) -> dict[str
                 {
                     "type": "rpg_id",
                     "project_id": pid,
-                    "docket": {
-                        "rpg_id": _side(evidence, docket.get("document_sha256"), docket.get("url"))
-                    },
+                    "docket": {"rpg_id": _side(evidence, docket.get("url"))},
                     "project": {},
                 }
             )
@@ -207,12 +226,12 @@ def link_record(docket: dict[str, Any], decision: dict[str, Any]) -> dict[str, A
             for k in decision["keys"]
         }
     )
-    digest_source = "|".join(
-        [control, pid, *key_names, str(docket.get("document_sha256"))]
-        + sorted(
-            str(k["project"].get("substation", {}).get("document_sha256")) for k in decision["keys"]
-        )
-    )
+    identities: list[str] = []
+    for key in decision["keys"]:
+        for side in ("docket", "project"):
+            for item in key[side].values():
+                identities.append(f"{item.get('document_sha256')}/{item.get('record_source_hash')}")
+    digest_source = "|".join([control, pid, *key_names, *sorted(identities)])
     return {
         "document_number": f"ERCOT-PUCT-LINK-{control}-{pid}",
         "title": f"Link: PUCT docket {control} and ERCOT RPG project {pid}",

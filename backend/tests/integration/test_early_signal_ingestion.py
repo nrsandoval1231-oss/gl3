@@ -460,3 +460,42 @@ def test_puct_process_job_ships_off(stage_db, monkeypatch):
     with stage_db() as session:
         service.process_job(session, job_id, WORKER, 1, definition, origin.client())
     assert origin.log == []
+
+
+def test_tpit_row_text_is_never_read_as_a_mine_signal(stage_db, monkeypatch):
+    """Free text in a TPIT title must not reach the mine-development interpreter."""
+    import json
+
+    from gridlens.persistence.models import Interpretation
+
+    definition, job_id = setup_source(stage_db, er.SOURCE_ID)
+    sheets = {k: [dict(r) for r in v] for k, v in SHEETS.items()}
+    sheets["FutureTPIT100126NoCost"].append(
+        tpit_row(
+            "12345",
+            title="Construct New Hermosa Mine Substation",
+            description="Mine development and construction load for the new mine",
+        )
+    )
+    origin = ercot_origin(tpit_body=workbook(sheets))
+    outcome = ingest(stage_db, definition, job_id, er, origin, ercot_listing(origin), monkeypatch)
+    assert outcome["counts"]["new"] >= 8
+    with stage_db() as session:
+        rows = session.scalars(select(Interpretation)).all()
+        assert all("mine" not in json.dumps(r.assessment or {}).lower() for r in rows)
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+    titles = [ev.title for _ext, ev in evidences(stage_db, er.SOURCE_ID, "ERCOT-TPIT-")]
+    assert any("Hermosa Mine" in t for t in titles)  # retained as evidence only
+
+
+def test_documents_off_withholds_every_ercot_document_record(stage_db, monkeypatch):
+    import gridlens.ingestion.service as service
+
+    definition, job_id = setup_source(stage_db, er.SOURCE_ID)
+    origin = ercot_origin()
+    records = ercot_listing(origin)
+    assert records
+    monkeypatch.setattr(service, "retrieve_source", lambda *_a, **_k: records)
+    with stage_db() as session:
+        counts = service.process_job(session, job_id, WORKER, 1, definition, origin.client())
+    assert counts["new"] == 0 and evidences(stage_db, er.SOURCE_ID) == []

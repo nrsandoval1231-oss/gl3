@@ -406,7 +406,10 @@ def _examine(run: Run, item: DocItem) -> None:
         if item.key not in run.urls:
             _write(run, item.key, status="pending")
         return
-    known = document.get("validators") if document else entry.get("validators")
+    # Conditional headers only when a state exists to fall back on: a 304 with no stored state
+    # (a deferred or failed first read, an index committed before its evidence) would otherwise
+    # never be recovered.
+    known = document.get("validators") if state is not None else None
     try:
         run.downloads += 1
         fetched = run.fetcher.get(
@@ -415,6 +418,11 @@ def _examine(run: Run, item: DocItem) -> None:
             media_types=item.media_types,
             known=known if isinstance(known, dict) else None,
         )
+        if fetched.status == 304 and state is None:
+            # Unexpected: retry once unconditionally.
+            fetched = run.fetcher.get(
+                item.url, max_bytes=item.max_bytes, media_types=item.media_types, known=None
+            )
     except DocumentFailure as failure:
         _on_failure(run, item, entry, failure, None)
         return
@@ -513,13 +521,32 @@ def _on_failure(
     _write(run, item.key, status="failed", code=failure.code, sha256=sha, validators=validators)
 
 
-def finish(run: Run, stored_index: dict[str, Any] | None) -> EarlyStageReport:
-    """Persist-ready report: the check index and, after a 429/503 or while resting, not_before."""
+SHRINK_MIN_PRIOR = shared.SHRINK_MIN_PRIOR
+SHRINK_RATIO = shared.SHRINK_RATIO
+
+
+def finish(
+    run: Run, stored_index: dict[str, Any] | None, listed_count: int | None = None
+) -> EarlyStageReport:
+    """Persist-ready report: the check index and, after a 429/503 or while resting, not_before.
+
+    ``listed_count`` is the number of documents the listing named this run; a drop to under half
+    of the previous run's count (from at least four) is a ``listing_shrink`` notice.
+    """
     report = run.report
     report.counts["downloads"] = run.downloads
     report.counts["requests"] = run.fetcher.requests
     keep = dict(sorted(run.urls.items(), key=lambda kv: str(kv[1].get("at") or ""), reverse=True))
     index: dict[str, Any] = {"urls": dict(list(keep.items())[:MAX_INDEX_ENTRIES])}
+    if listed_count is not None:
+        index["listed_count"] = listed_count
+        before = (stored_index or {}).get("listed_count")
+        if (
+            type(before) is int
+            and before >= SHRINK_MIN_PRIOR
+            and listed_count < before * SHRINK_RATIO
+        ):
+            report.reject("listing", "listing_shrink", before=before, after=listed_count)
     resting = parse_time((stored_index or {}).get("not_before"))
     if resting is not None and run.now < resting:
         index["not_before"] = iso(resting)

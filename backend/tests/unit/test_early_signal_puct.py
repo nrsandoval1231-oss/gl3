@@ -329,7 +329,8 @@ def test_unknown_is_not_zero_for_a_docket_with_no_stated_figures():
     )
     assert app_only["cost"] == {"value": None, "basis": "unknown", "reason": "not_stated"}
     assert app_only["customer_request_mw"]["value"] is None
-    assert fields["stated_load_mw"][0]["value"] == 10
+    # The same words are the customer request; they are never also an "other stated load".
+    assert fields["stated_load_mw"] == []
 
 
 # --------------------------------------------------------------------------- stage behaviour

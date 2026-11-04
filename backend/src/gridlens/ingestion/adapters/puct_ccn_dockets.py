@@ -38,6 +38,7 @@ from gridlens.ingestion.adapters import early_signal_stage as stage
 from gridlens.ingestion.adapters import ercot_rpg_extract as rpg_extract
 from gridlens.ingestion.adapters import puct_ccn_extract as ex
 from gridlens.ingestion.adapters import tceq_application_documents as shared
+from gridlens.ingestion.adapters.bounded_http import remaining_seconds
 from gridlens.ingestion.adapters.early_signal_http import HTML, PDF, EarlyFetcher
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.puct_docket_index import parse_export, parse_search
@@ -164,7 +165,10 @@ def config_from_source(source: dict[str, Any]) -> stage.StageConfig | None:
 
 def record_for(row: dict[str, str], *, listed_on: str) -> dict[str, Any]:
     control = row["control"]
-    fields = ex.case_style_fields(row["description"])
+    source_hash = hashlib.sha256(
+        f"{control}|{row['filings']}|{row['utility']}|{row['description']}".encode()
+    ).hexdigest()
+    fields = ex.case_style_fields(row["description"], source_hash, filings_url(control))
     lines = [
         f"Control number: {control}",
         f"Case style: {row['description']}",
@@ -184,9 +188,7 @@ def record_for(row: dict[str, str], *, listed_on: str) -> dict[str, Any]:
         "event_date": None,
         "html_url": filings_url(control),
         "extraction_location": "PUCT Interchange docket search and Excel export",
-        "source_hash": hashlib.sha256(
-            f"{control}|{row['filings']}|{row['utility']}|{row['description']}".encode()
-        ).hexdigest(),
+        "source_hash": source_hash,
         "state_key": control,
         "doc_kind": "puct_docket",
         "listed_on": listed_on,
@@ -230,6 +232,7 @@ def retrieve(
         fetcher = EarlyFetcher(http, pacer or shared.Pacer(), url_ok)
 
         def get(url: str, media: frozenset[str]) -> bytes:
+            remaining_seconds(deadline)
             try:
                 return fetcher.get(
                     url, max_bytes=query["max_response_bytes"], media_types=media
@@ -317,11 +320,11 @@ def first_pdf(body: bytes, control: str, item: str) -> str | None:
 
 def _read_pdf(
     fetcher: EarlyFetcher, url: str, budget: float, isolate: bool
-) -> tuple[list[str], str]:
+) -> tuple[list[str], str, int]:
     fetched = fetcher.get(url, max_bytes=MAX_PDF_BYTES, media_types=PDF)
     assert fetched.sha256 is not None
     pages, _scanned = rpg_extract.read_pdf_pages(fetched.body, budget, isolate)
-    return pages, fetched.sha256
+    return pages, fetched.sha256, len(fetched.body)
 
 
 # --------------------------------------------------------------------------- document stage
@@ -354,8 +357,10 @@ def read_docket(
         url = first_pdf(listing.body, control, item["item"])
         if url is None:
             continue
-        pages, sha = _read_pdf(fetcher, url, budget, isolate)
-        new_text.append(ex.text_fields(pages))
+        pages, sha, size = _read_pdf(fetcher, url, budget, isolate)
+        # Every value read from this PDF is stamped with its role, item, hash and URL.
+        origin = {"role": role, "item": item["item"], "document_sha256": sha, "url": url}
+        new_text.append(ex.text_fields(pages, origin))
         read.append(
             {
                 "role": role,
@@ -363,6 +368,7 @@ def read_docket(
                 "filed": item["filed"],
                 "url": url,
                 "sha256": sha,
+                "bytes": size,
                 "pages_read": len(pages),
             }
         )
@@ -421,7 +427,7 @@ def run_stage(
             run.report.bump("skipped_retry_after")
         else:
             _read_dockets(run, records)
-        report = stage.finish(run, index)
+        report = stage.finish(run, index, len(records))
     finally:
         if owns:
             http.close()
@@ -507,7 +513,7 @@ def _read_dockets(run: stage.Run, records: list[dict[str, Any]]) -> None:
             prior,
             item=item,
             sha256=extraction["combined_sha256"],
-            size=sum(d.get("pages_read", 0) for d in extraction["documents"]),
+            size=sum(d.get("bytes", 0) for d in extraction["documents"]),
             validators={},
             extraction=extraction,
             now=run.now,
@@ -549,12 +555,10 @@ def docket_summaries(
             continue
         state = states.get(key)
         fields = state["document"]["extraction"]["fields"] if state else record["case_style_fields"]
-        sha = state["document"]["sha256"] if state else None
         out.append(
             {
                 "control": key,
                 "fields": fields,
-                "document_sha256": sha,
                 "url": filings_url(key),
                 "utility": record.get("utility"),
             }

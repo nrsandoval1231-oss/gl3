@@ -2773,9 +2773,13 @@ def _enrich_with_early_signal_documents(
     method = source_definition.get("retrieval_method")
     module = ercot_rpg if method == "ercot-rpg-projects" else puct_ccn_dockets
     config = module.config_from_source(source_definition)
-    if config is None:
-        return None
     records = acquisition if isinstance(acquisition, list) else acquisition["records"]
+    if config is None:
+        if method == "ercot-rpg-projects":
+            # A bare listing line is not evidence of anything: with the document stage off the
+            # ERCOT document records are withheld, exactly as an unread document is.
+            records[:] = []
+        return None
     if session.in_transaction():
         session.commit()
     prior = state_store.load_prior_states(session, source_definition["id"])
@@ -2804,6 +2808,7 @@ def _enrich_with_early_signal_documents(
         session.rollback()
         report = EarlyStageReport()
         report.reject("stage", "stage_error", error=type(error).__name__)
+        report.index = index  # the stored check index (and any not_before) stays as it was
         module.apply_prior_states(records, prior)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return report
@@ -4063,6 +4068,8 @@ def process_records(
                     if permit_assessment and permit_assessment["decision"] == "accepted"
                     else None
                     if permit_assessment
+                    else None
+                    if source_definition.get("retrieval_method") in EARLY_SIGNAL_METHODS
                     else interpret_taylor_planning(record)
                     if source.id == "taylor-development-newsflash"
                     else interpret({**record, "source_id": source.id})

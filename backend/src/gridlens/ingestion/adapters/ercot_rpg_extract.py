@@ -38,7 +38,8 @@ _WORD = r"[A-Z][A-Za-z.'’-]*"
 _COUNTY = rf"{_WORD}(?: {_WORD})?"
 
 _UTILITY = re.compile(
-    r"^(?P<u>[A-Z][A-Za-z&.'’-]*(?: [A-Za-z&.'’()-]+){0,6}?) submitted (?:the )?[^()]{3,160}?"
+    r"^(?:[•◦▪‣·]\s*)?"
+    r"(?P<u>[A-Z][A-Za-z&.'’-]*(?: [A-Za-z&.'’()-]+){0,6}?) submitted (?:the )?[^()]{3,160}?"
     r"\((?P<id>\d{2}RPG\d{3})\)"
 )
 _TIER = re.compile(r"\bTier\s+(?P<t>[1-4])\b")
@@ -68,9 +69,13 @@ _NEW_SUBSTATION = re.compile(
     r"(?: \d{2,3}(?:/\d{2,3})?-?\s?kV)? [Ss]ubstation\b"
 )
 _LOAD_STATIONS = re.compile(r"\bNew Load (?:Stations?|Substations?)\b")
+# A list dash is a dash after whitespace or at the start ("- Alpha"), never the hyphen of
+# "In-Service".
 _LIST_ITEM = re.compile(
-    rf"[–—-]\s*(?P<n>{_WORD}(?: {_WORD}){{0,3}})(?=,|;|\s+tapped|\s+connected|\s+[–—-]|$)"
+    rf"(?<!\w)[–—-]\s+(?P<n>{_WORD}(?: {_WORD}){{0,3}})(?=,|;|\s+tapped|\s+connected|\s+[–—-]\s|$)"
 )
+_SENTENCE_END = re.compile(r"\.\s|\s[•◦▪‣·]\s")
+_ASSUMPTION = re.compile(r"assum|study area|\bmodeled\b|\bwas added\b|\bwere added\b", re.I)
 
 _SCALAR_FIELDS = ("utility", "tier", "cost", "in_service", "ccn", "load")
 _STOP_NAMES = frozenset({"New", "Existing", "The", "This", "Proposed", "Load", "Loads"})
@@ -80,11 +85,18 @@ def normalise(text: str) -> str:
     return " ".join(text.split())
 
 
-def _money(number: str, unit: str) -> tuple[int, str]:
+def _exact(value: Decimal) -> int | str:
+    """An exact figure: an int when whole, else its exact decimal text (never truncated)."""
+    if value == value.to_integral_value():
+        return int(value)
+    return format(value.normalize(), "f")
+
+
+def _money(number: str, unit: str) -> tuple[int | str, str]:
     value = Decimal(number.replace(",", "")) * (
         Decimal(1_000_000) if unit.casefold() == "million" else Decimal(1_000_000_000)
     )
-    return int(value), "calculated"
+    return _exact(value), "calculated"
 
 
 def _field_utility(text: str) -> Any:
@@ -127,8 +139,8 @@ def _field_load(text: str) -> Any:
     except InvalidOperation:
         return None
     if found["u"].upper() == "GW":
-        return (int(number * 1000), "calculated")
-    return (int(number), "documented")
+        return (_exact(number * 1000), "calculated")
+    return (_exact(number), "documented")
 
 
 _EXTRACTORS = {
@@ -267,6 +279,9 @@ def _substations_from(text: str) -> list[str]:
     heading = _LOAD_STATIONS.search(text)
     if heading:
         tail = text[heading.end() :]
+        stop = _SENTENCE_END.search(tail)
+        if stop:
+            tail = tail[: stop.start()]
         for item in _LIST_ITEM.finditer(tail):
             names.append(item["n"].strip())
     return [n for n in dict.fromkeys(names) if n.split()[0] not in _STOP_NAMES]
@@ -285,10 +300,20 @@ def extract_projects(pages: list[str]) -> tuple[list[dict[str, Any]], dict[str, 
     for number, page_text in enumerate(pages, start=1):
         page_norm = normalise(page_text)
         current: str | None = sole
-        for segment in _segments(page_text):
+        for position, segment in enumerate(_segments(page_text)):
             ids = set(PROJECT_ID.findall(segment))
             if len(ids) == 1:
-                current = next(iter(ids))
+                only = next(iter(ids))
+                # Only a project-defining statement (the slide title, or "X submitted ... (ID)")
+                # switches the project. A segment that merely mentions a different ID ("this
+                # project supersedes 24RPG010") ends attribution instead of taking it over.
+                defining = position == 0 or _UTILITY.match(segment) is not None
+                if only == current:
+                    pass
+                elif defining:
+                    current = only
+                else:
+                    current = None
             elif len(ids) > 1:
                 current = None
             if current is None:
@@ -311,9 +336,13 @@ def _collect(project: _Project, segment: str, page: int, page_norm: str) -> None
         found = matcher.search(segment)
         if not found:
             continue
+        if name == "load" and (
+            _ASSUMPTION.search(page_norm) or project.project_id not in page_norm
+        ):
+            continue
         quote = _quote_around(segment, found.start(), found.end())
         rerun = _EXTRACTORS[name](quote)
-        if rerun is None:
+        if rerun is None or rerun != _EXTRACTORS[name](segment):
             continue
         if name == "utility":
             if rerun[2] != project.project_id:
@@ -326,6 +355,16 @@ def _collect(project: _Project, segment: str, page: int, page_norm: str) -> None
         if evidence is not None:
             project.add_scalar(name, evidence)
     _collect_places(project, segment, page, page_norm)
+
+
+def _reverified_substation(name: str, quote: str) -> bool:
+    """The name must be found again by a substation pattern or list item inside its own quote."""
+    if name in _substations_from(quote):
+        return True
+    item = re.compile(
+        rf"(?<!\w)[–—-]\s+{re.escape(name)}(?=,|;|\s+tapped|\s+connected|\s+[–—-]\s|$)"
+    )
+    return item.search(quote) is not None
 
 
 def _collect_places(project: _Project, segment: str, page: int, page_norm: str) -> None:
@@ -343,7 +382,7 @@ def _collect_places(project: _Project, segment: str, page: int, page_norm: str) 
     for name in names:
         anchor = segment.find(name)
         quote = _quote_around(segment, anchor, anchor + len(name))
-        if name in _substations_from(quote) or name in quote:
+        if _reverified_substation(name, quote):
             evidence = _evidence(name, "documented", page, quote, page_norm)
             if evidence is not None:
                 project.add_list(project.substations, evidence)

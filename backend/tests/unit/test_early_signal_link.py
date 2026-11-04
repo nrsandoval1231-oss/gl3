@@ -33,9 +33,9 @@ def docket(control="59549", subs=(), counties=(), rpg=()):
         "url": f"https://interchange.puc.texas.gov/Search/Filings?ControlNumber={control}",
         "document_sha256": "b" * 64,
         "fields": {
-            "substations": [ev(s, f"new substation {s}", sha=None) for s in subs],
-            "counties": [ev(c, sha=None) for c in counties],
-            "rpg_ids": [ev(r, sha=None) for r in rpg],
+            "substations": [ev(s, f"new substation {s}", sha="b" * 64) for s in subs],
+            "counties": [ev(c, sha="b" * 64) for c in counties],
+            "rpg_ids": [ev(r, sha="b" * 64) for r in rpg],
         },
     }
 

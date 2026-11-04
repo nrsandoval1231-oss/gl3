@@ -32,6 +32,7 @@ from gridlens.ingestion.adapters import early_signal_stage as stage
 from gridlens.ingestion.adapters import ercot_rpg_extract as extract
 from gridlens.ingestion.adapters import ercot_tpit as tpit
 from gridlens.ingestion.adapters import tceq_application_documents as shared
+from gridlens.ingestion.adapters.bounded_http import remaining_seconds
 from gridlens.ingestion.adapters.early_signal_http import (
     HTML,
     PDF,
@@ -53,6 +54,8 @@ MAX_RECORDS = 200
 PDF_RECHECK_HOURS = 24.0 * 14
 TPIT_RECHECK_HOURS = 20.0
 TPIT_TITLE = "Transmission Project and Information Tracking"
+TPIT_KEY = "tpit"
+MAX_TPIT_ROWS_RESERVE = 1500  # persistence time is sized as if every kept TPIT row were emitted
 
 _MEETING = re.compile(
     r"https://www\.ercot\.com/calendar/(?P<m>\d{2})(?P<d>\d{2})(?P<y>20\d{2})"
@@ -223,7 +226,9 @@ def record_for(
     if doc.get("listed"):
         lines.append(f"Listed by ERCOT: {doc['listed']}")
     return {
-        "document_number": ("ERCOT-TPIT-" if kind == "tpit" else "ERCOT-RPG-") + _doc_id(url),
+        # The TPIT workbook is replaced in place (and may be re-linked under a new name), so its
+        # identity is the stable key "tpit", never the URL.
+        "document_number": "ERCOT-TPIT-SNAPSHOT" if kind == "tpit" else "ERCOT-RPG-" + _doc_id(url),
         "title": f"{label}: {doc['title'] or url.rsplit('/', 1)[-1]}"[:250],
         "abstract": "\n".join(lines),
         "publication_date": doc.get("listed"),
@@ -232,7 +237,8 @@ def record_for(
         "html_url": url,
         "extraction_location": "ERCOT planning document",
         "source_hash": hashlib.sha256(f"{url}|{doc.get('listed')}".encode()).hexdigest(),
-        "state_key": url,
+        "state_key": TPIT_KEY if kind == "tpit" else url,
+        "doc_url": url,
         "doc_kind": kind,
         "listed_on": listed_on,
     }
@@ -272,6 +278,7 @@ def retrieve(
         fetcher = EarlyFetcher(http, pacer or shared.Pacer(), url_ok)
 
         def page(url: str) -> bytes:
+            remaining_seconds(deadline)
             try:
                 return fetcher.get(
                     url,
@@ -282,7 +289,12 @@ def retrieve(
             except DocumentFailure as failure:
                 raise _listing_error(failure) from failure
 
-        meetings = parse_meetings(page(HUB_URL))[: query["max_meetings"]]
+        # A scheduled meeting that has not happened yet has no documents to read.
+        meetings = [
+            m
+            for m in parse_meetings(page(HUB_URL))
+            if (meeting_date(m) or "9999-12-31") <= listed_on
+        ][: query["max_meetings"]]
         records: dict[str, dict[str, Any]] = {}
         for url in meetings:
             when = meeting_date(url)
@@ -314,14 +326,17 @@ def retrieve(
 
 
 def _item_for(record: dict[str, Any]) -> stage.DocItem | None:
-    url = record.get("state_key")
+    url = record.get("doc_url")
     kind = record.get("doc_kind")
     if not file_url_ok(url) or kind not in {"rpg_pdf", "tpit", "system_planning"}:
         return None
     if (kind == "tpit") != str(url).lower().endswith(".xlsx"):
         return None
+    key = TPIT_KEY if kind == "tpit" else str(url)
+    if record.get("state_key") != key:
+        return None
     return stage.DocItem(
-        key=str(url),
+        key=key,
         url=str(url),
         kind=str(kind),
         max_bytes=MAX_XLSX_BYTES if kind == "tpit" else MAX_PDF_BYTES,
@@ -381,7 +396,9 @@ def run_stage(
     empty. The stage report names the reason, and the next run asks again.
     """
     started = now()
+    listed_count = len(records)
     items = [item for record in records if (item := _item_for(record)) is not None]
+    tpit_listed = any(item.kind == "tpit" for item in items)
     in_scope = {item.key for item in items}
     states = {k: v for k, v in prior_states.items() if k in in_scope}
     owns = client is None
@@ -393,7 +410,7 @@ def run_stage(
             policy=url_ok,
             config=config,
             deadline=deadline,
-            record_count=len(records),
+            record_count=len(records) + (MAX_TPIT_ROWS_RESERVE if tpit_listed else 0),
             index=index,
             states=states,
             extractors=EXTRACTORS,
@@ -404,7 +421,7 @@ def run_stage(
             run.report.bump("skipped_retry_after")
         else:
             stage.run_documents(run, items)
-        report = stage.finish(run, index)
+        report = stage.finish(run, index, listed_count)
     finally:
         if owns:
             http.close()
@@ -419,9 +436,9 @@ def run_stage(
             continue
         stage.apply_state(record, state)
         if record.get("doc_kind") == "tpit":
-            extra.extend(
-                tpit_row_records(state, prior_states.get(str(key)), record.get("publication_date"))
-            )
+            # Every run, from the snapshot in hand: ids and hashes are deterministic, so an
+            # unchanged re-run is idempotent and a run that failed part-way loses no row.
+            extra.extend(tpit_row_records(state))
     records[:] = [r for r in records if not any(r is u for u in unread)]
     seen = {r["document_number"] for r in records}
     records.extend(r for r in extra if r["document_number"] not in seen)
@@ -448,19 +465,17 @@ def _safe(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", value)[:40]
 
 
-def tpit_row_records(
-    state: dict[str, Any], prior: dict[str, Any] | None, published_at: str | None
-) -> list[dict[str, Any]]:
-    """Baseline rows or the monthly diff of a changed snapshot, as individual observations."""
+def tpit_row_records(state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Baseline rows or the monthly diff of a snapshot, as individual observations.
+
+    Self-contained: removed rows come from the snapshot's own ``removed_rows``.
+    """
     document = state["document"]
     sha = document["sha256"]
-    if prior is not None and (prior.get("document") or {}).get("sha256") == sha:
-        return []
+    published_at = state.get("published_at")
     extraction = document["extraction"]
     rows: dict[str, dict[str, Any]] = extraction["rows"]
-    before_rows: dict[str, dict[str, Any]] = (
-        ((prior or {}).get("document") or {}).get("extraction") or {}
-    ).get("rows") or {}
+    removed_rows: dict[str, dict[str, Any]] = extraction.get("removed_rows") or {}
     if extraction.get("baseline"):
         changes = [{"project": n, "change": "baseline"} for n in sorted(rows)]
     else:
@@ -468,7 +483,7 @@ def tpit_row_records(
     records: list[dict[str, Any]] = []
     for change in changes:
         number = change["project"]
-        row = rows.get(number) or before_rows.get(number) or {}
+        row = rows.get(number) or removed_rows.get(number) or {}
         label = change["change"]
         head = {
             "baseline": "present in the first snapshot read (a baseline, not a new project)",

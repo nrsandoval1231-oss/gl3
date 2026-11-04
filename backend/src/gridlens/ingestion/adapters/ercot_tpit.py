@@ -37,6 +37,9 @@ _SHEET_ORDER = ("Future", "Planned", "Completed", "Cancelled")
 _PRECEDENCE = {"Completed": 3, "Cancelled": 2, "Planned": 1, "Future": 0}
 _RELEVANT_TEXT = re.compile(r"\bload\b|customer|data[ -]?cent(?:er|re)", re.I)
 _SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,29}")
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_PHONE = re.compile(r"(?<!\d)(?:\+?1[-. ]?)?\(?\d{3}\)?[-. ]\d{3}[-. ]\d{4}(?!\d)")
+MAX_FIRST_SEEN = 4000
 
 # column key -> normalised header prefix
 _COLUMNS = {
@@ -82,6 +85,8 @@ def _clean(value: Any) -> str | None:
     if isinstance(value, datetime | date):
         return value.date().isoformat() if isinstance(value, datetime) else value.isoformat()
     text = "".join(ch if ch.isprintable() else " " for ch in str(value))
+    # Free text can carry a contact; personal e-mail addresses and phone numbers never survive.
+    text = _PHONE.sub("[phone removed]", _EMAIL.sub("[email removed]", text))
     text = " ".join(text.split())
     return text[:MAX_TEXT] or None
 
@@ -236,21 +241,37 @@ def tpit_extraction(
     observed_on: str,
 ) -> dict[str, Any]:
     data = read_workbook_isolated(body, seconds, isolate)
+    families = sorted(data["sheets"])
+    prior_families = (prior_extraction or {}).get("families")
+    if prior_families and not set(prior_families).issubset(families):
+        # A lifecycle sheet that was read last time is gone: a partial read must never turn
+        # every row of the missing sheet into a "removed" row.
+        raise DocumentFailure("workbook_columns_changed")
     kept, total = kept_rows(data["sheets"])
     if len(kept) > MAX_KEPT_ROWS:
         raise DocumentFailure("workbook_too_many_relevant_rows")
     prior_rows = (prior_extraction or {}).get("rows") if prior_extraction else None
+    # First seen is carried across every snapshot (a row that leaves and returns keeps its day).
+    first_seen: dict[str, str] = dict((prior_extraction or {}).get("first_seen") or {})
     rows: dict[str, dict[str, Any]] = {}
     for number, row in kept.items():
         entry: dict[str, Any] = {key: row.get(key) for key in _COMPARED if row.get(key) is not None}
         entry["h"] = row_hash(row)  # over the full kept fields
         if entry.get("description"):
             entry["description"] = entry["description"][:160]
-        before = (prior_rows or {}).get(number)
-        # Carried forward from the first snapshot that showed the row; never rewritten.
-        entry["fs"] = (before or {}).get("fs") or observed_on
+        first_seen.setdefault(number, observed_on)
+        entry["fs"] = first_seen[number]
         rows[number] = entry
+    if len(first_seen) > MAX_FIRST_SEEN:
+        # Keep the most recent first-seen days; rows still present are never dropped.
+        keep = sorted(first_seen.items(), key=lambda kv: (kv[0] in rows, kv[1]), reverse=True)
+        first_seen = dict(keep[:MAX_FIRST_SEEN])
     changes = diff(prior_rows, rows)
+    removed = {
+        c["project"]: prior_rows[c["project"]]
+        for c in changes
+        if c["change"] == "removed" and prior_rows and c["project"] in prior_rows
+    }
     counts = {name: len(items) for name, items in data["sheets"].items()}
     first = prior_rows is None
     lines = [
@@ -268,10 +289,13 @@ def tpit_extraction(
     ]
     return {
         "extractor": VERSION,
+        "families": families,
         "sheet_counts": counts,
         "rows_total": total,
         "rows_kept": len(rows),
         "rows": rows,
+        "first_seen": first_seen,
+        "removed_rows": removed,
         "baseline": first,
         "diff": changes,
         "summary_lines": lines,

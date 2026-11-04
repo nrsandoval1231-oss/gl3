@@ -193,11 +193,12 @@ def test_listing_reads_hub_meeting_and_planning_only():
     records = listing(origin)
     assert origin.urls() == [HUB, MEETING, PLANNING]  # no document fetched, no date-path guess
     by_url = {r["state_key"]: r for r in records}
-    assert set(by_url) == {STATUS_PDF, OVERVIEW_PDF, TPIT_XLSX}  # the agenda is not a project doc
+    assert set(by_url) == {STATUS_PDF, OVERVIEW_PDF, "tpit"}  # the agenda is not a project doc
     status = by_url[STATUS_PDF]
     assert status["publication_date"] == "2026-07-17" and status["event_date"] == "2026-07-21"
-    assert status["doc_kind"] == "rpg_pdf" and by_url[TPIT_XLSX]["doc_kind"] == "tpit"
-    assert by_url[TPIT_XLSX]["publication_date"] == "2026-10-23"
+    assert status["doc_kind"] == "rpg_pdf" and by_url["tpit"]["doc_kind"] == "tpit"
+    assert by_url["tpit"]["publication_date"] == "2026-10-23"
+    assert by_url["tpit"]["doc_url"] == TPIT_XLSX
     # Off-host and relative meeting links on the hub are ignored.
     assert all(r["html_url"].startswith("https://www.ercot.com/files/docs/") for r in records)
 
@@ -561,7 +562,7 @@ def tpit_state(origin=None, now=NOW, prior=None):
 def test_tpit_snapshot_keeps_only_relevant_rows_and_never_contacts():
     records, report = tpit_state()
     assert report.rejections == []
-    state = states_of(records)[TPIT_XLSX]
+    state = states_of(records)["tpit"]
     extraction = state["document"]["extraction"]
     assert extraction["sheet_counts"] == {"Future": 4, "Planned": 1, "Completed": 1, "Cancelled": 1}
     rows = extraction["rows"]
@@ -608,7 +609,7 @@ def test_tpit_monthly_diff_new_changed_removed_and_first_seen_carried():
     origin.put(PLANNING, planning_html(tpit_listed="Nov 25, 2026"))
     later = NOW + timedelta(days=30)
     records2, report = tpit_state(origin, later, prior)
-    extraction = states_of(records2)[TPIT_XLSX]["document"]["extraction"]
+    extraction = states_of(records2)["tpit"]["document"]["extraction"]
     assert extraction["baseline"] is False
     changes = {c["project"]: c for c in extraction["diff"]}
     assert changes["120000"]["change"] == "new"
@@ -636,11 +637,19 @@ def test_tpit_monthly_diff_new_changed_removed_and_first_seen_carried():
     assert len(again) == 3
 
 
-def test_tpit_unchanged_snapshot_adds_no_rows():
+def test_tpit_unchanged_snapshot_re_emits_the_same_rows_deterministically():
     records, _ = tpit_state()
     prior = states_of(records)
     again, _ = tpit_state(ercot_origin(), NOW + timedelta(days=2), prior)
-    assert not [r for r in again if r.get("early_signal", {}).get("kind") == "tpit_row"]
+
+    def rows(recs):
+        return {
+            r["document_number"]: (r["source_hash"], r["abstract"])
+            for r in recs
+            if r.get("early_signal", {}).get("kind") == "tpit_row"
+        }
+
+    assert rows(records) and rows(records) == rows(again)
 
 
 def test_tpit_changed_columns_is_a_typed_failure():
