@@ -20,6 +20,7 @@ from gridlens.ingestion.parsers.permit_docs.lexicon import (
     parse_number,
     state_from_text,
     type_from_text,
+    unit_from_text,
 )
 from gridlens.ingestion.parsers.permit_docs.models import ExtractedRow, FieldEvidence, Route
 from gridlens.ingestion.parsers.permit_docs.router import header_unit
@@ -98,6 +99,14 @@ def _parse_row(line: str, table: _Table) -> dict[str, tuple[str, int, int]] | No
 
 
 def extract_tables(
+    canon: CanonicalText, routes: dict[int, Route]
+) -> tuple[list[ExtractedRow], list[str]]:
+    rows, issues = _extract_header_keyed(canon, routes)
+    capacity_rows, capacity_issues = extract_capacity_tables(canon, routes)
+    return rows + capacity_rows, issues + capacity_issues
+
+
+def _extract_header_keyed(
     canon: CanonicalText, routes: dict[int, Route]
 ) -> tuple[list[ExtractedRow], list[str]]:
     rows: list[ExtractedRow] = []
@@ -260,3 +269,138 @@ def _build_row(
         group=table.group,
         stitched=page != table.header_page,
     )
+
+
+# NMED application Table 2-A / UA2 style: `ID make model serial 2250 HP 2250 HP ...` where the
+# first value is the Rated Capacity and the equipment type is on the unit's own description
+# line (`Compressor Engine ENG-1`) or inside the row (`Turbine (Compressor) Solar Saturn`).
+_CAPACITY_UNIT = r"(?P<u{n}>HP|hp|kW|KW|MW|MMBtu/hr)"
+_CAPACITY_ROW = re.compile(
+    r"^(?P<id>[A-Za-z0-9][A-Za-z0-9._/\-]{0,39})\s+(?P<mid>\S.*?)\s+"
+    rf"(?P<r1>{NUMBER_RE.pattern})\s*{_CAPACITY_UNIT.format(n=1)}\s+"
+    rf"(?P<r2>{NUMBER_RE.pattern})\s*{_CAPACITY_UNIT.format(n=2)}(?![A-Za-z])"
+)
+
+
+def extract_capacity_tables(
+    canon: CanonicalText, routes: dict[int, Route]
+) -> tuple[list[ExtractedRow], list[str]]:
+    rows: list[ExtractedRow] = []
+    issues: list[str] = []
+    for page in canon.pages:
+        if routes.get(page.page) in (None, "scan"):
+            continue
+        if "Table 2-A" not in page.text and "Rated Capacity" not in page.text:
+            continue
+        lines = page.text.split(chr(10))
+        offsets = []
+        cursor = canon.page_starts[page.page - 1]
+        for line in lines:
+            offsets.append(cursor)
+            cursor += len(line) + 1
+        for index, line in enumerate(lines):
+            match = _CAPACITY_ROW.match(line)
+            if match is None or match.group("u1").lower() != match.group("u2").lower():
+                continue
+            row = _capacity_row(match, lines, offsets, index, page.page, issues)
+            if row is not None:
+                rows.append(row)
+    return rows, issues
+
+
+def _capacity_row(
+    match: re.Match[str],
+    lines: list[str],
+    offsets: list[int],
+    index: int,
+    page: int,
+    issues: list[str],
+) -> ExtractedRow | None:
+    line_start = offsets[index]
+    id_text = match.group("id")
+    if not any(c.isdigit() for c in id_text):
+        return None
+    rating = parse_number(match.group("r1"))
+    unit_token = match.group("u1")
+    if rating is None or rating <= 0:
+        return None
+    mid = match.group("mid")
+    candidates = [(mid, line_start + match.start("mid"))]
+    for neighbor in (index + 1, index - 1):
+        if 0 <= neighbor < len(lines):
+            text = lines[neighbor]
+            lead = len(text) - len(text.lstrip())
+            candidates.append((text.strip(), offsets[neighbor] + lead))
+    type_value, type_quote, type_start = _capacity_type(candidates)
+    if type_value is None:
+        issues.append(f"No equipment type stated for capacity row {id_text!r} on page {page}.")
+        return None
+    unit = unit_from_text(unit_token)
+    if unit is None:
+        return None
+    evidence = {
+        "id": FieldEvidence(
+            "id",
+            id_text,
+            id_text,
+            line_start + match.start("id"),
+            line_start + match.end("id"),
+            page,
+        ),
+        "type": FieldEvidence(
+            "type", type_value, type_quote, type_start, type_start + len(type_quote), page
+        ),
+        "rating": FieldEvidence(
+            "rating",
+            str(rating),
+            match.group("r1"),
+            line_start + match.start("r1"),
+            line_start + match.end("r1"),
+            page,
+        ),
+        "unit": FieldEvidence(
+            "unit",
+            unit,
+            unit_token,
+            line_start + match.start("u1"),
+            line_start + match.end("u1"),
+            page,
+        ),
+    }
+    drive = drive_from_text(type_quote)
+    if drive != "unknown":
+        evidence["drive"] = FieldEvidence(
+            "drive", drive, type_quote, type_start, type_start + len(type_quote), page
+        )
+    return ExtractedRow(
+        origin="table",
+        equipment_id=id_text,
+        equipment_type=type_value,
+        drive=drive,
+        rating=Decimal(rating),
+        unit=unit,
+        count=None,
+        state="unknown",
+        evidence=evidence,
+        group="capacity-table",
+    )
+
+
+_SERVICE_TAG = re.compile(r"\([^)]*\)")
+_PRIME_MOVERS = {"engine", "turbine", "generator", "heater", "flare"}
+
+
+def _capacity_type(candidates: list[tuple[str, int]]) -> tuple[str | None, str, int]:
+    """Type from the row or its own description lines. Prime movers outrank service tags,
+    and a type that appears only inside a parenthetical service tag is not used."""
+    found: list[tuple[str, str, int]] = []
+    for text, start in candidates:
+        value = type_from_text(_SERVICE_TAG.sub(" ", text))
+        if value is not None:
+            found.append((value, text, start))
+    for value, text, start in found:
+        if value in _PRIME_MOVERS:
+            return value, text, start
+    if found:
+        return found[0]
+    return None, "", 0
