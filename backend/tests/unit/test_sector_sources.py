@@ -1092,11 +1092,9 @@ def test_sec_probe_financing_facilities_are_not_sites():
     assert sec_statements("The Term Loan Facility funds the 300 MW build.") == []
     assert sec_statements("The Credit Facility supports 50 MW of expansion.") == []
 
-    sentence = "The Rockdale Facility hosts mining; the Corsicana Facility has 1 GW of capacity."
-
 
 def test_sec_probe_two_sites_in_one_sentence_are_dropped():
-    sentence = "The Rockdale Facility hosts mining; separately the Corsicana Facility has 1 GW of capacity."
+    sentence = "The Rockdale Facility hosts mining; the Corsicana Facility has 1 GW of capacity."
     assert sec_statements(sentence) == []
     assert len(sec_statements("The Rockdale Facility (the Rockdale Facility) has 700 MW.")) == 1
 
