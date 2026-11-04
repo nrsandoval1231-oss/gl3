@@ -48,7 +48,7 @@ def load_index(session: Session, source_id: str) -> dict[str, Any]:
     if not isinstance(stored, dict):
         return {}
     keys = stored.get("keys")
-    return {
+    result: dict[str, Any] = {
         "frontier": stored.get("frontier") if type(stored.get("frontier")) is int else None,
         "keys": (
             {str(k): dict(v) for k, v in list(keys.items())[:MAX_INDEX_KEYS] if isinstance(v, dict)}
@@ -56,6 +56,9 @@ def load_index(session: Session, source_id: str) -> dict[str, Any]:
             else {}
         ),
     }
+    if isinstance(stored.get("not_before"), str):
+        result["not_before"] = stored["not_before"]
+    return result
 
 
 def save_index(session: Session, source_id: str, index: dict[str, Any]) -> None:

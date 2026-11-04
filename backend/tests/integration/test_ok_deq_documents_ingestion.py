@@ -351,3 +351,40 @@ def test_a_failed_job_stage_never_marks_the_source_unhealthy(stage_db, monkeypat
     with stage_db() as session:
         health = session.get(Source, SOURCE_ID).health
     assert set(health) == {"okdeq_documents"}
+
+
+def test_retry_after_is_stored_in_health_and_honoured_by_the_next_run(stage_db, monkeypatch):
+    from gridlens.ingestion.service import _enrich_with_application_documents
+
+    definition, job_id = setup_source(stage_db)
+    monkeypatch.setattr(okd, "config_from_source", lambda _s: CONFIG)
+    origin = Origin()
+    origin.put(8406, memo_pdf())
+    origin.head_status = 429  # Retry-After: 120
+
+    def enrich():
+        with stage_db() as session:
+            report = _enrich_with_application_documents(
+                session,
+                job_id,
+                WORKER,
+                1,
+                definition,
+                [listing_record(event_date=COMMENT_START)],
+                origin.client(),
+                deadline=None,
+            )
+            session.commit()
+        return report
+
+    assert enrich().counts["aborted_rate_limited"] == 1
+    with stage_db() as session:
+        assert "not_before" in session.get(Source, SOURCE_ID).health["okdeq_documents"]
+    origin.log.clear()
+    assert enrich().counts == {
+        "skipped_retry_after": 1,
+        "in_scope": 1,
+        "downloads": 0,
+        "frontier": 0,
+    }
+    assert origin.log == []
