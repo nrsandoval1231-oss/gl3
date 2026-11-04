@@ -856,7 +856,7 @@ def test_ercot_links_and_parse():
     assert parsed["observed_nonsimultaneous_peak_mw"] == 4132
     record = ercot_monthly.build_record(parsed, links[0]["url"], "2026-10-16")
     assert record["permit"]["calculated_observed_over_approved"] == 0.437
-    assert "not a site, customer or project" in record["abstract"]
+    assert "not a site or customer" in record["abstract"]
     assert record["permit"]["location"] is None
     assert assess_permit(record, as_of=TODAY)["decision"] == "rejected"
 

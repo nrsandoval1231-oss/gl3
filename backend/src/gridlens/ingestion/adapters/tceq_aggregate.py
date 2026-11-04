@@ -3,8 +3,8 @@
 Live check 2026-11-04: ``https://data.texas.gov/resource/9ixa-7k3m.json`` is keyless. The
 dataset held 1,068 rows (``select count(*)``), updated 2026-11-04 14:03 GMT. One row is one
 registration (``registration``, e.g. ``AP0000007``) with site, county, coordinates, material,
-disturbed area, last application and status. The dataset spells one field ``last_applicaiton_status``;
-both spellings are read.
+disturbed area, last application and status. The dataset spells one field
+``last_applicaiton_status``; both spellings are read.
 
 Bounded queries: a count first, then pages ordered by ``registration``; the pages must add up to
 the count or the run fails (a changing dataset is retried, not half-ingested). New and changed

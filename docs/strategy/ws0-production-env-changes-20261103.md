@@ -174,3 +174,21 @@ The NMED source `new-mexico-nmed-air-applications` ([workstream 3](../engineerin
 ### NMED air-facility layers
 
 `nmed_air_facilities.py` (ArcGIS MapServer, layers 0 to 6) is a bounded, read-only reader with no registry entry and no caller in the job path: the layers carry no AI or permit number and no date, so records would be dateless observations with no join. Nothing is shipped to activate. A future consumer (an identity join) is separate work; its config shape is validated by `nmed_air_facilities.valid_config` and the host is pinned in `nmed_http.py`.
+
+## Workstream 5 sector and regulation sources activation
+
+Eight sources ([engineering note](../engineering/sector-and-regulation-sources-20261103.md)) ship **off**: every entry has `"enabled": false`. They use no paid provider. Two need a value from the secret store; neither is in the repository. Enable one source at a time through the protected release by setting `enabled` to `true` on its entry; roll back by setting it to `false` (evidence and change history stay). Each source is a few requests per run at no more than one per second to a single public host.
+
+| Source ID | Enable when | Environment / registry input | Notes |
+| --- | --- | --- | --- |
+| `faa-oeaaa-obstruction` | The owner has a campus list | `query.campuses` (at most 200 `{id, name, latitude, longitude}`), `query.radius_m` (shipped 2000), `query.window_days` (shipped 3) | Keyless. One request per determination day to `oeaaa.faa.gov` (about 2.4 MB each). With no campuses nothing is requested. A day at the 8,000-row cap fails the run. |
+| `msha-mines` | Any time | none | Keyless. Registered weekly (`cadence_hours` 168, validated). One 7.3 MB download per run; the first run ingests about 1,335 mines as new. Worker memory: the 39 MB member is read once into memory under the existing 512 MiB child cap. |
+| `texas-tceq-aggregate-production` | Any time | none | Keyless Socrata on `data.texas.gov`. Two requests per run for 1,068 rows. |
+| `afdc-ev-stations` | The owner holds an NLR developer key | **`AFDC_API_KEY`** (secret store, server-only; add the name to the production compose environment list alongside the other server-only keys). Setting `afdc_api_key`. | Host `developer.nlr.gov` (the old `developer.nrel.gov` host no longer resolves). Without the key the run fails before any request. The live response shape is unverified: watch the first run. |
+| `texas-txdot-nevi-awards` | Any time | none | Keyless ArcGIS layer on `services.arcgis.com`. Two requests per run. Texas only. |
+| `sec-edgar-site-mw` | The owner sets a contact and a CIK list | **`SEC_EDGAR_CONTACT`** (setting `sec_edgar_contact`; an email or URL appended to the user agent per SEC fair-access policy, not a personal address in the repository) and `query.ciks` (at most 10 ten-digit CIKs) | Without the contact the run fails before any request. Hosts `data.sec.gov` and `www.sec.gov`; one filing document of up to 12 MB per CIK per run. |
+| `texas-ercot-monthly-overview` | Any time | none | Weekly. One page plus up to two PDFs (1.2 to 1.6 MB) from `www.ercot.com`. Aggregate only. |
+| `regulatory-event-feed` | Any time | Reviewed file `config/regulatory/events.v1.json` | No network. A new event is a reviewed change to that file (official https URL, date, verbatim quote, fixed effect, scope, verified date); a unit test checks quotes against saved official text. |
+
+Evidence effect for all eight: retained observations and evidence with `published_at`, `first_seen_at` and `observed_at`; no need, project, card or customer-visible demand is created, and a missing value is unknown, never zero.
+

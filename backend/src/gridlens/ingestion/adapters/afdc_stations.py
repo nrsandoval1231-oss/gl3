@@ -116,6 +116,7 @@ def normalize(row: dict[str, Any]) -> dict[str, Any]:
 
 def build_record(row: dict[str, Any]) -> dict[str, Any]:
     sid = row["id"]
+    status_label = row["status"] or "status unknown"
 
     def ports(value: int | None) -> str:
         return str(value) if value is not None else "not stated"
@@ -135,7 +136,7 @@ def build_record(row: dict[str, Any]) -> dict[str, Any]:
     return candidate_record(
         source_id=SOURCE_ID,
         row_id=f"AFDC-{sid}",
-        title=f"AFDC EV station {sid} — {row['name'] or 'unnamed'} ({row['status'] or 'status unknown'})",
+        title=f"AFDC EV station {sid} — {row['name'] or 'unnamed'} ({status_label})",
         abstract_lines=lines,
         url=ENDPOINT,
         extraction_location=f"AFDC alt-fuel-stations v1 station id {sid}",

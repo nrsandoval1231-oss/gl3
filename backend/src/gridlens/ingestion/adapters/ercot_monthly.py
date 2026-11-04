@@ -118,7 +118,7 @@ def parse_overview(body: bytes) -> dict[str, Any]:
         "report_month": f"{year:04d}-{month:02d}",
         "approved_to_energize_mw": approved,
         "observed_nonsimultaneous_peak_mw": observed,
-        "quote": fact.group(0) if approved is not None else None,
+        "quote": fact.group(0) if fact and approved is not None else None,
     }
 
 
@@ -131,7 +131,7 @@ def build_record(parsed: dict[str, Any], url: str, posted: str) -> dict[str, Any
     month = parsed["report_month"]
     lines = [
         f"ERCOT Monthly Operational Overview, report month {month}; PDF posted {posted}",
-        "ERCOT-wide aggregate of large loads approved to energize; not a site, customer or project.",
+        "ERCOT-wide aggregate of large loads approved to energize; not a site or customer.",
         f"MW approved to energize: {approved if approved is not None else 'not stated'}",
         "Observed non-simultaneous monthly peak MW: "
         + (str(observed) if observed is not None else "not stated"),

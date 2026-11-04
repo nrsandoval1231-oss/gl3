@@ -11,9 +11,10 @@ Oklahoma (ODOT / EVOK): no site-level award list was found. The ODOT and EVOK pa
 (round one: 13 sites to Love's, Francis Energy and Tesla, stated in 2024 news text) and there is
 no feature layer or file to read, so nothing is ingested for Oklahoma.
 
-Identity: ``NEVI_ID`` is blank on 168 of the 474 live rows and repeats on others, and ``CSJ`` repeats
-on placeholder rows (``0000-00-000``), so a site is keyed by CSJ plus its coordinate (five decimals),
-which was unique across all 474 rows. ``OBJECTID`` is layer-local and only orders the paging. Rows
+Identity: ``NEVI_ID`` is blank on 168 of the 474 live rows and repeats on others, and
+``CSJ`` repeats on placeholder rows (``0000-00-000``), so a site is keyed by CSJ plus its
+coordinate (five decimals), which was unique across all 474 rows. ``OBJECTID`` is
+layer-local and only orders the paging. Rows
 whose applicant reads "No Applications Received" are kept as sites with no applicant.
 
 Nameplate: ``ports x max_per_port_kw`` is *calculated* from two stated numbers and labelled so. It
