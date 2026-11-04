@@ -127,6 +127,10 @@ def extract_from_canonical(
         "demand_claim": len(build.demand_rows),
         "supply_other": len(build.supply_rows),
     }
+    if canon.failed_pages:
+        result.issues.append(
+            f"Text extraction failed on page(s) {canon.failed_pages}; treated as needing OCR."
+        )
     if result.needs_ocr_pages:
         result.issues.append(
             f"{len(result.needs_ocr_pages)} page(s) have no text layer and need OCR; no rows read."

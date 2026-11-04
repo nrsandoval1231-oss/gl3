@@ -54,6 +54,7 @@ class CanonicalText:
     page_starts: list[int]
     # (start, end, bbox) per source line, canonical offsets, ascending; empty without geometry.
     line_boxes: list[tuple[int, int, BBox]] = field(default_factory=list)
+    failed_pages: list[int] = field(default_factory=list)  # text extraction raised; treated as scan
 
     @classmethod
     def from_page_texts(cls, page_texts: list[str]) -> CanonicalText:
@@ -122,6 +123,7 @@ def build_canonical_text(
         return TextLayerFailure("unreadable", "pdfplumber is not installed")
     started = time.monotonic()
     pages: list[PageText] = []
+    failed: list[int] = []
     line_data: list[list[tuple[str, BBox]]] = []
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
@@ -155,7 +157,9 @@ def build_canonical_text(
         for line_text, box in texts:
             boxes.append((cursor, cursor + len(line_text), box))
             cursor += len(line_text) + 1
-    return CanonicalText(pages=pages, text=text, page_starts=starts, line_boxes=boxes)
+    return CanonicalText(
+        pages=pages, text=text, page_starts=starts, line_boxes=boxes, failed_pages=failed
+    )
 
 
 def _bbox(line: dict[str, object]) -> BBox:

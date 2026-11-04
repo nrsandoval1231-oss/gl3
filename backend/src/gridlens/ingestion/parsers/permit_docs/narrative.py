@@ -17,6 +17,7 @@ from gridlens.ingestion.parsers.permit_docs.lexicon import (
     NUMBER,
     THRESHOLD_AFTER,
     THRESHOLD_BEFORE,
+    WORD_NUMBERS,
     count_from_text,
     drive_from_text,
     parse_number,
@@ -55,7 +56,14 @@ _NOUN_RE = re.compile(
     re.I,
 )
 _RANGE_BEFORE = re.compile(r"\d\s*(?:to|and|through|-|–)\s*$", re.I)
-_COUNT_BEFORE = re.compile(COUNT_RE.pattern + r"\s*(?:approximately\s+)?$", re.I)
+_COUNT_BEFORE = re.compile(
+    r"(?:"
+    + COUNT_RE.pattern
+    + r"|(?<![\w-])(?P<bare>"
+    + "|".join(WORD_NUMBERS)
+    + r"))\s*(?:approximately\s+)?$",
+    re.I,
+)
 _ASSOCIATED = re.compile(r"associated\s+(?:[a-z]+\s+){0,2}(?P<name>[A-Z][A-Za-z0-9-]+)")
 _SENTENCE_END = re.compile(r"[.;:]\s|\n\n")
 _STATE_CUE = re.compile(r"(?P<existing>\bexisting\b)|(?P<proposed>\b(?:add|install)\b)", re.I)

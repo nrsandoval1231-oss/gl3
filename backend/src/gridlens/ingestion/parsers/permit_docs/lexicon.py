@@ -9,7 +9,7 @@ NUMBER = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
 NUMBER_RE = re.compile(NUMBER)
 YEAR_RE = re.compile(r"(?:19|20)\d{2}")
 
-NARRATIVE_UNIT = r"(?:(?i:hp|bhp|horsepower)|kWe?|MW|kVA)(?![\w/]|-hr|\s*/\s*hr)"
+NARRATIVE_UNIT = r"(?:(?i:hp|bhp|horsepower|MMBtu/?hr?)|kWe?|MW|kVA)(?![\w/]|-hr|\s*/\s*hr)"
 # Header words that name a rating column, with the canonical unit they imply.
 RATING_HEADERS = (
     (re.compile(r"^(?:rated\s+)?horsepower$|^hp$|^bhp$", re.I), "hp"),
@@ -60,7 +60,7 @@ THRESHOLD_AFTER = re.compile(
     re.I,
 )
 
-_WORD_NUMBERS = {
+WORD_NUMBERS = {
     "one": 1,
     "two": 2,
     "three": 3,
@@ -75,7 +75,7 @@ _WORD_NUMBERS = {
     "twelve": 12,
 }
 COUNT_RE = re.compile(
-    r"(?:\b(?P<word>" + "|".join(_WORD_NUMBERS) + r")\s+)?\((?P<digits>\d{1,3})\)", re.I
+    r"(?:\b(?P<word>" + "|".join(WORD_NUMBERS) + r")\s+)?\((?P<digits>\d{1,3})\)", re.I
 )
 
 
@@ -104,15 +104,21 @@ def unit_from_text(text: str) -> str | None:
     return None
 
 
+_WORD_COUNT_RE = re.compile(r"(?:" + "|".join(WORD_NUMBERS) + r")", re.I)
+
+
 def count_from_text(text: str) -> int | None:
+    """Count stated as `three (3)`, `(3)` or a bare number word (`Two`); else None."""
     match = COUNT_RE.search(text)
-    if match is None:
-        return None
-    digits = int(match.group("digits"))
-    word = match.group("word")
-    if word is not None and _WORD_NUMBERS[word.lower()] != digits:
-        return None  # "three (4)" is internally inconsistent: refuse.
-    return digits if digits > 0 else None
+    if match is not None:
+        digits = int(match.group("digits"))
+        word = match.group("word")
+        if word is not None and WORD_NUMBERS[word.lower()] != digits:
+            return None  # "three (4)" is internally inconsistent: refuse.
+        return digits if digits > 0 else None
+    if _WORD_COUNT_RE.fullmatch(text.strip()):
+        return WORD_NUMBERS[text.strip().lower()]
+    return None
 
 
 _NEGATED = re.compile(r"(?:\bnon|\bnot|\bno|\bwithout)[\s-]*$", re.I)

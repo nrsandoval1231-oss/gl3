@@ -102,3 +102,17 @@ def test_router_sends_narrative_pages_here() -> None:
     assert route_page("OGS will add three (3) 2,500-hp Siemens electric compressor motors.") == (
         "narrative"
     )
+
+
+def test_bare_number_word_and_mmbtu_heater() -> None:
+    engines, heater = _rows(
+        "Two 2,000-hp Cooper-Bessemer GMVH-10 compressor engines (E1 and E2) are located "
+        "here, with an associated 2.40-MMBTUH glycol regeneration heater."
+    )
+    assert (engines.equipment_type, engines.count, str(engines.rating)) == ("engine", 2, "2000")
+    assert (heater.equipment_type, heater.unit, str(heater.rating), heater.count) == (
+        "heater",
+        "MMBtu/hr",
+        "2.40",
+        None,
+    )
