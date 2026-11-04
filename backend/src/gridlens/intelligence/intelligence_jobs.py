@@ -919,6 +919,10 @@ def _enabled(
         payload and payload.get("task_context", {}).get("party_candidates")
     ):
         return False, "", "", "BUYER_SUBJECT_UNRESOLVED"
+    if task_type == "EQUIPMENT_PROPOSER_V1":
+        from gridlens.intelligence.equipment_proposer import proposer_enabled
+
+        return proposer_enabled()
     if task_type == COMMERCIAL_ASSESSMENT_TASK:
         model = settings.intelligence_openai_reasoning_model
         if not settings.intelligence_enabled or mode not in {"evaluation", "advisory"}:
@@ -1285,6 +1289,8 @@ def _openai_output_bound(task_type: str) -> int:
         return POWER_NEED_TITLE_OUTPUT_TOKENS
     if task_type in {"OCR_EXTRACTION", "OCR_GROUNDED_FOLLOWON"}:
         return settings.intelligence_ocr_max_output_tokens
+    if task_type == "EQUIPMENT_PROPOSER_V1":
+        return settings.intelligence_equipment_max_output_tokens
     prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
     return getattr(settings, f"intelligence_openai_{prefix}_max_output_tokens")
 
@@ -1389,6 +1395,11 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
         )
         return unit or Decimal("0")
     if provider == "openai":
+        if task_type == "EQUIPMENT_PROPOSER_V1":
+            from gridlens.intelligence.equipment_proposer import cost_bound as proposer_cost_bound
+
+            request = payload.get("request")
+            return proposer_cost_bound(request) if isinstance(request, dict) else Decimal("0")
         if task_type == COMMERCIAL_ASSESSMENT_TASK:
             request = commercial_assessment_request_payload(
                 model=settings.intelligence_openai_reasoning_model,
