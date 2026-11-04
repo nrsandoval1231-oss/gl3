@@ -202,6 +202,10 @@ def recent_capped_out_jobs(session: Any, *, hours: int = 48) -> dict[str, Any]:
     total = session.scalar(
         select(func.count())
         .select_from(Job)
-        .where(Job.kind == "intelligence_process", Job.created_at >= since, marker)
+        .where(
+            Job.kind.in_(("intelligence_process", "document_extraction")),
+            Job.created_at >= since,
+            marker,
+        )
     )
     return {"hours": hours, "jobs": int(total or 0)}
