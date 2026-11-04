@@ -23,6 +23,10 @@ from typing import Any
 
 from gridlens.ingestion.parsers.permit_docs.models import ExtractedRow, Route
 from gridlens.ingestion.parsers.permit_docs.narrative import extract_narrative
+from gridlens.ingestion.parsers.permit_docs.notice_post_rating import (
+    post_rating_problem,
+    post_rating_rows,
+)
 from gridlens.ingestion.parsers.permit_docs.router import route_page
 from gridlens.ingestion.parsers.permit_docs.text_layer import CanonicalText
 from gridlens.ingestion.parsers.permit_docs.verifier import VERIFIER, verify_rows
@@ -126,8 +130,14 @@ def extract_notice_hp_driver(excerpt: str) -> NoticeHpResult:
     rows, _issues = extract_narrative(canon, routes)
     report = verify_rows(rows, canon)
     result.rejected = len(report.rejected)
+    verified = list(report.verified)
+    for post_row in post_rating_rows(canon):
+        if post_rating_problem(post_row, canon) is None:
+            verified.append(post_row)
+        else:
+            result.rejected += 1
     seen: Counter[tuple[object, ...]] = Counter()
-    for row in report.verified[:MAX_ROWS]:
+    for row in verified[:MAX_ROWS]:
         item = _row_json(row, canon, offsets, pdf_pages)
         if item is None:
             continue

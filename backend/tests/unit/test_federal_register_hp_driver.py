@@ -200,3 +200,62 @@ def test_flag_must_be_a_boolean_on_the_reviewed_source_only():
     other = {**_eis_source(hp_driver_evidence=True), "id": "some-other-source"}
     with pytest.raises(SourceParseError):
         _validate_query(other)
+
+
+# --------------------------------------------------------------------------- post-rating shape
+
+BULLETS = (
+    "Modification at Compressor Station 302 in Montgomery County, Texas: "
+    "\ufffd Uprate the existing compressor controls to increase the horsepower (hp) of existing "
+    "compressor Units 7 and 8 by 1,600 hp each, for a total of 3,200 hp; "
+    "\ufffd Re-wheel existing compressor Units 7, 8 and 9; and "
+    "\ufffd Install one new electric motor driven compressor unit with a rating of 18,340 hp. "
+    "Modification at Compressor Station 343 in Liberty County, Texas: "
+    "\ufffd Re-wheel existing electric motor driven compressor Units 9 and 10."
+)
+
+
+def test_post_rating_bullet_yields_only_the_new_electric_unit():
+    text = excerpt(BULLETS)
+    row = only(extract_notice_hp_driver(text))
+    assert (row["equipment_type"], row["drive"], row["rating"], row["unit"]) == (
+        "compressor",
+        "electric",
+        "18340",
+        "hp",
+    )
+    assert (row["count"], row["state"]) == (1, "proposed")
+    assert row["electric_demand_evidenced"] is True
+    assert row["evidence"]["rating"]["quote"] == "18,340 hp"
+    assert row["evidence"]["drive"]["quote"] == "electric motor driven compressor unit"
+    for field in row["evidence"].values():
+        assert text[field["start"] : field["end"]] == field["quote"]
+
+
+def test_uprates_and_rewheels_are_not_new_equipment():
+    text = excerpt(
+        "Uprate the existing compressor controls to increase the horsepower (hp) of existing "
+        "compressor Units 7 and 8 by 1,600 hp each, for a total of 3,200 hp; "
+        "Re-wheel existing electric motor driven compressor Units 9 and 10."
+    )
+    assert extract_notice_hp_driver(text).rows == []
+
+
+def test_post_rating_without_a_stated_electric_driver_is_not_electric():
+    text = excerpt("Install one new gas turbine driven compressor unit with a rating of 20,000 hp.")
+    row = only(extract_notice_hp_driver(text))
+    assert row["drive"] == "unknown" and row["electric_demand_evidenced"] is False
+
+
+def test_post_rating_rating_in_another_sentence_is_not_attached():
+    text = excerpt(
+        "Install one new electric motor driven compressor unit. "
+        "The facility is described with a rating of 18,340 hp elsewhere."
+    )
+    assert extract_notice_hp_driver(text).rows == []
+
+
+def test_post_rating_removal_is_never_demand():
+    text = excerpt("Remove one electric motor driven compressor unit with a rating of 9,000 hp.")
+    result = extract_notice_hp_driver(text)
+    assert all(not row["electric_demand_evidenced"] for row in result.rows)
