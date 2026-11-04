@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
 from gridlens.ingestion.parsers.permit_docs.lexicon import (
+    THRESHOLD_AFTER,
+    THRESHOLD_BEFORE,
     count_from_text,
     drive_from_text,
     parse_number,
@@ -32,7 +34,16 @@ from gridlens.ingestion.parsers.permit_docs.tables import blocking_ids
 from gridlens.ingestion.parsers.permit_docs.text_layer import CanonicalText
 
 VERIFIER = "exact-span-v1"
-_SYNTHETIC_ID = re.compile(r"N(\d+)-(\d+)\Z")
+_SYNTHETIC_ID = re.compile(r"([NL])(\d+)-(\d+)\Z")
+_SYNTHETIC_PREFIX = {"narrative": "N", "llm": "L"}
+_DATE_VALUE = re.compile(
+    r"\d{4}(?:-\d{2}(?:-\d{2})?)?\Z|Q[1-4]\s+\d{4}\Z|"
+    r"(?:January|February|March|April|May|June|July|August|September|October|November|"
+    r"December)\s+(?:\d{1,2},\s+)?\d{4}\Z",
+    re.I,
+)
+_NEGATED_DATE = re.compile(r"\b(?:no|not|never|without|denied|cancell?ed)\b", re.I)
+LLM_WINDOW_CHARS = 600
 _ID_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/\-]{0,39}\Z")
 _GROUP_TITLE_AT_LINE_START = re.compile(r"^[ \t]*EUG[- ]?\d+", re.I | re.M)
 
@@ -66,9 +77,9 @@ def _recompute_problem(ev: FieldEvidence, row: ExtractedRow) -> str | None:
         synthetic = _SYNTHETIC_ID.fullmatch(ev.value)
         if synthetic is not None:
             ok = (
-                row.origin == "narrative"
-                and int(synthetic.group(1)) == ev.page
-                and int(synthetic.group(2)) == ev.start
+                _SYNTHETIC_PREFIX.get(row.origin) == synthetic.group(1)
+                and int(synthetic.group(2)) == ev.page
+                and int(synthetic.group(3)) == ev.start
             )
             return None if ok else "synthetic id does not match its span"
         ok = quote.strip() == ev.value and _ID_TOKEN.fullmatch(ev.value) is not None
@@ -89,7 +100,37 @@ def _recompute_problem(ev: FieldEvidence, row: ExtractedRow) -> str | None:
         return None if drive_from_text(quote) == ev.value else "drive not stated by quote"
     if ev.field == "state":
         return None if state_from_text(quote) == ev.value else "state not stated by quote"
+    if ev.field == "date":
+        return _date_problem(ev)
     return f"unknown field {ev.field!r}"
+
+
+def _date_problem(ev: FieldEvidence) -> str | None:
+    """A stated date must be literally in its quote, in a plain format, and not negated."""
+    if _DATE_VALUE.match(ev.value) is None:
+        return "date format is not a plain stated date"
+    found = re.search(re.escape(ev.value), ev.quote, re.I)
+    if found is None:
+        return "date not stated verbatim by quote"
+    if _NEGATED_DATE.search(ev.quote[max(0, found.start() - 48) : found.start()]):
+        return "date is negated in its quote"
+    return None
+
+
+def _llm_association(row: ExtractedRow, canon: CanonicalText) -> str | None:
+    """LLM rows: every quote on the rating's page, within one short window, no thresholds."""
+    rating = row.evidence["rating"]
+    spans = list(row.evidence.values())
+    if any(ev.page != rating.page for ev in spans):
+        return "quotes are on different pages"
+    if max(ev.end for ev in spans) - min(ev.start for ev in spans) > LLM_WINDOW_CHARS:
+        return "quotes are not within one passage"
+    text = canon.text
+    if THRESHOLD_BEFORE.search(text[max(0, rating.start - 40) : rating.start]):
+        return "rating is a threshold, not a unit rating"
+    if THRESHOLD_AFTER.match(text[rating.end : rating.end + 60]):
+        return "rating is a threshold or range, not a unit rating"
+    return None
 
 
 def _line_span(text: str, offset: int) -> tuple[int, int]:
@@ -196,6 +237,7 @@ def _row_problem(row: ExtractedRow, canon: CanonicalText, capacity_ids: set[str]
         "count": None if row.count is None else str(row.count),
         "drive": None if row.drive == "unknown" else row.drive,
         "state": None if row.state == "unknown" else row.state,
+        "date": row.in_service_date or None,
     }
     for name in OPTIONAL_FIELDS:
         if declared[name] is not None and name not in row.evidence:
@@ -212,6 +254,8 @@ def _row_problem(row: ExtractedRow, canon: CanonicalText, capacity_ids: set[str]
             return f"{name}: {problem}"
     if row.origin == "narrative":
         return _narrative_association(row, canon)
+    if row.origin == "llm":
+        return _llm_association(row, canon)
     return _table_association(row, canon, capacity_ids)
 
 

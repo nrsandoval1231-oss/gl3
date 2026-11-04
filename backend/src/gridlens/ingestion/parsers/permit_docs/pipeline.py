@@ -7,8 +7,14 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from gridlens.domain.equipment_demand import EquipmentClaim
-from gridlens.ingestion.parsers.permit_docs.models import ExtractedRow, Route
+from gridlens.ingestion.parsers.permit_docs.models import TEXT_LAYER, ExtractedRow, Route
 from gridlens.ingestion.parsers.permit_docs.narrative import extract_narrative
+from gridlens.ingestion.parsers.permit_docs.proposals import (
+    EquipmentProposer,
+    PageForProposal,
+    PageOcr,
+    rows_from_proposals,
+)
 from gridlens.ingestion.parsers.permit_docs.router import route_page
 from gridlens.ingestion.parsers.permit_docs.schedule import VERSION, build_schedule
 from gridlens.ingestion.parsers.permit_docs.tables import extract_tables
@@ -41,6 +47,9 @@ class PermitExtractionResult:
     schedule_text: str = ""
     provenance: dict[int, dict[str, Any]] = field(default_factory=dict)
     issues: list[str] = field(default_factory=list)
+    # Optional passes. Empty dicts mean the pass did not run (the default).
+    ocr: dict[str, Any] = field(default_factory=dict)
+    proposer: dict[str, Any] = field(default_factory=dict)
 
 
 def _dedupe(rows: list[ExtractedRow]) -> tuple[list[ExtractedRow], int]:
@@ -52,7 +61,7 @@ def _dedupe(rows: list[ExtractedRow]) -> tuple[list[ExtractedRow], int]:
     index: dict[tuple[object, ...], int] = {}
     kept: list[ExtractedRow] = []
     for row in rows:
-        if row.origin == "narrative":
+        if row.origin in ("narrative", "llm"):
             key: tuple[object, ...] = (
                 "n",
                 row.equipment_type,
@@ -98,7 +107,7 @@ def _reconcile(rows: list[ExtractedRow]) -> tuple[list[ExtractedRow], list[str]]
     drop: set[int] = set()
     issues: list[str] = []
     for index, row in enumerate(rows):
-        matches = table_index.get(key(row)) if row.origin == "narrative" else None
+        matches = table_index.get(key(row)) if row.origin != "table" else None
         if not matches or index in drop:
             continue
         if row.count is None or row.count <= len(matches):
@@ -137,6 +146,101 @@ def _link(rows: list[ExtractedRow], canon: CanonicalText) -> list[ExtractedRow]:
     return linked
 
 
+def _stamp_text_source(rows: list[ExtractedRow], canon: CanonicalText) -> list[ExtractedRow]:
+    """Carry each row's text source: any OCR page among its quotes makes it OCR-sourced."""
+    stamped: list[ExtractedRow] = []
+    for row in rows:
+        sources = {canon.pages[ev.page - 1].source for ev in row.evidence.values()}
+        ocr = sorted(source for source in sources if source != TEXT_LAYER)
+        stamped.append(replace(row, text_source=ocr[0]) if ocr else row)
+    return stamped
+
+
+def _run_ocr(
+    canon: CanonicalText, document_hash: str, ocr: PageOcr, result: PermitExtractionResult
+) -> CanonicalText:
+    pages = canon.scanned_pages
+    outcome = ocr.ocr_pages(pages, document_hash=document_hash)
+    result.ocr = {
+        "status": outcome.status,
+        "reason": outcome.reason,
+        "pages_requested": pages,
+        "pages_read": [],
+        "text_source": outcome.source,
+        **outcome.detail,
+    }
+    if outcome.status != "ok" or not outcome.source:
+        result.issues.append(f"OCR pass did not run ({outcome.status}: {outcome.reason}).")
+        return canon
+    texts = {page: text for page, text in outcome.texts.items() if page in pages and text.strip()}
+    merged = canon.with_ocr_pages(texts, outcome.source)
+    result.ocr["pages_read"] = sorted(texts)
+    return merged
+
+
+def _eligible_proposer_pages(
+    routes: dict[int, Route], verified: list[ExtractedRow], rejected: list[ExtractedRow]
+) -> list[int]:
+    """Table/narrative pages where the rules found nothing, or where they rejected a row."""
+    found = {row.evidence["rating"].page for row in verified}
+    doubtful = {row.evidence["rating"].page for row in rejected if "rating" in row.evidence}
+    return [
+        page
+        for page, route in sorted(routes.items())
+        if route in ("table", "narrative") and (page not in found or page in doubtful)
+    ]
+
+
+def _run_proposer(
+    canon: CanonicalText,
+    routes: dict[int, Route],
+    document_hash: str,
+    proposer: EquipmentProposer,
+    verified: list[ExtractedRow],
+    rejected: list[ExtractedRow],
+    result: PermitExtractionResult,
+) -> list[ExtractedRow]:
+    pages = _eligible_proposer_pages(routes, verified, rejected)
+    result.proposer = {"status": "not_needed", "eligible_pages": pages}
+    if not pages:
+        return []
+    page_texts = [PageForProposal(page, canon.pages[page - 1].text) for page in pages]
+    outcome = proposer.propose(page_texts, document_hash=document_hash)
+    result.proposer = {
+        "status": outcome.status,
+        "reason": outcome.reason,
+        "label": outcome.label,
+        "eligible_pages": pages,
+        "pages_sent": outcome.pages_sent,
+        **outcome.detail,
+    }
+    if outcome.status != "ok":
+        result.issues.append(f"Model proposer did not run ({outcome.status}: {outcome.reason}).")
+        return []
+    built = rows_from_proposals(outcome.units, canon, outcome.label)
+    checked = verify_rows(built.rows, canon)
+    accepted = _stamp_text_source(checked.verified, canon)
+    # Rules win: a proposed row repeating a rule-verified unit on the same page is not added.
+    seen = {
+        (row.evidence["rating"].page, row.rating, row.unit, row.equipment_type) for row in verified
+    }
+    accepted = [
+        row
+        for row in accepted
+        if (row.evidence["rating"].page, row.rating, row.unit, row.equipment_type) not in seen
+    ]
+    result.proposer.update(
+        proposed=len(outcome.units),
+        unlocatable=len(built.dropped),
+        standby_dropped=built.standby_dropped,
+        verifier_rejected=len(checked.rejected),
+        verified=len(accepted),
+        rejection_reasons=[why for _row, why in checked.rejected][:20],
+        drop_reasons=[why for _i, why in built.dropped][:20],
+    )
+    return accepted
+
+
 def extract_from_canonical(
     canon: CanonicalText,
     *,
@@ -144,27 +248,53 @@ def extract_from_canonical(
     company: str | None = None,
     facility: str | None = None,
     as_of: str | None = None,
+    ocr: PageOcr | None = None,
+    proposer: EquipmentProposer | None = None,
+    allow_ocr_demand: bool = False,
 ) -> PermitExtractionResult:
+    """Rules first; with ``ocr``/``proposer`` supplied, two optional passes (both off by default).
+
+    ``ocr`` reads scanned pages and labels them; ``proposer`` asks a model to propose rows
+    for pages where the rules found nothing, and the exact-span verifier decides. Neither
+    changes what the rules alone would return for text-layer pages.
+    """
     result = PermitExtractionResult(pages=len(canon.pages))
     routes: dict[int, Route] = {p.page: route_page(p.text, p.chars) for p in canon.pages}
     result.routes = dict(Counter(routes.values()))
     result.needs_ocr_pages = [p for p, r in routes.items() if r == "scan"]
     result.scanned_pages = len(result.needs_ocr_pages)
+    if ocr is not None and result.needs_ocr_pages:
+        canon = _run_ocr(canon, document_hash, ocr, result)
+        routes = {p.page: route_page(p.text, p.chars) for p in canon.pages}
+        result.routes = dict(Counter(routes.values()))
+        result.needs_ocr_pages = [p for p, r in routes.items() if r == "scan"]
     table_rows, table_issues = extract_tables(canon, routes)
     narrative_rows, narrative_issues = extract_narrative(
         canon, routes, _row_lines(canon, table_rows)
     )
     result.issues.extend(table_issues + narrative_issues)
     report = verify_rows(table_rows + narrative_rows, canon)
-    result.verified = len(report.verified)
+    verified_rows = _stamp_text_source(report.verified, canon)
+    if proposer is not None:
+        rejected_rows = [row for row, _why in report.rejected]
+        verified_rows = verified_rows + _run_proposer(
+            canon, routes, document_hash, proposer, verified_rows, rejected_rows, result
+        )
+    result.verified = len(verified_rows)
     result.rejected = len(report.rejected)
     result.rejection_reasons = [(row.equipment_id, why) for row, why in report.rejected]
-    rows, result.duplicates = _dedupe(report.verified)
+    rows, result.duplicates = _dedupe(verified_rows)
     rows, conflicts = _reconcile(rows)
     result.issues.extend(conflicts)
     rows = _link(rows, canon)
     build = build_schedule(
-        rows, canon, document_hash=document_hash, company=company, facility=facility, as_of=as_of
+        rows,
+        canon,
+        document_hash=document_hash,
+        company=company,
+        facility=facility,
+        as_of=as_of,
+        allow_ocr_demand=allow_ocr_demand,
     )
     result.issues.extend(build.issues)
     result.claims = build.claims
@@ -195,6 +325,9 @@ def extract_from_pages(
     company: str | None = None,
     facility: str | None = None,
     as_of: str | None = None,
+    ocr: PageOcr | None = None,
+    proposer: EquipmentProposer | None = None,
+    allow_ocr_demand: bool = False,
 ) -> PermitExtractionResult:
     """Seam for already-extracted (or OCR'd) per-page text."""
     return extract_from_canonical(
@@ -203,6 +336,9 @@ def extract_from_pages(
         company=company,
         facility=facility,
         as_of=as_of,
+        ocr=ocr,
+        proposer=proposer,
+        allow_ocr_demand=allow_ocr_demand,
     )
 
 
@@ -215,11 +351,21 @@ def extract_permit_document(
     as_of: str | None = None,
     limits: TextLayerLimits | None = None,
     isolate: bool = True,
+    ocr: PageOcr | None = None,
+    proposer: EquipmentProposer | None = None,
+    allow_ocr_demand: bool = False,
 ) -> PermitExtractionResult:
     """Offline extraction of a permit PDF. Text-layer failure yields a typed failure result."""
     canon = build_canonical_text(pdf_bytes, limits, isolate=isolate)
     if isinstance(canon, TextLayerFailure):
         return PermitExtractionResult(failure=canon, issues=[f"{canon.code}: {canon.message}"])
     return extract_from_canonical(
-        canon, document_hash=document_hash, company=company, facility=facility, as_of=as_of
+        canon,
+        document_hash=document_hash,
+        company=company,
+        facility=facility,
+        as_of=as_of,
+        ocr=ocr,
+        proposer=proposer,
+        allow_ocr_demand=allow_ocr_demand,
     )
