@@ -26,11 +26,16 @@ def response():
         "event_type": "construction",
         "material_change": "UNKNOWN",
         "power_relevance": "MEDIUM",
-        "temporary_power_hint": "UNKNOWN",
         "needs_deep_enrichment": "YES",
+        "driver": "ELECTRIC",
+        "novelty": "NEW",
+        "side": "DEMAND",
+        "lifecycle_phase": "permitted",
+        "new_large_load": "YES",
+        "document_route": "narrative",
     }
     return {
-        "model": "jev-latest",
+        "model": "jev-1.13.0",
         "answers": {
             key: {
                 "type": "choice",
@@ -49,7 +54,7 @@ def test_typesafe_choice_contract_accepts_strict_enums_and_reports_usage():
     assert judgment.relevant.value == "YES"
     assert judgment.same_project.value == "UNKNOWN"
     assert judgment.event_type.value == "construction"
-    assert (model, input_tokens, output_tokens) == ("jev-latest", 50, 12)
+    assert (model, input_tokens, output_tokens) == ("jev-1.13.0", 50, 12)
 
 
 @pytest.mark.parametrize(

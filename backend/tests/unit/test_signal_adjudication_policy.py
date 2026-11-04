@@ -42,8 +42,10 @@ def test_jev_uses_pinned_model_one_call_and_typed_dimensions(monkeypatch):
     expected = {
         "physical_project_event",
         "meaningful_new_activity",
-        "commercial_relevance",
-        "temporary_power_relevance",
+        "new_large_load",
+        "electric_driver",
+        "combustion_driver",
+        "supply_side",
         "routine_maintenance",
         "transient_event",
     }
