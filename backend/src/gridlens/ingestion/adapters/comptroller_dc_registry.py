@@ -214,20 +214,33 @@ def _join(names: list[str]) -> str:
     return "; ".join(names) if names else "not listed"
 
 
+def _public_names(values: list[str]) -> list[str]:
+    """Keep organization names; replace names or addresses identified as personal data."""
+    return [
+        "individual name withheld" if more.has_person(value) or more.has_address(value) else value
+        for value in values
+    ]
+
+
 def record_for(row: dict[str, Any], listed_on: str) -> dict[str, Any]:
+    # Do not put detected personal names or addresses into retained source text or its hash.
+    owners = _public_names(row["owners"])
+    occupants = _public_names(row["occupants"])
+    operators = _public_names(row["operators"])
     effective = _iso(row["effective"])
     lines = [
         f"Texas Comptroller registered {row['kind']}: {row['name'] or row['root']}",
         f"Registration: {', '.join(row['numbers'])}",
         f"Registration effective date (as listed): {row['effective'] or 'not listed'}",
-        f"Owner: {_join(row['owners'])}",
-        f"Occupant: {_join(row['occupants'])}",
-        f"Operator: {_join(row['operators'])}",
+        f"Owner: {_join(owners)}",
+        f"Occupant: {_join(occupants)}",
+        f"Operator: {_join(operators)}",
         f"Exemption end date (as listed): {row['end'] or 'not listed'}",
         "The registry lists names, registration numbers and dates only: no county, address or MW "
         "(unknown is not zero). A registration is not a site, a load or a construction start.",
     ]
-    canonical = _canonical(row)
+    canonical_row = {**row, "owners": owners, "occupants": occupants, "operators": operators}
+    canonical = _canonical(canonical_row)
     return {
         "document_number": "TXCOMP-" + row["root"],
         "title": f"Comptroller {row['kind']}: {row['name'] or row['root']}"[:250],

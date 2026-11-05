@@ -6,6 +6,7 @@ excerpts of the public pages read live on 2026-11-04 (see ``_early_more_fixtures
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import UTC, date, datetime, timedelta
 
@@ -354,6 +355,26 @@ def test_registry_no_county_address_or_mw_is_claimed():
     for record in listing(cr, registry_origin()):
         assert "no county, address or MW" in record["abstract"]
         assert not re.search(r"\bMW\b: \d", record["abstract"])
+
+
+def test_registry_withholds_detected_personal_names_and_addresses():
+    row = registry_row(
+        "Example Data Center",
+        "01/01/2025",
+        "John Smith, a property owner",
+        "DC123456-OW1",
+        "Acme Compute LLC",
+        "DC123456-OC1",
+        "123 County Road 5",
+        "DC123456-OP1",
+    )
+    rows, _skipped = cr.parse_registry(registry_html([row], []))
+    record = cr.record_for(rows[0], "2026-11-05")
+    retained = repr(record)
+    assert "John Smith" not in retained
+    assert "123 County Road 5" not in retained
+    assert "individual name withheld" in record["abstract"]
+    assert record["source_hash"] != hashlib.sha256(cr._canonical(rows[0]).encode()).hexdigest()
 
 
 def test_registry_changed_row_changes_only_its_hash():
@@ -1014,7 +1035,17 @@ def test_agenda_quotes_are_short_and_personal_items_abstain():
     personal = "7. Mr. Jones of 123 County Road 5 asks about the tax abatement for his land."
     assert ca.extract_items([personal]) == []
     with_company = "7. Alpha Data LLC at 123 County Road 5 requests a tax abatement."
-    assert len(ca.extract_items([with_company])) == 1
+    assert ca.extract_items([with_company]) == []
+
+
+def test_agenda_withholds_personal_context_even_when_item_names_a_company():
+    address = (
+        "7. Alpha Data LLC requests a 300 MW data center at 123 County Road 5; "
+        "Mr. Jones, a nearby resident, objects to the abatement."
+    )
+    name = "8. Discuss the data center abatement with Alpha Data LLC and Jane Smith, landowner."
+    assert ca.extract_items([address]) == []
+    assert ca.extract_items([name]) == []
 
 
 def test_haskell_listing_keeps_undated_labels_and_rejects_encoded_separators():

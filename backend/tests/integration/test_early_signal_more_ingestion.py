@@ -241,6 +241,27 @@ def test_registry_changed_row_adds_an_evidence_version_and_keeps_the_earlier_one
     assert again == first_seen  # first_seen_at is never rewritten
 
 
+def test_registry_detected_personal_names_do_not_reach_retained_evidence(stage_db, monkeypatch):
+    definition, job_id = setup_source(stage_db, cr.SOURCE_ID)
+    row = registry_row(
+        "Example Data Center",
+        "01/01/2025",
+        "John Smith, a property owner",
+        "DC123456-OW1",
+        "Acme Compute LLC",
+        "DC123456-OC1",
+        "123 County Road 5",
+        "DC123456-OP1",
+    )
+    origin = registry_origin(dc_rows=[row], ld_rows=[])
+    ingest(stage_db, definition, job_id, cr, origin, listing(cr, origin), monkeypatch)
+    saved = evidences(stage_db, cr.SOURCE_ID)
+    assert len(saved) == 1
+    assert "John Smith" not in saved[0][1].abstract
+    assert "123 County Road 5" not in saved[0][1].abstract
+    assert "individual name withheld" in saved[0][1].abstract
+
+
 # --------------------------------------------------------------------------- ships off
 
 

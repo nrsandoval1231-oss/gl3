@@ -291,7 +291,6 @@ def _scalar(name: str, text: str) -> tuple[Any, str, re.Match[str]] | None:
 
 
 _FIELD_NAMES = ("entity", "investment_usd", "stated_mw", "acres", "location")
-_SUFFIX = re.compile(_COMPANY_SUFFIX.replace("\\.", "\\.") + r"(?=[\s,;.)]|$)")
 QUOTE_LIMIT = 300
 
 
@@ -361,8 +360,10 @@ def extract_items(pages_in: list[str]) -> list[dict[str, Any]]:
         if keyword is None:
             continue
         personal = more.has_address(text) or more.has_person(text)
-        if personal and _SUFFIX.search(text) is None:
-            continue  # a person's name or address and no company: abstain
+        if personal:
+            # A company elsewhere in the agenda item does not make nearby resident names or
+            # addresses safe to retain in the evidence quote or extracted field context.
+            continue
         page, quote_, lo = pages.quote(begin + keyword.start(), begin + keyword.end(), 120, 150)
         item = more.evidence(
             {
