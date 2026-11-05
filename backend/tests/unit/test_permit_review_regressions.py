@@ -330,7 +330,9 @@ def test_s5_wall_clock_kill(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.skipif(sys.platform == "win32", reason="RLIMIT_AS does not exist on Windows")
 def test_s5_memory_cap_is_a_typed_failure() -> None:
-    result = build_canonical_text(_pdf(), TextLayerLimits(max_memory_bytes=64 * 1024 * 1024))
+    # Stay below every supported POSIX interpreter baseline; a small valid PDF may
+    # legitimately parse within 64 MiB on a slim runtime.
+    result = build_canonical_text(_pdf(), TextLayerLimits(max_memory_bytes=1024 * 1024))
     assert isinstance(result, TextLayerFailure)
     assert result.code in {"memory_limit", "worker_failed", "unreadable"}
 

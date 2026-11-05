@@ -1072,7 +1072,12 @@ def _preflight_streamed_evidence_text(
         )
     if not scopes:
         return
-    evidence_scopes = union_all(*scopes).subquery()
+    # Evaluate the deduplicated scopes before joining the text-bearing tables. Keeping this
+    # planner boundary avoids inlining both candidate subqueries into the outer text join. The CTE
+    # preserves scope labels and duplicate accounting while keeping the complete check atomic.
+    evidence_scopes = (
+        union_all(*scopes).cte("evidence_scopes").prefix_with("MATERIALIZED", dialect="postgresql")
+    )
     text_fields = (
         func.octet_length(func.coalesce(Evidence.title, "")),
         func.octet_length(func.coalesce(Evidence.abstract, "")),

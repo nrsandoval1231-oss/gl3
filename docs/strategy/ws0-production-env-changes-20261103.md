@@ -279,7 +279,6 @@ An OCR request is a sub-PDF of at most 5 scanned pages and 750,000 bytes; with t
 - Whether OCR-read rows may ever feed demand (default no).
 - The bake-off gold set and recorded vendor runs (see the engineering doc), if a different OCR provider should replace OpenAI vision.
 
-
 ## Workstream 6 runtime: schedule, extraction jobs and document alerts
 
 **Prepared:** 2026-11-04 · **Status:** proposal only. Code ships with everything below **off or absent**; the registry was not changed. Design: [runtime jobs](../engineering/runtime-jobs-20261103.md).
