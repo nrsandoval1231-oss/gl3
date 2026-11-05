@@ -457,7 +457,9 @@ def count_fields(projects: list[dict[str, Any]]) -> int:
 # --------------------------------------------------------------------------- PDF entry points
 
 
-def read_pdf_pages(body: bytes, budget: float, isolate: bool) -> tuple[list[str], list[int]]:
+def read_pdf_pages(
+    body: bytes, budget: float, isolate: bool, first_pages: int | None = None
+) -> tuple[list[str], list[int]]:
     from gridlens.ingestion.parsers.permit_docs.text_layer import (
         TextLayerFailure,
         TextLayerLimits,
@@ -467,7 +469,11 @@ def read_pdf_pages(body: bytes, budget: float, isolate: bool) -> tuple[list[str]
     if not body.startswith(b"%PDF-"):
         raise DocumentFailure("not_pdf_signature")
     limits = TextLayerLimits(
-        max_bytes=MAX_PDF_BYTES, max_pages=MAX_PAGES, max_seconds=budget, max_seconds_per_page=60.0
+        max_bytes=MAX_PDF_BYTES,
+        max_pages=MAX_PAGES,
+        max_seconds=budget,
+        max_seconds_per_page=60.0,
+        first_pages=first_pages,
     )
     canon = build_canonical_text(body, limits, isolate=isolate)
     if isinstance(canon, TextLayerFailure):

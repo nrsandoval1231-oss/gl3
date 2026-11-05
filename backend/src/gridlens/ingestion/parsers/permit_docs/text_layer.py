@@ -36,6 +36,8 @@ class TextLayerLimits:
     max_seconds: float = 180.0
     max_seconds_per_page: float = 20.0
     max_memory_bytes: int = 2 * 1024 * 1024 * 1024  # enforced only where RLIMIT_AS exists
+    # When set, only the first N pages are read and a longer file is not an error.
+    first_pages: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,11 +252,13 @@ def _extract_in_process(
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
             count = len(pdf.pages)
-            if count > limits.max_pages:
+            if limits.first_pages is None and count > limits.max_pages:
                 return TextLayerFailure("too_many_pages", f"{count} pages exceed the bound")
             if count == 0:
                 return TextLayerFailure("unreadable", "PDF has no pages")
             for number, source_page in enumerate(pdf.pages, start=1):
+                if limits.first_pages is not None and number > limits.first_pages:
+                    break
                 if time.monotonic() - started > limits.max_seconds:
                     return TextLayerFailure("time_budget", "time budget exceeded", number)
                 page_started = time.monotonic()

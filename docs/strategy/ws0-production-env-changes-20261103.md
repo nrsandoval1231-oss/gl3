@@ -192,6 +192,18 @@ The source `texas-puct-ccn-transmission-dockets` ships **off twice**: `"enabled"
 - Evidence effect: retained evidence only, no needs or cards. A stated customer request is documented text with its verbatim quote, not demand.
 - Roll back by setting either `enabled` to `false`.
 
+### More early-signal sources (workstream 4b) activation
+
+Four sources ([workstream 4b](../engineering/early-signal-sources-more-20261103.md)) ship **off**: `"enabled": false`, and, where a document stage exists, `query.documents.enabled` `false`. None uses a paid provider, a credential, an environment variable or a migration. Each is retained evidence only: enabling creates no project, need or card. Before enabling any of them, the owner should read the publisher's site terms (only `robots.txt` was checked, by hand, on 2026-11-04; the code does **not** re-check `robots.txt` at run time and relies on fixed host and path pins only) and the first run should be watched for the `application_documents` counts.
+
+1. **`texas-comptroller-dc-registry`** (weekly, no document stage). Set `enabled` to `true`: one request per run to `comptroller.texas.gov`; about 177 observations on the first run (one per registry row), then one new evidence version per changed or new row. Roll back with `enabled: false`.
+2. **`oklahoma-occ-data-center-notices`** (daily). Set `enabled` to `true`: one request per day to `oklahoma.gov`; one listing observation per notice (link-text facts only). Set `query.documents.enabled` to `true` to read each notice's first two pages (`max_downloads` 6, 20 MB cap, `extract_seconds` 300, at most one request per second, first 429/503 ends the stage and stores `not_before`); scanned forms stay listing-only. `seed_urls` must stay empty.
+3. **`texas-county-abatement-agendas`** (daily, Haskell County only). Set `enabled` to `true` and `query.documents.enabled` to `true`. With documents off the source stores **nothing** (a bare agenda link is not evidence of an abatement). One listing request plus up to `max_downloads` (2) agenda PDFs per run from `www.haskellcountytx.gov`; scans are withheld and retried only after the permanent-failure window. `counties` must stay `["haskell"]`. Adding Milam would need a reviewed exception for the third-party CMS redirect; Medina is blocked by its host's `robots.txt`.
+4. **`texas-tceq-water-rights-pending`** (weekly). Set `enabled` to `true`: one request per run to `www.tceq.texas.gov`; about 110 listing observations. Set `query.documents.enabled` to `true` to read notice packages (`max_downloads` 2, up to 40 MB each; the file is downloaded whole but only its first four pages are parsed, and a longer file is not an error; `extract_seconds` 300; an individual applicant's notice is never requested). A notice can be 30 MB or more: watch worker memory in the first enabled runs.
+- Memory: a PDF up to 40 MB is read into memory once for the extraction child; POSIX children are address-space capped, a Windows host is not.
+- Roll back by setting `enabled` (or `query.documents.enabled`) to `false`. Evidence versions and the check index stay.
+- Sentinel-2 change detection has no activation: it is a [research spike](sentinel2-change-detection-spike-20261104.md).
+
 ### NMED air-facility layers
 
 `nmed_air_facilities.py` (ArcGIS MapServer, layers 0 to 6) is a bounded, read-only reader with no registry entry and no caller in the job path: the layers carry no AI or permit number and no date, so records would be dateless observations with no join. Nothing is shipped to activate. A future consumer (an identity join) is separate work; its config shape is validated by `nmed_air_facilities.valid_config` and the host is pinned in `nmed_http.py`.

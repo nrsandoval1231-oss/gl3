@@ -13,13 +13,15 @@ No new runtime/provider activation or infrastructure. [Checkpoint](CURRENT_STATE
 
 ## November 5 repository and open-PR audit
 
-Owner scope: review, repair, validate and merge open PRs 162, 179, 180 and 181. No deployment, provider execution or source activation. Starting main: `b20f6a8f`; original working branch `feat/ws6-runtime-jobs` and its untracked directories are preserved.
+Owner scope: review, repair, validate and merge open PRs 162, 179, 180 and 181. No deployment, provider execution or source activation. Starting main: `b20f6a8f`; original `feat/ws6-runtime-jobs` checkout and untracked directories preserved.
 
-Acceptance: independent source review, regression coverage for material fixes, maintained documentation checks, full required CI on each candidate, and final main CI. Merge dependencies: 180 before stacked 181; refresh each candidate against the accepted main as needed.
+- PR162 merged as `65d81442`: all 88 archive payload hashes/byte counts and publication privacy independently verified; refreshed full CI passed.
+- PR179 merged as `887c4629`: SEC partial-filing replay and regulatory screening-label fixes passed regression checks, independent Astra review and both full CI runs (42104854273 / 42104845853).
+- PR180 candidate `7665f244` incorporates current main and repairs conservative project links, two-sided citations, order-independent load conflicts, absent-document retry, complete TPIT diffs, out-of-scope labels and per-PDF deadlines, and priority reservation for TPIT/configured seeds inside the total collection cap. Focused tests and docs passed; final independent review and full CI gate merge.
+- PR181 integrates repaired PR180 and current main. Agenda quotes/fields are bounded to their own items with personal-context withholding; water applicant quotes use the same privacy guard; fee/fine/bond amounts do not become investment. Isolated checks passed (101 unit, 22 integration); independent scoped privacy re-review passed. Final combined validation gates merge.
 
-- PR162: 88 archive payload hashes/byte counts verified; current-main merge and candidate docs check passed (103 documents, 463 targets, 14 anchors). Independent publication review and refreshed CI pending.
-- PR179: independent review found interrupted SEC ingestion could omit later statements; repair and replay regression in progress.
-- PR180: conservative substation/county association repair and regression in progress; docs conflict must preserve both entries. Main already fixes the older memory-cap test failure.
-- PR181: mixed company/personal agenda evidence privacy repair and regression in progress; integrate after 180.
+Combined validation at `d02dbb81`: full local `scripts/check.ps1` with `PYTEST_ADDOPTS=-n 4` passed dependency audit, Ruff/format, mypy and migration/drift gates, then reported 4,792 backend passes, three skips and four Windows five-second subprocess timeouts. The same four tests passed unchanged with `pytest -n 0` (9.32 seconds); their source/tests are unchanged from starting main. This suggests startup contention but is not a clean full-script pass. Remaining web gates were run separately and passed: npm audit (zero vulnerabilities), typecheck, build and 196 browser regressions. Both candidate CI runs passed before the final bounded listing correction. That correction passed 63 ERCOT tests and scoped lint/type/docs checks; final-head CI remains the merge gate.
 
-Next: complete repairs, independent scoped re-review, run exact-candidate checks and merge only passing candidates. Runtime operation remains unverified by this repository audit.
+Independent Astra review passed the integrated source, maximum-diff, conflict-order, retry, citation and privacy probes; the last listing correction receives scoped re-review. All 14 added sources remain disabled; existing source enablement is unchanged.
+
+Next: confirm final-head CI and the last scoped review, merge 180 before 181, then verify main CI and remaining open PRs. Final GitHub PR/CI state is authoritative after this checkpoint. Sources remain disabled; repository validation does not prove live-source coverage or production operation.

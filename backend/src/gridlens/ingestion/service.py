@@ -153,7 +153,16 @@ PERMIT_RETRIEVAL_METHODS = {
 }
 
 
-EARLY_SIGNAL_METHODS = frozenset({"ercot-rpg-projects", "puct-ccn-dockets"})
+EARLY_SIGNAL_METHODS = frozenset(
+    {
+        "ercot-rpg-projects",
+        "puct-ccn-dockets",
+        "comptroller-dc-registry",
+        "ok-occ-dc-notices",
+        "tx-county-abatement-agendas",
+        "tceq-water-rights-pending",
+    }
+)
 _STAGE_REST_METHODS = frozenset({"nmed-air-applications"}) | EARLY_SIGNAL_METHODS
 
 
@@ -2824,17 +2833,32 @@ def _enrich_with_early_signal_documents(
     or None when the source does not enable the stage.
     """
     from gridlens.ingestion import early_signal_state as state_store
-    from gridlens.ingestion.adapters import ercot_rpg, puct_ccn_dockets
+    from gridlens.ingestion.adapters import (
+        comptroller_dc_registry,
+        county_abatement_agendas,
+        ercot_rpg,
+        ok_occ_dc_notices,
+        puct_ccn_dockets,
+        tceq_water_rights,
+    )
     from gridlens.ingestion.adapters.early_signal_stage import EarlyStageReport
 
     method = source_definition.get("retrieval_method")
-    module = ercot_rpg if method == "ercot-rpg-projects" else puct_ccn_dockets
+    module = {
+        "ercot-rpg-projects": ercot_rpg,
+        "puct-ccn-dockets": puct_ccn_dockets,
+        "comptroller-dc-registry": comptroller_dc_registry,
+        "ok-occ-dc-notices": ok_occ_dc_notices,
+        "tx-county-abatement-agendas": county_abatement_agendas,
+        "tceq-water-rights-pending": tceq_water_rights,
+    }[str(method)]
     config = module.config_from_source(source_definition)
     records = acquisition if isinstance(acquisition, list) else acquisition["records"]
     if config is None:
-        if method == "ercot-rpg-projects":
-            # A bare listing line is not evidence of anything: with the document stage off the
-            # ERCOT document records are withheld, exactly as an unread document is.
+        if method in {"ercot-rpg-projects", "tx-county-abatement-agendas"}:
+            # A bare listing line is not evidence of anything: with the document stage off these
+            # document records are withheld, exactly as an unread document is. The other sources
+            # state their facts in the listing itself (a registry row, a link text, a table row).
             records[:] = []
         return None
     if session.in_transaction():
@@ -2855,7 +2879,7 @@ def _enrich_with_early_signal_documents(
                 deadline=deadline,
             )
         else:
-            report = ercot_rpg.run_stage(
+            report = module.run_stage(
                 records, prior, client=client, config=config, index=index, deadline=deadline
             )
         if report.index != index:

@@ -160,6 +160,10 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ercot-large-load-status": {"www.ercot.com"},
             "ercot-rpg-projects": {"www.ercot.com"},
             "puct-ccn-dockets": {"interchange.puc.texas.gov"},
+            "comptroller-dc-registry": {"comptroller.texas.gov"},
+            "ok-occ-dc-notices": {"oklahoma.gov"},
+            "tx-county-abatement-agendas": {"www.haskellcountytx.gov"},
+            "tceq-water-rights-pending": {"www.tceq.texas.gov"},
             "faa-oeaaa-cases": {"oeaaa.faa.gov"},
             "msha-mines-zip": {"arlweb.msha.gov"},
             "tceq-aggregate-socrata": {"data.texas.gov"},
@@ -217,6 +221,10 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ercot-large-load-status",
             "ercot-rpg-projects",
             "puct-ccn-dockets",
+            "comptroller-dc-registry",
+            "ok-occ-dc-notices",
+            "tx-county-abatement-agendas",
+            "tceq-water-rights-pending",
             "faa-oeaaa-cases",
             "msha-mines-zip",
             "tceq-aggregate-socrata",
@@ -588,6 +596,50 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and source.get("geography") == "Texas"
                 and source.get("state") == "TX"
                 and puct_ccn_dockets.valid_query(query)
+            )
+        elif source["retrieval_method"] == "comptroller-dc-registry":
+            from gridlens.ingestion.adapters import comptroller_dc_registry
+
+            bounded = (
+                source.get("id") == comptroller_dc_registry.SOURCE_ID
+                and source.get("cadence_hours") == 168
+                and source.get("family") == "economic-development-publication"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and comptroller_dc_registry.valid_query(query)
+            )
+        elif source["retrieval_method"] == "ok-occ-dc-notices":
+            from gridlens.ingestion.adapters import ok_occ_dc_notices
+
+            bounded = (
+                source.get("id") == ok_occ_dc_notices.SOURCE_ID
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "official-utility-filings"
+                and source.get("geography") == "Oklahoma"
+                and source.get("state") == "OK"
+                and ok_occ_dc_notices.valid_query(query)
+            )
+        elif source["retrieval_method"] == "tx-county-abatement-agendas":
+            from gridlens.ingestion.adapters import county_abatement_agendas
+
+            bounded = (
+                source.get("id") == county_abatement_agendas.SOURCE_ID
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "economic-development-publication"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and county_abatement_agendas.valid_query(query)
+            )
+        elif source["retrieval_method"] == "tceq-water-rights-pending":
+            from gridlens.ingestion.adapters import tceq_water_rights
+
+            bounded = (
+                source.get("id") == tceq_water_rights.SOURCE_ID
+                and source.get("cadence_hours") == 168
+                and source.get("family") == "water-rights"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and tceq_water_rights.valid_query(query)
             )
         elif source["retrieval_method"] == "nmed-air-applications":
             from gridlens.ingestion.adapters.nmed_application_documents import (

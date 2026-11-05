@@ -772,6 +772,113 @@
       }
     },
     {
+      "id": "texas-comptroller-dc-registry",
+      "publisher": "Texas Comptroller of Public Accounts",
+      "endpoint": "https://comptroller.texas.gov/taxes/data-centers/data-center-lists.php",
+      "family": "economic-development-publication",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": ["data centers"],
+      "retrieval_method": "comptroller-dc-registry",
+      "cadence_hours": 168,
+      "enabled": false,
+      "publication_cadence": "Ad hoc: the registry page is edited as registrations are added (new rows dated into late October 2026 were seen on 2026-11-04).",
+      "collection_scope": "Rows of the two registry tables (qualifying data centers and qualifying large data center projects): project name, registration effective date, owner, occupant and operator names with their DC/LD registration numbers, and the exemption end date.",
+      "coverage_limitation": "The registry publishes names, registration numbers and dates only: no county, address, MW or construction status. A registration is not a site, a load or a construction start, and the effective date is when the registration took effect, not when the page listed it. Absence from a later page is not recorded as a removal. Unknown is not zero.",
+      "credential_reference": null,
+      "retention": "Each row's listed text, registration numbers and a row hash (one evidence version per changed row); the page itself is not retained",
+      "query": {
+        "max_response_bytes": 3000000,
+        "max_records": 400
+      }
+    },
+    {
+      "id": "oklahoma-occ-data-center-notices",
+      "publisher": "Oklahoma Corporation Commission",
+      "endpoint": "https://oklahoma.gov/occ/divisions/public-utility/energy/electric-utility/data-center-customer-ratepayer-protection-act.html",
+      "family": "official-utility-filings",
+      "geography": "Oklahoma",
+      "state": "OK",
+      "industries": ["data centers"],
+      "retrieval_method": "ok-occ-dc-notices",
+      "cadence_hours": 24,
+      "enabled": false,
+      "publication_cadence": "The OCC lists notice of intent submissions as filed under 17 O.S. 906 (3 listed between 2026-07-10 and 2026-10-15).",
+      "collection_scope": "The Notice of Intent Submissions list (link text: company, project, county, date) and, when the document stage is on, the attestation form's company, land purchase date, county and planned utility provider from the first two pages.",
+      "coverage_limitation": "Only notices the OCC chooses to list. A notice states a land purchase, not a load: no MW. Scanned forms (two of the three listed on 2026-11-04) have no text layer and are abstentions. Adjacent landowners, the attestant and attachments are never read or stored.",
+      "credential_reference": null,
+      "retention": "Link text, content hash, validators and the extracted form fields each with page, verbatim quote and span, and a per-URL check index (the PDFs are not retained)",
+      "query": {
+        "max_response_bytes": 3000000,
+        "max_records": 100,
+        "documents": {
+          "enabled": false,
+          "max_downloads": 6,
+          "max_checks": 40,
+          "extract_seconds": 300,
+          "seed_urls": []
+        }
+      }
+    },
+    {
+      "id": "texas-county-abatement-agendas",
+      "publisher": "Haskell County, Texas",
+      "endpoint": "https://www.haskellcountytx.gov/page/haskell.Commissioners.Court",
+      "family": "economic-development-publication",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": ["data centers", "energy"],
+      "retrieval_method": "tx-county-abatement-agendas",
+      "cadence_hours": 24,
+      "enabled": false,
+      "publication_cadence": "Commissioners Court agendas are posted for each meeting (about two per month in 2026).",
+      "collection_scope": "Agenda PDFs listed on the Haskell County Commissioners Court page; agenda items that name a tax abatement, Chapter 312, a reinvestment zone or a data center, each as a verbatim quote with page and span, plus an entity, dollar investment, MW, acreage or location only when the item states it.",
+      "coverage_limitation": "Pilot of one county. About half of the agendas have no text layer and are abstentions; two are .doc files and are not read. Milam County PDF links redirect to a third-party CMS host and Medina County agendas sit on a host whose robots.txt disallows crawling; neither is read. An agenda item is a topic, not an approval, an investment or a load.",
+      "credential_reference": null,
+      "retention": "Listing fields, content hash, validators and matching agenda items with page, verbatim quote and span, and a per-URL check index (the PDFs are not retained)",
+      "query": {
+        "max_response_bytes": 3000000,
+        "max_records": 40,
+        "max_agendas": 12,
+        "counties": ["haskell"],
+        "documents": {
+          "enabled": false,
+          "max_downloads": 4,
+          "max_checks": 40,
+          "extract_seconds": 300,
+          "seed_urls": []
+        }
+      }
+    },
+    {
+      "id": "texas-tceq-water-rights-pending",
+      "publisher": "Texas Commission on Environmental Quality",
+      "endpoint": "https://www.tceq.texas.gov/permitting/water_rights/wr-permitting/view-wr-pend-apps",
+      "family": "water-rights",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": ["water", "data centers", "industrial facilities"],
+      "retrieval_method": "tceq-water-rights-pending",
+      "cadence_hours": 168,
+      "enabled": false,
+      "publication_cadence": "TCEQ refreshes the pending water right applications page weekly (close of business Monday).",
+      "collection_scope": "Rows of the pending applications tables: applicant, WR number, county, received, administratively complete, notice and public meeting dates; when the document stage is on, acre-feet figures, stated purposes and the applicant's name from the first pages of a notice package.",
+      "coverage_limitation": "The listing states no volume or use and most applicants are cities, districts and farms; no listed row names a data center. A volume is a water-right quantity (requested or existing), never summed and never a power load. Notice packages can be large (32 MB observed); a bounded number is read per run.",
+      "credential_reference": null,
+      "retention": "Each row's listed text and a row hash; for notices, content hash, validators, acre-feet figures with page, role and verbatim quote, and a per-URL check index (the PDFs are not retained)",
+      "query": {
+        "max_response_bytes": 3000000,
+        "max_records": 300,
+        "documents": {
+          "enabled": false,
+          "max_downloads": 2,
+          "max_checks": 40,
+          "extract_seconds": 300,
+          "seed_urls": []
+        }
+      }
+    },
+    {
       "id": "spp-thermal-interconnection",
       "publisher": "Southwest Power Pool",
       "endpoint": "https://opsportal.spp.org/Studies/GenerateActiveCSV",
