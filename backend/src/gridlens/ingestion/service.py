@@ -192,6 +192,9 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
     okdeq_document = record.get("okdeq_document")
     if isinstance(okdeq_document, dict):
         provenance["okdeq_document"] = okdeq_document
+    nmed_document = record.get("nmed_document")
+    if isinstance(nmed_document, dict):
+        provenance["nmed_document"] = nmed_document
     return provenance
 
 
@@ -2568,16 +2571,66 @@ def _retrieve_source_outside_transaction(
     *,
     deadline: float | None = None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
+    is_nmed = source_definition.get("retrieval_method") == "nmed-air-applications"
+    if is_nmed:
+        _skip_nmed_listing_while_resting(session, source_definition["id"])
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
-    result = (
-        retrieve_source(source_definition, client)
-        if deadline is None
-        else retrieve_source(source_definition, client, deadline=deadline)
-    )
+    try:
+        result = (
+            retrieve_source(source_definition, client)
+            if deadline is None
+            else retrieve_source(source_definition, client, deadline=deadline)
+        )
+    except Exception as error:
+        if is_nmed:
+            _remember_nmed_rate_limit(session, source_definition["id"], error)
+        raise
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return _normalize_source_acquisition(source_definition, result)
+
+
+def _nmed_rest_error(seconds: int) -> SourceParseError:
+    error = SourceParseError("NMED publisher asked for a pause")
+    error.acquisition_code = "http_status_429"  # type: ignore[attr-defined]
+    error.acquisition_retry_after_seconds = max(1, seconds)  # type: ignore[attr-defined]
+    return error
+
+
+def _skip_nmed_listing_while_resting(session: Session, source_id: str) -> None:
+    """No listing request while an earlier 429/503 Retry-After (``not_before``) has not passed."""
+    from gridlens.ingestion.nmed_document_stage import load_index
+
+    resting = load_index(session, source_id).get("not_before")
+    session.commit()
+    if isinstance(resting, str):
+        try:
+            until = datetime.fromisoformat(resting)
+        except ValueError:
+            return
+        until = until if until.tzinfo else until.replace(tzinfo=UTC)
+        remaining = (until - datetime.now(UTC)).total_seconds()
+        if remaining > 0:
+            raise _nmed_rest_error(int(remaining) + 1)
+
+
+def _remember_nmed_rate_limit(session: Session, source_id: str, error: BaseException) -> None:
+    """Store ``not_before`` in source health when the listing itself was rate limited."""
+    if getattr(error, "acquisition_code", None) not in {"http_status_429", "http_status_503"}:
+        return
+    seconds = getattr(error, "acquisition_retry_after_seconds", None)
+    delay = seconds if type(seconds) is int and seconds > 0 else 3600
+    try:
+        from gridlens.ingestion.nmed_document_stage import load_index, save_index
+
+        session.rollback()
+        index = load_index(session, source_id)
+        index["not_before"] = (datetime.now(UTC) + timedelta(seconds=delay)).isoformat()
+        save_index(session, source_id, index)
+        session.commit()
+    except Exception:  # never mask the original acquisition error
+        session.rollback()
 
 
 def _enrich_with_application_documents(
@@ -2597,6 +2650,10 @@ def _enrich_with_application_documents(
     source lock is retaken exactly as after ordinary retrieval. Returns the stage report, or
     None when the source does not configure the stage.
     """
+    if source_definition.get("retrieval_method") == "nmed-air-applications":
+        return _enrich_with_nmed_documents(
+            session, job_id, worker_id, fence, source_definition, acquisition, client, deadline
+        )
     if source_definition.get("retrieval_method") == "ok-deq-public-review":
         return _enrich_with_okdeq_documents(
             session, job_id, worker_id, fence, source_definition, acquisition, client, deadline
@@ -2704,6 +2761,56 @@ def _enrich_with_application_documents(
         # It is reported as a typed stage error, never swallowed silently.
         session.rollback()
         report = StageReport()
+        report.reject("stage", "stage_error", error=type(error).__name__)
+        apply_prior_states(records, prior)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return report
+
+
+def _enrich_with_nmed_documents(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    acquisition: list[dict[str, Any]] | dict[str, Any],
+    client: httpx.Client | None,
+    deadline: float | None,
+) -> Any:
+    """Run the bounded NMED application-document stage over the retrieved listing records.
+
+    Same contract as the TCEQ and OK DEQ stages: no transaction or source lock is held while
+    the network and extraction run, the lock is retaken afterwards, and a fault in the additive
+    stage is a typed stage error that leaves the listing run and retained state intact.
+    Returns the stage report, or None when the source does not enable the stage.
+    """
+    from gridlens.ingestion.adapters.nmed_application_documents import (
+        NmedStageReport,
+        apply_prior_states,
+        config_from_source,
+        run_stage,
+    )
+    from gridlens.ingestion.nmed_document_stage import load_index, load_prior_states, save_index
+
+    config = config_from_source(source_definition)
+    if config is None:
+        return None
+    records = acquisition if isinstance(acquisition, list) else acquisition["records"]
+    if session.in_transaction():
+        session.commit()
+    prior = load_prior_states(session, source_definition["id"])
+    index = load_index(session, source_definition["id"])
+    session.commit()
+    try:
+        report = run_stage(
+            records, prior, client=client, config=config, index=index, deadline=deadline
+        )
+        if report.index != index:
+            save_index(session, source_definition["id"], report.index)
+            session.commit()
+    except Exception as error:
+        session.rollback()
+        report = NmedStageReport()
         report.reject("stage", "stage_error", error=type(error).__name__)
         apply_prior_states(records, prior)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
@@ -3191,13 +3298,19 @@ def _retrieve_companion_outside_transaction(
     client: httpx.Client | None,
     *,
     deadline: float | None = None,
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
+    # Flag-gated, default off: the call below is unchanged unless the source opts in.
+    extra: dict[str, Any] = (
+        {"hp_driver": True}
+        if (source_definition.get("query") or {}).get("hp_driver_evidence") is True
+        else {}
+    )
     citations = (
-        retrieve_companion(record, client)
+        retrieve_companion(record, client, **extra)
         if deadline is None
-        else retrieve_companion(record, client, deadline=deadline)
+        else retrieve_companion(record, client, deadline=deadline, **extra)
     )
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
@@ -3670,7 +3783,7 @@ def process_records(
             )
             if not eligible:
                 counts["pdf_skipped_not_signal"] += 1
-                pdf_citations: list[dict[str, str]] = []
+                pdf_citations: list[dict[str, Any]] = []
             else:
                 counts["pdf_eligible"] += 1
                 if pdf_documents >= MAX_PDFS_PER_RUN:
@@ -3718,6 +3831,11 @@ def process_records(
                             published_at=_optional_date(pdf.get("published_at")),
                             extraction_location=pdf["extraction_location"],
                             event_date=None,
+                            **(
+                                {"provenance": {"fr_hp_driver": pdf["hp_driver"]}}
+                                if isinstance(pdf.get("hp_driver"), dict)
+                                else {}
+                            ),
                         )
                     )
                     remaining_seconds(deadline)
