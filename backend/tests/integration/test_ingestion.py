@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from gridlens.domain.evaluation_clock import evaluate_at
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
@@ -2629,7 +2630,7 @@ def test_out_of_region_permit_keeps_evidence_but_never_creates_active_need(db):
         "event_date_label": "Permit issue date",
         "permit": permit,
     }
-    with factory() as session:
+    with evaluate_at(datetime(2026, 11, 4, tzinfo=UTC)), factory() as session:
         counts = service.process_records(
             session,
             job_id,
@@ -2713,7 +2714,7 @@ def test_site_reclassification_holds_active_need_and_preserves_evidence_history(
         "TX",
         "Texas headquarters announces a concert stage with food vendors November 2-4, 2026.",
     )
-    with factory() as session:
+    with evaluate_at(datetime(2026, 11, 4, tzinfo=UTC)), factory() as session:
         first = service.process_records(
             session, job_id, "test", 1, definition, [initial], allow_model=False
         )
@@ -2731,7 +2732,7 @@ def test_site_reclassification_holds_active_need_and_preserves_evidence_history(
         "Texas headquarters revises its event filing for a concert stage with food vendors "
         "November 2-4, 2026.",
     )
-    with factory() as session:
+    with evaluate_at(datetime(2026, 11, 4, tzinfo=UTC)), factory() as session:
         second = service.process_records(
             session, job_id, "test", 1, definition, [revised], allow_model=False
         )
