@@ -305,18 +305,28 @@ def retrieve(
                     doc["url"],
                     record_for(doc, kind="rpg_pdf", meeting=when, listed_on=listed_on),
                 )
+        tpit_record: dict[str, Any] | None = None
         planning = find_tpit(page(PLANNING_URL))
         if planning is not None:
-            records.setdefault(
-                planning["url"],
-                record_for(planning, kind="tpit", meeting=None, listed_on=listed_on),
-            )
+            tpit_record = record_for(planning, kind="tpit", meeting=None, listed_on=listed_on)
+        seeds: dict[str, dict[str, Any]] = {}
         for seed in query["documents"]["seed_urls"]:
             doc = {"url": seed, "title": seed.rsplit("/", 1)[-1][:-4], "listed": None, "ext": "pdf"}
-            records.setdefault(
-                seed, record_for(doc, kind="system_planning", meeting=None, listed_on=listed_on)
+            seeds.setdefault(
+                seed,
+                record_for(doc, kind="system_planning", meeting=None, listed_on=listed_on),
             )
-        return list(records.values())[: query["max_records"]]
+            # An explicitly configured seed must not be dropped just because it was also found
+            # through a meeting listing and happens to fall beyond the meeting-PDF cap.
+            records.pop(seed, None)
+        required_records = ([tpit_record] if tpit_record is not None else []) + list(seeds.values())
+        max_records = query["max_records"]
+        if len(required_records) > max_records:
+            raise SourceParseError(
+                "ERCOT RPG max_records is too small for the TPIT snapshot and configured seed PDFs"
+            )
+        meeting_records = list(records.values())[: max_records - len(required_records)]
+        return [*required_records, *meeting_records]
     finally:
         if own:
             http.close()

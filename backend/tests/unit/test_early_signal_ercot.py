@@ -210,6 +210,28 @@ def test_listing_records_are_stable_for_the_same_listing():
     ]
 
 
+def test_listing_reserves_tpit_and_seed_within_max_records_before_meeting_pdfs():
+    def retrieve_with_limit(limit):
+        origin = ercot_origin()
+        definition = source(seed_urls=[SYSPLAN_PDF])
+        definition["query"] = {**definition["query"], "max_records": limit}
+        records = er.retrieve(
+            definition, origin.client(), pacer=lambda: None, today=date(2026, 11, 4)
+        )
+        return records
+
+    with pytest.raises(SourceParseError, match="too small"):
+        retrieve_with_limit(1)
+
+    required = retrieve_with_limit(2)
+    assert {record["doc_kind"] for record in required} == {"tpit", "system_planning"}
+    assert len(required) == 2
+
+    capped = retrieve_with_limit(3)
+    assert len(capped) == 3
+    assert {record["doc_kind"] for record in capped} == {"tpit", "system_planning", "rpg_pdf"}
+
+
 def test_listing_rate_limited_is_typed_with_retry_after():
     origin = ercot_origin()
     from httpx import Response
