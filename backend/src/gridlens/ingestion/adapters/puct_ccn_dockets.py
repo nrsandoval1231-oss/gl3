@@ -319,11 +319,16 @@ def first_pdf(body: bytes, control: str, item: str) -> str | None:
 
 
 def _read_pdf(
-    fetcher: EarlyFetcher, url: str, budget: float, isolate: bool
+    fetcher: EarlyFetcher, url: str, budget: float | Callable[[], float], isolate: bool
 ) -> tuple[list[str], str, int]:
     fetched = fetcher.get(url, max_bytes=MAX_PDF_BYTES, media_types=PDF)
     assert fetched.sha256 is not None
-    pages, _scanned = rpg_extract.read_pdf_pages(fetched.body, budget, isolate)
+    seconds = budget() if callable(budget) else budget
+    if seconds < shared.MIN_EXTRACT_SECONDS:
+        failure = DocumentFailure("text_layer_time_budget")
+        failure.budget_limited = True
+        raise failure
+    pages, _scanned = rpg_extract.read_pdf_pages(fetched.body, seconds, isolate)
     return pages, fetched.sha256, len(fetched.body)
 
 
@@ -334,7 +339,7 @@ def read_docket(
     fetcher: EarlyFetcher,
     record: dict[str, Any],
     prior: dict[str, Any] | None,
-    budget: float,
+    budget: float | Callable[[], float],
     isolate: bool,
 ) -> dict[str, Any]:
     """Filings list, then the application and order PDFs not yet read. Raises DocumentFailure."""
@@ -490,6 +495,22 @@ def _read_dockets(run: stage.Run, records: list[dict[str, Any]]) -> None:
             break
         reads += 1
         report.bump("checked")
+
+        budget_was_limited = False
+
+        def next_pdf_budget() -> float:
+            nonlocal budget_was_limited
+            seconds = min(
+                run.config.extract_seconds,
+                run.left() - shared.STAGE_MARGIN_SECONDS - shared.CHILD_GRACE_SECONDS,
+            )
+            budget_was_limited = seconds < run.config.extract_seconds
+            if seconds < shared.MIN_EXTRACT_SECONDS:
+                failure = DocumentFailure("text_layer_time_budget")
+                failure.budget_limited = budget_was_limited
+                raise failure
+            return seconds
+
         item = stage.DocItem(
             key=key,
             url=filings_url(key),
@@ -501,9 +522,11 @@ def _read_dockets(run: stage.Run, records: list[dict[str, Any]]) -> None:
         )
         prior = run.states.get(key)
         try:
-            extraction = read_docket(fetcher, record, prior, budget, run.config.isolate)
+            extraction = read_docket(fetcher, record, prior, next_pdf_budget, run.config.isolate)
         except DocumentFailure as failure:
-            failure.budget_limited = budget < run.config.extract_seconds
+            failure.budget_limited = (
+                failure.budget_limited or budget < run.config.extract_seconds or budget_was_limited
+            )
             try:
                 stage._on_failure(run, item, entry, failure, None)
             except stage.StageAbort:
