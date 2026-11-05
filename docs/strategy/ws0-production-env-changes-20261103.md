@@ -125,3 +125,12 @@ Every USD cap must be at least the per-call cost ceiling or the call is refused 
 - OCR retention policy reference and the GovInfo source IDs.
 - Whether to accept the per-value cap semantics or fund a code change for a true 90/10 split.
 - Keys already in Infisical: confirm they are mapped to `TYPESAFE_API_KEY` and `OPENAI_API_KEY` in the production secret set.
+
+## Source activation (registry change, not an environment variable)
+
+The TCEQ application-document stage ([workstream 1b](../engineering/tceq-application-documents-20261103.md)) ships **off**. To turn it on, set `query.application_documents.enabled` to `true` on the `texas-tceq-nsr-pending` entry in `config/sources/registry.v1.json` through the protected release. Nothing in the environment list above enables it, and it uses no paid provider.
+
+- Shipped bounds: `max_downloads` 2, `max_checks` 60, `extract_seconds` 420, at most one request per second to `www.tceq.texas.gov`.
+- Memory: the worker holds one unpacked composite PDF (up to 128 MB) in memory plus a copy in the extraction child; POSIX children are capped (`RLIMIT_AS` 2 GiB unpack, 1 GiB workbook), a Windows host would have no cap. Size the worker accordingly before enabling.
+- Admission: the NSR job holds the global public-acquisition admission for its whole run. With the stage on that can be up to the 600 s lease instead of seconds. Watch the first enabled runs and the `application_documents` counts in the job result.
+- Roll back by setting `enabled` to `false`; retained evidence and states stay.

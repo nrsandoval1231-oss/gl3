@@ -184,6 +184,9 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
     retained = record.get("retained_document")
     if isinstance(retained, dict):
         provenance["retained_document"] = retained
+    application_document = record.get("application_document")
+    if isinstance(application_document, dict):
+        provenance["application_document"] = application_document
     return provenance
 
 
@@ -2109,6 +2112,9 @@ def process_job(
     acquisition = _retrieve_source_outside_transaction(
         session, job_id, worker_id, fence, source_definition, client, deadline=deadline
     )
+    document_report = _enrich_with_application_documents(
+        session, job_id, worker_id, fence, source_definition, acquisition, client, deadline=deadline
+    )
     fetch_receipt_at = datetime.now(UTC)
     if isinstance(acquisition, list):
         retrieved = acquisition
@@ -2202,6 +2208,10 @@ def process_job(
             "attempt_changed": counts.get("changed", 0),
         }
     )
+    if document_report is not None:
+        from gridlens.ingestion.tceq_document_stage import merge_report
+
+        merge_report(counts, document_report)
     return counts
 
 
@@ -2563,6 +2573,73 @@ def _retrieve_source_outside_transaction(
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return _normalize_source_acquisition(source_definition, result)
+
+
+def _enrich_with_application_documents(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    acquisition: list[dict[str, Any]] | dict[str, Any],
+    client: httpx.Client | None,
+    *,
+    deadline: float | None,
+) -> Any:
+    """Run the bounded TCEQ application-document stage over the retrieved NSR records.
+
+    Network and extraction time is spent with no transaction or source lock held, then the
+    source lock is retaken exactly as after ordinary retrieval. Returns the stage report, or
+    None when the source does not configure the stage.
+    """
+    from gridlens.ingestion.adapters.tceq_application_documents import (
+        StageReport,
+        apply_prior_states,
+        config_from_source,
+        run_stage,
+    )
+    from gridlens.ingestion.tceq_document_stage import (
+        load_bookkeeping,
+        load_prior_states,
+        save_bookkeeping,
+    )
+
+    config = (
+        config_from_source(source_definition)
+        if source_definition.get("retrieval_method") == "tceq-nsr-pending"
+        else None
+    )
+    if config is None:
+        return None
+    records = acquisition if isinstance(acquisition, list) else acquisition["records"]
+    if session.in_transaction():
+        session.commit()
+    prior = load_prior_states(session, source_definition["id"])
+    book = load_bookkeeping(session, source_definition["id"])
+    session.commit()
+    if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
+        # The publisher is already throttling this source: make no further requests.
+        report = StageReport()
+        report.bump("skipped_source_rate_limited")
+        apply_prior_states(records, prior)
+        _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+        return report
+    try:
+        report = run_stage(
+            records, prior, client=client, config=config, deadline=deadline, bookkeeping=book
+        )
+        if report.bookkeeping != book:
+            save_bookkeeping(session, source_definition["id"], report.bookkeeping)
+            session.commit()
+    except Exception as error:
+        # The stage is additive: an unexpected fault must not fail the ordinary listing run.
+        # It is reported as a typed stage error, never swallowed silently.
+        session.rollback()
+        report = StageReport()
+        report.reject("stage", "stage_error", error=type(error).__name__)
+        apply_prior_states(records, prior)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return report
 
 
 def _record_tdlr_fetch_receipts(

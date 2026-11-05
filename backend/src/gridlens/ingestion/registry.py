@@ -8,6 +8,21 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 REGISTRY_PATH = Path(__file__).resolve().parents[4] / "config" / "sources" / "registry.v1.json"
 
 
+def _valid_application_documents(value: Any) -> bool:
+    """Optional bounded TCEQ application-document stage; absent means not configured."""
+    if value is None:
+        return True
+    return (
+        isinstance(value, dict)
+        and set(value) == {"enabled", "max_downloads", "max_checks", "extract_seconds"}
+        and type(value["enabled"]) is bool
+        and all(type(item) is int for key, item in value.items() if key != "enabled")
+        and 1 <= value["max_downloads"] <= 5
+        and 1 <= value["max_checks"] <= 120
+        and 60 <= value["extract_seconds"] <= 900
+    )
+
+
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("version") != 1 or not isinstance(raw.get("sources"), list):
@@ -439,7 +454,9 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 source.get("cadence_hours") == 24
                 and source.get("geography") == "Texas"
                 and 0 <= query.get("max_summaries", -1) <= 60
-                and set(query) == {"max_summaries"}
+                and set(query).issubset({"max_summaries", "application_documents"})
+                and "max_summaries" in query
+                and _valid_application_documents(query.get("application_documents"))
             )
         elif source["retrieval_method"] == "ok-deq-public-review":
             bounded = (

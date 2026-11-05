@@ -5,6 +5,8 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit
 
 import httpx
@@ -34,6 +36,12 @@ BATCH_LISTING = (
 _PDF_PREFIX = "/downloads/permitting/air/bilingual/pending-permit-notices/"
 _PDF_SUFFIXES = ("-pls-english.pdf", "-napd-english.pdf")
 _MAX_REDIRECTS = 3
+# Application documents (AC/TC filings) under the pending-application reports path.
+_APPLICATION_PATH = re.compile(
+    r"/assets/public/permitting/air/reports/applications/([0-9]{1,12})-(ac|tc)\.pdf",
+    re.IGNORECASE,
+)
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 
 def record_document_url(url: str) -> str | None:
@@ -89,8 +97,16 @@ def _route(url: str, route: str) -> str:
         and pdf_name.lower().endswith(_PDF_SUFFIXES)
         and pdf_name.replace("-pls-english.pdf", "").replace("-napd-english.pdf", "").isalnum()
     )
+    supported_application = (
+        route == "application"
+        and pdf_host
+        and parts.hostname == HOST
+        and _APPLICATION_PATH.fullmatch(parts.path) is not None
+    )
     supported = (route == "record_pdf" and record is not None) or (
-        (route == "listing" and url in {NSR_LISTING, BATCH_LISTING}) or supported_pdf
+        (route == "listing" and url in {NSR_LISTING, BATCH_LISTING})
+        or supported_pdf
+        or supported_application
     )
     if not supported:
         raise SourceParseError("TCEQ URL is outside the verified route allowlist")
@@ -148,4 +164,56 @@ def read_tceq_response(
         if route in {"pdf", "record_pdf"} and not body.startswith(b"%PDF-"):
             raise SourceParseError("TCEQ document does not have a PDF signature")
         return headers, body
+    raise SourceParseError("TCEQ redirect limit exceeded")
+
+
+@contextmanager
+def open_tceq_application(
+    client: httpx.Client,
+    url: str,
+    *,
+    method: str = "GET",
+    headers: dict[str, str] | None = None,
+    before_request: Callable[[], None] | None = None,
+) -> Iterator[httpx.Response]:
+    """Open one streamed request to an exact TCEQ application document URL.
+
+    Same policy as ``read_tceq_response``: exact official host and path, public DNS answer
+    pinned per hop, redirects followed manually and re-validated, never auto-following.
+    ``before_request`` runs before every network hop (the caller's pacing hook). The caller
+    owns status handling and body reading; 3xx responses are consumed here.
+    """
+    if method not in {"GET", "HEAD"}:
+        raise SourceParseError("TCEQ application request method is unsupported")
+    if client.follow_redirects:
+        raise SourceParseError("TCEQ client must not automatically follow redirects")
+    current = _route(url, "application")
+    origin = _APPLICATION_PATH.fullmatch(urlsplit(current).path)
+    assert origin is not None
+    wanted = (origin.group(1), origin.group(2).lower())
+    for _hop in range(_MAX_REDIRECTS + 1):
+        host = urlsplit(current).hostname or ""
+        ip = _public_ip(host)
+        pinned_url = httpx.URL(current).copy_with(host=ip)
+        if before_request is not None:
+            before_request()
+        request_headers = {"Host": host, **(headers or {})}
+        with client.stream(
+            method,
+            str(pinned_url),
+            headers=request_headers,
+            extensions={"sni_hostname": host},
+        ) as response:
+            if response.status_code in _REDIRECT_STATUSES:
+                location = response.headers.get("location")
+                if not location:
+                    raise SourceParseError("TCEQ redirect has no destination")
+                current = _route(urljoin(current, location), "application")
+                target = _APPLICATION_PATH.fullmatch(urlsplit(current).path)
+                # A redirect may move host or path but never to another project or kind.
+                if target is None or (target.group(1), target.group(2).lower()) != wanted:
+                    raise SourceParseError("TCEQ redirect changed the application document")
+            else:
+                yield response
+                return
     raise SourceParseError("TCEQ redirect limit exceeded")
