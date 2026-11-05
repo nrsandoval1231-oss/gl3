@@ -713,6 +713,65 @@
       }
     },
     {
+      "id": "texas-ercot-rpg-projects",
+      "publisher": "Electric Reliability Council of Texas",
+      "endpoint": "https://www.ercot.com/committees/other/rpg",
+      "family": "interconnection-status",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": ["energy", "data centers", "industrial facilities"],
+      "retrieval_method": "ercot-rpg-projects",
+      "cadence_hours": 24,
+      "enabled": false,
+      "publication_cadence": "RPG meeting pages list their Key Documents with a listed date (about monthly); the Transmission Project and Information Tracking workbook is replaced in place at one stable URL each month.",
+      "collection_scope": "Recent Regional Planning Group meeting documents (project PDFs, IDs such as 25RPG020), the TPIT workbook (relevant rows and a monthly new/changed/removed diff), and owner-listed System Planning update PDFs (ERCOT-wide totals only).",
+      "coverage_limitation": "RPG documents give project totals only: no customer names, no MW per customer, no load type and no requested energization date. A stated MW is a project load statement, never inferred and never site demand. TPIT carries MVA (a transformer rating, not load) and no cost in the public no-cost workbook; its contact column is never read. Only the most recent meetings are listed; PDFs with no text layer are abstentions. Unknown is not zero.",
+      "credential_reference": null,
+      "retention": "Listing fields, content hashes and validators, extracted project fields each with page, verbatim quote and span, TPIT relevant-row snapshot hashes and diff rows, and a per-URL check index (the files themselves are not retained)",
+      "query": {
+        "max_response_bytes": 3000000,
+        "max_records": 200,
+        "max_meetings": 3,
+        "documents": {
+          "enabled": false,
+          "max_downloads": 6,
+          "max_checks": 40,
+          "extract_seconds": 300,
+          "seed_urls": []
+        }
+      }
+    },
+    {
+      "id": "texas-puct-ccn-transmission-dockets",
+      "publisher": "Public Utility Commission of Texas",
+      "endpoint": "https://interchange.puc.texas.gov/search/dockets/",
+      "family": "official-utility-filings",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": ["energy", "data centers", "industrial facilities"],
+      "retrieval_method": "puct-ccn-dockets",
+      "cadence_hours": 24,
+      "enabled": false,
+      "publication_cadence": "Electric certificate-of-convenience-and-necessity dockets whose case style names a transmission line or substation, filed within a rolling window; 22 to 38 dockets with filings per month were counted in 2026.",
+      "collection_scope": "Case styles from the Interchange search and its Excel export (cross-checked), then for a bounded number of dockets the first PDF of the initial application and of the preliminary order: county, voltage, cost and a stated customer request in MW.",
+      "coverage_limitation": "A docket names a utility and a project, usually not the customer. A customer request is recorded only when the text states it, with its verbatim quote; it is not demand and not a site. Only the first PDF chunk of an application is read. Links to ERCOT RPG projects exist only on an exact stated key (substation name and county, or a cited project ID); otherwise the link is unknown.",
+      "credential_reference": null,
+      "retention": "Case-style facts, content hashes of the read PDFs, extracted fields each with page and verbatim quote, deterministic link records, and a per-docket check index (the PDFs are not retained)",
+      "query": {
+        "max_response_bytes": 2000000,
+        "max_records": 100,
+        "window_days": 60,
+        "descriptions": ["transmission line", "substation"],
+        "documents": {
+          "enabled": false,
+          "max_downloads": 4,
+          "max_checks": 40,
+          "extract_seconds": 300,
+          "seed_urls": []
+        }
+      }
+    },
+    {
       "id": "spp-thermal-interconnection",
       "publisher": "Southwest Power Pool",
       "endpoint": "https://opsportal.spp.org/Studies/GenerateActiveCSV",

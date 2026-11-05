@@ -158,6 +158,14 @@ def _retrieve_source_direct(
         )
 
         return retrieve_nmed_applications(source, client, deadline=deadline)
+    if method == "ercot-rpg-projects":
+        from gridlens.ingestion.adapters.ercot_rpg import retrieve as retrieve_ercot_rpg
+
+        return retrieve_ercot_rpg(source, client, deadline=deadline)
+    if method == "puct-ccn-dockets":
+        from gridlens.ingestion.adapters.puct_ccn_dockets import retrieve as retrieve_puct_ccn
+
+        return retrieve_puct_ccn(source, client, deadline=deadline)
     if method == "ok-deq-public-review":
         return retrieve_ok_deq(source, client)
     if method == "spp-interconnection-queue":

@@ -158,6 +158,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "puct-interchange": {"interchange.puc.texas.gov"},
             "puct-docket-index": {"interchange.puc.texas.gov"},
             "ercot-large-load-status": {"www.ercot.com"},
+            "ercot-rpg-projects": {"www.ercot.com"},
+            "puct-ccn-dockets": {"interchange.puc.texas.gov"},
             "faa-oeaaa-cases": {"oeaaa.faa.gov"},
             "msha-mines-zip": {"arlweb.msha.gov"},
             "tceq-aggregate-socrata": {"data.texas.gov"},
@@ -213,6 +215,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "puct-interchange",
             "puct-docket-index",
             "ercot-large-load-status",
+            "ercot-rpg-projects",
+            "puct-ccn-dockets",
             "faa-oeaaa-cases",
             "msha-mines-zip",
             "tceq-aggregate-socrata",
@@ -562,6 +566,28 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and query.get("max_response_bytes") == 2_000_000
                 and query.get("max_records") == 400
                 and _valid_okdeq_documents(query.get("application_documents"))
+            )
+        elif source["retrieval_method"] == "ercot-rpg-projects":
+            from gridlens.ingestion.adapters import ercot_rpg
+
+            bounded = (
+                source.get("id") == ercot_rpg.SOURCE_ID
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "interconnection-status"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and ercot_rpg.valid_query(query)
+            )
+        elif source["retrieval_method"] == "puct-ccn-dockets":
+            from gridlens.ingestion.adapters import puct_ccn_dockets
+
+            bounded = (
+                source.get("id") == puct_ccn_dockets.SOURCE_ID
+                and source.get("cadence_hours") == 24
+                and source.get("family") == "official-utility-filings"
+                and source.get("geography") == "Texas"
+                and source.get("state") == "TX"
+                and puct_ccn_dockets.valid_query(query)
             )
         elif source["retrieval_method"] == "nmed-air-applications":
             from gridlens.ingestion.adapters.nmed_application_documents import (
