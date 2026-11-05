@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
@@ -113,6 +114,7 @@ from gridlens.persistence.models import (
     Source,
     SourceCollectionProgress,
 )
+from gridlens.settings import settings
 
 PERMIT_RETRIEVAL_METHODS = {
     "socrata-permits",
@@ -2715,6 +2717,20 @@ def _enrich_with_application_documents(
     prior = load_prior_states(session, source_definition["id"])
     book = load_bookkeeping(session, source_definition["id"])
     not_before = load_not_before(session, source_definition["id"])
+    discovery_only = settings.document_extraction_jobs_enabled
+    if discovery_only:
+        # Finished extraction jobs not yet folded into evidence are retained state too.
+        from gridlens.jobs.document_extraction import (
+            load_evidence_times,
+            load_pending_states,
+            merge_pending,
+        )
+
+        prior, _taken = merge_pending(
+            prior,
+            load_pending_states(session, source_definition["id"]),
+            load_evidence_times(session, source_definition["id"]),
+        )
     session.commit()
     if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
         # The publisher is already throttling this source: make no further requests.
@@ -2730,13 +2746,46 @@ def _enrich_with_application_documents(
         apply_prior_states(records, prior)
         _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
         return report
+    run_started = datetime.now(UTC)
     try:
+        side = StageReport()  # counts from the discovery callback
+        on_changed = None
+        if discovery_only:
+            from gridlens.jobs.document_extraction import discovery_callback
+
+            on_changed = discovery_callback(
+                session,
+                source_definition["id"],
+                side,
+                limit=settings.document_extraction_max_enqueue_per_run or config.max_downloads,
+            )
         report = run_stage(
-            records, prior, client=client, config=config, deadline=deadline, bookkeeping=book
+            records,
+            prior,
+            client=client,
+            config=config,
+            deadline=deadline,
+            bookkeeping=book,
+            on_changed=on_changed,
         )
+        for key, amount in side.counts.items():
+            report.bump(key, amount)
         if report.bookkeeping != book:
             save_bookkeeping(session, source_definition["id"], report.bookkeeping)
         save_not_before(session, source_definition["id"], rest_until(report, datetime.now(UTC)))
+        _record_document_run(
+            session,
+            source_definition["id"],
+            "discovery" if discovery_only else "inline",
+            report.counts,
+            [
+                r["application_document"]
+                for r in records
+                if isinstance(r.get("application_document"), dict)
+                and _fetched_since(r["application_document"], run_started)
+            ],
+            run_started,
+        )
         session.commit()
     except Exception as error:
         # The stage is additive: an unexpected fault must not fail the ordinary listing run.
@@ -2864,6 +2913,33 @@ def _enrich_with_nmed_documents(
     return report
 
 
+def _fetched_since(state: dict[str, Any], since: datetime) -> bool:
+    document = state.get("document")
+    raw = document.get("fetched_at") if isinstance(document, dict) else None
+    try:
+        fetched = datetime.fromisoformat(str(raw))
+    except ValueError:
+        return False
+    return (fetched if fetched.tzinfo else fetched.replace(tzinfo=UTC)) >= since
+
+
+def _record_document_run(
+    session: Session,
+    source_id: str,
+    mode: str,
+    counts: dict[str, int],
+    states: list[dict[str, Any]],
+    started: datetime,
+) -> None:
+    """Append the stage run to source health for the document-source alerts (never fatal)."""
+    from gridlens.ingestion.document_health import build_run_summary, record_run
+
+    try:
+        record_run(session, source_id, build_run_summary(mode, counts, states, at=started))
+    except Exception:  # noqa: BLE001 - an alert input must never fail the listing run
+        logging.getLogger(__name__).exception("Document run summary was not recorded")
+
+
 def _enrich_with_okdeq_documents(
     session: Session,
     job_id: Any,
@@ -2904,13 +2980,17 @@ def _enrich_with_okdeq_documents(
         apply_prior_states(records, prior)
         _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
         return report
+    run_started = datetime.now(UTC)
     try:
         report = run_stage(
             records, prior, client=client, config=config, index=index, deadline=deadline
         )
         if report.index != index:
             save_index(session, source_definition["id"], report.index)
-            session.commit()
+        _record_document_run(
+            session, source_definition["id"], "inline", report.counts, [], run_started
+        )
+        session.commit()
     except Exception as error:
         session.rollback()
         report = OkStageReport()

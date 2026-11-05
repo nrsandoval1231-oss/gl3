@@ -41,6 +41,7 @@ from gridlens.intelligence.grounded_candidates import validate_grounded_candidat
 from gridlens.intelligence.jev_contracts import CONTRACTS, validate_answer
 from gridlens.intelligence.jev_task_context import build_task_context
 from gridlens.intelligence.question_contracts import QUESTION_CONTRACTS, question_contract
+from gridlens.intelligence.spend_caps import cap_fields
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -918,6 +919,10 @@ def _enabled(
         payload and payload.get("task_context", {}).get("party_candidates")
     ):
         return False, "", "", "BUYER_SUBJECT_UNRESOLVED"
+    if task_type == "EQUIPMENT_PROPOSER_V1":
+        from gridlens.intelligence.equipment_proposer import proposer_enabled
+
+        return proposer_enabled()
     if task_type == COMMERCIAL_ASSESSMENT_TASK:
         model = settings.intelligence_openai_reasoning_model
         if not settings.intelligence_enabled or mode not in {"evaluation", "advisory"}:
@@ -1284,6 +1289,8 @@ def _openai_output_bound(task_type: str) -> int:
         return POWER_NEED_TITLE_OUTPUT_TOKENS
     if task_type in {"OCR_EXTRACTION", "OCR_GROUNDED_FOLLOWON"}:
         return settings.intelligence_ocr_max_output_tokens
+    if task_type == "EQUIPMENT_PROPOSER_V1":
+        return settings.intelligence_equipment_max_output_tokens
     prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
     return getattr(settings, f"intelligence_openai_{prefix}_max_output_tokens")
 
@@ -1304,6 +1311,24 @@ def _caps() -> dict[str, dict[str, int | Decimal]]:
             "monthly_usd": getattr(settings, f"intelligence_{key}_monthly_usd"),
         }
     return result
+
+
+def provider_caps(
+    provider: str, base: dict[str, dict[str, Any]] | None = None
+) -> dict[str, dict[str, Any]]:
+    """Shared five-scope caps with the provider scope tightened by INTELLIGENCE_PROVIDER_CAPS.
+
+    The smaller value wins, so no existing cap is ever loosened. ``base`` lets a caller that
+    holds its own ``_caps`` reference (legacy_calls) pass the table it already built.
+    """
+    table = _caps() if base is None else base
+    if not settings.intelligence_provider_caps:
+        return table
+    from gridlens.intelligence.spend_caps import parse_provider_caps, tighten_provider_scope
+
+    return tighten_provider_scope(
+        table, provider, parse_provider_caps(settings.intelligence_provider_caps)
+    )
 
 
 def _dispatch_policy(
@@ -1338,7 +1363,7 @@ def _dispatch_policy(
         or current_cost > settings.intelligence_max_call_usd
     ):
         return False, "CURRENT_COST_CEILING_INVALID"
-    scopes = _caps()
+    scopes = provider_caps(provider)
     for scope, limits in scopes.items():
         for period in ("daily", "monthly"):
             count_cap = limits[period]
@@ -1370,6 +1395,11 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
         )
         return unit or Decimal("0")
     if provider == "openai":
+        if task_type == "EQUIPMENT_PROPOSER_V1":
+            from gridlens.intelligence.equipment_proposer import cost_bound as proposer_cost_bound
+
+            request = payload.get("request")
+            return proposer_cost_bound(request) if isinstance(request, dict) else Decimal("0")
         if task_type == COMMERCIAL_ASSESSMENT_TASK:
             request = commercial_assessment_request_payload(
                 model=settings.intelligence_openai_reasoning_model,
@@ -2290,7 +2320,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 else None,
                 "unlimited_contracts": settings.intelligence_unlimited_contracts,
                 "unlimited_providers": settings.intelligence_unlimited_providers,
-                "caps": _caps(),
+                "caps": provider_caps(provider),
                 "max_active": settings.intelligence_max_active_calls,
                 "fence_token": fence_token,
             }
@@ -2312,10 +2342,16 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             checkpoint.update(
                 validation_outcome="BLOCKED", validation_reason=reservation.blocked_reason
             )
+            checkpoint.update(cap_fields(reservation.blocked_reason))
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             _record_research_receipt(session, checkpoint)
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
-        return {"status": "blocked", "error": reservation.blocked_reason, "job_id": str(job_id)}
+        return {
+            "status": "blocked",
+            "error": reservation.blocked_reason,
+            "job_id": str(job_id),
+            **cap_fields(reservation.blocked_reason),
+        }
     call_id = reservation.call_id
     if reservation.status == "COMPLETED":
         from gridlens.persistence.models import LogicalCall
@@ -2381,10 +2417,16 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 validation_outcome="BLOCKED",
                 validation_reason=dispatch_reason or dispatched.blocked_reason,
             )
+            checkpoint.update(cap_fields(dispatch_reason or dispatched.blocked_reason))
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             _record_research_receipt(session, checkpoint)
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
-        return {"status": "blocked", "error": dispatched.blocked_reason, "job_id": str(job_id)}
+        return {
+            "status": "blocked",
+            "error": dispatched.blocked_reason,
+            "job_id": str(job_id),
+            **cap_fields(dispatch_reason or dispatched.blocked_reason),
+        }
 
     try:
         if provider == "typesafe":

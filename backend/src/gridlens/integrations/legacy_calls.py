@@ -28,6 +28,7 @@ from gridlens.intelligence.intelligence_jobs import (
     _provider_audit_exceeds_bound,
     _provider_error_quarantine_details,
     _safe_provider_audit,
+    provider_caps,
 )
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import LogicalCall
@@ -128,7 +129,8 @@ def perform_legacy_call(
     billing_policy = _billing_policy_identity(provider, model, task_type)
     context_digest = _digest({"payload": payload, "billing_policy": billing_policy})
     call_caps: dict[str, dict[str, int | Decimal | str | float]] = {
-        scope: {name: value for name, value in limits.items()} for scope, limits in _caps().items()
+        scope: {name: value for name, value in limits.items()}
+        for scope, limits in provider_caps(provider, _caps()).items()
     }
     with SessionLocal() as session:
         reservation = reserve_call(

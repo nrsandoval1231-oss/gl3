@@ -32,6 +32,35 @@ def _valid_okdeq_documents(value: Any) -> bool:
     return valid_config(value)
 
 
+def _validate_run_at(source: dict[str, Any], schedule_mode: str, cadence: int) -> None:
+    """Optional local clock times (``run_at``) and weekday (``run_weekday``) for a source.
+
+    Interpreted in the source's timezone, so they follow daylight saving time. Absent, the
+    source runs on ``cadence_hours`` exactly as before.
+    """
+    run_at, weekday = source.get("run_at"), source.get("run_weekday")
+    if run_at is None and weekday is None:
+        return
+    if schedule_mode != "local_daily" or cadence % 24 != 0:
+        raise ValueError("run_at and run_weekday require a local-daily schedule")
+    if run_at is not None:
+        if not isinstance(run_at, list) or not 1 <= len(run_at) <= 4:
+            raise ValueError("run_at must list one to four local clock times")
+        for item in run_at:
+            try:
+                parsed = time.fromisoformat(item)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("run_at entries must be local clock times") from exc
+            if parsed.tzinfo is not None:
+                raise ValueError("run_at entries must not carry a timezone")
+        if len(set(run_at)) != len(run_at):
+            raise ValueError("run_at entries must be distinct")
+    if weekday is not None and (
+        type(weekday) is not int or not 0 <= weekday <= 6 or cadence % 168 != 0
+    ):
+        raise ValueError("run_weekday must be 0-6 with a whole-week cadence")
+
+
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("version") != 1 or not isinstance(raw.get("sources"), list):
@@ -62,6 +91,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             time.fromisoformat(source.get("schedule_anchor_time", "07:00:00"))
         except ValueError as exc:
             raise ValueError("Source schedule anchor must be a local clock time") from exc
+        _validate_run_at(source, schedule_mode, cadence)
         allowed_hosts = {
             "json-api": {"www.federalregister.gov"},
             "federal-register-json": {"www.federalregister.gov"},

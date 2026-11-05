@@ -2029,6 +2029,31 @@ def test_zeroed_budget_after_reserve_cancels_before_provider_dispatch(sessions, 
     assert history[0]["error"] == "GLOBAL_DAILY_CAP_ZERO"
 
 
+def test_capped_out_job_is_typed_in_its_checkpoint_and_counted(sessions, monkeypatch):
+    _enable_bounded_typesafe(monkeypatch)
+    _need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    from gridlens.intelligence import intelligence_jobs
+    from gridlens.intelligence.spend_caps import recent_capped_out_jobs
+
+    monkeypatch.setattr(intelligence_jobs, "call_typesafe", lambda **_k: _fake_call())
+    original_policy = intelligence_jobs._dispatch_policy
+
+    def zero_budget_before_dispatch(*args, **kwargs):
+        monkeypatch.setattr(settings, "intelligence_global_daily_calls", 0)
+        return original_policy(*args, **kwargs)
+
+    monkeypatch.setattr(intelligence_jobs, "_dispatch_policy", zero_budget_before_dispatch)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        capped = recent_capped_out_jobs(session)
+    assert checkpoint["status"] == "blocked" and checkpoint["error"] == "GLOBAL_DAILY_CAP_ZERO"
+    assert checkpoint["capped_out"] is True and checkpoint["cap_state"] == "CAPPED_OUT"
+    assert (checkpoint["cap_scope"], checkpoint["cap_period"]) == ("global", "daily")
+    assert capped["jobs"] == 1
+
+
 @pytest.mark.parametrize("crash_point", ["after_dispatch", "after_provider_response"])
 def test_worker_never_retries_ambiguous_dispatch_after_lease_turnover(
     sessions, monkeypatch, crash_point
