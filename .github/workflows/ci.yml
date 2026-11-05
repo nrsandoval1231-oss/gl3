@@ -295,9 +295,11 @@ jobs:
         run: |
           set -euo pipefail
           mirror_list=/etc/apt/apt-mirrors.txt
-          test "$(grep -oE 'http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)' "$mirror_list" | wc -l)" -eq 1
-          sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)#https://archive.ubuntu.com/ubuntu\1#' "$mirror_list"
-          grep -Eq 'https://archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)' "$mirror_list"
+          # Current runners may have zero or several Azure mirror entries. Replace any
+          # unreachable HTTP entries, but do not fail merely because the image changed.
+          if grep -Eq 'http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)' "$mirror_list"; then
+            sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)#https://archive.ubuntu.com/ubuntu\1#' "$mirror_list"
+          fi
           npx playwright install --with-deps chromium
         working-directory: web
       # Reuse only this runner's migrated, disposable application database.
