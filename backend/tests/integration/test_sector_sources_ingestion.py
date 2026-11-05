@@ -266,8 +266,6 @@ def test_a_rate_limited_origin_ingests_nothing_and_keeps_prior_evidence(stage_db
 
 
 def test_published_at_null_where_unstated_and_sec_accessions_are_remembered(stage_db):
-    from gridlens.ingestion.service import _known_sec_accessions
-
     rows = json.loads((FIX / "tceq-aggregate.json").read_text(encoding="utf-8"))
     definition, job_id = setup_source(stage_db, "texas-tceq-aggregate-production")
     ingest(
@@ -301,4 +299,62 @@ def test_published_at_null_where_unstated_and_sec_accessions_are_remembered(stag
         ).all()
         assert tceq and all(e.published_at is None for e in tceq)
         assert all(e.observed_at is not None for e in tceq)
-        assert _known_sec_accessions(session, "sec-edgar-site-mw") == ["0001104659-26-022322"]
+        sec_ids = session.scalars(
+            select(Observation.external_id).where(Observation.source_id == "sec-edgar-site-mw")
+        ).all()
+        assert sec_ids and all("0001104659-26-022322" in row for row in sec_ids)
+
+
+def test_sec_retrieval_does_not_suppress_filing_after_first_statement(stage_db, monkeypatch):
+    """One committed statement must not mark the entire SEC filing complete."""
+    from gridlens.ingestion import service
+
+    sec_text = sec_edgar_site_mw.filing_text((FIX / "sec-10k-excerpt.htm").read_bytes())
+    definition, job_id = setup_source(stage_db, "sec-edgar-site-mw")
+    statements = sec_edgar_site_mw.extract_statements(sec_text, limit=50)
+    assert len(statements) > 1
+    filing = {
+        "accessionNumber": "0001104659-26-022322",
+        "filingDate": "2026-03-02",
+        "reportDate": "2025-12-31",
+        "form": "10-K",
+    }
+    first = sec_edgar_site_mw.build_record(
+        statements[0],
+        company="Riot",
+        cik="0001167419",
+        filing=filing,
+        url="https://www.sec.gov/x.htm",
+    )
+    ingest(stage_db, definition, job_id, [first])
+
+    seen: dict[str, object] = {}
+    monkeypatch.setattr(service, "_prepare_acquisition_network", lambda *_args: None)
+    monkeypatch.setattr(service, "_lock_current_acquisition_source", lambda *_args: None)
+
+    complete_filing = [
+        sec_edgar_site_mw.build_record(
+            statement,
+            company="Riot",
+            cik="0001167419",
+            filing=filing,
+            url="https://www.sec.gov/x.htm",
+        )
+        for statement in statements
+    ]
+
+    def retrieve(source, _client):
+        seen.update(source)
+        return complete_filing
+
+    monkeypatch.setattr(service, "retrieve_source", retrieve)
+    with stage_db() as session:
+        result = service._retrieve_source_outside_transaction(
+            session, job_id, WORKER, 1, definition, None
+        )
+
+    assert isinstance(result, list) and len(result) == len(statements)
+    assert "known_accessions" not in seen
+    counts = ingest(stage_db, definition, job_id, result)
+    assert counts["new"] == len(statements) - 1
+    assert counts["unchanged"] == 1
