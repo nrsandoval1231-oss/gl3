@@ -278,4 +278,3 @@ An OCR request is a sub-PDF of at most 5 scanned pages and 750,000 bytes; with t
 - OCR retention reference and the preflight cost-bound reference.
 - Whether OCR-read rows may ever feed demand (default no).
 - The bake-off gold set and recorded vendor runs (see the engineering doc), if a different OCR provider should replace OpenAI vision.
-
