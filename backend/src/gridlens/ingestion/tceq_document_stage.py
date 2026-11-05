@@ -22,6 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.ingestion.adapters.tceq_application_documents import MAX_BOOKKEEPING, StageReport
+from gridlens.ingestion.document_health import locked_source
 from gridlens.persistence.models import Evidence, Observation, Source
 
 STATE_KEY = "application_document"
@@ -61,7 +62,7 @@ def load_bookkeeping(session: Session, source_id: str) -> dict[str, dict[str, An
 
 
 def save_bookkeeping(session: Session, source_id: str, book: dict[str, dict[str, Any]]) -> None:
-    source = session.get(Source, source_id)
+    source = locked_source(session, source_id)
     if source is not None:
         source.health = {**(source.health or {}), HEALTH_KEY: book}
 
@@ -78,7 +79,7 @@ def load_not_before(session: Session, source_id: str) -> datetime | None:
 
 
 def save_not_before(session: Session, source_id: str, value: datetime | None) -> None:
-    source = session.get(Source, source_id)
+    source = locked_source(session, source_id)
     if source is None:
         return
     health = {k: v for k, v in (source.health or {}).items() if k != NOT_BEFORE_KEY}

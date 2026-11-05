@@ -38,8 +38,12 @@ from gridlens.integrations.logical_calls import (
     reserve_call,
 )
 from gridlens.intelligence.grounded_candidates import validate_grounded_candidates
-from gridlens.intelligence.intelligence_jobs import _provider_error_quarantine_details
+from gridlens.intelligence.intelligence_jobs import (
+    _provider_error_quarantine_details,
+    provider_caps,
+)
 from gridlens.intelligence.ocr_transcript import public_ocr_transcript, validate_ocr_transcript
+from gridlens.intelligence.spend_caps import cap_fields
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -166,11 +170,11 @@ def _caps_ready(cost: Decimal) -> bool:
         or cost > settings.intelligence_max_call_usd
     ):
         return False
-    for scope in ("global", "provider", "model", "source", "project"):
+    for limits in _ledger_caps().values():
         for period in ("daily", "monthly"):
-            if getattr(settings, f"intelligence_{scope}_{period}_calls") <= 0:
+            if int(limits[period]) <= 0:
                 return False
-            if getattr(settings, f"intelligence_{scope}_{period}_usd") < cost:
+            if Decimal(str(limits[f"{period}_usd"])) < cost:
                 return False
     return True
 
@@ -581,10 +585,11 @@ def _finish_without_call(
         job = assert_fence(session, job_id, worker_id, fence_token)
         checkpoint = json.loads(job.checkpoint or "{}")
         checkpoint.update(status=status, error=error, completed_at=datetime.now(UTC).isoformat())
+        checkpoint.update(cap_fields(error))
         job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
         job.status = "succeeded" if status in {"blocked", "stale", "unknown"} else "failed"
         job.lease_owner, job.lease_until = None, None
-    return {"status": status, "error": error, "job_id": str(job_id)}
+    return {"status": status, "error": error, "job_id": str(job_id), **cap_fields(error)}
 
 
 def _load_capture(evidence: Evidence) -> dict[str, Any] | None:
@@ -761,6 +766,10 @@ def _reserve_ledger_call(
 
 
 def _ledger_caps() -> dict[str, dict[str, int | Decimal | float | str]]:
+    return provider_caps("openai", _base_ledger_caps())
+
+
+def _base_ledger_caps() -> dict[str, dict[str, int | Decimal | float | str]]:
     return {
         scope: {
             "daily": getattr(settings, f"intelligence_{scope}_daily_calls"),

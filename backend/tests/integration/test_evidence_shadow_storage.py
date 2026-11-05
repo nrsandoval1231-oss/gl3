@@ -465,7 +465,7 @@ def test_shadow_wrap_scans_past_consumed_prefix_to_find_unseen_candidate(shadow_
                 "candidates": [],
                 "deterministic": deterministic,
                 "schema": SCHEMA_VERSION,
-                "model": "jev-latest",
+                "model": settings.jev_model,
             }
             input_key = hashlib.sha256(
                 json.dumps(request_context, sort_keys=True, default=str).encode()
@@ -564,7 +564,7 @@ def test_shadow_checkpoint_reaches_changed_context_after_deadline_limited_skips(
                 "candidates": [],
                 "deterministic": deterministic,
                 "schema": SCHEMA_VERSION,
-                "model": "jev-latest",
+                "model": settings.jev_model,
             }
             session.add(
                 EvidenceJudgeRun(

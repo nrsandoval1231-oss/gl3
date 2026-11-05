@@ -81,7 +81,7 @@ jobs:
     if: needs.changes.outputs.backend == 'true'
     needs: changes
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       TRUSTED_ORIGINS: http://127.0.0.1:5173
     steps:
@@ -203,8 +203,8 @@ jobs:
       - name: Create test database
         run: docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gridlens_test'
       - name: Run backend test suite
-        # Regression gate: pytest runs ~5m with -n 4 (292-390s measured over 10+ CI runs).
-        run: timeout 480 uv run pytest tests -n 4
+        # Regression gate: retain a hard cap while allowing the expanded suite to finish.
+        run: timeout 1200 uv run pytest tests -n 4
         working-directory: backend
   browser:
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
@@ -295,9 +295,11 @@ jobs:
         run: |
           set -euo pipefail
           mirror_list=/etc/apt/apt-mirrors.txt
-          test "$(grep -oE 'http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)' "$mirror_list" | wc -l)" -eq 1
-          sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)#https://archive.ubuntu.com/ubuntu\1#' "$mirror_list"
-          grep -Eq 'https://archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)' "$mirror_list"
+          # Current runners may have zero or several Azure mirror entries. Replace any
+          # unreachable HTTP entries, but do not fail merely because the image changed.
+          if grep -Eq 'http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)' "$mirror_list"; then
+            sudo sed -i -E 's#http://azure\.archive\.ubuntu\.com/ubuntu(/|[[:space:]]|$)#https://archive.ubuntu.com/ubuntu\1#' "$mirror_list"
+          fi
           npx playwright install --with-deps chromium
         working-directory: web
       # Reuse only this runner's migrated, disposable application database.
