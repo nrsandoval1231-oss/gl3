@@ -415,7 +415,9 @@ def extract_notice(
             if at >= 0:
                 lo, hi = more.window_span(page_norm, at, at + len(applicant), 40, 80)
                 quote_ = page_norm[lo:hi]
-                if not more.has_address(quote_):
+                if _personal(quote_, None):
+                    withheld += 1
+                else:
                     applicant_named = more.evidence(
                         applicant, "documented", number, quote_, page_norm, start=lo
                     )

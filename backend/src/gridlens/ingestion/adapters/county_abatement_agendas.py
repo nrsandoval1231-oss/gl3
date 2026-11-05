@@ -85,6 +85,8 @@ _MW = re.compile(
 _INVESTMENT_CUE = re.compile(
     r"\b(?:invest\w*|capital|project cost|total cost|expenditures?|will spend)\b", re.I
 )
+_NON_INVESTMENT_CUE = re.compile(r"\b(?:fees?|fines?|bonds?|penalt\w*)\b", re.I)
+_CLAUSE_BOUNDARY = re.compile(r";|(?<=[a-z0-9)])\.\s+(?=[A-Z])")
 _ACRES = re.compile(r"(?<![\w.])(?P<n>\d[\d,]*(?:\.\d+)?)[- ]acres?\b", re.I)
 _LOCATION = re.compile(
     r"\b(?:located|situated)\s+(?:at|on|near|in|within)\s+(?P<v>[^.;]{5,120}?)(?=[.;,]|$)"
@@ -290,6 +292,19 @@ def _scalar(name: str, text: str) -> tuple[Any, str, re.Match[str]] | None:
     return found[0]
 
 
+def _investment_cue_for_amount(text: str, match: re.Match[str]) -> bool:
+    """Require an investment cue in the amount's clause without a nearby non-investment cue."""
+    start, end = match.span()
+    lower = max(
+        (boundary.end() for boundary in _CLAUSE_BOUNDARY.finditer(text, 0, start)), default=0
+    )
+    next_boundary = _CLAUSE_BOUNDARY.search(text, end)
+    upper = next_boundary.start() if next_boundary else len(text)
+    clause = text[lower:upper]
+    local = text[max(lower, start - 80) : min(upper, end + 80)]
+    return _INVESTMENT_CUE.search(clause) is not None and _NON_INVESTMENT_CUE.search(local) is None
+
+
 _FIELD_NAMES = ("entity", "investment_usd", "stated_mw", "acres", "location")
 QUOTE_LIMIT = 300
 
@@ -337,8 +352,8 @@ def _item_fields(pages: _Pages, begin: int, text: str) -> dict[str, Any]:
         again = _scalar(name, quote_)
         if again is None or again[0] != value:
             continue
-        if name == "investment_usd" and _INVESTMENT_CUE.search(quote_) is None:
-            continue  # a fee, a fine or a bond is not an investment
+        if name == "investment_usd" and not _investment_cue_for_amount(text, match):
+            continue  # a nearby fee, fine or bond is not an investment
         evidence = more.evidence(value, basis, page + 1, quote_, pages.norms[page], start=lo)
         if evidence is not None:
             fields[name] = evidence

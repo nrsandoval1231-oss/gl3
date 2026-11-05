@@ -922,6 +922,20 @@ def test_a_quote_with_the_applicant_name_or_an_address_is_dropped():
     assert [v["value"] for v in out["volumes"]] == [5]
 
 
+def test_applicant_name_quote_is_withheld_when_it_also_contains_a_person():
+    out = tw.extract_notice(
+        [
+            "Acme Water LLC requests 100 acre-feet of water per year; "
+            "Mr. John Smith, a resident, objects."
+        ],
+        [],
+        "Acme Water LLC",
+    )
+    assert out["applicant_named"] is None
+    assert "John Smith" not in repr(out)
+    assert out["withheld_statements"] >= 1
+
+
 def test_organisation_shapes():
     for name in (
         "City of Bryan",
@@ -1000,6 +1014,17 @@ def test_agenda_fee_wind_farm_and_energy_units_do_not_become_data_center_facts()
     )
     hours = "9. Consider a data center tax abatement for a 100 MW-hours study."
     assert "stated_mw" not in ca.extract_agenda([hours], [])["items"][0]["fields"]
+
+
+def test_agenda_amount_near_fee_fine_or_bond_is_not_an_investment():
+    for clause in (
+        "capital investment requirements and a $25,000 application fee",
+        "investment requirements and a $25,000 fine",
+        "capital investment requirements and a $25,000 bond",
+    ):
+        text = f"9. Consider a data center tax abatement. Discuss {clause}."
+        fields = ca.extract_agenda([text], [])["items"][0]["fields"]
+        assert "investment_usd" not in fields, clause
 
 
 def test_bare_abatement_agreement_is_not_a_tax_abatement():
