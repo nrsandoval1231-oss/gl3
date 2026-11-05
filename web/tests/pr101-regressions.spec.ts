@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const need = {
@@ -16,6 +17,7 @@ const workspaceResponse = (items: readonly unknown[] = [need]) => ({ items, tota
 
 async function authenticated(page: import('@playwright/test').Page) {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
 }
 
 function opportunityHeaders(token: string, offset: number, nextOffset: number | null) {
@@ -79,9 +81,9 @@ test('secondary technical diagnostics keeps the filtered inbox URL and readback 
 
 test('default landing hides the legacy queue and briefing controls', async ({ page }) => {
   await authenticated(page)
-  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'operators and customers', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic' } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic' } }))
   await page.goto('/?groupBrowse=1')
   await expect(page.locator('.wh-queue-meta')).toHaveCount(0)
   await expect(page.locator('.wh-briefing-scope')).toHaveCount(0)
-  await expect(page.getByText('No operator/customer groups match this search.')).toBeVisible()
+  await expect(page.getByText('No groups match this search.')).toBeVisible()
 })

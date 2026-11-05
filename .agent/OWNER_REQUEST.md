@@ -1,7 +1,15 @@
-# Current owner request — October 31 Phase 1
+# Current owner request — ingestion strategy and live intelligence build
 
-Owner explicitly authorized bounded Phase 1 implementation, isolated testing, scoped commits/push and a **draft PR**. Refresh main and open PRs first. Fix verified whole-result Company/Project sorting and invalid empty-filter ranges; diagnose the concurrency failure without weakening tests; establish evidence-based performance measurements and only justified narrow optimizations; reconcile operations documentation; evaluate compatible framing hardening and investigate cache/compression attribution before changing it.
+The November 2 progress reconciliation is complete; its request is preserved in Git history and the [release receipt](../docs/validation/production-release-20261102.md).
 
-Preserve the approved UI, real entities/evidence, privacy/suppression and stable project/need identities. Company-centered browsing is a later intentional presentation change, not a claim that multiple rows under an operator are corrupt duplicates. Demand, ingestion, enrichment and RRC recovery expansion remain later phases.
+The owner now asks for the new ingestion strategy and live intelligence to be built. The full brief, including owner decisions and authorizations, is the [Claude Code handoff](../docs/strategy/ingestion-handoff-20261103.md). The plan it implements is the [ingestion strategy](../docs/strategy/ingestion-strategy-20261103.md), with supporting [research](../docs/strategy/ingestion-research-20261103.md).
 
-No PR approval, merge, auto-merge, deployment, production business-data mutation, ingestion/backfill, paid provider execution, credential/provider changes, new infrastructure/spending or user's PC use. Publishing this draft is not release acceptance. Existing deployment permission is historical, retained in [archive](archive/PHASE1-20261031/README.md). See [checkpoint](CURRENT_STATE.md).
+Authorized by the owner on 2026-11-03:
+
+- Implementation of the handoff's workstreams, one branch and PR at a time, with the full [finish contract](FINISH_CONTRACT.md) gates.
+- Paid providers under a combined $100/month cap: TypeSafe Jev (live, with the tiered authority in the handoff), OpenAI `gpt-6.1-sol` for grounded proposals, and paid OCR. Keys are already in Infisical; never print or commit them.
+- A canon update giving Jev the bounded live authority described in the handoff.
+
+Not authorized without separate owner confirmation: production deployment, credential changes, new infrastructure, destructive data actions or history rewriting. Prepare production configuration changes as a list for the owner to apply through the protected release process.
+
+First session scope: workstream 0 (prepare the production env changes) and the workstream 1 twenty-document spike, then stop and report before building the extraction core.

@@ -6,6 +6,10 @@ This guide describes a local developer environment. It does not configure produc
 
 Install Python 3.11, uv 0.7.13, Node.js 22+, npm, and PostgreSQL 18.6. `compose.yaml` uses PostgreSQL `18.6`; the repository test setup expects a loopback PostgreSQL endpoint. Use a new data directory under ignored `.artifacts/`, bind only to `127.0.0.1`, and use port `55439` so it does not collide with a system PostgreSQL service on `5432`. Do not reuse production, retained-corpus, or any existing unrelated database.
 
+Port `55439` is a convention, not a requirement. If another project's local cluster is already bound to it (observed 2026-11-03: a different repository's disposable Postgres owned `55439`), do not stop the other project's server. Pick a free loopback port (for example `55440`), start this cluster with `-p <port>`, and use the same port in `.artifacts/local-postgres/connection.env` and the generated `.env`. Password authentication failures after such a collision usually mean the connection is reaching the wrong server, not that credentials were rotated. The remaining examples use `<port>` — substitute your chosen port everywhere.
+
+The `gridlens` role needs `CREATEDB`: parallel test runs create one disposable database per xdist worker under its credentials.
+
 If PostgreSQL 18 is installed at the standard Windows path, these PowerShell commands initialize a **new** local cluster. Verify `$pgBin` points to the installed PostgreSQL 18 `bin` directory and that the target directory does not already exist before running `initdb`; never initialize over an existing directory.
 
 ```powershell
@@ -13,20 +17,19 @@ $pgBin = 'C:\Program Files\PostgreSQL\18\bin' # replace if PostgreSQL is install
 $data = Join-Path $PWD '.artifacts\local-postgres\data'
 if (Test-Path $data) { throw "Refusing to initialize existing cluster: $data" }
 New-Item -ItemType Directory -Force (Split-Path $data) | Out-Null
-& (Join-Path $pgBin 'initdb.exe') -D $data -U postgres -A scram-sha-256 -W
+& (Join-Path $pgBin 'initdb.exe') -D $data -U gridlens -A scram-sha-256 -W
 ```
 
-Start only this cluster on loopback port 55439, then connect as its `postgres` role. The password prompt is interactive; do not put passwords in command arguments or shell history.
+Start only this cluster on loopback port `<port>`, then connect as its `gridlens` superuser. The password prompt is interactive; do not put passwords in command arguments or shell history.
 
 ```powershell
-& (Join-Path $pgBin 'pg_ctl.exe') -D $data -l (Join-Path (Split-Path $data) 'server.log') -o '-h 127.0.0.1 -p 55439' start
-& (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p 55439 -U postgres -d postgres
+& (Join-Path $pgBin 'pg_ctl.exe') -D $data -l (Join-Path (Split-Path $data) 'server.log') -o '-h 127.0.0.1 -p <port>' start
+& (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p <port> -U gridlens -d gridlens
 ```
 
-In the `psql` session, create an application role and two separate databases. `\password` prompts without echoing the value.
+The `initdb -U gridlens` bootstrap makes `gridlens` the cluster superuser, so no separate `postgres` role exists. In the `psql` session, create two separate databases. `\password` prompts without echoing the value; set it on the superuser if it was not already chosen at `initdb`.
 
 ```sql
-CREATE ROLE gridlens LOGIN;
 \password gridlens
 CREATE DATABASE gridlens OWNER gridlens;
 CREATE DATABASE gridlens_test OWNER gridlens;
@@ -36,8 +39,8 @@ CREATE DATABASE gridlens_test OWNER gridlens;
 Create the ignored helper input file `.artifacts/local-postgres/connection.env` with these placeholders replaced by the same URL-encoded password. Keep it private and never commit it:
 
 ```text
-DATABASE_URL=postgresql+psycopg://gridlens:<URL_ENCODED_PASSWORD>@127.0.0.1:55439/gridlens
-TEST_DATABASE_URL=postgresql+psycopg://gridlens:<URL_ENCODED_PASSWORD>@127.0.0.1:55439/gridlens_test
+DATABASE_URL=postgresql+psycopg://gridlens:<URL_ENCODED_PASSWORD>@127.0.0.1:<port>/gridlens
+TEST_DATABASE_URL=postgresql+psycopg://gridlens:<URL_ENCODED_PASSWORD>@127.0.0.1:<port>/gridlens_test
 ```
 
 Install locked dependencies and let the checked-in helper write ignored `.env` and `.artifacts/local-auth.txt`:
@@ -71,7 +74,7 @@ The browser is at `http://127.0.0.1:5173`; Vite proxies `/api` to the API on por
 
 Starting `python -m gridlens.jobs.worker` with the code default `WORKER_AUTO_REFRESH=true` plans and fetches due sources on startup and hourly. Omit the worker for UI/API development. If starting it for an approved local acquisition, set `WORKER_AUTO_REFRESH=false` first unless you intend its scheduler behavior. It does not establish a cloud schedule or seven production cycles.
 
-For the repository's containerized local stack, use [`setup_compose.py`](../../scripts/setup_compose.py) and `docker compose --env-file .env.compose up`; that Compose network uses `db:5432`, not the native host's `127.0.0.1:55439`. Do not mix `.env` and `.env.compose`. See [runtime configuration](runtime-configuration.md) for code defaults and feature flags.
+For the repository's containerized local stack, use [`setup_compose.py`](../../scripts/setup_compose.py) and `docker compose --env-file .env.compose up`; that Compose network uses `db:5432`, not the native host's `127.0.0.1:<port>`. Do not mix `.env` and `.env.compose`. See [runtime configuration](runtime-configuration.md) for code defaults and feature flags.
 
 To stop only the native local cluster, use the same verified `$pgBin` and `$data`:
 

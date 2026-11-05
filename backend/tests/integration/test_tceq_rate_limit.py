@@ -171,6 +171,8 @@ def regional_db():
     reset_test_database(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     definition = next(item for item in load_registry() if item["id"] == "texas-tceq-nsr-pending")
+    # These tests pin summary rate-limit handling; the application-document stage has its own tests.
+    definition = {**definition, "query": {"max_summaries": definition["query"]["max_summaries"]}}
     with factory.begin() as session:
         session.add(
             Source(

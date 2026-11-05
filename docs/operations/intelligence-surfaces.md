@@ -1,7 +1,0 @@
-# Autonomous research and internal diagnostics
-
-The [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md) governs these surfaces. Research presents automatically scheduled investigation, retained findings, source citations, freshness and unresolved questions. Manual task requests, arbitrary question entry, explicit watches, candidate acceptance and owner-note feedback are retired user workflows. Prior instructions remain in the [governance archive](../../.agent/archive/AUTONOMOUS-20261026/README.md).
-
-Internal diagnostics may inspect durable job status, planner state, source health, logical calls, budgets and heartbeat. A heartbeat proves process liveness, not source freshness or successful research. Configuration shows key presence and flags, not provider connectivity. Latency, tokens and actual cost require completed provider receipts; missing totals remain UNKNOWN. Uncertain remote outcomes must not be blindly retried, because a charge may have occurred.
-
-Grounded candidate text is advisory until admitted through the existing evidence rules with exact source ID/hash/quote/location/date and deterministic qualification. Historical review metadata and notes remain retained audit data, never automatic canonical facts or benchmark labels. Disabled features, source restrictions, missing credentials or exhausted budgets produce explicit unresolved states while preserving last accepted intelligence. See [runtime configuration](runtime-configuration.md) and the [retention map](../architecture/autonomous-intelligence.md).

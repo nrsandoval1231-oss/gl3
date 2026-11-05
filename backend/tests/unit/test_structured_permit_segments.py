@@ -59,6 +59,16 @@ def test_modified_recent_window_honors_configured_window_days():
     assert _new_window("modified_recent", today, 90, source) == (today - timedelta(days=1), today)
 
 
+def test_rrc_flare_history_bootstraps_ninety_days_in_seven_day_chunks():
+    source = _definition("texas-rrc-flare-vent-exceptions")
+    today = date(2026, 10, 1)
+    start, end = _new_window("issue_history", today, 3, source)
+    assert start == today - timedelta(days=89)
+    assert end == start + timedelta(days=6)
+    recent_start, recent_end = _new_window("issue_recent", today, 3, source)
+    assert (recent_start, recent_end) == (date(2026, 9, 29), date(2026, 10, 1))
+
+
 @pytest.mark.parametrize("lane", ["issue_recent", "modified_recent"])
 def test_austin_sparse_recent_range_completes_seven_days_in_one_segment(lane):
     source = _definition("austin-building-permits")
@@ -443,3 +453,11 @@ def test_boston_overfull_day_uses_id_keyset_and_stable_issue_date():
     assert len(first["records"]) == 1000 and first["cursor"]["after_id"] == 1000
     assert len(second["records"]) == 1 and second["window_complete"] is True
     assert "_id > 1000" in requests[-2].url.params["sql"]
+
+
+def test_flare_collection_day_uses_texas_calendar_at_utc_midnight():
+    from gridlens.ingestion.structured_collection import collection_day
+
+    source = _definition("texas-rrc-flare-vent-exceptions")
+    assert collection_day(source, datetime(2026, 11, 1, 1, tzinfo=UTC)) == date(2026, 10, 31)
+    assert collection_day(source, datetime(2026, 11, 1, 7, tzinfo=UTC)) == date(2026, 11, 1)

@@ -5,10 +5,10 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 ## CURRENT — repository implementation boundaries
 
 - API: FastAPI application and response contracts in `backend/src/gridlens/api/app.py` and `backend/src/gridlens/api/intelligence.py`.
-- Persistence: PostgreSQL SQLAlchemy models in `backend/src/gridlens/persistence/models.py`; additive Alembic history in `backend/migrations/versions/`. Current production checkpoint reports migration 0049 / 74 tables; see [.agent/CURRENT_STATE.md](../../.agent/CURRENT_STATE.md).
+- Persistence: PostgreSQL SQLAlchemy models in `backend/src/gridlens/persistence/models.py`; additive Alembic history in `backend/migrations/versions/`. The November 2 production receipt confirms schema 0049 / 74 tables for deployed main `ec6486a`; see [production release evidence](../validation/production-release-20261102.md).
 - Collection: source registry, scheduled checks/receipts, durable jobs, observations, immutable evidence versions, interpretation and worker execution (`backend/src/gridlens/ingestion/`, `backend/src/gridlens/jobs/worker.py`).
 - Identity: project identity and match decisions plus company/person identity, membership and buying-chain claims; associations remain evidence- and project-scoped. Identity links do not imply demand qualification.
-- Commercial intelligence: accepted need/activity records, typed fact versions and decisions, lifecycle events, demand/supply schedules, deterministic official qualification, commercial assessment/research, and published browse projections. See `backend/src/gridlens/domain/power_qualification.py`, `power_schedule.py`, `call_facts.py`, and `opportunity_intelligence.py`.
+- Commercial intelligence: accepted need/activity records, typed fact versions and decisions, lifecycle events, existing power schedules, deterministic official qualification, commercial assessment/research, and published browse projections. A bounded equipment-demand-v1 path is also implemented and deployed; the current production summary has zero validated records and reports demand unavailable. See `backend/src/gridlens/domain/power_qualification.py`, `power_schedule.py`, `call_facts.py`, `equipment_demand.py`, and `opportunity_intelligence.py`.
 - Verification: some deterministic boundaries and optional/shadow EvidenceJudge runs exist (`evidence_judge_runs`); they are not a general independent validator or a learned autonomous evaluation system.
 - API/UI publication: server-owned browse and opportunity projections. UI/API presence is not evidence that every target claim is supported. Unknown supply, uncertain contacts, and incomplete signals remain unknown or held.
 
@@ -20,14 +20,11 @@ The [engine specification](intelligence-engine.md) defines six layers: (1) Disco
 
 A replaceable reasoning-provider interface may assist interpretation. Athena is optional, not a runtime dependency or required framework. Engineers own deterministic calculations and tests.
 
-## CURRENT CANDIDATE and next implementation
+## CURRENT — bounded equipment-demand implementation
 
-1. The candidate implements the bounded O&G source equipment parser and deterministic `Decimal` electric pump/compressor models; retain source efficiency, count, operating/standby state, and new-versus-existing classification.
-2. It binds through the confirmed `EvidencePackage`, normal and unchanged-record ingestion hooks, and existing intelligence-card API contract; no migration is planned for this slice.
-3. Later, add broader deterministic, versioned O&G and data-center models with explicit input provenance, units, scenarios and negative cases.
-4. Add independent evaluation fixtures, abstention thresholds and rollback/promotion records before connecting autonomous reasoning to publication.
+The bounded O&G equipment parser, deterministic `Decimal` pump/compressor calculations, immutable `EvidencePackage` persistence, normal/unchanged-record ingestion hooks, and intelligence-card API contract are in deployed main `ec6486a`. No schema migration was needed. The live release receipt reports **zero current validated equipment-demand records**; the demand summary is unavailable, with no supported portfolio MW total. This is implemented code, not evidence of current validated demand coverage.
 
-The first slice is implemented and under candidate validation, not deployed; see [implementation plan](../engineering/equipment-demand-slice-20261030.md). Each implementation slice needs migration/API compatibility and isolated-database regression evidence. The historical Phase 0 specification work itself made no runtime change.
+See the dated [implementation and validation record](../engineering/equipment-demand-slice-20261030.md) for source and fixture limits. Later work can add broader deterministic, versioned O&G and data-center models with explicit input provenance, units, scenarios and negative cases. Independent evaluation fixtures, abstention thresholds, and rollback/promotion records remain necessary before connecting autonomous reasoning to publication. The historical Phase 0 specification work itself made no runtime change.
 
 ## DEFERRED
 
@@ -44,4 +41,4 @@ Required routine human approval queues, unrestricted autonomous production code 
 - [Verification and evaluation](verification-evaluation.md)
 - [Existing opportunity intelligence](OPPORTUNITY_INTELLIGENCE.md)
 
-The [native FERC notice candidate](../engineering/native-equipment-demand-20261030.md) reuses this path for one explicitly scoped proposed electric-equipment site. It consumes source-bound UNVERIFIED candidates, preserves unsupported ratings as unknown demand, and adds one bounded FERC environmental-assessment query alongside the existing EIS query. Read-only retrieval and historical fixture replay do not establish deployed scheduled coverage.
+The deployed [native FERC notice path](../engineering/native-equipment-demand-20261030.md) reuses this contract for a narrowly scoped proposed equipment site. Its source-bound equipment claims remain UNVERIFIED; unsupported electrical inputs remain unknown. The source configuration adds a bounded FERC environmental-assessment query alongside the existing EIS query. Historical fixture replay and current service health do not establish a complete scheduled-source cycle or broad equipment coverage. The exact production observation and zero-record demand summary are in the [release receipt](../validation/production-release-20261102.md).

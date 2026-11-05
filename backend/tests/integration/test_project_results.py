@@ -265,6 +265,62 @@ def test_project_results_route_requires_session(saved_db, monkeypatch):
         assert invalid.status_code == 422
 
 
+def test_customer_rollup_context_is_bound_to_parent_and_child_tokens():
+    from gridlens.intelligence.customer_results import _cohort
+
+    class Generation:
+        id = uuid4()
+        digest = "stable"
+
+    generation = Generation()
+    base = _cohort(
+        None, search="operator", sector="oil_gas", sort="priority", selected_generation=generation
+    )[2]
+    assert (
+        base
+        != _cohort(
+            None,
+            search="operator",
+            sector="oil_gas",
+            sort="company",
+            selected_generation=generation,
+        )[2]
+    )
+    assert (
+        base
+        != _cohort(
+            None,
+            search="operator",
+            sector="oil_gas",
+            sort="priority",
+            region="Texas",
+            selected_generation=generation,
+        )[2]
+    )
+    assert (
+        base
+        != _cohort(
+            None,
+            search="operator",
+            sector="oil_gas",
+            sort="priority",
+            stage="permit_issued",
+            selected_generation=generation,
+        )[2]
+    )
+    assert (
+        base
+        != _cohort(
+            None,
+            search="operator",
+            sector="oil_gas",
+            sort="priority",
+            priority="ranked",
+            selected_generation=generation,
+        )[2]
+    )
+
+
 @pytest.mark.parametrize(
     "sort,field",
     [

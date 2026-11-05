@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
@@ -62,6 +63,7 @@ from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN
 from gridlens.ingestion.structured_collection import (
     apply_segment_result,
     collection_continuation_needed,
+    collection_day,
     collection_policy_digest,
     collection_status,
     prepare_collection_progress,
@@ -112,6 +114,7 @@ from gridlens.persistence.models import (
     Source,
     SourceCollectionProgress,
 )
+from gridlens.settings import settings
 
 PERMIT_RETRIEVAL_METHODS = {
     "socrata-permits",
@@ -183,6 +186,15 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
     retained = record.get("retained_document")
     if isinstance(retained, dict):
         provenance["retained_document"] = retained
+    application_document = record.get("application_document")
+    if isinstance(application_document, dict):
+        provenance["application_document"] = application_document
+    okdeq_document = record.get("okdeq_document")
+    if isinstance(okdeq_document, dict):
+        provenance["okdeq_document"] = okdeq_document
+    nmed_document = record.get("nmed_document")
+    if isinstance(nmed_document, dict):
+        provenance["nmed_document"] = nmed_document
     return provenance
 
 
@@ -1970,6 +1982,8 @@ def process_job(
     if source_definition.get("retrieval_method") in {
         "socrata-permits",
         "boston-ckan-permits",
+        "rrc-flare-exceptions",
+        "rrc-drilling-permits",
     }:
         checkpoint_job = session.get(Job, job_id)
         try:
@@ -2106,6 +2120,9 @@ def process_job(
     acquisition = _retrieve_source_outside_transaction(
         session, job_id, worker_id, fence, source_definition, client, deadline=deadline
     )
+    document_report = _enrich_with_application_documents(
+        session, job_id, worker_id, fence, source_definition, acquisition, client, deadline=deadline
+    )
     fetch_receipt_at = datetime.now(UTC)
     if isinstance(acquisition, list):
         retrieved = acquisition
@@ -2199,6 +2216,10 @@ def process_job(
             "attempt_changed": counts.get("changed", 0),
         }
     )
+    if document_report is not None:
+        from gridlens.ingestion.tceq_document_stage import merge_report
+
+        merge_report(counts, document_report)
     return counts
 
 
@@ -2363,6 +2384,10 @@ def _process_structured_collection_segment(
         source_definition,
         records,
         client=client,
+        historical_snapshot=(
+            source_definition.get("retrieval_method") == "rrc-drilling-permits"
+            and lane == "issue_history"
+        ),
         commit=False,
         deadline=deadline,
         lease_expiry=lease_expiry,
@@ -2425,7 +2450,14 @@ def _process_structured_collection_segment(
         progress_partial = bool(result.get("partial"))
         completed_at = session.scalar(text("SELECT clock_timestamp()"))
         apply_segment_result(latest_progress, result, now=completed_at)
-        current_complete, all_complete = collection_status(session, source.id, digest, lanes)
+        current_complete, all_complete = collection_status(
+            session,
+            source.id,
+            digest,
+            lanes,
+            today=collection_day(source_definition),
+            source=source_definition,
+        )
         continuation = not progress_partial and collection_continuation_needed(
             session,
             source.id,
@@ -2539,16 +2571,337 @@ def _retrieve_source_outside_transaction(
     *,
     deadline: float | None = None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
+    is_nmed = source_definition.get("retrieval_method") == "nmed-air-applications"
+    if is_nmed:
+        _skip_nmed_listing_while_resting(session, source_definition["id"])
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
-    result = (
-        retrieve_source(source_definition, client)
-        if deadline is None
-        else retrieve_source(source_definition, client, deadline=deadline)
-    )
+    try:
+        result = (
+            retrieve_source(source_definition, client)
+            if deadline is None
+            else retrieve_source(source_definition, client, deadline=deadline)
+        )
+    except Exception as error:
+        if is_nmed:
+            _remember_nmed_rate_limit(session, source_definition["id"], error)
+        raise
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return _normalize_source_acquisition(source_definition, result)
+
+
+def _nmed_rest_error(seconds: int) -> SourceParseError:
+    error = SourceParseError("NMED publisher asked for a pause")
+    error.acquisition_code = "http_status_429"  # type: ignore[attr-defined]
+    error.acquisition_retry_after_seconds = max(1, seconds)  # type: ignore[attr-defined]
+    return error
+
+
+def _skip_nmed_listing_while_resting(session: Session, source_id: str) -> None:
+    """No listing request while an earlier 429/503 Retry-After (``not_before``) has not passed."""
+    from gridlens.ingestion.nmed_document_stage import load_index
+
+    resting = load_index(session, source_id).get("not_before")
+    session.commit()
+    if isinstance(resting, str):
+        try:
+            until = datetime.fromisoformat(resting)
+        except ValueError:
+            return
+        until = until if until.tzinfo else until.replace(tzinfo=UTC)
+        remaining = (until - datetime.now(UTC)).total_seconds()
+        if remaining > 0:
+            raise _nmed_rest_error(int(remaining) + 1)
+
+
+def _remember_nmed_rate_limit(session: Session, source_id: str, error: BaseException) -> None:
+    """Store ``not_before`` in source health when the listing itself was rate limited."""
+    if getattr(error, "acquisition_code", None) not in {"http_status_429", "http_status_503"}:
+        return
+    seconds = getattr(error, "acquisition_retry_after_seconds", None)
+    delay = seconds if type(seconds) is int and seconds > 0 else 3600
+    try:
+        from gridlens.ingestion.nmed_document_stage import load_index, save_index
+
+        session.rollback()
+        index = load_index(session, source_id)
+        index["not_before"] = (datetime.now(UTC) + timedelta(seconds=delay)).isoformat()
+        save_index(session, source_id, index)
+        session.commit()
+    except Exception:  # never mask the original acquisition error
+        session.rollback()
+
+
+def _enrich_with_application_documents(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    acquisition: list[dict[str, Any]] | dict[str, Any],
+    client: httpx.Client | None,
+    *,
+    deadline: float | None,
+) -> Any:
+    """Run the bounded TCEQ application-document stage over the retrieved NSR records.
+
+    Network and extraction time is spent with no transaction or source lock held, then the
+    source lock is retaken exactly as after ordinary retrieval. Returns the stage report, or
+    None when the source does not configure the stage.
+    """
+    if source_definition.get("retrieval_method") == "nmed-air-applications":
+        return _enrich_with_nmed_documents(
+            session, job_id, worker_id, fence, source_definition, acquisition, client, deadline
+        )
+    if source_definition.get("retrieval_method") == "ok-deq-public-review":
+        return _enrich_with_okdeq_documents(
+            session, job_id, worker_id, fence, source_definition, acquisition, client, deadline
+        )
+    from gridlens.ingestion.adapters.tceq_application_documents import (
+        StageReport,
+        apply_prior_states,
+        config_from_source,
+        run_stage,
+    )
+    from gridlens.ingestion.tceq_document_stage import (
+        load_bookkeeping,
+        load_not_before,
+        load_prior_states,
+        rest_until,
+        save_bookkeeping,
+        save_not_before,
+    )
+
+    config = (
+        config_from_source(source_definition)
+        if source_definition.get("retrieval_method") == "tceq-nsr-pending"
+        else None
+    )
+    if config is None:
+        return None
+    records = acquisition if isinstance(acquisition, list) else acquisition["records"]
+    if session.in_transaction():
+        session.commit()
+    prior = load_prior_states(session, source_definition["id"])
+    book = load_bookkeeping(session, source_definition["id"])
+    not_before = load_not_before(session, source_definition["id"])
+    discovery_only = settings.document_extraction_jobs_enabled
+    if discovery_only:
+        # Finished extraction jobs not yet folded into evidence are retained state too.
+        from gridlens.jobs.document_extraction import (
+            load_evidence_times,
+            load_pending_states,
+            merge_pending,
+        )
+
+        prior, _taken = merge_pending(
+            prior,
+            load_pending_states(session, source_definition["id"]),
+            load_evidence_times(session, source_definition["id"]),
+        )
+    session.commit()
+    if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
+        # The publisher is already throttling this source: make no further requests.
+        report = StageReport()
+        report.bump("skipped_source_rate_limited")
+        apply_prior_states(records, prior)
+        _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+        return report
+    if not_before is not None and datetime.now(UTC) < not_before:
+        # An earlier 429/503 carried a Retry-After that has not passed yet.
+        report = StageReport()
+        report.bump("skipped_retry_after")
+        apply_prior_states(records, prior)
+        _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+        return report
+    run_started = datetime.now(UTC)
+    try:
+        side = StageReport()  # counts from the discovery callback
+        on_changed = None
+        if discovery_only:
+            from gridlens.jobs.document_extraction import discovery_callback
+
+            on_changed = discovery_callback(
+                session,
+                source_definition["id"],
+                side,
+                limit=settings.document_extraction_max_enqueue_per_run or config.max_downloads,
+            )
+        report = run_stage(
+            records,
+            prior,
+            client=client,
+            config=config,
+            deadline=deadline,
+            bookkeeping=book,
+            on_changed=on_changed,
+        )
+        for key, amount in side.counts.items():
+            report.bump(key, amount)
+        if report.bookkeeping != book:
+            save_bookkeeping(session, source_definition["id"], report.bookkeeping)
+        save_not_before(session, source_definition["id"], rest_until(report, datetime.now(UTC)))
+        _record_document_run(
+            session,
+            source_definition["id"],
+            "discovery" if discovery_only else "inline",
+            report.counts,
+            [
+                r["application_document"]
+                for r in records
+                if isinstance(r.get("application_document"), dict)
+                and _fetched_since(r["application_document"], run_started)
+            ],
+            run_started,
+        )
+        session.commit()
+    except Exception as error:
+        # The stage is additive: an unexpected fault must not fail the ordinary listing run.
+        # It is reported as a typed stage error, never swallowed silently.
+        session.rollback()
+        report = StageReport()
+        report.reject("stage", "stage_error", error=type(error).__name__)
+        apply_prior_states(records, prior)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return report
+
+
+def _enrich_with_nmed_documents(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    acquisition: list[dict[str, Any]] | dict[str, Any],
+    client: httpx.Client | None,
+    deadline: float | None,
+) -> Any:
+    """Run the bounded NMED application-document stage over the retrieved listing records.
+
+    Same contract as the TCEQ and OK DEQ stages: no transaction or source lock is held while
+    the network and extraction run, the lock is retaken afterwards, and a fault in the additive
+    stage is a typed stage error that leaves the listing run and retained state intact.
+    Returns the stage report, or None when the source does not enable the stage.
+    """
+    from gridlens.ingestion.adapters.nmed_application_documents import (
+        NmedStageReport,
+        apply_prior_states,
+        config_from_source,
+        run_stage,
+    )
+    from gridlens.ingestion.nmed_document_stage import load_index, load_prior_states, save_index
+
+    config = config_from_source(source_definition)
+    if config is None:
+        return None
+    records = acquisition if isinstance(acquisition, list) else acquisition["records"]
+    if session.in_transaction():
+        session.commit()
+    prior = load_prior_states(session, source_definition["id"])
+    index = load_index(session, source_definition["id"])
+    session.commit()
+    try:
+        report = run_stage(
+            records, prior, client=client, config=config, index=index, deadline=deadline
+        )
+        if report.index != index:
+            save_index(session, source_definition["id"], report.index)
+            session.commit()
+    except Exception as error:
+        session.rollback()
+        report = NmedStageReport()
+        report.reject("stage", "stage_error", error=type(error).__name__)
+        apply_prior_states(records, prior)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return report
+
+
+def _fetched_since(state: dict[str, Any], since: datetime) -> bool:
+    document = state.get("document")
+    raw = document.get("fetched_at") if isinstance(document, dict) else None
+    try:
+        fetched = datetime.fromisoformat(str(raw))
+    except ValueError:
+        return False
+    return (fetched if fetched.tzinfo else fetched.replace(tzinfo=UTC)) >= since
+
+
+def _record_document_run(
+    session: Session,
+    source_id: str,
+    mode: str,
+    counts: dict[str, int],
+    states: list[dict[str, Any]],
+    started: datetime,
+) -> None:
+    """Append the stage run to source health for the document-source alerts (never fatal)."""
+    from gridlens.ingestion.document_health import build_run_summary, record_run
+
+    try:
+        record_run(session, source_id, build_run_summary(mode, counts, states, at=started))
+    except Exception:  # noqa: BLE001 - an alert input must never fail the listing run
+        logging.getLogger(__name__).exception("Document run summary was not recorded")
+
+
+def _enrich_with_okdeq_documents(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    acquisition: list[dict[str, Any]] | dict[str, Any],
+    client: httpx.Client | None,
+    deadline: float | None,
+) -> Any:
+    """Run the bounded Oklahoma DEQ permit-document stage over the retrieved listing rows.
+
+    Same contract as the TCEQ stage: no transaction or source lock is held while the network
+    and extraction run, the lock is retaken afterwards, and a fault in the additive stage is a
+    typed stage error that leaves the listing run and every retained state intact. Returns the
+    stage report, or None when the source does not enable the stage.
+    """
+    from gridlens.ingestion.adapters.ok_deq_documents import (
+        OkStageReport,
+        apply_prior_states,
+        config_from_source,
+        run_stage,
+    )
+    from gridlens.ingestion.okdeq_document_stage import load_index, load_prior_states, save_index
+
+    config = config_from_source(source_definition)
+    if config is None:
+        return None
+    records = acquisition if isinstance(acquisition, list) else acquisition["records"]
+    if session.in_transaction():
+        session.commit()
+    prior = load_prior_states(session, source_definition["id"])
+    index = load_index(session, source_definition["id"])
+    session.commit()
+    if isinstance(acquisition, dict) and acquisition.get("source_rate_limited") is True:
+        report = OkStageReport()
+        report.bump("skipped_source_rate_limited")
+        apply_prior_states(records, prior)
+        _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+        return report
+    run_started = datetime.now(UTC)
+    try:
+        report = run_stage(
+            records, prior, client=client, config=config, index=index, deadline=deadline
+        )
+        if report.index != index:
+            save_index(session, source_definition["id"], report.index)
+        _record_document_run(
+            session, source_definition["id"], "inline", report.counts, [], run_started
+        )
+        session.commit()
+    except Exception as error:
+        session.rollback()
+        report = OkStageReport()
+        report.reject("stage", "stage_error", error=type(error).__name__)
+        apply_prior_states(records, prior)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return report
 
 
 def _record_tdlr_fetch_receipts(
@@ -2945,13 +3298,19 @@ def _retrieve_companion_outside_transaction(
     client: httpx.Client | None,
     *,
     deadline: float | None = None,
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
     remaining_seconds(deadline)
+    # Flag-gated, default off: the call below is unchanged unless the source opts in.
+    extra: dict[str, Any] = (
+        {"hp_driver": True}
+        if (source_definition.get("query") or {}).get("hp_driver_evidence") is True
+        else {}
+    )
     citations = (
-        retrieve_companion(record, client)
+        retrieve_companion(record, client, **extra)
         if deadline is None
-        else retrieve_companion(record, client, deadline=deadline)
+        else retrieve_companion(record, client, deadline=deadline, **extra)
     )
     remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
@@ -3159,6 +3518,7 @@ def process_records(
     allow_model: bool = True,
     deadline: float | None = None,
     lease_expiry: datetime | None = None,
+    historical_snapshot: bool = False,
 ) -> dict[str, Any]:
     """Apply canonical source records; targeted research owns its enclosing transaction."""
     if commit and (
@@ -3249,16 +3609,31 @@ def process_records(
             .where(Observation.source_id == source.id, Observation.external_id == external_id)
             .with_for_update()
         )
-        # Older amendments can recur in rollover snapshots. Retain their exact
-        # evidence but never let an older filing replace the current projection.
+        # Older amendments and historical snapshots can recur. Preserve their
+        # evidence, while only a strictly newer trusted month archive can update
+        # a same-sequence historical projection.
         if observation is not None and source.id == "texas-rrc-drilling-permits":
-            from gridlens.ingestion.adapters.rrc_drilling import amendment_sequence
+            from gridlens.ingestion.adapters.rrc_drilling import (
+                amendment_sequence,
+                amendment_snapshot_rank,
+            )
 
             retained_sequence = amendment_sequence(observation.abstract)
             incoming_sequence = amendment_sequence(record.get("abstract"))
             if retained_sequence is None or incoming_sequence is None:
                 raise ValueError("RRC amendment identity is missing")
-            if incoming_sequence > retained_sequence:
+            stale_same_sequence_history = False
+            if historical_snapshot and incoming_sequence == retained_sequence:
+                retained_rank = amendment_snapshot_rank(observation.abstract)
+                incoming_rank = amendment_snapshot_rank(record.get("abstract"))
+                stale_same_sequence_history = (
+                    retained_rank is None or incoming_rank is None or incoming_rank <= retained_rank
+                )
+            if incoming_sequence > retained_sequence or (
+                historical_snapshot
+                and incoming_sequence == retained_sequence
+                and stale_same_sequence_history
+            ):
                 prior = session.scalar(
                     select(Evidence.id).where(
                         Evidence.observation_id == observation.id,
@@ -3408,7 +3783,7 @@ def process_records(
             )
             if not eligible:
                 counts["pdf_skipped_not_signal"] += 1
-                pdf_citations: list[dict[str, str]] = []
+                pdf_citations: list[dict[str, Any]] = []
             else:
                 counts["pdf_eligible"] += 1
                 if pdf_documents >= MAX_PDFS_PER_RUN:
@@ -3456,6 +3831,11 @@ def process_records(
                             published_at=_optional_date(pdf.get("published_at")),
                             extraction_location=pdf["extraction_location"],
                             event_date=None,
+                            **(
+                                {"provenance": {"fr_hp_driver": pdf["hp_driver"]}}
+                                if isinstance(pdf.get("hp_driver"), dict)
+                                else {}
+                            ),
                         )
                     )
                     remaining_seconds(deadline)

@@ -1,0 +1,201 @@
+{
+  "record_type": "sanitized dated release receipt",
+  "application_commit": "ec6486a2726758b2a9fb64a03e99276583a27a6e",
+  "source_tree": "f27b999df5f76c9aa001fe5956c9e8205574a037",
+  "pr": 165,
+  "production_url": "https://app.grid-lens.com/",
+  "status": "PASS",
+  "final_verified_at": "2026-11-02T17:10:40.175836+00:00",
+  "postresume_verified_at": "2026-11-02T17:17:38.098133+00:00",
+  "schema": "0049_scoped_identity_browse",
+  "public_table_count": 74,
+  "roles": {
+    "api": {
+      "image_id": "sha256:7f5f063403384c620a6d4dd95260b06908ac6ed3e5bd35b6116ff58caa2c53b4",
+      "running": true,
+      "restart_count": 0
+    },
+    "browse": {
+      "image_id": "sha256:7f5f063403384c620a6d4dd95260b06908ac6ed3e5bd35b6116ff58caa2c53b4",
+      "running": true,
+      "restart_count": 0
+    },
+    "web": {
+      "image_id": "sha256:06f4d027e5f27be54094086087a5f18ec1966447a27d9a28a396d6f414486925",
+      "running": true,
+      "restart_count": 0
+    },
+    "worker": {
+      "image_id": "sha256:7f5f063403384c620a6d4dd95260b06908ac6ed3e5bd35b6116ff58caa2c53b4",
+      "running": true,
+      "restart_count": 0
+    }
+  },
+  "configuration_preserved": true,
+  "backup": {
+    "sha256": "bd6d3ecaf101ef952ad093fd536ac979f9cdd1194507ba5fd8fd4389cc45caf1",
+    "bytes": 40995177,
+    "restored_tables": 74
+  },
+  "generation_at_verification": {
+    "active_pointer": "0d394763-6215-41d2-bd11-d89ead8e181d",
+    "generation_id": "0d394763-6215-41d2-bd11-d89ead8e181d",
+    "generation_input_revision": 153995,
+    "image_policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/f9478ebba50055f01abea02b",
+    "input_revision": 153995,
+    "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/f9478ebba50055f01abea02b",
+    "prepared_pointer": null,
+    "row_count": 2154,
+    "status": "current",
+    "valid_until": "2026-11-03T00:00:00+00:00"
+  },
+  "worker_heartbeat_age_seconds_at_verification": 9.725577,
+  "api_intelligence_enabled_at_verification": false,
+  "postresume_authenticated": true,
+  "session_cleanup": "PASS",
+  "authenticated_reads": {
+    "/api/opportunities/demand-summary?sector=all": {
+      "availability": "unavailable",
+      "contract": "equipment-demand-v1",
+      "elapsed_ms": 87.17602794058621,
+      "generation": null,
+      "sector": "all",
+      "status": 200,
+      "total": null
+    },
+    "/api/opportunities/groups?sector=all&limit=25&offset=0": {
+      "availability": null,
+      "elapsed_ms": 1270.7264230120927,
+      "first_page_items": 25,
+      "generation": "0d394763-6215-41d2-bd11-d89ead8e181d",
+      "status": 200,
+      "total": 417
+    },
+    "/api/opportunities/groups?sector=data_centers&limit=25&offset=0": {
+      "all_rows_match_sector": true,
+      "availability": null,
+      "elapsed_ms": 202.35324697569013,
+      "first_page_items": 16,
+      "generation": "0d394763-6215-41d2-bd11-d89ead8e181d",
+      "sector": "data_centers",
+      "semantic_sha256": "cd8fef0874111d36680de0acefb0bb8dc9d0f831f2f499dd58e3cf2c8a7fbc55",
+      "status": 200,
+      "total": 16
+    },
+    "/api/opportunities/groups?sector=oil_gas&limit=25&offset=0": {
+      "all_rows_match_sector": true,
+      "availability": null,
+      "elapsed_ms": 797.5707829464227,
+      "first_page_items": 25,
+      "generation": "0d394763-6215-41d2-bd11-d89ead8e181d",
+      "sector": "oil_gas",
+      "semantic_sha256": "b30a9c91cfd21d320ffbd7e961471611b3e724ed4c3c96b81e1a72445035e945",
+      "status": 200,
+      "total": 301
+    },
+    "/api/opportunities/projects?sector=all&include_signals=true&limit=25&offset=0": {
+      "availability": null,
+      "elapsed_ms": 744.415424996987,
+      "first_page_items": 25,
+      "freshness_metadata": "NOT_EXPOSED_BY_PROJECT_DTO",
+      "generation": "0d394763-6215-41d2-bd11-d89ead8e181d",
+      "status": 200,
+      "total": 2154
+    }
+  },
+  "canary_timings": {
+    "combined_serial_route_mix": {
+      "p50_ms": 1002.2,
+      "p95_ms": 1671.9,
+      "samples": 40,
+      "scope": "mixed route sample; not a route-specific p95"
+    },
+    "routes": {
+      "all": {
+        "p50_ms": 1277.6,
+        "samples": 5
+      },
+      "canonical_flat_all_next_page": {
+        "p50_ms": 749.1,
+        "samples": 1
+      },
+      "canonical_flat_all_signals": {
+        "p50_ms": 693.4,
+        "samples": 1
+      },
+      "canonical_flat_data_centers_signals": {
+        "p50_ms": 443.8,
+        "samples": 1
+      },
+      "canonical_flat_oil_gas_signals": {
+        "p50_ms": 782.9,
+        "samples": 1
+      },
+      "data_centers": {
+        "p50_ms": 221.2,
+        "samples": 5
+      },
+      "diamondback_search": {
+        "p50_ms": 1671.9,
+        "samples": 5
+      },
+      "eog_contact_search": {
+        "p50_ms": 661.3,
+        "samples": 1
+      },
+      "group_open": {
+        "p50_ms": 1352.8,
+        "samples": 5
+      },
+      "group_projects_details": {
+        "p50_ms": 1370.0,
+        "samples": 5
+      },
+      "need_details": {
+        "p50_ms": 370.2,
+        "samples": 5
+      },
+      "oil_gas": {
+        "p50_ms": 787.4,
+        "samples": 5
+      }
+    },
+    "sample_count_per_route": 5
+  },
+  "ci": {
+    "candidate_run": 41480436348,
+    "main_run": 41481601061,
+    "backend_passed": 3718,
+    "backend_skipped": 1,
+    "browser_passed": 196,
+    "real_backend_responsive_passed": 3
+  },
+  "responsive_widths": [
+    1440,
+    1281,
+    768,
+    390
+  ],
+  "observed_changed_query_actions": 28,
+  "observed_busy_samples": 68,
+  "canonical_retention_table_count": 64,
+  "independent_review": "PASS",
+  "private_receipt_root": ".artifacts/browse-clarity-full-release-20261102",
+  "private_receipt_sha256": {
+    "pair-rehearsal-a986561c20eb.json": "e789805ca72389e99729507c8b1188a5a33ff8191bb30ae8eb49f726543d73a5",
+    "image-proof.json": "de16eafcacbe978690ad1a510524d3520a2ea00f469aa56d54a5ab48b7f573f1",
+    "candidate-manifest.json": "adb3d006c436bdfe0d02be4a2959a8f8223185393a1c1d4504bf51bf9733b27a",
+    "ASTRA-TOOLING-REVIEW.md": "1362313bf2c325a511ce1aac42e69f2d76f72d27e6d4775c2fc94b2c373539ed",
+    "final-verification.json": "237198b1c6e7b329b084255c657f2830dee28cdb06b3e5bfde868c4e87eb504d",
+    "postresume-verification.json": "efd44845e18c93be3243afe7bf4b7743f5ff63a19e0faeed0e68b68108abdb3b",
+    "live-20261102/authenticated-canary.json": "4c0f45217d2a75c95c7b331b0d2d057f82031b979aa5da6d2f31db9f99bbbd56",
+    "live-20261102/api-canary.json": "e74aeaf1d8ddea185a69ac108cff450e27c56ace9627f981df1c7172b5d26ed4"
+  },
+  "limitations": [
+    "Dated observations, not proof of subsequent runtime state or sustained SLA.",
+    "No full scheduled-source-cycle or commercial completeness acceptance.",
+    "Demand summary unavailable: zero supported validated equipment records at verification.",
+    "Raw private receipts are ignored local/on-host evidence; this sanitized summary and hashes are tracked.",
+    "Earlier failed runs and superseded release preparation remain retained; only accepted final receipts establish this release."
+  ]
+}

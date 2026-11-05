@@ -6,6 +6,7 @@ import hashlib
 import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -21,6 +22,16 @@ WINDOW_DAYS = 7
 MAX_CURSOR_BYTES = 8192
 
 
+def collection_day(source: dict[str, Any], now: datetime | None = None) -> date:
+    current = now or datetime.now(UTC)
+    zone = (
+        ZoneInfo("America/Chicago")
+        if source.get("retrieval_method") in {"rrc-flare-exceptions", "rrc-drilling-permits"}
+        else UTC
+    )
+    return current.astimezone(zone).date()
+
+
 def collection_lanes(source: dict[str, Any]) -> tuple[str, ...]:
     method = source.get("retrieval_method")
     if method == "socrata-permits":
@@ -32,7 +43,7 @@ def collection_lanes(source: dict[str, Any]) -> tuple[str, ...]:
         if source_id == "austin-building-permits" and isinstance(backfill, dict):
             lanes.append("issue_backfill")
         return tuple(lanes)
-    if method == "boston-ckan-permits":
+    if method in {"boston-ckan-permits", "rrc-flare-exceptions", "rrc-drilling-permits"}:
         return ("issue_recent", "issue_history")
     return ()
 
@@ -65,9 +76,31 @@ def _date(value: datetime | None) -> date | None:
     return aware.astimezone(UTC).date()
 
 
+def _history_target(source: dict[str, Any], today: date) -> date:
+    if source.get("retrieval_method") == "rrc-drilling-permits":
+        return today.replace(day=1) - timedelta(days=1)
+    return today
+
+
+def _history_end(source: dict[str, Any], start: date, today: date) -> date:
+    if source.get("retrieval_method") == "rrc-drilling-permits":
+        next_month = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        return min(_history_target(source, today), next_month - timedelta(days=1))
+    return min(today, start + timedelta(days=WINDOW_DAYS - 1))
+
+
 def _new_window(
     lane: str, today: date, lookback_days: int, source: dict[str, Any]
 ) -> tuple[date, date]:
+    if source.get("retrieval_method") == "rrc-drilling-permits":
+        if lane.endswith("recent"):
+            return today, today
+        start = (today - timedelta(days=89)).replace(day=1)
+        return start, _history_end(source, start, today)
+    if source.get("retrieval_method") == "rrc-flare-exceptions":
+        days = source["query"]["window_days"] if lane.endswith("recent") else 90
+        start = max(date(2021, 5, 2), today - timedelta(days=days - 1))
+        return start, min(today, start + timedelta(days=WINDOW_DAYS - 1))
     if lane == "issue_backfill":
         backfill = source["query"]["data_center_backfill"]
         start, end = date.fromisoformat(backfill["start"]), date.fromisoformat(backfill["end"])
@@ -109,7 +142,7 @@ def prepare_collection_progress(
         raise SourceParseError("Source has no structured collection lanes")
     source_id = str(source["id"])
     digest = collection_policy_digest(source)
-    current_day = today or datetime.now(UTC).date()
+    current_day = today or collection_day(source)
     query = source.get("query") or {}
     lookback = int(query.get("window_days", 90))
     rows = session.scalars(
@@ -141,12 +174,10 @@ def prepare_collection_progress(
             if _date(row.window_end) != current_day:
                 _reset_window(row, lane, current_day, lookback, source)
         elif lane.endswith("history") and row.status == "complete":
-            if through is not None and through < current_day:
+            if through is not None and through < _history_target(source, current_day):
                 start = through + timedelta(days=1)
                 row.window_start = _midnight(start)
-                row.window_end = _midnight(
-                    min(current_day, start + timedelta(days=WINDOW_DAYS - 1))
-                )
+                row.window_end = _midnight(_history_end(source, start, current_day))
                 row.cursor = {}
                 row.status = "incomplete"
                 row.error_class = None
@@ -248,6 +279,7 @@ def collection_status(
     lanes: tuple[str, ...],
     *,
     today: date | None = None,
+    source: dict[str, Any] | None = None,
 ) -> tuple[bool, bool]:
     """Return (current_overlap_complete, all_lanes_current)."""
     current_day = today or datetime.now(UTC).date()
@@ -268,7 +300,15 @@ def collection_status(
     all_complete = current_complete and all(
         by_lane.get(lane)
         and by_lane[lane].status == "complete"
-        and (lane == "issue_backfill" or _date(by_lane[lane].completed_through) == current_day)
+        and (
+            lane == "issue_backfill"
+            or _date(by_lane[lane].completed_through)
+            == (
+                _history_target(source or {}, current_day)
+                if lane.endswith("history")
+                else current_day
+            )
+        )
         for lane in lanes
     )
     return current_complete, all_complete
@@ -284,7 +324,7 @@ def collection_continuation_needed(
     today: date | None = None,
 ) -> bool:
     """Whether another bounded segment can advance a lane without waiting."""
-    current_day = today or datetime.now(UTC).date()
+    current_day = today or collection_day(source)
     rows = session.scalars(
         select(SourceCollectionProgress).where(
             SourceCollectionProgress.source_id == source_id,
@@ -299,7 +339,9 @@ def collection_continuation_needed(
         through = _date(row.completed_through)
         if lane.endswith("recent") and through != current_day:
             return True
-        if lane.endswith("history") and (through is None or through < current_day):
+        if lane.endswith("history") and (
+            through is None or through < _history_target(source, current_day)
+        ):
             return True
         if lane == "issue_backfill":
             end = date.fromisoformat(source["query"]["data_center_backfill"]["end"])

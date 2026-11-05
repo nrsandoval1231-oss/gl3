@@ -131,6 +131,35 @@ def chicago_today(now: datetime | None = None) -> date:
     return current.astimezone(ZoneInfo("America/Chicago")).date()
 
 
+class DemandSummaryClassOut(BaseModel):
+    mw: float | None
+    record_count: int = Field(ge=0)
+
+
+class DemandSummaryTotalsOut(BaseModel):
+    identified_records: int = Field(ge=0)
+    known_mw_records: int = Field(ge=0)
+    unknown_records: int = Field(ge=0)
+    conflicted_records: int = Field(ge=0)
+
+
+class DemandSummaryProvenanceOut(BaseModel):
+    contract: Literal["equipment-demand-v1"]
+    source_count: int = Field(ge=0)
+    latest_evidence_at: datetime | None
+
+
+class DemandSummaryOut(BaseModel):
+    counts_complete: bool
+    availability: Literal["available", "unavailable"]
+    sector: Literal["all", "oil_gas", "data_centers"]
+    as_of: datetime
+    totals: DemandSummaryTotalsOut
+    classes: dict[Literal["documented", "calculated", "estimated"], DemandSummaryClassOut]
+    provenance: DemandSummaryProvenanceOut
+    limitations: list[str]
+
+
 class EvidenceOut(BaseModel):
     id: UUID
     title: str
@@ -625,7 +654,17 @@ def _validate_browse_query(request: Request) -> None:
         if search is not None and len(search) > 250:
             raise HTTPException(422, "search must be at most 250 characters")
     elif request.url.path == "/api/opportunities/groups":
-        allowed = {"search", "sector", "limit", "offset", "cohort_token", "sort"}
+        allowed = {
+            "search",
+            "sector",
+            "limit",
+            "offset",
+            "cohort_token",
+            "sort",
+            "region",
+            "stage",
+            "priority",
+        }
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
             raise HTTPException(422, "search must be at most 250 characters")
@@ -635,7 +674,7 @@ def _validate_browse_query(request: Request) -> None:
         and bool(request.url.path.split("/")[4])
         and request.url.path.split("/")[5] == "open"
     ):
-        allowed = {"search", "sector", "sort", "limit"}
+        allowed = {"search", "sector", "sort", "limit", "region", "stage", "priority"}
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
             raise HTTPException(422, "search must be at most 250 characters")
@@ -656,6 +695,9 @@ def _validate_browse_query(request: Request) -> None:
                 "cohort_token",
                 "sort",
                 "parent_cohort_token",
+                "region",
+                "stage",
+                "priority",
             }
             search = request.query_params.get("search")
             if search is not None and len(search) > 250:
@@ -1030,7 +1072,12 @@ def _preflight_streamed_evidence_text(
         )
     if not scopes:
         return
-    evidence_scopes = union_all(*scopes).subquery()
+    # Evaluate the deduplicated scopes before joining the text-bearing tables. Keeping this
+    # planner boundary avoids inlining both candidate subqueries into the outer text join. The CTE
+    # preserves scope labels and duplicate accounting while keeping the complete check atomic.
+    evidence_scopes = (
+        union_all(*scopes).cte("evidence_scopes").prefix_with("MATERIALIZED", dialect="postgresql")
+    )
     text_fields = (
         func.octet_length(func.coalesce(Evidence.title, "")),
         func.octet_length(func.coalesce(Evidence.abstract, "")),
@@ -2074,6 +2121,21 @@ def project_opportunities(
 
 
 @app.get(
+    "/api/opportunities/demand-summary",
+    response_model=DemandSummaryOut,
+    dependencies=[Depends(require_session)],
+)
+def opportunity_demand_summary(
+    sector: Literal["all", "oil_gas", "data_centers"] = "all",
+):
+    from gridlens.intelligence.demand_summary import summarize
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        return summarize(session, sector)
+
+
+@app.get(
     "/api/opportunities/groups",
     dependencies=[Depends(require_session), Depends(_validate_browse_query)],
 )
@@ -2083,7 +2145,10 @@ def customer_opportunity_groups(
     limit: Annotated[int, Query(ge=1, le=50)] = 25,
     offset: Annotated[int, Query(ge=0)] = 0,
     cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
-    sort: Literal["priority", "updated"] = "priority",
+    sort: Literal["priority", "priority_asc", "company", "updated"] = "priority",
+    region: str | None = None,
+    stage: str | None = None,
+    priority: Literal["ranked", "unranked"] | None = None,
 ):
     from gridlens.intelligence.customer_results import groups
 
@@ -2097,6 +2162,9 @@ def customer_opportunity_groups(
             offset=offset,
             token=cohort,
             sort=sort,
+            region=region,
+            stage=stage,
+            priority=priority,
         )
 
 
@@ -2112,7 +2180,10 @@ def customer_group_projects(
     limit: Annotated[int, Query(ge=1, le=50)] = 25,
     offset: Annotated[int, Query(ge=0)] = 0,
     cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
-    sort: Literal["priority", "updated"] = "priority",
+    sort: Literal["priority", "priority_asc", "company", "updated"] = "priority",
+    region: str | None = None,
+    stage: str | None = None,
+    priority: Literal["ranked", "unranked"] | None = None,
 ):
     from gridlens.intelligence.customer_results import group_projects
 
@@ -2128,6 +2199,9 @@ def customer_group_projects(
             token=cohort,
             parent_token=parent_cohort,
             sort=sort,
+            region=region,
+            stage=stage,
+            priority=priority,
         )
         _bounded_opportunity_payload(payload["items"])
         return payload
@@ -2141,50 +2215,30 @@ def customer_group_open(
     group_id: str,
     search: str | None = None,
     sector: Literal["all", "oil_gas", "data_centers"] = "all",
-    sort: Literal["priority", "updated"] = "priority",
+    sort: Literal["priority", "priority_asc", "company", "updated"] = "priority",
     limit: Annotated[int, Query(ge=1, le=50)] = 25,
+    region: str | None = None,
+    stage: str | None = None,
+    priority: Literal["ranked", "unranked"] | None = None,
 ):
-    from gridlens.intelligence.customer_results import group_metadata, group_projects, groups
+    from gridlens.intelligence.customer_results import group_open
 
     with SessionLocal() as session:
         _begin_consistent_read(session)
         session.execute(text("SET TRANSACTION READ ONLY"))
         generation = current_generation(session)
-        # Group and project serializers consume this generation explicitly so
-        # a publication between reads cannot invalidate the parent selection.
-        parent = groups(
-            session,
-            search=search,
-            sector=sector,
-            limit=50,
-            sort=sort,
-            selected_generation=generation,
-        )
-        group = group_metadata(
-            session,
-            group_id,
-            search=search,
-            sector=sector,
-            sort=sort,
-            selected_generation=generation,
-        )
-        children = group_projects(
+        payload = group_open(
             session,
             group_id,
             search=search,
             sector=sector,
             limit=limit,
             sort=sort,
-            parent_token=parent["cohort_token"],
+            region=region,
+            stage=stage,
+            priority=priority,
             selected_generation=generation,
         )
-        children.pop("group", None)
-        payload = {
-            "group": group,
-            "projects": children,
-            "parent_cohort_token": parent["cohort_token"],
-            "generation": str(generation.id),
-        }
         _bounded_opportunity_payload(payload["projects"]["items"])
         if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
             raise HTTPException(413, "Project results exceed the response byte budget")

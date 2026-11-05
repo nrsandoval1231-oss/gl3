@@ -1,9 +1,10 @@
+import re
 from datetime import time
 from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -129,9 +130,65 @@ class Settings(BaseSettings):
     )
     intelligence_typesafe_total_input_bound_verified: bool = False
     jev_shadow_mode: bool = True
+    # Live Jev (WS2a). Everything defaults OFF; shadow mode remains the only active path
+    # unless the owner's protected release enables live mode and individual authorities.
+    jev_model: str = "jev-1.13.0"
+    jev_live_mode: bool = False
+    jev_live_routing: bool = False
+    jev_live_labels: bool = False
+    jev_live_materiality: bool = False
+    jev_live_triage: bool = False
+    jev_live_matching: bool = False
+    jev_abstain_probability: float = Field(default=0.80, ge=0.5, le=1.0)
+    jev_match_probability: float = Field(default=0.95, ge=0.5, le=1.0)
+    jev_passage_max_bytes: int = Field(default=24_000, ge=1_000, le=200_000)
     jev_shadow_batch_limit: int = 20
     jev_shadow_daily_limit: int = 20
     jev_shadow_timeout_seconds: int = 90
+    # Per-provider ledger caps (JSON map, e.g. {"openai": {"monthly_usd": 90},
+    # "typesafe": {"monthly_usd": 10}}). Each value can only tighten the shared provider-scope
+    # cap above, never loosen it. Empty means no per-provider tightening.
+    intelligence_provider_caps: str = ""
+    intelligence_spend_alert_threshold: float = Field(default=0.80, gt=0.0, le=1.0)
+    # WS2b LLM equipment proposer (ships off). Needs the EQUIPMENT_PROPOSER_V1 contract in
+    # INTELLIGENCE_ENABLED_CONTRACTS, a pinned priced model and verified pricing.
+    permit_llm_proposer_enabled: bool = False
+    permit_llm_proposer_max_pages: int = Field(default=6, ge=1, le=20)
+    permit_llm_proposer_max_page_chars: int = Field(default=12_000, ge=1_000, le=60_000)
+    intelligence_equipment_model: str = ""
+    intelligence_equipment_priced_model_id: str = ""
+    intelligence_equipment_pricing_verified: bool = False
+    intelligence_equipment_input_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_equipment_cached_input_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_equipment_output_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_equipment_max_output_tokens: int = Field(default=0, ge=0, le=100000)
+    # WS2b OCR for permit-stage PDFs (ships off). Hosts must be listed explicitly; the source
+    # must also be in INTELLIGENCE_OCR_RETENTION_SOURCE_IDS.
+    permit_ocr_enabled: bool = False
+    permit_ocr_allowed_hosts: str = ""
+    permit_ocr_max_pages_per_document: int = Field(default=10, ge=1, le=50)
+    permit_ocr_rows_feed_demand: bool = False
+    # WS6 runtime: document extraction as its own leased job (ships off; the listing job then
+    # keeps running the stage in-line exactly as before).
+    document_extraction_jobs_enabled: bool = False
+    # None: the stage's own max_downloads per run.
+    document_extraction_max_enqueue_per_run: int | None = Field(default=None, ge=1, le=200)
+    document_extraction_failed_retry_hours: int = Field(default=24, ge=1, le=720)
+    # WS6 document-source health alerts (typed, daily message). Safe defaults.
+    doc_alert_min_baseline_docs: int = Field(default=5, ge=1, le=1000)
+    doc_alert_yield_drop_ratio: float = Field(default=0.5, gt=0.0, lt=1.0)
+    doc_alert_empty_text_ratio: float = Field(default=0.5, gt=0.0, le=1.0)
+    doc_alert_listing_shrink_ratio: float = Field(default=0.5, gt=0.0, lt=1.0)
+    doc_alert_zero_new_days: int = Field(default=14, ge=1, le=365)
+    doc_alert_overdue_multiplier: float = Field(default=2.5, ge=1.0, le=30.0)
+    doc_alert_rejection_spike_ratio: float = Field(default=0.6, gt=0.0, le=1.0)
+    doc_alert_rejection_min_rows: int = Field(default=10, ge=1, le=10_000)
     intelligence_typesafe_estimated_reservation_usd: Decimal = Field(
         default=Decimal("0"), ge=0, le=100
     )
@@ -176,6 +233,50 @@ class Settings(BaseSettings):
     def _valid_intelligence_mode(cls, value: str) -> str:
         if value not in {"disabled", "evaluation", "advisory", "bounded_routing"}:
             raise ValueError("intelligence_mode must be a supported operating mode")
+        return value
+
+    @model_validator(mode="after")
+    def _valid_live_jev_configuration(self) -> "Settings":
+        authorities = (
+            self.jev_live_routing,
+            self.jev_live_labels,
+            self.jev_live_materiality,
+            self.jev_live_triage,
+            self.jev_live_matching,
+        )
+        if any(authorities) and not self.jev_live_mode:
+            raise ValueError("Jev live authorities require JEV_LIVE_MODE")
+        if self.jev_live_mode:
+            if not self.jev_enabled:
+                raise ValueError("JEV_LIVE_MODE requires JEV_ENABLED")
+            if re.fullmatch(r"jev-\d+\.\d+\.\d+", self.jev_model) is None:
+                raise ValueError("JEV_LIVE_MODE requires a pinned versioned JEV_MODEL")
+            if self.intelligence_typesafe_model != self.jev_model:
+                raise ValueError("INTELLIGENCE_TYPESAFE_MODEL must equal JEV_MODEL in live mode")
+        if self.jev_live_mode:
+            if self.jev_match_probability < self.jev_abstain_probability:
+                raise ValueError("JEV_MATCH_PROBABILITY must be at least JEV_ABSTAIN_PROBABILITY")
+            from gridlens.intelligence.jev_passages import (
+                MIN_PASSAGE_BYTES,
+                REQUEST_OVERHEAD_FLOOR_BYTES,
+                WRAPPER_RESERVE_BYTES,
+            )
+
+            ceiling = self.intelligence_typesafe_max_total_billable_input_tokens
+            floor = REQUEST_OVERHEAD_FLOOR_BYTES + WRAPPER_RESERVE_BYTES + MIN_PASSAGE_BYTES
+            if 0 < ceiling < floor:
+                raise ValueError(
+                    "INTELLIGENCE_TYPESAFE_MAX_TOTAL_BILLABLE_INPUT_TOKENS must exceed request "
+                    f"overhead, wrapper reserve and a minimum passage ({floor})"
+                )
+        return self
+
+    @field_validator("intelligence_provider_caps")
+    @classmethod
+    def _valid_provider_caps(cls, value: str) -> str:
+        from gridlens.intelligence.spend_caps import parse_provider_caps
+
+        parse_provider_caps(value)
         return value
 
     @field_validator("intelligence_financial_budget_mode")

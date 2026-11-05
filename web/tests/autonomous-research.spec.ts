@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const need = {
@@ -18,6 +19,7 @@ const workspace = { items: [need], total: 1, offset: 0, limit: 25, next_offset: 
 
 async function install(page: import('@playwright/test').Page) {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: workspace }))
   await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: need }))
   await page.route('**/api/commercial/triage/need-demo/autonomous-research', route => route.fulfill({ json: { items: [] } }))
@@ -189,7 +191,7 @@ test('project search surfaces matching project cards and opens a matching need',
   await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: searchNeed }))
   const projectQueries: string[] = []
   await page.route('**/api/opportunities/projects?**', route => { projectQueries.push(new URL(route.request().url()).searchParams.get('search') ?? ''); return route.fulfill({ json: projectResults }) })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   const search = page.getByLabel('Search opportunities')
   await search.fill('Morgan')
   await expect.poll(() => projectQueries).toContain('Morgan')
@@ -212,7 +214,7 @@ test('project search drops prior results after a failed query', async ({ page })
     if (query === 'Failure') return route.fulfill({ status: 503, json: { detail: 'unavailable' } })
     return route.fulfill({ json: projectResults })
   })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   const search = page.getByLabel('Search opportunities')
   await search.fill('Ridgeview')
   await expect.poll(() => projectQueries).toContain('Ridgeview')
@@ -228,8 +230,8 @@ test('project search drops prior results after a failed query', async ({ page })
 
 test('All search explains when no source-backed operator/customer groups match', async ({ page }) => {
   await install(page)
-  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'operators and customers', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic' } }))
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic' } }))
   await page.goto('/?view=workspace&groupBrowse=1')
   await page.getByLabel('Search opportunities').fill('Ridgeview')
-  await expect(page.getByText(/No operator\/customer groups match this search/)).toBeVisible()
+  await expect(page.getByText(/No groups match this search/)).toBeVisible()
 })

@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const need = {
@@ -16,6 +17,7 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   const searchQueries: string[] = []
   const projectQueries: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/search?**', route => {
     const url = new URL(route.request().url())
     searchQueries.push(url.searchParams.get('q') ?? '')
@@ -27,7 +29,7 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   })
   await page.route('**/api/opportunities/needs/need-shell?**', route => route.fulfill({ json: need }))
 
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
   await search.fill('Mesa')
   await expect.poll(() => searchQueries).toContain('Mesa')

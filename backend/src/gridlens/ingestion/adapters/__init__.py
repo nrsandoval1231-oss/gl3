@@ -133,6 +133,12 @@ def _retrieve_source_direct(
         return retrieve_jeti_agreements(source, client)
     if method == "taylor-newsflash":
         return retrieve_taylor_newsflash(source, client)
+    if method == "nmed-air-applications":
+        from gridlens.ingestion.adapters.nmed_application_documents import (
+            retrieve as retrieve_nmed_applications,
+        )
+
+        return retrieve_nmed_applications(source, client, deadline=deadline)
     if method == "ok-deq-public-review":
         return retrieve_ok_deq(source, client)
     if method == "spp-interconnection-queue":
@@ -184,6 +190,18 @@ def _retrieve_collection_segment_direct(
         from gridlens.ingestion.adapters.boston_permits import retrieve_collection_segment
 
         return retrieve_collection_segment(source, lane, start, end, cursor, client)
+    if method == "rrc-flare-exceptions":
+        from gridlens.ingestion.adapters.rrc_flare_exceptions import (
+            retrieve_collection_segment as retrieve_flare_segment,
+        )
+
+        return retrieve_flare_segment(source, lane, start, end, cursor, client)
+    if method == "rrc-drilling-permits":
+        from gridlens.ingestion.adapters.rrc_drilling_permits import (
+            retrieve_collection_segment as retrieve_drilling_segment,
+        )
+
+        return retrieve_drilling_segment(source, lane, start, end, cursor, client)
     raise SourceParseError("Source has no resumable structured collection adapter")
 
 

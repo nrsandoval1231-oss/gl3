@@ -38,8 +38,12 @@ def _title_pattern(title: str) -> re.Pattern[str]:
 
 
 def retrieve_companion(
-    record: dict[str, Any], client: httpx.Client | None = None, *, deadline: float | None = None
-) -> list[dict[str, str]]:
+    record: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
+    hp_driver: bool = False,
+) -> list[dict[str, Any]]:
     """Return one bounded complete notice whose PDF and pages match the FR record."""
     url = record.get("pdf_url")
     if not url:
@@ -136,7 +140,9 @@ def retrieve_companion(
                 if target_page_text.endswith("["):
                     target_page_text = target_page_text[:-1].rstrip()
                 end_page = page_number
-            page_fragments.append(f"[GovInfo PDF page {page_number}] {target_page_text}")
+            # Page text is untrusted: a spoofed page marker inside it must not become a marker.
+            safe_text = target_page_text.replace("[GovInfo PDF page", "(GovInfo PDF page")
+            page_fragments.append(f"[GovInfo PDF page {page_number}] {safe_text}")
             if end_page is not None:
                 break
         if start_page is None:
@@ -150,20 +156,32 @@ def retrieve_companion(
             raise SourceParseError("GovInfo target notice is empty")
         if len(excerpt) > MAX_NOTICE_CHARS:
             raise SourceParseError("GovInfo target notice exceeds the text character bound")
-        return [
-            {
-                "content_hash": hashlib.sha256(content).hexdigest(),
-                "title": record["title"],
-                "abstract": excerpt,
-                "url": url,
-                "published_at": published.isoformat(),
-                "extraction_location": (
-                    f"GovInfo PDF page {start_page}"
-                    if start_page == end_page
-                    else f"GovInfo PDF pages {start_page}-{end_page}"
-                ),
-            }
-        ]
+        citation: dict[str, Any] = {
+            "content_hash": hashlib.sha256(content).hexdigest(),
+            "title": record["title"],
+            "abstract": excerpt,
+            "url": url,
+            "published_at": published.isoformat(),
+            "extraction_location": (
+                f"GovInfo PDF page {start_page}"
+                if start_page == end_page
+                else f"GovInfo PDF pages {start_page}-{end_page}"
+            ),
+        }
+        if hp_driver:
+            # Additive and flag-gated: the ordinary citation fields above are unchanged.
+            from gridlens.ingestion.parsers.permit_docs.notice_hp import extract_notice_hp_driver
+
+            try:
+                citation["hp_driver"] = extract_notice_hp_driver(excerpt).as_json()
+            except Exception:  # an additive parser fault never costs the ordinary PDF evidence
+                from gridlens.ingestion.parsers.permit_docs.notice_hp import VERSION as HP_VERSION
+
+                citation["hp_driver"] = {
+                    "version": HP_VERSION,
+                    "abstain": {"reason": "parser_error"},
+                }
+        return [citation]
     except SourceParseError:
         raise
     except Exception as exc:

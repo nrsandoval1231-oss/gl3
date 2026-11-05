@@ -56,6 +56,13 @@ def score_fixture_results(cases: list[dict], rows: Iterable[Any]) -> dict[str, A
         "power_relevance",
         "temporary_power_hint",
         "needs_deep_enrichment",
+        "event_type",
+        "driver",
+        "novelty",
+        "side",
+        "lifecycle_phase",
+        "new_large_load",
+        "document_route",
     ]
     agreement_counts: dict[str, dict[str, int]] = {
         field: {"matched": 0, "denominator": 0} for field in fields
@@ -101,7 +108,12 @@ def score_fixture_results(cases: list[dict], rows: Iterable[Any]) -> dict[str, A
                     false_positive += 1
                 elif expected == "YES" and predicted == "NO":
                     false_negative += 1
+        # evidence-judge-v2 rows no longer ask the retired temporary-power question; their
+        # stored value is a default, so scoring it would count a non-answer as a mismatch.
+        demand_row = "driver" in result
         for field in fields:
+            if field == "temporary_power_hint" and demand_row:
+                continue
             label = labels.get(field)
             prediction = result.get(field)
             if label is not None and label != "UNKNOWN":

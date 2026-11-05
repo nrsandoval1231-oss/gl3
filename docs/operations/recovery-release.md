@@ -1,6 +1,6 @@
 # Current release and browse recovery procedure
 
-**Status: repository procedure; production execution is on hold.** This guide describes current code and required release/recovery evidence. It does not authorize deployment, protected-host access, generation writes, ingestion, paid research or credential changes. Dated receipts establish only their named images, schema and environment. Current protected wrapper/companion contents, image identities, schema and browse state remain unverified until an authorized host inspection.
+**Status: maintained recovery procedure; latest release completed November 2, 2026.** The accepted release is recorded in the [production release record](../validation/production-release-20261102.md). That receipt established candidate and prior-image rehearsal, a fresh quiesced backup and isolated restore, guarded candidate publication, authenticated canary reads, worker resumption and bounded post-resume checks for its exact images and schema. It does not authorize another production operation. A future release or recovery requires separate authorization and fresh host evidence.
 
 ## Readiness and endpoint requirements
 
@@ -8,18 +8,11 @@ Current project results (`/api/opportunities/projects`) and company/group result
 
 Runtime policy binds exact source-registry bytes and relative paths/bytes of backend Python files, not a Git label or row count. API, ingestion worker and browse worker must use the same validated backend artifact/policy. A prior image needs a generation valid under its own policy and the current canonical input revision. Do not disable policy, privacy, revision or clock fences to serve stale results.
 
-## Protected wrapper operation contract
+## Protected host operation contract
 
-The repository selective-wrapper generator preserves the captured protected environment/Infisical/Compose prefix and rejects mismatched input byte/AST identity, noncanonical generation UUIDs and arbitrary command suffixes. An input-hash rejection is a stop condition; do not replace expected hashes merely to make an unknown host wrapper pass. The current candidate adds these narrow operations:
+The November 2 release ran through the existing protected host controller and its pinned wrapper. That wrapper's accepted `database-python` operation provided the controller's bounded calls to stage, inspect and guarded-publish a recovery generation under the selected image's actual policy. The [sanitized release receipt](../validation/production-release-20261102.md) records that interface and confirms configuration preservation; private helper fingerprints and runtime values remain in protected host evidence.
 
-| Companion operation | Browse CLI suffix within its fixed Compose context | Effect |
-|---|---|---|
-| `browse-status` | `gridlens.jobs.browse status` | Reads current generation readiness |
-| `stage-browse` | `gridlens.jobs.browse stage-recovery` | Writes derived rows and a recovery receipt |
-| `inspect-browse <canonical-UUID>` | `gridlens.jobs.browse inspect-recovery --generation <UUID>` | Reads candidate readiness and CAS metadata |
-| `publish-browse <canonical-UUID>` | `gridlens.jobs.browse publish-recovery --generation <UUID>` | Guarded derived-pointer publication |
-
-Existing `stop-app`, `migrate`, `rebuild-browse`, `start-canary` and `start-workers` retain fixed suffixes. These names are an operation contract, **not standalone host commands**. The updated companion has not been installed or verified on production by this work. Read-only verification must establish the actual installed prefix, operation map and selected image capabilities before any future authorized execution. Never use the old `rollback-browse` / `rollback --generation` lane, an all-service startup as a selective canary, or direct database pointer edits.
+The repository's newer selective-wrapper companion and its proposed operation names have **not** been established as installed on production. Treat any repository-generated operation map as source code until a separately authorized read-only host inspection proves its installed identity and capabilities. A protected-host wrapper operation is not a standalone shell command. Hash or capability mismatch is a stop condition; never replace expected pins to make an unknown host helper pass. Do not use legacy `rollback-browse` / `rollback --generation`, all-service startup as a selective canary, or direct database pointer edits.
 
 `scripts/rehearse_release.py` is frozen as a legacy schema 0041-only local rehearsal and requires explicit `--historical-0041-only` acknowledgement before resource access. Its historic rollback command and receipts do not certify current schema 0049 or selected current/prior images. Current recovery requires an independently verified isolated rehearsal with the actual image pair, current backup and supported lane; do not relax that helper's schema checks or transfer its old PASS.
 
@@ -30,6 +23,8 @@ Existing `stop-app`, `migrate`, `rebuild-browse`, `start-canary` and `start-work
 3. **Candidate stage and publication.** Under the exact candidate backend/policy and authorized protected context, stage derived browse data, retain its returned UUID, inspect `ready` immediately before publication, then use guarded publication. Staging and publication are writes even though they do not rewrite canonical evidence. Do not trigger ingestion/research/backfill to fill missing projections. Record policy, integrity/count completeness, input/full revisions, active/prepared pointers and time window.
 4. **Canary.** Pair candidate API/web with the valid candidate generation while ingestion and browse maintenance remain held. Verify source/image identity, schema, authenticated read boundaries, project/company counts and cohorts, search/filter/sort/pagination/detail/Back, contact privacy and evidence, responsive layout and console/network behavior. Public sign-in HTTP200 is insufficient. Preserve quiesced canonical/provider-ledger proofs; source/provider activation is outside this procedure.
 5. **Completion or hold.** Resume only previously authorized services after exact-candidate acceptance, then check heartbeat and generation maintenance under unchanged provider controls. Record images, policy/generation and current readiness. Canonical hashes need not remain identical after normal workers resume. If any gate fails or is uncertain, keep the protected maintenance/canary hold and apply the separately rehearsed rollback decision below.
+
+The November 2 candidate returned authenticated Oil & Gas group results in about 0.8 seconds and Data Centers in about 0.2 seconds during bounded reads. The rehearsed prior API image retains the known Oil & Gas timeout; the release explicitly did not claim that route as rollback-verified. Recovery acceptance for another release must use fresh evidence against the actual selected prior image and must not treat this historical measurement as an SLA.
 
 ## Current-data rollback and CAS boundaries
 

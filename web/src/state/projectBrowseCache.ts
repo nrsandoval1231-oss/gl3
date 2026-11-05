@@ -1,6 +1,6 @@
 import type { OpportunityGroup, OpportunityGroupsPage, ProjectResultsPage } from '../api/client'
 
-export type ProjectBrowseRoute = { search: string; sector: 'all' | 'oil_gas' | 'data_centers'; offset: number }
+export type ProjectBrowseRoute = { search: string; sector: 'all' | 'oil_gas' | 'data_centers'; offset: number; region?: string; stage?: string; priority?: 'ranked' | 'unranked' | ''; sort?: 'priority' | 'priority_asc' | 'company' | 'updated' }
 export type ProjectBrowseCacheEntry = { savedAt: number; page: OpportunityGroupsPage; expanded: Record<string, boolean>; children: Record<string, ProjectResultsPage | null>; childOffsets: Record<string, number>; groupParentTokens: Record<string, string>; openedGroups: Record<string, OpportunityGroup>; scrollY: number }
 
 const CACHE_TTL_MS = 30_000
@@ -12,7 +12,7 @@ function generationIsCurrent(validUntil?: string) {
   return Number.isFinite(until) && Date.now() < until
 }
 
-export const projectBrowseCacheKey = (route: ProjectBrowseRoute) => JSON.stringify([route.search, route.sector, route.offset])
+export const projectBrowseCacheKey = (route: ProjectBrowseRoute) => JSON.stringify([route.search, route.sector, route.region ?? '', route.stage ?? '', route.priority ?? '', route.sort ?? 'priority', route.offset])
 export function projectBrowseCacheVersion() { return cacheVersion }
 
 export function readProjectBrowseCache(route: ProjectBrowseRoute): ProjectBrowseCacheEntry | null {

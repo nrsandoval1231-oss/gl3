@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import sessionmaker
 from test_saved_browse import saved_db, seed  # noqa: F401
 
-from gridlens.intelligence import saved_browse
+from gridlens.intelligence import saved_browse, worker_browse
 from gridlens.intelligence.worker_browse import install_worker_publication
 from gridlens.persistence.models import BrowseGeneration, BrowseRow, BrowseState, PowerNeed
 from gridlens.settings import settings
@@ -23,6 +23,7 @@ def controlled_clock(monkeypatch, instant):
             return value.astimezone(tz) if tz else value.replace(tzinfo=None)
 
     monkeypatch.setattr(saved_browse, "datetime", Clock)
+    monkeypatch.setattr(worker_browse, "datetime", Clock)
     return clock
 
 
@@ -32,6 +33,10 @@ def test_refresh_outcome_survives_savepoint_and_excludes_private_error(
     monkeypatch,
     prepare_next_window,
 ):
+    # Refresh also clamps validity to the next clock boundary. Freeze before
+    # the first build so a real run near midnight cannot enter preparation.
+    now = datetime.now(UTC).replace(hour=12, minute=0, second=0, microsecond=0)
+    controlled_clock(monkeypatch, now)
     ids = seed(saved_db, histories=1)
     assert saved_browse.rebuild(saved_db)["status"] == "published"
     monkeypatch.setattr(settings, "saved_browse_enabled", True)
@@ -64,7 +69,6 @@ def test_refresh_outcome_survives_savepoint_and_excludes_private_error(
             saved_browse.current_generation(reader)
         assert failure.value.status_code == 503
     monkeypatch.setattr(saved_browse, "_write_rows", original)
-    now = datetime.now(UTC)
     with saved_db.begin() as fixture:
         state = fixture.get(BrowseState, 1)
         current = fixture.get(BrowseGeneration, state.generation_id)

@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from gridlens.intelligence.demand_summary import summarize
 from gridlens.intelligence.equipment_intelligence import (
     _canonical_decimal,
     current_equipment_investigation,
@@ -17,6 +18,8 @@ from gridlens.intelligence.equipment_intelligence import (
 )
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
+    BrowseGeneration,
+    BrowseRow,
     Evidence,
     EvidencePackage,
     Interpretation,
@@ -139,6 +142,107 @@ def build(session, rows):
     )
 
 
+def publish_test_browse(session, monkeypatch, needs, *, sector="oil_gas", identity=None):
+    now = datetime.now(UTC)
+    generation = BrowseGeneration(
+        id=uuid4(),
+        input_revision=1,
+        policy_version="test",
+        built_at=now,
+        valid_from=now,
+        valid_until=now.replace(year=now.year + 1),
+        row_count=len(needs),
+        digest="a" * 64,
+        counts={},
+    )
+    session.add(generation)
+    session.flush()
+    for need, project in needs:
+        session.add(
+            BrowseRow(
+                generation_id=generation.id,
+                need_id=need.id,
+                project_id=project.id,
+                tier=need.tier,
+                location=project.location or "",
+                industry="",
+                activity=need.activity_key,
+                has_timing=False,
+                mw_low=None,
+                mw_high=None,
+                priority_segment=0,
+                workflow_status="UNKNOWN",
+                signal_decision="UNKNOWN",
+                project_group="legacy",
+                single_group="legacy",
+                rank_score=0,
+                updated_at=now,
+                search_text="",
+                display_title=project.name,
+                commercial_group=None,
+                commercial_segment=None,
+                commercial_geography=None,
+                commercial_date=None,
+                summary={},
+                compact={
+                    "project_metadata": {
+                        "sector": sector,
+                        "asset_identity": identity or {},
+                    }
+                },
+            )
+        )
+    session.flush()
+    monkeypatch.setattr(
+        "gridlens.intelligence.demand_summary.current_generation",
+        lambda _session: generation,
+    )
+
+
+def duplicate_schedule_for_need(session, rows, need):
+    _old_need, project, old_obs, old_ev, old_interpretation, source = rows
+    body = old_obs.abstract or ""
+    obs = Observation(
+        source_id=source.id,
+        external_id=f"equipment-doc-{need.id}",
+        title=project.name,
+        abstract=body,
+        published_at=old_obs.published_at,
+        url=f"https://example.test/schedule/{need.id}",
+        content_hash=sha256(body.encode()).hexdigest(),
+    )
+    session.add(obs)
+    session.flush()
+    ev = Evidence(
+        observation_id=obs.id,
+        content_hash=obs.content_hash,
+        title=obs.title,
+        abstract=body,
+        url=obs.url,
+        published_at=obs.published_at,
+        extraction_location="Synthetic equipment schedule",
+    )
+    session.add(ev)
+    session.flush()
+    assessment = {
+        **old_interpretation.assessment,
+        "semantic_hash": obs.content_hash,
+        "evidence_hash": ev.content_hash,
+        "project_identity_key": project.identity_key,
+        "power_activity": need.activity_key,
+        "evidence": {"id": str(ev.id), "url": ev.url},
+    }
+    interpretation = Interpretation(
+        observation_id=obs.id,
+        status="accepted",
+        content_hash=obs.content_hash,
+        assessment=assessment,
+    )
+    session.add_all([interpretation, NeedObservation(need_id=need.id, observation_id=obs.id)])
+    session.flush()
+    return (need, project, obs, ev, interpretation, source)
+
+
 def test_durable_replay_and_current_projection_preserve_qualification(equipment_db):
     with equipment_db.begin() as session:
         rows = seed(session)
@@ -176,6 +280,58 @@ def test_wrong_facility_abstains_without_numeric_publication(equipment_db):
         assert result["status"] == "ABSTAINED"
         assert result["demand"] is None
         assert any("facility" in question.lower() for question in result["unresolved_questions"])
+
+
+def test_portfolio_summary_uses_validated_current_record(equipment_db, monkeypatch):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        rows[1].region_status = "ELIGIBLE"
+        build(session, rows)
+        publish_test_browse(session, monkeypatch, [(rows[0], rows[1])])
+        summary = summarize(session, "oil_gas")
+        assert summary["availability"] == "available"
+        assert summary["totals"]["identified_records"] == 1
+        assert summary["totals"]["known_mw_records"] == 1
+        assert summary["classes"]["calculated"]["record_count"] == 1
+        assert summary["classes"]["calculated"]["mw"] > 0
+        assert summarize(session, "data_centers")["availability"] == "unavailable"
+
+
+def test_portfolio_summary_retracts_stale_evidence(equipment_db, monkeypatch):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        rows[1].region_status = "ELIGIBLE"
+        build(session, rows)
+        publish_test_browse(session, monkeypatch, [(rows[0], rows[1])])
+        rows[2].content_hash = "a" * 64
+        session.flush()
+        summary = summarize(session)
+        assert summary["availability"] == "unavailable"
+        assert summary["totals"]["known_mw_records"] == 0
+
+
+def test_portfolio_summary_does_not_add_multiple_needs_for_site(equipment_db, monkeypatch):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        need, project = rows[:2]
+        project.region_status = "ELIGIBLE"
+        second = PowerNeed(
+            project_id=project.id,
+            activity_key="second-activity",
+            tier="Signal",
+            rationale="Overlapping schedule",
+            supply="Unknown",
+        )
+        session.add(second)
+        session.flush()
+        second_rows = duplicate_schedule_for_need(session, rows, second)
+        build(session, rows)
+        build(session, second_rows)
+        publish_test_browse(session, monkeypatch, [(need, project), (second, project)])
+        result = summarize(session)
+        assert result["totals"]["known_mw_records"] == 0
+        assert result["totals"]["conflicted_records"] == 1
+        assert result["classes"]["calculated"]["mw"] is None
 
 
 def test_untrusted_or_wrong_activity_cannot_materialize(equipment_db):

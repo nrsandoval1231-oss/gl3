@@ -22,11 +22,12 @@ Every assertion should carry: stable claim/subject/predicate/object identity; so
 
 Unknown, contradicted, stale and absent are distinct states. Missing equipment drive is not electric; missing timing is not a predicted date. Derived values link to exact input claim IDs/hashes and formula version. Demand may be represented with unknown MW. Identity resolution links require evidence and retain prior decisions.
 
+The bounded deployed `equipment-demand-v1` slice reuses `EvidencePackage` and existing project/need relationships without a migration. The November 2 production receipt reports zero current validated records and an unavailable demand summary; broad live equipment coverage is not established. See [production release evidence](../validation/production-release-20261102.md).
+
 ## NEXT — evolve existing contracts only as demonstrated
 
-1. Reuse `EvidencePackage` and existing project/need relationships for the candidate `equipment-demand-v1` slice; no migration is planned for that slice.
-2. Map real source/project/equipment cases to existing structures. Add or evolve persistence only when a demonstrated gap blocks a demand record, with compatibility and rollback evidence.
-3. Preserve all historical IDs and claims; never backfill unsupported values or make supply/qualification mandatory for demand records.
+1. Map real source/project/equipment cases to existing structures. Add or evolve persistence only when a demonstrated gap blocks a demand record, with compatibility and rollback evidence.
+2. Preserve all historical IDs and claims; never backfill unsupported values or make supply/qualification mandatory for demand records.
 
 ## DEFERRED
 

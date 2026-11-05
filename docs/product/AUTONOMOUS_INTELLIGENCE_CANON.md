@@ -20,7 +20,7 @@ The target output is an evidence-linked demand record centered on amount and amo
 - Do not reintroduce these routine workflows under new names, tabs, dialogs, or routes. Preserve exceptional correction, suppression and privacy controls through audited internal operations/services. They must not become a prerequisite to discovery, enrichment, qualification or daily use.
 - Target primary result: an evidence-linked demand record, with entity/project/equipment scope, demand amount and class, timing/lifecycle, source provenance, and explicit uncertainty. Commercial entities and contacts add context where supported.
 - A demand record does not require a plausible residual gap, utility constraint, buyer, or qualification tier. Supply context may be shown when sourced, but no supply shortage is asserted by default.
-- Preserve evidence access, privacy, and responsive behavior. The October 29 UI remains released production truth; demand-centered UI is implemented in the current candidate, while KPI data is unavailable. Candidate work is not production deployment.
+- Preserve evidence access, privacy, responsive behavior and the October 29 visual identity with its bounded November 2 refinements. The deployed application includes the equipment-only demand summary and customer/operator rollups; the [November 2 receipt](../validation/production-release-20261102.md) records authenticated acceptance. Demand was unavailable at that verification because supported validated records were absent; do not fabricate amounts or treat the deployed bounded slice as the complete target pipeline.
 
 ## Autonomous pipeline
 DISCOVERY → ENTITY/EVIDENCE → ELECTRICAL DEMAND → LIFECYCLE/TIMING → COMMERCIAL → AUTONOMOUS EVALUATION.
@@ -39,6 +39,16 @@ The target engine has six layers: **(1) Discovery, (2) Entity/Evidence, (3) Elec
 - Enrich from permitted public/business sources and licensed data only. Respect privacy, provider terms, provenance and freshness. Apollo and Firecrawl are optional authorized integrations, not assumed free datasets.
 - Preserve TX/OK/NM and Signal/Prospect/Lead as current legacy runtime compatibility rules where applicable. They do not define the target product or gate demand record creation. The 300 kW floor is not a target demand-record threshold.
 
+## TypeSafe Jev decision authority
+
+Owner decision, November 3, 2026: TypeSafe Jev may act live, within the tiers below. Live authority is off by default; each tier is a separate setting enabled through the protected release, and shadow mode remains available beside it. See [live Jev mode](../engineering/jev-live-mode-20261103.md).
+
+- **Acts alone, as a label:** document and page routing (table, narrative, scan, irrelevant), event-type and lifecycle labels, driver and new-versus-existing labels, materiality of a change, and docket or regional-planning triage. A label is a closed-vocabulary choice recorded with its probability and the pinned model version. Below the abstention probability the effective answer is UNKNOWN.
+- **Acts only with corroboration:** project matching. Jev's probability must clear the higher match threshold and a deterministic key must agree (county, substation, permit number or coordinates). Otherwise the answer is UNKNOWN. Agreement from a second model alone remains insufficient verification.
+- **Never:** create or change a value, perform arithmetic, or state a demand amount. Quantities, ratings, dates and MW come only from source-bound extraction and deterministic calculation. Jev decisions cannot write them, and they cannot reclassify an amount (documented, calculated, estimated, inferred or unknown).
+- **Fails closed:** a provider error, timeout, invalid response, unpinned model, or a call blocked by the cost and input ceilings produces no decision. The job stays visible with its reason; Jev never guesses and unknown is never treated as zero.
+- Jev remains replaceable. It does not evaluate itself, and it is not a product dependency.
+
 ## Vertical and learning strategy
 
 **Oil & Gas equipment is the first bounded implementation cohort.** Reuse one shared evidence/entity/demand foundation with sector-specific equipment and lifecycle interpretation. Do not infer electric load from horsepower without drive evidence. Broader data center and other sector coverage follows later; campus capacity is not construction or commissioning demand.
@@ -50,7 +60,7 @@ Primary demand KPI: **Identified Power Demand MW**, with documented, calculated,
 
 ## Historical Phase 0 scope and current implementation boundary
 
-The October 29 Phase 0 was documentation-only. Current implementation is a narrower first slice: source equipment parsing and deterministic `Decimal` electric-pump/compressor models using `equipment-demand-v1` on existing `EvidencePackage` records and normal and unchanged-record ingestion hooks; demand records use the existing intelligence-card API contract. No migration is planned. Independent deterministic tests are engineer-owned. This candidate implements the bounded slice and does not implement all six layers. Demand-centered UI changes are in the current candidate, but Identified Power Demand MW data is unavailable. October 29 UI remains released production truth; candidate work is not deployed. See the [implementation plan](../engineering/equipment-demand-slice-20261030.md).
+The October 29 Phase 0 was documentation-only. Current implementation is a narrower first slice: source equipment parsing and deterministic `Decimal` electric-pump/compressor models using `equipment-demand-v1` on existing `EvidencePackage` records and normal and unchanged-record ingestion hooks; demand records use the existing intelligence-card API contract. The deployed slice required no new migration. Independent deterministic tests are engineer-owned. The bounded slice and demand-centered UI are deployed within application `ec6486a2`; they do not implement all six layers. The [November 2 release receipt](../validation/production-release-20261102.md) records accepted runtime evidence and the bounded UI refinements to the October 29 visual identity. At verification, zero supported validated equipment records made the demand summary truthfully unavailable. Deployment does not establish source coverage, total portfolio MW or sustained scheduled operation. See the [implementation plan](../engineering/equipment-demand-slice-20261030.md).
 
 ## Historical candidate directions
 

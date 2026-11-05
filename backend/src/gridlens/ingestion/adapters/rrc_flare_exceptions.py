@@ -256,7 +256,12 @@ def parse_results(
 
 
 def retrieve(
-    source: dict[str, Any], client: httpx.Client | None = None, *, today: date | None = None
+    source: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    today: date | None = None,
+    window_start: date | None = None,
+    window_end: date | None = None,
 ) -> list[dict[str, Any]]:
     if (
         source.get("id") != SOURCE_ID
@@ -281,6 +286,16 @@ def retrieve(
         raise SourceParseError("RRC flare host is not the reviewed official host")
     end = today or datetime.now(UTC).astimezone(ZoneInfo("America/Chicago")).date()
     start = end - timedelta(days=window - 1)
+    if window_start is not None or window_end is not None:
+        if (
+            window_start is None
+            or window_end is None
+            or not 0 <= (window_end - window_start).days < 7
+            or window_end > end
+            or window_start < date(2021, 5, 2)
+        ):
+            raise SourceParseError("RRC flare collection window is outside reviewed bounds")
+        start, end = window_start, window_end
     http = client or httpx.Client(
         timeout=25, follow_redirects=False, headers={"Accept": "text/html"}
     )
@@ -414,3 +429,27 @@ def retrieve(
     finally:
         if client is None:
             http.close()
+
+
+def retrieve_collection_segment(
+    source: dict[str, Any],
+    lane: str,
+    start: date,
+    end: date,
+    cursor: dict[str, Any],
+    client: httpx.Client | None = None,
+) -> dict[str, Any]:
+    """Commit a count-checked date interval atomically; failed intervals replay."""
+    if lane not in {"issue_recent", "issue_history"} or cursor:
+        raise SourceParseError("Invalid RRC flare collection lane or cursor")
+    if not 0 <= (end - start).days < 7 or start < date(2021, 5, 2):
+        raise SourceParseError("RRC flare collection window is outside reviewed bounds")
+    records = retrieve(source, client, window_start=start, window_end=end)
+    return {
+        "records": records,
+        "cursor": {},
+        "partial": False,
+        "window_complete": True,
+        "expected_count": len(records),
+        "observed_count": len(records),
+    }

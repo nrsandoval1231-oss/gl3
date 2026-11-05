@@ -96,6 +96,8 @@ _REGISTRY_CONFIGURATION_FIELDS = (
     "schedule_mode",
     "timezone",
     "schedule_anchor_time",
+    "run_at",
+    "run_weekday",
 )
 _MISSING_CONFIGURATION = object()
 _PLANNER_RETRY_MONOTONIC: dict[str, float] = {}
@@ -130,6 +132,8 @@ def _source_configuration(item: dict) -> dict:
             "schedule_mode",
             "timezone",
             "schedule_anchor_time",
+            "run_at",
+            "run_weekday",
         )
         if key in item
     }
@@ -330,22 +334,34 @@ def _scheduled_instants(
     if anchor_time.tzinfo is not None:
         raise ValueError("Local-daily schedule anchor must not carry a timezone")
     day_step = max(1, epoch.cadence_hours // 24)
-    candidate_day = max(first_day, start.astimezone(zone).date())
+    # Optional clock times (run_at) and weekday pin (run_weekday); absent means the one anchor
+    # time on the anchor weekday, exactly as before.
+    configured = epoch.configuration if isinstance(epoch.configuration, dict) else {}
+    run_at = configured.get("run_at")
+    clock_times = sorted({day_time.fromisoformat(item) for item in run_at}) if run_at else []
+    clock_times = clock_times or [anchor_time]
+    weekday = configured.get("run_weekday")
+    if weekday is not None:
+        first_day += timedelta(days=(int(weekday) - first_day.weekday()) % 7)
+    candidate_day = max(first_day, start.astimezone(zone).date() - timedelta(days=1))
     days_since_anchor = (candidate_day - first_day).days
     step_count = (days_since_anchor + day_step - 1) // day_step
     cursor = first_day + timedelta(days=step_count * day_step)
     while True:
-        local_due = datetime.combine(cursor, anchor_time, tzinfo=zone)
-        round_trip = local_due.astimezone(UTC).astimezone(zone)
-        if round_trip.replace(tzinfo=None) != local_due.replace(tzinfo=None):
-            # Nonexistent spring-forward wall times resolve to the first valid
-            # local time after the gap. Ambiguous fall-back times use fold=0.
-            local_due = round_trip
-        due = local_due.astimezone(UTC)
-        if due >= end:
-            break
-        if due >= start:
-            yield due
+        dues = []
+        for clock in clock_times:
+            local_due = datetime.combine(cursor, clock, tzinfo=zone)
+            round_trip = local_due.astimezone(UTC).astimezone(zone)
+            if round_trip.replace(tzinfo=None) != local_due.replace(tzinfo=None):
+                # Nonexistent spring-forward wall times resolve to the first valid
+                # local time after the gap. Ambiguous fall-back times use fold=0.
+                local_due = round_trip
+            dues.append(local_due.astimezone(UTC))
+        for due in sorted(set(dues)):
+            if due >= end:
+                return
+            if due >= start:
+                yield due
         cursor += timedelta(days=day_step)
 
 
@@ -810,6 +826,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             "buying_chain_research",
             "company_contact_discovery",
             "rrc_well_research",
+            "document_extraction",
         }
         uses_public_acquisition = (
             kind in public_acquisition_kinds
@@ -853,6 +870,11 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             from gridlens.intelligence.intelligence_jobs import process_intelligence_job
 
             process_intelligence_job(job_id, WORKER_ID, fence)
+            return True
+        if kind == "document_extraction":
+            from gridlens.jobs.document_extraction import process_document_extraction_job
+
+            process_document_extraction_job(job_id, WORKER_ID, fence, deadline=deadline)
             return True
         if kind == "project_monitor":
             from gridlens.intelligence.monitoring import process_monitor_job
@@ -1038,7 +1060,12 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 admission_context = None
                 return True
             collection_jobs_remaining = None
-            if definition.get("retrieval_method") in {"socrata-permits", "boston-ckan-permits"}:
+            if definition.get("retrieval_method") in {
+                "socrata-permits",
+                "boston-ckan-permits",
+                "rrc-flare-exceptions",
+                "rrc-drilling-permits",
+            }:
                 # Validate within the worker failure boundary, before acquisition.
                 # Capture once: service checkpoints must never reset this chain.
                 job_checkpoint = _collection_checkpoint(finished_job.checkpoint, job_checkpoint)

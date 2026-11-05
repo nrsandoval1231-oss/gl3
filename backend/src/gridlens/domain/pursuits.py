@@ -230,6 +230,7 @@ class CommercialTriageContact(BaseModel):
     organization: str | None
     person: str | None
     role: str | None
+    category: str | None = None
     kind: str | None
     value: str | None
     source_url: str | None
@@ -305,6 +306,8 @@ class CommercialTriageCard(BaseModel):
     blockers: list[str] = Field(default_factory=list)
     next_question: str
     next_action: str
+    next_action_type: str | None = None
+    next_action_target: dict | None = None
     watch: dict | None = None
     sources: list[CommercialTriageFact] = Field(default_factory=list)
     operator_fact_refs: list[CommercialTriageOperatorFactRef] | None = None

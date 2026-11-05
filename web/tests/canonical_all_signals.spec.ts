@@ -1,3 +1,4 @@
+import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
 const syntheticOpportunity = (index: number, tier: string, sector: string) => ({
@@ -43,13 +44,14 @@ const pageFor = (url: URL) => {
 test('synthetic All view requests discovery so Signals render, and pagination and filters keep that scope', async ({ page }) => {
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?**', route => {
     const url = new URL(route.request().url())
     requests.push(url)
     return route.fulfill({ json: pageFor(url) })
   })
 
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.getByRole('heading', { name: 'Opportunities' })).toBeVisible()
   await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
