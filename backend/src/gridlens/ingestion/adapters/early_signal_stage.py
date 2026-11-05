@@ -350,13 +350,7 @@ def due(run: Run, item: DocItem) -> bool:
 def order(run: Run, items: list[DocItem]) -> list[DocItem]:
     """Never-seen first (as listed), then unfinished, then oldest re-validation."""
     fresh = [i for i in items if i.key not in run.urls and i.key not in run.states]
-    unfinished = [
-        i
-        for i in items
-        if i.key in run.urls
-        and i.key not in run.states
-        and run.urls[i.key].get("status") != "absent"
-    ]
+    unfinished = [i for i in items if i.key in run.urls and i.key not in run.states]
     rest = [i for i in items if i.key in run.states]
     unfinished.sort(key=lambda i: str(run.urls[i.key].get("at") or ""))
     rest.sort(key=lambda i: str(run.urls.get(i.key, {}).get("at") or ""))
