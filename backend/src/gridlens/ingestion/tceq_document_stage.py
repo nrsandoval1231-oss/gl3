@@ -15,6 +15,7 @@ must not be moved by an optional document stage. Notices (``zero_verified_rows``
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -25,6 +26,8 @@ from gridlens.persistence.models import Evidence, Observation, Source
 
 STATE_KEY = "application_document"
 HEALTH_KEY = "application_documents_attempts"
+NOT_BEFORE_KEY = "application_documents_not_before"
+DEFAULT_RATE_LIMIT_REST_SECONDS = 3600  # when a 429/503 carries no usable Retry-After
 
 
 def load_prior_states(session: Session, source_id: str) -> dict[str, dict[str, Any]]:
@@ -61,6 +64,36 @@ def save_bookkeeping(session: Session, source_id: str, book: dict[str, dict[str,
     source = session.get(Source, source_id)
     if source is not None:
         source.health = {**(source.health or {}), HEALTH_KEY: book}
+
+
+def load_not_before(session: Session, source_id: str) -> datetime | None:
+    """When the publisher last asked us to wait until, if that time is still stored."""
+    source = session.get(Source, source_id)
+    raw = (source.health or {}).get(NOT_BEFORE_KEY) if source is not None else None
+    try:
+        value = datetime.fromisoformat(str(raw)) if raw else None
+    except ValueError:
+        return None
+    return value if value is None or value.tzinfo else value.replace(tzinfo=UTC)
+
+
+def save_not_before(session: Session, source_id: str, value: datetime | None) -> None:
+    source = session.get(Source, source_id)
+    if source is None:
+        return
+    health = {k: v for k, v in (source.health or {}).items() if k != NOT_BEFORE_KEY}
+    if value is not None:
+        health[NOT_BEFORE_KEY] = value.isoformat()
+    if health != (source.health or {}):
+        source.health = health
+
+
+def rest_until(report: StageReport, now: datetime) -> datetime | None:
+    """The time before which the next run must not call the publisher, after a 429/503."""
+    if not report.counts.get("aborted_rate_limited"):
+        return None
+    seconds = report.retry_after_seconds or DEFAULT_RATE_LIMIT_REST_SECONDS
+    return now + timedelta(seconds=seconds)
 
 
 def merge_report(counts: dict[str, Any], report: StageReport) -> None:

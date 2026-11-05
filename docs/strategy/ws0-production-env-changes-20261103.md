@@ -134,3 +134,14 @@ The TCEQ application-document stage ([workstream 1b](../engineering/tceq-applica
 - Memory: the worker holds one unpacked composite PDF (up to 128 MB) in memory plus a copy in the extraction child; POSIX children are capped (`RLIMIT_AS` 2 GiB unpack, 1 GiB workbook), a Windows host would have no cap. Size the worker accordingly before enabling.
 - Admission: the NSR job holds the global public-acquisition admission for its whole run. With the stage on that can be up to the 600 s lease instead of seconds. Watch the first enabled runs and the `application_documents` counts in the job result.
 - Roll back by setting `enabled` to `false`; retained evidence and states stay.
+
+### OK DEQ document stage activation
+
+The Oklahoma DEQ permit-document stage ([workstream 1c](../engineering/okdeq-permit-documents-20261103.md)) ships **off**. To turn it on, set `query.application_documents.enabled` to `true` on the `oklahoma-deq-public-review` entry in `config/sources/registry.v1.json` through the protected release. It uses no paid provider and no environment variable.
+
+- Enabling alone does nothing useful: the listing does not expose document keys. Add owner-curated `seed_keys` (at most 50), or switch on the capped forward `probe` (`probe.enabled`, a nonzero `probe.frontier` that names where it starts, `max_probes` at most 20, `max_misses` at most 5). Both are explicit, visible in the registry diff, and shipped empty/off. Nothing blind-enumerates integer keys unless an owner turns the probe on.
+- Shipped bounds: `max_downloads` 2, `max_checks` 40, `extract_seconds` 300; at most one request per second to `applications.deq.ok.gov` (and to `oklahoma.gov` when `data_center_page.enabled`, shipped off); 40 MB per file; the first 429 or 503 ends the stage.
+- Admission: the OK DEQ job holds the global public-acquisition admission for its whole run. With the stage on that can reach the 600 s lease instead of seconds, less the persistence reserve the stage keeps. Watch the first enabled runs and the `application_documents` counts in the job result.
+- Memory: a file up to 40 MB is read into memory once for the extraction child; POSIX children are address-space capped, a Windows host is not.
+- Evidence effect: a verified schedule reaches the domain only for rows the existing OK DEQ admission accepts, which needs a stated event date (a public-comment window start). Other rows keep the document as evidence and provenance only.
+- Roll back by setting `enabled` to `false`: the next run builds listing-only evidence, so current evidence goes back to listing-only. Older evidence versions stay in the database; the key index in source health is kept but unused.

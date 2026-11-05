@@ -666,11 +666,23 @@
       "cadence_hours": 24,
       "publication_cadence": "Permits currently posted for public review; the index has no publication date. A comment-window start is recorded only when the step column states one.",
       "collection_scope": "Current public-review table rows whose company, facility, or type names a data center, power plant, turbine, generator, or engine, plus facility names explicitly identifying a compressor station or gas processing plant.",
-      "coverage_limitation": "The public-review index is not the full DEQ permit inventory. Detail pages and document-viewer attachments are not fetched. Compressor-station and gas-processing rows are discovery evidence, not proof of electric drive, equipment ratings, new demand, or procurement. Rows without a comment-window date stay undated. OCC utility dockets are not in this source.",
+      "coverage_limitation": "The public-review index is not the full DEQ permit inventory. Detail pages and document-viewer attachments are not fetched, and the listing does not expose the storedpermits document keys, so evaluation memoranda are reached only from owner-curated seed keys or an explicit capped probe (both shipped off). Compressor-station and gas-processing rows are discovery evidence, not proof of electric drive, equipment ratings, new demand, or procurement. Rows without a comment-window date stay undated. OCC utility dockets are not in this source.",
       "credential_reference": null,
       "enabled": true,
-      "retention": "Public-review table fields and the official row link when the page states a numeric permit-information id",
-      "query": {"max_response_bytes": 2000000, "max_records": 400}
+      "retention": "Public-review table fields and the official row link when the page states a numeric permit-information id; for evaluation memoranda (application_documents.enabled, shipped false): content hash, ETag/Last-Modified, memo header facts with verbatim quotes, verified schedule text with per-line provenance, supply rows, permit-number version list and a per-key check index (the PDFs themselves are not retained)",
+      "query": {
+        "max_response_bytes": 2000000,
+        "max_records": 400,
+        "application_documents": {
+          "enabled": false,
+          "max_downloads": 2,
+          "max_checks": 40,
+          "extract_seconds": 300,
+          "seed_keys": [],
+          "probe": {"enabled": false, "frontier": 0, "max_probes": 10, "max_misses": 3},
+          "data_center_page": {"enabled": false}
+        }
+      }
     },
     {
       "id": "spp-thermal-interconnection",

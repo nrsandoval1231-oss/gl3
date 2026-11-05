@@ -484,3 +484,46 @@ def test_changed_bytes_and_revalidation_are_persisted_correctly(stage_db, monkey
         assert "Equipment ID" not in (versions[1].abstract or "")
         assert session.scalar(select(Observation.first_seen_at)) == first_seen
         assert session.scalar(select(func.count()).select_from(EvidencePackage)) >= 1
+
+
+def test_retry_after_from_a_429_is_honoured_by_the_next_run(stage_db, monkeypatch):
+    """A 429 with Retry-After rests the stage; the next run makes no request until it passes."""
+    from gridlens.ingestion.service import _enrich_with_application_documents
+    from gridlens.ingestion.tceq_document_stage import NOT_BEFORE_KEY
+
+    definition, job_id = setup_source(stage_db)
+    _patch_stage(monkeypatch)
+    requests: list[str] = []
+
+    def limited(request: httpx.Request) -> httpx.Response:
+        requests.append(request.method)
+        return httpx.Response(429, headers={"retry-after": "3600"})
+
+    def enrich(handler):
+        client = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+        with stage_db() as session:
+            report = _enrich_with_application_documents(
+                session, job_id, WORKER, 1, definition, [nsr_record()], client, deadline=None
+            )
+            session.commit()
+        return report
+
+    first = enrich(limited)
+    assert first.counts["aborted_rate_limited"] == 1 and len(requests) == 1
+    with stage_db() as session:
+        stored = session.get(Source, definition["id"]).health[NOT_BEFORE_KEY]
+    assert datetime.fromisoformat(stored) > datetime.now(UTC) + timedelta(minutes=50)
+    requests.clear()
+    second = enrich(limited)
+    assert requests == [] and second.counts == {"skipped_retry_after": 1}
+    # Once the stored time has passed the stage runs again and clears the marker.
+    with stage_db.begin() as session:
+        source = session.get(Source, definition["id"])
+        source.health = {
+            **source.health,
+            NOT_BEFORE_KEY: (datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+        }
+    third = enrich(lambda request: httpx.Response(404))
+    assert "skipped_retry_after" not in third.counts
+    with stage_db() as session:
+        assert NOT_BEFORE_KEY not in (session.get(Source, definition["id"]).health or {})
