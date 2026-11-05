@@ -330,25 +330,48 @@ class _Pages:
                 index = i
         return index
 
-    def quote(self, start: int, end: int, before: int, after: int) -> tuple[int, str, int]:
-        """(page index, quote, offset of the quote in that page) around [start, end)."""
+    def quote(
+        self,
+        start: int,
+        end: int,
+        before: int,
+        after: int,
+        *,
+        bounds: tuple[int, int] | None = None,
+    ) -> tuple[int, str, int]:
+        """(page index, quote, page offset), optionally clamped to a numbered item."""
         page = self.page_of(start)
         base = self.offsets[page]
         text = self.norms[page]
+        page_end = base + len(text)
+        bound_start, bound_end = bounds or (base, page_end)
+        slice_start = max(base, bound_start) - base
+        slice_end = min(page_end, bound_end) - base
+        bounded_text = text[slice_start:slice_end]
         lo, hi = more.window_span(
-            text, start - base, min(end - base, len(text)), before, after, QUOTE_LIMIT
+            bounded_text,
+            start - base - slice_start,
+            min(end - base - slice_start, len(bounded_text)),
+            before,
+            after,
+            QUOTE_LIMIT,
         )
-        return page, text[lo:hi], lo
+        offset = slice_start + lo
+        return page, text[offset : slice_start + hi], offset
 
 
-def _item_fields(pages: _Pages, begin: int, text: str) -> dict[str, Any]:
+def _item_fields(pages: _Pages, begin: int, end: int, text: str) -> dict[str, Any]:
     fields: dict[str, Any] = {}
     for name in _FIELD_NAMES:
         found = _scalar(name, text)
         if found is None:
             continue
         value, basis, match = found
-        page, quote_, lo = pages.quote(begin + match.start(), begin + match.end(), 80, 120)
+        page, quote_, lo = pages.quote(
+            begin + match.start(), begin + match.end(), 80, 120, bounds=(begin, end)
+        )
+        if more.has_address(quote_) or more.has_person(quote_):
+            continue
         again = _scalar(name, quote_)
         if again is None or again[0] != value:
             continue
@@ -379,7 +402,11 @@ def extract_items(pages_in: list[str]) -> list[dict[str, Any]]:
             # A company elsewhere in the agenda item does not make nearby resident names or
             # addresses safe to retain in the evidence quote or extracted field context.
             continue
-        page, quote_, lo = pages.quote(begin + keyword.start(), begin + keyword.end(), 120, 150)
+        page, quote_, lo = pages.quote(
+            begin + keyword.start(), begin + keyword.end(), 120, 150, bounds=(begin, end)
+        )
+        if more.has_address(quote_) or more.has_person(quote_):
+            continue
         item = more.evidence(
             {
                 "agenda_item": label or None,
@@ -398,7 +425,7 @@ def extract_items(pages_in: list[str]) -> list[dict[str, Any]]:
         # Fields only for a numbered item that itself names a data center or large-load facility:
         # a wind farm's abatement or an unnumbered preamble yields the quote and nothing else.
         item["fields"] = (
-            _item_fields(pages, begin, text) if label and data_center is not None else {}
+            _item_fields(pages, begin, end, text) if label and data_center is not None else {}
         )
         items.append(item)
         if len(items) >= MAX_ITEMS:

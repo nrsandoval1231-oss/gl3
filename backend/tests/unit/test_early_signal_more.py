@@ -1073,6 +1073,22 @@ def test_agenda_withholds_personal_context_even_when_item_names_a_company():
     assert ca.extract_items([name]) == []
 
 
+def test_agenda_quote_windows_do_not_cross_into_adjacent_personal_items():
+    page = (
+        "7. Mr. John Smith, a resident, asks the court to preserve the road. "
+        "8. Consider a data center tax abatement with Alpha Data LLC investing $2,000,000 "
+        "for a 100 MW campus. "
+        "9. Mr. John Smith, a resident, requests the clerk note his concern."
+    )
+    extraction = ca.extract_agenda([page], [])
+    assert len(extraction["items"]) == 1
+    item = extraction["items"][0]
+    assert item["value"]["agenda_item"] == "8"
+    assert item["fields"]["investment_usd"]["value"] == 2_000_000
+    assert item["fields"]["stated_mw"]["value"] == 100
+    assert "John Smith" not in repr(extraction)
+
+
 def test_haskell_listing_keeps_undated_labels_and_rejects_encoded_separators():
     links = [
         ("/upload/page/7690/docs/Agenda 1.pdf", "Special Called"),
