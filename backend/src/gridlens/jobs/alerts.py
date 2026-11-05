@@ -116,6 +116,7 @@ def summarize(
     health: dict[str, Any],
     failures: dict[str, int] | None = None,
     spend: dict[str, Any] | None = None,
+    documents: list[Any] | None = None,
 ) -> tuple[str, str, bool]:
     """Return (title, body, has_problems) from the health payload and failure counts."""
     enabled = [source for source in health["sources"] if source.get("enabled")]
@@ -133,6 +134,7 @@ def summarize(
         if count:
             lines.append(f"Failed {label}: {count}")
     lines.extend(_spend_lines(spend))
+    lines.extend(finding.line() for finding in documents or [])
     ok = len(enabled) - len(problems)
     footer = (
         f"{ok}/{len(enabled)} enabled sources healthy · {health.get('backlog', 0)} jobs queued"
@@ -167,7 +169,15 @@ def main() -> None:
             spend = spend_report()
         except Exception as exc:  # a broken spend read must not hide the health message
             spend = {"rows": [], "capped_out_jobs": {}, "error": type(exc).__name__}
-        title, body, urgent = summarize(health(), processing_failures(), spend)
+        try:
+            from gridlens.jobs.document_alerts import document_report
+
+            documents: list[Any] = list(document_report())
+        except Exception as exc:  # a broken document check must be visible, not fatal
+            from gridlens.jobs.document_alerts import Finding
+
+            documents = [Finding("document_check_failed", "all", type(exc).__name__)]
+        title, body, urgent = summarize(health(), processing_failures(), spend, documents)
     except Exception as exc:  # health itself failing is the most important alert
         title, body, urgent = "GridLens: health check failed", f"{type(exc).__name__}: {exc}", True
     send(title, body, urgent)

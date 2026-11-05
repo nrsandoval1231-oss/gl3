@@ -174,6 +174,21 @@ class Settings(BaseSettings):
     permit_ocr_allowed_hosts: str = ""
     permit_ocr_max_pages_per_document: int = Field(default=10, ge=1, le=50)
     permit_ocr_rows_feed_demand: bool = False
+    # WS6 runtime: document extraction as its own leased job (ships off; the listing job then
+    # keeps running the stage in-line exactly as before).
+    document_extraction_jobs_enabled: bool = False
+    # None: the stage's own max_downloads per run.
+    document_extraction_max_enqueue_per_run: int | None = Field(default=None, ge=1, le=200)
+    document_extraction_failed_retry_hours: int = Field(default=24, ge=1, le=720)
+    # WS6 document-source health alerts (typed, daily message). Safe defaults.
+    doc_alert_min_baseline_docs: int = Field(default=5, ge=1, le=1000)
+    doc_alert_yield_drop_ratio: float = Field(default=0.5, gt=0.0, lt=1.0)
+    doc_alert_empty_text_ratio: float = Field(default=0.5, gt=0.0, le=1.0)
+    doc_alert_listing_shrink_ratio: float = Field(default=0.5, gt=0.0, lt=1.0)
+    doc_alert_zero_new_days: int = Field(default=14, ge=1, le=365)
+    doc_alert_overdue_multiplier: float = Field(default=2.5, ge=1.0, le=30.0)
+    doc_alert_rejection_spike_ratio: float = Field(default=0.6, gt=0.0, le=1.0)
+    doc_alert_rejection_min_rows: int = Field(default=10, ge=1, le=10_000)
     intelligence_typesafe_estimated_reservation_usd: Decimal = Field(
         default=Decimal("0"), ge=0, le=100
     )

@@ -53,6 +53,8 @@ Every call goes through `reserve_call`, `mark_dispatched`, `complete_call` with 
 
 ### Not wired into the stages yet
 
+> Update (workstream 6): the TCEQ extraction job now passes both from a leased job behind `DOCUMENT_EXTRACTION_JOBS_ENABLED`; see [runtime jobs](runtime-jobs-20261103.md). The in-line TCEQ path and the OK DEQ stage still do not.
+
 The TCEQ and OK DEQ stages call the pipeline from DB-free fetch code, and the proposer must spend through a leased job. `configured_proposer(...)` returns the proposer, or `None` while the flag is off; passing it from a stage needs a leased job context (or a separate queued job after the document is stored, which also matches the handoff's "split discovery from extraction"). That edit touches the stage adapters, so it was left for the follow-up that adds the job. The pipeline hook and its tests are complete.
 
 ## OCR for stage PDFs
