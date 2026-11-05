@@ -1,0 +1,124 @@
+{
+ "features": [
+  {
+   "attributes": {
+    "NEVI_ID": 132,
+    "APPLICANT_NAME": "Love's Travel Stops & Country Stores, Inc",
+    "PORTS": 6,
+    "PUBLISHED": "9/2/2026",
+    "SCORE": 77.95,
+    "CSJ": "5000-00-399",
+    "STUDY_AREA": "Dalhart",
+    "MPO": "None",
+    "STATUS": "Planning",
+    "CONSTRUCTION_START_DATE": "--",
+    "OPEN_DATE": "--",
+    "MIN_PER_PORT_KW": 200,
+    "MAX_PER_PORT_KW": 200,
+    "PULL_THROUGH": "No",
+    "CONSTRUCTION_GRANT": 1049994,
+    "O_M_GRANT": 826035,
+    "CORRIDOR_TYPE": "County Seats",
+    "LATITUDE": 36.076713,
+    "LONGITUDE": -102.536748,
+    "FPAA_DATE": null
+   }
+  },
+  {
+   "attributes": {
+    "NEVI_ID": 134,
+    "APPLICANT_NAME": "Imperial Construction, Inc.",
+    "PORTS": 4,
+    "PUBLISHED": "9/2/2026",
+    "SCORE": 67.7,
+    "CSJ": "5000-00-400",
+    "STUDY_AREA": "Dickens",
+    "MPO": "None",
+    "STATUS": "Planning",
+    "CONSTRUCTION_START_DATE": "--",
+    "OPEN_DATE": "--",
+    "MIN_PER_PORT_KW": 156,
+    "MAX_PER_PORT_KW": 156,
+    "PULL_THROUGH": "No",
+    "CONSTRUCTION_GRANT": 791680,
+    "O_M_GRANT": 197500,
+    "CORRIDOR_TYPE": "County Seats",
+    "LATITUDE": 33.621052,
+    "LONGITUDE": -100.846805,
+    "FPAA_DATE": null
+   }
+  },
+  {
+   "attributes": {
+    "NEVI_ID": 135,
+    "APPLICANT_NAME": "No Applications Received",
+    "PORTS": 4,
+    "PUBLISHED": "--",
+    "SCORE": 0,
+    "CSJ": "0000-00-000",
+    "STUDY_AREA": "Dimmitt",
+    "MPO": "None",
+    "STATUS": "Phase II - Group 4",
+    "CONSTRUCTION_START_DATE": "--",
+    "OPEN_DATE": "--",
+    "MIN_PER_PORT_KW": 75,
+    "MAX_PER_PORT_KW": 300,
+    "PULL_THROUGH": "No",
+    "CONSTRUCTION_GRANT": 400000,
+    "O_M_GRANT": 150000,
+    "CORRIDOR_TYPE": "County Seats",
+    "LATITUDE": 34.54908767,
+    "LONGITUDE": -102.316801,
+    "FPAA_DATE": null
+   }
+  },
+  {
+   "attributes": {
+    "NEVI_ID": null,
+    "APPLICANT_NAME": "Tesla, Inc.",
+    "PORTS": 8,
+    "PUBLISHED": "9/10/2026",
+    "SCORE": 94.1,
+    "CSJ": "5000-00-522",
+    "STUDY_AREA": "Abilene MPO-1",
+    "MPO": "Abilene MPO",
+    "STATUS": "Planning",
+    "CONSTRUCTION_START_DATE": "--",
+    "OPEN_DATE": "--",
+    "MIN_PER_PORT_KW": 150,
+    "MAX_PER_PORT_KW": 150,
+    "PULL_THROUGH": "No",
+    "CONSTRUCTION_GRANT": 345952,
+    "O_M_GRANT": 76800,
+    "CORRIDOR_TYPE": "Phase II",
+    "LATITUDE": 32.468149,
+    "LONGITUDE": -99.98936,
+    "FPAA_DATE": null
+   }
+  },
+  {
+   "attributes": {
+    "NEVI_ID": 136,
+    "APPLICANT_NAME": "No Applications Received",
+    "PORTS": 4,
+    "PUBLISHED": "--",
+    "SCORE": 0,
+    "CSJ": "0000-00-000",
+    "STUDY_AREA": "Dumas",
+    "MPO": "None",
+    "STATUS": "Phase II - Group 2",
+    "CONSTRUCTION_START_DATE": "--",
+    "OPEN_DATE": "--",
+    "MIN_PER_PORT_KW": 75,
+    "MAX_PER_PORT_KW": 300,
+    "PULL_THROUGH": "No",
+    "CONSTRUCTION_GRANT": 400000,
+    "O_M_GRANT": 150000,
+    "CORRIDOR_TYPE": "County Seats",
+    "LATITUDE": 35.86298403,
+    "LONGITUDE": -101.9642469,
+    "FPAA_DATE": null
+   }
+  }
+ ]
+}

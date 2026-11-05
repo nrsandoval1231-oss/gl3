@@ -210,6 +210,9 @@ class Settings(BaseSettings):
     autonomous_research_max_documents: int = Field(default=5, ge=1, le=8)
     autonomous_research_timeout_seconds: int = Field(default=180, ge=10, le=350)
     firecrawl_api_key: SecretStr | None = None
+    # Workstream 5 sources ship off; both values come from the secret store, never the repo.
+    afdc_api_key: SecretStr | None = None
+    sec_edgar_contact: SecretStr | None = None
     autonomous_research_max_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=2)
     firecrawl_search_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)
     firecrawl_scrape_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)

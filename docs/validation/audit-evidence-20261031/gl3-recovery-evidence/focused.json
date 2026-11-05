@@ -1,0 +1,22 @@
+{
+  "command": [
+    "timeout",
+    "180",
+    "uv",
+    "run",
+    "pytest",
+    "tests/unit/test_stage_release_wrapper.py",
+    "tests/unit/test_rehearse_release_legacy.py",
+    "tests/unit/test_release_rehearsal.py",
+    "tests/integration/test_browse_recovery.py",
+    "-n",
+    "4",
+    "-q",
+    "--tb=short"
+  ],
+  "cwd": "/workspace/gl3-recovery/backend",
+  "exit": 0,
+  "seconds": 19.37956484499955,
+  "python": "Python 3.11.16",
+  "source_root": "/workspace/gl3-recovery/backend/src"
+}

@@ -950,7 +950,31 @@ _TEXAS_POWER_SOURCE_TYPES = {
     "texas-ercot-large-load-status",
     "texas-jeti-applications",
     "texas-jeti-agreements",
+    # Workstream 5 evidence-only sources (see _EVIDENCE_ONLY_SOURCE_TYPES).
+    "faa-oeaaa-obstruction",
+    "msha-mines",
+    "texas-tceq-aggregate-production",
+    "afdc-ev-stations",
+    "texas-txdot-nevi-awards",
+    "sec-edgar-site-mw",
+    "texas-ercot-monthly-overview",
+    "regulatory-event-feed",
 }
+# Registers, awards, aggregates, filings and events that describe proximity, registration or a
+# dated statement, never a stated load: they are always evidence, whatever words a sponsor or
+# facility name contains.
+_EVIDENCE_ONLY_SOURCE_TYPES = frozenset(
+    {
+        "faa-oeaaa-obstruction",
+        "msha-mines",
+        "texas-tceq-aggregate-production",
+        "afdc-ev-stations",
+        "texas-txdot-nevi-awards",
+        "sec-edgar-site-mw",
+        "texas-ercot-monthly-overview",
+        "regulatory-event-feed",
+    }
+)
 _TEXAS_DATA_CENTER = re.compile(r"data\s*cent(?:er|re)|hyperscale", re.IGNORECASE)
 
 
@@ -982,6 +1006,9 @@ def _assess_texas_power(
         }
         else None
     )
+    evidence_only = permit.get("source_type") in _EVIDENCE_ONLY_SOURCE_TYPES
+    if evidence_only:
+        data_center, tags, hours_class = False, [], None
     region = classify_project_region(location)
     event_date = record.get("event_date")
     try:
@@ -991,7 +1018,8 @@ def _assess_texas_power(
     dated = bool(event_day and event_day <= as_of)
     citation = bool(record.get("html_url") and permit.get("row_id"))
     accepted = bool(
-        (facility or applicant)
+        not evidence_only
+        and (facility or applicant)
         and location
         and region.status == "ELIGIBLE"
         and dated
@@ -1006,7 +1034,12 @@ def _assess_texas_power(
         activity = "bridge-power"
     else:
         activity = "facility-expansion"
-    if accepted and data_center:
+    if evidence_only:
+        reason = (
+            "This source records proximity, registration, an award, an aggregate or a dated "
+            "statement. It states no site load, so the row stays evidence."
+        )
+    elif accepted and data_center:
         reason = (
             f"Official record names a data-center project at {location}. "
             "Required MW, start, duration, buyer, and utility service remain unknown. "

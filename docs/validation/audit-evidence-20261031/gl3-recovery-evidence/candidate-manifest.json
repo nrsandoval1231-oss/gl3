@@ -1,0 +1,61 @@
+{
+  "base": "00026c758ece2bc41eea88c478cbb0112f9e0de5",
+  "combined_sha256": "aacd9f01bfd5cfa9d6fe2e58456b8d46bb318155ebc86e82e71310199aae824f",
+  "files": [
+    {
+      "path": "backend/tests/integration/test_browse_recovery.py",
+      "sha256": "9e03a2b7f70d11bab7268cae031d289edd17045ea1c7cb282a011028b8b67b8b",
+      "bytes": 19510
+    },
+    {
+      "path": "backend/tests/unit/test_rehearse_release_legacy.py",
+      "sha256": "6a5a0f7428ddc9911f1c68a53ef8af19bce26129400d96153c20ef42f1dd6b0b",
+      "bytes": 2861
+    },
+    {
+      "path": "backend/tests/unit/test_stage_release_wrapper.py",
+      "sha256": "22155eab38f85411e09871cd5491377c7833216b61382ba72287a4031ddcba46",
+      "bytes": 10788
+    },
+    {
+      "path": "docs/operations/README.md",
+      "sha256": "b64536ed31f982b32dc375385abcedf2ecec67ce93bfe8a303e3c7533a7a9563",
+      "bytes": 6718
+    },
+    {
+      "path": "docs/operations/contact-suppression-rollback.md",
+      "sha256": "c4602f703f899fdafe0090e2494b23f457eadc574eefc166c666f338323a26a2",
+      "bytes": 4134
+    },
+    {
+      "path": "docs/operations/local-runtime.md",
+      "sha256": "5641bf058fa5131583dfc5036b5c7824ec67c444c07e1ba48390d66d09c1894b",
+      "bytes": 5465
+    },
+    {
+      "path": "docs/operations/recovery-release.md",
+      "sha256": "087cc860195aa9f15f11c76862880401f36621bc2183a875b90a54ec64cbcd2a",
+      "bytes": 8953
+    },
+    {
+      "path": "docs/operations/saved-browse-b1.md",
+      "sha256": "f42b8900df6a269f0841d3921932a16fc16315ca1d144a416d20713362fcdb45",
+      "bytes": 15677
+    },
+    {
+      "path": "docs/operations/saved-browse-ingestion.md",
+      "sha256": "48214bba086866cac0d24188cb5f9f1fa6dc398757f6b172a21645fe2c689cff",
+      "bytes": 3967
+    },
+    {
+      "path": "scripts/rehearse_release.py",
+      "sha256": "8ad73c82ed4ce4ff58bdd944c1973ced96a357b2c1bbf48dd4a6271da8f64820",
+      "bytes": 41301
+    },
+    {
+      "path": "scripts/stage_release_wrapper.py",
+      "sha256": "8626ca49d7d9e3c5db6f9da9e54f951bae49bee1b1170830678fd61989d9c9d5",
+      "bytes": 7997
+    }
+  ]
+}

@@ -142,6 +142,14 @@ PERMIT_RETRIEVAL_METHODS = {
     "ercot-large-load-status",
     "jeti-open-data",
     "jeti-agreements",
+    "faa-oeaaa-cases",
+    "msha-mines-zip",
+    "tceq-aggregate-socrata",
+    "afdc-ev-stations",
+    "txdot-nevi-awards",
+    "sec-edgar-site-mw",
+    "ercot-monthly-overview",
+    "regulatory-event-feed",
 }
 
 
