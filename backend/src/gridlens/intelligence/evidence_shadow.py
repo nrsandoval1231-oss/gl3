@@ -14,7 +14,14 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from gridlens.integrations.typesafe_evidence_judge import SCHEMA_VERSION, TypesafeEvidenceJudge
-from gridlens.intelligence.evidence_judge import InvalidJudgment
+from gridlens.intelligence.evidence_judge import InvalidJudgment, Judgment
+from gridlens.intelligence.jev_live import (
+    abstained_record,
+    corroborating_keys,
+    derive_live_record,
+    live_active,
+    validate_live_record,
+)
 from gridlens.intelligence.project_state import project_state
 from gridlens.intelligence.research_recommendation import recommend_from_context
 from gridlens.persistence.models import (
@@ -31,6 +38,37 @@ from gridlens.persistence.models import (
     ProjectMatchDecision,
 )
 from gridlens.settings import settings
+
+
+def _live_corroboration(session: Session, project: Project, evidence: Evidence):
+    """Deterministic keys on which this project and this evidence agree (never inferred)."""
+    interpretation = session.scalar(
+        select(Interpretation).where(Interpretation.observation_id == evidence.observation_id)
+    )
+    assessment = interpretation.assessment if interpretation else None
+    return corroborating_keys(
+        {**(project.identity_facts or {})},
+        assessment if isinstance(assessment, dict) else {},
+        evidence.title + "\n" + (evidence.abstract or ""),
+    )
+
+
+def _safe_live_record(
+    session, project, evidence, judgment, probabilities, model, passage_bounds=None
+) -> dict:
+    """Derive the live label record; any derivation problem abstains rather than guesses."""
+    try:
+        return validate_live_record(
+            derive_live_record(
+                judgment,
+                probabilities or {},
+                model,
+                _live_corroboration(session, project, evidence),
+                passage_bounds,
+            )
+        )
+    except Exception as exc:
+        return abstained_record(f"LIVE_DERIVATION_ERROR:{type(exc).__name__}", None)
 
 
 def _candidate_pages(session, statement, cursor_run, cursor_evidence, deadline, page_size=100):
@@ -146,11 +184,11 @@ def run_shadow(
 ) -> dict:
     run_deadline = time.monotonic() + max(1, min(settings.jev_shadow_timeout_seconds, 90))
     limit = min(max(1, limit), settings.jev_shadow_batch_limit, 20)
-    if not settings.jev_enabled or not settings.jev_shadow_mode:
+    if not settings.jev_enabled or not (settings.jev_shadow_mode or settings.jev_live_mode):
         return {"status": "disabled", "attempted": 0, "valid": 0, "failed": 0}
     api_key = settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else None
     queue_worker = judge is None
-    model = settings.intelligence_typesafe_model or "jev-latest"
+    model = settings.intelligence_typesafe_model or settings.jev_model
     if judge is None and not api_key:
         return {
             "status": "unavailable",
@@ -325,7 +363,11 @@ def run_shadow(
                 "id": str(evidence.id),
                 "hash": evidence.content_hash,
                 "title": evidence.title[:300],
-                "abstract": evidence.abstract[:1200] if evidence.abstract else None,
+                # Full passage, bounded only by the documented byte ceiling (jev_passages);
+                # the request builder applies the exact total-input headroom.
+                "abstract": evidence.abstract[: settings.jev_passage_max_bytes]
+                if evidence.abstract
+                else None,
                 "url": evidence.url[:500],
                 "published_at": evidence.published_at,
                 "retrieved_at": evidence.observed_at,
@@ -414,7 +456,11 @@ def run_shadow(
                             "evidence_judge_run_id": str(attempt.id),
                             "input_key": input_key,
                             "request_context": request_context,
-                            "request_digest": _digest(request_context),
+                            # Dates are stringified exactly as the input key and checkpoint do, so
+                            # the digest cannot fail on them.
+                            "request_digest": _digest(
+                                json.loads(json.dumps(request_context, default=str))
+                            ),
                             "project_id": str(project.id),
                             "evidence_id": str(evidence.id),
                             "contract_version": SCHEMA_VERSION,
@@ -453,6 +499,19 @@ def run_shadow(
                         "research_recommended": recommend_from_context(judgment, bounded_state)
                     },
                 }
+                # Always keep Jev's own probabilities and what passage it actually saw.
+                result["probabilities"] = meta.get("probabilities") or {}
+                result["passage_bounds"] = meta.get("passage_bounds") or {}
+                if live_active():
+                    result["live"] = _safe_live_record(
+                        session,
+                        project,
+                        evidence,
+                        Judgment.model_validate(judgment),
+                        meta.get("probabilities"),
+                        meta.get("model") or model,
+                        meta.get("passage_bounds"),
+                    )
                 valid += 1
             except InvalidJudgment:
                 status, error_class = "invalid", "InvalidJudgment"
@@ -464,8 +523,14 @@ def run_shadow(
                 status, error_class = "failed", type(exc).__name__
                 failed += 1
             attempt.status = status
-            attempt.model = meta.get("model", "jev-latest")
+            attempt.model = meta.get("model", model)
             attempt.result = result
+            if status != "valid" and live_active():
+                # Fail closed and stay visible: no label acts, the reason is recorded.
+                attempt.deterministic = {
+                    **attempt.deterministic,
+                    "live": abstained_record(f"PROVIDER_{status.upper()}:{error_class}", model),
+                }
             attempt.error_class = error_class
             attempt.finished_at = datetime.now(UTC)
             attempt.latency_ms = meta.get("latency_ms") or int(
@@ -484,7 +549,7 @@ def run_shadow(
 
 def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> None:
     """Run one queued EvidenceJudge attempt through the shared logical-call ledger."""
-    from gridlens.integrations.legacy_calls import perform_legacy_call
+    from gridlens.integrations.legacy_calls import LegacyCallBlocked, perform_legacy_call
     from gridlens.integrations.typesafe_evidence_judge import TypesafeEvidenceJudge
     from gridlens.jobs.queue import assert_fence
     from gridlens.persistence.database import SessionLocal
@@ -525,17 +590,47 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
             if attempt:
                 attempt.status, attempt.error_class = "failed", reason
                 attempt.finished_at = datetime.now(UTC)
+                if live_active():
+                    attempt.deterministic = {
+                        **attempt.deterministic,
+                        "live": abstained_record(f"BLOCKED:{reason}", None),
+                        "failure_reason": f"BLOCKED:{reason}",
+                    }
             job.status, job.error = "succeeded", reason
             job.lease_owner, job.lease_until = None, None
         return
+    # The checkpoint's own contract version is kept on every write. A job queued under the
+    # earlier question set is not replayed against the demand questions: its stored response
+    # shape differs, so it is closed visibly with a specific error class and no provider call.
+    contract_version = checkpoint.get("contract_version") or SCHEMA_VERSION
+    if contract_version != SCHEMA_VERSION:
+        with SessionLocal.begin() as session:
+            job = assert_fence(session, job_id, worker_id, fence)
+            attempt = session.get(EvidenceJudgeRun, job.target_id)
+            if attempt:
+                attempt.status, attempt.error_class = "failed", "LegacyContractReplayUnsupported"
+                attempt.finished_at = datetime.now(UTC)
+                attempt.deterministic = {
+                    **attempt.deterministic,
+                    "contract_version": contract_version,
+                    "status": "legacy_contract_not_replayed",
+                    **(
+                        {"live": abstained_record("LEGACY_CONTRACT_NOT_REPLAYED", None)}
+                        if live_active()
+                        else {}
+                    ),
+                }
+            job.status, job.error = "succeeded", "LEGACY_CONTRACT_NOT_REPLAYED"
+            job.lease_owner, job.lease_until = None, None
+        return
     judge = TypesafeEvidenceJudge(api_key, model=model)
+    passage_bounds: dict = {}
+    request_holder: dict = {}
 
     def invoke() -> tuple[dict, int | None, int | None]:
         from gridlens.integrations.intelligence_provider import call_typesafe
 
-        request = judge.build_request(
-            payload["project"], payload["evidence"], payload["candidates"], model=model
-        )
+        request = request_holder["request"]
         # Preserve raw response identity for the shared ledger guard before the
         # semantic parser can reject or normalize provider output.
         result = call_typesafe(
@@ -557,7 +652,7 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
                 **attempt.deterministic,
                 "logical_call_id": str(call_id),
                 "job_id": str(job_id),
-                "contract_version": SCHEMA_VERSION,
+                "contract_version": contract_version,
                 "status": "dispatching",
             }
             checkpoint = json.loads(job.checkpoint or "{}")
@@ -565,9 +660,13 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
 
     try:
+        request_holder["request"] = judge.build_request(
+            payload["project"], payload["evidence"], payload["candidates"], model=model
+        )
+        passage_bounds = request_holder["request"]["state"]["evidence"].get("passage_bounds", {})
         call = perform_legacy_call(
             task_type="EVIDENCE_SHADOW",
-            task_key=f"{attempt.input_key}:{checkpoint['contract_version']}",
+            task_key=f"{attempt.input_key}:{contract_version}",
             payload=payload,
             source_id=source_id,
             project_id=project_id,
@@ -577,15 +676,12 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
             invoke=invoke,
             before_dispatch=record_call_id,
         )
-        from gridlens.integrations.typesafe_evidence_judge import parse_typesafe_response
-
-        parsed_judgment, _actual_model, _input_tokens, _output_tokens = parse_typesafe_response(
-            call.result, expected_model=model
-        )
-        from gridlens.intelligence.evidence_judge import Judgment
+        from gridlens.integrations.typesafe_evidence_judge import parse_typesafe_answers
         from gridlens.intelligence.research_recommendation import recommend_from_context
 
-        validated = Judgment.model_validate(parsed_judgment)
+        parsed = parse_typesafe_answers(call.result, expected_model=model)
+        validated = Judgment.model_validate(parsed.judgment)
+        live_probabilities, live_model = parsed.probabilities, parsed.model
         result = {
             **validated.model_dump(mode="json"),
             "advisory": {
@@ -593,11 +689,19 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
                     validated.model_dump(mode="json"), payload["project"]
                 )
             },
+            "probabilities": parsed.probabilities,
+            "passage_bounds": passage_bounds,
         }
         status, error_class = "valid", None
     except Exception as exc:
         result = None
         status, error_class = "failed", type(exc).__name__
+        # Fail closed: provider error, timeout, invalid response and ledger cap/policy blocks
+        # all leave the attempt without a result. Only the class name and, for ledger policy
+        # blocks (a controlled vocabulary), the block reason are kept; never raw provider text.
+        failure_reason = type(exc).__name__
+        if isinstance(exc, LegacyCallBlocked):
+            failure_reason += f":{str(exc)[:120]}"
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence)
         attempt = session.get(EvidenceJudgeRun, job.target_id)
@@ -618,16 +722,32 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
                 **attempt.deterministic,
                 "logical_call_id": attempt.deterministic.get("logical_call_id"),
                 "job_id": str(job_id),
-                "contract_version": SCHEMA_VERSION,
+                "contract_version": contract_version,
                 "status": "stale_after_provider",
             }
             job.status, job.error = "succeeded", "STALE_SHADOW_INPUT_AFTER_PROVIDER"
         else:
+            if status == "valid" and live_active() and result is not None:
+                result["live"] = _safe_live_record(
+                    session,
+                    project,
+                    evidence,
+                    validated,
+                    live_probabilities,
+                    live_model,
+                    passage_bounds,
+                )
             attempt.status = status
             attempt.result = result
             attempt.error_class = error_class
             attempt.finished_at = datetime.now(UTC)
             attempt.model = model
+            if status != "valid" and live_active():
+                attempt.deterministic = {
+                    **attempt.deterministic,
+                    "live": abstained_record(failure_reason, model),
+                    "failure_reason": failure_reason,
+                }
             attempt.input_tokens = call.input_tokens if "call" in locals() else None
             attempt.output_tokens = call.output_tokens if "call" in locals() else None
             attempt.deterministic = {
@@ -638,7 +758,8 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
                     else attempt.deterministic.get("logical_call_id")
                 ),
                 "job_id": str(job_id),
-                "contract_version": SCHEMA_VERSION,
+                "contract_version": contract_version,
+                "passage_bounds": passage_bounds,
                 "status": "completed" if status == "valid" else "failed",
             }
             job.status, job.error = "succeeded", error_class

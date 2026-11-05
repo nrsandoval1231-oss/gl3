@@ -21,6 +21,8 @@ This page summarizes defaults defined by `backend/src/gridlens/settings.py`. Tha
 | intelligence call/cost limits | `0` | Zero limits fail closed. Configure only within separately authorized budgets. |
 | `INTELLIGENCE_ENABLED_CONTRACTS` | empty | No contract is allowlisted by default. |
 | `JEV_SHADOW_MODE` | `true` | Shadow behavior flag; Jev itself still defaults disabled. |
+| `JEV_LIVE_MODE`, `JEV_LIVE_ROUTING`, `JEV_LIVE_LABELS`, `JEV_LIVE_MATERIALITY`, `JEV_LIVE_TRIAGE`, `JEV_LIVE_MATCHING` | `false` | Live Jev label authority ([live Jev mode](../engineering/jev-live-mode-20261103.md)). Each authority requires `JEV_LIVE_MODE`, which requires `JEV_ENABLED` and a pinned versioned `JEV_MODEL` equal to `INTELLIGENCE_TYPESAFE_MODEL`. |
+| `JEV_MODEL` / `JEV_ABSTAIN_PROBABILITY` / `JEV_MATCH_PROBABILITY` / `JEV_PASSAGE_MAX_BYTES` | `jev-1.13.0` / `0.80` / `0.95` / `24000` | Pinned model, abstention and matching probabilities, and the full-passage byte budget (also bounded by the TypeSafe total-input ceiling). |
 | `POWER_NEED_TITLES_ENABLED` | `false` | Optional title enrichment disabled. |
 | `BRIEFS_DAILY_REQUEST_LIMIT` | `8` | Daily brief request cap; this cap does not by itself authorize provider use. |
 | `PURSUITS_DAILY_FETCH_LIMIT` / `PURSUITS_DAILY_MODEL_LIMIT` | `160` / `8` | Pursuit research fetch and model caps; provider and research feature gates remain separate. |

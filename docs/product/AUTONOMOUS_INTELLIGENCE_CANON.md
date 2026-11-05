@@ -39,6 +39,16 @@ The target engine has six layers: **(1) Discovery, (2) Entity/Evidence, (3) Elec
 - Enrich from permitted public/business sources and licensed data only. Respect privacy, provider terms, provenance and freshness. Apollo and Firecrawl are optional authorized integrations, not assumed free datasets.
 - Preserve TX/OK/NM and Signal/Prospect/Lead as current legacy runtime compatibility rules where applicable. They do not define the target product or gate demand record creation. The 300 kW floor is not a target demand-record threshold.
 
+## TypeSafe Jev decision authority
+
+Owner decision, November 3, 2026: TypeSafe Jev may act live, within the tiers below. Live authority is off by default; each tier is a separate setting enabled through the protected release, and shadow mode remains available beside it. See [live Jev mode](../engineering/jev-live-mode-20261103.md).
+
+- **Acts alone, as a label:** document and page routing (table, narrative, scan, irrelevant), event-type and lifecycle labels, driver and new-versus-existing labels, materiality of a change, and docket or regional-planning triage. A label is a closed-vocabulary choice recorded with its probability and the pinned model version. Below the abstention probability the effective answer is UNKNOWN.
+- **Acts only with corroboration:** project matching. Jev's probability must clear the higher match threshold and a deterministic key must agree (county, substation, permit number or coordinates). Otherwise the answer is UNKNOWN. Agreement from a second model alone remains insufficient verification.
+- **Never:** create or change a value, perform arithmetic, or state a demand amount. Quantities, ratings, dates and MW come only from source-bound extraction and deterministic calculation. Jev decisions cannot write them, and they cannot reclassify an amount (documented, calculated, estimated, inferred or unknown).
+- **Fails closed:** a provider error, timeout, invalid response, unpinned model, or a call blocked by the cost and input ceilings produces no decision. The job stays visible with its reason; Jev never guesses and unknown is never treated as zero.
+- Jev remains replaceable. It does not evaluate itself, and it is not a product dependency.
+
 ## Vertical and learning strategy
 
 **Oil & Gas equipment is the first bounded implementation cohort.** Reuse one shared evidence/entity/demand foundation with sector-specific equipment and lifecycle interpretation. Do not infer electric load from horsepower without drive evidence. Broader data center and other sector coverage follows later; campus capacity is not construction or commissioning demand.

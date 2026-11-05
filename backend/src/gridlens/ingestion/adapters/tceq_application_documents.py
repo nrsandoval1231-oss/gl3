@@ -124,6 +124,19 @@ class DocumentFailure(Exception):
 
 
 @dataclass(frozen=True, slots=True)
+class ExtractionHooks:
+    """Optional model passes, supplied only by the leased ``document_extraction`` job.
+
+    The in-line stage is database-free and never has these. ``proposer()`` returns the
+    equipment proposer or None; ``ocr(pdf_path, source_url)`` returns a page OCR or None.
+    Both default to off in settings, so a hook that returns None leaves rule-only behaviour.
+    """
+
+    proposer: Callable[[], Any] | None = None
+    ocr: Callable[[str, str], Any] | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class StageConfig:
     max_downloads: int = 2
     max_checks: int = 60
@@ -445,7 +458,16 @@ def _supply_json(rows: list[Any]) -> list[dict[str, Any]]:
             "count": row.count,
             "state": row.state,
             "origin": row.origin,
-            "role": "supply_or_other",
+            "role": (
+                "supply_or_other"
+                if getattr(row, "text_source", "text_layer") == "text_layer"
+                else "ocr_retained_demand_candidate"
+            ),
+            # Where the quoted text came from and who proposed the row (additive provenance).
+            "text_source": getattr(row, "text_source", "text_layer"),
+            "proposed_by": getattr(row, "proposed_by", ""),
+            "method": getattr(row, "proposed_by", "") or "deterministic-rules",
+            "in_service_date": getattr(row, "in_service_date", "") or None,
             "evidence": {
                 name: {
                     "value": ev.value,
@@ -461,6 +483,11 @@ def _supply_json(rows: list[Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _bounded_pass(detail: dict[str, Any]) -> dict[str, Any]:
+    """Small JSON-safe copy of an optional pass result (status, reason, cap fields, counts)."""
+    return json.loads(json.dumps(detail, default=_json_default))
+
+
 def _extract_pdf(
     pdf_path: Path,
     file_name: str,
@@ -468,9 +495,11 @@ def _extract_pdf(
     link: ApplicationLink,
     budget_seconds: float,
     isolate: bool,
+    hooks: ExtractionHooks | None = None,
 ) -> dict[str, Any]:
     from gridlens.ingestion.parsers.permit_docs import extract_permit_document
     from gridlens.ingestion.parsers.permit_docs.text_layer import TextLayerLimits
+    from gridlens.settings import settings
 
     data = pdf_path.read_bytes()
     inner_sha = hashlib.sha256(data).hexdigest()
@@ -478,6 +507,10 @@ def _extract_pdf(
         max_bytes=portfolio.MAX_EMBEDDED_FILE_BYTES,
         max_seconds=budget_seconds,
         max_seconds_per_page=60.0,  # large composite pages; the total bound still applies
+    )
+    proposer = hooks.proposer() if hooks is not None and hooks.proposer is not None else None
+    ocr = (
+        hooks.ocr(str(pdf_path), link.url) if hooks is not None and hooks.ocr is not None else None
     )
     result = extract_permit_document(
         data,
@@ -487,6 +520,9 @@ def _extract_pdf(
         as_of=link.received.isoformat(),
         limits=limits,
         isolate=isolate,
+        ocr=ocr,
+        proposer=proposer,
+        allow_ocr_demand=bool(ocr is not None and settings.permit_ocr_rows_feed_demand),
     )
     del data
     if result.failure is not None:
@@ -498,7 +534,13 @@ def _extract_pdf(
         for index, entry in result.provenance.items()
     }
     pages = sorted(entry["page"] for entry in lines.values())
+    optional_passes: dict[str, Any] = {}
+    if result.ocr:
+        optional_passes["ocr"] = _bounded_pass(result.ocr)
+    if result.proposer:
+        optional_passes["proposer"] = _bounded_pass(result.proposer)
     return {
+        **optional_passes,
         "file": file_name,
         "file_sha256": inner_sha,
         "extractor": "permit-doc-extract-v1",
@@ -514,8 +556,8 @@ def _extract_pdf(
         "issues": [issue[:300] for issue in result.issues[:MAX_ISSUES_KEPT]],
         "schedule_text": result.schedule_text,
         "line_provenance": lines,
-        "supply": _supply_json(result.supply_rows),
-        "supply_total": len(result.supply_rows),
+        "supply": _supply_json(result.supply_rows + result.ocr_retained_rows),
+        "supply_total": len(result.supply_rows) + len(result.ocr_retained_rows),
     }
 
 
@@ -527,6 +569,7 @@ def build_state(
     deadline: float | None,
     now: datetime,
     report: StageReport,
+    hooks: ExtractionHooks | None = None,
 ) -> dict[str, Any]:
     """Unpack the portfolio and describe it. ``deadline`` is the stage deadline.
 
@@ -586,7 +629,10 @@ def build_state(
     if budget < MIN_EXTRACT_SECONDS:
         raise TimeoutError("not enough stage time left to extract")
     try:
-        extraction = _extract_pdf(pdf_path, pdf_name, download.sha256, link, budget, config.isolate)
+        extra = {"hooks": hooks} if hooks is not None else {}
+        extraction = _extract_pdf(
+            pdf_path, pdf_name, download.sha256, link, budget, config.isolate, **extra
+        )
     except DocumentFailure as failure:
         # A budget cut by the job deadline is an environment limit, not a property of the bytes.
         failure.budget_limited = budget < config.extract_seconds
@@ -745,6 +791,9 @@ def run_stage(
     work_root: Path | None = None,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
     bookkeeping: dict[str, dict[str, Any]] | None = None,
+    hooks: ExtractionHooks | None = None,
+    on_changed: Callable[[ApplicationLink, dict[str, Any] | None], None] | None = None,
+    check_shrink: bool = True,
 ) -> StageReport:
     """Run the stage over NSR records and fold each resulting state into its record.
 
@@ -786,7 +835,8 @@ def run_stage(
         if prior_states.get(link.project) is not None
     }
     try:
-        _check_shrink(links, prior_states, report)
+        if check_shrink:
+            _check_shrink(links, prior_states, report)
         for position, link in enumerate(links):
             prior = prior_states.get(link.project)
             if position >= config.max_checks:
@@ -808,6 +858,8 @@ def run_stage(
                         now(),
                         report,
                         allow_download=downloads < config.max_downloads,
+                        hooks=hooks,
+                        on_changed=on_changed,
                     )
                     downloads += int(downloaded)
                     if state is not None:
@@ -874,10 +926,13 @@ def _examine(
     report: StageReport,
     *,
     allow_download: bool,
+    hooks: ExtractionHooks | None = None,
+    on_changed: Callable[[ApplicationLink, dict[str, Any] | None], None] | None = None,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Check one document. Returns (state to apply, whether a download was started).
 
-    Raises ``_StageAbort`` when the publisher answers 429 or 503.
+    Raises ``_StageAbort`` when the publisher answers 429 or 503. With ``on_changed`` the
+    document is only discovered (HEAD and comparison); it is never downloaded here.
     """
     report.bump("checked")
     project = link.project
@@ -932,6 +987,11 @@ def _examine(
         if now < rest_until and not changed:
             report.bump("backed_off")
             return prior, False
+    if on_changed is not None:
+        # Discovery mode: the document is new or changed. Hand it to the extraction job; this
+        # run fetches and parses nothing (the retained state stays on the record).
+        on_changed(link, validators)
+        return prior, False
     if not allow_download:
         report.bump("deferred_download_budget")
         return prior, False
@@ -974,7 +1034,7 @@ def _examine(
             report.bump("known_failed")
             report.known_failed.append(project)
             return prior, True
-        state = build_state(link, download, workdir, config, deadline, now, report)
+        state = build_state(link, download, workdir, config, deadline, now, report, hooks)
         book.pop(project, None)
         report.bump("updated" if known_doc else "new")
         report.bump(f"status_{state['document']['status']}")
