@@ -188,4 +188,93 @@ Notes for the owner:
 - **Behavior change needing owner sign-off.** The signal display policy now sends pure supply-side passages (`supply_side` at least 0.8 and weak new-large-load score) to REVIEW instead of SHOW. This applies as soon as the code is released, independent of any flag. Tell me to drop it if you want the old behavior.
 - **Ceiling floor.** In live mode startup rejects an input ceiling below 15,048 (request-overhead floor 12,000 + wrapper reserve 2,048 + minimum passage 1,000); 40,000 is comfortable. Probability ordering (match at least abstain) is only validated when live mode is on.
 - Rolling back live mode withdraws stored decisions immediately because consumers read them through `accepted_labels`, which checks the current flags and the current `JEV_MODEL`.
-- Not covered here (PR 2b): LLM and OCR flags, equipment-proposer contract, per-provider cap semantics.
+- LLM, OCR and per-provider caps are in the next section (workstream 2b).
+
+## Workstream 2b LLM, OCR and per-provider cap environment proposal
+
+**Prepared:** 2026-11-04 · **Status:** proposal only, for the owner's protected release. Code ships with everything below **off**; no provider was called. Design: [LLM proposer, OCR and caps](../engineering/llm-proposer-ocr-caps-20261103.md). This supersedes findings 1, 2, 5 and 7 above once the workstream 2b code is released: the 90 / 10 split is now expressible, stage PDFs can be OCR'd behind an allowlist, and the equipment proposer has its own contract (`EQUIPMENT_PROPOSER_V1`).
+
+### Order to enable
+
+1. **Caps first, with everything else off.** Set the shared and per-provider caps below and watch one nightly cycle of Jev shadow spend against them (the daily alert now lists any scope at 80% or more and any capped-out job).
+2. **OpenAI pricing.** Confirm the `gpt-6.1-sol` prices in the OpenAI dashboard, then flip each `*_PRICING_VERIFIED` to `true`. Until then the proposer and OCR stay blocked by design.
+3. **OCR on GovInfo scans only** (existing path, unchanged) if wanted; then add the stage hosts and source IDs.
+4. **Proposer** (`PERMIT_LLM_PROPOSER_ENABLED=true`) after the stages call it from a leased job. The pipeline hook exists; the stage adapters do not pass a proposer yet, so enabling the flag alone does nothing until that follow-up ships.
+5. **OCR rows into demand** (`PERMIT_OCR_ROWS_FEED_DEMAND`) last, and only as a separate decision after reading a week of labelled OCR rows.
+
+### Per-provider caps and the near-cap alert
+
+```env
+# Shared scopes: the combined backstop. These are the existing settings.
+INTELLIGENCE_GLOBAL_MONTHLY_USD=100
+INTELLIGENCE_GLOBAL_DAILY_USD=5
+INTELLIGENCE_PROVIDER_MONTHLY_USD=100       # replaces the 90 in the caps section above: this is the shared
+                                            # provider scope (the combined ceiling); the map below tightens it
+                                            # per provider. The model-scope 90 above stays.
+INTELLIGENCE_PROVIDER_DAILY_USD=5
+# New. smaller value wins per provider, so this can only tighten:
+INTELLIGENCE_PROVIDER_CAPS={"openai":{"monthly_usd":90,"daily_usd":4.5},"typesafe":{"monthly_usd":10,"daily_usd":0.5}}
+# Alert when any global/provider scope reaches this fraction of its USD or call cap.
+INTELLIGENCE_SPEND_ALERT_THRESHOLD=0.80
+```
+
+The per-call, model, source and project caps and every call-count cap stay as listed in the caps section above; the provider map accepts `daily`, `monthly`, `daily_usd` and `monthly_usd` keys if call counts should be split too. The alert needs `NTFY_URL` (and token) as before; it adds lines to the existing daily message.
+
+### LLM equipment proposer (GPT-6.1 Sol)
+
+```env
+INTELLIGENCE_ENABLED_CONTRACTS=EVIDENCE_SHADOW,SIGNAL_ADJUDICATION,OCR_EXTRACTION,EQUIPMENT_PROPOSER_V1
+INTELLIGENCE_OPENAI_ENABLED=true
+INTELLIGENCE_RESEARCH_ENABLED=true
+PERMIT_LLM_PROPOSER_ENABLED=true
+INTELLIGENCE_EQUIPMENT_MODEL=gpt-6.1-sol
+INTELLIGENCE_EQUIPMENT_PRICED_MODEL_ID=gpt-6.1-sol
+INTELLIGENCE_EQUIPMENT_INPUT_USD_PER_MILLION=2.00
+INTELLIGENCE_EQUIPMENT_CACHED_INPUT_USD_PER_MILLION=0.10
+INTELLIGENCE_EQUIPMENT_OUTPUT_USD_PER_MILLION=10.00
+INTELLIGENCE_EQUIPMENT_MAX_OUTPUT_TOKENS=2000
+INTELLIGENCE_EQUIPMENT_PRICING_VERIFIED=false     # true only after the dashboard check
+PERMIT_LLM_PROPOSER_MAX_PAGES=6
+PERMIT_LLM_PROPOSER_MAX_PAGE_CHARS=12000
+# Existing, required: INTELLIGENCE_ENABLED=true, INTELLIGENCE_MODE=advisory,
+# INTELLIGENCE_MAX_ACTIVE_CALLS, INTELLIGENCE_MAX_CALL_USD (>= the per-call bound: about 0.03 for one short page, up to about 0.17 for six full pages).
+```
+
+The fast and reasoning slots (`INTELLIGENCE_OPENAI_FAST_*`, `..._REASONING_*`) are separate and unchanged.
+
+**`INTELLIGENCE_MAX_CALL_USD` (owner decision).** It is one global ceiling, not per task. The 2a block above shows `0.01` for live Jev; the proposer cannot run under that (its bound is $0.03 to $0.17). This release proposes `0.25` for both. That does not let Jev spend more per call: Jev's reservation is its verified token ceiling times its price (`INTELLIGENCE_TYPESAFE_MAX_TOTAL_BILLABLE_INPUT_TOKENS` x $0.042 per million, about $0.0017 at 40,000), and its protection is that ceiling plus the TypeSafe provider cap of $10, not this setting. If the owner wants a hard per-task or per-provider call ceiling, that is a small code change and is not shipped. The `0.01` line in the 2a block is superseded when 2b is enabled. `0.25` clears the proposer's bound of about $0.03 to $0.17. Pricing stays `false` (blocking the proposer) until the owner confirms.
+
+### OCR for TCEQ and OK DEQ stage PDFs
+
+```env
+# Existing OCR gates (see Stage B above) plus the stage allowlist.
+INTELLIGENCE_OCR_ENABLED=true
+INTELLIGENCE_OCR_VISION_ENABLED=true
+INTELLIGENCE_OCR_PREFLIGHT_ENABLED=true
+INTELLIGENCE_OCR_PREFLIGHT_COST_BOUND_VERIFIED=false   # true once the reference is set
+INTELLIGENCE_OCR_PREFLIGHT_COST_REFERENCE=<owner: reference>
+INTELLIGENCE_OCR_MODEL=gpt-6.1-sol
+INTELLIGENCE_OCR_PRICED_MODEL_ID=gpt-6.1-sol
+INTELLIGENCE_OCR_INPUT_USD_PER_MILLION=2.00
+INTELLIGENCE_OCR_OUTPUT_USD_PER_MILLION=10.00
+INTELLIGENCE_OCR_MAX_OUTPUT_TOKENS=4000
+INTELLIGENCE_OCR_PRICING_VERIFIED=false                # true only after the dashboard check
+INTELLIGENCE_OCR_PREFLIGHT_MAX_COST_USD=0.10
+INTELLIGENCE_OCR_MAX_CALL_USD=0.10
+INTELLIGENCE_OCR_RETENTION_SOURCE_IDS=texas-tceq-nsr-pending,oklahoma-deq-public-review
+INTELLIGENCE_OCR_RETENTION_REFERENCE=<owner: retention policy reference>
+# New, off by default. Hosts are capped in code at govinfo, tceq and the OK DEQ applications host.
+PERMIT_OCR_ENABLED=true
+PERMIT_OCR_ALLOWED_HOSTS=www.tceq.texas.gov,applications.deq.ok.gov
+PERMIT_OCR_MAX_PAGES_PER_DOCUMENT=10
+PERMIT_OCR_ROWS_FEED_DEMAND=false                       # OCR rows stay out of demand unless true
+```
+
+An OCR request is a sub-PDF of at most 5 scanned pages and 750,000 bytes; with the numbers above one counted request of about 5,000 tokens reserves roughly $0.05 against the $0.10 per-call ceiling. Confirm that `gpt-6.1-sol` accepts the PDF `input_file` request before relying on this: the code sends the same request shape as the existing GovInfo OCR.
+
+### Owner inputs still needed for 2b
+
+- OpenAI dashboard confirmation of `gpt-6.1-sol` input, cached and output prices (flip the two `*_PRICING_VERIFIED` flags: equipment and OCR; the OpenAI fast and reasoning slots have their own), and that it accepts PDF input for OCR.
+- OCR retention reference and the preflight cost-bound reference.
+- Whether OCR-read rows may ever feed demand (default no).
+- The bake-off gold set and recorded vendor runs (see the engineering doc), if a different OCR provider should replace OpenAI vision.

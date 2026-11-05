@@ -145,6 +145,35 @@ class Settings(BaseSettings):
     jev_shadow_batch_limit: int = 20
     jev_shadow_daily_limit: int = 20
     jev_shadow_timeout_seconds: int = 90
+    # Per-provider ledger caps (JSON map, e.g. {"openai": {"monthly_usd": 90},
+    # "typesafe": {"monthly_usd": 10}}). Each value can only tighten the shared provider-scope
+    # cap above, never loosen it. Empty means no per-provider tightening.
+    intelligence_provider_caps: str = ""
+    intelligence_spend_alert_threshold: float = Field(default=0.80, gt=0.0, le=1.0)
+    # WS2b LLM equipment proposer (ships off). Needs the EQUIPMENT_PROPOSER_V1 contract in
+    # INTELLIGENCE_ENABLED_CONTRACTS, a pinned priced model and verified pricing.
+    permit_llm_proposer_enabled: bool = False
+    permit_llm_proposer_max_pages: int = Field(default=6, ge=1, le=20)
+    permit_llm_proposer_max_page_chars: int = Field(default=12_000, ge=1_000, le=60_000)
+    intelligence_equipment_model: str = ""
+    intelligence_equipment_priced_model_id: str = ""
+    intelligence_equipment_pricing_verified: bool = False
+    intelligence_equipment_input_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_equipment_cached_input_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_equipment_output_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_equipment_max_output_tokens: int = Field(default=0, ge=0, le=100000)
+    # WS2b OCR for permit-stage PDFs (ships off). Hosts must be listed explicitly; the source
+    # must also be in INTELLIGENCE_OCR_RETENTION_SOURCE_IDS.
+    permit_ocr_enabled: bool = False
+    permit_ocr_allowed_hosts: str = ""
+    permit_ocr_max_pages_per_document: int = Field(default=10, ge=1, le=50)
+    permit_ocr_rows_feed_demand: bool = False
     intelligence_typesafe_estimated_reservation_usd: Decimal = Field(
         default=Decimal("0"), ge=0, le=100
     )
@@ -226,6 +255,14 @@ class Settings(BaseSettings):
                     f"overhead, wrapper reserve and a minimum passage ({floor})"
                 )
         return self
+
+    @field_validator("intelligence_provider_caps")
+    @classmethod
+    def _valid_provider_caps(cls, value: str) -> str:
+        from gridlens.intelligence.spend_caps import parse_provider_caps
+
+        parse_provider_caps(value)
+        return value
 
     @field_validator("intelligence_financial_budget_mode")
     @classmethod

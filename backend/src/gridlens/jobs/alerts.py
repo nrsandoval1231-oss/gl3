@@ -62,8 +62,60 @@ def processing_failures() -> dict[str, int]:
     return counts
 
 
+def spend_report() -> dict[str, Any]:
+    """Near-cap and capped-out intelligence spend from the shared call ledger (read-only).
+
+    Empty (no rows, no jobs) while intelligence is off or nothing has been reserved, so the
+    default alert is unchanged.
+    """
+    from gridlens.intelligence.intelligence_jobs import _caps, provider_caps
+    from gridlens.intelligence.spend_caps import (
+        parse_provider_caps,
+        recent_capped_out_jobs,
+        spend_status,
+    )
+    from gridlens.persistence.database import SessionLocal
+
+    base = _caps()
+    providers = {
+        "openai",
+        "typesafe",
+        "firecrawl",
+        *parse_provider_caps(settings.intelligence_provider_caps),
+    }
+    with SessionLocal() as session:
+        rows = spend_status(
+            session,
+            global_caps=base,
+            provider_caps={name: provider_caps(name, base) for name in sorted(providers)},
+            threshold=settings.intelligence_spend_alert_threshold,
+            max_call_usd=settings.intelligence_max_call_usd,
+        )
+        jobs = recent_capped_out_jobs(session)
+    return {"rows": rows, "capped_out_jobs": jobs}
+
+
+def _spend_lines(spend: dict[str, Any] | None) -> list[str]:
+    lines: list[str] = []
+    for row in (spend or {}).get("rows", []):
+        label = {"CAPPED_OUT": "CAPPED OUT", "LOW_HEADROOM": "low headroom"}.get(
+            row["level"], "near cap"
+        )
+        unit = "USD" if row["metric"] == "usd" else "calls"
+        lines.append(
+            f"Spend {label}: {row['scope']} {row['period']} {unit} "
+            f"{row['used']}/{row['cap']} ({row['fraction']:.0%})"
+        )
+    jobs = (spend or {}).get("capped_out_jobs", {})
+    if jobs.get("jobs"):
+        lines.append(f"Capped-out intelligence jobs in last {jobs['hours']}h: {jobs['jobs']}")
+    return lines
+
+
 def summarize(
-    health: dict[str, Any], failures: dict[str, int] | None = None
+    health: dict[str, Any],
+    failures: dict[str, int] | None = None,
+    spend: dict[str, Any] | None = None,
 ) -> tuple[str, str, bool]:
     """Return (title, body, has_problems) from the health payload and failure counts."""
     enabled = [source for source in health["sources"] if source.get("enabled")]
@@ -80,6 +132,7 @@ def summarize(
     for label, count in sorted((failures or {}).items()):
         if count:
             lines.append(f"Failed {label}: {count}")
+    lines.extend(_spend_lines(spend))
     ok = len(enabled) - len(problems)
     footer = (
         f"{ok}/{len(enabled)} enabled sources healthy · {health.get('backlog', 0)} jobs queued"
@@ -110,7 +163,11 @@ def main() -> None:
     from gridlens.api.app import health
 
     try:
-        title, body, urgent = summarize(health(), processing_failures())
+        try:
+            spend = spend_report()
+        except Exception as exc:  # a broken spend read must not hide the health message
+            spend = {"rows": [], "capped_out_jobs": {}, "error": type(exc).__name__}
+        title, body, urgent = summarize(health(), processing_failures(), spend)
     except Exception as exc:  # health itself failing is the most important alert
         title, body, urgent = "GridLens: health check failed", f"{type(exc).__name__}: {exc}", True
     send(title, body, urgent)

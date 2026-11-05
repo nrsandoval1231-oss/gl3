@@ -7,11 +7,12 @@ from decimal import Decimal
 from typing import Literal
 
 Route = Literal["table", "narrative", "scan", "irrelevant"]
-Origin = Literal["table", "narrative"]
+Origin = Literal["table", "narrative", "llm"]
 Role = Literal["demand_claim", "supply_other"]
 
 REQUIRED_FIELDS = ("id", "type", "rating", "unit")
-OPTIONAL_FIELDS = ("count", "drive", "state")
+OPTIONAL_FIELDS = ("count", "drive", "state", "date")
+TEXT_LAYER = "text_layer"
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,3 +45,9 @@ class ExtractedRow:
     linked_to: tuple[str, ...] = ()
     link_hint: str = ""
     group_span: tuple[int, int] | None = None  # span of the row's own group title
+    # Where the quoted text came from: "text_layer" or "ocr:<provider>:<model>" (lower trust).
+    text_source: str = TEXT_LAYER
+    # LLM-proposed rows only: "llm:<provider>:<model>"; empty for deterministic rows.
+    proposed_by: str = ""
+    # Stated in-service/commissioning date, verbatim and quote-backed; "" when not stated.
+    in_service_date: str = ""
