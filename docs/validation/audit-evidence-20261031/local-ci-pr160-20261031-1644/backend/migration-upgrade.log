@@ -1,0 +1,103 @@
+$ uv run alembic upgrade head
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial, Initial frozen PostgreSQL schema for structured ingestion.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial, Initial frozen PostgreSQL schema for structured ingestion.
+INFO  [alembic.runtime.migration] Running upgrade 0001_initial -> 0002_interpretations, retryable interpretation backlog and visible Signal withdrawal
+INFO  [alembic.runtime.migration] Running upgrade 0001_initial -> 0002_interpretations, retryable interpretation backlog and visible Signal withdrawal
+INFO  [alembic.runtime.migration] Running upgrade 0002_interpretations -> 0003_news_assessments, retain version-bound structured RSS project assessments
+INFO  [alembic.runtime.migration] Running upgrade 0002_interpretations -> 0003_news_assessments, retain version-bound structured RSS project assessments
+INFO  [alembic.runtime.migration] Running upgrade 0003_news_assessments -> 0004_unknown_publication_dates, allow unknown publication dates and label source event dates
+INFO  [alembic.runtime.migration] Running upgrade 0003_news_assessments -> 0004_unknown_publication_dates, allow unknown publication dates and label source event dates
+INFO  [alembic.runtime.migration] Running upgrade 0004_unknown_publication_dates -> 0005_asset_lifecycles, asset-aware project lifecycle history
+INFO  [alembic.runtime.migration] Running upgrade 0004_unknown_publication_dates -> 0005_asset_lifecycles, asset-aware project lifecycle history
+INFO  [alembic.runtime.migration] Running upgrade 0005_asset_lifecycles -> 0006_lifecycle_identity_versions, Retain version-bound identity rationale and lifecycle corrections.
+INFO  [alembic.runtime.migration] Running upgrade 0005_asset_lifecycles -> 0006_lifecycle_identity_versions, Retain version-bound identity rationale and lifecycle corrections.
+INFO  [alembic.runtime.migration] Running upgrade 0006_lifecycle_identity_versions -> 0007_signal_decisions, Persist versioned Signal display decisions.
+INFO  [alembic.runtime.migration] Running upgrade 0006_lifecycle_identity_versions -> 0007_signal_decisions, Persist versioned Signal display decisions.
+INFO  [alembic.runtime.migration] Running upgrade 0007_signal_decisions -> 0008_buying_chain, Project-scoped immutable buying-chain evidence, claims and bounded run results.
+INFO  [alembic.runtime.migration] Running upgrade 0007_signal_decisions -> 0008_buying_chain, Project-scoped immutable buying-chain evidence, claims and bounded run results.
+INFO  [alembic.runtime.migration] Running upgrade 0008_buying_chain -> 0009_signal_admission, Persist standalone-admission provenance and close legacy context-only Signals.
+INFO  [alembic.runtime.migration] Running upgrade 0008_buying_chain -> 0009_signal_admission, Persist standalone-admission provenance and close legacy context-only Signals.
+INFO  [alembic.runtime.migration] Running upgrade 0009_signal_admission -> 0010_power_pursuits, Persist bounded power-pursuit research and private call outcomes.
+INFO  [alembic.runtime.migration] Running upgrade 0009_signal_admission -> 0010_power_pursuits, Persist bounded power-pursuit research and private call outcomes.
+INFO  [alembic.runtime.migration] Running upgrade 0010_power_pursuits -> 0011_power_need_briefs, Persist per-need advisory brief state and bounded request budget.
+INFO  [alembic.runtime.migration] Running upgrade 0010_power_pursuits -> 0011_power_need_briefs, Persist per-need advisory brief state and bounded request budget.
+INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.
+INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.
+INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal.
+INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal.
+INFO  [alembic.runtime.migration] Running upgrade 0013_jev_scan -> 0014_pursuit_research_questions, Durable bounded pursuit questions; existing evidence and receipts are untouched.
+INFO  [alembic.runtime.migration] Running upgrade 0013_jev_scan -> 0014_pursuit_research_questions, Durable bounded pursuit questions; existing evidence and receipts are untouched.
+INFO  [alembic.runtime.migration] Running upgrade 0014_pursuit_research_questions -> 0015_revocable_auth, Persist revocable sessions and bounded login attempt buckets.
+INFO  [alembic.runtime.migration] Running upgrade 0014_pursuit_research_questions -> 0015_revocable_auth, Persist revocable sessions and bounded login attempt buckets.
+INFO  [alembic.runtime.migration] Running upgrade 0015_revocable_auth -> 0016_operational_schedule, Persist source operation epochs, due occurrences, receipts and worker health.
+INFO  [alembic.runtime.migration] Running upgrade 0015_revocable_auth -> 0016_operational_schedule, Persist source operation epochs, due occurrences, receipts and worker health.
+INFO  [alembic.runtime.migration] Running upgrade 0016_operational_schedule -> 0017_call_fact_versions, Add append-only exact-need fact and workflow-status events.
+INFO  [alembic.runtime.migration] Running upgrade 0016_operational_schedule -> 0017_call_fact_versions, Add append-only exact-need fact and workflow-status events.
+INFO  [alembic.runtime.migration] Running upgrade 0017_call_fact_versions -> 0018_interconnection_facts, Preserve reviewed interconnection facts independently of mutable interpretations.
+INFO  [alembic.runtime.migration] Running upgrade 0017_call_fact_versions -> 0018_interconnection_facts, Preserve reviewed interconnection facts independently of mutable interpretations.
+INFO  [alembic.runtime.migration] Running upgrade 0018_interconnection_facts -> 0019_editorial_decisions, Retain evidence-version-bound human editorial decisions.
+INFO  [alembic.runtime.migration] Running upgrade 0018_interconnection_facts -> 0019_editorial_decisions, Retain evidence-version-bound human editorial decisions.
+INFO  [alembic.runtime.migration] Running upgrade 0019_editorial_decisions -> 0020_evidence_source_provenance, Retain publisher link provenance on evidence versions.
+INFO  [alembic.runtime.migration] Running upgrade 0019_editorial_decisions -> 0020_evidence_source_provenance, Retain publisher link provenance on evidence versions.
+INFO  [alembic.runtime.migration] Running upgrade 0020_evidence_source_provenance -> 0021_saved_browse, Versioned retained-data browse generations and transactional invalidation.
+INFO  [alembic.runtime.migration] Running upgrade 0020_evidence_source_provenance -> 0021_saved_browse, Versioned retained-data browse generations and transactional invalidation.
+INFO  [alembic.runtime.migration] Running upgrade 0021_saved_browse -> 0022_browse_clock_transitions, Prepare canonical browse generations ahead of their exact clock boundary.
+INFO  [alembic.runtime.migration] Running upgrade 0021_saved_browse -> 0022_browse_clock_transitions, Prepare canonical browse generations ahead of their exact clock boundary.
+INFO  [alembic.runtime.migration] Running upgrade 0022_browse_clock_transitions -> 0023_browse_commercial_selection, Canonical commercial group/priority scalars in existing saved generations.
+INFO  [alembic.runtime.migration] Running upgrade 0022_browse_clock_transitions -> 0023_browse_commercial_selection, Canonical commercial group/priority scalars in existing saved generations.
+INFO  [alembic.runtime.migration] Running upgrade 0023_browse_commercial_selection -> 0024_browse_live_receipts, Keep recognized live commercial receipt/note overlays out of browse invalidation.
+INFO  [alembic.runtime.migration] Running upgrade 0023_browse_commercial_selection -> 0024_browse_live_receipts, Keep recognized live commercial receipt/note overlays out of browse invalidation.
+INFO  [alembic.runtime.migration] Running upgrade 0024_browse_live_receipts -> 0025_logical_call_ledger, Unique logical paid-call identity, durable dispatch state, and finite budgets.
+INFO  [alembic.runtime.migration] Running upgrade 0024_browse_live_receipts -> 0025_logical_call_ledger, Unique logical paid-call identity, durable dispatch state, and finite budgets.
+INFO  [alembic.runtime.migration] Running upgrade 0025_logical_call_ledger -> 0026_watch_sets, Per-need monitoring watches and source cursors.
+INFO  [alembic.runtime.migration] Running upgrade 0025_logical_call_ledger -> 0026_watch_sets, Per-need monitoring watches and source cursors.
+INFO  [alembic.runtime.migration] Running upgrade 0026_watch_sets -> 0027_intelligence_review, Store attributed owner review metadata on existing pursuit notes.
+INFO  [alembic.runtime.migration] Running upgrade 0026_watch_sets -> 0027_intelligence_review, Store attributed owner review metadata on existing pursuit notes.
+INFO  [alembic.runtime.migration] Running upgrade 0027_intelligence_review -> 0028_logical_call_settlements, Append-only late billing and token usage receipts.
+INFO  [alembic.runtime.migration] Running upgrade 0027_intelligence_review -> 0028_logical_call_settlements, Append-only late billing and token usage receipts.
+INFO  [alembic.runtime.migration] Running upgrade 0028_logical_call_settlements -> 0029_source_collection_progress, Bounded source schedule and collection checkpoints.
+INFO  [alembic.runtime.migration] Running upgrade 0028_logical_call_settlements -> 0029_source_collection_progress, Bounded source schedule and collection checkpoints.
+INFO  [alembic.runtime.migration] Running upgrade 0029_source_collection_progress -> 0030_browse_ingestion, Transactional project-scoped ingestion browse publication.
+INFO  [alembic.runtime.migration] Running upgrade 0029_source_collection_progress -> 0030_browse_ingestion, Transactional project-scoped ingestion browse publication.
+INFO  [alembic.runtime.migration] Running upgrade 0030_browse_ingestion -> 0031_research_browse, Scope legacy research publication without changing receipt exemptions.
+INFO  [alembic.runtime.migration] Running upgrade 0030_browse_ingestion -> 0031_research_browse, Scope legacy research publication without changing receipt exemptions.
+INFO  [alembic.runtime.migration] Running upgrade 0031_research_browse -> 0032_power_need_titles, Persist advisory evidence-grounded power-need titles.
+INFO  [alembic.runtime.migration] Running upgrade 0031_research_browse -> 0032_power_need_titles, Persist advisory evidence-grounded power-need titles.
+INFO  [alembic.runtime.migration] Running upgrade 0032_power_need_titles -> 0033_workspace_review, Persist the workspace review baseline and exact displayed acknowledgments.
+INFO  [alembic.runtime.migration] Running upgrade 0032_power_need_titles -> 0033_workspace_review, Persist the workspace review baseline and exact displayed acknowledgments.
+INFO  [alembic.runtime.migration] Running upgrade 0033_workspace_review -> 0034_fact_draft_browse, Avoid publishing browse generations for initial fact drafts.
+INFO  [alembic.runtime.migration] Running upgrade 0033_workspace_review -> 0034_fact_draft_browse, Avoid publishing browse generations for initial fact drafts.
+INFO  [alembic.runtime.migration] Running upgrade 0034_fact_draft_browse -> 0035_reconciled_identity, Add evidence-bound cross-project buying-chain identities.
+INFO  [alembic.runtime.migration] Running upgrade 0034_fact_draft_browse -> 0035_reconciled_identity, Add evidence-bound cross-project buying-chain identities.
+INFO  [alembic.runtime.migration] Running upgrade 0035_reconciled_identity -> 0036_buying_chain_corrections, Append-only operator corrections for project-scoped buying-chain claims.
+INFO  [alembic.runtime.migration] Running upgrade 0035_reconciled_identity -> 0036_buying_chain_corrections, Append-only operator corrections for project-scoped buying-chain claims.
+INFO  [alembic.runtime.migration] Running upgrade 0036_buying_chain_corrections -> 0037_customer_memberships, Add versioned source-backed company-to-project memberships.
+INFO  [alembic.runtime.migration] Running upgrade 0036_buying_chain_corrections -> 0037_customer_memberships, Add versioned source-backed company-to-project memberships.
+INFO  [alembic.runtime.migration] Running upgrade 0037_customer_memberships -> 0038_customer_evidence_counts, Add generation-bound distinct customer evidence summary fields.
+INFO  [alembic.runtime.migration] Running upgrade 0037_customer_memberships -> 0038_customer_evidence_counts, Add generation-bound distinct customer evidence summary fields.
+INFO  [alembic.runtime.migration] Running upgrade 0038_customer_evidence_counts -> 0039_call_financial_policy, Represent explicit financial policy and nullable maximum on logical calls.
+INFO  [alembic.runtime.migration] Running upgrade 0038_customer_evidence_counts -> 0039_call_financial_policy, Represent explicit financial policy and nullable maximum on logical calls.
+INFO  [alembic.runtime.migration] Running upgrade 0039_call_financial_policy -> 0040_project_region_policy, Persist an explicit evidence-backed project region decision.
+INFO  [alembic.runtime.migration] Running upgrade 0039_call_financial_policy -> 0040_project_region_policy, Persist an explicit evidence-backed project region decision.
+INFO  [alembic.runtime.migration] Running upgrade 0040_project_region_policy -> 0041_evidence_packages, Persist deterministic retained-evidence packages and advisory receipts.
+INFO  [alembic.runtime.migration] Running upgrade 0040_project_region_policy -> 0041_evidence_packages, Persist deterministic retained-evidence packages and advisory receipts.
+INFO  [alembic.runtime.migration] Running upgrade 0041_evidence_packages -> 0042_external_imports, Retain immutable external workbook rows and reversible staging history.
+INFO  [alembic.runtime.migration] Running upgrade 0041_evidence_packages -> 0042_external_imports, Retain immutable external workbook rows and reversible staging history.
+INFO  [alembic.runtime.migration] Running upgrade 0042_external_imports -> 0043_company_graph_assertions, Evidence-bound, correctable company relationships for the canonical graph.
+INFO  [alembic.runtime.migration] Running upgrade 0042_external_imports -> 0043_company_graph_assertions, Evidence-bound, correctable company relationships for the canonical graph.
+INFO  [alembic.runtime.migration] Running upgrade 0043_company_graph_assertions -> 0044_enrichment_planner_cursor, Persist bounded company research scan progress without creating a new queue.
+INFO  [alembic.runtime.migration] Running upgrade 0043_company_graph_assertions -> 0044_enrichment_planner_cursor, Persist bounded company research scan progress without creating a new queue.
+INFO  [alembic.runtime.migration] Running upgrade 0044_enrichment_planner_cursor -> 0045_contact_suppressions, Append-only privacy suppressions for stable contact subjects and methods.
+INFO  [alembic.runtime.migration] Running upgrade 0044_enrichment_planner_cursor -> 0045_contact_suppressions, Append-only privacy suppressions for stable contact subjects and methods.
+INFO  [alembic.runtime.migration] Running upgrade 0045_contact_suppressions -> 0046_import_meta_reparse, Allow append-only parser metadata receipts on an unchanged staged workbook.
+INFO  [alembic.runtime.migration] Running upgrade 0045_contact_suppressions -> 0046_import_meta_reparse, Allow append-only parser metadata receipts on an unchanged staged workbook.
+INFO  [alembic.runtime.migration] Running upgrade 0046_import_meta_reparse -> 0047_scoped_identity_link_browse, Scope buying-chain identity-link browse invalidation by owning project.
+INFO  [alembic.runtime.migration] Running upgrade 0046_import_meta_reparse -> 0047_scoped_identity_link_browse, Scope buying-chain identity-link browse invalidation by owning project.
+INFO  [alembic.runtime.migration] Running upgrade 0047_scoped_identity_link_browse -> 0048_browse_recovery_stages, Persist compare-and-swap receipts for unpublished browse recovery candidates.
+INFO  [alembic.runtime.migration] Running upgrade 0047_scoped_identity_link_browse -> 0048_browse_recovery_stages, Persist compare-and-swap receipts for unpublished browse recovery candidates.
+INFO  [alembic.runtime.migration] Running upgrade 0048_browse_recovery_stages -> 0049_scoped_identity_browse, Scope identity reconciliation input invalidation to referencing projects.
+INFO  [alembic.runtime.migration] Running upgrade 0048_browse_recovery_stages -> 0049_scoped_identity_browse, Scope identity reconciliation input invalidation to referencing projects.

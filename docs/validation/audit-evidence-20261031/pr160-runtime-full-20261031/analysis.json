@@ -1,0 +1,224 @@
+{
+  "workers": {
+    "gw0": {
+      "teardowns": 518,
+      "phase_seconds": 183.76161736700215,
+      "last_completed_elapsed": 189.82829261000006
+    },
+    "gw1": {
+      "teardowns": 2351,
+      "phase_seconds": 175.00904459901903,
+      "last_completed_elapsed": 183.4140773700001
+    },
+    "gw2": {
+      "teardowns": 397,
+      "phase_seconds": 329.1043461579875,
+      "last_completed_elapsed": 335.10638861200005
+    },
+    "gw3": {
+      "teardowns": 402,
+      "phase_seconds": 311.60462535599345,
+      "last_completed_elapsed": 317.6296112360005
+    }
+  },
+  "files_by_phase_seconds": [
+    [
+      "tests/integration/test_saved_browse.py",
+      {
+        "seconds": 183.53184347700062,
+        "teardowns": 127
+      }
+    ],
+    [
+      "tests/integration/test_buying_chain.py",
+      {
+        "seconds": 86.92606141099895,
+        "teardowns": 119
+      }
+    ],
+    [
+      "tests/integration/test_research_transitions.py",
+      {
+        "seconds": 58.5530019520038,
+        "teardowns": 38
+      }
+    ],
+    [
+      "tests/integration/test_pursuit_evidence.py",
+      {
+        "seconds": 53.95452850899983,
+        "teardowns": 44
+      }
+    ],
+    [
+      "tests/integration/test_power_need_briefs.py",
+      {
+        "seconds": 43.35485599799631,
+        "teardowns": 48
+      }
+    ],
+    [
+      "tests/integration/test_evidence_shadow_storage.py",
+      {
+        "seconds": 42.45983685599822,
+        "teardowns": 15
+      }
+    ],
+    [
+      "tests/integration/test_autonomous_questions_integration.py",
+      {
+        "seconds": 36.61763602300198,
+        "teardowns": 53
+      }
+    ],
+    [
+      "tests/integration/test_browse_recovery.py",
+      {
+        "seconds": 32.75121216200387,
+        "teardowns": 29
+      }
+    ],
+    [
+      "tests/unit/test_contact_assertions.py",
+      {
+        "seconds": 25.322375453996756,
+        "teardowns": 27
+      }
+    ],
+    [
+      "tests/integration/test_project_state_changes.py",
+      {
+        "seconds": 24.851241949992982,
+        "teardowns": 95
+      }
+    ],
+    [
+      "tests/integration/test_collection_only_ingestion.py",
+      {
+        "seconds": 22.367963576994043,
+        "teardowns": 33
+      }
+    ],
+    [
+      "tests/integration/test_regional_eligibility.py",
+      {
+        "seconds": 20.817747391998637,
+        "teardowns": 33
+      }
+    ],
+    [
+      "tests/integration/test_equipment_intelligence.py",
+      {
+        "seconds": 19.710917193006026,
+        "teardowns": 30
+      }
+    ],
+    [
+      "tests/integration/test_intelligence_worker_integration.py",
+      {
+        "seconds": 19.701196558001357,
+        "teardowns": 72
+      }
+    ],
+    [
+      "tests/integration/test_ingestion.py",
+      {
+        "seconds": 16.8567287879996,
+        "teardowns": 38
+      }
+    ]
+  ],
+  "test_counts": {
+    "teardown_reports": 3668,
+    "failed_reports": 0,
+    "skipped_reports": 1
+  },
+  "observer": {
+    "events": 14679,
+    "serialize_seconds": 0.367930721,
+    "write_seconds": 0.15777712,
+    "db_monitor_query_seconds": 0.3098854890004077,
+    "db_monitor_query_max_ms": 12.12216299973079,
+    "samples": 68
+  },
+  "cpu_counter_delta": {
+    "usage_usec": 945156335,
+    "user_usec": 742386316,
+    "system_usec": 202770019,
+    "nice_usec": 0,
+    "nr_periods": 3354,
+    "nr_throttled": 65,
+    "throttled_usec": 597012,
+    "nr_bursts": 0,
+    "burst_usec": 0
+  },
+  "sampled_cgroup_memory_peak_bytes": 11727290368,
+  "first_memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+  "last_memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+  "active_db_wait_samples": {
+    "(None, None)": 53,
+    "('Lock', 'transactionid')": 1,
+    "('LWLock', 'LockManager')": 1,
+    "('Client', 'ClientRead')": 1,
+    "('Timeout', 'VacuumTruncate')": 1,
+    "('IO', 'WalSync')": 2,
+    "('Timeout', 'VacuumDelay')": 6,
+    "('IO', 'WalInitSync')": 2,
+    "('IO', 'DataFileExtend')": 1
+  },
+  "one_second_lock_test": [
+    {
+      "t": 7410.891382373,
+      "worker": "gw3",
+      "kind": "report",
+      "nodeid": "tests/integration/test_evidence_shadow_storage.py::test_shadow_skips_reservation_when_daily_lock_is_held",
+      "when": "setup",
+      "outcome": "passed",
+      "duration": 0.09540347199981625
+    },
+    {
+      "t": 7411.021537466,
+      "worker": "gw3",
+      "kind": "report",
+      "nodeid": "tests/integration/test_evidence_shadow_storage.py::test_shadow_skips_reservation_when_daily_lock_is_held",
+      "when": "call",
+      "outcome": "passed",
+      "duration": 0.12987929600058123
+    },
+    {
+      "t": 7411.022429029,
+      "worker": "gw3",
+      "kind": "report",
+      "nodeid": "tests/integration/test_evidence_shadow_storage.py::test_shadow_skips_reservation_when_daily_lock_is_held",
+      "when": "teardown",
+      "outcome": "passed",
+      "duration": 0.0005912670003453968
+    }
+  ],
+  "checkpoint_before": {
+    "num_timed": 0,
+    "num_requested": 20,
+    "num_done": 15,
+    "restartpoints_timed": 0,
+    "restartpoints_req": 0,
+    "restartpoints_done": 0,
+    "write_time": 322511,
+    "sync_time": 76182,
+    "buffers_written": 61457,
+    "slru_written": 51,
+    "stats_reset": "2026-10-31T16:47:59.579391+00:00"
+  },
+  "checkpoint_after": {
+    "num_timed": 0,
+    "num_requested": 27,
+    "num_done": 21,
+    "restartpoints_timed": 0,
+    "restartpoints_req": 0,
+    "restartpoints_done": 0,
+    "write_time": 480380,
+    "sync_time": 152909,
+    "buffers_written": 79241,
+    "slru_written": 71,
+    "stats_reset": "2026-10-31T16:47:59.579391+00:00"
+  }
+}

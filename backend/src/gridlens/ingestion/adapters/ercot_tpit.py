@@ -9,8 +9,8 @@ transformer rating, not load, so no MW is derived from this workbook.
 
 Only "relevant" rows are kept in the monthly snapshot: an RPG number, Tier 1 or 2, or wording about
 a load, customer or data center. Each kept row stores a hash of its kept fields; the next month's
-diff is new / changed / removed relative to the previous snapshot's kept rows. The first snapshot is
-a baseline, not a diff.
+diff distinguishes new / changed / removed rows from rows still listed but no longer relevant. The
+first snapshot is a baseline, not a diff.
 """
 
 from __future__ import annotations
@@ -31,7 +31,8 @@ MAX_BYTES = 12 * 1024 * 1024
 MAX_UNCOMPRESSED = 120 * 1024 * 1024
 MAX_ROWS_PER_SHEET = 6000
 MAX_KEPT_ROWS = 1500
-MAX_DIFF_ROWS = 400
+# A snapshot may contain 1,500 kept rows and the preceding snapshot another 1,500.
+MAX_DIFF_ROWS = MAX_KEPT_ROWS * 2
 MAX_TEXT = 300
 _SHEET_ORDER = ("Future", "Planned", "Completed", "Cancelled")
 _PRECEDENCE = {"Completed": 3, "Cancelled": 2, "Planned": 1, "Future": 0}
@@ -200,8 +201,10 @@ def row_hash(row: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(kept, sort_keys=True).encode()).hexdigest()[:16]
 
 
-def kept_rows(sheets: dict[str, list[dict[str, Any]]]) -> tuple[dict[str, dict[str, Any]], int]:
-    """Relevant rows by project number (later-lifecycle sheet wins a duplicate) and the total."""
+def kept_rows(
+    sheets: dict[str, list[dict[str, Any]]],
+) -> tuple[dict[str, dict[str, Any]], set[str], int]:
+    """Relevant rows, all project numbers, and total rows; later lifecycle wins duplicates."""
     chosen: dict[str, dict[str, Any]] = {}
     total = 0
     for rows in sheets.values():
@@ -211,13 +214,15 @@ def kept_rows(sheets: dict[str, list[dict[str, Any]]]) -> tuple[dict[str, dict[s
             if current is None or _PRECEDENCE[row["sheet"]] > _PRECEDENCE[current["sheet"]]:
                 chosen[row["number"]] = row
     kept = {number: row for number, row in chosen.items() if _relevant(row)}
-    return kept, total
+    return kept, set(chosen), total
 
 
 def diff(
-    prior: dict[str, dict[str, Any]] | None, current: dict[str, dict[str, Any]]
+    prior: dict[str, dict[str, Any]] | None,
+    current: dict[str, dict[str, Any]],
+    current_numbers: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """New / changed / removed kept rows. ``prior`` None means a baseline, not a diff."""
+    """Diff kept rows; distinguish out-of-scope rows from absent ones. None prior is a baseline."""
     if prior is None:
         return []
     changes: list[dict[str, Any]] = []
@@ -228,9 +233,15 @@ def diff(
         elif before.get("h") != current[number]["h"]:
             moved = [key for key in _COMPARED if before.get(key) != current[number].get(key)]
             changes.append({"project": number, "change": "changed", "fields": moved[:16]})
+    listed = current_numbers if current_numbers is not None else set(current)
     for number in sorted(set(prior) - set(current)):
-        changes.append({"project": number, "change": "removed"})
-    return changes[:MAX_DIFF_ROWS]
+        changes.append(
+            {
+                "project": number,
+                "change": "left_scope" if number in listed else "removed",
+            }
+        )
+    return changes
 
 
 def tpit_extraction(
@@ -247,10 +258,12 @@ def tpit_extraction(
         # A lifecycle sheet that was read last time is gone: a partial read must never turn
         # every row of the missing sheet into a "removed" row.
         raise DocumentFailure("workbook_columns_changed")
-    kept, total = kept_rows(data["sheets"])
+    kept, project_numbers, total = kept_rows(data["sheets"])
     if len(kept) > MAX_KEPT_ROWS:
         raise DocumentFailure("workbook_too_many_relevant_rows")
     prior_rows = (prior_extraction or {}).get("rows") if prior_extraction else None
+    if prior_rows is not None and len(prior_rows) > MAX_KEPT_ROWS:
+        raise DocumentFailure("workbook_prior_too_many_rows")
     # First seen is carried across every snapshot (a row that leaves and returns keeps its day).
     first_seen: dict[str, str] = dict((prior_extraction or {}).get("first_seen") or {})
     rows: dict[str, dict[str, Any]] = {}
@@ -266,11 +279,15 @@ def tpit_extraction(
         # Keep the most recent first-seen days; rows still present are never dropped.
         keep = sorted(first_seen.items(), key=lambda kv: (kv[0] in rows, kv[1]), reverse=True)
         first_seen = dict(keep[:MAX_FIRST_SEEN])
-    changes = diff(prior_rows, rows)
+    changes = diff(prior_rows, rows, project_numbers)
+    if len(changes) > MAX_DIFF_ROWS:
+        # Keep the previous state intact instead of emitting a partial diff while advancing the
+        # snapshot baseline. The current and prior row limits should make this unreachable.
+        raise DocumentFailure("workbook_too_many_changes")
     removed = {
         c["project"]: prior_rows[c["project"]]
         for c in changes
-        if c["change"] == "removed" and prior_rows and c["project"] in prior_rows
+        if c["change"] in {"removed", "left_scope"} and prior_rows and c["project"] in prior_rows
     }
     counts = {name: len(items) for name, items in data["sheets"].items()}
     first = prior_rows is None
@@ -283,7 +300,7 @@ def tpit_extraction(
         else "TPIT diff: "
         + ", ".join(
             f"{kind} {sum(1 for c in changes if c['change'] == kind)}"
-            for kind in ("new", "changed", "removed")
+            for kind in ("new", "changed", "removed", "left_scope")
         ),
         "MVA is a transformer rating, not load; no MW is derived from this workbook.",
     ]
@@ -294,6 +311,7 @@ def tpit_extraction(
         "rows_total": total,
         "rows_kept": len(rows),
         "rows": rows,
+        "project_numbers": sorted(project_numbers),
         "first_seen": first_seen,
         "removed_rows": removed,
         "baseline": first,

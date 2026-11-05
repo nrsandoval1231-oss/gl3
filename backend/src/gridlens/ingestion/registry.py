@@ -32,6 +32,60 @@ def _valid_okdeq_documents(value: Any) -> bool:
     return valid_config(value)
 
 
+def _sector_validators() -> dict[str, Any]:
+    """Bounded-query validators of the workstream 5 sector and regulation sources."""
+    from gridlens.ingestion.adapters import (
+        afdc_stations,
+        ercot_monthly,
+        faa_oeaaa,
+        msha_mines,
+        nevi_awards,
+        regulatory_events,
+        sec_edgar_site_mw,
+        tceq_aggregate,
+    )
+
+    return {
+        "faa-oeaaa-cases": faa_oeaaa.valid_query,
+        "msha-mines-zip": msha_mines.valid_query,
+        "tceq-aggregate-socrata": tceq_aggregate.valid_query,
+        "afdc-ev-stations": afdc_stations.valid_query,
+        "txdot-nevi-awards": nevi_awards.valid_query,
+        "sec-edgar-site-mw": sec_edgar_site_mw.valid_query,
+        "ercot-monthly-overview": ercot_monthly.valid_query,
+        "regulatory-event-feed": regulatory_events.valid_query,
+    }
+
+
+def _validate_run_at(source: dict[str, Any], schedule_mode: str, cadence: int) -> None:
+    """Optional local clock times (``run_at``) and weekday (``run_weekday``) for a source.
+
+    Interpreted in the source's timezone, so they follow daylight saving time. Absent, the
+    source runs on ``cadence_hours`` exactly as before.
+    """
+    run_at, weekday = source.get("run_at"), source.get("run_weekday")
+    if run_at is None and weekday is None:
+        return
+    if schedule_mode != "local_daily" or cadence % 24 != 0:
+        raise ValueError("run_at and run_weekday require a local-daily schedule")
+    if run_at is not None:
+        if not isinstance(run_at, list) or not 1 <= len(run_at) <= 4:
+            raise ValueError("run_at must list one to four local clock times")
+        for item in run_at:
+            try:
+                parsed = time.fromisoformat(item)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("run_at entries must be local clock times") from exc
+            if parsed.tzinfo is not None:
+                raise ValueError("run_at entries must not carry a timezone")
+        if len(set(run_at)) != len(run_at):
+            raise ValueError("run_at entries must be distinct")
+    if weekday is not None and (
+        type(weekday) is not int or not 0 <= weekday <= 6 or cadence % 168 != 0
+    ):
+        raise ValueError("run_weekday must be 0-6 with a whole-week cadence")
+
+
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("version") != 1 or not isinstance(raw.get("sources"), list):
@@ -62,6 +116,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             time.fromisoformat(source.get("schedule_anchor_time", "07:00:00"))
         except ValueError as exc:
             raise ValueError("Source schedule anchor must be a local clock time") from exc
+        _validate_run_at(source, schedule_mode, cadence)
         allowed_hosts = {
             "json-api": {"www.federalregister.gov"},
             "federal-register-json": {"www.federalregister.gov"},
@@ -109,6 +164,14 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ok-occ-dc-notices": {"oklahoma.gov"},
             "tx-county-abatement-agendas": {"www.haskellcountytx.gov"},
             "tceq-water-rights-pending": {"www.tceq.texas.gov"},
+            "faa-oeaaa-cases": {"oeaaa.faa.gov"},
+            "msha-mines-zip": {"arlweb.msha.gov"},
+            "tceq-aggregate-socrata": {"data.texas.gov"},
+            "afdc-ev-stations": {"developer.nlr.gov"},
+            "txdot-nevi-awards": {"services.arcgis.com"},
+            "sec-edgar-site-mw": {"data.sec.gov"},
+            "ercot-monthly-overview": {"www.ercot.com"},
+            "regulatory-event-feed": {"gov.texas.gov"},
             "jeti-open-data": {"api.comptroller.texas.gov"},
             "jeti-agreements": {"comptroller.texas.gov"},
             "retained-document": {
@@ -162,6 +225,14 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ok-occ-dc-notices",
             "tx-county-abatement-agendas",
             "tceq-water-rights-pending",
+            "faa-oeaaa-cases",
+            "msha-mines-zip",
+            "tceq-aggregate-socrata",
+            "afdc-ev-stations",
+            "txdot-nevi-awards",
+            "sec-edgar-site-mw",
+            "ercot-monthly-overview",
+            "regulatory-event-feed",
             "jeti-open-data",
             "jeti-agreements",
             "retained-document",
@@ -454,6 +525,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and query.get("status_pdf")
                 == "https://www.ercot.com/files/docs/2026/03/12/March-TAC-Report.pdf"
             )
+        elif source["retrieval_method"] in _sector_validators():
+            bounded = _sector_validators()[source["retrieval_method"]](source)
         elif source["retrieval_method"] == "jeti-agreements":
             bounded = (
                 source.get("id") == "texas-jeti-agreements"

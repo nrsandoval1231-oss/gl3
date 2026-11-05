@@ -3,9 +3,9 @@
 A link exists only when both sides state the same key, and the key is exact after a fixed
 normalisation of the *stated* names (never fuzzy matching):
 
-* ``substation_county``  a substation name stated in the docket and in the project, plus a county
-  stated on each side, equal after normalisation (case, accents, punctuation, the words station,
-  substation, switch, switching, new, proposed, future, tap and a voltage token removed);
+* ``substation_county``  each side states exactly one distinct substation name and one distinct
+  county, and both values are equal after normalisation (case, accents, punctuation, the words
+  station, substation, switch, switching, new, proposed, future, tap and a voltage token removed);
 * ``rpg_id``            the docket's own text cites an RPG project ID that is an ERCOT project we
   hold (an exact identifier).
 
@@ -88,14 +88,25 @@ def _list(value: Any) -> list[dict[str, Any]]:
 
 
 def _keys(fields: dict[str, Any]) -> dict[tuple[str, str], tuple[dict[str, Any], dict[str, Any]]]:
-    keys: dict[tuple[str, str], tuple[dict[str, Any], dict[str, Any]]] = {}
+    # Extractors retain substations and counties independently. Pairing multiple values here
+    # would invent associations (for example, two sites across two counties produce four pairs).
+    # Until extraction preserves an explicit association, only one distinct value of each kind
+    # can support a substation/county key.
+    substations: dict[str, dict[str, Any]] = {}
+    counties: dict[str, dict[str, Any]] = {}
     for sub in _list(fields.get("substations")):
         s = norm_substation(sub.get("value"))
-        for county in _list(fields.get("counties")):
-            c = norm_county(county.get("value"))
-            if s and c:
-                keys.setdefault((s, c), (sub, county))
-    return keys
+        if s:
+            substations.setdefault(s, sub)
+    for county in _list(fields.get("counties")):
+        c = norm_county(county.get("value"))
+        if c:
+            counties.setdefault(c, county)
+    if len(substations) != 1 or len(counties) != 1:
+        return {}
+    ((substation, sub),) = substations.items()
+    ((county_name, county),) = counties.items()
+    return {(substation, county_name): (sub, county)}
 
 
 def peers_from_states(states: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -111,9 +122,28 @@ def peers_from_states(states: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
             if not isinstance(pid, str):
                 continue
             entry = merged.setdefault(
-                pid, {"project_id": pid, "counties": [], "substations": [], "utility": None}
+                pid,
+                {
+                    "project_id": pid,
+                    "project_id_evidence": [],
+                    "counties": [],
+                    "substations": [],
+                    "utility": None,
+                },
             )
             fields = project.get("fields") or {}
+            for ev in _list(project.get("project_id_evidence")):
+                tagged = {
+                    **ev,
+                    "document_sha256": document.get("sha256"),
+                    "url": state.get("url"),
+                }
+                if all(
+                    (e.get("document_sha256"), e.get("page"), e.get("quote"))
+                    != (tagged.get("document_sha256"), tagged.get("page"), tagged.get("quote"))
+                    for e in entry["project_id_evidence"]
+                ):
+                    entry["project_id_evidence"].append(tagged)
             for name in ("counties", "substations"):
                 for ev in _list(fields.get(name)):
                     tagged = {
@@ -161,7 +191,7 @@ def link_docket(docket: dict[str, Any], peers: list[dict[str, Any]]) -> dict[str
         for e in _list(fields.get("rpg_ids"))
         if isinstance(e.get("value"), str)
     }
-    held = {p["project_id"]: p for p in peers}
+    held = {p["project_id"]: p for p in peers if _list(p.get("project_id_evidence"))}
     candidates: dict[str, list[dict[str, Any]]] = {}
     for project in peers:
         shared = set(docket_keys) & set(_keys(project))
@@ -193,11 +223,14 @@ def link_docket(docket: dict[str, Any], peers: list[dict[str, Any]]) -> dict[str
                     "type": "rpg_id",
                     "project_id": pid,
                     "docket": {"rpg_id": _side(evidence, docket.get("url"))},
-                    "project": {},
+                    "project": {"rpg_id": _side(held[pid]["project_id_evidence"][0])},
                 }
             )
     if not candidates:
-        reason = "no_deterministic_key" if (docket_keys or cited) else "docket_has_no_key_fields"
+        has_key_fields = bool(
+            cited or (_list(fields.get("substations")) and _list(fields.get("counties")))
+        )
+        reason = "no_deterministic_key" if has_key_fields else "docket_has_no_key_fields"
         return {"status": "unknown", "reason": reason, "candidates": []}
     if len(candidates) > 1:
         return {

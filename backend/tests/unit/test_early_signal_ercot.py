@@ -259,8 +259,14 @@ def test_project_fields_from_the_status_update_with_evidence():
     report = stage(origin, records)
     assert report.rejections == []
     state = states_of(records)[STATUS_PDF]
-    projects = {p["project_id"]: p["fields"] for p in state["document"]["extraction"]["projects"]}
+    extracted_projects = state["document"]["extraction"]["projects"]
+    projects = {p["project_id"]: p["fields"] for p in extracted_projects}
     assert set(projects) == {"25RPG020", "25RPG046"}
+    for project in extracted_projects:
+        (id_ev,) = project["project_id_evidence"]
+        assert id_ev["value"] == project["project_id"]
+        assert project["project_id"] in id_ev["quote"]
+        assert id_ev["page"] in project["pages"]
     cps, stec = projects["25RPG020"], projects["25RPG046"]
     assert cps["utility"]["value"] == "CPS Energy"
     assert cps["tier"]["value"] == "Tier 1"
@@ -602,6 +608,13 @@ def test_tpit_monthly_diff_new_changed_removed_and_first_seen_carried():
     for row in sheets["FutureTPIT100126NoCost"]:
         if row["number"] == "110828":
             row["isd"] = "2029-06-30"
+        if row["number"] == "90051":
+            row.update(
+                title="Routine terminal work",
+                description="Reliability maintenance",
+                tier="Tier 4",
+                rpg=None,
+            )
     sheets["FutureTPIT100126NoCost"].append(
         tpit_row("120000", title="New Data Center sub", description="serve a data center")
     )
@@ -615,26 +628,57 @@ def test_tpit_monthly_diff_new_changed_removed_and_first_seen_carried():
     assert changes["120000"]["change"] == "new"
     assert changes["110828"]["change"] == "changed" and "isd" in changes["110828"]["fields"]
     assert changes["100305"]["change"] == "removed"
+    assert changes["90051"]["change"] == "left_scope"
     assert "99999" not in changes
     rows = {
         r["early_signal"]["project"]: r
         for r in records2
         if r.get("early_signal", {}).get("kind") == "tpit_row"
     }
-    assert set(rows) == {"120000", "110828", "100305"}
+    assert set(rows) == {"120000", "110828", "100305", "90051"}
     assert rows["100305"]["early_signal"]["change"] == "removed"
+    assert rows["90051"]["early_signal"]["change"] == "left_scope"
     assert (
         rows["100305"]["early_signal"]["first_seen_at"] == "2026-11-04"
     )  # carried from the baseline
     assert rows["120000"]["early_signal"]["first_seen_at"] == "2026-11-04"  # snapshot listing day
     assert "Fields changed: isd" in rows["110828"]["abstract"]
+    assert (
+        "still listed in this snapshot but no longer meets the relevance filter"
+        in rows["90051"]["abstract"]
+    )
     # Row observation identities are per snapshot, so a re-run does not duplicate them.
     again = {
         r["document_number"]
         for r in records2
         if r.get("early_signal", {}).get("kind") == "tpit_row"
     }
-    assert len(again) == 3
+    assert len(again) == 4
+
+
+def test_tpit_diff_keeps_all_changes_above_the_old_400_row_limit():
+    baseline = tp.tpit_extraction(workbook(SHEETS), None, 60, False, "2026-10-01")
+    sheets = {name: [dict(row) for row in rows] for name, rows in SHEETS.items()}
+    sheets["FutureTPIT100126NoCost"].extend(tpit_row(f"{500000 + number}") for number in range(401))
+    extraction = tp.tpit_extraction(workbook(sheets), baseline, 60, False, "2026-11-01")
+    state = {
+        "url": PLANNING,
+        "document": {"sha256": "a" * 64, "extraction": extraction},
+        "published_at": "2026-11-01",
+    }
+    emitted = er.tpit_row_records(state)
+    new_rows = [record for record in emitted if record["early_signal"]["change"] == "new"]
+    assert len(extraction["diff"]) == 401
+    assert len(new_rows) == 401
+    assert new_rows[-1]["early_signal"]["project"] == "500400"
+
+
+def test_tpit_diff_does_not_call_a_still_listed_irrelevant_row_removed():
+    from gridlens.ingestion.adapters.ercot_tpit import diff
+
+    prior = {"000001": {"h": "relevant-before"}}
+    assert diff(prior, {}, {"000001"}) == [{"project": "000001", "change": "left_scope"}]
+    assert diff(prior, {}, set()) == [{"project": "000001", "change": "removed"}]
 
 
 def test_tpit_unchanged_snapshot_re_emits_the_same_rows_deterministically():

@@ -55,7 +55,7 @@ PDF_RECHECK_HOURS = 24.0 * 14
 TPIT_RECHECK_HOURS = 20.0
 TPIT_TITLE = "Transmission Project and Information Tracking"
 TPIT_KEY = "tpit"
-MAX_TPIT_ROWS_RESERVE = 1500  # persistence time is sized as if every kept TPIT row were emitted
+MAX_TPIT_ROWS_RESERVE = tpit.MAX_DIFF_ROWS  # reserve for the largest bounded monthly diff
 
 _MEETING = re.compile(
     r"https://www\.ercot\.com/calendar/(?P<m>\d{2})(?P<d>\d{2})(?P<y>20\d{2})"
@@ -468,7 +468,7 @@ def _safe(value: str) -> str:
 def tpit_row_records(state: dict[str, Any]) -> list[dict[str, Any]]:
     """Baseline rows or the monthly diff of a snapshot, as individual observations.
 
-    Self-contained: removed rows come from the snapshot's own ``removed_rows``.
+    Self-contained: removed and out-of-scope rows come from ``removed_rows`` in this snapshot.
     """
     document = state["document"]
     sha = document["sha256"]
@@ -490,6 +490,10 @@ def tpit_row_records(state: dict[str, Any]) -> list[dict[str, Any]]:
             "new": "new since the previous snapshot",
             "changed": "changed since the previous snapshot",
             "removed": "absent from this snapshot",
+            "left_scope": (
+                "still listed in this snapshot but no longer meets the relevance filter; "
+                "details below are from its last relevant snapshot"
+            ),
         }[label]
         lines = [
             f"ERCOT TPIT project {number}: {head}",

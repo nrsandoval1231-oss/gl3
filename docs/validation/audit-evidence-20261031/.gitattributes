@@ -1,0 +1,2 @@
+# Preserve raw diagnostic log whitespace and the hashes in MANIFEST.json.
+**/*.log -whitespace

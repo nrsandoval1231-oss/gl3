@@ -1,0 +1,49 @@
+{
+  "description": "SYNTHETIC gold set for harness tests only. Replace with owner-labelled scan pages.",
+  "synthetic": true,
+  "pages": [
+    {
+      "page_id": "s01",
+      "gold_rows": [
+        {
+          "type": "compressor",
+          "drive": "electric",
+          "rating": "1500",
+          "unit": "hp",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "page_id": "s02",
+      "gold_rows": [
+        {
+          "type": "pump",
+          "drive": "electric",
+          "rating": "250",
+          "unit": "kW",
+          "count": 3
+        },
+        {
+          "type": "engine",
+          "drive": "unknown",
+          "rating": "800",
+          "unit": "hp",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "page_id": "s03",
+      "gold_rows": [
+        {
+          "type": "compressor",
+          "drive": "electric",
+          "rating": "2000",
+          "unit": "hp",
+          "count": null
+        }
+      ]
+    }
+  ]
+}

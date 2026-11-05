@@ -465,8 +465,8 @@ def extract_listing_document(
         "issues": [issue[:300] for issue in result.issues[: shared.MAX_ISSUES_KEPT]],
         "schedule_text": result.schedule_text,
         "line_provenance": lines,
-        "supply": shared._supply_json(result.supply_rows),
-        "supply_total": len(result.supply_rows),
+        "supply": shared._supply_json(result.supply_rows + result.ocr_retained_rows),
+        "supply_total": len(result.supply_rows) + len(result.ocr_retained_rows),
     }
 
 

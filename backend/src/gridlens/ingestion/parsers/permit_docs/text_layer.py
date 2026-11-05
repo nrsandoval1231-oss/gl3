@@ -53,6 +53,7 @@ class PageText:
     text: str
     chars: int  # non-whitespace characters
     scanned: bool
+    source: str = "text_layer"  # or "ocr:<provider>:<model>" for a page read by OCR
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +77,43 @@ class CanonicalText:
         pages = [_page(i, t) for i, t in enumerate(page_texts, start=1)]
         text, starts = _join(pages)
         return cls(pages=pages, text=text, page_starts=starts)
+
+    def with_ocr_pages(self, replacements: dict[int, str], source: str) -> CanonicalText:
+        """Copy in which the given scanned pages carry OCR text labelled ``source``.
+
+        Only pages that are scanned (or failed text extraction) can be replaced; a page with
+        a real text layer is never overwritten. Geometry is kept for untouched pages and
+        absent for OCR pages. The original object is not modified.
+        """
+        allowed = set(self.scanned_pages) | set(self.failed_pages)
+        pages: list[PageText] = []
+        for old in self.pages:
+            if old.page in replacements and old.page in allowed:
+                made = _page(old.page, replacements[old.page])
+                pages.append(
+                    PageText(
+                        page=made.page,
+                        text=made.text,
+                        chars=made.chars,
+                        scanned=made.scanned,
+                        source=source,
+                    )
+                )
+            else:
+                pages.append(old)
+        text, starts = _join(pages)
+        replaced = {p.page for p in pages if p.source == source and p is not self.pages[p.page - 1]}
+        boxes: list[tuple[int, int, BBox]] = []
+        for start, end, box in self.line_boxes:
+            page = self.page_of(start)
+            if page is None or page in replaced:
+                continue
+            shift = starts[page - 1] - self.page_starts[page - 1]
+            boxes.append((start + shift, end + shift, box))
+        failed = [p for p in self.failed_pages if p not in replaced]
+        return CanonicalText(
+            pages=pages, text=text, page_starts=starts, line_boxes=boxes, failed_pages=failed
+        )
 
     def page_span(self, page: int) -> tuple[int, int]:
         start = self.page_starts[page - 1]

@@ -26,11 +26,16 @@ def response():
         "event_type": "construction",
         "material_change": "UNKNOWN",
         "power_relevance": "MEDIUM",
-        "temporary_power_hint": "UNKNOWN",
         "needs_deep_enrichment": "YES",
+        "driver": "ELECTRIC",
+        "novelty": "NEW",
+        "side": "DEMAND",
+        "lifecycle_phase": "permitted",
+        "new_large_load": "YES",
+        "document_route": "narrative",
     }
     return {
-        "model": "jev-latest",
+        "model": "jev-1.13.0",
         "answers": {
             key: {
                 "type": "choice",
@@ -49,7 +54,7 @@ def test_typesafe_choice_contract_accepts_strict_enums_and_reports_usage():
     assert judgment.relevant.value == "YES"
     assert judgment.same_project.value == "UNKNOWN"
     assert judgment.event_type.value == "construction"
-    assert (model, input_tokens, output_tokens) == ("jev-latest", 50, 12)
+    assert (model, input_tokens, output_tokens) == ("jev-1.13.0", 50, 12)
 
 
 @pytest.mark.parametrize(
@@ -390,3 +395,60 @@ def test_benchmark_missing_usage_stays_unknown_instead_of_becoming_zero():
         "output_tokens_unknown_cases": 0,
         "cost": "UNKNOWN",
     }
+
+
+def test_evaluation_skips_retired_temporary_power_hint_for_v2_rows_and_scores_demand_labels():
+    cases = [
+        {
+            "case_id": "v2",
+            "evidence_id": "e1",
+            "labels": {
+                "relevant": "YES",
+                "temporary_power_hint": "YES",
+                "driver": "ELECTRIC",
+                "novelty": "NEW",
+                "new_large_load": "YES",
+                "document_route": "table",
+            },
+        },
+        {
+            "case_id": "v1",
+            "evidence_id": "e2",
+            "labels": {"relevant": "YES", "temporary_power_hint": "YES"},
+        },
+    ]
+    rows = [
+        SimpleNamespace(
+            evidence_id="e1",
+            result={
+                "relevant": "YES",
+                # Stored as a default by the v2 schema, never asked: must not count as a miss.
+                "temporary_power_hint": "UNKNOWN",
+                "driver": "ELECTRIC",
+                "novelty": "EXISTING",
+                "new_large_load": "YES",
+                "document_route": "table",
+            },
+            status="valid",
+            started_at=1,
+            latency_ms=1,
+            input_tokens=1,
+            output_tokens=1,
+        ),
+        SimpleNamespace(
+            evidence_id="e2",
+            result={"relevant": "YES", "temporary_power_hint": "NO"},
+            status="valid",
+            started_at=2,
+            latency_ms=1,
+            input_tokens=1,
+            output_tokens=1,
+        ),
+    ]
+    agreement = score_fixture_results(cases, rows)["agreement"]
+    # Only the stored v1 row is scored on the retired question.
+    assert agreement["temporary_power_hint"] == {"matched": 0, "denominator": 1, "value": 0.0}
+    assert agreement["driver"] == {"matched": 1, "denominator": 1, "value": 1.0}
+    assert agreement["novelty"] == {"matched": 0, "denominator": 1, "value": 0.0}
+    assert agreement["new_large_load"]["value"] == 1.0
+    assert agreement["document_route"]["value"] == 1.0

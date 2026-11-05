@@ -29,8 +29,31 @@ from gridlens.persistence.models import (
 )
 from gridlens.settings import settings
 
+# The policy version is deliberately unchanged by the demand rewrite: bumping it would hide
+# every stored SHOW/HOLD decision from the readers that filter on it. Decisions written under
+# the earlier temporary-power questions remain valid; they carry commercial_relevance and
+# temporary_power_relevance in `dimensions`, which map_dimensions still understands.
 POLICY_VERSION = "signal-display-v2"
-MODEL = "jev-1.13.0"
+MODEL = "jev-1.13.0"  # default for settings.jev_model; the runtime pin is settings.jev_model
+QUESTION_SET = "demand-v1"
+DEMAND_DIMENSIONS = (
+    "physical_project_event",
+    "meaningful_new_activity",
+    "new_large_load",
+    "electric_driver",
+    "combustion_driver",
+    "supply_side",
+    "routine_maintenance",
+    "transient_event",
+)
+LEGACY_DIMENSIONS = (
+    "physical_project_event",
+    "meaningful_new_activity",
+    "commercial_relevance",
+    "temporary_power_relevance",
+    "routine_maintenance",
+    "transient_event",
+)
 
 
 class JevError(RuntimeError):
@@ -81,79 +104,134 @@ def failure_status(exc: Exception) -> str:
     return "provider_unavailable"
 
 
-def jev_request_payload(state: dict[str, str], *, model: str = MODEL) -> dict[str, Any]:
+def _signal_questions() -> dict[str, Any]:
     return {
-        "state": {
-            "title": state["title"][:300],
-            "abstract": state["abstract"][:1500],
-            "url": state["url"][:500],
-            "published_at": state["published_at"][:30],
-            "source_id": state["source_id"],
-            "source_family": state["source_family"],
-            "publisher": state["publisher"],
-            "event_date": state["event_date"],
-            "event_date_label": state["event_date_label"],
-            "project_name": state["project_name"],
-            "location": state["location"],
-            "asset_type": state["asset_type"],
-            "lifecycle_state": state["lifecycle_state"],
+        "physical_project_event": {
+            "type": "noul",
+            "instructions": (
+                "Does this describe a specific physical project or facility event, rather "
+                "than a general company announcement?"
+            ),
         },
-        "model": model,
-        "questions": {
-            "physical_project_event": {
-                "type": "noul",
-                "instructions": (
-                    "Does this describe a specific physical project or facility event, rather "
-                    "than a general company announcement?"
-                ),
-            },
-            "meaningful_new_activity": {
-                "type": "noul",
-                "instructions": (
-                    "Does this describe meaningful new construction, conversion, expansion, or "
-                    "commissioning activity rather than routine maintenance or replacement?"
-                ),
-            },
-            "commercial_relevance": {
-                "type": "noul",
-                "instructions": (
-                    "Could the specific described activity reasonably matter to a commercial "
-                    "temporary power provider?"
-                ),
-            },
-            "temporary_power_relevance": {
-                "type": "noul",
-                "instructions": (
-                    "Does the text explicitly support temporary, bridge, construction, "
-                    "commissioning, or generator power relevance?"
-                ),
-            },
-            "routine_maintenance": {
-                "type": "noul",
-                "instructions": (
-                    "Is this primarily routine repair, replacement, resurfacing, or maintenance "
-                    "of an existing facility or equipment?"
-                ),
-            },
-            "transient_event": {
-                "type": "noul",
-                "instructions": (
-                    "Is this a temporary public event, race, walk, festival, or similar activity "
-                    "rather than facility development?"
-                ),
-            },
+        "meaningful_new_activity": {
+            "type": "noul",
+            "instructions": (
+                "Does the passage describe new or added equipment, construction, conversion, "
+                "expansion, or commissioning, rather than existing equipment, routine "
+                "maintenance, or like-for-like replacement?"
+            ),
+        },
+        "new_large_load": {
+            "type": "noul",
+            "instructions": (
+                "Does the passage describe a new or expanded large electrical load (for "
+                "example a data center, industrial plant, or processing facility), or on-site "
+                "power equipment that adds electrical demand?"
+            ),
+        },
+        "electric_driver": {
+            "type": "noul",
+            "instructions": (
+                "In the quoted passage, is the described equipment or load electrically "
+                "driven or grid-connected? Answer from the text only; do not infer a quantity."
+            ),
+        },
+        "combustion_driver": {
+            "type": "noul",
+            "instructions": (
+                "In the quoted passage, is the described equipment combustion-driven (engine, "
+                "turbine, generator, or fired heater)? Answer from the text only; do not infer "
+                "a quantity."
+            ),
+        },
+        "supply_side": {
+            "type": "noul",
+            "instructions": (
+                "Does the passage describe power supply (generation, interconnection "
+                "capacity, or utility infrastructure that provides power) rather than "
+                "electrical demand?"
+            ),
+        },
+        "routine_maintenance": {
+            "type": "noul",
+            "instructions": (
+                "Is this primarily routine repair, replacement, resurfacing, or maintenance "
+                "of an existing facility or equipment?"
+            ),
+        },
+        "transient_event": {
+            "type": "noul",
+            "instructions": (
+                "Is this a temporary public event, race, walk, festival, or similar activity "
+                "rather than facility development?"
+            ),
         },
     }
+
+
+def jev_request_payload(state: dict[str, str], *, model: str | None = None) -> dict[str, Any]:
+    from gridlens.intelligence.jev_passages import (
+        PASSAGE_BOUNDS_WORST_CASE,
+        bound_passage,
+        escaped_len,
+        passage_budget_bytes,
+        request_bytes,
+    )
+
+    def assemble(abstract: str) -> dict[str, Any]:
+        return {
+            "state": {
+                "title": state["title"][:300],
+                "abstract": abstract,
+                "url": state["url"][:500],
+                "published_at": state["published_at"][:30],
+                "source_id": state["source_id"],
+                "source_family": state["source_family"],
+                "publisher": state["publisher"],
+                "event_date": state["event_date"],
+                "event_date_label": state["event_date_label"],
+                "project_name": state["project_name"],
+                "location": state["location"],
+                "asset_type": state["asset_type"],
+                "lifecycle_state": state["lifecycle_state"],
+            },
+            "model": model or settings.jev_model,
+            "questions": _signal_questions(),
+        }
+
+    hard_cap: int | None = None
+    from gridlens.intelligence import intelligence_jobs
+
+    if intelligence_jobs._estimated_signal_policy_selected():
+        # The narrow estimate policy refuses requests over its fixed size, so the passage is
+        # bounded to fit inside it.
+        hard_cap = intelligence_jobs.TYPESAFE_SIGNAL_REQUEST_MAX_BYTES
+    # Measure with the worst-case passage_bounds metadata present: it is added below whenever
+    # the passage is cut, and must be inside the budget rather than appended after it.
+    reserved = assemble("")
+    plain_budget = passage_budget_bytes(request_bytes(reserved), hard_cap_bytes=hard_cap)
+    if escaped_len(state["abstract"]) <= plain_budget:
+        budget = plain_budget  # fits whole: no cut, so no metadata is added
+    else:
+        reserved["state"]["passage_bounds"] = PASSAGE_BOUNDS_WORST_CASE
+        budget = passage_budget_bytes(request_bytes(reserved), hard_cap_bytes=hard_cap)
+    abstract, bounds = bound_passage(state["abstract"], budget)
+    payload = assemble(abstract)
+    if bounds["truncated"]:
+        # The model must be able to see that it was given a partial passage.
+        payload["state"]["passage_bounds"] = {"abstract": bounds}
+    return payload
 
 
 def _jev_call(
     state: dict[str, str],
     api_key: str,
     *,
-    model: str = MODEL,
+    model: str | None = None,
     on_request: Callable[[], None] | None = None,
     max_attempts: int = 3,
 ) -> dict[str, Any]:
+    model = model or settings.jev_model
     payload = jev_request_payload(state, model=model)
     if not api_key.strip():
         raise JevError("missing_credentials")
@@ -183,7 +261,14 @@ def _jev_call(
     raise JevError("provider_unavailable")
 
 
-def validated_dimensions(result: Any, *, expected_model: str = MODEL) -> dict[str, float]:
+def validated_dimensions(result: Any, *, expected_model: str | None = None) -> dict[str, float]:
+    """Validate a Jev response.
+
+    Demand-question answers are expected. A response carrying the retired temporary-power
+    question set (a call dispatched before the rewrite and completed after it, or a stored
+    receipt) is still accepted so no in-flight call is stranded.
+    """
+    expected_model = expected_model or settings.jev_model
     if not isinstance(result, dict):
         raise ValueError("invalid Jev response")
     if result.get("model") != expected_model:
@@ -191,15 +276,9 @@ def validated_dimensions(result: Any, *, expected_model: str = MODEL) -> dict[st
     answers = result["answers"]
     if not isinstance(answers, dict):
         raise ValueError("invalid Jev answers")
+    names = DEMAND_DIMENSIONS if "new_large_load" in answers else LEGACY_DIMENSIONS
     dimension_values: dict[str, float] = {}
-    for name in (
-        "physical_project_event",
-        "meaningful_new_activity",
-        "commercial_relevance",
-        "temporary_power_relevance",
-        "routine_maintenance",
-        "transient_event",
-    ):
+    for name in names:
         answer = answers[name]
         if not isinstance(answer, dict):
             raise ValueError("invalid Jev answer")
@@ -275,7 +354,7 @@ def adjudicate(
             decision = map_dimensions(
                 dimension_values, title=state["title"], abstract=state["abstract"]
             )
-            source, model, dims = "jev", str(result["model"]), dimension_values
+            source, model, dims = "jev", str(result["model"]), _with_question_set(dimension_values)
             reason = (
                 "GL3 display policy mapped retained factual Jev dimensions to a display decision."
             )
@@ -445,7 +524,7 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
         model_version = str(call.result["model"])
         source = "jev"
         reason = "GL3 display policy mapped retained factual Jev dimensions to a display decision."
-        dims: dict[str, Any] = dimensions
+        dims: dict[str, Any] = _with_question_set(dimensions)
     except Exception as exc:
         decision, source, model_version = "REVIEW", "jev_error", None
         status = failure_status(exc)
@@ -678,11 +757,42 @@ def _evidence_state(
     return fields
 
 
+def _with_question_set(dimensions: dict[str, float]) -> dict[str, Any]:
+    """Label which question set produced a stored decision (probabilities stay as scores)."""
+    label = QUESTION_SET if "new_large_load" in dimensions else "temporary-power-v2"
+    return {**dimensions, "question_set": label}
+
+
+def policy_dimensions(dimensions: dict[str, float]) -> dict[str, float]:
+    """Map either question set onto the demand dimensions the display policy reads."""
+    if "new_large_load" in dimensions:
+        return {
+            **dimensions,
+            "demand_driver": max(
+                dimensions.get("electric_driver", 0.0), dimensions.get("combustion_driver", 0.0)
+            ),
+            "supply_side": dimensions.get("supply_side", 0.0),
+        }
+    return {
+        **dimensions,
+        "new_large_load": dimensions["commercial_relevance"],
+        "demand_driver": dimensions["temporary_power_relevance"],
+        "supply_side": 0.0,
+    }
+
+
 def map_dimensions(dimensions: dict[str, float], *, title: str = "", abstract: str = "") -> str:
     """Apply GL3 policy to factual probabilities and retained source context."""
-    if dimensions["transient_event"] >= 0.8:
+    dimensions = policy_dimensions(dimensions)
+    # Fixed display-policy threshold, independent of live-mode settings; anything less
+    # decisive abstains to REVIEW.
+    confident = 0.8
+    if dimensions["transient_event"] >= confident:
         return "HOLD"
-    if dimensions["routine_maintenance"] >= 0.8 and dimensions["meaningful_new_activity"] <= 0.3:
+    if (
+        dimensions["routine_maintenance"] >= confident
+        and dimensions["meaningful_new_activity"] <= 0.3
+    ):
         return "HOLD"
     context = f"{title}\n{abstract}".casefold()
     activity_match = re.search(
@@ -732,15 +842,16 @@ def map_dimensions(dimensions: dict[str, float], *, title: str = "", abstract: s
     ):
         if (
             (
-                dimensions["commercial_relevance"] >= 0.7
+                dimensions["new_large_load"] >= 0.7
                 or (
                     power_relevant_sector
-                    and dimensions["commercial_relevance"] >= 0.3
+                    and dimensions["new_large_load"] >= 0.3
                     and explicit_development
                 )
             )
+            and not (dimensions["supply_side"] >= confident and dimensions["new_large_load"] < 0.7)
             and not (
-                dimensions["temporary_power_relevance"] < 0.5
+                dimensions["demand_driver"] < 0.5
                 and (
                     generic_building
                     or (
@@ -752,11 +863,11 @@ def map_dimensions(dimensions: dict[str, float], *, title: str = "", abstract: s
                 )
             )
             and not (
-                dimensions["commercial_relevance"] < 0.7
+                dimensions["new_large_load"] < 0.7
                 and additional_emergency_generators
                 and existing_standby_fleet
             )
-            and not (dimensions["commercial_relevance"] < 0.7 and unchanged_site_capacity)
+            and not (dimensions["new_large_load"] < 0.7 and unchanged_site_capacity)
         ):
             return "SHOW"
     return "REVIEW"

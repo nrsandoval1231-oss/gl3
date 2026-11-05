@@ -356,23 +356,54 @@ def merge_fields(*parts: dict[str, Any]) -> dict[str, Any]:
                         target.append(evidence)
                 continue
             current = merged.get(key)
+            if key == "customer_request_mw":
+                conflict = any(
+                    isinstance(item, dict) and item.get("reason") == "conflicting_statements"
+                    for item in (current, value)
+                )
+                current_value = (
+                    current.get("value")
+                    if isinstance(current, dict) and current.get("basis") != "unknown"
+                    else None
+                )
+                incoming_value = value.get("value") if value.get("basis") != "unknown" else None
+                conflict = conflict or (
+                    current_value is not None
+                    and incoming_value is not None
+                    and str(current_value) != str(incoming_value)
+                )
+                if conflict:
+                    candidates: list[dict[str, Any]] = []
+                    seen: set[str] = set()
+                    for item in (current, value):
+                        if not isinstance(item, dict):
+                            continue
+                        options = (
+                            item.get("candidates", [])
+                            if item.get("reason") == "conflicting_statements"
+                            else [item]
+                        )
+                        if not isinstance(options, list):
+                            continue
+                        for candidate in options:
+                            if not isinstance(candidate, dict) or candidate.get("value") is None:
+                                continue
+                            identity = str(candidate["value"])
+                            if identity not in seen and len(candidates) < 4:
+                                seen.add(identity)
+                                candidates.append(candidate)
+                    merged[key] = {
+                        "value": None,
+                        "basis": "unknown",
+                        "reason": "conflicting_statements",
+                        "candidates": candidates,
+                    }
+                    continue
             if current is None or (
                 current.get("basis") == "unknown"
                 and current.get("reason") != "conflicting_statements"
             ):
                 merged[key] = value
-            elif (
-                key == "customer_request_mw"
-                and current.get("basis") != "unknown"
-                and value.get("basis") != "unknown"
-                and str(value.get("value")) != str(current.get("value"))
-            ):
-                merged[key] = {
-                    "value": None,
-                    "basis": "unknown",
-                    "reason": "conflicting_statements",
-                    "candidates": [current, value],
-                }
     for key in ("cost", "customer_request_mw"):
         merged.setdefault(key, {"value": None, "basis": "unknown", "reason": "not_stated"})
     for key in ("counties", "voltage_kv", "substations", "stated_load_mw", "rpg_ids"):

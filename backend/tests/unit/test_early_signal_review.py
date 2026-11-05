@@ -49,12 +49,12 @@ def listing(origin, today=TODAY):
     return er.retrieve(definition, origin.client(), pacer=lambda: None, today=today)
 
 
-def stage(origin, records, *, prior=None, index=None, now=NOW):
+def stage(origin, records, *, prior=None, index=None, now=NOW, config=CONFIG):
     return er.run_stage(
         records,
         prior or {},
         client=origin.client(),
-        config=CONFIG,
+        config=config,
         index=index,
         pacer=lambda: None,
         now=lambda: now,
@@ -134,6 +134,35 @@ def test_a_304_with_no_stored_state_is_retried_once_unconditionally():
     assert calls["n"] == 2
     assert "failure_unexpected_not_modified" not in report.counts
     assert any(r.get("state_key") == STATUS_PDF and "early_signal" in r for r in records)
+
+
+def test_first_404_is_rechecked_after_the_absence_interval():
+    origin = ercot_origin()
+    origin.force = lambda url: Response(404) if url == STATUS_PDF else None
+    records = listing(origin)
+    generous = StageConfig(max_downloads=12, max_checks=30, extract_seconds=120.0, isolate=False)
+    first = stage(
+        origin,
+        records,
+        config=generous,
+    )
+    assert first.index["urls"][STATUS_PDF]["status"] == "absent"
+
+    prior = {r["state_key"]: r["early_signal"] for r in records if r.get("state_key")}
+    origin.force = lambda _url: None
+    records2 = listing(origin)
+    before = len(origin.urls())
+    recovered = stage(
+        origin,
+        records2,
+        prior=prior,
+        index=first.index,
+        now=NOW + timedelta(days=7),
+        config=generous,
+    )
+    assert any(url == STATUS_PDF for url in origin.urls()[before:])
+    assert any(r.get("state_key") == STATUS_PDF and "early_signal" in r for r in records2)
+    assert recovered.counts.get("absent", 0) == 0
 
 
 def test_conditional_headers_are_not_sent_without_a_state():

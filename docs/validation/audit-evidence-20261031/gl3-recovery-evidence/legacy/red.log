@@ -1,0 +1,85 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+______ test_default_entry_refuses_before_file_or_subprocess_access[None] _______
+backend/tests/unit/test_rehearse_release_legacy.py:37: in test_default_entry_refuses_before_file_or_subprocess_access
+    legacy.rehearsal(args)
+scripts/rehearse_release.py:730: in rehearsal
+    if args.dump.is_symlink() or args.test_env.is_symlink():
+       ^^^^^^^^^
+E   AttributeError: 'Namespace' object has no attribute 'dump'
+______ test_default_entry_refuses_before_file_or_subprocess_access[False] ______
+backend/tests/unit/test_rehearse_release_legacy.py:37: in test_default_entry_refuses_before_file_or_subprocess_access
+    legacy.rehearsal(args)
+scripts/rehearse_release.py:730: in rehearsal
+    if args.dump.is_symlink() or args.test_env.is_symlink():
+       ^^^^^^^^^
+E   AttributeError: 'Namespace' object has no attribute 'dump'
+______ test_default_entry_refuses_before_file_or_subprocess_access[true] _______
+backend/tests/unit/test_rehearse_release_legacy.py:37: in test_default_entry_refuses_before_file_or_subprocess_access
+    legacy.rehearsal(args)
+scripts/rehearse_release.py:730: in rehearsal
+    if args.dump.is_symlink() or args.test_env.is_symlink():
+       ^^^^^^^^^
+E   AttributeError: 'Namespace' object has no attribute 'dump'
+________ test_default_entry_refuses_before_file_or_subprocess_access[1] ________
+backend/tests/unit/test_rehearse_release_legacy.py:37: in test_default_entry_refuses_before_file_or_subprocess_access
+    legacy.rehearsal(args)
+scripts/rehearse_release.py:730: in rehearsal
+    if args.dump.is_symlink() or args.test_env.is_symlink():
+       ^^^^^^^^^
+E   AttributeError: 'Namespace' object has no attribute 'dump'
+______ test_cli_default_refuses_before_dispatch_and_reports_current_guide ______
+backend/tests/unit/test_rehearse_release_legacy.py:46: in test_cli_default_refuses_before_dispatch_and_reports_current_guide
+    assert legacy.main() == 2
+           ^^^^^^^^^^^^^
+scripts/rehearse_release.py:1054: in main
+    result = rehearsal(args)
+             ^^^^^^^^^^^^^^^
+backend/tests/unit/test_rehearse_release_legacy.py:42: in forbidden
+    pytest.fail("unacknowledged CLI must not dispatch rehearsal")
+E   Failed: unacknowledged CLI must not dispatch rehearsal
+_____ test_explicit_historical_flag_parses_without_weakening_schema_guards _____
+backend/tests/unit/test_rehearse_release_legacy.py:51: in test_explicit_historical_flag_parses_without_weakening_schema_guards
+    args = legacy.parser().parse_args([*cli_args(), "--historical-0041-only"])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../.python/cpython-3.11.16-linux-x86_64-gnu/lib/python3.11/argparse.py:1877: in parse_args
+    self.error(msg % ' '.join(argv))
+../.python/cpython-3.11.16-linux-x86_64-gnu/lib/python3.11/argparse.py:2640: in error
+    self.exit(2, _('%(prog)s: error: %(message)s\n') % args)
+../.python/cpython-3.11.16-linux-x86_64-gnu/lib/python3.11/argparse.py:2627: in exit
+    _sys.exit(status)
+E   SystemExit: 2
+----------------------------- Captured stderr call -----------------------------
+usage: __main__.py [-h] --dump DUMP --dump-sha256 DUMP_SHA256 --api-image
+                   API_IMAGE --web-image WEB_IMAGE --revision REVISION
+                   --prior-api-image PRIOR_API_IMAGE --prior-web-image
+                   PRIOR_WEB_IMAGE --test-env TEST_ENV --output OUTPUT
+                   [--pg-image PG_IMAGE]
+__main__.py: error: unrecognized arguments: --historical-0041-only
+_____ test_explicit_acknowledgement_still_enters_original_input_validation _____
+backend/tests/unit/test_rehearse_release_legacy.py:59: in test_explicit_acknowledgement_still_enters_original_input_validation
+    args = legacy.parser().parse_args([*cli_args(), "--historical-0041-only"])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../.python/cpython-3.11.16-linux-x86_64-gnu/lib/python3.11/argparse.py:1877: in parse_args
+    self.error(msg % ' '.join(argv))
+../.python/cpython-3.11.16-linux-x86_64-gnu/lib/python3.11/argparse.py:2640: in error
+    self.exit(2, _('%(prog)s: error: %(message)s\n') % args)
+../.python/cpython-3.11.16-linux-x86_64-gnu/lib/python3.11/argparse.py:2627: in exit
+    _sys.exit(status)
+E   SystemExit: 2
+----------------------------- Captured stderr call -----------------------------
+usage: __main__.py [-h] --dump DUMP --dump-sha256 DUMP_SHA256 --api-image
+                   API_IMAGE --web-image WEB_IMAGE --revision REVISION
+                   --prior-api-image PRIOR_API_IMAGE --prior-web-image
+                   PRIOR_WEB_IMAGE --test-env TEST_ENV --output OUTPUT
+                   [--pg-image PG_IMAGE]
+__main__.py: error: unrecognized arguments: --historical-0041-only
+=========================== short test summary info ============================
+FAILED backend/tests/unit/test_rehearse_release_legacy.py::test_default_entry_refuses_before_file_or_subprocess_access[None]
+FAILED backend/tests/unit/test_rehearse_release_legacy.py::test_default_entry_refuses_before_file_or_subprocess_access[False]
+FAILED backend/tests/unit/test_rehearse_release_legacy.py::test_default_entry_refuses_before_file_or_subprocess_access[true]
+FAILED backend/tests/unit/test_rehearse_release_legacy.py::test_default_entry_refuses_before_file_or_subprocess_access[1]
+FAILED backend/tests/unit/test_rehearse_release_legacy.py::test_cli_default_refuses_before_dispatch_and_reports_current_guide
+FAILED backend/tests/unit/test_rehearse_release_legacy.py::test_explicit_historical_flag_parses_without_weakening_schema_guards
+FAILED backend/tests/unit/test_rehearse_release_legacy.py::test_explicit_acknowledgement_still_enters_original_input_validation
+7 failed in 0.22s

@@ -21,7 +21,7 @@ from gridlens.domain.equipment_demand import (
     RatingBasis,
     RatingUnit,
 )
-from gridlens.ingestion.parsers.permit_docs.models import ExtractedRow
+from gridlens.ingestion.parsers.permit_docs.models import TEXT_LAYER, ExtractedRow
 from gridlens.ingestion.parsers.permit_docs.text_layer import CanonicalText
 from gridlens.ingestion.parsers.permit_docs.verifier import VERIFIER
 
@@ -47,6 +47,8 @@ class ScheduleBuild:
     provenance: dict[int, dict[str, Any]] = field(default_factory=dict)
     demand_rows: list[ExtractedRow] = field(default_factory=list)
     supply_rows: list[ExtractedRow] = field(default_factory=list)
+    # Demand-shaped rows read from OCR text: retained with provenance, not fed to demand.
+    ocr_retained_rows: list[ExtractedRow] = field(default_factory=list)
     issues: list[str] = field(default_factory=list)
 
 
@@ -109,6 +111,12 @@ def _row_provenance(row: ExtractedRow, canon: CanonicalText, document_hash: str)
         "document_hash": document_hash,
         "verifier": VERIFIER,
         "origin": row.origin,
+        # "text_layer" or "ocr:<provider>:<model>"; OCR text is lower trust (OCR_UNVERIFIED).
+        "text_source": row.text_source,
+        "text_trust": "text_layer" if row.text_source == TEXT_LAYER else "ocr_lower_trust",
+        # "deterministic-rules" or "llm:<provider>:<model>" (a quote-verified proposal).
+        "method": row.proposed_by or "deterministic-rules",
+        "in_service_date": row.in_service_date or None,
         "stitched": row.stitched,
         "linked_to": list(row.linked_to),
         "fields": {
@@ -133,6 +141,7 @@ def build_schedule(
     company: str | None,
     facility: str | None,
     as_of: str | None,
+    allow_ocr_demand: bool = False,
 ) -> ScheduleBuild:
     build = ScheduleBuild()
     lines: list[str] = []
@@ -154,6 +163,13 @@ def build_schedule(
     for row in verified:
         if not is_demand_candidate(row):
             build.supply_rows.append(row)
+            continue
+        if row.text_source != TEXT_LAYER and not allow_ocr_demand:
+            # OCR text is OCR_UNVERIFIED: the row is retained with provenance, not fed to demand.
+            build.issues.append(
+                f"Row {row.equipment_id} was read from {row.text_source}; retained, not demand."
+            )
+            build.ocr_retained_rows.append(row)
             continue
         if len(build.demand_rows) >= MAX_SCHEDULE_CLAIMS:
             build.issues.append("Schedule claim bound reached; remaining demand rows omitted.")

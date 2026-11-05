@@ -1058,6 +1058,229 @@
         "max_records": 200,
         "site_terms": ["data center", "datacenter"]
       }
+    },
+    {
+      "id": "faa-oeaaa-obstruction",
+      "publisher": "Federal Aviation Administration Obstruction Evaluation / Airport Airspace Analysis",
+      "endpoint": "https://oeaaa.faa.gov/oeaaa/services/caseList/date/OE",
+      "family": "structured-government",
+      "geography": "United States",
+      "industries": [
+        "data centers",
+        "construction"
+      ],
+      "retrieval_method": "faa-oeaaa-cases",
+      "cadence_hours": 24,
+      "publication_cadence": "Cases appear on their FAA determination day; one request per day in the window.",
+      "collection_scope": "OE cases determined in the last window_days days whose stated coordinate lies within radius_m metres of an owner-listed campus. With no campuses listed nothing is requested.",
+      "coverage_limitation": "A candidate is proximity only: the filing does not say the sponsor operates the campus or that the structure serves it, and it states no demand. A day at the 8,000-row cap fails the run. The campus list is owner-curated and ships empty.",
+      "retention": "Matched case fields (ASN, type, height, sponsor, dates, status, coordinate) and the campus distances",
+      "query": {
+        "window_days": 3,
+        "max_response_bytes": 12000000,
+        "radius_m": 2000,
+        "campuses": []
+      },
+      "credential_reference": null,
+      "enabled": false
+    },
+    {
+      "id": "msha-mines",
+      "publisher": "U.S. Department of Labor Mine Safety and Health Administration",
+      "endpoint": "https://arlweb.msha.gov/OpenGovernmentData/DataSets/Mines.zip",
+      "family": "structured-government",
+      "geography": "Texas, Oklahoma and New Mexico",
+      "industries": [
+        "mining",
+        "construction"
+      ],
+      "retrieval_method": "msha-mines-zip",
+      "cadence_hours": 168,
+      "publication_cadence": "MSHA states its files update every Friday afternoon; this source downloads once a week.",
+      "collection_scope": "Mines in TX, OK and NM whose current status is Active, New Mine, Intermittent, Temporarily Idled or NonProducing, from the weekly Mines.txt.",
+      "coverage_limitation": "A mine register: status, operator, commodity, shifts and coordinate. It states no equipment or electrical demand. New and changed mines appear through record-hash change detection; abandoned mines are out of scope.",
+      "retention": "Reviewed Mines.txt fields for in-scope mines; the archive itself is not retained",
+      "query": {
+        "max_zip_bytes": 15000000,
+        "max_uncompressed_bytes": 60000000,
+        "max_records": 3000,
+        "states": [
+          "TX",
+          "OK",
+          "NM"
+        ],
+        "statuses": [
+          "Active",
+          "New Mine",
+          "Intermittent",
+          "Temporarily Idled",
+          "NonProducing"
+        ]
+      },
+      "credential_reference": null,
+      "enabled": false
+    },
+    {
+      "id": "texas-tceq-aggregate-production",
+      "publisher": "Texas Commission on Environmental Quality",
+      "endpoint": "https://data.texas.gov/resource/9ixa-7k3m.json",
+      "family": "structured-government",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": [
+        "mining",
+        "construction"
+      ],
+      "retrieval_method": "tceq-aggregate-socrata",
+      "cadence_hours": 24,
+      "publication_cadence": "Socrata dataset 9ixa-7k3m, updated by TCEQ (rows updated 2026-11-04 when checked).",
+      "collection_scope": "Every aggregate production operation registration in the dataset, read in count-checked pages ordered by registration number.",
+      "coverage_limitation": "Registrations only (1,068 on 2026-11-04): site, operator, material, area and last application. No equipment or power source is stated. The sibling dataset 9kvs-ig69 is stale and not used.",
+      "retention": "Reviewed registration fields",
+      "query": {
+        "max_response_bytes": 2000000,
+        "max_pages": 4,
+        "max_records": 2000
+      },
+      "credential_reference": null,
+      "enabled": false
+    },
+    {
+      "id": "afdc-ev-stations",
+      "publisher": "National Laboratory of the Rockies Alternative Fuels Data Center",
+      "endpoint": "https://developer.nlr.gov/api/alt-fuel-stations/v1.json",
+      "family": "structured-government",
+      "geography": "Texas, Oklahoma and New Mexico",
+      "industries": [
+        "electric vehicle charging",
+        "energy"
+      ],
+      "retrieval_method": "afdc-ev-stations",
+      "cadence_hours": 24,
+      "publication_cadence": "AFDC states ongoing updates; the daily snapshot is compared by record hash.",
+      "collection_scope": "Electric charging stations (open, planned, temporarily unavailable) in TX, OK and NM.",
+      "coverage_limitation": "Needs the AFDC_API_KEY setting (the API answers 403 API_KEY_MISSING without one); the response shape could not be checked live without a key. Port counts are not kilowatts and no site demand is stated. The old developer.nrel.gov host no longer resolves.",
+      "retention": "Reviewed station fields",
+      "query": {
+        "max_response_bytes": 2000000,
+        "max_pages": 30,
+        "max_records": 6000,
+        "states": [
+          "TX",
+          "OK",
+          "NM"
+        ],
+        "statuses": [
+          "E",
+          "P",
+          "T"
+        ]
+      },
+      "credential_reference": null,
+      "enabled": false
+    },
+    {
+      "id": "texas-txdot-nevi-awards",
+      "publisher": "Texas Department of Transportation",
+      "endpoint": "https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/Texas_NEVI_Program/FeatureServer/0/query",
+      "family": "structured-government",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": [
+        "electric vehicle charging",
+        "energy"
+      ],
+      "retrieval_method": "txdot-nevi-awards",
+      "cadence_hours": 24,
+      "publication_cadence": "The feature layer behind TxDOT's NEVI Program Results page; last edited 2026-10-20 when checked.",
+      "collection_scope": "All sites in the Texas NEVI Program layer (474 on 2026-11-04), keyed by CSJ and coordinate.",
+      "coverage_limitation": "Texas only; no site-level Oklahoma award list exists in a machine-readable form. Calculated nameplate is ports times the stated maximum per-port kW, a rating and not site demand. NEVI_ID is blank on 168 rows.",
+      "retention": "Reviewed program fields",
+      "query": {
+        "max_response_bytes": 2000000,
+        "max_pages": 4,
+        "max_records": 1500
+      },
+      "credential_reference": null,
+      "enabled": false
+    },
+    {
+      "id": "sec-edgar-site-mw",
+      "publisher": "U.S. Securities and Exchange Commission EDGAR",
+      "endpoint": "https://data.sec.gov/submissions/",
+      "family": "company-filings",
+      "geography": "United States",
+      "industries": [
+        "data centers",
+        "mining"
+      ],
+      "retrieval_method": "sec-edgar-site-mw",
+      "cadence_hours": 24,
+      "publication_cadence": "Per filing; the newest 10-K or 10-Q of each listed registrant.",
+      "collection_scope": "Single sentences in the newest 10-K or 10-Q of owner-listed registrants that state a MW or GW figure and name a site; the verbatim quote and its span are kept.",
+      "coverage_limitation": "Runs only when the SEC_EDGAR_CONTACT setting is set (SEC fair access asks for a contact in the user agent). Sentences without a named site, tables and totals across sites yield nothing. The quote is not classified as capacity, load or target. The CIK list ships empty.",
+      "retention": "Verbatim sentence, accession number, character span and stated figures",
+      "query": {
+        "ciks": [],
+        "forms": [
+          "10-K",
+          "10-Q"
+        ],
+        "max_filings_per_cik": 1,
+        "max_submission_bytes": 2000000,
+        "max_document_bytes": 12000000,
+        "max_statements": 100
+      },
+      "credential_reference": null,
+      "enabled": false
+    },
+    {
+      "id": "texas-ercot-monthly-overview",
+      "publisher": "Electric Reliability Council of Texas",
+      "endpoint": "https://www.ercot.com/committees/board/index.html",
+      "family": "structured-government",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": [
+        "data centers",
+        "energy"
+      ],
+      "retrieval_method": "ercot-monthly-overview",
+      "cadence_hours": 168,
+      "publication_cadence": "One Monthly Operational Overview PDF per month, linked from the ERCOT Board of Directors page.",
+      "collection_scope": "The newest linked overviews; the approved-to-energize and observed non-simultaneous peak MW sentence.",
+      "coverage_limitation": "ERCOT-wide aggregates from a PDF sentence (there is no CSV or API). Never a site, customer or project; no location is emitted. A missing sentence is unknown.",
+      "retention": "Stated aggregates, the quote and the PDF link",
+      "query": {
+        "max_response_bytes": 2000000,
+        "max_reports": 2,
+        "max_pdf_bytes": 6000000
+      },
+      "credential_reference": null,
+      "enabled": false
+    },
+    {
+      "id": "regulatory-event-feed",
+      "publisher": "Office of the Texas Governor and Texas Commission on Environmental Quality",
+      "endpoint": "https://gov.texas.gov/news/",
+      "family": "structured-government",
+      "geography": "Texas",
+      "state": "TX",
+      "industries": [
+        "data centers",
+        "energy"
+      ],
+      "retrieval_method": "regulatory-event-feed",
+      "cadence_hours": 24,
+      "publication_cadence": "Reviewed file config/regulatory/events.v1.json; no request is made.",
+      "collection_scope": "Dated regulatory events with source URL, verbatim quote, scope and a fixed effect (the Texas data-center permit pause, the audit order and the TWDB directive).",
+      "coverage_limitation": "Only events added by hand after reading the official page. A status label applies only to a pending filing that itself states it is a data-center project; nothing is inferred beyond the quote and no end date is assumed.",
+      "retention": "Event id, date, issuer, URL, quote, scope and effect",
+      "query": {
+        "max_events": 100
+      },
+      "credential_reference": null,
+      "enabled": false
     }
   ]
 }

@@ -217,6 +217,7 @@ def _segments(page_text: str) -> list[str]:
 class _Project:
     def __init__(self, project_id: str) -> None:
         self.project_id = project_id
+        self.project_id_evidence: list[dict[str, Any]] = []
         self.values: dict[str, list[dict[str, Any]]] = {name: [] for name in _SCALAR_FIELDS}
         self.counties: list[dict[str, Any]] = []
         self.substations: list[dict[str, Any]] = []
@@ -224,6 +225,13 @@ class _Project:
 
     def add_scalar(self, name: str, evidence: dict[str, Any]) -> None:
         self.values[name].append(evidence)
+
+    def add_project_id_evidence(self, evidence: dict[str, Any]) -> None:
+        if len(self.project_id_evidence) < MAX_LIST and all(
+            (item.get("page"), item.get("quote")) != (evidence.get("page"), evidence.get("quote"))
+            for item in self.project_id_evidence
+        ):
+            self.project_id_evidence.append(evidence)
 
     def add_list(self, target: list[dict[str, Any]], evidence: dict[str, Any]) -> None:
         if len(target) < MAX_LIST and all(
@@ -260,7 +268,12 @@ class _Project:
             "basis": "unknown",
             "reason": "not_stated",
         }
-        return {"project_id": self.project_id, "pages": sorted(self.pages), "fields": fields}
+        return {
+            "project_id": self.project_id,
+            "project_id_evidence": self.project_id_evidence,
+            "pages": sorted(self.pages),
+            "fields": fields,
+        }
 
 
 def _counties_from(text: str) -> list[str]:
@@ -327,6 +340,13 @@ def extract_projects(pages: list[str]) -> tuple[list[dict[str, Any]], dict[str, 
                 projects[current] = _Project(current)
             project = projects[current]
             project.pages.add(number)
+            if len(ids) == 1 and next(iter(ids)) == current:
+                id_match = PROJECT_ID.search(segment)
+                if id_match is not None:
+                    quote = _quote_around(segment, id_match.start(), id_match.end())
+                    evidence = _evidence(current, "documented", number, quote, page_norm)
+                    if evidence is not None:
+                        project.add_project_id_evidence(evidence)
             _collect(project, segment, number, page_norm)
     return [projects[key].render() for key in sorted(projects)], loose.render_places()
 

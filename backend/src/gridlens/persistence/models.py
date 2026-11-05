@@ -21,6 +21,7 @@ from sqlalchemy import (
     text,
     true,
 )
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -319,6 +320,14 @@ class Project(Base):
     region_provenance: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb")
     )
+
+
+@event.listens_for(Observation, "before_update")
+def _first_seen_is_immutable(_mapper, _connection, observation: Observation) -> None:
+    """``first_seen_at`` is the retained first-signal time: it is set once, never rewritten."""
+    history = sa_inspect(observation).attrs.first_seen_at.history
+    if history.has_changes() and history.deleted:
+        raise ValueError("Observation.first_seen_at is immutable once recorded")
 
 
 @event.listens_for(Project, "before_insert")
