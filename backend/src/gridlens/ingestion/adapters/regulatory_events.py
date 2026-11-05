@@ -124,7 +124,7 @@ def status_for(
         and e["scope"]["state"] == filing.get("state")
         and e["scope"]["agency"] == filing.get("agency")
         and e["scope"]["instrument"] == filing.get("instrument")
-        and e["effect"] in ("pause_directed", "pause_screening", "lift_pause", "audit_required")
+        and e["effect"] in ("pause_screening", "lift_pause", "audit_required")
     ]
     if not relevant:
         return None
