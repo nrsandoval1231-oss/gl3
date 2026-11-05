@@ -1,0 +1,25 @@
+# Independent audit-evidence publication review — 2026-10-31
+
+**Disposition: no material publication blocker found in reviewed bytes.** Documentation-only GitHub publication is consistent with the stated user request; this review does not authorize merge, deployment, production writes or changes outside the proposed archive.
+
+Reviewed checkout: `/workspace/gl3-audit-evidence-publish`, proposed `docs/README.md` link and `docs/validation/audit-evidence-20261031/`. Archive contains **88 copied evidence files plus README and MANIFEST (90 files)**. Review bound to MANIFEST SHA256 `2e5c60468572772cf30e2577ef92ef6f264051b66d16fa36ad90d5ea3f40bc5a` and archive path/content digest `11b254e394e5da1870cfe50c3d459a5691b7879e64e64f9348f9584cf6a9a29f` (sorted relative path, NUL, file bytes, NUL). Any content change needs corresponding manifest/review reconsideration.
+
+## Credential, privacy and content checks
+
+Scanned every proposed archived file, including selected logs/JSON, for private-key blocks, GitHub/OpenAI token shapes, bearer literals, URL credentials, email/phone forms and credential assignments. No active-looking credentials, email addresses or phone numbers found. No binary/NUL files, authentication profile/storage-state exports, raw response-body fields or private dumps identified. A single URL credential match is the explicit `[REDACTED-TEST-PASSWORD]` in `phase1-evidence/dallas-reproduction.md:7`. Remaining session-secret/hash assignments are plainly documented dummy offline fixture settings in `initial-audit/audit-ingestion.md:13` and `gl3-remaining-audit-20261031/ingestion/REPORT.md:51`; these do not expose production credentials. Performance JSON password metric values are null, and `body_file` values name excluded local files rather than containing response bodies. Original cloud paths, public business/project names, Git commit/image identifiers and source paths are audit provenance, not private session contents.
+
+This is a content/pattern review, not a guarantee that arbitrary strings cannot ever be sensitive. No credential discovery or secret-file access was performed. Root's earlier screening is supplemented, not silently substituted for an independent check.
+
+## Provenance and links
+
+Independently recomputed all 88 published hashes and byte counts and checked original hashes wherever original cloud files exist: **zero mismatches or missing manifest files**. Four published files differ from their originals, consistent with disclosed portable-link adaptation, test-password redaction and removal of transport certificates/socket endpoints. Transport JSON retains no certs/local_ip/remote_ip/local_port/remote_port fields. Every Markdown local link in the archive resolves: zero missing targets. Plain-text local paths and filenames remain historical references, and README explicitly says excluded local artifacts are not promised in a clean checkout. No complete environment copy or complete raw browser evidence is claimed.
+
+## Chronology, supersession and claim limits
+
+Archive README distinguishes original main593cfd5 audit, remaining main00026c75 audit, PR160 repairs and PR161 recovery repairs merged as e0035d9e. It links the current maintained recovery procedure instead of making the dated old rollback instructions active. Original audit findings/old draft-CI-pending report are retained with later superseding post-merge report clearly indexed. The dates and candidate scopes prevent old zero-advisory audit results from being read as current npm status: later local reports expressly preserve three moderate development-tool advisories despite passing the high-severity gate.
+
+Sampled and cross-checked the indexed original audit, scoped security/ingestion reports, recovery report, local PR160/161 workloads and post-merge report. The original480.095second timeout is preserved as failed/unexplained; later passing local/hosted checks do not purport to diagnose or erase it. Ubuntu provisioning dry-run failure/platform difference and skipped-test uncertainty remain explicit. Authenticated live workflows/speed, deployed backend/schema/policy, actual protected-host companion and prior-image/current-data recovery remain unverified production-dependent gates. RRC catch-up/window limitations remain follow-on work; no missing production filing is asserted as fact. Deployment hold and prohibition of paid/ingestion/credential actions are explicit. No invented full-live-QA, production readiness or unconditional all-green claim found.
+
+## Actions and limits
+
+Review was read-only in the checkout. Only review artifacts outside it were written: this file, `/workspace/publication-scan-summary.json` and `/workspace/publication-link-review.json`. No source edits, tests/full suites, CI dispatch, GitHub writes, publication, production calls, administrative commands or credentials used. No denied, pending or uncertain mutation occurred. Root retains publication execution and exact final-diff verification responsibility; this review is not a fresh rerun or independent verification of hosted CI through external APIs.
