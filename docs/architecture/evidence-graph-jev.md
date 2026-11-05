@@ -171,7 +171,7 @@ Do not use Jev or a generative LLM where deterministic code can produce the corr
 
 ### Level 1 — Jev
 
-Jev is the fast, bounded judgment layer for ambiguity. It is not the ingestion engine and does not autonomously mutate canonical truth.
+Jev is the fast, bounded judgment layer for ambiguity. It is not the ingestion engine and does not autonomously mutate canonical truth. Since the owner's November 3, 2026 decision it may also act live as a bounded label authority (routing, event, lifecycle, materiality, triage; matching only with a deterministic corroborating key), and never creates or changes a value. The [canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md#typesafe-jev-decision-authority) and [live Jev mode](../engineering/jev-live-mode-20261103.md) govern; the shadow-only statements below describe the original GL3-028 slice.
 
 Good Jev tasks:
 1. evidence relevance

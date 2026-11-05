@@ -145,3 +145,47 @@ The Oklahoma DEQ permit-document stage ([workstream 1c](../engineering/okdeq-per
 - Memory: a file up to 40 MB is read into memory once for the extraction child; POSIX children are address-space capped, a Windows host is not.
 - Evidence effect: a verified schedule reaches the domain only for rows the existing OK DEQ admission accepts, which needs a stated event date (a public-comment window start). Other rows keep the document as evidence and provenance only.
 - Roll back by setting `enabled` to `false`: the next run builds listing-only evidence, so current evidence goes back to listing-only. Older evidence versions stay in the database; the key index in source health is kept but unused.
+
+## Workstream 2a live Jev environment proposal
+
+**Prepared:** 2026-11-04 · **Status:** proposal only, for the owner's protected release. Code ships with everything below **off**; nothing is applied, and no provider was called. Design and behavior: [live Jev mode](../engineering/jev-live-mode-20261103.md). This supersedes findings 3 and 4 above once the workstream 2a code is released: live mode now exists and the Jev questions are demand questions.
+
+Prerequisite: the Stage A fields (Jev enabled, pinned model, pricing and billing proof). Live mode needs the same `input_only` / `systemone-v1` / `typesafe-total-input-ceiling-v1` proof, a billing reference, and a verified total-input ceiling, so it stays blocked until the owner supplies them.
+
+```env
+# Live Jev, off by default in code. Add to Stage A to enable.
+JEV_ENABLED=true
+JEV_LIVE_MODE=true
+JEV_MODEL=jev-1.13.0
+INTELLIGENCE_TYPESAFE_MODEL=jev-1.13.0        # must equal JEV_MODEL when JEV_LIVE_MODE=true
+INTELLIGENCE_ENABLED_CONTRACTS=EVIDENCE_SHADOW,SIGNAL_ADJUDICATION
+
+# Per-contract authority. Enable in this order, one release or one week at a time.
+JEV_LIVE_ROUTING=true        # acts alone: page/document route
+JEV_LIVE_TRIAGE=true         # acts alone: new large load / relevance of filings
+JEV_LIVE_LABELS=true         # acts alone: event type, lifecycle, driver, new vs existing, demand vs supply
+JEV_LIVE_MATERIALITY=true    # acts alone: material change
+JEV_LIVE_MATCHING=false      # acts only with probability >= match threshold AND a deterministic key; enable last
+
+# Thresholds (code defaults shown; conservative)
+JEV_ABSTAIN_PROBABILITY=0.80   # below this the effective answer is UNKNOWN
+JEV_MATCH_PROBABILITY=0.95     # matching only; must be >= JEV_ABSTAIN_PROBABILITY
+JEV_PASSAGE_MAX_BYTES=24000    # full-passage budget; replaces the old 1,200/1,500 character cuts
+
+# Input ceiling and per-call cap. The ceiling must exceed passage budget + request overhead + 2,048 reserve.
+INTELLIGENCE_TYPESAFE_MAX_TOTAL_BILLABLE_INPUT_TOKENS=40000   # owner: confirm with TypeSafe
+INTELLIGENCE_MAX_CALL_USD=0.01      # 40,000 tokens x $0.042 per million = $0.00168 reserved per call
+JEV_SHADOW_DAILY_LIMIT=20           # raise only after watching a week of decisions and spend
+```
+
+Notes for the owner:
+
+- **Every flag above defaults off in code** (`JEV_LIVE_MODE=false` and all five authorities `false`). Settings fail validation at start-up if an authority is on without live mode, live mode is on without `JEV_ENABLED`, the model is not a pinned `jev-N.N.N`, `INTELLIGENCE_TYPESAFE_MODEL` differs from `JEV_MODEL`, or the match probability is below the abstain probability. A bad value stops the process rather than running unpinned.
+- `EVIDENCE_SHADOW` must be in `INTELLIGENCE_ENABLED_CONTRACTS`; the live label record is produced by the same ledger-guarded call as the shadow comparison, so caps, billing proof and the input ceiling apply unchanged. A call refused by a cap or billing policy leaves a visible failed attempt (`failure_reason`) and no decision.
+- Rolling back: set `JEV_LIVE_MODE=false`. Live label records already stored stay as history; `accepted_labels` returns nothing once live mode or the label's authority is off, and nothing in this release consumes them yet.
+- The first week should watch: attempts per day, share `abstained` by reason (`BELOW_ABSTAIN_PROBABILITY`, `MODEL_ANSWERED_UNKNOWN`, `NO_DETERMINISTIC_KEY_AGREES`), `failure_reason` counts, truncated passages (`passage_bounds.truncated`), and actual TypeSafe spend against the $100 combined cap.
+- **Live matching is inert** until `Project.identity_facts` carries `permit_number`, `substation`, `county` or coordinates: it needs a non-county deterministic key, and today's identity-fact writers do not store one. Enabling `JEV_LIVE_MATCHING` before that changes nothing (it abstains `NO_DETERMINISTIC_KEY_AGREES`); it does no harm.
+- **Behavior change needing owner sign-off.** The signal display policy now sends pure supply-side passages (`supply_side` at least 0.8 and weak new-large-load score) to REVIEW instead of SHOW. This applies as soon as the code is released, independent of any flag. Tell me to drop it if you want the old behavior.
+- **Ceiling floor.** In live mode startup rejects an input ceiling below 15,048 (request-overhead floor 12,000 + wrapper reserve 2,048 + minimum passage 1,000); 40,000 is comfortable. Probability ordering (match at least abstain) is only validated when live mode is on.
+- Rolling back live mode withdraws stored decisions immediately because consumers read them through `accepted_labels`, which checks the current flags and the current `JEV_MODEL`.
+- Not covered here (PR 2b): LLM and OCR flags, equipment-proposer contract, per-provider cap semantics.

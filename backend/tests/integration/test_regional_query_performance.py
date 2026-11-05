@@ -40,6 +40,7 @@ def test_streamed_evidence_preflight_aggregates_both_scopes_in_one_query():
 
     assert len(session.statements) == 1
     sql = str(session.statements[0].compile(dialect=postgresql.dialect()))
+    assert "WITH evidence_scopes AS MATERIALIZED" in sql
     assert "GROUP BY" in sql
     assert "UNION ALL" in sql
 
