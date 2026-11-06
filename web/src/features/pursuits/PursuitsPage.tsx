@@ -52,8 +52,8 @@ export function PursuitsPage() {
     const controller = new AbortController()
     setError(''); setMore('idle')
     client.commercialPursuits({ needsAttention: source === 'attention', activeOnly: source === 'active', limit: PAGE_SIZE }, controller.signal)
-      .then(list => { if (!controller.signal.aborted && !endedRef.current) setLists(current => ({ ...current, [source]: list })) })
-      .catch(cause => { if (!controller.signal.aborted && !endedRef.current) setError(cause instanceof Error && cause.message ? cause.message : 'Pursuits are unavailable.') })
+      .then(list => { if (!controller.signal.aborted) setLists(current => ({ ...current, [source]: list })) })
+      .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error && cause.message ? cause.message : 'Pursuits are unavailable.') })
     return () => controller.abort()
   }, [source, reload, ended])
 
