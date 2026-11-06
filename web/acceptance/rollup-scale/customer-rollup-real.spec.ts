@@ -147,7 +147,7 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
     expect(amazon.identity_count).toBe(3)
     await page.setViewportSize({ width: viewport.width, height: viewport.height })
     const forbiddenRequests = await observeRealHttp(page, viewport.label)
-    await page.goto('/?view=opportunities')
+    await page.goto('/?view=opportunities&groupBrowse=1')
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible({ timeout: uiBudgetMs })
     await page.getByLabel('Password', { exact: true }).fill(password)
     const coldResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/opportunities/groups', { timeout: httpBudgetMs })

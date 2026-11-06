@@ -10,6 +10,7 @@ On 2026-11-06 the owner explicitly directed an owner-managed Pursuits workspace 
 
 - Primary navigation is exactly **Opportunities | Companies | Pursuits | Reports**. Intelligence and Power Supply items are removed; Developers is renamed Companies; intelligence remains embedded. Companies and Reports deep-link with `?panel=companies|reports` and support back/forward.
 - Opportunity rows are compact cards (tier badge, power need/gap, timing, primary contact, priority) with table semantics preserved through ARIA. No confidence value is shown because the payload has none; unknown is not zero.
+- **Default browse (owner decision 2026-11-06):** the flat project cards (`CanonicalOpportunityResults`, KPI row, restyled detail) are the default Opportunities browse, including `/`, `?view=workspace` and Companies/Pursuits opportunity links. The released operator/customer group browse (`ProjectResults` + `WorkspaceDetail`) stays available and unchanged at `?groupBrowse=1` (linked from the Companies panel); `?projectBrowse=1` remains an alias for the flat browse. Add to Pursuit works in both. No data or API change; not merged or deployed.
 - The autonomous research view moved to `?view=research`; `view=pursuits` is now the owner workspace. Legacy `view=pursuits&q|researchNeed` URLs map to research.
 
 ## Pursuits data and API

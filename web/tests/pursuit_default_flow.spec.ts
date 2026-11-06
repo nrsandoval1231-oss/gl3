@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { mockDemandSummary } from './mock-demand-summary'
 
 // SYNTHETIC UI TEST FIXTURE ONLY — names, contacts, dates and power values are fabricated.
-// Covers the DEFAULT browse (no projectBrowse=1): customer groups, project cards and WorkspaceDetail.
+// Covers the DEFAULT browse (owner decision 2026-11-06): flat project cards and CanonicalOpportunityDetail,
+// plus the released operator/customer group browse (?groupBrowse=1) and WorkspaceDetail.
 
 const sampleProject = {
   id: 'project-1', project_id: 'project-1', name: 'Example Energy · Example Compressor Station', company: 'Example Energy', customer_identity_id: 'company-1',
@@ -56,10 +57,19 @@ async function setup(page: Page, seed: ReturnType<typeof pursuit>[]) {
 
 async function openDefaultDetail(page: Page) {
   await page.goto('/?view=workspace')
-  expect(new URL(page.url()).searchParams.get('projectBrowse')).toBeNull()
+  expect(new URL(page.url()).searchParams.get('groupBrowse')).toBeNull()
+  await expect(page.locator('.cfr-table tbody tr')).toHaveCount(1)
+  await page.locator('[data-need-row="need-1"]').click()
+  await expect(page).toHaveURL(/need=need-1/)
+  await expect(page.locator('.cod-panel')).toBeVisible()
+}
+
+async function openGroupDetail(page: Page) {
+  await page.goto('/?view=workspace&groupBrowse=1')
   await page.locator('.customer-group').filter({ hasText: 'Example Energy' }).locator('.customer-group-toggle').click()
   await page.getByRole('button', { name: 'View project details' }).click()
   await expect(page).toHaveURL(/need=need-1/)
+  await expect(page).toHaveURL(/groupBrowse=1/)
   await expect(page.locator('.wh-detail')).toBeVisible()
 }
 
@@ -69,22 +79,22 @@ test('default browse: Add to Pursuit on the selected need creates once, shows In
   // Nothing selected, so no pursuit action is offered.
   await expect(page.getByRole('button', { name: 'Add to Pursuit' })).toHaveCount(0)
   await openDefaultDetail(page)
-  const add = page.locator('.wh-detail').getByRole('button', { name: 'Add to Pursuit' })
+  const add = page.locator('.cod-panel').getByRole('button', { name: 'Add to Pursuit' })
   await expect(add).toBeVisible()
   await expect(page.getByTestId('nav-badge-pursuits')).toHaveCount(0)
   await add.dblclick()
-  const added = page.locator('.wh-detail').getByRole('link', { name: 'In Pursuits' })
+  const added = page.locator('.cod-panel').getByRole('link', { name: 'In Pursuits' })
   await expect(added).toHaveAttribute('href', '/?view=pursuits&pursuit=p-new')
   await expect(page.getByTestId('nav-badge-pursuits')).toHaveText('1')
   expect(api.posts()).toHaveLength(1)
   expect(api.posts()[0].body).toEqual({ need_id: 'need-1' })
-  await expect(page.locator('.wh-detail').getByRole('button', { name: 'Add to Pursuit' })).toHaveCount(0)
+  await expect(page.locator('.cod-panel').getByRole('button', { name: 'Add to Pursuit' })).toHaveCount(0)
 })
 
 test('default browse: an already-pursued need shows In Pursuits and never offers a second create', async ({ page }) => {
   const api = await setup(page, [pursuit('p1', 'need-1')])
   await openDefaultDetail(page)
-  await expect(page.locator('.wh-detail').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=p1')
+  await expect(page.locator('.cod-panel').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=p1')
   await expect(page.getByRole('button', { name: 'Add to Pursuit' })).toHaveCount(0)
   await expect(page.getByTestId('nav-badge-pursuits')).toHaveText('1')
   expect(api.posts()).toHaveLength(0)
@@ -94,11 +104,11 @@ test('default browse: the action is keyboard reachable on a phone-width detail w
   await page.setViewportSize({ width: 390, height: 844 })
   const api = await setup(page, [])
   await openDefaultDetail(page)
-  const add = page.locator('.wh-detail').getByRole('button', { name: 'Add to Pursuit' })
+  const add = page.locator('.cod-panel').getByRole('button', { name: 'Add to Pursuit' })
   await expect(add).toBeVisible()
   await add.focus()
   await page.keyboard.press('Enter')
-  await expect(page.locator('.wh-detail').getByRole('link', { name: 'In Pursuits' })).toBeVisible()
+  await expect(page.locator('.cod-panel').getByRole('link', { name: 'In Pursuits' })).toBeVisible()
   expect(api.posts()).toHaveLength(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
@@ -108,7 +118,7 @@ test('a pursuit that is only on page two of the store load is found: In Pursuits
   const all = [...fillers.slice(0, 230), pursuit('p-late', 'need-1'), ...fillers.slice(230)]
   const api = await setup(page, all)
   await openDefaultDetail(page)
-  await expect(page.locator('.wh-detail').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=p-late')
+  await expect(page.locator('.cod-panel').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=p-late')
   await expect(page.getByRole('button', { name: 'Add to Pursuit' })).toHaveCount(0)
   await expect(page.getByTestId('nav-badge-pursuits')).toHaveText('250')
   const reads = api.requests.filter(entry => entry.method === 'GET')
@@ -120,10 +130,25 @@ test('a truncated store load still runs the targeted lookup before offering Add 
   const all = Array.from({ length: 2300 }, (_, index) => pursuit(`f${index}`, index === 2250 ? 'need-1' : `need-filler-${index}`))
   const api = await setup(page, all)
   await openDefaultDetail(page)
-  await expect(page.locator('.wh-detail').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=f2250')
+  await expect(page.locator('.cod-panel').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=f2250')
+  // The flat detail can resolve via the targeted lookup before the capped store paging finishes; wait for it.
+  const storeReads = () => api.requests.filter(entry => entry.method === 'GET' && !new URLSearchParams(entry.search).get('need_id'))
+  await expect.poll(() => storeReads().length).toBe(10)
   const reads = api.requests.filter(entry => entry.method === 'GET')
-  expect(reads.filter(entry => !new URLSearchParams(entry.search).get('need_id'))).toHaveLength(10)
+  expect(storeReads()).toHaveLength(10)
   expect(reads.some(entry => new URLSearchParams(entry.search).get('need_id') === 'need-1')).toBe(true)
+})
+
+test('group browse (?groupBrowse=1): Add to Pursuit creates once and shows In Pursuits', async ({ page }) => {
+  const api = await setup(page, [])
+  await openGroupDetail(page)
+  const add = page.locator('.wh-detail').getByRole('button', { name: 'Add to Pursuit' })
+  await expect(add).toBeVisible()
+  await add.dblclick()
+  await expect(page.locator('.wh-detail').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=p-new')
+  await expect(page.getByTestId('nav-badge-pursuits')).toHaveText('1')
+  expect(api.posts()).toHaveLength(1)
+  expect(api.posts()[0].body).toEqual({ need_id: 'need-1' })
 })
 
 test('Pursuits page shows Showing 200 of 250 and Load more fetches the rest', async ({ page }) => {
