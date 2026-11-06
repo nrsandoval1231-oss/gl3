@@ -18,3 +18,16 @@
 .cod-equipment-demand{padding:5px 0 8px;border-bottom:1px solid #e0e7ee}.cod-equipment-demand>p{margin:0 0 7px;color:#687b8e;font-size:9px;line-height:1.35}.cod-equipment-demand dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 18px;margin:0}.cod-equipment-demand dl>div{display:grid;grid-template-columns:minmax(76px,.75fr) minmax(0,1.25fr);gap:7px}.cod-equipment-demand dt{color:#687b8e;font-size:9px}.cod-equipment-demand dd{margin:0;font-size:10px;font-weight:600;overflow-wrap:anywhere}@media(max-width:760px){.cod-equipment-demand dl{grid-template-columns:1fr}}
 .cod-equipment-demand .cod-equipment-next-action{margin:7px 0 0;color:#445b70;font-size:10px;line-height:1.35}
 .cod-contact-methods{display:grid;gap:3px;margin:3px 0 2px}.cod-contact-methods>div{display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px;align-items:baseline}.cod-contact-methods dt{color:#66798c;font-size:9px;text-transform:uppercase;letter-spacing:.04em}.cod-contact-methods dd{margin:0;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;overflow-wrap:anywhere}.cod-contact-methods dd>a{font-size:11px}.cod-contact-methods small{font-size:9px}.cod-muted{color:#9aa8b6}.cod-contact-more{margin-top:2px}.cod-contact-more summary{cursor:pointer;color:#66798c;font-size:9px}.cod-contact-more[open]{display:grid;gap:3px}
+
+/* Overview action row: Add to Pursuit / View Full Details */
+.cod-panel .cod-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 4px}
+.cod-panel .cod-action-primary,.cod-panel .cod-action-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 16px;border-radius:7px;font:inherit;font-size:12px;font-weight:650;text-decoration:none;cursor:pointer}
+.cod-panel .cod-action-primary{border:1px solid #2a6592;background:#2a6592;color:#fff}
+.cod-panel .cod-action-primary:hover:not(:disabled){background:#23567d}
+.cod-panel .cod-action-primary:disabled{opacity:.65;cursor:progress}
+.cod-panel .cod-action-primary.is-added{border-color:#237343;background:#ecf8f0;color:#1c5c35}
+.cod-panel .cod-action-secondary{border:1px solid #bcd0e2;background:#fff;color:#23567d}
+.cod-panel .cod-action-secondary:hover{background:#f2f6f9}
+.cod-panel .cod-action-primary:focus-visible,.cod-panel .cod-action-secondary:focus-visible{outline:2px solid #2a6ea8;outline-offset:2px}
+.cod-panel .cod-action-error{flex-basis:100%;margin:0;color:#a22f32;font-size:11px}
+@media(max-width:760px){.cod-panel .cod-actions{display:grid;grid-template-columns:1fr 1fr}.cod-panel .cod-action-error{grid-column:1/3}}

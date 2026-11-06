@@ -11,7 +11,7 @@ export function App() {
         evidence: 'evidence', buyers: 'buying-chain', power: 'power-gap', action: 'next-steps',
       }
       const legacyTier = params.get('level')?.replace(/s$/i, '')
-      const destination = mode === 'pursuits' ? 'pursuits' : mode === 'browse' ? 'signals' : 'workspace'
+      const destination = mode === 'pursuits' ? 'research' : mode === 'browse' ? 'signals' : 'workspace'
       params.set('view', destination)
       if (sections[mode ?? '']) params.set('section', sections[mode ?? ''])
       if (!params.has('industry') && params.has('lens')) params.set('industry', params.get('lens') ?? '')

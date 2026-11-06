@@ -71,7 +71,7 @@ export function ResearchView() {
   const choose = (id: string) => {
     setSelectedId(id)
     const params = new URLSearchParams(location.search)
-    params.set('view', 'pursuits'); params.set('researchNeed', id)
+    params.set('view', 'research'); params.set('researchNeed', id)
     history.replaceState(history.state, '', `/?${params}`)
   }
   const clearSelection = () => {

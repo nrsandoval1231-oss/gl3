@@ -3,6 +3,7 @@ import { client } from '../../api/client'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { WorkspaceDetail, type WorkspaceTab } from './WorkspaceDetail'
 import { CalendarDays, ChartNoAxesColumnIncreasing, FileText, Target, UserRound, Zap } from 'lucide-react'
+import { AddToPursuit } from '../pursuits/AddToPursuit'
 import './canonical-opportunity-detail.css'
 
 type Props = Parameters<typeof WorkspaceDetail>[0]
@@ -151,6 +152,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     {(projectLoading || projectError || associationNotice) && <p className="cod-status" role={projectError ? 'status' : undefined}>{projectLoading ? 'Loading current project details…' : projectError || associationNotice}</p>}
 
     {canonicalTab === 'Overview' && <>
+      <AddToPursuit key={item.id} needId={item.id}><button type="button" className="cod-action-secondary" onClick={() => onTab('Evidence')}>View Full Details</button></AddToPursuit>
       <div className="cod-overview-body">
       <section className="cod-metrics" aria-label="Power metrics">{metrics.map(metric => <article key={metric.label}>
         <span className="cod-metric-icon" aria-hidden="true">{metric.icon === 'demand' ? <Zap size={16} strokeWidth={1.6}/> : metric.icon === 'gap' ? <ChartNoAxesColumnIncreasing size={16} strokeWidth={1.6}/> : <CalendarDays size={16} strokeWidth={1.6}/>}</span>

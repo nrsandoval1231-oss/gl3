@@ -151,3 +151,16 @@
   .canonical-header__tools { grid-column: 2; grid-row: 1; gap: 7px; }
   .canonical-header__search:empty { display: none; }
 }
+
+.canonical-header__nav button { display: inline-flex; align-items: center; gap: 6px; }
+.canonical-header__badge {
+  min-width: 17px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: #4a90c9;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}

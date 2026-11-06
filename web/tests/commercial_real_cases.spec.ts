@@ -223,7 +223,7 @@ for (const item of cases) {
       await expect(selectedOpportunity.getByText(/Checking retained contacts/)).toHaveCount(0)
     }
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-opportunities-desktop.png`), fullPage: true })
-    await page.goto(`/?view=pursuits&researchNeed=${encodeURIComponent(item.need_id)}`)
+    await page.goto(`/?view=research&researchNeed=${encodeURIComponent(item.need_id)}`)
     await expect(page.getByRole('heading', { level: 1, name: 'Research', exact: true })).toBeVisible()
     if (item.expected_research_project_heading !== false) {
       await expect(page.getByRole('heading', { level: 2, name: item.expected_research_project_heading ?? item.project_name, exact: false })).toBeVisible()
