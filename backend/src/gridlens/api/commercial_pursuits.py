@@ -143,6 +143,19 @@ class ActivityIn(BaseModel):
         description="The user confirms this communication or event actually happened."
     )
 
+    @field_validator("summary")
+    @classmethod
+    def _strip_summary(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("summary required")
+        return value
+
+    @field_validator("detail")
+    @classmethod
+    def _strip_detail(cls, value: str | None) -> str | None:
+        return (value or "").strip() or None
+
     @field_validator("occurred_at")
     @classmethod
     def _require_timezone(cls, value: datetime | None) -> datetime | None:

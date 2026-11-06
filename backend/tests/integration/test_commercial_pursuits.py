@@ -163,6 +163,20 @@ def test_activity_requires_confirmation_and_is_idempotent(pursuit_env):
     assert client.get(f"/api/commercial-pursuits/{pursuit['id']}").json()["stage"] == "New"
 
 
+def test_activity_summary_is_trimmed_and_blank_rejected(pursuit_env):
+    client = TestClient(app)
+    pursuit = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()
+    url = f"/api/commercial-pursuits/{pursuit['id']}/activity"
+    blank = {"kind": "call", "summary": "   ", "confirmed": True}
+    assert client.post(url, json=blank).status_code == 422
+    ok = {"kind": "call", "summary": "  Spoke with buyer  ", "detail": "   ", "confirmed": True}
+    response = client.post(url, json=ok)
+    assert response.status_code == 201
+    calls = [a for a in response.json()["activity"] if a["kind"] == "call"]
+    assert calls[0]["summary"] == "Spoke with buyer"
+    assert not calls[0]["detail"]
+
+
 def test_needs_attention_rules_and_counts(pursuit_env, monkeypatch):
     client = TestClient(app)
     quiet = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()

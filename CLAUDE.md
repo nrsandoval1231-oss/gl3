@@ -26,4 +26,4 @@ Inspect → Plan → Delegate → Implement → Test → Review → Learn → Ha
 ## Verification quick reference
 - Web: `cd web && npx tsc --noEmit`; `npx playwright test --project=regression --trace off` (needs dummy `DATABASE_URL`, `SESSION_SECRET`, `APP_PASSWORD_HASH` env only; API is mocked in-browser; `auth.spec.ts` needs a real backend).
 - Backend: `cd backend && .venv/bin/python -m pytest tests/unit -n 4` and `tests/integration -n 4` with a disposable `TEST_DATABASE_URL` (database name must end `_test`). Never point at retained or production data.
-- Lint: `backend/.venv/bin/ruff check|format`. Docs links: `uv run --project backend python scripts/check_docs.py`.
+- Lint: `backend/.venv/bin/ruff check src tests` and `backend/.venv/bin/ruff format --check src tests`. Docs links: `uv run --project backend python scripts/check_docs.py`.
