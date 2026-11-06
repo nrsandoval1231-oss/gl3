@@ -6,6 +6,8 @@
 
 The prior gap-led PRD is retained as [dated pre-pivot history](../../.agent/archive/DEMAND-CENTERED-PIVOT-20261030/PRD-pre-pivot-20261029.md). It records historical qualification requirements and is not active product authority.
 
+**Amendment 2026-11-06 (owner direction, branch only, not deployed):** an owner-managed Pursuits workspace (stages, follow-up tasks, user-confirmed activity logging, server-computed Needs Attention) is in scope, overriding prior no-manual-status/notes language for that workspace only. Ordinary Opportunities browsing remains autonomous/read-only and audited internal safeguards are unchanged. See [commercial pursuits](../engineering/commercial-pursuits-20261106.md).
+
 ## Product outcome
 
 GridLens autonomously discovers electrical demand, identifies the entities, projects, activities, and equipment behind it, characterizes supported MW and timing, and derives useful commercial context. A demand record may exist when MW is unknown. Utility supply, shortage, residual gap, buyer identity, and legacy qualification are not prerequisites to demand discovery or characterization.
