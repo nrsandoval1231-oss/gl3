@@ -7,6 +7,7 @@ import { projectTitle } from '../opportunities/projectCards'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { AutonomousResearch } from '../pursuits/AutonomousResearch'
 import { ReportedPowerSchedule } from './ReportedPowerSchedule'
+import { AddToPursuit } from '../pursuits/AddToPursuit'
 
 export const workspaceTabs = ['Overview', 'Evidence', 'Buying chain', 'Power gap', 'Research', 'Timeline', 'Unknowns'] as const
 export type WorkspaceTab = typeof workspaceTabs[number]
@@ -171,6 +172,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
         </div>
 
       </div>
+      <div className="wh-pursuit-action"><AddToPursuit key={item.id} needId={item.id}/></div>
       {!projectFirst && item.associated_account && <p className="wh-group-context"><strong>Current account association:</strong> {item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p>}
       {!projectFirst && item.associated_account && <CompanyContacts companyId={item.associated_account.company_identity_id}/>}
       {projectFirst && item.associated_account && <details className="project-account-relationship"><summary>Account relationship and contacts</summary><p>{item.associated_account.name} · {item.associated_account.role.replaceAll('_', ' ')}. {associatedAccountBasisLabel(item.associated_account.basis)} Buying authority is not established by this project association.</p><CompanyContacts companyId={item.associated_account.company_identity_id}/></details>}
@@ -340,6 +342,7 @@ function PreparedProjectOverview({ item, onBack, onTab }: { item: WorkspaceDetai
         {contacts.length === 0 && people.length === 0 && <p className="project-contact-unavailable">No current verified contact method is available.</p>}
         <button type="button" className="project-view-sources" onClick={() => onTab('Evidence')}>View sources</button>
       </>}
+      <div className="wh-pursuit-action"><AddToPursuit key={item.id} needId={item.id}/></div>
     </header>
     <nav className="wh-tabs project-first-detail-tabs" aria-label="Project details">
       <button type="button" aria-pressed="true" className="active">Overview</button>

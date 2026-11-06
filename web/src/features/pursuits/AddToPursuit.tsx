@@ -8,7 +8,8 @@ import { inApp, openPursuit, pursuitHref } from './pursuitNav'
 export function AddToPursuit({ needId, children }: { needId: string; children?: ReactNode }) {
   const store = usePursuitStore()
   const fromStore = store.items.find(item => item.need_id === needId)
-  const storeUsable = store.loaded && !store.error
+  // A truncated list is incomplete, so a missing need still gets the targeted lookup.
+  const storeUsable = store.loaded && !store.error && !store.truncated
   const [lookup, setLookup] = useState<{ state: 'idle' | 'loading' | 'done'; id: string | null }>({ state: 'idle', id: null })
   const [created, setCreated] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

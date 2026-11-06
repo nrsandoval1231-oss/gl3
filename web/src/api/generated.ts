@@ -3435,6 +3435,12 @@ export interface components {
             /** Items */
             items: components["schemas"]["gridlens__api__commercial_pursuits__PursuitOut"][];
             counts: components["schemas"]["PursuitCounts"];
+            /** Total Matching */
+            total_matching: number;
+            /** Has More */
+            has_more: boolean;
+            /** Next Offset */
+            next_offset: number | null;
         };
         /** PursuitPersonOut */
         PursuitPersonOut: {
@@ -4865,6 +4871,7 @@ export interface operations {
                 active_only?: boolean;
                 need_id?: string | null;
                 limit?: number;
+                offset?: number;
             };
             header?: never;
             path?: never;

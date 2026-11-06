@@ -100,6 +100,9 @@ class PursuitCounts(BaseModel):
 class PursuitListOut(BaseModel):
     items: list[PursuitOut]
     counts: PursuitCounts
+    total_matching: int
+    has_more: bool
+    next_offset: int | None
 
 
 class CreateIn(BaseModel):
@@ -148,13 +151,43 @@ class ActivityIn(BaseModel):
         return value
 
 
-def _task_out(task: PursuitTask) -> TaskOut:
+def _task_out(task: PursuitTask, description: str | None = None) -> TaskOut:
     return TaskOut(
         id=task.id,
-        description=task.description,
+        description=task.description if description is None else description,
         due_date=task.due_date,
         completed_at=task.completed_at,
     )
+
+
+_WITHHELD = "[redacted]"
+
+
+def _private_text(session: Session, project_id: UUID, texts: dict[str, str | None]):
+    """Read-time suppression of saved free text; stored rows are never modified.
+
+    Reuses the saved-history projection that protects commercial call notes: the text is
+    projected as a copied note under the pursuit's project, so suppressed names, emails and
+    phones of retained buying-chain claims are redacted. If the projection cannot run the
+    text is withheld (fail closed).
+    """
+    present = {k: v for k, v in texts.items() if v}
+    if not present:
+        return dict(texts)
+    from gridlens.intelligence.saved_history_privacy import project_saved_history_privacy
+
+    item = {
+        "project_id": str(project_id),
+        "related_project_ids": [],
+        "notes": [{"key": k, "text": v} for k, v in present.items()],
+    }
+    try:
+        with session.begin_nested():
+            projected = project_saved_history_privacy(session, item)["notes"]
+        out = {note["key"]: note["text"] for note in projected}
+    except Exception:
+        out = {k: _WITHHELD for k in present}
+    return {k: out.get(k, _WITHHELD) if v else v for k, v in texts.items()}
 
 
 def _contact(session: Session, project_id: UUID) -> tuple[ContactSummary | None, str]:
@@ -231,6 +264,7 @@ def _view(
     today: date,
     detail: bool,
     pre: _Preload | None = None,
+    private: bool = True,
 ) -> PursuitOut:
     pre = pre or _Preload(session, [row])
     need = pre.needs.get(row.need_id)
@@ -260,22 +294,44 @@ def _view(
         contact_status=status,  # type: ignore[arg-type]
         attention=reasons,
         attention_labels=[REASON_LABELS[r] for r in reasons],
-        next_task=_task_out(nxt) if nxt else None,
+        next_task=None,
         created_at=row.created_at,
         stage_changed_at=row.stage_changed_at,
     )
-    if detail:
-        out.tasks = [_task_out(t) for t in tasks]
-        out.activity = [
-            ActivityOut(
-                id=a.id, kind=a.kind, summary=a.summary, detail=a.detail, occurred_at=a.occurred_at
-            )
-            for a in session.scalars(
+    activities = (
+        list(
+            session.scalars(
                 select(PursuitActivity)
                 .where(PursuitActivity.pursuit_id == row.id)
                 .order_by(PursuitActivity.occurred_at.desc(), PursuitActivity.created_at.desc())
                 .limit(200)
             )
+        )
+        if detail
+        else []
+    )
+    # Saved free text may quote a contact that was later suppressed: project it at read time.
+    texts: dict[str, str | None] = {}
+    shown = tasks if detail else ([nxt] if nxt else [])
+    for t in shown:
+        texts[f"t{t.id}"] = t.description
+    for a in activities:
+        texts[f"s{a.id}"] = a.summary
+        texts[f"d{a.id}"] = a.detail
+    safe = _private_text(session, row.project_id, texts) if private else texts
+    if nxt:
+        out.next_task = _task_out(nxt, safe[f"t{nxt.id}"])
+    if detail:
+        out.tasks = [_task_out(t, safe[f"t{t.id}"]) for t in tasks]
+        out.activity = [
+            ActivityOut(
+                id=a.id,
+                kind=a.kind,
+                summary=safe[f"s{a.id}"] or "",
+                detail=safe[f"d{a.id}"],
+                occurred_at=a.occurred_at,
+            )
+            for a in activities
         ]
     return out
 
@@ -317,11 +373,13 @@ def list_pursuits(
     active_only: bool = False,
     need_id: UUID | None = None,
     limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
     today = _today()
     with SessionLocal() as session:
         # Counts and filters cover every pursuit (single-owner volumes are small); only the
-        # returned page is limited, after filtering.
+        # returned page is limited, after filtering. Order is (created_at desc, id) so pages
+        # neither overlap nor skip.
         rows = list(
             session.scalars(
                 select(CommercialPursuit).order_by(
@@ -330,20 +388,37 @@ def list_pursuits(
             )
         )
         pre = _Preload(session, rows)
-        views = [_view(session, row, today, detail=False, pre=pre) for row in rows]
+        # Free text is projected only for the returned page (below), not for every row.
+        views = [_view(session, row, today, detail=False, pre=pre, private=False) for row in rows]
     counts = PursuitCounts(
         total=len(views),
         active=sum(v.stage not in CLOSED_STAGES for v in views),
         needs_attention=sum(bool(v.attention) for v in views),
     )
-    items = [
+    matching = [
         v
         for v in views
         if (not needs_attention or v.attention)
         and (not active_only or v.stage not in CLOSED_STAGES)
         and (need_id is None or v.need_id == need_id)
-    ][:limit]
-    return PursuitListOut(items=items, counts=counts)
+    ]
+    items = matching[offset : offset + limit]
+    with SessionLocal() as session:
+        for item in items:
+            if item.next_task is not None:
+                item.next_task.description = (
+                    _private_text(session, item.project_id, {"t": item.next_task.description})["t"]
+                    or ""
+                )
+    end = offset + len(items)
+    has_more = end < len(matching)
+    return PursuitListOut(
+        items=items,
+        counts=counts,
+        total_matching=len(matching),
+        has_more=has_more,
+        next_offset=end if has_more else None,
+    )
 
 
 @router.post("", response_model=PursuitOut, status_code=201)

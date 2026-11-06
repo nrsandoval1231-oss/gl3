@@ -42,7 +42,7 @@ export type CommercialPursuit = {
   attention: string[]; attention_labels: string[]; next_task: PursuitTask | null; created_at: string; stage_changed_at: string
   tasks?: PursuitTask[] | null; activity?: PursuitActivity[] | null
 }
-export type CommercialPursuitList = { items: CommercialPursuit[]; counts: { total: number; active: number; needs_attention: number } }
+export type CommercialPursuitList = { items: CommercialPursuit[]; counts: { total: number; active: number; needs_attention: number }; total_matching?: number; has_more?: boolean; next_offset?: number | null }
 export type ProjectResultContactPerson = { record_type?: 'contact_person'; company_identity_id?: string | null; person_identity_id?: string | null; company?: string | null; name?: string | null; title?: string | null; role?: string | null; responsibility?: string | null; purchasing_authority?: string | null; source_url?: string | null }
 export type ProjectResultsSort = 'priority' | 'priority_asc' | 'company' | 'project' | 'updated'
 export type ProjectResult = { id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; updated_at: string | null }
@@ -403,12 +403,13 @@ export const client = {
    * `background` reads (nav count, Add-to-Pursuit lookup) never tear down session state on a 401:
    * they are auxiliary and any primary request still detects an ended session.
    */
-  commercialPursuits: (filters: { needsAttention?: boolean; activeOnly?: boolean; needId?: string; background?: boolean; limit?: number } = {}, signal?: AbortSignal) => {
+  commercialPursuits: (filters: { needsAttention?: boolean; activeOnly?: boolean; needId?: string; background?: boolean; limit?: number; offset?: number } = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams()
     if (filters.needsAttention) params.set('needs_attention', 'true')
     if (filters.activeOnly) params.set('active_only', 'true')
     if (filters.needId) params.set('need_id', filters.needId)
     if (filters.limit) params.set('limit', String(filters.limit))
+    if (filters.offset) params.set('offset', String(filters.offset))
     const path = `/api/commercial-pursuits?${params}`
     const read = filters.background
       ? fetch(path, { credentials: 'same-origin', signal }).then(response => {

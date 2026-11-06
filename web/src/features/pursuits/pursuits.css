@@ -115,3 +115,4 @@
   .pu-contact-actions .pu-btn{flex:1;min-height:42px}
 }
 @media(prefers-reduced-motion:reduce){.pu-card,.pu-skeleton{transition:none;animation:none}}
+.pu-more{display:grid;gap:8px;justify-items:start;padding:10px 2px;color:#5b6f83;font-size:12px}.pu-more p{margin:0}

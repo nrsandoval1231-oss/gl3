@@ -350,6 +350,17 @@
               "default": 100,
               "title": "Limit"
             }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
           }
         ],
         "responses": {
@@ -11670,12 +11681,34 @@
           },
           "counts": {
             "$ref": "#/components/schemas/PursuitCounts"
+          },
+          "total_matching": {
+            "type": "integer",
+            "title": "Total Matching"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
           }
         },
         "type": "object",
         "required": [
           "items",
-          "counts"
+          "counts",
+          "total_matching",
+          "has_more",
+          "next_offset"
         ],
         "title": "PursuitListOut"
       },

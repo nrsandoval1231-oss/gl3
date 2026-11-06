@@ -73,6 +73,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed }: { groupId: str
         {!pursuits.loaded ? <p role="status">Checking your pursuits…</p> : pursuits.error ? <p>Pursuits are unavailable: {pursuits.error}</p> : <>
           <p>{linked.length} {linked.length === 1 ? 'pursuit' : 'pursuits'}{complete ? '' : ` among the ${projects.length} loaded projects`}. Matched by project and power-need ids.</p>
           {!complete && <p className="cmp-note">Load the remaining projects for a complete count.</p>}
+          {pursuits.truncated && <p className="cmp-note" role="status">Only the first {pursuits.items.length} of {pursuits.counts.total} pursuits could be checked, so this count may be incomplete.</p>}
           <ul>{linked.map(item => <li key={item.id}><button type="button" onClick={() => dispatchEvent(new CustomEvent('gl3-open-pursuit', { detail: item.id }))}>{item.title}</button> · {item.stage}</li>)}</ul>
         </>}
       </section>

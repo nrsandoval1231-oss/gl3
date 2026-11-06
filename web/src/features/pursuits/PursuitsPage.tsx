@@ -8,6 +8,8 @@ type Filter = 'all' | 'active' | 'attention'
 const FILTERS: { id: Filter; label: string }[] = [{ id: 'all', label: 'All Pursuits' }, { id: 'active', label: 'Active' }, { id: 'attention', label: 'Needs Attention' }]
 // Survives unmount so leaving and returning to Pursuits keeps the list scroll.
 const savedScroll = { list: 0, window: 0 }
+const PAGE_SIZE = 200
+const MAX_LIST_ITEMS = 2000
 
 function readRoute() {
   // The URL is the source of truth: no filter in the URL means All.
@@ -27,6 +29,7 @@ export function PursuitsPage() {
   const [ended, setEnded] = useState(false)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
+  const [more, setMore] = useState<'idle' | 'loading' | 'error'>('idle')
   const listRef = useRef<HTMLDivElement>(null)
   const source = route.filter
   const data = lists[source]
@@ -45,12 +48,28 @@ export function PursuitsPage() {
   useEffect(() => {
     if (ended) return
     const controller = new AbortController()
-    setError('')
-    client.commercialPursuits({ needsAttention: source === 'attention', activeOnly: source === 'active', limit: 200 }, controller.signal)
+    setError(''); setMore('idle')
+    client.commercialPursuits({ needsAttention: source === 'attention', activeOnly: source === 'active', limit: PAGE_SIZE }, controller.signal)
       .then(list => { if (!controller.signal.aborted) setLists(current => ({ ...current, [source]: list })) })
       .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error && cause.message ? cause.message : 'Pursuits are unavailable.') })
     return () => controller.abort()
   }, [source, reload, ended])
+
+  async function loadMore() {
+    if (!data || data.next_offset == null || more === 'loading') return
+    const filter = source, offset = data.next_offset
+    setMore('loading')
+    try {
+      const list = await client.commercialPursuits({ needsAttention: filter === 'attention', activeOnly: filter === 'active', limit: PAGE_SIZE, offset })
+      setLists(current => {
+        const base = current[filter]
+        if (!base || base.next_offset !== offset) return current
+        const seen = new Set(base.items.map(item => item.id))
+        return { ...current, [filter]: { ...list, items: [...base.items, ...list.items.filter(item => !seen.has(item.id))] } }
+      })
+      setMore('idle')
+    } catch { setMore('error') }
+  }
 
   const counts = data?.counts ?? lists.all?.counts ?? lists.active?.counts ?? lists.attention?.counts
   const items = data?.items ?? []
@@ -117,6 +136,11 @@ export function PursuitsPage() {
               <span className="pu-arrow" aria-hidden="true">›</span>
             </button>
           </li>)}</ul>}
+          {data && data.has_more && <div className="pu-more">
+            <p role="status">Showing {items.length} of {data.total_matching ?? 'more'}{items.length >= MAX_LIST_ITEMS ? '. Use Active or Needs Attention to narrow the list.' : ''}</p>
+            {items.length < MAX_LIST_ITEMS && <button type="button" className="pu-btn" disabled={more === 'loading'} aria-busy={more === 'loading'} onClick={() => void loadMore()}>{more === 'loading' ? 'Loading…' : 'Load more'}</button>}
+            {more === 'error' && <p role="alert">More pursuits could not be loaded. Try again.</p>}
+          </div>}
         </div>
       </section>
       <section className="pu-detail-panel" aria-label="Pursuit detail">
