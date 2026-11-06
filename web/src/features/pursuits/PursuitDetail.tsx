@@ -33,8 +33,8 @@ export function PursuitDetail({ id, preview, onBack, onChanged }: Props) {
     const controller = new AbortController()
     setLoadError('')
     client.commercialPursuit(id, controller.signal)
-      .then(value => { if (!controller.signal.aborted) setDetail(value) })
-      .catch(cause => { if (!controller.signal.aborted) setLoadError(message(cause, 'This pursuit is unavailable.')) })
+      .then(value => { if (!controller.signal.aborted && !endedRef.current) setDetail(value) })
+      .catch(cause => { if (!controller.signal.aborted && !endedRef.current) setLoadError(message(cause, 'This pursuit is unavailable.')) })
     return () => controller.abort()
   }, [id, retry, ended])
 
