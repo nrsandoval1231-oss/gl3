@@ -107,7 +107,8 @@ def test_retired_fact_write_route_is_not_dispatchable():
     assert response.status_code == 404
 
 
-def test_customer_api_mutations_are_limited_to_authentication():
+def test_customer_api_mutations_are_limited_to_authentication_and_owner_pursuits():
+    """Owner direction (Nov 2026) re-allows pursuit execution writes; nothing else may mutate."""
     mutations = {
         (method.upper(), path)
         for path, operations in app.openapi()["paths"].items()
@@ -117,4 +118,9 @@ def test_customer_api_mutations_are_limited_to_authentication():
     assert mutations == {
         ("POST", "/api/auth/login"),
         ("POST", "/api/auth/logout"),
+        ("POST", "/api/commercial-pursuits"),
+        ("PATCH", "/api/commercial-pursuits/{pursuit_id}"),
+        ("POST", "/api/commercial-pursuits/{pursuit_id}/tasks"),
+        ("PATCH", "/api/commercial-pursuits/{pursuit_id}/tasks/{task_id}"),
+        ("POST", "/api/commercial-pursuits/{pursuit_id}/activity"),
     }

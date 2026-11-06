@@ -123,6 +123,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/commercial-pursuits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pursuits */
+        get: operations["list_pursuits_api_commercial_pursuits_get"];
+        put?: never;
+        /** Create Pursuit */
+        post: operations["create_pursuit_api_commercial_pursuits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commercial-pursuits/{pursuit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pursuit Detail */
+        get: operations["pursuit_detail_api_commercial_pursuits__pursuit_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set Stage */
+        patch: operations["set_stage_api_commercial_pursuits__pursuit_id__patch"];
+        trace?: never;
+    };
+    "/api/commercial-pursuits/{pursuit_id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Task */
+        post: operations["add_task_api_commercial_pursuits__pursuit_id__tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commercial-pursuits/{pursuit_id}/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Task */
+        patch: operations["update_task_api_commercial_pursuits__pursuit_id__tasks__task_id__patch"];
+        trace?: never;
+    };
+    "/api/commercial-pursuits/{pursuit_id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log Activity */
+        post: operations["log_activity_api_commercial_pursuits__pursuit_id__activity_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -843,6 +930,46 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActivityIn */
+        ActivityIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "call" | "email" | "meeting" | "note";
+            /** Summary */
+            summary: string;
+            /** Detail */
+            detail?: string | null;
+            /** Occurred At */
+            occurred_at?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Confirmed
+             * @description The user confirms this communication or event actually happened.
+             */
+            confirmed: boolean;
+        };
+        /** ActivityOut */
+        ActivityOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Summary */
+            summary: string;
+            /** Detail */
+            detail: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
         /** AssociatedAccountEvidenceRefOut */
         AssociatedAccountEvidenceRefOut: {
             /**
@@ -1685,6 +1812,27 @@ export interface components {
             limits: {
                 [key: string]: number;
             };
+        };
+        /** ContactSummary */
+        ContactSummary: {
+            /** Name */
+            name?: string | null;
+            /** Role */
+            role?: string | null;
+            /** Company */
+            company?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+        };
+        /** CreateIn */
+        CreateIn: {
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
         };
         /** CustomerAccountNeedOut */
         CustomerAccountNeedOut: {
@@ -3252,6 +3400,15 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** PursuitCounts */
+        PursuitCounts: {
+            /** Total */
+            total: number;
+            /** Active */
+            active: number;
+            /** Needs Attention */
+            needs_attention: number;
+        };
         /** PursuitJobOut */
         PursuitJobOut: {
             /**
@@ -3273,78 +3430,11 @@ export interface components {
             /** Checkpoint */
             checkpoint: string | null;
         };
-        /** PursuitOut */
-        PursuitOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Project Id
-             * Format: uuid
-             */
-            project_id: string;
-            /** Project Ids */
-            project_ids: string[];
-            /** Project */
-            project: string;
-            /** Site */
-            site: string;
-            /** Organization */
-            organization: string;
-            /** Organization Involvement */
-            organization_involvement: string;
-            /**
-             * Action Status
-             * @enum {string}
-             */
-            action_status: "Call now" | "Verify first" | "Monitor" | "Drop";
-            /** Rank Key */
-            rank_key: number[];
-            /** Ranking Reasons */
-            ranking_reasons: string[];
-            /** Trigger */
-            trigger: string;
-            /** Trigger Date */
-            trigger_date: string;
-            /** Timing */
-            timing: string[];
-            /** Registration Context */
-            registration_context?: string[];
-            /** People */
-            people: components["schemas"]["PursuitPersonOut"][];
-            /** Contacts */
-            contacts: components["schemas"]["PursuitContactOut"][];
-            /** Load Facts */
-            load_facts: string[];
-            /** Fuel Facts */
-            fuel_facts: string[];
-            /** Utility Facts */
-            utility_facts: string[];
-            /** Unknowns */
-            unknowns: string[];
-            /** Conflicts */
-            conflicts: string[];
-            /** Next Action */
-            next_action: string;
-            /** Evidence */
-            evidence: components["schemas"]["PursuitSourceOut"][];
-            /** Last Researched At */
-            last_researched_at: string | null;
-            /** Last Attempt At */
-            last_attempt_at: string | null;
-            /** Research Status */
-            research_status: string;
-            /** Research Errors */
-            research_errors: string[];
-            /** Notes */
-            notes: components["schemas"]["CallNoteOut"][];
-            /**
-             * Tier
-             * @default Signal
-             */
-            tier: string;
+        /** PursuitListOut */
+        PursuitListOut: {
+            /** Items */
+            items: components["schemas"]["gridlens__api__commercial_pursuits__PursuitOut"][];
+            counts: components["schemas"]["PursuitCounts"];
         };
         /** PursuitPersonOut */
         PursuitPersonOut: {
@@ -3620,7 +3710,7 @@ export interface components {
         /** PursuitsOut */
         PursuitsOut: {
             /** Items */
-            items: components["schemas"]["PursuitOut"][];
+            items: components["schemas"]["gridlens__domain__pursuits__PursuitOut"][];
             /** Usage */
             usage?: {
                 [key: string]: number;
@@ -3955,6 +4045,49 @@ export interface components {
             hold: number;
             /** Unadjudicated */
             unadjudicated: number;
+        };
+        /** StageIn */
+        StageIn: {
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "New" | "Contacted" | "Engaged" | "Proposal" | "Won" | "Lost";
+        };
+        /** TaskIn */
+        TaskIn: {
+            /** Description */
+            description: string;
+            /** Due Date */
+            due_date?: string | null;
+        };
+        /** TaskOut */
+        TaskOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Description */
+            description: string;
+            /** Due Date */
+            due_date: string | null;
+            /** Completed At */
+            completed_at: string | null;
+        };
+        /** TaskPatch */
+        TaskPatch: {
+            /** Description */
+            description?: string | null;
+            /** Due Date */
+            due_date?: string | null;
+            /**
+             * Clear Due Date
+             * @default false
+             */
+            clear_due_date: boolean;
+            /** Completed */
+            completed?: boolean | null;
         };
         /** UnifiedSearchCompanyOut */
         UnifiedSearchCompanyOut: {
@@ -4385,6 +4518,137 @@ export interface components {
             /** Evidence */
             evidence: components["schemas"]["WorkspaceHistoricalEvidenceOut"][];
         };
+        /** PursuitOut */
+        gridlens__api__commercial_pursuits__PursuitOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "New" | "Contacted" | "Engaged" | "Proposal" | "Won" | "Lost";
+            /** Title */
+            title: string;
+            /** Location */
+            location: string | null;
+            /** Tier */
+            tier: string;
+            /** Required Mw */
+            required_mw: string | null;
+            /** Start Window */
+            start_window: string | null;
+            contact: components["schemas"]["ContactSummary"] | null;
+            /**
+             * Contact Status
+             * @enum {string}
+             */
+            contact_status: "available" | "missing" | "unknown";
+            /** Attention */
+            attention: string[];
+            /** Attention Labels */
+            attention_labels: string[];
+            next_task: components["schemas"]["TaskOut"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Stage Changed At
+             * Format: date-time
+             */
+            stage_changed_at: string;
+            /** Tasks */
+            tasks?: components["schemas"]["TaskOut"][] | null;
+            /** Activity */
+            activity?: components["schemas"]["ActivityOut"][] | null;
+        };
+        /** PursuitOut */
+        gridlens__domain__pursuits__PursuitOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project Ids */
+            project_ids: string[];
+            /** Project */
+            project: string;
+            /** Site */
+            site: string;
+            /** Organization */
+            organization: string;
+            /** Organization Involvement */
+            organization_involvement: string;
+            /**
+             * Action Status
+             * @enum {string}
+             */
+            action_status: "Call now" | "Verify first" | "Monitor" | "Drop";
+            /** Rank Key */
+            rank_key: number[];
+            /** Ranking Reasons */
+            ranking_reasons: string[];
+            /** Trigger */
+            trigger: string;
+            /** Trigger Date */
+            trigger_date: string;
+            /** Timing */
+            timing: string[];
+            /** Registration Context */
+            registration_context?: string[];
+            /** People */
+            people: components["schemas"]["PursuitPersonOut"][];
+            /** Contacts */
+            contacts: components["schemas"]["PursuitContactOut"][];
+            /** Load Facts */
+            load_facts: string[];
+            /** Fuel Facts */
+            fuel_facts: string[];
+            /** Utility Facts */
+            utility_facts: string[];
+            /** Unknowns */
+            unknowns: string[];
+            /** Conflicts */
+            conflicts: string[];
+            /** Next Action */
+            next_action: string;
+            /** Evidence */
+            evidence: components["schemas"]["PursuitSourceOut"][];
+            /** Last Researched At */
+            last_researched_at: string | null;
+            /** Last Attempt At */
+            last_attempt_at: string | null;
+            /** Research Status */
+            research_status: string;
+            /** Research Errors */
+            research_errors: string[];
+            /** Notes */
+            notes: components["schemas"]["CallNoteOut"][];
+            /**
+             * Tier
+             * @default Signal
+             */
+            tier: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -4581,6 +4845,245 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PowerEnrichment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pursuits_api_commercial_pursuits_get: {
+        parameters: {
+            query?: {
+                needs_attention?: boolean;
+                active_only?: boolean;
+                need_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PursuitListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_pursuit_api_commercial_pursuits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["gridlens__api__commercial_pursuits__PursuitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pursuit_detail_api_commercial_pursuits__pursuit_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pursuit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["gridlens__api__commercial_pursuits__PursuitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_stage_api_commercial_pursuits__pursuit_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pursuit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["gridlens__api__commercial_pursuits__PursuitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_task_api_commercial_pursuits__pursuit_id__tasks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pursuit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["gridlens__api__commercial_pursuits__PursuitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_task_api_commercial_pursuits__pursuit_id__tasks__task_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pursuit_id: string;
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["gridlens__api__commercial_pursuits__PursuitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    log_activity_api_commercial_pursuits__pursuit_id__activity_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pursuit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivityIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["gridlens__api__commercial_pursuits__PursuitOut"];
                 };
             };
             /** @description Validation Error */
@@ -5726,7 +6229,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PursuitOut"];
+                    "application/json": components["schemas"]["gridlens__domain__pursuits__PursuitOut"];
                 };
             };
             /** @description Validation Error */

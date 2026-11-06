@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy import Date, Text, and_, case, cast, func, literal, or_, select, text, union_all
 from sqlalchemy.orm import Session, joinedload
 
+from gridlens.api.commercial_pursuits import router as commercial_pursuits_router
 from gridlens.api.enrichment import router as enrichment_router
 from gridlens.api.intelligence import router as intelligence_router
 from gridlens.api.verticals import vertical_source_tags
@@ -117,6 +118,7 @@ from gridlens.settings import settings
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
 app.include_router(intelligence_router)
 app.include_router(enrichment_router)
+app.include_router(commercial_pursuits_router)
 
 
 @app.exception_handler(CurrentOperatorInputBoundExceeded)
