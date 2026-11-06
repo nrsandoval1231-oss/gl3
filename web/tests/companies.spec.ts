@@ -25,7 +25,12 @@ async function mock(page: Page, opts: { groupsStatus?: number; pursuits?: unknow
     if (url.pathname === '/api/opportunities/projects') return route.fulfill({ json: { items: [], total: 7, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'p', generation: 'g' } })
     if (url.pathname === '/api/opportunities/groups/g-north/open') return route.fulfill({ json: { group: groups[0], parent_cohort_token: 'c1', generation: 'g', projects: { items: [project('p1', 'Mesa compressor', { power_summary: '12 MW reported' }), project('p2', 'Basin plant')], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'cp', generation: 'g' } } })
     if (url.pathname === '/api/opportunities/groups/g-gone/open') return route.fulfill({ status: 404, json: {} })
-    if (url.pathname === '/api/commercial-pursuits') return route.fulfill({ json: { items: opts.pursuits ?? [], counts: { total: (opts.pursuits ?? []).length, active: (opts.pursuits ?? []).length, needs_attention: 0 } } })
+    if (url.pathname === '/api/commercial-pursuits') {
+      const all = (opts.pursuits ?? []) as unknown[]
+      const limit = Number(url.searchParams.get('limit') ?? 100), offset = Number(url.searchParams.get('offset') ?? 0)
+      const items = all.slice(offset, offset + limit), next = offset + limit < all.length ? offset + limit : null
+      return route.fulfill({ json: { items, counts: { total: all.length, active: all.length, needs_attention: 0 }, total_matching: all.length, has_more: next !== null, next_offset: next } })
+    }
     if (url.pathname === '/api/customer-accounts/company-north/contacts') return route.fulfill({ json: { company_id: 'company-north', research_required: true, contacts: [], imported_unverified: [] } })
     if (url.pathname.startsWith('/api/opportunities/needs/')) return route.fulfill({ json: { id: url.pathname.split('/').pop(), project_id: 'p1', name: 'Mesa compressor', browse_title: 'Mesa compressor', location: 'Midland, TX', tier: 'Prospect', workflow_status: 'New', activity: 'construction', rationale: 'Fixture', signal_evidence_state: 'active', conflict_state: 'Not assessed', required_mw: null, supply: 'Unknown', start_window: null, duration: null, evidence: [], missing_facts: [] } })
     if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 't', token: 't', source_health_exceptions: [] } })
@@ -175,4 +180,30 @@ test('same-name groups are described as groups, with singular identity wording',
   await expect(group).toContainText('1 separate company identity')
   await expect(group).not.toContainText('1 separate company identities')
   await expect(group.getByRole('button', { name: '← Back to the directory' })).toBeVisible()
+})
+
+test('linked pursuits include a pursuit that is only on the second page of the store load', async ({ page }) => {
+  const fillers = Array.from({ length: 249 }, (_, index) => ({ ...pursuit, id: `filler-${index}`, need_id: `need-filler-${index}`, project_id: `project-filler-${index}`, title: `Filler ${index}` }))
+  const all = [...fillers.slice(0, 230), pursuit, ...fillers.slice(230)]
+  expect(all).toHaveLength(250)
+  const pages: string[] = []
+  page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/commercial-pursuits') pages.push(`${url.searchParams.get('limit')}:${url.searchParams.get('offset')}`) })
+  await mock(page, { pursuits: all })
+  await page.goto('/?view=workspace&panel=companies')
+  const panel = page.getByRole('region', { name: 'Companies' })
+  await panel.getByRole('button', { name: 'Open Northstar Energy' }).click()
+  const linked = page.getByRole('region', { name: 'Company Northstar Energy' }).getByRole('region', { name: 'Linked pursuits' })
+  await expect(linked).toContainText('1 pursuit')
+  await expect(linked).toContainText('Mesa pursuit · Engaged')
+  await expect(linked).not.toContainText('may be incomplete')
+  expect(pages.slice(0, 2)).toEqual(['200:null', '200:200'])
+})
+
+test('a capped pursuit load says the linked count may be incomplete', async ({ page }) => {
+  const all = Array.from({ length: 2300 }, (_, index) => ({ ...pursuit, id: `filler-${index}`, need_id: `need-filler-${index}`, project_id: `project-filler-${index}`, title: `Filler ${index}` }))
+  await mock(page, { pursuits: all })
+  await page.goto('/?view=workspace&panel=companies')
+  await page.getByRole('region', { name: 'Companies' }).getByRole('button', { name: 'Open Northstar Energy' }).click()
+  const linked = page.getByRole('region', { name: 'Company Northstar Energy' }).getByRole('region', { name: 'Linked pursuits' })
+  await expect(linked).toContainText('Only the first 2000 of 2300 pursuits could be checked')
 })
