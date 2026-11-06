@@ -19,7 +19,7 @@ export function AddToPursuit({ needId, children }: { needId: string; children?: 
     if (storeUsable || fromStore) return
     const controller = new AbortController()
     setLookup({ state: 'loading', id: null })
-    client.commercialPursuits({ needId }, controller.signal)
+    client.commercialPursuits({ needId, background: true }, controller.signal)
       .then(list => { if (!controller.signal.aborted) setLookup({ state: 'done', id: list.items.find(item => item.need_id === needId)?.id ?? null }) })
       .catch(() => { if (!controller.signal.aborted) setLookup({ state: 'done', id: null }) })
     return () => controller.abort()

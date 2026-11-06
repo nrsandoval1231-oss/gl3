@@ -395,11 +395,25 @@ export const client = {
     if (!session.authenticated) clearContinuity()
     return session
   }),
-  commercialPursuits: (filters: { needsAttention?: boolean; needId?: string } = {}, signal?: AbortSignal) => {
+  /**
+   * `background` reads (nav count, Add-to-Pursuit lookup) never tear down session state on a 401:
+   * they are auxiliary and any primary request still detects an ended session.
+   */
+  commercialPursuits: (filters: { needsAttention?: boolean; needId?: string; background?: boolean } = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams()
     if (filters.needsAttention) params.set('needs_attention', 'true')
     if (filters.needId) params.set('need_id', filters.needId)
-    return api<CommercialPursuitList>(`/api/commercial-pursuits?${params}`, { signal })
+    const path = `/api/commercial-pursuits?${params}`
+    const read = filters.background
+      ? fetch(path, { credentials: 'same-origin', signal }).then(response => {
+        if (!response.ok) throw new Error(response.status === 401 ? 'Your session ended. Sign in again.' : `GridLens could not complete this request (${response.status}).`)
+        return response.json() as Promise<CommercialPursuitList>
+      })
+      : api<CommercialPursuitList>(path, { signal })
+    return read.then(list => {
+      if (!list || !Array.isArray(list.items) || typeof list.counts?.active !== 'number') throw new Error('Pursuits response was not recognised.')
+      return list
+    })
   },
   commercialPursuit: (id: string, signal?: AbortSignal) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}`, { signal }),
   createCommercialPursuit: (needId: string) => api<CommercialPursuit>('/api/commercial-pursuits', { method: 'POST', body: JSON.stringify({ need_id: needId }) }, true),

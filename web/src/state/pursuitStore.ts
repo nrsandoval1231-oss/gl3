@@ -8,7 +8,7 @@ let inflight: Promise<void> | null = null
 const emit = () => listeners.forEach(listener => listener())
 const set = (next: Partial<State>) => { state = { ...state, ...next }; emit() }
 
-const fetchList = () => client.commercialPursuits().then(list => set({ items: list.items, counts: list.counts, loaded: true, error: '' }))
+const fetchList = () => client.commercialPursuits({ background: true }).then(list => set({ items: list.items, counts: list.counts, loaded: true, error: '' }))
   .catch(cause => set({ loaded: true, error: cause instanceof Error ? cause.message : 'Pursuits are unavailable.' }))
   .finally(() => { inflight = null })
 /** Load the list. `force` queues a second read when one is already in flight so a write is never masked by a stale response. */
