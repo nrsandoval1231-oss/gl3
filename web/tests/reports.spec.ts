@@ -77,7 +77,7 @@ test('unavailable demand and failed requests render honest states, not numbers',
   await expect(demand).toContainText('6 identified records · 0 with MW · 5 unknown · 1 conflicted')
   await expect(demand).toContainText('Synthetic limitation text.')
   await expect(demand).not.toContainText('No supported equipment demand records')
-  await expect(demand).not.toContainText(/\d+ MW\b(?! \()/)
+  await expect(demand).not.toContainText(/\d+ MW/)
   const oilUnavailable = reports.locator('.rpt-vertical', { has: page.getByRole('heading', { name: 'Oil & Gas' }) })
   await expect(oilUnavailable).toContainText('6 identified records')
   await expect(oilUnavailable).toContainText('Synthetic limitation text.')

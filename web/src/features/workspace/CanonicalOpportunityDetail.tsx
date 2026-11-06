@@ -275,6 +275,9 @@ function safeSourceUrl(value: string | null | undefined): string | null {
   } catch { return null }
 }
 
+/** Plain address only: no `%`, `?`, `&`, `=`, separators, whitespace, quotes or angle brackets, so a mailto: href cannot carry headers or encoded line breaks. */
+const STRICT_EMAIL = /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/
+
 function contactChannels(methods: { [key: string]: string }[], sources: NonNullable<NonNullable<Props['item']>['intelligence_card']>['contacts'][number]['sources']) {
   const channels = new Map<string, { kind: 'phone' | 'email'; value: string; href: string; sourceTitle: string; sourceUrl: string; verifiedAt?: string }>()
   for (const method of methods) {
@@ -283,7 +286,7 @@ function contactChannels(methods: { [key: string]: string }[], sources: NonNulla
     if (!kind || !value) continue
     const valid = kind === 'phone'
       ? /^[+()\d][\d\s().-]{5,}$/.test(value) && (value.match(/\d/g)?.length ?? 0) >= 7
-      : /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/.test(value)
+      : STRICT_EMAIL.test(value)
     if (!valid) continue
     const sourceUrl = safeSourceUrl(method.source_url)
     const methodSource = (sources ?? []).find(source => source.verification_status === 'Current retained support' && safeSourceUrl(source.url) === sourceUrl)
@@ -301,7 +304,7 @@ function contactChannels(methods: { [key: string]: string }[], sources: NonNulla
 function safeContactAction(kind: string, href: string | null | undefined): string | null {
   if (!href || /[\u0000-\u001f]/.test(href)) return null
   if (kind === 'call' && /^tel:\+?[0-9]{7,15}$/i.test(href)) return href
-  if (kind === 'email' && /^mailto:[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$/i.test(href)) return href
+  if (kind === 'email' && href.length > 7 && STRICT_EMAIL.test(href.slice(7))) return href
   if (kind === 'contact') return safeSourceUrl(href)
   return null
 }

@@ -21,6 +21,8 @@ const card = {
   contacts: [{ claim_id: 'contact-canonical', company: 'Example Compute Holdings (test fixture)', name: 'Alex Test Contact', title: 'Synthetic Infrastructure Role', role: 'owner developer', responsibility: 'Fixture-only contact role', purchasing_authority: 'Requires confirmation for this power package', methods: [
     { kind: 'phone', value: '+1 206 555 0184', href: 'tel:+12065550184', verified_at: '2026-10-20T10:00:00Z' },
     { kind: 'email', value: 'unverified@example.test', href: 'mailto:unverified@example.test', source_url: source.url },
+    { kind: 'email', value: 'a%0D%0Abcc%3Aevil@x.test', href: 'mailto:a%0D%0Abcc%3Aevil@x.test', source_url: source.url },
+    { kind: 'email', value: 'a+tag@sub.example-co.com', href: 'mailto:a+tag@sub.example-co.com', source_url: source.url },
   ], sources: [source] }],
   next_contact_path: 'Synthetic test action: confirm the temporary power package with the fixture contact.', next_action: 'Synthetic test action: confirm the fixture power package and schedule.',
   research_gaps: [], completeness: { supported: 1, total: 2, percent: 50, basis: 'Evidence support' },
@@ -52,6 +54,7 @@ const project = {
     { kind: 'email', label: 'Email Alex Test Contact', href: 'mailto:unverified@example.test', route_kind: 'company_route', responsibility: 'General company contact path', support: 'Duplicate published route fixture' },
     { kind: 'email', label: 'Email Example Compute Holdings', href: 'mailto:contact@example.test', route_kind: 'company_route', responsibility: 'General company contact path', support: 'Published company contact route' },
     { kind: 'contact', label: 'Company contact page', href: 'https://example.test/contact', route_kind: 'company_route', responsibility: 'General company contact path', support: 'Published company contact route' },
+    { kind: 'email', label: 'Email injected header', href: 'mailto:x?cc=evil@x.test', route_kind: 'company_route', responsibility: 'General company contact path' },
     { kind: 'email', label: 'Email Alex Test Contact', href: 'mailto:alex@example.test', route_kind: 'person_method', responsibility: 'Verified project responsibility' },
   ], contact_people: [], power_summary: null, power_summary_kind: 'unknown', next_action: 'Synthetic test action: confirm fixture details.', updated_at: '2026-10-21T00:00:00Z',
 }
@@ -110,8 +113,11 @@ test('canonical detail tabs update browser history and render only source-backed
   await expect(page.locator('.cod-contacts')).toContainText('Company phone')
   await expect(page.getByRole('link', { name: 'Call Example Compute Holdings' })).toHaveAttribute('href', 'tel:+12065550199')
   await expect(page.locator('.cod-contacts')).toContainText('Company email')
+  await expect(page.locator('a[href*="%0D"]')).toHaveCount(0)
+  await expect(page.locator('.cod-contacts')).toContainText('a+tag@sub.example-co.com')
   await expect(page.getByRole('link', { name: 'Email Example Compute Holdings' })).toHaveAttribute('href', 'mailto:contact@example.test')
   await expect(page.getByRole('link', { name: 'Company contact page' })).toHaveAttribute('href', 'https://example.test/contact')
+  await expect(page.locator('a[href*="evil@x.test"]')).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Call Alex Test Contact' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Email Alex Test Contact' })).toHaveCount(0)
   await expect(page.locator('.cod-contact-buttons a').nth(0)).toHaveText('Call')

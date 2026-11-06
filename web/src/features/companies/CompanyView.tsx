@@ -58,13 +58,14 @@ export function CompanyView({ groupId, summary, onBack, onNeed }: { groupId: str
     return [...map]
   }, [projects, group?.name])
   const name = group?.name ?? 'Company'
+  const isGroup = group ? group.group_kind === 'same_name_unconfirmed' || group.group_kind === 'unresolved' : false
 
-  return <section className="cmp-company" aria-label={`Company ${name}`}>
-    <button type="button" className="cmp-back" onClick={onBack}>← Back to companies</button>
+  return <section className="cmp-company" aria-label={`${isGroup ? 'Group' : 'Company'} ${name}`}>
+    <button type="button" className="cmp-back" onClick={onBack}>{isGroup ? '← Back to the directory' : '← Back to companies'}</button>
     <h2>{name}</h2>
     {group && <p className="cmp-meta">{(() => { const info = groupDescription(group); return info.kind ? `${info.kind} · ${info.text}${info.identities ? ` · ${info.identities}` : ''}` : info.text })()} · {group.project_count.toLocaleString()} {group.project_count === 1 ? 'project' : 'projects'} · {group.need_count.toLocaleString()} {group.need_count === 1 ? 'power need' : 'power needs'} · Priority score {group.priority_score == null ? 'unranked' : group.priority_score}{group.sectors.length ? ` · ${group.sectors.map(sectorLabel).join(', ')}` : ''}</p>}
     {state === 'loading' && <p role="status">Loading company projects…</p>}
-    {state === 'gone' && <p role="alert" className="cmp-error">This company is no longer available in the current results.</p>}
+    {state === 'gone' && <p role="alert" className="cmp-error">{isGroup ? 'This group is no longer available' : 'This company is no longer available'} in the current results.</p>}
     {state === 'error' && <p role="alert" className="cmp-error">{message} <button type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></p>}
     {state === 'ready' && <>
       <section aria-label="Linked pursuits" className="cmp-block">

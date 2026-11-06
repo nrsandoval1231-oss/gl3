@@ -39,7 +39,7 @@ export function telHref(value: string | null | undefined) {
 }
 export function mailHref(value: string | null | undefined) {
   const text = value?.trim()
-  return text && /^[^\s@<>"',;?&=]+@[^\s@<>"',;?&=.]+(?:\.[^\s@<>"',;?&=.]+)+$/.test(text) ? `mailto:${text}` : null
+  return text && /^[^\s@<>"',;?&=%]+@[^\s@<>"',;?&=.]+(?:\.[^\s@<>"',;?&=.]+)+$/.test(text) ? `mailto:${text}` : null
 }
 
 export function contactLine(item: CommercialPursuit) {

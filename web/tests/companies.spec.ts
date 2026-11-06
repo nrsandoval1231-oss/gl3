@@ -164,3 +164,15 @@ test('session end on the directory clears group names and counts', async ({ page
   await expect(page.getByText('Northstar Energy')).toHaveCount(0)
   await expect(page.getByText(/operator\/customer groups/)).toHaveCount(0)
 })
+
+test('same-name groups are described as groups, with singular identity wording', async ({ page }) => {
+  await mock(page, { pursuits: [] })
+  const solo = { ...groups[1], identity_count: 1 }
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [solo], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'c1', generation: 'g' } }))
+  await page.route('**/api/opportunities/groups/g-name/open**', route => route.fulfill({ json: { group: solo, parent_cohort_token: 'c1', generation: 'g', projects: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'pc', generation: 'g' } } }))
+  await page.goto('/?view=workspace&panel=companies&company=g-name')
+  const group = page.getByRole('region', { name: 'Group Acme Power' })
+  await expect(group).toContainText('1 separate company identity')
+  await expect(group).not.toContainText('1 separate company identities')
+  await expect(group.getByRole('button', { name: '← Back to the directory' })).toBeVisible()
+})

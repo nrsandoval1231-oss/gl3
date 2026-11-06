@@ -45,7 +45,11 @@ function panelFromUrl(): 'companies' | 'reports' | null {
 function pushPanel(panel: 'companies' | 'reports' | null) {
   const params = getParams(); params.set('view', 'workspace')
   params.delete('company'); if (!panel) { params.delete('cq'); params.delete('cs') } if (panel) params.set('panel', panel); else params.delete('panel')
-  history.pushState({ ...history.state, companyOpened: undefined }, '', `/?${params}`)
+  const url = `/?${params}`
+  // Re-selecting the panel already shown must not stack identical history entries.
+  if (url !== `${location.pathname}${location.search}`) {
+    history.pushState({ ...history.state, companyOpened: undefined }, '', url)
+  }
   // A mounted panel gets no popstate for this push; let it re-read its selected company.
   dispatchEvent(new Event('gl3-panel-route'))
 }
@@ -347,6 +351,16 @@ export function WorkspaceHome() {
       requestAnimationFrame(() => document.querySelector<HTMLElement>('.cod-back, .wh-back')?.focus())
     }
   }
+  const previousPanel = useRef<typeof navigationPanel>(navigationPanel)
+  useEffect(() => {
+    const before = previousPanel.current; previousPanel.current = navigationPanel
+    if (before === navigationPanel) return
+    const target = navigationPanel
+      ? document.querySelector<HTMLElement>('.canonical-navigation-panel h1')
+      : document.activeElement && document.activeElement !== document.body ? null : document.querySelector<HTMLElement>('main.wh-main h1')
+    if (!target) return
+    target.tabIndex = -1; target.focus({ preventScroll: true })
+  }, [navigationPanel])
   pursuitActions.current = {
     openPursuit: id => { setNavigationPanel(null); navigate('pursuits', id) },
     openNeed: id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) },
