@@ -112,6 +112,7 @@ def enqueue_document_extraction(
             {
                 "v": 1,
                 "stage": "tceq",
+                "permit_document_stage_enabled": True,
                 "project": link.project,
                 "url": link.url,
                 "validators_digest": digest,
@@ -332,6 +333,7 @@ def process_document_extraction_job(
             or not source.enabled
             or not source.registry_enabled
             or config is None
+            or body.get("permit_document_stage_enabled") is not True
             or not isinstance(record, dict)
         ):
             session.rollback()

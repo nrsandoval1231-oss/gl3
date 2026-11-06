@@ -53,6 +53,7 @@ from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.ok_deq_memo import MemoHeader, normalize_permit, parse_memo_header
 from gridlens.ingestion.adapters.tceq_application_documents import (
     DocumentFailure,
+    ExtractionHooks,
     Pacer,
     StageReport,
 )
@@ -430,10 +431,19 @@ def extract_listing_document(
     header: MemoHeader,
     sha: str,
     key: int,
+    *,
+    pdf_path: Path,
+    hooks: ExtractionHooks | None = None,
 ) -> dict[str, Any]:
     """Run the 1a extractor over the memo for a permit that joined the listing."""
     from gridlens.ingestion.parsers.permit_docs import extract_from_canonical
 
+    proposer = hooks.proposer() if hooks is not None and hooks.proposer is not None else None
+    ocr = (
+        hooks.ocr(str(pdf_path), document_url(key))
+        if hooks is not None and hooks.ocr is not None
+        else None
+    )
     result = extract_from_canonical(
         canon,
         document_hash=sha,
@@ -442,6 +452,9 @@ def extract_listing_document(
         company=None,
         facility=None,
         as_of=header.memo_date.value if header.memo_date is not None else None,
+        ocr=ocr,
+        proposer=proposer,
+        allow_ocr_demand=False,
     )
     file_name = f"storedpermits/{key}.pdf"
     lines = {
@@ -449,7 +462,13 @@ def extract_listing_document(
         for index, entry in result.provenance.items()
     }
     pages = sorted(entry["page"] for entry in lines.values())
+    optional_passes: dict[str, Any] = {}
+    if result.ocr:
+        optional_passes["ocr"] = shared._bounded_pass(result.ocr)
+    if result.proposer:
+        optional_passes["proposer"] = shared._bounded_pass(result.proposer)
     return {
+        **optional_passes,
         "file": file_name,
         "file_sha256": sha,
         "extractor": "permit-doc-extract-v1",
@@ -605,6 +624,7 @@ class _Run:
     stage_deadline: float | None
     now: datetime
     report: OkStageReport
+    hooks_for_record: Callable[[dict[str, Any], Path, str, int], ExtractionHooks | None] | None
     keys: dict[str, dict[str, Any]]
     joinable: dict[str, dict[str, Any]]
     states: dict[str, dict[str, Any]]
@@ -690,6 +710,8 @@ def run_stage(
     deadline: float | None = None,
     pacer: Callable[[], None] | None = None,
     work_root: Path | None = None,
+    hooks_for_record: Callable[[dict[str, Any], Path, str, int], ExtractionHooks | None]
+    | None = None,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> OkStageReport:
     """Run the stage over listing records and fold each resulting state into its record.
@@ -739,6 +761,7 @@ def run_stage(
         stage_deadline=None if deadline is None else deadline - persist_reserve(len(records)),
         now=now(),
         report=report,
+        hooks_for_record=hooks_for_record,
         keys=keys,
         joinable=joinable,
         states=states,
@@ -1095,7 +1118,15 @@ def _read_and_record(run: _Run, key: int, download: Download, entry: dict[str, A
             memo_date=header.memo_date.value if header.memo_date is not None else None,
         )
         return
-    extraction = extract_listing_document(canon, header, sha, key)
+    url = document_url(key)
+    hooks = (
+        run.hooks_for_record(record, download.path, url, key)
+        if run.hooks_for_record is not None
+        else None
+    )
+    extraction = extract_listing_document(
+        canon, header, sha, key, pdf_path=download.path, hooks=hooks
+    )
     if extraction["verified_rows"] == 0 and extraction["supply_total"] == 0:
         report.reject(str(key), "zero_verified_rows", pages=extraction["pages"])
     prior = run.states.get(norm)

@@ -40,6 +40,21 @@ from gridlens.intelligence.commercial_assessment import (
 from gridlens.intelligence.grounded_candidates import validate_grounded_candidates
 from gridlens.intelligence.jev_contracts import CONTRACTS, validate_answer
 from gridlens.intelligence.jev_task_context import build_task_context
+from gridlens.intelligence.provider_cost_bounds import (
+    OPENAI_CACHE_READ_USD_PER_MILLION,
+    OPENAI_CACHE_WRITE_USD_PER_MILLION,
+    OPENAI_MAX_INPUT_TOKENS,
+    OPENAI_ORDINARY_INPUT_USD_PER_MILLION,
+    OPENAI_OUTPUT_USD_PER_MILLION,
+    OPENAI_PROMPT_CACHE_TTL,
+    OPENAI_SERVICE_TIER,
+    openai_request_cost_ceiling,
+)
+from gridlens.intelligence.provider_privacy import (
+    ProviderPrivacyError,
+    contact_free_evidence,
+    require_contact_free,
+)
 from gridlens.intelligence.question_contracts import QUESTION_CONTRACTS, question_contract
 from gridlens.intelligence.spend_caps import cap_fields
 from gridlens.jobs.queue import assert_fence
@@ -77,6 +92,15 @@ MAX_CONTEXT_BYTES = 45_000
 MAX_EVIDENCE_DOCUMENTS = 24
 MAX_PROVIDER_RESPONSE_BYTES = 65_536
 GROUND_TASKS = {"GROUNDED_EXTRACTION", "GROUNDED_DOSSIER"}
+
+
+class GroundedPrivacyWithheld(ValueError):
+    """The grounded request was safely withheld because retained input was sensitive."""
+
+    def __init__(self) -> None:
+        super().__init__("Grounded provider input was withheld by privacy policy")
+
+
 LEGACY_BRIEF_OUTPUT_TOKENS = 700
 POWER_NEED_TITLE_OUTPUT_TOKENS = 240
 LEGACY_TASKS = {
@@ -479,10 +503,64 @@ def _watch_context(session: Session, need_id: UUID, origin: str) -> dict[str, An
 
 
 def _bound_grounded_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Retain exact UTF-8 spans under the request cap and mark clipped excerpts."""
+    """Keep an explicit minimal request view and exact contact-free source spans."""
     if payload.get("task_type") not in GROUND_TASKS:
         return payload
     result = json.loads(json.dumps(payload, ensure_ascii=True))
+    need = result.get("need")
+    if not isinstance(need, dict):
+        raise ValueError("Grounded need context is malformed")
+    allowed_need_fields = {
+        "need_id",
+        "project_id",
+        "activity",
+        "required_mw",
+        "start_window",
+        "duration",
+        "supply",
+        "updated_at",
+        "state_version_digest",
+    }
+    result["need"] = {key: value for key, value in need.items() if key in allowed_need_fields}
+    evidence = result.get("evidence")
+    if not isinstance(evidence, list):
+        raise ValueError("Grounded evidence is malformed")
+    if not evidence:
+        raise ValueError("Grounded evidence is missing")
+    safe_evidence = contact_free_evidence(evidence)
+    if not safe_evidence:
+        raise GroundedPrivacyWithheld()
+    allowed_evidence_fields = {
+        "id",
+        "observation_id",
+        "content_hash",
+        "title",
+        "abstract",
+        "url",
+        "published_at",
+        "event_date",
+        "event_date_label",
+        "extraction_location",
+        "citation",
+        "citations",
+        "ocr_provenance",
+        "text_truncated",
+        "omitted_text_start",
+        "omitted_text_end",
+        "retained_text_status",
+        "source_id",
+        "retrieval_method",
+    }
+    result["evidence"] = [
+        {key: value for key, value in item.items() if key in allowed_evidence_fields}
+        for item in safe_evidence
+    ]
+    if not result["evidence"]:
+        raise GroundedPrivacyWithheld()
+    try:
+        require_contact_free(result)
+    except ProviderPrivacyError as exc:
+        raise GroundedPrivacyWithheld() from exc
     result["context_truncation"] = {"partial": False, "text_bytes_removed": 0}
 
     def encoded() -> bytes:
@@ -510,7 +588,49 @@ def _bound_grounded_payload(payload: dict[str, Any]) -> dict[str, Any]:
             )
     if len(encoded()) > MAX_CONTEXT_BYTES:
         raise ValueError("Grounded metadata exceeds context size limit")
+    try:
+        require_contact_free(result)
+    except ProviderPrivacyError as exc:
+        raise GroundedPrivacyWithheld() from exc
     return result
+
+
+def _grounded_provider_request(
+    provider: str, task_type: str, model: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """Build the exact transport body for a grounded request before ledger reservation."""
+    if task_type not in GROUND_TASKS:
+        raise ValueError("Grounded provider request requires a grounded task")
+    if provider == "typesafe":
+        request = typesafe_request_payload(task_type, payload, model=model)
+    elif provider == "openai":
+        prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
+        request = openai_request_payload(
+            model=model,
+            instructions=GROUNDED_INSTRUCTIONS,
+            input_payload=payload,
+            max_output_tokens=getattr(settings, f"intelligence_openai_{prefix}_max_output_tokens"),
+        )
+        request["service_tier"] = OPENAI_SERVICE_TIER
+        request["prompt_cache_options"] = {"ttl": OPENAI_PROMPT_CACHE_TTL}
+    else:
+        raise ValueError("Unsupported provider for grounded request")
+    try:
+        require_contact_free(request)
+    except ProviderPrivacyError as exc:
+        raise GroundedPrivacyWithheld() from exc
+    return request
+
+
+def _request_payload_matches_checkpoint(
+    saved_payload: dict[str, Any], current_payload: dict[str, Any], saved_digest: str | None
+) -> bool:
+    """Require both the queued and recomputed representations to match the saved identity."""
+    return bool(
+        isinstance(saved_digest, str)
+        and _digest(saved_payload) == saved_digest
+        and _digest(current_payload) == saved_digest
+    )
 
 
 def _current_payload(session: Session, checkpoint: dict[str, Any], need_id: UUID) -> dict[str, Any]:
@@ -890,16 +1010,23 @@ def enqueue_missing_intelligence(
         {item for item in question_ids if item in QUESTION_CONTRACTS and item in allowed},
         key=lambda item: (priority[item], item),
     )[:2]
-    return [
-        enqueue_intelligence(
-            session,
-            need_id=need_id,
-            task_type="GROUNDED_DOSSIER",
-            question_id=question_id,
-            origin=origin,
-        )
-        for question_id in selected
-    ]
+    jobs = []
+    for question_id in selected:
+        try:
+            jobs.append(
+                enqueue_intelligence(
+                    session,
+                    need_id=need_id,
+                    task_type="GROUNDED_DOSSIER",
+                    question_id=question_id,
+                    origin=origin,
+                )
+            )
+        except GroundedPrivacyWithheld:
+            # A privacy-withheld question must not roll back the canonical watch
+            # observation that triggered this optional advisory enqueue.
+            continue
+    return jobs
 
 
 def _enabled(
@@ -937,6 +1064,8 @@ def _enabled(
             return False, "", "", "M4_PINNED_MODEL_PRICING_MISSING"
         if not payload or payload.get("project", {}).get("region_status") != "ELIGIBLE":
             return False, "", "", "M4_PROJECT_REGION_NOT_ELIGIBLE"
+        if _cost_bound("openai", task_type, payload) <= 0:
+            return False, "", "", "M4_COST_OR_CONTEXT_BOUND_EXCEEDED"
         return True, "openai", model, ""
     if not settings.intelligence_enabled or mode not in {
         "evaluation",
@@ -974,6 +1103,8 @@ def _enabled(
             or getattr(settings, f"intelligence_openai_{prefix}_output_usd_per_million") < 0
         ):
             return False, "", "", "OPENAI_TRUSTED_PRICING_MISSING"
+        if payload is not None and _cost_bound("openai", task_type, payload) <= 0:
+            return False, "", "", "OPENAI_COST_OR_CONTEXT_BOUND_EXCEEDED"
         return True, "openai", model, ""
     if task_type in LEGACY_TASKS:
         if settings.intelligence_mode not in {"evaluation", "advisory"}:
@@ -1210,6 +1341,11 @@ def _billing_policy_identity(
                 "service_tier": "default",
                 "reasoning_effort": "medium",
                 "prompt_cache_ttl": "30m",
+                "max_input_tokens": str(OPENAI_MAX_INPUT_TOKENS),
+                "cache_write_rate_usd_per_million": str(OPENAI_CACHE_WRITE_USD_PER_MILLION),
+                "cache_read_rate_usd_per_million": str(OPENAI_CACHE_READ_USD_PER_MILLION),
+                "ordinary_input_rate_usd_per_million": str(OPENAI_ORDINARY_INPUT_USD_PER_MILLION),
+                "cache_estimate_output_rate_usd_per_million": str(OPENAI_OUTPUT_USD_PER_MILLION),
             }
         prefix = (
             "ocr"
@@ -1227,6 +1363,23 @@ def _billing_policy_identity(
             "input_rate": str(getattr(settings, f"{name_prefix}_input_usd_per_million")),
             "output_rate": str(getattr(settings, f"{name_prefix}_output_usd_per_million")),
             "max_output_tokens": str(getattr(settings, f"{name_prefix}_max_output_tokens")),
+            **(
+                {
+                    "service_tier": OPENAI_SERVICE_TIER,
+                    "prompt_cache_ttl": OPENAI_PROMPT_CACHE_TTL,
+                    "max_input_tokens": str(OPENAI_MAX_INPUT_TOKENS),
+                    "cache_write_rate_usd_per_million": str(OPENAI_CACHE_WRITE_USD_PER_MILLION),
+                    "cache_read_rate_usd_per_million": str(OPENAI_CACHE_READ_USD_PER_MILLION),
+                    "ordinary_input_rate_usd_per_million": str(
+                        OPENAI_ORDINARY_INPUT_USD_PER_MILLION
+                    ),
+                    "cache_estimate_output_rate_usd_per_million": str(
+                        OPENAI_OUTPUT_USD_PER_MILLION
+                    ),
+                }
+                if task_type in GROUND_TASKS
+                else {}
+            ),
         }
     if task_type == TYPESAFE_SIGNAL_ESTIMATE_TASK and _estimated_signal_policy_selected():
         scope = sorted(_estimated_signal_observation_ids())
@@ -1407,9 +1560,7 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
                 schema=ASSESSMENT_SCHEMA,
             )
             input_upper = _serialized_request_bytes(request)
-            reserved = (
-                Decimal(input_upper) * Decimal("2.50") + Decimal(6000) * Decimal("10")
-            ) / Decimal(1_000_000)
+            reserved = openai_request_cost_ceiling(input_upper, 6000)
             return reserved if reserved <= Decimal("0.25") else Decimal("0")
         from gridlens.intelligence.briefs import brief_request_payload
 
@@ -1456,6 +1607,8 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
             input_payload=payload,
             max_output_tokens=output_tokens,
         )
+        request["service_tier"] = OPENAI_SERVICE_TIER
+        request["prompt_cache_options"] = {"ttl": OPENAI_PROMPT_CACHE_TTL}
         request_bytes = _serialized_request_bytes(request)
     else:
         if (
@@ -1500,9 +1653,11 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
         return (
             Decimal(input_tokens) * input_price + Decimal(output_tokens) * output_price
         ) / Decimal(1_000_000)
-    # One byte per token is a conservative bound over the complete serialized request.
-    return (Decimal(request_bytes) * input_price + Decimal(output_tokens) * output_price) / Decimal(
-        1_000_000
+    return openai_request_cost_ceiling(
+        request_bytes,
+        output_tokens,
+        input_rate_usd_per_million=max(input_price, OPENAI_CACHE_WRITE_USD_PER_MILLION),
+        output_rate_usd_per_million=max(output_price, OPENAI_OUTPUT_USD_PER_MILLION),
     )
 
 
@@ -1513,6 +1668,7 @@ def _estimated_cost_from_usage(
     output_tokens: int | None,
     *,
     billing_policy: dict[str, str] | None = None,
+    reported_usage: dict[str, Any] | None = None,
 ) -> Decimal | None:
     estimate_policy = billing_policy is not None and billing_policy.get("cost_basis") == "ESTIMATE"
     if input_tokens is None or (output_tokens is None and not estimate_policy):
@@ -1524,10 +1680,21 @@ def _estimated_cost_from_usage(
     if type(output_tokens) is not int or output_tokens < 0:
         raise ValueError("Provider output token usage is invalid")
     if provider == "openai":
-        if task_type == COMMERCIAL_ASSESSMENT_TASK:
-            input_price, output_price = Decimal("2.50"), Decimal("10")
+        if task_type == COMMERCIAL_ASSESSMENT_TASK or task_type in GROUND_TASKS:
+            cached_tokens = 0
+            details = reported_usage.get("input_tokens_details") if reported_usage else None
+            if details is not None:
+                if not isinstance(details, dict):
+                    return None
+                reported_cached = details.get("cached_tokens", 0)
+                if type(reported_cached) is not int or not 0 <= reported_cached <= input_tokens:
+                    return None
+                cached_tokens = reported_cached
+            uncached_tokens = input_tokens - cached_tokens
             return (
-                Decimal(input_tokens) * input_price + Decimal(output_tokens) * output_price
+                Decimal(uncached_tokens) * OPENAI_CACHE_WRITE_USD_PER_MILLION
+                + Decimal(cached_tokens) * OPENAI_CACHE_READ_USD_PER_MILLION
+                + Decimal(output_tokens) * OPENAI_OUTPUT_USD_PER_MILLION
             ) / Decimal(1_000_000)
         prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
         input_price = getattr(settings, f"intelligence_openai_{prefix}_input_usd_per_million")
@@ -1542,6 +1709,24 @@ def _estimated_cost_from_usage(
     return (Decimal(input_tokens) * input_price + Decimal(output_tokens) * output_price) / Decimal(
         1_000_000
     )
+
+
+def _openai_cache_usage_evidence(
+    input_tokens: int, reported_usage: dict[str, Any] | None
+) -> dict[str, int | str]:
+    """Label estimate components without rewriting the provider's raw usage object."""
+    details = reported_usage.get("input_tokens_details") if reported_usage else None
+    cached = details.get("cached_tokens", 0) if isinstance(details, dict) else 0
+    if type(cached) is not int or not 0 <= cached <= input_tokens:
+        cached = 0
+    return {
+        "uncached_input_tokens_estimated_at_cache_write_ceiling": input_tokens - cached,
+        "cached_input_tokens_reported": cached,
+        "ordinary_input_rate_usd_per_million": str(OPENAI_ORDINARY_INPUT_USD_PER_MILLION),
+        "uncached_input_rate_usd_per_million_ceiling": str(OPENAI_CACHE_WRITE_USD_PER_MILLION),
+        "cached_input_rate_usd_per_million": str(OPENAI_CACHE_READ_USD_PER_MILLION),
+        "output_rate_usd_per_million": str(OPENAI_OUTPUT_USD_PER_MILLION),
+    }
 
 
 def _safe_provider_audit(value: Any) -> Any:
@@ -1710,7 +1895,9 @@ def _provider_error_quarantine_details(
         reason = "RESPONSE_TOO_LARGE"
     elif actual_model != expected_model:
         reason = "MODEL_IDENTITY_MISMATCH"
-    elif task_type == COMMERCIAL_ASSESSMENT_TASK and actual_service_tier != "default":
+    elif task_type in {*GROUND_TASKS, COMMERCIAL_ASSESSMENT_TASK} and (
+        actual_service_tier != OPENAI_SERVICE_TIER
+    ):
         reason = "SERVICE_TIER_MISMATCH"
     elif not _valid_reported_tokens(input_tokens) or not _valid_reported_tokens(output_tokens):
         reason = "INVALID_REPORTED_USAGE"
@@ -2233,7 +2420,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             if watch_context is not None:
                 current["watch_context"] = watch_context
                 current = _bound_grounded_payload(current)
-            if _digest(current) != checkpoint.get("request_digest"):
+            if not _request_payload_matches_checkpoint(
+                payload, current, checkpoint.get("request_digest")
+            ):
                 checkpoint.update(status="stale", error="INPUT_CHANGED_BEFORE_DISPATCH")
                 checkpoint.update(
                     validation_outcome="BLOCKED", validation_reason="INPUT_CHANGED_BEFORE_DISPATCH"
@@ -2253,7 +2442,18 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
                 return {"status": "blocked", "error": reason, "job_id": str(job_id)}
             task_key = f"{need.id}:{checkpoint.get('question_id') or task_type}"
-            evidence_digest = _digest([(item["id"], item["content_hash"]) for item in evidence])
+            outbound_request = None
+            outbound_request_digest = None
+            if task_type in GROUND_TASKS:
+                outbound_request = _grounded_provider_request(provider, task_type, model, payload)
+                outbound_request_digest = _digest(outbound_request)
+                input_token_upper_bound = _serialized_request_bytes(outbound_request)
+            evidence_for_digest = (
+                payload.get("evidence", []) if task_type in GROUND_TASKS else evidence
+            )
+            evidence_digest = _digest(
+                [(item["id"], item["content_hash"]) for item in evidence_for_digest]
+            )
             routing_approval = None
             if settings.intelligence_mode == "bounded_routing":
                 routing_approval = {
@@ -2265,13 +2465,18 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 checkpoint["routing_approval"] = routing_approval
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             billing_policy = _billing_policy_identity(provider, model, task_type)
-            context_digest = _digest(
-                {
-                    "payload": payload,
+            context_material = {
+                "payload": payload,
+                "routing_approval": routing_approval,
+                "billing_policy": billing_policy,
+            }
+            if outbound_request is not None:
+                context_material = {
+                    "provider_request": outbound_request,
                     "routing_approval": routing_approval,
                     "billing_policy": billing_policy,
                 }
-            )
+            context_digest = _digest(context_material)
             max_cost = _cost_bound(provider, task_type, payload)
             unlimited = _owner_unlimited_allowed(provider, task_type)
             if settings.intelligence_financial_budget_mode == "owner_unlimited" and not unlimited:
@@ -2324,6 +2529,20 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "max_active": settings.intelligence_max_active_calls,
                 "fence_token": fence_token,
             }
+        except GroundedPrivacyWithheld:
+            # A historic checkpoint may itself contain the contact-bearing
+            # representation. Replace it wholesale so the retained job record
+            # does not keep the material that caused withholding.
+            checkpoint = {
+                "schema_version": SCHEMA_VERSION,
+                "status": "stale",
+                "error": "PROVIDER_PRIVACY_WITHHELD_BEFORE_DISPATCH",
+                "validation_outcome": "BLOCKED",
+                "validation_reason": "PROVIDER_PRIVACY_WITHHELD",
+            }
+            job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
+            job.status, job.lease_owner, job.lease_until = "succeeded", None, None
+            return {"status": "stale", "job_id": str(job_id)}
         except (ValueError, KeyError, TypeError) as exc:
             checkpoint = locals().get("checkpoint", {})
             checkpoint.update(status="blocked", error=type(exc).__name__)
@@ -2386,7 +2605,12 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence_token)
         checkpoint = json.loads(job.checkpoint or "{}")
-        checkpoint.update(status="dispatching", logical_call_id=str(call_id), request=payload)
+        checkpoint.update(
+            status="dispatching",
+            logical_call_id=str(call_id),
+            request=payload,
+            provider_request_sha256=outbound_request_digest,
+        )
         job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
 
     dispatch_enabled, dispatch_reason = _dispatch_policy(
@@ -2398,6 +2622,14 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
         None if unlimited else max_cost,
         billing_policy,
     )
+    if outbound_request is not None:
+        try:
+            require_contact_free(outbound_request)
+            if _digest(outbound_request) != outbound_request_digest:
+                raise ProviderPrivacyError("grounded outbound request changed")
+        except ProviderPrivacyError:
+            dispatch_enabled = False
+            dispatch_reason = "PROVIDER_PRIVACY_GUARD"
     with SessionLocal() as session:
         dispatched = mark_dispatched(
             session,
@@ -2431,11 +2663,18 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
     try:
         if provider == "typesafe":
             key = settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else ""
-            typesafe_payload = typesafe_request_payload(task_type, payload, model=model)
+            typesafe_request = (
+                outbound_request
+                if outbound_request is not None
+                else typesafe_request_payload(task_type, payload, model=model)
+            )
+            typesafe_payload = {
+                key: value for key, value in typesafe_request.items() if key != "model"
+            }
             data = call_typesafe(
                 api_key=key,
                 model=model,
-                payload={key: value for key, value in typesafe_payload.items() if key != "model"},
+                payload=typesafe_payload,
             )
             provider_response_complete = True
             provider_response_id = _provider_response_id(data)
@@ -2523,6 +2762,8 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                     api_key=key,
                     request=request,
                 )
+            elif outbound_request is not None:
+                data = call_openai_request(api_key=key, request=outbound_request)
             else:
                 data = call_openai(
                     api_key=key,
@@ -2540,7 +2781,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             quarantine_reason = None
             if actual_model != model:
                 quarantine_reason = "MODEL_IDENTITY_MISMATCH"
-            elif task_type == COMMERCIAL_ASSESSMENT_TASK and actual_service_tier != "default":
+            elif task_type in {*GROUND_TASKS, COMMERCIAL_ASSESSMENT_TASK} and (
+                actual_service_tier != OPENAI_SERVICE_TIER
+            ):
                 quarantine_reason = "SERVICE_TIER_MISMATCH"
             elif task_type == COMMERCIAL_ASSESSMENT_TASK and (
                 type(input_tokens) is not int or type(output_tokens) is not int
@@ -2551,7 +2794,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             ):
                 quarantine_reason = "INVALID_REPORTED_USAGE"
             elif (
-                task_type == COMMERCIAL_ASSESSMENT_TASK
+                task_type in {*GROUND_TASKS, COMMERCIAL_ASSESSMENT_TASK}
                 and input_token_upper_bound is not None
                 and input_tokens is not None
                 and input_tokens > input_token_upper_bound
@@ -2568,7 +2811,8 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 if (
                     actual_model == model
                     and not (
-                        task_type == COMMERCIAL_ASSESSMENT_TASK and actual_service_tier != "default"
+                        task_type in {*GROUND_TASKS, COMMERCIAL_ASSESSMENT_TASK}
+                        and actual_service_tier != OPENAI_SERVICE_TIER
                     )
                     and _valid_reported_tokens(input_tokens)
                     and _valid_reported_tokens(output_tokens)
@@ -2640,7 +2884,11 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             if provider_response_id:
                 call_result["provider_response_id"] = provider_response_id
             estimated_cost = _estimated_cost_from_usage(
-                provider, task_type, input_tokens, output_tokens
+                provider,
+                task_type,
+                input_tokens,
+                output_tokens,
+                reported_usage=data.get("reported_usage"),
             )
             call_result["usage"] = {
                 "input_tokens": input_tokens,
@@ -2648,13 +2896,21 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "actual_cost_usd": None,
                 "estimated_cost_usd": str(estimated_cost) if estimated_cost is not None else None,
                 "cost_basis": (
-                    "conservative_usage_estimate_not_invoice"
-                    if task_type == COMMERCIAL_ASSESSMENT_TASK
+                    "cache_aware_conservative_usage_estimate_not_invoice"
+                    if task_type == COMMERCIAL_ASSESSMENT_TASK or task_type in GROUND_TASKS
                     else "derived_from_verified_usage_and_pinned_rates"
                     if estimated_cost is not None
                     else None
                 ),
             }
+            if (
+                provider == "openai"
+                and (task_type == COMMERCIAL_ASSESSMENT_TASK or task_type in GROUND_TASKS)
+                and type(input_tokens) is int
+            ):
+                call_result["usage"]["cache_cost_estimate_components"] = (
+                    _openai_cache_usage_evidence(input_tokens, data.get("reported_usage"))
+                )
             result_digest = _digest(call_result)
             if task_type != COMMERCIAL_ASSESSMENT_TASK:
                 with SessionLocal() as session:

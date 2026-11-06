@@ -42,7 +42,16 @@ from gridlens.intelligence.intelligence_jobs import (
     _provider_error_quarantine_details,
     provider_caps,
 )
+from gridlens.intelligence.ocr_public_pages import (
+    PageApprovalRequired,
+    approved_source_pages,
+    has_document_page_approval,
+    render_page_images,
+    require_page_approval,
+)
 from gridlens.intelligence.ocr_transcript import public_ocr_transcript, validate_ocr_transcript
+from gridlens.intelligence.provider_cost_bounds import openai_cost_ceiling_from_tokens
+from gridlens.intelligence.provider_privacy import ProviderPrivacyError, require_contact_free
 from gridlens.intelligence.spend_caps import cap_fields
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
@@ -64,6 +73,11 @@ OCR_FOLLOWON_TASK = "OCR_GROUNDED_FOLLOWON"
 OCR_POLICY_VERSION = "source-permitted-pdf-ocr-v1"
 OCR_SCHEMA_VERSION = "scanned-pdf-ocr-request-v1"
 OCR_PREFLIGHT_CONTRACT_VERSION = "responses-input-tokens-count-v1"
+OCR_APPROVED_MODEL = "gpt-6.1-sol"
+OCR_MAX_CALL_USD = Decimal("0.10")
+OCR_PREFLIGHT_LEDGER_USD = Decimal("0.000001")
+OCR_INPUT_WRITE_USD_PER_MILLION = Decimal("2.50")
+OCR_OUTPUT_USD_PER_MILLION = Decimal("10.00")
 
 
 def _quarantine_ocr_response(
@@ -161,6 +175,44 @@ def _retention_source_ids() -> set[str]:
     }
 
 
+def _request_from_capture(
+    capture: dict[str, Any], *, document_hash: str, model: str, detail: str, max_output_tokens: int
+) -> tuple[dict[str, Any], list[int], list[str], list[int]]:
+    try:
+        scanned_pages = list(capture["scanned_pages"])
+        pdf_bytes = base64.b64decode(capture["data_base64"], validate=True)
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("Stored OCR capture is invalid") from None
+    source_pages = approved_source_pages(
+        document_hash, scanned_pages, settings.intelligence_ocr_reviewed_page_hashes
+    )
+    if not source_pages:
+        raise PageApprovalRequired("OCR page review approval is required")
+    withheld_pages = sorted(set(scanned_pages) - set(source_pages))
+    rendered = render_page_images(
+        pdf_bytes,
+        local_pages=source_pages,
+        source_pages=source_pages,
+    )
+    require_page_approval(document_hash, rendered, settings.intelligence_ocr_reviewed_page_hashes)
+    request = ocr_request_payload(
+        model=model,
+        page_images=rendered,
+        detail=detail,
+        max_output_tokens=max_output_tokens,
+    )
+    return request, source_pages, [page["pixel_sha256"] for page in rendered], withheld_pages
+
+
+def _ocr_cost_ceiling(input_tokens: int, max_output_tokens: int) -> Decimal:
+    return openai_cost_ceiling_from_tokens(
+        input_tokens,
+        max_output_tokens,
+        input_rate_usd_per_million=OCR_INPUT_WRITE_USD_PER_MILLION,
+        output_rate_usd_per_million=OCR_OUTPUT_USD_PER_MILLION,
+    )
+
+
 def _caps_ready(cost: Decimal) -> bool:
     if settings.intelligence_max_active_calls <= 0:
         return False
@@ -177,6 +229,11 @@ def _caps_ready(cost: Decimal) -> bool:
             if Decimal(str(limits[f"{period}_usd"])) < cost:
                 return False
     return True
+
+
+def _preflight_caps_ready() -> bool:
+    """Reserve a minimal positive ledger amount while settling the free count at zero."""
+    return _caps_ready(OCR_PREFLIGHT_LEDGER_USD)
 
 
 def _rows_for_evidence(
@@ -230,16 +287,18 @@ def _ocr_configuration_ready(task_type: str = OCR_TASK) -> tuple[bool, str]:
     if (
         settings.intelligence_ocr_priced_model_id != settings.intelligence_ocr_model
         or not settings.intelligence_ocr_pricing_verified
-        or settings.intelligence_ocr_input_usd_per_million <= 0
-        or settings.intelligence_ocr_output_usd_per_million <= 0
+        or settings.intelligence_ocr_model != OCR_APPROVED_MODEL
+        or settings.intelligence_ocr_input_usd_per_million != OCR_INPUT_WRITE_USD_PER_MILLION
+        or settings.intelligence_ocr_output_usd_per_million != OCR_OUTPUT_USD_PER_MILLION
+        or settings.intelligence_ocr_max_call_usd > OCR_MAX_CALL_USD
         or settings.intelligence_ocr_max_output_tokens <= 0
     ):
         return False, "OCR_MODEL_PRICING_OR_OUTPUT_BOUND_MISSING"
     if settings.intelligence_ocr_detail not in {"auto", "low", "high"}:
         return False, "OCR_DETAIL_INVALID"
     preflight_cost = settings.intelligence_ocr_preflight_max_cost_usd
-    if preflight_cost <= 0 or not _caps_ready(preflight_cost):
-        return False, "OCR_PREFLIGHT_FINITE_BUDGET_REQUIRED"
+    if preflight_cost != OCR_PREFLIGHT_LEDGER_USD or not _preflight_caps_ready():
+        return False, "OCR_PREFLIGHT_LEDGER_RESERVATION_REQUIRED"
     if not settings.intelligence_ocr_retention_reference.strip() or not _retention_source_ids():
         return False, "OCR_SOURCE_RETENTION_ALLOWLIST_EMPTY"
     return True, ""
@@ -282,6 +341,10 @@ def scanned_pdf_ocr_availability(
             session, need_id, evidence_id
         )
         _validate_source(evidence, observation, source)
+        if not has_document_page_approval(
+            evidence.content_hash, settings.intelligence_ocr_reviewed_page_hashes
+        ):
+            return False, "OCR_PAGE_REVIEW_REQUIRED"
     except ValueError as exc:
         return False, str(exc)
     return True, ""
@@ -305,6 +368,7 @@ def enqueue_scanned_pdf_ocr(session: Session, *, need_id: UUID, evidence_id: UUI
         "source_id": source.id,
         "source_url": evidence.url,
         "retention_reference": settings.intelligence_ocr_retention_reference,
+        "reviewed_page_hashes": settings.intelligence_ocr_reviewed_page_hashes,
         "model": settings.intelligence_ocr_model,
         "detail": settings.intelligence_ocr_detail,
         "max_output_tokens": settings.intelligence_ocr_max_output_tokens,
@@ -382,6 +446,30 @@ def _ocr_call_for_evidence(
         or transcript.get("source_url") != evidence.url
     ):
         raise ValueError("Retained OCR transcript reference is stale or invalid")
+    capture = _load_capture(evidence)
+    source_pages = transcript.get("source_pages")
+    withheld_pages = transcript.get("withheld_source_pages")
+    scanned_pages = capture.get("scanned_pages") if capture is not None else None
+    if (
+        capture is None
+        or not isinstance(source_pages, list)
+        or not isinstance(withheld_pages, list)
+        or not isinstance(scanned_pages, list)
+        or set(source_pages) & set(withheld_pages)
+        or set(source_pages) | set(withheld_pages) != set(scanned_pages)
+        or len(source_pages) + len(withheld_pages) != len(scanned_pages)
+        or not isinstance(transcript.get("source_page_hashes"), list)
+        or len(transcript["source_page_hashes"]) != len(source_pages)
+    ):
+        raise ValueError("OCR source-page provenance is unavailable")
+    require_page_approval(
+        evidence.content_hash,
+        [
+            {"source_page": page, "pixel_sha256": digest}
+            for page, digest in zip(source_pages, transcript["source_page_hashes"], strict=True)
+        ],
+        settings.intelligence_ocr_reviewed_page_hashes,
+    )
     return call, transcript
 
 
@@ -404,7 +492,7 @@ def _build_followon_request(
         str(call.id) != checkpoint.get("transcript_call_id")
         or transcript["transcript_hash"] != checkpoint.get("transcript_hash")
         or transcript["version"] != checkpoint.get("transcript_version")
-        or transcript["page_count"] != capture["page_count"]
+        or transcript["page_count"] != len(transcript["source_pages"])
     ):
         raise ValueError("OCR transcript version changed before grounded follow-on")
 
@@ -439,7 +527,13 @@ def _followon_request_payload(
     retained = next((row for row in retained_evidence if row["id"] == str(evidence.id)), None)
     if retained is None or retained["content_hash"] != evidence.content_hash:
         raise ValueError("PDF Evidence is no longer retained on this need")
-    page_text = "\n".join(f"[Page {page['page']}]: {page['text']}" for page in transcript["pages"])
+    source_pages = transcript.get("source_pages")
+    if not isinstance(source_pages, list) or len(source_pages) != len(transcript["pages"]):
+        raise ValueError("OCR source-page provenance is unavailable")
+    page_text = "\n".join(
+        f"[Page {source_pages[index - 1]}]: {page['text']}"
+        for index, page in enumerate(transcript["pages"], 1)
+    )
     transcript_evidence = {
         "id": str(evidence.id),
         "observation_id": str(observation.id),
@@ -481,6 +575,7 @@ def _followon_request_payload(
         > 45_000
     ):
         raise ValueError("OCR transcript exceeds the grounded follow-on context limit")
+    require_contact_free(request_payload)
     return request_payload
 
 
@@ -515,6 +610,7 @@ def enqueue_ocr_grounded_followon(
         "source_id": source.id,
         "source_url": evidence.url,
         "retention_reference": settings.intelligence_ocr_retention_reference,
+        "reviewed_page_hashes": settings.intelligence_ocr_reviewed_page_hashes,
         "model": settings.intelligence_ocr_model,
         "detail": settings.intelligence_ocr_detail,
         "max_output_tokens": settings.intelligence_ocr_max_output_tokens,
@@ -696,6 +792,7 @@ def _configuration_matches(payload: dict[str, Any]) -> bool:
         == settings.intelligence_ocr_preflight_cost_reference
         and payload.get("max_call_usd") == str(settings.intelligence_ocr_max_call_usd)
         and payload.get("retention_reference") == settings.intelligence_ocr_retention_reference
+        and payload.get("reviewed_page_hashes") == settings.intelligence_ocr_reviewed_page_hashes
     )
 
 
@@ -707,7 +804,8 @@ def _preflight_ready(cost: Decimal) -> bool:
         and settings.intelligence_ocr_vision_enabled
         and settings.intelligence_ocr_preflight_enabled
         and settings.intelligence_ocr_preflight_max_cost_usd == cost
-        and _caps_ready(cost)
+        and cost == OCR_PREFLIGHT_LEDGER_USD
+        and _preflight_caps_ready()
     )
 
 
@@ -831,9 +929,12 @@ def _publish_completed_result(
         provenance["ocr"] = {
             **old_ocr,
             "original_document_hash": evidence.content_hash,
-            "method": "OpenAI Responses inline PDF input",
+            "method": "OpenAI Responses clean raster page images",
             "version": result["version"],
             "review_status": "unreviewed",
+            "source_pages": result.get("source_pages", []),
+            "source_page_hashes": result.get("source_page_hashes", []),
+            "withheld_source_pages": result.get("withheld_source_pages", []),
             "transcript_hash": result["transcript_hash"],
             "logical_call_id": str(call_id),
             "provider_response_id": result.get("provider_response_id"),
@@ -917,6 +1018,7 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
                 input_payload=request_payload,
                 max_output_tokens=max_output,
             )
+            request.update(service_tier="default", prompt_cache_options={"ttl": "30m"})
             count_body = {
                 key: request[key]
                 for key in ("model", "input", "instructions", "text", "tools")
@@ -925,6 +1027,14 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
             request_digest = _digest(request)
             count_body_digest = _digest(count_body)
             count_context_digest = _preflight_context_digest(model, count_body_digest)
+    except ProviderPrivacyError:
+        return _finish_without_call(
+            job_id, worker_id, fence_token, "blocked", "OCR_FOLLOWON_PRIVACY_WITHHELD"
+        )
+    except PageApprovalRequired:
+        return _finish_without_call(
+            job_id, worker_id, fence_token, "blocked", "OCR_FOLLOWON_PAGE_REVIEW_REQUIRED"
+        )
     except (ValueError, KeyError, TypeError):
         return _finish_without_call(job_id, worker_id, fence_token, "stale", "FOLLOWON_INPUT_STALE")
 
@@ -1012,13 +1122,14 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
                 "contract_version": OCR_PREFLIGHT_CONTRACT_VERSION,
                 "cost_bound_reference": settings.intelligence_ocr_preflight_cost_reference,
                 "counted_input_tokens_are_billable_usage": False,
-                "actual_cost_usd": None,
+                "actual_cost_usd": "0",
             }
             with SessionLocal() as session:
                 complete_call(
                     session,
                     count_call_id,
                     fence_token=count_reservation.fence_token or fence_token,
+                    actual_cost_usd=Decimal("0"),
                     result_digest=_digest(count_result),
                     result_payload=count_result,
                 )
@@ -1050,14 +1161,11 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
             },
         )
 
-    response_cost = (
-        Decimal(counted_tokens) * settings.intelligence_ocr_input_usd_per_million
-        + Decimal(max_output) * settings.intelligence_ocr_output_usd_per_million
-    ) / Decimal(1_000_000)
+    response_cost = _ocr_cost_ceiling(counted_tokens, max_output)
     if (
         response_cost <= 0
+        or response_cost > OCR_MAX_CALL_USD
         or response_cost > settings.intelligence_ocr_max_call_usd
-        or not _caps_ready(response_cost)
         or not _ocr_configuration_ready(OCR_FOLLOWON_TASK)[0]
     ):
         return _finish_without_call(
@@ -1075,6 +1183,7 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
                 input_payload=current_payload,
                 max_output_tokens=max_output,
             )
+            current_request.update(service_tier="default", prompt_cache_options={"ttl": "30m"})
             if (
                 _digest(current_request) != request_digest
                 or current_ocr_call.id != ocr_call.id
@@ -1150,6 +1259,8 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
         response = call_openai_request(api_key=key, request=request)
         if response.get("model") != model:
             raise ValueError("Provider response model does not match the pinned model")
+        if response.get("service_tier") not in {None, "default"}:
+            raise ValueError("OCR response used a non-default service tier")
         _validate_ocr_response_usage(
             response,
             counted_input_tokens=counted_tokens,
@@ -1328,17 +1439,24 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
                 raise ValueError("Captured document ID does not match evidence URL")
             payload = checkpoint["payload"]
             model, detail = payload["model"], payload["detail"]
-            request = ocr_request_payload(
-                model=model,
-                pdf_base64=capture["data_base64"],
-                detail=detail,
-                max_output_tokens=payload["max_output_tokens"],
+            request, source_pages, source_page_hashes, withheld_source_pages = (
+                _request_from_capture(
+                    capture,
+                    document_hash=evidence.content_hash,
+                    model=model,
+                    detail=detail,
+                    max_output_tokens=payload["max_output_tokens"],
+                )
             )
             response_request_digest = _digest(request)
             evidence_hash, evidence_id = evidence.content_hash, evidence.id
             source_id, project_id = source.id, project.id
-            expected_pages = capture["page_count"]
+            expected_pages = len(source_pages)
             source_url = evidence.url
+    except PageApprovalRequired:
+        return _finish_without_call(
+            job_id, worker_id, fence_token, "blocked", "OCR_PAGE_REVIEW_REQUIRED"
+        )
     except (ValueError, KeyError, TypeError, AttributeError):
         return _finish_without_call(
             job_id, worker_id, fence_token, "stale", "CAPTURE_OR_REQUEST_INVALID"
@@ -1434,13 +1552,14 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
                 "contract_version": OCR_PREFLIGHT_CONTRACT_VERSION,
                 "cost_bound_reference": settings.intelligence_ocr_preflight_cost_reference,
                 "counted_input_tokens_are_billable_usage": False,
-                "actual_cost_usd": None,
+                "actual_cost_usd": "0",
             }
             with SessionLocal() as session:
                 complete_call(
                     session,
                     count_call_id,
                     fence_token=count_reservation.fence_token or fence_token,
+                    actual_cost_usd=Decimal("0"),
                     result_digest=_digest(count_result),
                     result_payload=count_result,
                 )
@@ -1483,11 +1602,14 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
             current_capture = _load_capture(current_evidence)
             if current_capture is None:
                 raise ValueError("Current source capture is missing")
-            current_request = ocr_request_payload(
-                model=model,
-                pdf_base64=current_capture["data_base64"],
-                detail=detail,
-                max_output_tokens=payload["max_output_tokens"],
+            current_request, _current_pages, _current_page_hashes, _withheld_pages = (
+                _request_from_capture(
+                    current_capture,
+                    document_hash=evidence_hash,
+                    model=model,
+                    detail=detail,
+                    max_output_tokens=payload["max_output_tokens"],
+                )
             )
             current_count_body = {
                 key: current_request[key]
@@ -1502,15 +1624,11 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
     except (ValueError, KeyError, TypeError, AttributeError):
         return _finish_without_call(job_id, worker_id, fence_token, "stale", "PREFLIGHT_STALE")
 
-    response_cost = (
-        Decimal(counted_tokens) * settings.intelligence_ocr_input_usd_per_million
-        + Decimal(settings.intelligence_ocr_max_output_tokens)
-        * settings.intelligence_ocr_output_usd_per_million
-    ) / Decimal(1_000_000)
+    response_cost = _ocr_cost_ceiling(counted_tokens, settings.intelligence_ocr_max_output_tokens)
     if (
         response_cost <= 0
+        or response_cost > OCR_MAX_CALL_USD
         or response_cost > settings.intelligence_ocr_max_call_usd
-        or not _caps_ready(response_cost)
     ):
         return _finish_without_call(
             job_id, worker_id, fence_token, "blocked", "OCR_RESPONSE_FINITE_BUDGET_REQUIRED"
@@ -1591,11 +1709,14 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
             current_capture = _load_capture(current_evidence)
             if current_capture is None:
                 raise ValueError("Current source capture is missing")
-            final_request = ocr_request_payload(
-                model=model,
-                pdf_base64=current_capture["data_base64"],
-                detail=detail,
-                max_output_tokens=payload["max_output_tokens"],
+            final_request, _current_pages, _current_page_hashes, _withheld_pages = (
+                _request_from_capture(
+                    current_capture,
+                    document_hash=evidence_hash,
+                    model=model,
+                    detail=detail,
+                    max_output_tokens=payload["max_output_tokens"],
+                )
             )
             if _digest(final_request) != response_request_digest:
                 raise ValueError("OCR request changed after count reservation")
@@ -1630,6 +1751,8 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
         response = call_openai_request(api_key=api_key, request=request)
         if response.get("model") != model:
             raise ValueError("Provider response model does not match the pinned model")
+        if response.get("service_tier") not in {None, "default"}:
+            raise ValueError("OCR response used a non-default service tier")
         _validate_ocr_response_usage(
             response,
             counted_input_tokens=counted_tokens,
@@ -1644,6 +1767,9 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
             logical_call_id=call_id,
             actual_model=response["model"],
             provider_response_id=response.get("provider_response_id"),
+            source_pages=source_pages,
+            source_page_hashes=source_page_hashes,
+            withheld_source_pages=withheld_source_pages,
         )
         result["preflight_counted_input_tokens"] = counted_tokens
         result["usage"] = {

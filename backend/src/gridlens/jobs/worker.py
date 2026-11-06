@@ -8,6 +8,7 @@ import socket
 import threading
 import time
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as day_time
 from uuid import UUID
@@ -98,6 +99,7 @@ _REGISTRY_CONFIGURATION_FIELDS = (
     "schedule_anchor_time",
     "run_at",
     "run_weekday",
+    "application_documents_enabled",
 )
 _MISSING_CONFIGURATION = object()
 _PLANNER_RETRY_MONOTONIC: dict[str, float] = {}
@@ -145,6 +147,15 @@ def _source_configuration(item: dict) -> dict:
     configuration["schedule_anchor_time"] = item.get(
         "schedule_anchor_time", _daily_anchor().isoformat()
     )
+    document_stage = (item.get("query") or {}).get("application_documents")
+    if (
+        item.get("id") in {"texas-tceq-nsr-pending", "oklahoma-deq-public-review"}
+        and isinstance(document_stage, dict)
+        and document_stage.get("enabled") is True
+    ):
+        # Absence is deliberate for default-off/historical epochs. The opt-in then creates
+        # one source-local epoch transition without changing unrelated source schedules.
+        configuration["application_documents_enabled"] = True
     return configuration
 
 
@@ -605,6 +616,28 @@ def _park_if_disabled(session, job: Job, source: Source, definition: dict | None
     return True
 
 
+def _definition_for_scheduled_job(definition: dict, due_configuration: dict | None) -> dict:
+    """Keep old scheduled work on its captured document-stage permission."""
+    if definition.get("id") not in {"texas-tceq-nsr-pending", "oklahoma-deq-public-review"}:
+        return definition
+    query = definition.get("query")
+    stage = query.get("application_documents") if isinstance(query, dict) else None
+    if not isinstance(stage, dict) or stage.get("enabled") is not True:
+        return definition
+    if (
+        isinstance(due_configuration, dict)
+        and due_configuration.get("application_documents_enabled") is True
+    ):
+        return definition
+    # A manual job has no due row and uses current operator authority. A scheduled job with
+    # an absent/false snapshot must not acquire a newly-enabled stage retroactively.
+    if due_configuration is None:
+        return definition
+    effective = deepcopy(definition)
+    effective["query"]["application_documents"]["enabled"] = False
+    return effective
+
+
 def _defer_registry_unavailable(job: Job, source: Source, error: Exception) -> None:
     job.status = "queued"
     job.attempts = max(0, job.attempts - 1)
@@ -1059,6 +1092,15 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 _release_admission(admission_context)
                 admission_context = None
                 return True
+            due = session.scalar(select(SourceDueCheck).where(SourceDueCheck.job_id == job_id))
+            definition = _definition_for_scheduled_job(
+                definition,
+                due.configuration
+                if due is not None and isinstance(due.configuration, dict)
+                else {}
+                if due is not None
+                else None,
+            )
             collection_jobs_remaining = None
             if definition.get("retrieval_method") in {
                 "socrata-permits",

@@ -1,8 +1,10 @@
 import time
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from db_reset import reset_test_database
+from pydantic import SecretStr
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -24,6 +26,7 @@ from gridlens.persistence.models import (
     Evidence,
     Interpretation,
     Job,
+    LogicalCall,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -128,12 +131,12 @@ def _complete(factory, job_id, *, disposition, fence=1, **kwargs):
         )
 
 
-def _add_evidence(session, need_id, external_id, digest):
+def _add_evidence(session, need_id, external_id, digest, *, abstract=None):
     observation = Observation(
         source_id=SOURCE_ID,
         external_id=external_id,
         title="Austin construction schedule",
-        abstract="Synthetic retained source evidence for monitoring tests.",
+        abstract=abstract or "Synthetic retained source evidence for monitoring tests.",
         url="https://data.austintexas.gov/resource/3syk-w9eu.json",
         content_hash=digest,
     )
@@ -150,6 +153,72 @@ def _add_evidence(session, need_id, external_id, digest):
     session.add(NeedObservation(need_id=need_id, observation_id=observation.id))
     session.flush()
     return evidence.id
+
+
+def test_privacy_withheld_grounding_does_not_rollback_monitor_observation(sessions, monkeypatch):
+    need_id = _seed(sessions, "privacy-withheld")
+    with sessions.begin() as session:
+        watch_id = _configure(session, need_id, questions=["TEMP_LOAD_MW"]).id
+        monitor_job_id = plan_monitoring(session, enabled=True)[0]
+    _lease(sessions, monitor_job_id)
+    with sessions.begin() as session:
+        evidence_id = _add_evidence(
+            session,
+            need_id,
+            "contact-bearing-public-permit",
+            "d" * 64,
+            abstract=(
+                "The permit describes a new substation. Electrical contractor phone: 512-555-0147."
+            ),
+        )
+    for name, value in {
+        "intelligence_enabled": True,
+        "intelligence_mode": "advisory",
+        "intelligence_openai_enabled": True,
+        "intelligence_research_enabled": True,
+        "openai_api_key": SecretStr("synthetic-test-key"),
+        "intelligence_openai_reasoning_model": "fixture-model",
+        "intelligence_max_call_usd": Decimal("0.10"),
+        "intelligence_max_active_calls": 1,
+        "intelligence_enabled_contracts": "TEMP_LOAD_MW",
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+
+    _complete(
+        sessions,
+        monitor_job_id,
+        disposition="updated",
+        cursor={"native_cursor": "privacy-test-v2"},
+        facts=[{"field": "construction_start", "value": "2027-Q2"}],
+        evidence_refs=[
+            {
+                "source_id": SOURCE_ID,
+                "evidence_id": str(evidence_id),
+                "content_hash": "d" * 64,
+            }
+        ],
+        unresolved_questions=["TEMP_LOAD_MW"],
+        enqueue_changed_questions=True,
+    )
+
+    with sessions() as session:
+        watch = session.get(ProjectMonitorWatch, watch_id)
+        cursor_row = session.scalar(
+            select(ProjectMonitorWatchSource).where(ProjectMonitorWatchSource.watch_id == watch_id)
+        )
+        monitor_job = session.get(Job, monitor_job_id)
+        intelligence_jobs = list(
+            session.scalars(select(Job).where(Job.kind == "intelligence_process"))
+        )
+        logical_calls = list(session.scalars(select(LogicalCall)))
+        assert watch is not None and cursor_row is not None and monitor_job is not None
+        assert monitor_job.status == "completed"
+        assert watch.last_good_facts == [{"field": "construction_start", "value": "2027-Q2"}]
+        assert watch.last_good_evidence_refs[0]["evidence_id"] == str(evidence_id)
+        assert watch.unresolved_questions == ["TEMP_LOAD_MW"]
+        assert cursor_row.cursor == {"native_cursor": "privacy-test-v2"}
+        assert intelligence_jobs == []
+        assert logical_calls == []
 
 
 def test_question_ids_map_to_existing_categories_and_keep_identity():

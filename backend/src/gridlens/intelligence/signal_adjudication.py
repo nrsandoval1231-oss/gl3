@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.integrations import intelligence_provider
+from gridlens.intelligence.provider_privacy import ProviderPrivacyError, require_contact_free
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -77,6 +78,8 @@ class JevError(RuntimeError):
 
 
 def failure_status(exc: Exception) -> str:
+    if isinstance(exc, ProviderPrivacyError):
+        return "privacy_withheld"
     if isinstance(exc, JevError):
         return exc.status
     if isinstance(exc, httpx.HTTPStatusError):
@@ -178,6 +181,11 @@ def jev_request_payload(state: dict[str, str], *, model: str | None = None) -> d
         request_bytes,
     )
 
+    # Keep source evidence immutable: if contact data appears anywhere in the
+    # actual evidence context, refuse the provider request instead of redacting
+    # text and making its source attribution or offsets misleading.
+    require_contact_free(state)
+
     def assemble(abstract: str) -> dict[str, Any]:
         return {
             "state": {
@@ -190,7 +198,6 @@ def jev_request_payload(state: dict[str, str], *, model: str | None = None) -> d
                 "publisher": state["publisher"],
                 "event_date": state["event_date"],
                 "event_date_label": state["event_date_label"],
-                "project_name": state["project_name"],
                 "location": state["location"],
                 "asset_type": state["asset_type"],
                 "lifecycle_state": state["lifecycle_state"],
@@ -220,6 +227,7 @@ def jev_request_payload(state: dict[str, str], *, model: str | None = None) -> d
     if bounds["truncated"]:
         # The model must be able to see that it was given a partial passage.
         payload["state"]["passage_bounds"] = {"abstract": bounds}
+    require_contact_free(payload["state"])
     return payload
 
 
@@ -496,6 +504,10 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
 
     block_reason: str | None = None
     try:
+        # Validate privacy before the legacy-call ledger reserves or marks a
+        # provider intent as dispatched. The call body repeats this at its own
+        # serialization boundary as defense in depth.
+        jev_request_payload(state, model=model)
         call = perform_legacy_call(
             task_type="SIGNAL_ADJUDICATION",
             task_key=f"{observation.id}:{evidence.content_hash}:{checkpoint['policy_version']}",

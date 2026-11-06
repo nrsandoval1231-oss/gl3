@@ -19,6 +19,7 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, str(Path(__file__).parents[1] / "unit"))
 
 from _okdeq_fixtures import (  # noqa: E402
+    BASE,
     GENERATORS,
     WEST_EDMOND_PROSE,
     Origin,
@@ -35,6 +36,7 @@ from gridlens.persistence.models import (  # noqa: E402
     Job,
     Observation,
     PowerNeed,
+    Project,
     Source,
 )
 from gridlens.settings import settings  # noqa: E402
@@ -178,6 +180,106 @@ def test_west_edmond_memo_flows_to_one_electric_compressor_claim(stage_db, monke
         source = session.get(Source, SOURCE_ID)
         keys = source.health["okdeq_documents"]["keys"]
         assert keys["8406"]["status"] == "document" and keys["8406"]["permit"] == "2017-0987-C M-2"
+
+
+def test_okdeq_inline_hooks_require_exact_project_and_live_job_fence(stage_db, monkeypatch):
+    from gridlens.ingestion.parsers.permit_docs.proposals import OcrOutcome, ProposerOutcome
+    from gridlens.ingestion.service import _enrich_with_application_documents
+
+    definition, job_id = setup_source(stage_db)
+    record = listing_record()
+    project_id = uuid4()
+    with stage_db.begin() as session:
+        session.add(
+            Project(
+                id=project_id,
+                identity_key="okdeq-hook-test-project",
+                name="West Edmond Compressor Station",
+                location="Logan County, OK",
+                source_id=SOURCE_ID,
+                external_id=record["document_number"],
+                identity_facts={"site": "West Edmond Compressor Station, Logan County, OK"},
+            )
+        )
+
+    contexts = {}
+
+    class FakeProposer:
+        def propose(self, _pages, *, document_hash):
+            contexts["proposer_hash"] = document_hash
+            return ProposerOutcome("disabled", "TEST_ONLY")
+
+    class FakeOcr:
+        def ocr_pages(self, _pages, *, document_hash):
+            contexts["ocr_hash"] = document_hash
+            return OcrOutcome("blocked", "TEST_ONLY")
+
+    def proposer_factory(**kwargs):
+        contexts["proposer"] = kwargs
+        return FakeProposer()
+
+    def ocr_factory(**kwargs):
+        contexts["ocr"] = kwargs
+        return FakeOcr()
+
+    monkeypatch.setattr(okd, "config_from_source", lambda _source: CONFIG)
+    monkeypatch.setattr(
+        "gridlens.intelligence.equipment_proposer.configured_proposer", proposer_factory
+    )
+    monkeypatch.setattr("gridlens.intelligence.permit_page_ocr.configured_stage_ocr", ocr_factory)
+    origin = Origin()
+    origin.put(8406, memo_pdf())
+    with stage_db() as session:
+        report = _enrich_with_application_documents(
+            session, job_id, WORKER, 1, definition, [record], origin.client(), deadline=None
+        )
+        session.commit()
+
+    expected = {
+        "source_id": SOURCE_ID,
+        "project_id": project_id,
+        "job_id": job_id,
+        "worker_id": WORKER,
+        "fence_token": 1,
+    }
+    assert contexts["proposer"] == expected
+    assert contexts["ocr"] == {
+        **expected,
+        "pdf_path": contexts["ocr"]["pdf_path"],
+        "source_url": f"{BASE}8406.pdf",
+    }
+    assert report.counts["new"] == 1
+    assert record["okdeq_document"]["document"]["extraction"]["proposer"]
+    assert "ocr_hash" not in contexts  # no scan pages: configured OCR object is never called
+
+
+def test_okdeq_inline_hooks_are_absent_without_existing_project_or_current_lease(stage_db):
+    from gridlens.ingestion.service import _okdeq_document_hooks_for_job
+
+    definition, job_id = setup_source(stage_db)
+    record = listing_record()
+    with stage_db() as session:
+        assert (
+            _okdeq_document_hooks_for_job(session, definition, [record], job_id, WORKER, 1) is None
+        )
+    project_id = uuid4()
+    with stage_db.begin() as session:
+        session.add(
+            Project(
+                id=project_id,
+                identity_key="okdeq-unleased-test-project",
+                name="West Edmond Compressor Station",
+                location="Logan County, OK",
+                source_id=SOURCE_ID,
+                external_id=record["document_number"],
+                identity_facts={"site": "West Edmond Compressor Station, Logan County, OK"},
+            )
+        )
+        session.get(Job, job_id).status = "queued"
+    with stage_db() as session:
+        assert (
+            _okdeq_document_hooks_for_job(session, definition, [record], job_id, WORKER, 1) is None
+        )
 
 
 def test_a_newer_key_with_the_same_permit_adds_a_version_and_preserves_history(

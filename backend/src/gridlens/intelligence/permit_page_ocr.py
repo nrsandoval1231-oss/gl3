@@ -47,12 +47,21 @@ from gridlens.integrations.logical_calls import (
     mark_dispatched,
     reserve_call,
 )
+from gridlens.intelligence.ocr_public_pages import (
+    PageApprovalRequired,
+    approved_source_pages,
+    render_page_images,
+    require_page_approval,
+)
+from gridlens.intelligence.provider_cost_bounds import openai_cost_ceiling_from_tokens
 from gridlens.intelligence.scanned_pdf_ocr import (
+    OCR_INPUT_WRITE_USD_PER_MILLION,
+    OCR_MAX_CALL_USD,
+    OCR_OUTPUT_USD_PER_MILLION,
     OCR_POLICY_VERSION,
     OCR_PREFLIGHT_CONTRACT_VERSION,
     OCR_SCHEMA_VERSION,
     OCR_TASK,
-    _caps_ready,
     _digest,
     _ledger_caps,
     _ocr_configuration_ready,
@@ -198,7 +207,22 @@ class StagePdfOcr:
             return OcrOutcome("blocked", reason)
         model = settings.intelligence_ocr_model
         label = ocr_label(model)
-        wanted = sorted(set(pages))[: settings.permit_ocr_max_pages_per_document]
+        scanned_pages = sorted(set(pages))
+        if any(type(page) is not int or page < 1 for page in scanned_pages):
+            return OcrOutcome("blocked", "OCR_DOCUMENT_PAGE_LIMIT_EXCEEDED")
+        approved = approved_source_pages(
+            document_hash,
+            scanned_pages,
+            settings.intelligence_ocr_reviewed_page_hashes,
+        )
+        wanted = approved[: settings.permit_ocr_max_pages_per_document]
+        not_selected = sorted(set(scanned_pages) - set(wanted))
+        if not wanted:
+            return OcrOutcome(
+                "blocked",
+                "OCR_PAGE_REVIEW_REQUIRED",
+                detail={"pages_not_reviewed": not_selected},
+            )
         texts: dict[int, str] = {}
         failed: dict[str, str] = {}
         stop: OcrOutcome | None = None
@@ -218,7 +242,10 @@ class StagePdfOcr:
                 stop = outcome  # later batches would meet the same wall; stop spending
                 break
             failed[",".join(map(str, batch))] = outcome.reason
-        detail: dict[str, Any] = {"pages_failed": failed}
+        detail: dict[str, Any] = {
+            "pages_failed": failed,
+            "pages_not_reviewed_or_over_limit": not_selected,
+        }
         if replayed:
             detail["replayed_from_ledger"] = True
         if stop is not None:
@@ -273,12 +300,25 @@ class StagePdfOcr:
     def _ocr_batch(
         self, sub_pdf: bytes, batch: list[int], document_hash: str, model: str
     ) -> OcrOutcome:
-        import base64
-
         detail = settings.intelligence_ocr_detail
+        try:
+            page_images = render_page_images(
+                sub_pdf,
+                local_pages=list(range(1, len(batch) + 1)),
+                source_pages=batch,
+            )
+            require_page_approval(
+                document_hash,
+                page_images,
+                settings.intelligence_ocr_reviewed_page_hashes,
+            )
+        except PageApprovalRequired:
+            return OcrOutcome("blocked", "OCR_PAGE_REVIEW_REQUIRED")
+        except (AcquisitionFailure, ValueError, TimeoutError):
+            return OcrOutcome("failed", "OCR_PAGE_RENDER_FAILED")
         request = ocr_request_payload(
             model=model,
-            pdf_base64=base64.b64encode(sub_pdf).decode("ascii"),
+            page_images=page_images,
             detail=detail,
             max_output_tokens=settings.intelligence_ocr_max_output_tokens,
         )
@@ -291,7 +331,7 @@ class StagePdfOcr:
         count_context = _preflight_context_digest(model, count_body_digest)
         pages_key = ",".join(map(str, batch))
         preflight_cost = settings.intelligence_ocr_preflight_max_cost_usd
-        if not _caps_ready(preflight_cost):
+        if not _preflight_ready(preflight_cost):
             return self._stop("blocked", "OCR_PREFLIGHT_FINITE_BUDGET_REQUIRED")
         count_res = self._reserve(
             task_type=PREFLIGHT_TASK,
@@ -342,27 +382,29 @@ class StagePdfOcr:
                     "model": model,
                     "contract_version": OCR_PREFLIGHT_CONTRACT_VERSION,
                     "counted_input_tokens_are_billable_usage": False,
-                    "actual_cost_usd": None,
+                    "actual_cost_usd": "0",
                 }
                 with SessionLocal() as session:
                     complete_call(
                         session,
                         count_res.call_id,
                         fence_token=fence,
+                        actual_cost_usd=Decimal("0"),
                         result_digest=_digest(payload),
                         result_payload=payload,
                     )
             except Exception as exc:  # noqa: BLE001 - classify, never retry blind
                 return self._classify_failure(exc, count_res.call_id, fence, "count")
-        response_cost = (
-            Decimal(counted) * settings.intelligence_ocr_input_usd_per_million
-            + Decimal(settings.intelligence_ocr_max_output_tokens)
-            * settings.intelligence_ocr_output_usd_per_million
-        ) / Decimal(1_000_000)
+        response_cost = openai_cost_ceiling_from_tokens(
+            counted,
+            settings.intelligence_ocr_max_output_tokens,
+            input_rate_usd_per_million=OCR_INPUT_WRITE_USD_PER_MILLION,
+            output_rate_usd_per_million=OCR_OUTPUT_USD_PER_MILLION,
+        )
         if (
             response_cost <= 0
+            or response_cost > OCR_MAX_CALL_USD
             or response_cost > settings.intelligence_ocr_max_call_usd
-            or not _caps_ready(response_cost)
         ):
             return self._stop("blocked", "OCR_RESPONSE_FINITE_BUDGET_REQUIRED")
         res = self._reserve(
@@ -404,6 +446,8 @@ class StagePdfOcr:
             response = self.caller(api_key=key, request=request)
             if response.get("model") != model:
                 raise ValueError("Provider response model does not match the pinned model")
+            if response.get("service_tier") not in {None, "default"}:
+                raise ValueError("OCR response used a non-default service tier")
             _validate_ocr_response_usage(
                 response,
                 counted_input_tokens=counted,

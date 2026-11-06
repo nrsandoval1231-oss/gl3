@@ -27,7 +27,9 @@ import gridlens.ingestion.adapters.ok_deq_documents as okd
 import gridlens.ingestion.adapters.tceq_http as tceq_http
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.ok_deq_memo import normalize_permit, parse_memo_header
+from gridlens.ingestion.adapters.tceq_application_documents import ExtractionHooks
 from gridlens.ingestion.parsers.equipment import extract_equipment_claims
+from gridlens.ingestion.parsers.permit_docs import PermitExtractionResult
 from gridlens.ingestion.registry import load_registry
 
 NOW = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
@@ -240,14 +242,83 @@ def test_same_permit_across_two_keys_links_versions_and_keeps_first_seen():
 def test_a_document_for_a_permit_not_in_the_listing_is_indexed_but_joined_to_nothing():
     origin = west_edmond_origin(permit="2019-0001-O")
     record = listing_record()
-    report = run(origin, [record], config=seeded(8406))
+    hook_calls = []
+    report = run(
+        origin,
+        [record],
+        config=seeded(8406),
+        hooks_for_record=lambda *args: hook_calls.append(args),
+    )
     assert report.counts["unjoined"] == 1 and "okdeq_document" not in record
+    assert hook_calls == []  # no exact listing permit means no project-bound hooks
     entry = report.index["keys"]["8406"]
     assert entry["permit"] == "2019-0001-O" and entry["status"] == "document"
     # When the permit later appears in the listing, the key is extracted (no states yet).
     later = listing_record(permit_no="2019-0001-O")
     run(origin, [later], config=seeded(8406), index=report.index)
     assert later["okdeq_document"]["permit_norm"] == "2019-0001-O"
+
+
+def test_hooks_are_created_only_after_the_memo_joins_the_listing_record():
+    origin = west_edmond_origin()
+    record = listing_record()
+    hook_calls = []
+
+    def resolve_hooks(matched_record, pdf_path, url, key):
+        hook_calls.append((matched_record["document_number"], pdf_path.name, url, key))
+        return ExtractionHooks(proposer=lambda: None, ocr=lambda _path, _url: None)
+
+    run(origin, [record], config=seeded(8406), hooks_for_record=resolve_hooks)
+    assert hook_calls == [
+        (
+            record["document_number"],
+            "doc.pdf",
+            f"{BASE}8406.pdf",
+            8406,
+        )
+    ]
+
+
+def test_listing_extraction_passes_model_hooks_but_keeps_ocr_out_of_demand(tmp_path, monkeypatch):
+    from gridlens.ingestion.parsers import permit_docs
+
+    seen = {}
+    proposer = object()
+    ocr = object()
+
+    def extract(_canon, **kwargs):
+        seen.update(kwargs)
+        return PermitExtractionResult(
+            pages=2,
+            ocr={"status": "blocked", "reason": "OCR_PAGE_REVIEW_REQUIRED"},
+            proposer={"status": "disabled", "reason": "PROPOSER_SETTING_OFF"},
+        )
+
+    monkeypatch.setattr(permit_docs, "extract_from_canonical", extract)
+    header = parse_memo_header(
+        "MEMORANDUM March 9, 2023\nSUBJECT: Evaluation of Permit Application No. "
+        "2017-0987-C (M-2)\n"
+    )
+    hooks = ExtractionHooks(
+        proposer=lambda: proposer,
+        ocr=lambda path, url: (seen.update(ocr_args=(path, url)) or ocr),
+    )
+    pdf_path = tmp_path / "doc.pdf"
+    pdf_path.write_bytes(b"synthetic")
+    result = okd.extract_listing_document(
+        object(),
+        header,
+        "a" * 64,
+        8406,
+        pdf_path=pdf_path,
+        hooks=hooks,
+    )
+
+    assert seen["proposer"] is proposer and seen["ocr"] is ocr
+    assert seen["ocr_args"] == (str(pdf_path), f"{BASE}8406.pdf")
+    assert seen["allow_ocr_demand"] is False
+    assert result["ocr"]["status"] == "blocked"
+    assert result["proposer"]["status"] == "disabled"
 
 
 def test_unverifiable_permit_number_is_recorded_unknown_and_not_joined():

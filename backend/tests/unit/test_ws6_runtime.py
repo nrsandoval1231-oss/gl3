@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from gridlens.ingestion.document_health import build_run_summary, summarize_states
-from gridlens.ingestion.registry import _validate_run_at
+from gridlens.ingestion.registry import _validate_run_at, load_registry
 from gridlens.jobs import document_alerts as da
 from gridlens.jobs.alerts import summarize
 from gridlens.jobs.document_extraction import (
@@ -22,7 +22,14 @@ from gridlens.jobs.document_extraction import (
     merge_pending,
     validators_digest,
 )
-from gridlens.jobs.worker import _scheduled_instants
+from gridlens.jobs.worker import (
+    _REGISTRY_CONFIGURATION_FIELDS,
+    _configuration_differs,
+    _definition_for_scheduled_job,
+    _normalized_registry_configuration,
+    _scheduled_instants,
+)
+from gridlens.settings import settings
 
 CHICAGO = ZoneInfo("America/Chicago")
 
@@ -50,6 +57,41 @@ def epoch(
 
 def local(instants):
     return [i.astimezone(CHICAGO).strftime("%Y-%m-%d %H:%M") for i in instants]
+
+
+def test_document_stage_opt_in_is_epoch_local_and_historical_default_is_stable(monkeypatch):
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", "")
+    default = next(row for row in load_registry() if row["id"] == "texas-tceq-nsr-pending")
+    old_epoch_configuration = _normalized_registry_configuration(default)
+    assert "application_documents_enabled" not in old_epoch_configuration
+    assert not _configuration_differs(
+        old_epoch_configuration, dict(old_epoch_configuration), _REGISTRY_CONFIGURATION_FIELDS
+    )
+
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", "texas-tceq-nsr-pending")
+    enabled = next(row for row in load_registry() if row["id"] == "texas-tceq-nsr-pending")
+    new_epoch_configuration = _normalized_registry_configuration(enabled)
+    assert new_epoch_configuration["application_documents_enabled"] is True
+    assert _configuration_differs(
+        new_epoch_configuration, old_epoch_configuration, _REGISTRY_CONFIGURATION_FIELDS
+    )
+
+
+def test_scheduled_document_stage_requires_both_current_and_captured_permission(monkeypatch):
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", "texas-tceq-nsr-pending")
+    enabled = next(row for row in load_registry() if row["id"] == "texas-tceq-nsr-pending")
+    historical = _definition_for_scheduled_job(enabled, {})
+    assert historical["query"]["application_documents"]["enabled"] is False
+
+    activated = _definition_for_scheduled_job(enabled, {"application_documents_enabled": True})
+    assert activated["query"]["application_documents"]["enabled"] is True
+    manual = _definition_for_scheduled_job(enabled, None)
+    assert manual["query"]["application_documents"]["enabled"] is True
+
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", "")
+    opted_out = next(row for row in load_registry() if row["id"] == "texas-tceq-nsr-pending")
+    vetoed = _definition_for_scheduled_job(opted_out, {"application_documents_enabled": True})
+    assert vetoed["query"]["application_documents"]["enabled"] is False
 
 
 def test_without_run_at_the_single_anchor_time_is_unchanged():

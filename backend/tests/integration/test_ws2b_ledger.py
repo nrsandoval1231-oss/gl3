@@ -29,6 +29,7 @@ from gridlens.intelligence import equipment_proposer as ep
 from gridlens.intelligence import intelligence_jobs as jobs
 from gridlens.intelligence import permit_page_ocr as ocr
 from gridlens.intelligence import scanned_pdf_ocr
+from gridlens.intelligence.ocr_public_pages import page_approval_key, render_page_images
 from gridlens.intelligence.spend_caps import recent_capped_out_jobs, spend_status
 from gridlens.jobs import alerts
 from gridlens.persistence import database
@@ -447,16 +448,22 @@ def _ocr_on(monkeypatch, **caps):
         "intelligence_ocr_model": "gpt-6.1-sol",
         "intelligence_ocr_priced_model_id": "gpt-6.1-sol",
         "intelligence_ocr_pricing_verified": True,
-        "intelligence_ocr_input_usd_per_million": Decimal(2),
+        "intelligence_ocr_input_usd_per_million": Decimal("2.50"),
         "intelligence_ocr_output_usd_per_million": Decimal(10),
         "intelligence_ocr_max_output_tokens": 4000,
         "intelligence_ocr_detail": "auto",
-        "intelligence_ocr_preflight_max_cost_usd": Decimal("0.05"),
+        "intelligence_ocr_preflight_max_cost_usd": Decimal("0.000001"),
         "intelligence_ocr_max_call_usd": Decimal("0.10"),
         "intelligence_ocr_retention_source_ids": "texas-tceq-nsr-pending",
         "intelligence_ocr_retention_reference": "owner-policy-1",
     }.items():
         monkeypatch.setattr(settings, name, value)
+    approval_pdf = make_pdf([[]])
+    rendered = render_page_images(approval_pdf, local_pages=[1], source_pages=[1])[0]
+    approvals = ",".join(
+        page_approval_key(HASH, page, rendered["pixel_sha256"]) for page in range(1, 101)
+    )
+    monkeypatch.setattr(settings, "intelligence_ocr_reviewed_page_hashes", approvals)
     _caps(monkeypatch, **caps)
 
 
@@ -481,6 +488,7 @@ class OcrCaller:
             "output": {"pages": [{"page": i, "text": t} for i, t in enumerate(self.texts, 1)]},
             "input_tokens": 2900,
             "output_tokens": 200,
+            "service_tier": "default",
         }
 
 
@@ -489,7 +497,7 @@ def _stage_ocr(counter, caller, source_id="texas-tceq-nsr-pending", cut=None):
         pdf_path="unused.pdf",
         source_url="https://www.tceq.texas.gov/assets/public/air/1234-ac.pdf",
         source_id=source_id,
-        cut=cut or (lambda path, sha, pages: b"%PDF-1.4 fake"),
+        cut=cut or (lambda path, sha, pages: make_pdf([[] for _ in pages])),
         counter=counter,
         caller=caller,
     )
@@ -512,11 +520,13 @@ def test_stage_ocr_reads_scanned_pages_labels_them_and_charges_the_ledger(sessio
         calls = {c.task_type: c for c in session.scalars(select(LogicalCall))}
         assert set(calls) == {"OCR_INPUT_PREFLIGHT", "OCR_EXTRACTION"}
         assert all(c.status == "COMPLETED" and c.provider == "openai" for c in calls.values())
+        assert calls["OCR_INPUT_PREFLIGHT"].max_cost_usd == Decimal("0.000001")
+        assert calls["OCR_INPUT_PREFLIGHT"].actual_cost_usd == Decimal("0")
         ocr_call = calls["OCR_EXTRACTION"]
         assert ocr_call.result_payload["status"] == "OCR_UNVERIFIED"
         assert ocr_call.result_payload["pages"][0]["text"] == OCR_TEXT
         # 3000 counted * $2/M + 4000 max output * $10/M, reserved before the call
-        assert Decimal(str(ocr_call.max_cost_usd)) == Decimal("0.046")
+        assert Decimal(str(ocr_call.max_cost_usd)) == Decimal("0.0475")
 
 
 def test_stage_ocr_replays_from_the_ledger_without_new_spend(sessions, monkeypatch):
@@ -557,14 +567,14 @@ def test_stage_ocr_outside_the_allowlist_never_reaches_the_provider(sessions, mo
 
 
 def test_stage_ocr_capped_out_is_typed_and_not_silent(sessions, monkeypatch):
-    _ocr_on(monkeypatch, overrides='{"openai": {"monthly_usd": 0.06}}')
+    _ocr_on(monkeypatch, overrides='{"openai": {"monthly_usd": 0.04}}')
     counter, caller = Counter(), OcrCaller([OCR_TEXT])
     result = extract_from_pages(
         [COVER, ""],
         document_hash=HASH,
         ocr=_stage_ocr(counter, caller),
     )
-    # The 0.05 preflight reservation fits under 0.06; the 0.046 response then does not.
+    # Free input-token counting uses call caps only; the $0.0475 OCR maximum exceeds $0.04.
     assert result.ocr["status"] == "capped_out" and caller.calls == 0
     assert result.ocr["reason"].endswith("_CAP_REACHED") or result.ocr["reason"].endswith("INVALID")
     assert result.ocr["cap_state"] == "CAPPED_OUT"
@@ -603,7 +613,7 @@ def test_stage_ocr_page_bound(sessions, monkeypatch):
 
     def cut(path, sha, pages):
         seen.append(pages)
-        return b"%PDF-1.4 fake"
+        return make_pdf([[] for _ in pages])
 
     caller = OcrCaller(["a page", "b page"])
     outcome = _stage_ocr(Counter(), caller, cut=cut).ocr_pages([2, 3, 4, 5], document_hash=HASH)
