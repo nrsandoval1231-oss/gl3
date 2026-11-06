@@ -175,24 +175,33 @@ export function CanonicalOpportunityDetail(props: Props) {
         <section className="cod-contacts" aria-label="Decision maker or contact"><h3><UserRound size={13} strokeWidth={1.6}/>Decision Maker / Contact</h3>
           {people.length ? people.map(person => {
             const channels = contactChannels(person.methods ?? [], person.sources ?? [])
+            const primary = prioritizePrimaryChannels(channels)
+            const phone = primary.find(channel => channel.kind === 'phone')
+            const email = primary.find(channel => channel.kind === 'email')
+            const extraSources = (person.sources ?? []).filter(source => !sources.some(itemSource => safeSourceUrl(itemSource.url) && safeSourceUrl(itemSource.url) === safeSourceUrl(source.url)))
+            const note = (channel: typeof primary[number]) => channel.verifiedAt ? `Source checked ${displayDate(channel.verifiedAt)}` : <>Verification not established · <a href={channel.sourceUrl} target="_blank" rel="noreferrer">{channel.sourceTitle}</a></>
             return <article key={person.claim_id}>
-            <strong>{person.name || person.company}</strong><p>{[person.title || person.role, person.name ? person.company : null].filter(Boolean).join(' · ')}</p>
-            {person.responsibility && <p>{person.responsibility}</p>}
-            <p>Purchasing authority: {person.purchasing_authority?.trim() || 'Authority not established'}</p>
-            {prioritizePrimaryChannels(channels).map(channel => <span className="cod-verified-method" key={`${channel.kind}:${channel.value}`}>
-              <a href={channel.href}>{channel.kind === 'email' ? 'Email' : 'Call'} {channel.value}</a>
-              <small>{channel.verifiedAt ? `Source checked ${displayDate(channel.verifiedAt)}` : <>Listed in source: <a href={channel.sourceUrl} target="_blank" rel="noreferrer">{channel.sourceTitle}</a> · verification not established</>}</small>
-            </span>)}
-            {!channels.some(method => method.kind === 'phone') && <small>Phone unavailable in retained contact evidence.</small>}
-            {!channels.some(method => method.kind === 'email') && <small>Email unavailable in retained contact evidence.</small>}
-            {(person.sources ?? []).filter(source => !sources.some(itemSource => safeSourceUrl(itemSource.url) && safeSourceUrl(itemSource.url) === safeSourceUrl(source.url))).map(source => safeSourceUrl(source.url) && <a key={`${source.reference}:${source.url}`} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">Contact source: {source.title}</a>)}
+            <strong>{person.name || person.company}</strong>
+            <p>{[person.title || person.role, person.name ? person.company : null].filter(Boolean).join(' · ')}</p>
+            <dl className="cod-contact-methods">
+              <div><dt>Phone</dt><dd>{phone ? <><a href={phone.href}>{phone.value}</a><small>{note(phone)}</small></> : <span className="cod-muted">—</span>}</dd></div>
+              <div><dt>Email</dt><dd>{email ? <><a href={email.href}>{email.value}</a><small>{note(email)}</small></> : <span className="cod-muted">—</span>}</dd></div>
+            </dl>
+            <details className="cod-contact-more"><summary>More</summary>
+              {person.responsibility && <p>{person.responsibility}</p>}
+              <p>Purchasing authority: {person.purchasing_authority?.trim() || 'Authority not established'}</p>
+              {primary.slice(2).map(channel => <span className="cod-verified-method" key={`${channel.kind}:${channel.value}`}><a href={channel.href}>{channel.kind === 'email' ? 'Email' : 'Call'} {channel.value}</a><small>{note(channel)}</small></span>)}
+              {!phone && <small>Phone unavailable in retained contact evidence.</small>}
+              {!email && <small>Email unavailable in retained contact evidence.</small>}
+              {extraSources.map(source => safeSourceUrl(source.url) && <a key={`${source.reference}:${source.url}`} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">Contact source: {source.title}</a>)}
+            </details>
           </article>}) : <p>No decision-maker or public company contact is available in retained evidence.</p>}
           {(project?.contact ?? []).filter(action => action.route_kind === 'company_route').map(action => {
             const href = safeContactAction(action.kind, action.href)
             const normalizedHref = href ? normalizeContactHref(href) : ''
             if (!href || !normalizedHref || renderedContactHrefs.has(normalizedHref)) return null
             renderedContactHrefs.add(normalizedHref)
-            return <p className="cod-company-route" key={`${action.kind}:${href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact path'}</strong> · {action.responsibility || 'General company contact path'} · <a href={href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a>{action.support && <small>{action.support}</small>}</p>
+            return <p className="cod-company-route" key={`${action.kind}:${href}`} title={[action.responsibility, action.support].filter(Boolean).join(' · ') || undefined}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact path'}</strong> <a href={href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a></p>
           })}
         </section>
         <section className="cod-evidence" aria-label="Recent evidence"><h3><FileText size={13} strokeWidth={1.6}/>Evidence ({sources.length + additionalCardEvidence.length})</h3>
