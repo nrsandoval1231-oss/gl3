@@ -384,11 +384,11 @@ export function WorkspaceHome() {
   return <div className="workspace-home">
     {header}
     {researchHost}
-    {navigationPanel && <section className="canonical-navigation-panel" aria-label={navigationPanel === 'companies' ? 'Companies' : 'Reports'}>
-      <button aria-label="Close navigation panel" onClick={() => { setNavigationPanel(null); pushPanel(null) }}>Close</button>
+    {navigationPanel && <main className="canonical-navigation-page"><section className="canonical-navigation-panel" aria-label={navigationPanel === 'companies' ? 'Companies' : 'Reports'}>
+      <button type="button" className="canonical-navigation-back" aria-label="Close navigation panel" onClick={() => { setNavigationPanel(null); pushPanel(null) }}>← Back to Opportunities</button>
       {navigationPanel === 'companies' ? <CompaniesPanel onNeed={id => { setNavigationPanel(null); openActiveNeed({ id }) }}/> : <ReportsPanel onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/>}
-    </section>}
-    <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
+    </section></main>}
+    <main hidden={Boolean(navigationPanel)} className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>
         <CanonicalOpportunityKpis/>
         <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => {

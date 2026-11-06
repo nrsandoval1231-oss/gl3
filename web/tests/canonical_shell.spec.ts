@@ -56,3 +56,53 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   await expect(page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })).toBeVisible()
   expect(projectQueries.length).toBeGreaterThan(0)
 })
+
+test('companies and reports open as their own page and closing restores the exact Opportunities state', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/search?**', route => route.fulfill({ json: { query: '', companies: [], projects: [], contacts: [], opportunities: [] } }))
+  await page.route('**/api/opportunities/projects?**', route => route.fulfill({ json: projectResults }))
+  await page.route('**/api/opportunities/needs/need-shell?**', route => route.fulfill({ json: need }))
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g' } }))
+  let projectRequests = 0
+  page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/projects' && url.searchParams.get('limit') !== '1') projectRequests++ }) // limit=1 is the Companies panel's own count probe
+
+  await page.goto('/?view=workspace&projectBrowse=1')
+  const search = page.getByRole('textbox', { name: 'Search opportunities' })
+  await search.fill('Mesa')
+  await page.getByRole('button', { name: /Mesa compressor project/ }).first().click()
+  await expect(page).toHaveURL(/need=need-shell/)
+  const seen = projectRequests
+  await page.evaluate(() => { (window as unknown as { __kept: boolean }).__kept = true })
+
+  await page.getByRole('button', { name: 'Companies' }).click()
+  const panel = page.getByRole('region', { name: 'Companies' })
+  await expect(panel).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Companies')
+  await expect(search).toBeHidden()
+  await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Close navigation panel' }).click()
+  await expect(panel).toHaveCount(0)
+  await expect(search).toBeVisible()
+  await expect(search).toHaveValue('Mesa')
+  await expect(page).toHaveURL(/need=need-shell/)
+  await expect(page.getByRole('heading', { name: /Mesa compressor project/ }).first()).toBeVisible()
+  expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true)
+  expect(projectRequests).toBe(seen)
+
+  // Browser back reopens the panel, forward returns to Opportunities with state intact.
+  await page.goBack()
+  await expect(panel).toBeVisible()
+  await expect(search).toBeHidden()
+  await page.goForward()
+  await expect(panel).toHaveCount(0)
+  await expect(search).toHaveValue('Mesa')
+
+  await page.getByRole('button', { name: 'Reports' }).click()
+  await expect(page.getByRole('region', { name: 'Reports' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Reports')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+})

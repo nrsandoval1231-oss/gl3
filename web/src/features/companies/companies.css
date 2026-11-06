@@ -18,3 +18,11 @@
 .cmp-badge{width:fit-content;padding:1px 8px;border-radius:999px;background:#f2f6f9;color:#10223c!important}
 @media(max-width:720px){.cmp-row{grid-template-columns:minmax(0,1fr) 56px 70px 14px;gap:6px;padding:10px 8px}.cmp-head{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.cmp *{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+/* Companies/Reports page chrome: the panel is its own page; Opportunities stays mounted but hidden. */
+.wh-main[hidden]{display:none!important}
+main.canonical-navigation-page{display:block;padding:10px 26px 20px;background:#f5f7fa;min-height:calc(100vh - 54px);min-width:0}
+main.canonical-navigation-page>.canonical-navigation-panel{margin:0;padding:0;border:0;border-radius:0;background:transparent;font-size:12px;min-width:0}
+main.canonical-navigation-page .canonical-navigation-panel>.canonical-navigation-back{float:none;display:inline-block;margin:0 0 8px;padding:4px 0;border:0;background:none;color:#617189;font:12px Inter,sans-serif;cursor:pointer}
+main.canonical-navigation-page .canonical-navigation-panel>.canonical-navigation-back:hover{color:#10223c;text-decoration:underline}
+main.canonical-navigation-page .canonical-navigation-panel>.canonical-navigation-back:focus-visible{outline:2px solid #47748e;outline-offset:2px}
+@media(max-width:720px){main.canonical-navigation-page{padding:10px}}
