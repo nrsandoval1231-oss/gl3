@@ -3,13 +3,15 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.api import commercial_pursuits as module
 from gridlens.api.app import app
+from gridlens.api.commercial_pursuits import _contact as real_contact
 from gridlens.domain.commercial_pursuits import OpenTask, attention_reasons, parse_power_day
+from gridlens.persistence.commercial_pursuit_models import CommercialPursuit, PursuitActivity
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import PowerNeed, Project, Source
 from gridlens.security import require_session
@@ -149,7 +151,7 @@ def test_activity_requires_confirmation_and_is_idempotent(pursuit_env):
     payload.update(confirmed=True, client_id=client_id)
     first = client.post(url, json=payload)
     again = client.post(url, json=payload)
-    assert first.status_code == 201 and again.status_code == 201
+    assert first.status_code == 201 and again.status_code == 200
     calls = [a for a in again.json()["activity"] if a["kind"] == "call"]
     assert len(calls) == 1
     assert (
@@ -224,3 +226,94 @@ def test_attention_rule_unit_behaviour():
     assert parse_power_day("2026-13-40") is None and parse_power_day("2026-12-01") == date(
         2026, 12, 1
     )
+
+
+def test_contact_database_error_does_not_break_list(pursuit_env, monkeypatch):
+    from gridlens.intelligence import buying_chain
+
+    client = TestClient(app)
+    first = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()
+    second = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()
+    bad_project = first["project_id"]
+
+    def flaky(session, project_id):
+        if str(project_id) == bad_project:
+            session.execute(text("SELECT * FROM table_that_does_not_exist"))
+        return None
+
+    monkeypatch.setattr(module, "_contact", real_contact)
+    monkeypatch.setattr(buying_chain, "buying_chain_view", flaky)
+    monkeypatch.setattr(
+        "gridlens.domain.opportunity_intelligence.contact_projection", lambda view: []
+    )
+    response = client.get("/api/commercial-pursuits")
+    assert response.status_code == 200
+    by_id = {i["id"]: i for i in response.json()["items"]}
+    assert by_id[first["id"]]["contact_status"] == "unknown"
+    assert by_id[second["id"]]["contact_status"] == "missing"
+
+
+def test_counts_and_need_filter_cover_more_than_200_pursuits(pursuit_env):
+    client = TestClient(app)
+    old_need = _need(pursuit_env)
+    old = client.post("/api/commercial-pursuits", json={"need_id": old_need}).json()
+    with pursuit_env() as session:
+        template = session.get(CommercialPursuit, old["id"])
+        for _ in range(205):
+            need_id = _need(pursuit_env)
+            need = session.get(PowerNeed, need_id)
+            session.add(CommercialPursuit(need_id=need.id, project_id=need.project_id, stage="New"))
+        template.stage = "Lost"
+        session.commit()
+    listing = client.get("/api/commercial-pursuits", params={"need_id": old_need}).json()
+    assert listing["counts"] == {"total": 206, "active": 205, "needs_attention": 0}
+    assert [i["id"] for i in listing["items"]] == [old["id"]]
+    assert len(client.get("/api/commercial-pursuits", params={"limit": 200}).json()["items"]) == 200
+
+
+def test_duplicate_client_id_replay_returns_200_with_one_row(pursuit_env):
+    client = TestClient(app)
+    pursuit = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()
+    url = f"/api/commercial-pursuits/{pursuit['id']}/activity"
+    payload = {"kind": "note", "summary": "x", "confirmed": True, "client_id": str(uuid4())}
+    assert client.post(url, json=payload).status_code == 201
+    assert client.post(url, json=payload).status_code == 200
+    with pursuit_env() as session:
+        count = session.scalar(
+            select(func.count())
+            .select_from(PursuitActivity)
+            .where(PursuitActivity.client_id == payload["client_id"])
+        )
+    assert count == 1
+
+
+def test_integrity_error_on_commit_returns_existing_record(pursuit_env, monkeypatch):
+    client = TestClient(app)
+    pursuit = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()
+    url = f"/api/commercial-pursuits/{pursuit['id']}/activity"
+    payload = {"kind": "note", "summary": "x", "confirmed": True, "client_id": str(uuid4())}
+    assert client.post(url, json=payload).status_code == 201
+    # Simulate the race: the pre-commit existence check misses the winner's row.
+    calls = {"n": 0}
+    real_scalar = module.Session.scalar
+
+    def blind_first(self, stmt, *a, **k):
+        calls["n"] += 1
+        if calls["n"] == 2:  # 1 = locked pursuit load, 2 = existence check
+            return None
+        return real_scalar(self, stmt, *a, **k)
+
+    monkeypatch.setattr(module.Session, "scalar", blind_first)
+    response = client.post(url, json=payload)
+    assert response.status_code == 200
+    assert len([a for a in response.json()["activity"] if a["kind"] == "note"]) == 1
+
+
+def test_naive_occurred_at_is_rejected(pursuit_env):
+    client = TestClient(app)
+    pursuit = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()
+    url = f"/api/commercial-pursuits/{pursuit['id']}/activity"
+    base = {"kind": "call", "summary": "x", "confirmed": True}
+    assert client.post(url, json={**base, "occurred_at": "2026-11-05T10:00:00"}).status_code == 422
+    ok = client.post(url, json={**base, "occurred_at": "2026-11-05T10:00:00-06:00"})
+    assert ok.status_code == 201

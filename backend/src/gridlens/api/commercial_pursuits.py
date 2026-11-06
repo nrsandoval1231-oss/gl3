@@ -1,4 +1,8 @@
-"""Authenticated owner-managed pursuit workspace routes (single-owner deployment)."""
+"""Authenticated owner-managed pursuit workspace routes (single-owner deployment).
+
+"Today" for follow-up and power-timing attention rules is the America/Chicago calendar day.
+Activity ``occurred_at`` must carry a timezone offset; naive datetimes are rejected with 422.
+"""
 
 from __future__ import annotations
 
@@ -136,6 +140,13 @@ class ActivityIn(BaseModel):
         description="The user confirms this communication or event actually happened."
     )
 
+    @field_validator("occurred_at")
+    @classmethod
+    def _require_timezone(cls, value: datetime | None) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("occurred_at must include a timezone offset")
+        return value
+
 
 def _task_out(task: PursuitTask) -> TaskOut:
     return TaskOut(
@@ -147,12 +158,17 @@ def _task_out(task: PursuitTask) -> TaskOut:
 
 
 def _contact(session: Session, project_id: UUID) -> tuple[ContactSummary | None, str]:
-    """Primary contact from the same projection the opportunity card uses."""
+    """Primary contact from the same projection the opportunity card uses.
+
+    The lookup runs in a savepoint so a database error rolls back only the lookup (a failed
+    statement otherwise aborts the whole Postgres transaction) and is reported as "unknown".
+    """
     try:
         from gridlens.domain.opportunity_intelligence import contact_projection
         from gridlens.intelligence.buying_chain import buying_chain_view
 
-        people = contact_projection(buying_chain_view(session, project_id))
+        with session.begin_nested():
+            people = contact_projection(buying_chain_view(session, project_id))
     except Exception:  # evidence unreadable: report unknown, never "missing"
         return None, "unknown"
     best = None
@@ -173,20 +189,55 @@ def _contact(session: Session, project_id: UUID) -> tuple[ContactSummary | None,
     return (best, "available") if best else (None, "missing")
 
 
-def _view(session: Session, row: CommercialPursuit, today: date, detail: bool) -> PursuitOut:
-    need = session.get(PowerNeed, row.need_id)
-    project = session.get(Project, row.project_id)
-    tasks = list(
-        session.scalars(
-            select(PursuitTask)
-            .where(PursuitTask.pursuit_id == row.id)
-            .order_by(
-                PursuitTask.completed_at.is_(None).desc(), PursuitTask.due_date.asc().nulls_last()
-            )
+class _Preload:
+    """Needs, projects and tasks for a set of pursuits, loaded with a few IN queries."""
+
+    def __init__(self, session: Session, rows: list[CommercialPursuit]):
+        need_ids = {r.need_id for r in rows}
+        project_ids = {r.project_id for r in rows}
+        pursuit_ids = [r.id for r in rows]
+        self.needs: dict[UUID, PowerNeed] = (
+            {n.id: n for n in session.scalars(select(PowerNeed).where(PowerNeed.id.in_(need_ids)))}
+            if need_ids
+            else {}
         )
-    )
+        self.projects: dict[UUID, Project] = (
+            {p.id: p for p in session.scalars(select(Project).where(Project.id.in_(project_ids)))}
+            if project_ids
+            else {}
+        )
+        self.tasks: dict[UUID, list[PursuitTask]] = {}
+        if pursuit_ids:
+            for task in session.scalars(
+                select(PursuitTask)
+                .where(PursuitTask.pursuit_id.in_(pursuit_ids))
+                .order_by(
+                    PursuitTask.completed_at.is_(None).desc(),
+                    PursuitTask.due_date.asc().nulls_last(),
+                )
+            ):
+                self.tasks.setdefault(task.pursuit_id, []).append(task)
+        self.contacts: dict[UUID, tuple[ContactSummary | None, str]] = {}
+
+    def contact(self, session: Session, project_id: UUID) -> tuple[ContactSummary | None, str]:
+        if project_id not in self.contacts:
+            self.contacts[project_id] = _contact(session, project_id)
+        return self.contacts[project_id]
+
+
+def _view(
+    session: Session,
+    row: CommercialPursuit,
+    today: date,
+    detail: bool,
+    pre: _Preload | None = None,
+) -> PursuitOut:
+    pre = pre or _Preload(session, [row])
+    need = pre.needs.get(row.need_id)
+    project = pre.projects.get(row.project_id)
+    tasks = pre.tasks.get(row.id, [])
     open_tasks = [t for t in tasks if t.completed_at is None]
-    contact, status = _contact(session, row.project_id)
+    contact, status = pre.contact(session, row.project_id)
     reasons = attention_reasons(
         stage=row.stage,
         open_tasks=[OpenTask(str(t.id), t.due_date) for t in open_tasks],
@@ -248,8 +299,13 @@ def _log(
     )
 
 
-def _get(session: Session, pursuit_id: UUID) -> CommercialPursuit:
-    row = session.get(CommercialPursuit, pursuit_id)
+def _get(session: Session, pursuit_id: UUID, lock: bool = False) -> CommercialPursuit:
+    """Load a pursuit; ``lock`` takes a row lock so concurrent mutations serialise."""
+    query = select(CommercialPursuit).where(CommercialPursuit.id == pursuit_id)
+    if lock:
+        query = query.with_for_update()
+        session.expire_all()
+    row = session.scalar(query)
     if row is None:
         raise HTTPException(404, "Pursuit not found")
     return row
@@ -264,14 +320,17 @@ def list_pursuits(
 ):
     today = _today()
     with SessionLocal() as session:
+        # Counts and filters cover every pursuit (single-owner volumes are small); only the
+        # returned page is limited, after filtering.
         rows = list(
             session.scalars(
-                select(CommercialPursuit)
-                .order_by(CommercialPursuit.created_at.desc(), CommercialPursuit.id)
-                .limit(200)
+                select(CommercialPursuit).order_by(
+                    CommercialPursuit.created_at.desc(), CommercialPursuit.id
+                )
             )
         )
-        views = [_view(session, row, today, detail=False) for row in rows]
+        pre = _Preload(session, rows)
+        views = [_view(session, row, today, detail=False, pre=pre) for row in rows]
     counts = PursuitCounts(
         total=len(views),
         active=sum(v.stage not in CLOSED_STAGES for v in views),
@@ -330,7 +389,7 @@ def set_stage(pursuit_id: UUID, body: StageIn):
     if not valid_stage(body.stage):
         raise HTTPException(422, "Unknown stage")
     with SessionLocal() as session:
-        row = _get(session, pursuit_id)
+        row = _get(session, pursuit_id, lock=True)
         if row.stage != body.stage:
             previous = row.stage
             row.stage = body.stage
@@ -356,7 +415,7 @@ def add_task(pursuit_id: UUID, body: TaskIn):
 @router.patch("/{pursuit_id}/tasks/{task_id}", response_model=PursuitOut)
 def update_task(pursuit_id: UUID, task_id: UUID, body: TaskPatch):
     with SessionLocal() as session:
-        row = _get(session, pursuit_id)
+        row = _get(session, pursuit_id, lock=True)
         task = session.get(PursuitTask, task_id)
         if task is None or task.pursuit_id != row.id:
             raise HTTPException(404, "Task not found")
@@ -378,28 +437,40 @@ def update_task(pursuit_id: UUID, task_id: UUID, body: TaskPatch):
 
 
 @router.post("/{pursuit_id}/activity", response_model=PursuitOut, status_code=201)
-def log_activity(pursuit_id: UUID, body: ActivityIn):
+def log_activity(pursuit_id: UUID, body: ActivityIn, response: Response):
     if not body.confirmed:
         raise HTTPException(422, "Activity must be confirmed by the user before it is recorded")
     with SessionLocal() as session:
-        row = _get(session, pursuit_id)
-        if body.client_id is not None and session.scalar(
-            select(PursuitActivity.id).where(
-                PursuitActivity.pursuit_id == row.id, PursuitActivity.client_id == body.client_id
+        row = _get(session, pursuit_id, lock=True)
+
+        def existing() -> bool:
+            return body.client_id is not None and bool(
+                session.scalar(
+                    select(PursuitActivity.id).where(
+                        PursuitActivity.pursuit_id == row.id,
+                        PursuitActivity.client_id == body.client_id,
+                    )
+                )
             )
-        ):
+
+        if existing():
+            response.status_code = 200
             return _view(session, row, _today(), detail=True)
-        when = body.occurred_at or datetime.now(UTC)
-        if when.tzinfo is None:
-            when = when.replace(tzinfo=UTC)
         _log(
             session,
             row.id,
             body.kind,
             body.summary.strip(),
-            when,
+            body.occurred_at or datetime.now(UTC),
             detail=(body.detail or "").strip() or None,
             client_id=body.client_id or uuid4(),
         )
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError:  # retried request lost the race: return the recorded entry
+            session.rollback()
+            row = _get(session, pursuit_id)
+            if not existing():
+                raise
+            response.status_code = 200
         return _view(session, row, _today(), detail=True)
