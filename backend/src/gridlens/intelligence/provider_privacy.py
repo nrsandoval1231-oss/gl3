@@ -25,6 +25,7 @@ _UUID_TOKEN = re.compile(
     r"(?<![0-9a-f])[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?![0-9a-f])", re.I
 )
 _PHONE_SPAN = re.compile(r"\+?\d[\d(). \t-]{5,}\d")
+_PARENTHESIZED_AREA_PHONE = re.compile(r"(?<!\d)\(\d{3}\)\s*\d{3}[-. ]?\d{4}(?!\d)")
 _NANP_PHONE = re.compile(
     r"(?<!\d)(?:\+?1[ \t.-]?)?(?:\(\d{3}\)|\d{3})[ \t.-]\d{3}[ \t.-]\d{4}(?!\d)"
 )
@@ -207,6 +208,8 @@ def _sensitive_text(value: str, key: str) -> bool:
     # canonical UUID tokens from phone scanning; sensitive field names are checked
     # separately and still reject values under phone/contact keys.
     phone_text = _UUID_TOKEN.sub(" ", phone_text)
+    if _PARENTHESIZED_AREA_PHONE.search(phone_text):
+        return True
     key_has_phone_context = bool(_PHONE_CONTEXT.search(_normalize_text_labels(key)))
     if key_has_phone_context and any(
         7 <= len(number) <= 15 for number in re.findall(r"\d+", phone_text)

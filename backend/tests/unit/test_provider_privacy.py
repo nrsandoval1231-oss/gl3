@@ -70,6 +70,9 @@ def test_official_permit_quote_and_offsets_are_preserved_without_contact_data():
         {"evidence_id": "a", "quote": "Phone: 5125550198"},
         {"evidence_id": "a", "quote": "Phone: 5125550198 20261105"},
         {"evidence_id": "a", "quote": "Phone:\n5125550198"},
+        {"evidence_id": "a", "abstract": "For details: (512)5550198."},
+        {"evidence_id": "a", "abstract": "Permits: (512) 5550198"},
+        {"evidence_id": "a", "abstract": "Call the contractor at (512) 555-0198 ext. 4."},
         {"jane@example.org": "person-email"},
         {"evidence_id": "a", "fullName": "Jordan Example"},
         {"evidence_id": "a", "quote": "Call 5125550198 for information."},
@@ -155,6 +158,10 @@ def test_personal_numbers_in_permit_ids_and_citation_dates_are_not_treated_as_ph
         "source_url": "https://agency.example/docket/2026-11-05/5125550198",
     }
     assert contains_sensitive_contact(value) is False
+
+
+def test_bare_unformatted_docket_number_remains_safe_without_phone_context():
+    assert contains_sensitive_contact({"abstract": "Permit reference 5125550198."}) is False
 
 
 def test_safe_metadata_types_remain_allowed_but_birth_dates_fail_closed_by_field():
