@@ -1,3 +1,13 @@
 # Retrospectives
 
-_No completed initiative reviews yet. Add one when `feat/commercial-workspace-ux` merges or is abandoned._
+## 2026-11-06 — feat/commercial-workspace-ux
+**Shipped:** four-section nav; Opportunities cards; owner-managed Pursuits (backend migration 0050 + frontend); Companies directory and Reports with honest metrics; detail panel restyle; canon docs amended.
+
+**Not done / known limitations**
+- Production is at 0049; migration 0050 is not applied anywhere.
+- No confidence data exists, so the reference design's Confidence is omitted.
+- Companies directory has no Total MW or linked-pursuit columns (groups endpoint lacks them). Group counts include unresolved/same-name groups, so they are labelled "operator/customer groups".
+- Browser Back/Forward into a panel can refetch need detail behind the hidden Opportunities page.
+- `auth.spec.ts` needs a real backend and `GRIDLENS_TEST_PASSWORD`; it was not run.
+- Screenshots were compared with the references by eye only.
+- A one-press Back for "Back to Opportunities" was reverted: an existing test expects browser Back to reopen the panel.
