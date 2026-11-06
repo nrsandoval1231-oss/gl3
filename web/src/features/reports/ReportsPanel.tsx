@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { client, type DemandSummary } from '../../api/client'
 import { refreshPursuits, usePursuitStore } from '../../state/pursuitStore'
+import { onPursuitDataEnded } from '../../state/sessionState'
 import { WorkspaceChanges } from '../workspace/WorkspaceChanges'
 import './reports.css'
 
@@ -62,8 +63,7 @@ export function ReportsPanel({ onSelectActiveNeed }: { onSelectActiveNeed: (need
   const [ended, setEnded] = useState(false)
   useEffect(() => {
     const onEnded = () => setEnded(true)
-    addEventListener('gl3-clear-continuity', onEnded)
-    return () => removeEventListener('gl3-clear-continuity', onEnded)
+    return onPursuitDataEnded(onEnded)
   }, [])
   // Unmounting the body aborts in-flight requests and drops every loaded figure and change item.
   return ended ? <div className="rpt"><p role="alert">Your session ended. Sign in again.</p></div> : <ReportsBody onSelectActiveNeed={onSelectActiveNeed}/>

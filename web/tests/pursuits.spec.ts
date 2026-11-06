@@ -28,10 +28,11 @@ const emptyProjects = { items: [project], total: 1, count_unit: 'projects', limi
 const summary = (p: Pursuit) => { const { tasks, activity, ...rest } = p; return { ...rest, next_task: tasks.find(t => !t.completed_at) ?? null } }
 
 type Log = { method: string; path: string; search: string; body: any }
-async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; unauthorizedStage?: boolean } = {}) {
+async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; unauthorizedStage?: boolean; listUnauthorizedAfterWrite?: boolean; listUnauthorized?: boolean } = {}) {
   const store = new Map(seed.map(p => [p.id, p]))
   const log: Log[] = []
   let activityFailures = hooks.failActivity ?? 0
+  let wrote = false
   const counts = () => { const all = [...store.values()]; return { total: all.length, active: all.filter(p => !['Won', 'Lost'].includes(p.stage)).length, needs_attention: all.filter(p => p.attention.length).length } }
   await mockDemandSummary(page)
   await page.route(url => url.pathname.startsWith('/api/'), async (route: Route) => {
@@ -43,6 +44,7 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
     if (path === '/api/opportunities/needs/need-1') return route.fulfill({ json: opportunity })
     if (path === '/api/opportunities/projects') return route.fulfill({ json: emptyProjects })
     if (path === '/api/commercial-pursuits' && method === 'GET') {
+      if (hooks.listUnauthorized || (hooks.listUnauthorizedAfterWrite && wrote)) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
       let items = [...store.values()]
       if (url.searchParams.get('needs_attention') === 'true') items = items.filter(p => p.attention.length)
       if (url.searchParams.get('active_only') === 'true') items = items.filter(p => !['Won', 'Lost'].includes(p.stage))
@@ -62,7 +64,7 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
       const [, , kind, taskId] = match
       if (!kind && method === 'GET') return route.fulfill({ json: found })
       if (!kind && method === 'PATCH' && hooks.unauthorizedStage) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
-      if (!kind && method === 'PATCH') { found.stage = body.stage; return route.fulfill({ json: found }) }
+      if (!kind && method === 'PATCH') { wrote = true; found.stage = body.stage; return route.fulfill({ json: found }) }
       if (kind === 'tasks' && method === 'POST') {
         if (hooks.failTask) return route.fulfill({ status: 500, json: { detail: 'Task store unavailable' } })
         found.tasks.push({ id: `t${found.tasks.length + 1}`, description: body.description, due_date: body.due_date ?? null, completed_at: null })
@@ -381,4 +383,56 @@ test('legacy view=pursuits links carrying research parameters open Research', as
   await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toHaveCount(0)
   await page.goto('/?view=pursuits&researchNeed=need-1')
   await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toHaveCount(0)
+})
+
+/** Counts the two session events in the page so a test can tell a narrow pursuit-session end from a global continuity wipe. */
+async function countSessionEvents(page: Page) {
+  await page.addInitScript(() => {
+    const seen = { continuity: 0, pursuits: 0 }; (window as any).__sessionEvents = seen
+    addEventListener('gl3-clear-continuity', () => { seen.continuity += 1 }); addEventListener('gl3-pursuits-session-ended', () => { seen.pursuits += 1 })
+  })
+  return () => page.evaluate(() => ({ ...(window as any).__sessionEvents }))
+}
+
+test('a background 401 empties the open Pursuits list and detail without a global continuity wipe', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a', { tasks: [{ id: 't1', description: 'Send synthetic follow-up', due_date: null, completed_at: null }] }), pursuit('p2', 'need-b')], { listUnauthorizedAfterWrite: true })
+  const events = await countSessionEvents(page)
+  await page.goto('/?view=pursuits&pursuit=p1')
+  await expect(page.getByText('alex@example.test').first()).toBeVisible()
+  await expect(page.getByText('+1 206 555 0184').first()).toBeVisible()
+  await expect(page.getByText('Send synthetic follow-up').first()).toBeVisible()
+  await expect(page.getByText('Added to Pursuits').first()).toBeVisible()
+  // The write succeeds; its follow-up store refresh is a background read that now returns 401.
+  await page.getByRole('region', { name: 'Pursuit status' }).getByRole('button', { name: /Engaged/ }).click()
+  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+  for (const text of ['alex@example.test', '+1 206 555 0184', 'Send synthetic follow-up', 'Added to Pursuits', 'Synthetic Campus P1', 'Synthetic Campus P2']) await expect(page.getByText(text)).toHaveCount(0)
+  await expect(page.locator('.pu-card')).toHaveCount(0)
+  const seen = await events()
+  expect(seen.pursuits).toBeGreaterThan(0)
+  expect(seen.continuity).toBe(0)
+})
+
+test('a background 401 on the nav-count read ends an open Pursuits list', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a')])
+  await page.goto('/?view=pursuits')
+  await expect(page.locator('.pu-card')).toHaveCount(1)
+  await page.evaluate(() => window.dispatchEvent(new Event('gl3-pursuits-session-ended')))
+  await expect(page.getByText('alex@example.test')).toHaveCount(0)
+  await expect(page.locator('.pu-card')).toHaveCount(0)
+  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+})
+
+test('a background pursuit 401 leaves Opportunities search and the selected opportunity intact', async ({ page }) => {
+  await setup(page, [], { listUnauthorized: true })
+  const events = await countSessionEvents(page)
+  await page.goto('/?view=workspace&projectBrowse=1&need=need-1')
+  await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
+  const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
+  await search.fill('synthetic query')
+  await expect.poll(async () => (await events()).pursuits).toBeGreaterThan(0)
+  expect((await events()).continuity).toBe(0)
+  await expect(search).toHaveValue('synthetic query')
+  await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
+  await expect(page).toHaveURL(/need=need-1/)
+  await expect(page.getByText('Your session ended. Sign in again.')).toHaveCount(0)
 })

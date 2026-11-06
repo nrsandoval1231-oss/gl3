@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { onPursuitDataEnded } from './sessionState'
 import { client, type CommercialPursuit, type CommercialPursuitList } from '../api/client'
 
 type State = { items: CommercialPursuit[]; counts: CommercialPursuitList['counts']; loaded: boolean; error: string; truncated: boolean }
@@ -55,7 +56,11 @@ export function applyPursuit(updated: CommercialPursuit) {
   void refreshPursuits(true)
 }
 export function clearPursuits() { generation += 1; inflight = null; state = { items: [], counts: EMPTY_COUNTS, loaded: false, error: '', truncated: false }; emit() }
-if (typeof window !== 'undefined') window.addEventListener('gl3-clear-continuity', clearPursuits)
+if (typeof window !== 'undefined') {
+  window.addEventListener('gl3-clear-continuity', clearPursuits)
+  // A background 401 (possibly from the Add-to-Pursuit lookup) must also empty the shared list; do not reset to unloaded or consumers would refetch in a loop.
+  onPursuitDataEnded(() => { if (state.items.length || state.counts.total || state.counts.active) set({ items: [], counts: EMPTY_COUNTS, loaded: true, error: 'Your session ended. Sign in again.', truncated: false }) })
+}
 
 export function usePursuitStore(): State {
   return useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener) } }, () => state)

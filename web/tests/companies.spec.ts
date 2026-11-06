@@ -207,3 +207,16 @@ test('a capped pursuit load says the linked count may be incomplete', async ({ p
   const linked = page.getByRole('region', { name: 'Company Northstar Energy' }).getByRole('region', { name: 'Linked pursuits' })
   await expect(linked).toContainText('Only the first 2000 of 2300 pursuits could be checked')
 })
+
+test('a background pursuit 401 clears company names, projects, contacts and linked pursuits', async ({ page }) => {
+  await mock(page, { pursuits: [pursuit] })
+  await page.goto('/?view=workspace&panel=companies&company=g-north')
+  const company = page.getByRole('region', { name: 'Company Northstar Energy' })
+  await expect(company.getByRole('region', { name: 'Linked pursuits' })).toContainText('Mesa pursuit')
+  // The client announces this event on a background pursuit 401 (never gl3-clear-continuity).
+  await page.evaluate(() => window.dispatchEvent(new Event('gl3-pursuits-session-ended')))
+  await expect(page.getByRole('region', { name: 'Companies' }).getByRole('alert')).toContainText('Your session ended. Sign in again.')
+  // Scoped to the Companies panel: a pursuit-only end must not wipe unrelated Opportunities views elsewhere in the shell.
+  const panel = page.getByRole('region', { name: 'Companies' })
+  for (const text of ['Northstar Energy', 'Mesa pursuit', 'Mesa compressor', 'Research Required']) await expect(panel.getByText(text)).toHaveCount(0)
+})

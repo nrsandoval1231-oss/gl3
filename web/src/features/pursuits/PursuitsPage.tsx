@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { client, type CommercialPursuit, type CommercialPursuitList } from '../../api/client'
+import { onPursuitDataEnded } from '../../state/sessionState'
 import { PursuitDetail } from './PursuitDetail'
 import { contactLine, powerNeed, powerTiming } from './pursuitFormat'
 import './pursuits.css'
@@ -41,8 +42,7 @@ export function PursuitsPage() {
   }, [])
   useEffect(() => {
     const onEnded = () => { setEnded(true); setLists({}); setError(''); setRoute(current => ({ ...current, id: '' })) }
-    addEventListener('gl3-clear-continuity', onEnded)
-    return () => removeEventListener('gl3-clear-continuity', onEnded)
+    return onPursuitDataEnded(onEnded)
   }, [])
 
   useEffect(() => {

@@ -8,7 +8,8 @@ const summary = (sector: string, available = true, complete = true) => ({
   classes: { documented: { mw: available ? SECTOR[sector as keyof typeof SECTOR].mw : null, record_count: available ? SECTOR[sector as keyof typeof SECTOR].doc : 0 }, calculated: { mw: null, record_count: available ? SECTOR[sector as keyof typeof SECTOR].calc : 0 }, estimated: { mw: null, record_count: 0 } },
   provenance: { contract: 'equipment-demand-v1', source_count: 2, latest_evidence_at: null }, limitations: ['Synthetic limitation text.'],
 })
-async function mock(page: Page, opts: { demand?: 'ok' | 'unavailable' | 'incomplete' | 'error'; projects?: 'ok' | 'error'; tiers?: 'ok' | 'error' | 'no-header' } = {}) {
+async function mock(page: Page, opts: { pursuitsFirst?: 'error'; pursuitsThen?: 'unauthorized'; demand?: 'ok' | 'unavailable' | 'incomplete' | 'error'; projects?: 'ok' | 'error'; tiers?: 'ok' | 'error' | 'no-header' } = {}) {
+  let pursuitReads = 0
   await page.route(url => url.pathname.startsWith('/api/'), route => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
@@ -23,6 +24,11 @@ async function mock(page: Page, opts: { demand?: 'ok' | 'unavailable' | 'incompl
       if (opts.tiers === 'no-header') return route.fulfill({ json: [] })
       const tier = url.searchParams.get('tier')
       return route.fulfill({ json: [], headers: { 'X-Total-Count': String(tier === 'Signal' ? 30 : tier === 'Prospect' ? 10 : 5), 'X-Group-Total-Count': '1', 'X-Cohort-Token': 't', 'X-Limit': '1', 'X-Offset': '0' } })
+    }
+    if (url.pathname === '/api/commercial-pursuits') {
+      pursuitReads += 1
+      if (opts.pursuitsFirst === 'error' && pursuitReads === 1) return route.fulfill({ status: 500, json: {} })
+      if (opts.pursuitsThen === 'unauthorized' && pursuitReads > 1) return route.fulfill({ status: 401, json: {} })
     }
     if (url.pathname === '/api/commercial-pursuits') return route.fulfill({ json: { items: [], counts: { total: 4, active: 3, needs_attention: 0 } } })
     if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 't', token: 't', source_health_exceptions: [] } })
@@ -129,4 +135,19 @@ test('session end clears every report figure and change item', async ({ page }) 
   await expect(reports.getByRole('article')).toHaveCount(0)
   await expect(reports.getByText('42')).toHaveCount(0)
   await expect(reports.getByText('40.5')).toHaveCount(0)
+})
+
+test('a background pursuit 401 from the Active Pursuits retry clears every report figure without a global wipe', async ({ page }) => {
+  await mock(page, { pursuitsFirst: 'error', pursuitsThen: 'unauthorized' })
+  await page.addInitScript(() => { (window as any).__continuity = 0; addEventListener('gl3-clear-continuity', () => { (window as any).__continuity += 1 }) })
+  await page.goto('/?view=workspace&panel=reports')
+  const reports = page.getByRole('region', { name: 'Reports' })
+  const tile = reports.getByRole('article', { name: 'Active Pursuits' })
+  await expect(tile.getByRole('button', { name: 'Retry' })).toBeVisible()
+  await expect(reports.getByRole('article', { name: 'Total Projects' })).toContainText('42')
+  await tile.getByRole('button', { name: 'Retry' }).click()
+  await expect(reports.getByRole('alert')).toContainText('Your session ended. Sign in again.')
+  await expect(reports.getByRole('article')).toHaveCount(0)
+  await expect(reports.getByText('42')).toHaveCount(0)
+  expect(await page.evaluate(() => (window as any).__continuity)).toBe(0)
 })

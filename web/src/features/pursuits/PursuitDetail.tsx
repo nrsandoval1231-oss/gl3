@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { client, type CommercialPursuit, type PursuitStage, type PursuitTask } from '../../api/client'
 import { applyPursuit } from '../../state/pursuitStore'
+import { onPursuitDataEnded } from '../../state/sessionState'
 import { FLOW_STAGES, formatDateTime, formatInstantDay, mailHref, powerNeed, powerTiming, telHref } from './pursuitFormat'
 import { inApp, needHref, openNeed } from './pursuitNav'
 
@@ -24,8 +25,7 @@ export function PursuitDetail({ id, preview, onBack, onChanged }: Props) {
   // An ended session removes contact data, notes and tasks from the screen immediately.
   useEffect(() => {
     const onEnded = () => { endedRef.current = true; setEnded(true); setDetail(null); setErrors({}); setLoadError('') }
-    addEventListener('gl3-clear-continuity', onEnded)
-    return () => removeEventListener('gl3-clear-continuity', onEnded)
+    return onPursuitDataEnded(onEnded)
   }, [])
 
   useEffect(() => {

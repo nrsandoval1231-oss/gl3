@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { client, OpportunityCohortChangedError, type OpportunityGroup, type OpportunityGroupsPage } from '../../api/client'
+import { onPursuitDataEnded } from '../../state/sessionState'
 import { CompanyView } from './CompanyView'
 import { groupDescription } from './groupKind'
 import './companies.css'
@@ -51,8 +52,9 @@ export function CompaniesPanel({ onNeed }: { onNeed: (needId: string) => void })
       knownGroups.current.clear(); cohort.current = null
       setPage(null); setProjectTotal(null); setCompany(''); setError(''); setLoading(false); setEnded(true)
     }
-    addEventListener('popstate', sync); addEventListener('gl3-panel-route', sync); addEventListener('gl3-clear-continuity', onEnded)
-    return () => { removeEventListener('popstate', sync); removeEventListener('gl3-panel-route', sync); removeEventListener('gl3-clear-continuity', onEnded) }
+    addEventListener('popstate', sync); addEventListener('gl3-panel-route', sync)
+    const offEnded = onPursuitDataEnded(onEnded)
+    return () => { removeEventListener('popstate', sync); removeEventListener('gl3-panel-route', sync); offEnded() }
   }, [])
   // Keep the directory filters in the URL so reload and panel switches keep context.
   useEffect(() => {

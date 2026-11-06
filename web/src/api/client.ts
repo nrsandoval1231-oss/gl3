@@ -1,4 +1,4 @@
-import { clearContinuity } from '../state/sessionState'
+import { clearContinuity, endPursuitsSession } from '../state/sessionState'
 import type { components } from './generated'
 
 export type EvidenceContent = {
@@ -400,8 +400,8 @@ export const client = {
     return session
   }),
   /**
-   * `background` reads (nav count, Add-to-Pursuit lookup) never tear down session state on a 401:
-   * they are auxiliary and any primary request still detects an ended session.
+   * `background` reads (nav count, Add-to-Pursuit lookup) never call `clearContinuity` on a 401 (that would wipe
+   * opportunity state); they announce `gl3-pursuits-session-ended` so every pursuit-derived view clears itself.
    */
   commercialPursuits: (filters: { needsAttention?: boolean; activeOnly?: boolean; needId?: string; background?: boolean; limit?: number; offset?: number } = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams()
@@ -413,6 +413,7 @@ export const client = {
     const path = `/api/commercial-pursuits?${params}`
     const read = filters.background
       ? fetch(path, { credentials: 'same-origin', signal }).then(response => {
+        if (response.status === 401) endPursuitsSession()
         if (!response.ok) throw new Error(response.status === 401 ? 'Your session ended. Sign in again.' : `GridLens could not complete this request (${response.status}).`)
         return response.json() as Promise<CommercialPursuitList>
       })
