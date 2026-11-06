@@ -250,6 +250,8 @@ def test_request_keeps_document_text_in_data_and_schema_strict():
     assert json.loads(request["input"]) == {"pages": [{"page": 1, "text": hostile}]}
     assert request["max_output_tokens"] == 2000 and request["store"] is False
     assert request["tools"] == [] and request["prompt_cache_key"] == ep.PROMPT_CACHE_KEY
+    assert request["service_tier"] == "default"
+    assert request["prompt_cache_options"] == {"ttl": "30m"}
     assert request["text"]["format"]["strict"] is True
     assert "untrusted DATA" in request["instructions"]
 
@@ -267,6 +269,45 @@ def test_request_keeps_document_text_in_data_and_schema_strict():
     closed(request["text"]["format"]["schema"])
 
 
+def test_proposer_drops_entire_contact_bearing_pages_without_rewriting_survivors(monkeypatch):
+    monkeypatch.setattr(ep.settings, "permit_llm_proposer_max_pages", 5)
+    monkeypatch.setattr(ep.settings, "permit_llm_proposer_max_page_chars", 2000)
+    pages = [
+        PageForProposal(1, "Public permit schedule: compressor 1,500 hp."),
+        PageForProposal(2, "Contact: Jordan Smith; call 512-555-0198."),
+        PageForProposal(3, "Public permit schedule: pump 250 hp."),
+    ]
+
+    safe = ep._privacy_safe_pages(pages)
+
+    assert safe == [pages[0], pages[2]]
+    # Surviving page IDs remain source page IDs; the text and its offsets are untouched.
+    assert [page.page for page in safe] == [1, 3]
+    assert safe[1].text == pages[2].text
+
+
+def test_all_contact_bearing_proposer_pages_abstain_before_reservation_or_send(monkeypatch):
+    monkeypatch.setattr(
+        ep,
+        "proposer_enabled",
+        lambda: (True, "openai", "gpt-6.1-sol", ""),
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("unsafe-only page set must stop before reserve or provider send")
+
+    monkeypatch.setattr(ep, "SessionLocal", forbidden)
+    proposer = ep.LedgerEquipmentProposer(source_id=None, caller=forbidden)
+    outcome = proposer.propose(
+        [PageForProposal(7, "Contact: Jordan Smith; email jordan@example.test.")],
+        document_hash=HASH,
+    )
+
+    assert outcome.status == "blocked"
+    assert outcome.reason == "PROPOSER_NO_PRIVACY_SAFE_PAGES"
+    assert outcome.pages_sent == []
+
+
 def test_model_output_with_extra_keys_or_free_text_is_invalid():
     good = {"units": [unit()]}
     assert ep.ProposalPayload.model_validate(good)
@@ -278,7 +319,7 @@ def test_model_output_with_extra_keys_or_free_text_is_invalid():
         ep.ProposalPayload.model_validate({"units": [unit(rating=field("1500", ""))]})
 
 
-def test_cost_bound_uses_full_input_price_and_output_cap(monkeypatch):
+def test_cost_bound_reserves_worst_case_cache_write_and_output_cap(monkeypatch):
     monkeypatch.setattr(settings, "intelligence_equipment_input_usd_per_million", Decimal(2))
     monkeypatch.setattr(settings, "intelligence_equipment_output_usd_per_million", Decimal(10))
     monkeypatch.setattr(settings, "intelligence_equipment_max_output_tokens", 2000)
@@ -286,8 +327,18 @@ def test_cost_bound_uses_full_input_price_and_output_cap(monkeypatch):
         model="gpt-6.1-sol", pages=[PageForProposal(1, "x" * 1000)], max_output_tokens=2000
     )
     cost = ep.cost_bound(request)
-    assert cost == Decimal(ep.request_bytes(request) * 2 + 2000 * 10) / Decimal(1_000_000)
-    assert 0.02 < float(cost) < 0.03
+    assert cost == (
+        Decimal(ep.request_bytes(request)) * Decimal("2.5") + Decimal(2000 * 10)
+    ) / Decimal(1_000_000)
+    assert 0.03 < float(cost) < 0.04
+
+
+def test_cost_bound_rejects_requests_over_the_context_budget(monkeypatch):
+    monkeypatch.setattr(settings, "intelligence_equipment_max_output_tokens", 2000)
+    request = ep.build_request(
+        model="gpt-6.1-sol", pages=[PageForProposal(1, "x" * 273_000)], max_output_tokens=2000
+    )
+    assert ep.cost_bound(request) == 0
 
 
 def test_estimated_actual_cost_uses_cached_rate(monkeypatch):
@@ -299,9 +350,20 @@ def test_estimated_actual_cost_uses_cached_rate(monkeypatch):
     usage = {
         "input_tokens": 5000,
         "output_tokens": 500,
+        "input_tokens_details": {
+            "cached_tokens": 4000,
+            "cache_write_tokens": 500,
+            "cache_write_tokens_details": {"ttl_30m_tokens": 500, "ttl_12h_tokens": 0},
+        },
+    }
+    assert ep.estimated_actual_cost(usage) == Decimal("0.00765")
+    # Missing cache-write details are ambiguous; never count writes as cached reads.
+    incomplete = {
+        "input_tokens": 5000,
+        "output_tokens": 500,
         "input_tokens_details": {"cached_tokens": 4000},
     }
-    assert ep.estimated_actual_cost(usage) == Decimal("0.0074")  # 1000*2 + 4000*0.1 + 500*10
+    assert ep.estimated_actual_cost(incomplete) is None
     assert ep.estimated_actual_cost({"input_tokens": None, "output_tokens": 1}) is None
 
 

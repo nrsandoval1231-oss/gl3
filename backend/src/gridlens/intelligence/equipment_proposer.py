@@ -37,6 +37,12 @@ from gridlens.integrations.logical_calls import (
     mark_dispatched,
     reserve_call,
 )
+from gridlens.intelligence.provider_cost_bounds import (
+    OPENAI_PROMPT_CACHE_TTL,
+    OPENAI_SERVICE_TIER,
+    openai_request_cost_ceiling,
+)
+from gridlens.intelligence.provider_privacy import contains_sensitive_contact
 from gridlens.intelligence.spend_caps import cap_fields
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import LogicalCall
@@ -52,6 +58,26 @@ _TYPES = ["compressor", "pump", "engine", "turbine", "generator", "heater", "fla
 _RATING_UNITS = ["hp", "kW", "MW", "kVA", "MMBtu/hr"]
 _DRIVERS = ["electric", "gas_engine", "diesel_engine", "steam", "unknown"]
 _STATUSES = ["new", "proposed", "existing", "standby", "removed"]
+
+
+def _privacy_safe_pages(pages: list[PageForProposal]) -> list[PageForProposal]:
+    """Keep bounded, whole source pages only when their text is contact-free.
+
+    The canonical source text is never redacted: dropping a page preserves every
+    surviving page number and leaves quote offsets into the original document valid.
+    """
+    chosen: list[PageForProposal] = []
+    for page in pages[: settings.permit_llm_proposer_max_pages]:
+        if not page.text.strip() or contains_sensitive_contact({"text": page.text}):
+            continue
+        chosen.append(
+            PageForProposal(
+                page.page,
+                page.text[: settings.permit_llm_proposer_max_page_chars],
+            )
+        )
+    return chosen
+
 
 INSTRUCTIONS = (
     "You propose equipment units stated in air-permit or application text. "
@@ -167,6 +193,8 @@ def build_request(
         "store": False,
         "tools": [],
         "max_output_tokens": max_output_tokens,
+        "service_tier": OPENAI_SERVICE_TIER,
+        "prompt_cache_options": {"ttl": OPENAI_PROMPT_CACHE_TTL},
         "prompt_cache_key": PROMPT_CACHE_KEY,
         "text": {
             "format": {
@@ -210,12 +238,15 @@ def request_bytes(request: dict[str, Any]) -> int:
 
 
 def cost_bound(request: dict[str, Any]) -> Decimal:
-    """Upper bound: one token per request byte at the full input price plus the output cap."""
-    return (
-        Decimal(request_bytes(request)) * settings.intelligence_equipment_input_usd_per_million
-        + Decimal(settings.intelligence_equipment_max_output_tokens)
-        * settings.intelligence_equipment_output_usd_per_million
-    ) / Decimal(1_000_000)
+    """Worst-case ledger reservation: all input bytes charged as a 30m cache write."""
+    return openai_request_cost_ceiling(
+        request_bytes(request),
+        settings.intelligence_equipment_max_output_tokens,
+        input_rate_usd_per_million=(
+            settings.intelligence_equipment_input_usd_per_million * Decimal("1.25")
+        ),
+        output_rate_usd_per_million=settings.intelligence_equipment_output_usd_per_million,
+    )
 
 
 def _digest(value: Any) -> str:
@@ -224,21 +255,39 @@ def _digest(value: Any) -> str:
 
 
 def estimated_actual_cost(usage: dict[str, Any]) -> Decimal | None:
-    """Cost implied by reported usage and the configured (possibly unverified) rates."""
+    """Estimate from a complete provider usage breakdown; never an invoice amount."""
     input_tokens, output_tokens = usage.get("input_tokens"), usage.get("output_tokens")
     if type(input_tokens) is not int or type(output_tokens) is not int:
         return None
     details = usage.get("input_tokens_details")
-    cached = details.get("cached_tokens") if isinstance(details, dict) else 0
-    cached = cached if type(cached) is int and 0 <= cached <= input_tokens else 0
-    # An unset cached price falls back to the full input price: never understate the cost.
-    cached_rate = (
-        settings.intelligence_equipment_cached_input_usd_per_million
-        or settings.intelligence_equipment_input_usd_per_million
-    )
+    if not isinstance(details, dict):
+        return None
+    cached = details.get("cached_tokens")
+    written = details.get("cache_write_tokens")
+    write_details = details.get("cache_write_tokens_details")
+    if type(cached) is not int or type(written) is not int or not isinstance(write_details, dict):
+        return None
+    ttl_30m = write_details.get("ttl_30m_tokens")
+    ttl_12h = write_details.get("ttl_12h_tokens")
+    if (
+        type(ttl_30m) is not int
+        or type(ttl_12h) is not int
+        or min(cached, written, ttl_30m, ttl_12h) < 0
+        or ttl_30m + ttl_12h != written
+        or cached + written > input_tokens
+    ):
+        return None
+    ordinary = input_tokens - cached - written
+    input_rate = settings.intelligence_equipment_input_usd_per_million
+    cached_rate = settings.intelligence_equipment_cached_input_usd_per_million
+    if cached_rate <= 0 or input_rate <= 0:
+        return None
+    # OpenAI's 30m / 12h write rates are 1.25x / 2.5x the ordinary input rate.
     return (
-        Decimal(input_tokens - cached) * settings.intelligence_equipment_input_usd_per_million
+        Decimal(ordinary) * input_rate
         + Decimal(cached) * cached_rate
+        + Decimal(ttl_30m) * input_rate * Decimal("1.25")
+        + Decimal(ttl_12h) * input_rate * Decimal("2.5")
         + Decimal(output_tokens) * settings.intelligence_equipment_output_usd_per_million
     ) / Decimal(1_000_000)
 
@@ -288,19 +337,17 @@ class LedgerEquipmentProposer:
         if not enabled:
             return ProposerOutcome("disabled", reason)
         label = f"llm:{provider}:{model}"
-        chosen = [
-            PageForProposal(p.page, p.text[: settings.permit_llm_proposer_max_page_chars])
-            for p in pages[: settings.permit_llm_proposer_max_pages]
-            if p.text.strip()
-        ]
+        chosen = _privacy_safe_pages(pages)
         if not chosen:
-            return ProposerOutcome("ok", "", [], label, [])
+            return ProposerOutcome("blocked", "PROPOSER_NO_PRIVACY_SAFE_PAGES", [], label, [])
         request = build_request(
             model=model,
             pages=chosen,
             max_output_tokens=settings.intelligence_equipment_max_output_tokens,
         )
         cost = cost_bound(request)
+        if cost <= 0:
+            return self._blocked("PROPOSER_COST_BOUND_INVALID", label, [p.page for p in chosen])
         payload = {"request": request}
         allowed, why = _dispatch_policy(
             EQUIPMENT_PROPOSER_TASK, None, provider, model, payload, cost
@@ -415,9 +462,9 @@ class LedgerEquipmentProposer:
         }
         cost = estimated_actual_cost(usage)
         detail = {
-            "usage": {k: v for k, v in usage.items() if k != "input_tokens_details"},
+            "usage": usage,
             "estimated_actual_cost_usd": None if cost is None else str(cost),
-            "cost_basis": "configured rates; unverified until the owner confirms pricing",
+            "cost_basis": "reported usage categories and configured rates; estimate, not invoice",
         }
         if response.get("model") != model:
             # Billing identity mismatch: leave the call UNKNOWN for reconciliation.

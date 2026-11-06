@@ -112,9 +112,25 @@ UNIT = {
 
 
 class Caller:
-    def __init__(self, output: dict[str, Any] | None = None, model: str = "gpt-6.1-sol"):
+    def __init__(
+        self,
+        output: dict[str, Any] | None = None,
+        model: str = "gpt-6.1-sol",
+        input_details: dict[str, Any] | None = None,
+        complete_cache_breakdown: bool = True,
+    ):
         self.output = {"units": [UNIT]} if output is None else output
         self.model = model
+        self.input_details = input_details
+        if self.input_details is None and complete_cache_breakdown:
+            self.input_details = {
+                "cached_tokens": 2000,
+                "cache_write_tokens": 500,
+                "cache_write_tokens_details": {
+                    "ttl_30m_tokens": 500,
+                    "ttl_12h_tokens": 0,
+                },
+            }
         self.calls = 0
         self.requests: list[dict[str, Any]] = []
 
@@ -130,7 +146,11 @@ class Caller:
             "reported_usage": {
                 "input_tokens": 3000,
                 "output_tokens": 400,
-                "input_tokens_details": {"cached_tokens": 2000},
+                **(
+                    {"input_tokens_details": self.input_details}
+                    if self.input_details is not None
+                    else {}
+                ),
             },
         }
 
@@ -159,15 +179,19 @@ def test_proposer_spends_through_the_ledger_and_replays_without_a_second_charge(
     first = extract_from_pages([PAGE], document_hash=HASH, proposer=_proposer(caller))
     assert caller.calls == 1 and first.verified == 1 and len(first.claims) == 1
     assert first.proposer["label"] == "llm:openai:gpt-6.1-sol"
-    # 1000*2 + 2000*0.1 + 400*10 per million tokens, at the configured (unverified) rates
-    assert first.proposer["estimated_actual_cost_usd"] == "0.0062"
+    # Ordinary, cache-read and 30m cache-write tokens are distinct and nonoverlapping.
+    assert first.proposer["estimated_actual_cost_usd"] == "0.00645"
+    assert first.proposer["cost_basis"].endswith("estimate, not invoice")
     request = caller.requests[0]
     assert request["max_output_tokens"] == 2000 and request["prompt_cache_key"]
+    assert request["service_tier"] == "default"
+    assert request["prompt_cache_options"] == {"ttl": "30m"}
     with sessions() as session:
         call = session.scalars(select(LogicalCall)).one()
         assert call.task_type == "EQUIPMENT_PROPOSER_V1" and call.status == "COMPLETED"
         assert call.provider == "openai" and call.model == "gpt-6.1-sol"
         assert call.result_payload["units"][0]["rating"]["quote"] == "1,500 hp"
+        assert call.result_payload["usage"]["input_tokens_details"]["cache_write_tokens"] == 500
         reserved = session.scalars(
             select(LogicalCallBudget).where(LogicalCallBudget.scope == "provider:openai")
         ).all()
@@ -178,6 +202,20 @@ def test_proposer_spends_through_the_ledger_and_replays_without_a_second_charge(
     assert again.verified == 1 and again.proposer["replayed_from_ledger"] is True
     with sessions() as session:
         assert len(session.scalars(select(LogicalCall)).all()) == 1
+
+
+def test_missing_cache_write_breakdown_keeps_actual_cost_unknown(sessions, monkeypatch):
+    _proposer_on(monkeypatch)
+    caller = Caller(input_details={"cached_tokens": 2000}, complete_cache_breakdown=False)
+    result = extract_from_pages([PAGE], document_hash=HASH, proposer=_proposer(caller))
+
+    assert caller.calls == 1 and result.verified == 1
+    assert result.proposer["estimated_actual_cost_usd"] is None
+    assert "cache_write_tokens" not in result.proposer["usage"].get("input_tokens_details", {})
+    with sessions() as session:
+        call = session.scalars(select(LogicalCall)).one()
+        assert call.status == "COMPLETED"
+        assert call.result_payload["usage"]["input_tokens_details"] == {"cached_tokens": 2000}
 
 
 def test_proposer_model_identity_mismatch_stays_unknown_and_adds_no_rows(sessions, monkeypatch):
