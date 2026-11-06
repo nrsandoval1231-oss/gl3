@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { client } from '../../api/client'
 import { applyPursuit, usePursuitStore } from '../../state/pursuitStore'
+import { onPursuitDataEnded } from '../../state/sessionState'
 import { inApp, openPursuit, pursuitHref } from './pursuitNav'
 
 /** Add-to-Pursuit control for one opportunity. Mount with `key={needId}` so state never leaks between needs. */
@@ -15,14 +16,20 @@ export function AddToPursuit({ needId, children }: { needId: string; children?: 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const inflight = useRef(false)
+  // Set synchronously by the ended event so a response resolving before the next commit cannot restore pursuit state; each new request clears it.
+  const endedRef = useRef(false)
+
+  // Drop local pursuit state when the session ends; 'done' keeps the button usable (a later add or lookup runs after sign-in).
+  useEffect(() => onPursuitDataEnded(() => { endedRef.current = true; setCreated(null); setLookup({ state: 'done', id: null }); setError('') }), [])
 
   useEffect(() => {
     if (storeUsable || fromStore) return
+    endedRef.current = false
     const controller = new AbortController()
     setLookup({ state: 'loading', id: null })
     client.commercialPursuits({ needId, background: true }, controller.signal)
-      .then(list => { if (!controller.signal.aborted) setLookup({ state: 'done', id: list.items.find(item => item.need_id === needId)?.id ?? null }) })
-      .catch(() => { if (!controller.signal.aborted) setLookup({ state: 'done', id: null }) })
+      .then(list => { if (!controller.signal.aborted && !endedRef.current) setLookup({ state: 'done', id: list.items.find(item => item.need_id === needId)?.id ?? null }) })
+      .catch(() => { if (!controller.signal.aborted && !endedRef.current) setLookup({ state: 'done', id: null }) })
     return () => controller.abort()
   }, [needId, storeUsable, fromStore?.id])
 
@@ -31,12 +38,14 @@ export function AddToPursuit({ needId, children }: { needId: string; children?: 
 
   async function add() {
     if (inflight.current || existingId) return
-    inflight.current = true; setBusy(true); setError('')
+    inflight.current = true; endedRef.current = false; setBusy(true); setError('')
     try {
       const pursuit = await client.createCommercialPursuit(needId)
+      if (endedRef.current) return
       setCreated(pursuit.id)
       applyPursuit(pursuit)
     } catch (cause) {
+      if (endedRef.current) return
       setError(cause instanceof Error && cause.message ? `Could not add to Pursuits: ${cause.message}` : 'Could not add to Pursuits. Try again.')
     } finally { inflight.current = false; setBusy(false) }
   }

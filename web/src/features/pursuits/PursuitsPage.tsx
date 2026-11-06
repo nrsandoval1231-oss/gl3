@@ -32,6 +32,8 @@ export function PursuitsPage() {
   const [reload, setReload] = useState(0)
   const [more, setMore] = useState<'idle' | 'loading' | 'error'>('idle')
   const listRef = useRef<HTMLDivElement>(null)
+  // Set synchronously by the ended event: a response can resolve before the next commit aborts its request. A fresh session remounts this page, which resets it.
+  const endedRef = useRef(false)
   const source = route.filter
   const data = lists[source]
 
@@ -41,7 +43,7 @@ export function PursuitsPage() {
     return () => { removeEventListener('popstate', sync); removeEventListener('gl3-pursuits-route', sync) }
   }, [])
   useEffect(() => {
-    const onEnded = () => { setEnded(true); setLists({}); setError(''); setRoute(current => ({ ...current, id: '' })) }
+    const onEnded = () => { endedRef.current = true; setEnded(true); setLists({}); setError(''); setRoute(current => ({ ...current, id: '' })) }
     return onPursuitDataEnded(onEnded)
   }, [])
 
@@ -50,8 +52,8 @@ export function PursuitsPage() {
     const controller = new AbortController()
     setError(''); setMore('idle')
     client.commercialPursuits({ needsAttention: source === 'attention', activeOnly: source === 'active', limit: PAGE_SIZE }, controller.signal)
-      .then(list => { if (!controller.signal.aborted) setLists(current => ({ ...current, [source]: list })) })
-      .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error && cause.message ? cause.message : 'Pursuits are unavailable.') })
+      .then(list => { if (!controller.signal.aborted && !endedRef.current) setLists(current => ({ ...current, [source]: list })) })
+      .catch(cause => { if (!controller.signal.aborted && !endedRef.current) setError(cause instanceof Error && cause.message ? cause.message : 'Pursuits are unavailable.') })
     return () => controller.abort()
   }, [source, reload, ended])
 
@@ -61,6 +63,7 @@ export function PursuitsPage() {
     setMore('loading')
     try {
       const list = await client.commercialPursuits({ needsAttention: filter === 'attention', activeOnly: filter === 'active', limit: PAGE_SIZE, offset })
+      if (endedRef.current) return
       setLists(current => {
         const base = current[filter]
         if (!base || base.next_offset !== offset) return current
@@ -68,7 +71,7 @@ export function PursuitsPage() {
         return { ...current, [filter]: { ...list, items: [...base.items, ...list.items.filter(item => !seen.has(item.id))] } }
       })
       setMore('idle')
-    } catch { setMore('error') }
+    } catch { if (!endedRef.current) setMore('error') }
   }
 
   const counts = data?.counts ?? lists.all?.counts ?? lists.active?.counts ?? lists.attention?.counts

@@ -59,7 +59,13 @@ export function clearPursuits() { generation += 1; inflight = null; state = { it
 if (typeof window !== 'undefined') {
   window.addEventListener('gl3-clear-continuity', clearPursuits)
   // A background 401 (possibly from the Add-to-Pursuit lookup) must also empty the shared list; do not reset to unloaded or consumers would refetch in a loop.
-  onPursuitDataEnded(() => { if (state.items.length || state.counts.total || state.counts.active) set({ items: [], counts: EMPTY_COUNTS, loaded: true, error: 'Your session ended. Sign in again.', truncated: false }) })
+  onPursuitDataEnded(() => {
+    // Invalidate in-flight reads even when the store is empty, so an earlier list read cannot restore membership or counts afterwards.
+    // A dropped read would otherwise leave the store unloaded with no outcome, so it reports the ended session like the read's own 401 would.
+    const dropped = inflight !== null
+    generation += 1; inflight = null
+    if (dropped || state.items.length || state.counts.total || state.counts.active) set({ items: [], counts: EMPTY_COUNTS, loaded: true, error: 'Your session ended. Sign in again.', truncated: false })
+  })
 }
 
 export function usePursuitStore(): State {

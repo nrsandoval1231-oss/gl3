@@ -28,7 +28,7 @@ const emptyProjects = { items: [project], total: 1, count_unit: 'projects', limi
 const summary = (p: Pursuit) => { const { tasks, activity, ...rest } = p; return { ...rest, next_task: tasks.find(t => !t.completed_at) ?? null } }
 
 type Log = { method: string; path: string; search: string; body: any }
-async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; unauthorizedStage?: boolean; listUnauthorizedAfterWrite?: boolean; listUnauthorized?: boolean } = {}) {
+async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; unauthorizedStage?: boolean; listUnauthorizedAfterWrite?: boolean; listUnauthorized?: boolean; holdList?: Promise<void>; holdLookup?: Promise<void>; lookupUnauthorized?: boolean; listFails?: boolean } = {}) {
   const store = new Map(seed.map(p => [p.id, p]))
   const log: Log[] = []
   let activityFailures = hooks.failActivity ?? 0
@@ -44,6 +44,11 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
     if (path === '/api/opportunities/needs/need-1') return route.fulfill({ json: opportunity })
     if (path === '/api/opportunities/projects') return route.fulfill({ json: emptyProjects })
     if (path === '/api/commercial-pursuits' && method === 'GET') {
+      const lookup = url.searchParams.has('need_id')
+      if (lookup && hooks.lookupUnauthorized) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
+      if (lookup && hooks.holdLookup) await hooks.holdLookup
+      if (!lookup && hooks.holdList) await hooks.holdList
+      if (!lookup && hooks.listFails) return route.fulfill({ status: 500, json: { detail: 'Unavailable' } })
       if (hooks.listUnauthorized || (hooks.listUnauthorizedAfterWrite && wrote)) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
       let items = [...store.values()]
       if (url.searchParams.get('needs_attention') === 'true') items = items.filter(p => p.attention.length)
@@ -435,4 +440,72 @@ test('a background pursuit 401 leaves Opportunities search and the selected oppo
   await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
   await expect(page).toHaveURL(/need=need-1/)
   await expect(page.getByText('Your session ended. Sign in again.')).toHaveCount(0)
+})
+
+/** Buffers the shared Pursuits list/detail responses in the page and releases them in the same task as the ended event, so they resolve before React commits (and aborts) anything. */
+async function gateInPage(page: Page, pattern: string) {
+  await page.addInitScript(source => {
+    const original = window.fetch.bind(window), matcher = new RegExp(source)
+    let open!: () => void
+    const gate = new Promise<void>(resolve => { open = resolve })
+    ;(window as any).__endThenRelease = () => { window.dispatchEvent(new Event('gl3-pursuits-session-ended')); open() }
+    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      if (!matcher.test(url) || /need_id=/.test(url)) return original(input, init)
+      return original(input, init).then(async response => { const body = await response.text(), status = response.status; // json() resolves in microtasks only, so nothing yields to React before the callbacks run
+        await gate; return { ok: true, status, json: () => Promise.resolve(JSON.parse(body)) } as unknown as Response })
+    }
+  }, pattern)
+}
+
+test('a Pursuits list resolving in the same task as the ended event does not restore cards or contacts', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a'), pursuit('p2', 'need-b')])
+  await gateInPage(page, '/api/commercial-pursuits\\?')
+  await page.goto('/?view=pursuits')
+  await expect(page.getByRole('status', { name: 'Loading pursuits' })).toBeVisible()
+  await page.waitForTimeout(300)
+  await page.evaluate(() => (window as any).__endThenRelease())
+  await page.waitForTimeout(300)
+  for (const text of ['Synthetic Campus P1', 'Synthetic Campus P2', 'Alex Test Contact', 'alex@example.test', '+1 206 555 0184']) await expect(page.getByText(text)).toHaveCount(0)
+  await expect(page.locator('.pu-card')).toHaveCount(0)
+  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+})
+
+test('a Pursuit detail resolving in the same task as the ended event does not restore contact data', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a')])
+  await gateInPage(page, '/api/commercial-pursuits/p1$')
+  await page.goto('/?view=pursuits&pursuit=p1')
+  await expect(page.locator('.pu-card')).toHaveCount(1)
+  await page.waitForTimeout(300)
+  await page.evaluate(() => (window as any).__endThenRelease())
+  await page.waitForTimeout(300)
+  for (const text of ['alex@example.test', '+1 206 555 0184', 'Added to Pursuits']) await expect(page.getByText(text)).toHaveCount(0)
+  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+})
+
+test('a held Add-to-Pursuit lookup resolving after the session ended does not show In Pursuits', async ({ page }) => {
+  let release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  await setup(page, [pursuit('p1', 'need-1')], { holdLookup: held, listFails: true })
+  await page.goto('/?view=workspace&projectBrowse=1&need=need-1')
+  await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
+  await page.evaluate(() => window.dispatchEvent(new Event('gl3-pursuits-session-ended')))
+  release()
+  await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 300)))
+  await expect(page.getByRole('link', { name: 'In Pursuits' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add to Pursuit' })).toBeEnabled()
+})
+
+test('a background 401 on the lookup invalidates an earlier shared list read even when the store is empty', async ({ page }) => {
+  let release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  await setup(page, [pursuit('p1', 'need-1')], { holdList: held, lookupUnauthorized: true })
+  const events = await countSessionEvents(page)
+  await page.goto('/?view=workspace&projectBrowse=1&need=need-1')
+  await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
+  await expect.poll(async () => (await events()).pursuits).toBeGreaterThan(0)
+  release()
+  await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 300)))
+  await expect(page.getByRole('link', { name: 'In Pursuits' })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: /Pursuits \d+ active/ })).toHaveCount(0)
 })
