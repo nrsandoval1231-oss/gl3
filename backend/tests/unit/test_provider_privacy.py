@@ -102,6 +102,15 @@ def test_phone_context_does_not_taint_a_distant_bare_docket_number():
     assert contains_sensitive_contact({"abstract": abstract}) is False
 
 
+def test_canonical_uuid_tokens_do_not_look_like_phone_numbers():
+    value = "Call record 12345678-a234-4234-8234-123456789012 for status."
+    assert contains_sensitive_contact({"abstract": value}) is False
+
+
+def test_canonical_uuid_is_still_rejected_under_sensitive_contact_key():
+    assert contains_sensitive_contact({"phone": "12345678-a234-4234-8234-123456789012"}) is True
+
+
 def test_unsafe_evidence_is_dropped_as_a_whole_without_rewriting_other_quotes():
     safe = {
         "evidence_id": "safe",
