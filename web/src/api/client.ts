@@ -105,6 +105,8 @@ export type OpportunityBrowseFilters = {
 export type OpportunityPage = {
   items: Opportunity[]
   totalCount: number
+  /** False when the response lacked a numeric X-Total-Count; totalCount is then a placeholder 0, not a count. */
+  totalCountKnown: boolean
   groupTotalCount: number
   pageRecordCount: number
   pageGroupCount: number
@@ -181,6 +183,7 @@ async function opportunityPage(tier: string, search: string, decision: string, l
   if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
   const items = await response.json() as Opportunity[]
   const header = (name: string) => Number(response.headers.get(name) ?? '0')
+  const totalHeader = response.headers.get('X-Total-Count')
   let decisionCounts: OpportunityPage['decisionCounts'] = { SHOW: 0, REVIEW: 0, HOLD: 0 }
   try {
     decisionCounts = { ...decisionCounts, ...JSON.parse(response.headers.get('X-Decision-Counts') ?? '{}') as OpportunityPage['decisionCounts'] }
@@ -189,6 +192,7 @@ async function opportunityPage(tier: string, search: string, decision: string, l
   return {
     items,
     totalCount: header('X-Total-Count'),
+    totalCountKnown: totalHeader !== null && totalHeader.trim() !== '' && Number.isFinite(Number(totalHeader)),
     groupTotalCount: header('X-Group-Total-Count'),
     pageRecordCount: header('X-Page-Record-Count'),
     pageGroupCount: header('X-Page-Group-Count'),
