@@ -279,8 +279,8 @@ def estimated_actual_cost(usage: dict[str, Any]) -> Decimal | None:
         return None
     ordinary = input_tokens - cached - written
     input_rate = settings.intelligence_equipment_input_usd_per_million
-    cached_rate = settings.intelligence_equipment_cached_input_usd_per_million
-    if cached_rate <= 0 or input_rate <= 0:
+    cached_rate = settings.intelligence_equipment_cached_input_usd_per_million or input_rate
+    if input_rate <= 0:
         return None
     # OpenAI's 30m / 12h write rates are 1.25x / 2.5x the ordinary input rate.
     return (
