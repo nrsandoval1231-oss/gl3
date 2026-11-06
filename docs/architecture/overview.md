@@ -12,6 +12,8 @@ Authority: [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CA
 - Verification: some deterministic boundaries and optional/shadow EvidenceJudge runs exist (`evidence_judge_runs`); they are not a general independent validator or a learned autonomous evaluation system.
 - API/UI publication: server-owned browse and opportunity projections. UI/API presence is not evidence that every target claim is supported. Unknown supply, uncertain contacts, and incomplete signals remain unknown or held.
 
+Amended 2026-11-06 (branch `feat/commercial-workspace-ux`, undeployed): migration 0050 adds owner-managed `commercial_pursuits`, `pursuit_tasks`, `pursuit_activity` (unrelated to research `pursuits*`) behind five allow-listed write routes under `/api/commercial-pursuits`; production remains at schema 0049. This is the only sanctioned manual status/notes surface; see [commercial pursuits](../engineering/commercial-pursuits-20261106.md).
+
 Existing eligibility, tier, evidence and privacy boundaries remain those in the canonical product docs. Historical tables and internal exceptional controls do not imply routine human review in the target workflow.
 
 ## TARGET — six-layer demand intelligence contract

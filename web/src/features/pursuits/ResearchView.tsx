@@ -15,7 +15,7 @@ function safeContactHref(method: Record<string, string>) {
   if (!method.href || !method.kind) return undefined
   try {
     const { protocol } = new URL(method.href)
-    if (method.kind === 'email' && protocol === 'mailto:') return method.href
+    if (method.kind === 'email' && protocol === 'mailto:' && /^mailto:[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/.test(method.href)) return method.href
     if (method.kind === 'phone' && protocol === 'tel:') return method.href
   } catch { /* malformed contact methods remain plain text */ }
   return undefined
@@ -71,7 +71,7 @@ export function ResearchView() {
   const choose = (id: string) => {
     setSelectedId(id)
     const params = new URLSearchParams(location.search)
-    params.set('view', 'pursuits'); params.set('researchNeed', id)
+    params.set('view', 'research'); params.set('researchNeed', id)
     history.replaceState(history.state, '', `/?${params}`)
   }
   const clearSelection = () => {

@@ -59,8 +59,8 @@ def main() -> None:
         metadata.reflect(bind=engine)
         with engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
-            if revision != "0049_scoped_identity_browse":
-                raise SystemExit("Refusing to seed unless the dedicated database is migrated to 0049_scoped_identity_browse.")
+            if revision != "0050_commercial_pursuits":
+                raise SystemExit("Refusing to seed unless the dedicated database is migrated to 0050_commercial_pursuits.")
             for table in metadata.sorted_tables:
                 if table.name == "alembic_version":
                     continue
@@ -69,7 +69,9 @@ def main() -> None:
                     if len(rows) != 1:
                         raise SystemExit("Refusing to seed unless browse_state contains only the migration-owned singleton.")
                     row = rows[0]
-                    # At schema 0049 the pristine migration chain owns the
+                    # At schema 0050 (which only adds the empty commercial_pursuits,
+                    # pursuit_tasks and pursuit_activity tables and does not touch
+                    # browse_state) the pristine migration chain owns the
                     # empty singleton: 0021 creates it; 0030, 0031, and 0034
                     # each force one full publication revision; 0032 bumps the
                     # title-policy input revision. No data table may be seeded

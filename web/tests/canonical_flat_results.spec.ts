@@ -50,8 +50,7 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await page.getByRole('combobox', { name: 'Project type' }).selectOption('oil_gas')
   await expect.poll(() => demandRequests.at(-1)?.searchParams.get('sector')).toBe('oil_gas')
   await page.getByRole('combobox', { name: 'Project type' }).selectOption('all')
-  await page.getByRole('checkbox', { name: 'Select all visible projects' }).check()
-  await expect(page.getByRole('checkbox', { name: 'Select Mesa Compressor' })).toBeChecked()
+  await expect(page.locator('.cfr-table tbody tr').first()).toContainText('No contact on file')
 
   await page.getByRole('textbox', { name: 'Search opportunities' }).fill('alternate source alias')
   await expect.poll(() => requests.some(url => url.searchParams.get('search') === 'alternate source alias')).toBeTruthy()
@@ -267,7 +266,7 @@ test('synthetic logout while results are unmounted clears module cache before re
   })
   await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(2)
-  await page.getByRole('button', { name: 'Intelligence' }).click()
+  await page.getByRole('button', { name: 'Pursuits' }).click()
   await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
   holdNext = true
   await page.getByRole('button', { name: 'Opportunities' }).click()

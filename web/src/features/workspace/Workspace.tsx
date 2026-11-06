@@ -3,12 +3,16 @@ import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError,
 import { LoginPage } from '../auth/LoginPage'
 import { WorkspaceDetail, workspaceTabs, type WorkspaceTab } from './WorkspaceDetail'
 import { ResearchView } from '../pursuits/ResearchView'
+import { PursuitsPage } from '../pursuits/PursuitsPage'
+import { refreshPursuits, usePursuitStore } from '../../state/pursuitStore'
 import { OperationsInbox } from '../operations/OperationsInbox'
 import { SignalsBrowse } from '../opportunities/SignalsBrowse'
 import { ProjectResults } from './ProjectResults'
 import { CanonicalOpportunityKpis, CanonicalOpportunityResults } from './CanonicalOpportunityResults'
 import { CustomerAccountsQueue } from './CustomerAccountsQueue'
 import { WorkspaceChanges } from './WorkspaceChanges'
+import { CompaniesPanel } from '../companies/CompaniesPanel'
+import { ReportsPanel } from '../reports/ReportsPanel'
 import { OpportunityTable } from './OpportunityTable'
 import { CanonicalHeader, type CanonicalHeaderDestination } from '../../components/CanonicalHeader'
 import { GlobalSearch } from './GlobalSearch'
@@ -34,10 +38,27 @@ function workspaceTabFromParams(params: URLSearchParams): Tab {
   const section = params.get('section') ?? legacy[params.get('mode') ?? '']
   return tabs.find(tab => tab.toLowerCase().replaceAll(' ', '-') === section) ?? 'Overview'
 }
-function currentView(): 'opportunities' | 'pursuits' | 'ingestion' | 'signals' {
+function panelFromUrl(): 'companies' | 'reports' | null {
+  const panel = getParams().get('panel')
+  return panel === 'companies' || panel === 'reports' ? panel : null
+}
+function pushPanel(panel: 'companies' | 'reports' | null) {
+  const params = getParams(); params.set('view', 'workspace')
+  params.delete('company'); if (!panel) { params.delete('cq'); params.delete('cs') } if (panel) params.set('panel', panel); else params.delete('panel')
+  const url = `/?${params}`
+  // Re-selecting the panel already shown must not stack identical history entries.
+  if (url !== `${location.pathname}${location.search}`) {
+    history.pushState({ ...history.state, companyOpened: undefined }, '', url)
+  }
+  // A mounted panel gets no popstate for this push; let it re-read its selected company.
+  dispatchEvent(new Event('gl3-panel-route'))
+}
+function currentView(): 'opportunities' | 'pursuits' | 'research' | 'ingestion' | 'signals' {
   const params = getParams(), view = params.get('view')
-  if (location.pathname === '/environment' || view === 'environment') return params.get('mode') === 'pursuits' ? 'pursuits' : params.get('mode') === 'browse' ? 'signals' : 'opportunities'
-  if (view === 'pursuits') return 'pursuits'
+  if (location.pathname === '/environment' || view === 'environment') return params.get('mode') === 'pursuits' ? 'research' : params.get('mode') === 'browse' ? 'signals' : 'opportunities'
+  // Legacy bookmarks used view=pursuits for the research page.
+  if (view === 'pursuits') return params.has('researchNeed') || params.has('q') ? 'research' : 'pursuits'
+  if (view === 'research') return 'research'
   if (view === 'ingestion') return 'ingestion'
   if (view === 'signals') return 'signals'
   if (view === 'workspace') return 'opportunities'
@@ -62,6 +83,8 @@ function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push 
   const signalView = currentView() === 'signals'
   const p = signalView ? getParams() : workspaceParams(filters)
   if (!signalView) for (const key of ['q', 'sector', 'sort', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'projectBrowse', 'region', 'stage', 'priority', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
+  // The flat browse supports no `updated` sort (it falls back to priority); never carry it into selection URLs.
+  if (!signalView && p.get('sort') === 'updated' && (getParams().get('groupBrowse') !== '1' || getParams().get('projectBrowse') === '1')) p.delete('sort')
   if (!signalView && accountContext) { p.set('account', accountContext.accountId); if (accountContext.projectId) p.set('project', accountContext.projectId) }
   if (signalView) { p.set('view', 'signals'); p.delete('need'); p.delete('section') }
   if (id) p.set('need', id)
@@ -71,7 +94,7 @@ function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push 
 }
 export function WorkspaceHome() {
   const [view, setView] = useState(currentView)
-  const [navigationPanel, setNavigationPanel] = useState<CanonicalHeaderDestination | null>(null)
+  const [navigationPanel, setNavigationPanel] = useState<CanonicalHeaderDestination | null>(panelFromUrl)
   const [signalScope, setSignalScope] = useState<OpportunityNeedScope | null>(null)
   const signalScopeRef = useRef<OpportunityNeedScope | null>(null)
   function updateSignalScope(scope: OpportunityNeedScope | null) {
@@ -104,12 +127,21 @@ export function WorkspaceHome() {
   const historyFocusSequence = useRef(0)
   const pendingHistoryFocus = useRef<{ id: string; sequence: number; focused: boolean; origin: Element | null } | null>(null)
   const moreMenu = useRef<HTMLDetailsElement>(null)
+  const pursuitStore = usePursuitStore()
+  const pursuitActions = useRef<{ openPursuit: (id: string) => void; openNeed: (id: string) => void }>({ openPursuit: () => {}, openNeed: () => {} })
+  useEffect(() => { if (authenticated) void refreshPursuits() }, [authenticated])
+  useEffect(() => {
+    const onPursuit = (event: Event) => { const id = (event as CustomEvent<string>).detail; if (id) pursuitActions.current.openPursuit(id) }
+    const onNeed = (event: Event) => { const id = (event as CustomEvent<string>).detail; if (id) pursuitActions.current.openNeed(id) }
+    addEventListener('gl3-open-pursuit', onPursuit); addEventListener('gl3-open-need', onNeed)
+    return () => { removeEventListener('gl3-open-pursuit', onPursuit); removeEventListener('gl3-open-need', onNeed) }
+  }, [])
   const signalParams = useRef<URLSearchParams | null>(currentView() === 'signals' ? getParams() : null)
   const lastSelected = useRef<string | null>(null)
   const pageRef = useRef<{ page: WorkspacePage; request: string; revision: number } | null>(null)
   const requestKey = workspaceRequestKey(filters)
   const accountBrowse = getParams().get('accountBrowse') === '1'
-  const groupBrowse = getParams().get('projectBrowse') !== '1'
+  const groupBrowse = getParams().get('groupBrowse') === '1' && getParams().get('projectBrowse') !== '1'
   const pageCurrent = Boolean(page && pageIdentity?.request === requestKey && pageIdentity.revision === revision && !loading && !error)
   const detailCurrent = Boolean(selected && detailIdentity?.id === selected.id && detailIdentity.revision === revision && !detailLoading && !detailError)
   useEffect(() => {
@@ -217,7 +249,7 @@ export function WorkspaceHome() {
       const p = getParams(); let id = p.get('need')
       pendingHistoryFocus.current = null
       ++selectionSequence.current; setDetailNavigation(value => value + 1)
-      setView(currentView())
+      setView(currentView()); setNavigationPanel(panelFromUrl())
       try { id ||= decodeURIComponent(location.hash.slice(1) || '') } catch { setDetailError('The selected power need link is malformed.'); id = '' }
       updateSelectedNeedContext(id || null)
       const next = currentView() === 'opportunities' ? initialFilters() : filters; pendingRestore.current = null; if (currentView() === 'opportunities') setFilters(next); if (currentView() === 'signals') signalParams.current = getParams()
@@ -280,8 +312,17 @@ export function WorkspaceHome() {
     if (item && window.matchMedia('(max-width: 1050px)').matches) { window.scrollTo(0, 0); requestAnimationFrame(() => document.querySelector<HTMLElement>('.cod-back, .wh-back')?.focus()) }
     if (!item) requestAnimationFrame(() => { const list = document.querySelector('.wh-list'); if (list && window.matchMedia('(min-width: 1051px)').matches) list.scrollTop = savedScroll.current.list; else window.scrollTo(0, savedScroll.current.window); const focus = document.querySelector<HTMLElement>(`[data-need-row="${selected?.id ?? ''}"]`); focus?.focus() })
   }
-  const navigate = (nextView: 'opportunities' | 'pursuits' | 'ingestion' | 'signals') => {
+  const navigate = (nextView: 'opportunities' | 'pursuits' | 'research' | 'ingestion' | 'signals', pursuitId?: string) => {
     moreMenu.current?.removeAttribute('open')
+    if (nextView === 'pursuits' && view === 'pursuits') {
+      // Already on the page: push the list/deep-link URL and let the page re-read it (no remount, filter kept).
+      const params = new URLSearchParams({ view: 'pursuits' }), keep = getParams().get('filter')
+      if (keep) params.set('filter', keep)
+      if (pursuitId) params.set('pursuit', pursuitId)
+      history.pushState({ ...history.state }, '', `/?${params}`)
+      dispatchEvent(new Event('gl3-pursuits-route'))
+      return
+    }
     if (nextView === 'ingestion' && view === 'ingestion') return
     if (nextView === 'opportunities' && view === 'opportunities') return
     if (nextView === 'signals' && view === 'signals') { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError(''); dispatchEvent(new Event('gridlens:signals-reset')); return }
@@ -295,6 +336,7 @@ export function WorkspaceHome() {
     const params = nextView === 'opportunities' ? workspaceParams(filters)
       : nextView === 'signals' ? new URLSearchParams(signalParams.current ?? { view: 'signals', tier: 'Signals' })
       : new URLSearchParams({ view: nextView })
+    if (nextView === 'pursuits' && pursuitId) params.set('pursuit', pursuitId)
     if (nextView === 'opportunities') for (const [key, value] of Object.entries(savedBrowse)) params.set(key, value)
     if (nextView === 'signals') { params.set('view', 'signals'); params.delete('need'); params.delete('section') }
     history.pushState({ ...history.state, workspaceBrowse: savedBrowse }, '', `/?${params}`)
@@ -311,18 +353,37 @@ export function WorkspaceHome() {
       requestAnimationFrame(() => document.querySelector<HTMLElement>('.cod-back, .wh-back')?.focus())
     }
   }
+  const previousPanel = useRef<typeof navigationPanel>(navigationPanel)
+  useEffect(() => {
+    const before = previousPanel.current; previousPanel.current = navigationPanel
+    if (before === navigationPanel) return
+    const target = navigationPanel
+      ? document.querySelector<HTMLElement>('.canonical-navigation-panel h1')
+      : document.activeElement && document.activeElement !== document.body ? null : document.querySelector<HTMLElement>('main.wh-main h1')
+    if (!target) return
+    target.tabIndex = -1; target.focus({ preventScroll: true })
+  }, [navigationPanel])
+  // Assigned after each commit (not during render) so the gl3-open-* listeners never hold closures from a discarded render.
+  useEffect(() => {
+    pursuitActions.current = {
+      openPursuit: id => { setNavigationPanel(null); navigate('pursuits', id) },
+      openNeed: id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) },
+    }
+  })
   if (authenticated === null) return <div className="workspace-home"><div inert><CanonicalHeader onNavigate={() => {}}/></div><main className="loading" aria-live="polite" aria-busy="true">Loading your private workspace…</main></div>
   if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); updateSelectedNeedContext(null); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
   const header = <CanonicalHeader
-    activeDestination={navigationPanel ?? (view === 'pursuits' ? 'intelligence' : 'opportunities')}
+    activeDestination={navigationPanel ?? (view === 'pursuits' ? 'pursuits' : 'opportunities')}
+    badges={{ pursuits: pursuitStore.counts.active }}
     onNavigate={destination => {
-      if (destination === 'opportunities' || destination === 'intelligence') { setNavigationPanel(null); navigate(destination === 'intelligence' ? 'pursuits' : 'opportunities') }
-      else { setNavigationPanel(destination); navigate('opportunities') }
+      if (destination === 'companies' || destination === 'reports') { setNavigationPanel(destination); if (view !== 'opportunities') navigate('opportunities'); pushPanel(destination) }
+      else { setNavigationPanel(null); if (navigationPanel) pushPanel(null); navigate(destination) }
     }}
     search={<GlobalSearch onNeed={id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) }} onCompany={id => { const params = new URLSearchParams({ view: 'workspace', accountBrowse: '1', account: id }); location.assign(`/?${params}`) }}/>}
-    profile={<details ref={moreMenu} className="wh-account"><summary aria-label="Account menu"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg></summary><div><span>Private workspace</span><button onClick={() => { setNavigationPanel(null); navigate('pursuits') }}>Research</button><button onClick={() => { setNavigationPanel(null); navigate('signals') }}>Signals</button><button onClick={() => { setNavigationPanel(null); navigate('ingestion') }}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details>}/>
-  const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{view === 'pursuits' && <ResearchView/>}</main>
-  if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
+    profile={<details ref={moreMenu} className="wh-account"><summary aria-label="Account menu"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg></summary><div><span>Private workspace</span><button onClick={() => { setNavigationPanel(null); navigate('research') }}>Research</button><button onClick={() => { setNavigationPanel(null); navigate('signals') }}>Signals</button><button onClick={() => { setNavigationPanel(null); navigate('ingestion') }}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details>}/>
+  const researchHost = <main className="wh-single-view" hidden={view !== 'research'}>{view === 'research' && <ResearchView/>}</main>
+  if (view === 'research') return <div className="workspace-home">{header}{researchHost}</div>
+  if (view === 'pursuits') return <div className="workspace-home">{header}<main className="pu-main"><PursuitsPage/></main></div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
   if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout wh-signal-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { updateSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/></div></main></div>
   if (accountBrowse) {
@@ -344,12 +405,11 @@ export function WorkspaceHome() {
   return <div className="workspace-home">
     {header}
     {researchHost}
-    {navigationPanel && <section className="canonical-navigation-panel" aria-label={navigationPanel === 'developers' ? 'Developers' : navigationPanel === 'reports' ? 'Reports' : 'Power Supply'}>
-      <button aria-label="Close navigation panel" onClick={() => setNavigationPanel(null)}>Close</button>
-      <h1>{navigationPanel === 'developers' ? 'Developers' : navigationPanel === 'reports' ? 'Reports' : 'Power Supply'}</h1>
-      {navigationPanel === 'developers' ? <><p>Explore evidenced operator and customer relationships, projects, and published business contacts.</p><a href="/?view=workspace&accountBrowse=1">Browse customer accounts</a><span> · </span><a href="/?view=workspace&groupBrowse=1">Browse operator and customer groups</a></> : navigationPanel === 'reports' ? <><p>Export the current results with the table's Export action. Recent source-backed changes appear below.</p><WorkspaceChanges onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/></> : <><p>Select a project to inspect its activity-specific requirement, available supply, and supported residual power gap.</p>{selected && <button onClick={() => { setNavigationPanel(null); setTab('Power gap') }}>View selected project power supply</button>}</>}
-    </section>}
-    <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
+    {navigationPanel && <main className="canonical-navigation-page"><section className="canonical-navigation-panel" aria-label={navigationPanel === 'companies' ? 'Companies' : 'Reports'}>
+      <button type="button" className="canonical-navigation-back" aria-label="Close navigation panel" onClick={() => { setNavigationPanel(null); pushPanel(null) }}>← Back to Opportunities</button>
+      {navigationPanel === 'companies' ? <CompaniesPanel onNeed={id => { setNavigationPanel(null); openActiveNeed({ id }) }}/> : <ReportsPanel onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/>}
+    </section></main>}
+    <main hidden={Boolean(navigationPanel)} className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>
         <CanonicalOpportunityKpis/>
         <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => {

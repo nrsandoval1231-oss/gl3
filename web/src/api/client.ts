@@ -1,4 +1,4 @@
-import { clearContinuity } from '../state/sessionState'
+import { clearContinuity, endPursuitsSession } from '../state/sessionState'
 import type { components } from './generated'
 
 export type EvidenceContent = {
@@ -31,6 +31,18 @@ export type Opportunity = components['schemas']['OpportunityOut']
 export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
 export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
 export type ProjectResultNeed = { id: string; project_id?: string; name?: string | null; browse_title?: string | null; location?: string | null; activity?: string | null; tier?: 'Signal' | 'Prospect' | 'Lead' | null; commercial_preview?: { disposition?: string | null; reason?: string | null; next_question?: string | null; next_action?: string | null; organization?: string | null } }
+export type PursuitStage = 'New' | 'Contacted' | 'Engaged' | 'Proposal' | 'Won' | 'Lost'
+export const PURSUIT_STAGES: PursuitStage[] = ['New', 'Contacted', 'Engaged', 'Proposal', 'Won', 'Lost']
+export type PursuitTask = { id: string; description: string; due_date: string | null; completed_at: string | null }
+export type PursuitActivity = { id: string; kind: string; summary: string; detail: string | null; occurred_at: string }
+export type PursuitContact = { name: string | null; role: string | null; company: string | null; phone: string | null; email: string | null }
+export type CommercialPursuit = {
+  id: string; need_id: string; project_id: string; stage: PursuitStage; title: string; location: string | null; tier: string
+  required_mw: string | null; start_window: string | null; contact: PursuitContact | null; contact_status: 'available' | 'missing' | 'unknown'
+  attention: string[]; attention_labels: string[]; next_task: PursuitTask | null; created_at: string; stage_changed_at: string
+  tasks?: PursuitTask[] | null; activity?: PursuitActivity[] | null
+}
+export type CommercialPursuitList = { items: CommercialPursuit[]; counts: { total: number; active: number; needs_attention: number }; total_matching?: number; has_more?: boolean; next_offset?: number | null }
 export type ProjectResultContactPerson = { record_type?: 'contact_person'; company_identity_id?: string | null; person_identity_id?: string | null; company?: string | null; name?: string | null; title?: string | null; role?: string | null; responsibility?: string | null; purchasing_authority?: string | null; source_url?: string | null }
 export type ProjectResultsSort = 'priority' | 'priority_asc' | 'company' | 'project' | 'updated'
 export type ProjectResult = { id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; updated_at: string | null }
@@ -93,6 +105,8 @@ export type OpportunityBrowseFilters = {
 export type OpportunityPage = {
   items: Opportunity[]
   totalCount: number
+  /** False when the response lacked a numeric X-Total-Count; totalCount is then a placeholder 0, not a count. */
+  totalCountKnown: boolean
   groupTotalCount: number
   pageRecordCount: number
   pageGroupCount: number
@@ -169,6 +183,7 @@ async function opportunityPage(tier: string, search: string, decision: string, l
   if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
   const items = await response.json() as Opportunity[]
   const header = (name: string) => Number(response.headers.get(name) ?? '0')
+  const totalHeader = response.headers.get('X-Total-Count')
   let decisionCounts: OpportunityPage['decisionCounts'] = { SHOW: 0, REVIEW: 0, HOLD: 0 }
   try {
     decisionCounts = { ...decisionCounts, ...JSON.parse(response.headers.get('X-Decision-Counts') ?? '{}') as OpportunityPage['decisionCounts'] }
@@ -177,6 +192,7 @@ async function opportunityPage(tier: string, search: string, decision: string, l
   return {
     items,
     totalCount: header('X-Total-Count'),
+    totalCountKnown: totalHeader !== null && totalHeader.trim() !== '' && Number.isFinite(Number(totalHeader)),
     groupTotalCount: header('X-Group-Total-Count'),
     pageRecordCount: header('X-Page-Record-Count'),
     pageGroupCount: header('X-Page-Group-Count'),
@@ -383,6 +399,36 @@ export const client = {
     if (!session.authenticated) clearContinuity()
     return session
   }),
+  /**
+   * `background` reads (nav count, Add-to-Pursuit lookup) never call `clearContinuity` on a 401 (that would wipe
+   * opportunity state); they announce `gl3-pursuits-session-ended` so every pursuit-derived view clears itself.
+   */
+  commercialPursuits: (filters: { needsAttention?: boolean; activeOnly?: boolean; needId?: string; background?: boolean; limit?: number; offset?: number } = {}, signal?: AbortSignal) => {
+    const params = new URLSearchParams()
+    if (filters.needsAttention) params.set('needs_attention', 'true')
+    if (filters.activeOnly) params.set('active_only', 'true')
+    if (filters.needId) params.set('need_id', filters.needId)
+    if (filters.limit) params.set('limit', String(filters.limit))
+    if (filters.offset) params.set('offset', String(filters.offset))
+    const path = `/api/commercial-pursuits?${params}`
+    const read = filters.background
+      ? fetch(path, { credentials: 'same-origin', signal }).then(response => {
+        if (response.status === 401) endPursuitsSession()
+        if (!response.ok) throw new Error(response.status === 401 ? 'Your session ended. Sign in again.' : `GridLens could not complete this request (${response.status}).`)
+        return response.json() as Promise<CommercialPursuitList>
+      })
+      : api<CommercialPursuitList>(path, { signal })
+    return read.then(list => {
+      if (!list || !Array.isArray(list.items) || typeof list.counts?.active !== 'number') throw new Error('Pursuits response was not recognised.')
+      return list
+    })
+  },
+  commercialPursuit: (id: string, signal?: AbortSignal) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}`, { signal }),
+  createCommercialPursuit: (needId: string) => api<CommercialPursuit>('/api/commercial-pursuits', { method: 'POST', body: JSON.stringify({ need_id: needId }) }, true),
+  setPursuitStage: (id: string, stage: PursuitStage) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ stage }) }, true),
+  addPursuitTask: (id: string, task: { description: string; due_date?: string | null }) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}/tasks`, { method: 'POST', body: JSON.stringify(task) }, true),
+  updatePursuitTask: (id: string, taskId: string, patch: { description?: string; due_date?: string | null; clear_due_date?: boolean; completed?: boolean }) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}/tasks/${encodeURIComponent(taskId)}`, { method: 'PATCH', body: JSON.stringify(patch) }, true),
+  logPursuitActivity: (id: string, entry: { kind: 'call' | 'email' | 'meeting' | 'note'; summary: string; detail?: string | null; client_id: string }) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}/activity`, { method: 'POST', body: JSON.stringify({ ...entry, confirmed: true }) }, true),
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }).finally(clearContinuity),
   opportunityPage,

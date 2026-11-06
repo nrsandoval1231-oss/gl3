@@ -1438,6 +1438,9 @@ class LogicalCallSettlement(Base):
 
 
 # Register the bounded monitoring tables with the same declarative metadata.
+from gridlens.persistence import (  # noqa: E402,F401
+    commercial_pursuit_models as commercial_pursuit_models,
+)
 from gridlens.persistence import contact_models as contact_models  # noqa: E402,F401
 from gridlens.persistence import suppression_models as suppression_models  # noqa: E402,F401
 from gridlens.persistence import watch_models as watch_models  # noqa: E402,F401

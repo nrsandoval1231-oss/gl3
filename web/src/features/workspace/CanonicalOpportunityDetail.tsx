@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { client } from '../../api/client'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { WorkspaceDetail, type WorkspaceTab } from './WorkspaceDetail'
-import { CalendarDays, ChartNoAxesColumnIncreasing, FileText, Target, UserRound, Zap } from 'lucide-react'
+import { CalendarDays, ChartNoAxesColumnIncreasing, FileText, Mail, Phone, Target, UserRound, Zap } from 'lucide-react'
+import { AddToPursuit } from '../pursuits/AddToPursuit'
 import './canonical-opportunity-detail.css'
 
 type Props = Parameters<typeof WorkspaceDetail>[0]
@@ -109,9 +110,9 @@ export function CanonicalOpportunityDetail(props: Props) {
     : cardGapRemaining ? (typeof cardGap?.status === 'string' ? cardGap.status.replaceAll('_', ' ') : 'Source-reported estimate') : 'Not established · gap unknown'
   const timing = item.start_window || null
   const metrics = [
-    { label: 'Estimated Power Need', value: demand || '—', basis: item.required_mw ? 'Activity-specific power requirement' : facilityDemand ? `${facilityDemand.status} · facility demand` : 'Not established · power requirement unknown', icon: 'demand' },
-    { label: 'Estimated Power Gap', value: gap || '—', basis: gapBasis, icon: 'gap' },
-    { label: 'Needed By', value: timing || '—', basis: timing ? 'Power timing from retained assessment' : 'Not established · timing unknown', icon: 'calendar' },
+    { label: 'Power Need', value: demand || '—', basis: item.required_mw ? 'Activity-specific power requirement' : facilityDemand ? `${facilityDemand.status} · facility demand` : 'Not established · power requirement unknown', icon: 'demand' },
+    { label: 'Power Gap', value: gap || '—', basis: gapBasis, icon: 'gap' },
+    { label: 'Power timing', value: timing || '—', basis: timing ? 'Power timing from retained assessment' : 'Not established · timing unknown', icon: 'calendar' },
   ]
   const people = card?.contacts ?? []
   const renderedContactHrefs = new Set(people.flatMap(person => contactChannels(person.methods ?? [], person.sources ?? []).map(channel => normalizeContactHref(channel.href))))
@@ -124,13 +125,19 @@ export function CanonicalOpportunityDetail(props: Props) {
   const nextAction = item.tier === 'Signal' && (item.commercial_disposition ?? card?.disposition) === 'WATCH'
     ? 'Continue monitoring for verified power demand.'
     : item.commercial_next_action || item.next_action || item.commercial_next_question || project?.next_action || 'Review retained evidence and confirm the unresolved details.'
-  const details = [
-    ['Company', company], ['Project', title], ['Location', location],
-    ['Project type', project?.asset_type?.replaceAll('_', ' ') || field('project_type')?.value],
+  const assetType = project?.asset_type?.replaceAll('_', ' ') || field('project_type')?.value || null
+  const eyebrow = assetType || item.activity || null
+  const currentSources = sources.filter(source => source.assessment_current === true).length
+  const evidenceSummary = sources.length ? `${sources.length} evidence record${sources.length === 1 ? '' : 's'}${currentSources ? ` · ${currentSources} current` : ''}` : null
+  const essentialDetails = [
+    ['Company', company], ['Project type', assetType], ['Project scale', field('site_size')?.value], ['Evidence summary', evidenceSummary],
+  ].filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
+  const moreDetails = [
+    ['Project', title], ['Location', location],
     ['Power timing', item.start_window], ['Milestone date', project?.event?.date], ['Site status', item.lifecycle_state?.replaceAll('_', ' ') || field('site_status')?.value],
     ['Grid proximity', field('grid_proximity')?.value], ['Utility status', field('utility_status')?.value],
     ['Site control', field('site_control')?.value], ['Estimated project value', field('project_value')?.value],
-    ['Site size', field('site_size')?.value], ['Development partner', field('development_partner')?.value],
+    ['Development partner', field('development_partner')?.value],
     ['Last intelligence update', card?.last_intelligence_update ? displayDate(card.last_intelligence_update) : null],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
 
@@ -138,7 +145,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     <div className="cod-heading">
       <button type="button" className="cod-back" onClick={onBack}>← Opportunities</button>
       <div className="cod-title-row">
-        <div><span className="cod-tier">{item.tier || 'Opportunity'}</span><h2>{company && company !== title ? <>{company} <span>— {title}</span></> : title}</h2>
+        <div>{eyebrow && <p className="cod-kicker">{eyebrow}</p>}<span className="cod-tier">{item.tier || 'Opportunity'}</span><h2>{company && company !== title ? <>{company} <span>— {title}</span></> : title}</h2>
           <p className="cod-location">{location || 'Location not established'}{project?.event?.label ? ` · ${project.event.label}${project.event.date ? ` · ${project.event.date}` : ''}` : ''}</p>
         </div>
       </div>
@@ -147,7 +154,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     <nav className="cod-tabs" aria-label="Project detail sections">
       {(['Overview', 'Intelligence', 'Timeline', 'Related'] as const).map(value => <button key={value} type="button" aria-pressed={canonicalTab === value} className={canonicalTab === value ? 'active' : ''} onClick={() => onTab(workspaceTabFor(value))}>{value}</button>)}
     </nav>
-    <p className="cod-summary">{summary}</p>
+    {canonicalTab !== 'Overview' && <p className="cod-summary">{summary}</p>}
     {(projectLoading || projectError || associationNotice) && <p className="cod-status" role={projectError ? 'status' : undefined}>{projectLoading ? 'Loading current project details…' : projectError || associationNotice}</p>}
 
     {canonicalTab === 'Overview' && <>
@@ -156,7 +163,11 @@ export function CanonicalOpportunityDetail(props: Props) {
         <span className="cod-metric-icon" aria-hidden="true">{metric.icon === 'demand' ? <Zap size={16} strokeWidth={1.6}/> : metric.icon === 'gap' ? <ChartNoAxesColumnIncreasing size={16} strokeWidth={1.6}/> : <CalendarDays size={16} strokeWidth={1.6}/>}</span>
         <div><strong title={metric.value} aria-label={metric.value}>{metric.value}</strong><span className="cod-metric-label">{metric.label}</span><small>{metric.basis}</small></div>
       </article>)}</section>
-      <section className="cod-details" aria-label="Key project details"><h3>Project details</h3><dl>{details.length ? details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>) : <p>Project details are not established by current evidence.</p>}</dl></section>
+      <section className="cod-why" aria-label="Why this matters"><h3>Why this matters</h3><p>{summary}</p></section>
+      <section className="cod-details" aria-label="Key project details"><h3>Key Details</h3>
+        {essentialDetails.length ? <dl>{essentialDetails.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : <p>Project details are not established by current evidence.</p>}
+        {moreDetails.length > 0 && <details className="cod-more-details"><summary>More details</summary><dl>{moreDetails.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></details>}
+      </section>
       {equipmentDemand && (() => {
         const demand = equipmentDemand.demand && typeof equipmentDemand.demand === 'object' && !Array.isArray(equipmentDemand.demand) ? equipmentDemand.demand as EquipmentDemandProjection : null
         const label = (value: unknown) => typeof value === 'string' ? value.replaceAll('_', ' ') : 'Unavailable'
@@ -169,30 +180,45 @@ export function CanonicalOpportunityDetail(props: Props) {
         const nativeProposal = equipmentDemand.scope === 'identified_equipment_assertion'
         const equipmentHeading = nativeProposal ? 'Source-reported equipment proposal' : 'Equipment schedule demand'
         const sourceAssertions = nativeProposal && Array.isArray(equipmentDemand.equipment) ? equipmentDemand.equipment.flatMap(value => value && typeof value === 'object' && typeof value.quote === 'string' && value.quote.trim() ? [value.quote] : []) : []
-        return <section className="cod-equipment-demand" aria-label={equipmentHeading}><h3>{equipmentHeading}</h3><p>{nativeProposal ? 'Historical source assertion. Current status and site demand remain unverified.' : 'Schedule-level capacity figures · not a site or portfolio total or metered demand.'}</p>{sourceAssertions.map((quote, index) => <p key={index}><strong>Equipment reported by source:</strong> {quote}</p>)}<dl><div><dt>Classification</dt><dd>{label(equipmentDemand.classification)}</dd></div><div><dt>Status</dt><dd>{label(equipmentDemand.status)}</dd></div><div><dt>Scope</dt><dd>{label(equipmentDemand.scope)}</dd></div><div><dt>Equipment state / lifecycle</dt><dd>{lifecycle.map(label).join(', ') || 'Unknown'}</dd></div><div><dt>{nativeProposal ? 'Source proposal as of' : 'Schedule as of'}</dt><dd>{asOf}</dd></div><div><dt>Documented expected start</dt><dd>{expectedStarts.join(', ') || 'Unknown'}</dd></div><div><dt>{capacityLabel('connected capacity')}</dt><dd>{equipmentKw(demand, 'connected_kw')}</dd></div><div><dt>{capacityLabel('coincident operating capacity')}</dt><dd>{equipmentKw(demand, 'coincident_kw')}</dd></div><div><dt>{plannedStates.length ? 'Planned incremental capacity' : 'Incremental capacity'}</dt><dd>{equipmentKw(demand, 'incremental_kw')}</dd></div></dl>{typeof equipmentDemand.next_action === 'string' && equipmentDemand.next_action.trim() && <p className="cod-equipment-next-action"><strong>Equipment next action:</strong> {equipmentDemand.next_action}</p>}</section>
+        return <details className="cod-equipment-demand"><summary>Equipment demand</summary><section aria-label={equipmentHeading}><h3>{equipmentHeading}</h3><p>{nativeProposal ? 'Historical source assertion. Current status and site demand remain unverified.' : 'Schedule-level capacity figures · not a site or portfolio total or metered demand.'}</p>{sourceAssertions.map((quote, index) => <p key={index}><strong>Equipment reported by source:</strong> {quote}</p>)}<dl><div><dt>Classification</dt><dd>{label(equipmentDemand.classification)}</dd></div><div><dt>Status</dt><dd>{label(equipmentDemand.status)}</dd></div><div><dt>Scope</dt><dd>{label(equipmentDemand.scope)}</dd></div><div><dt>Equipment state / lifecycle</dt><dd>{lifecycle.map(label).join(', ') || 'Unknown'}</dd></div><div><dt>{nativeProposal ? 'Source proposal as of' : 'Schedule as of'}</dt><dd>{asOf}</dd></div><div><dt>Documented expected start</dt><dd>{expectedStarts.join(', ') || 'Unknown'}</dd></div><div><dt>{capacityLabel('connected capacity')}</dt><dd>{equipmentKw(demand, 'connected_kw')}</dd></div><div><dt>{capacityLabel('coincident operating capacity')}</dt><dd>{equipmentKw(demand, 'coincident_kw')}</dd></div><div><dt>{plannedStates.length ? 'Planned incremental capacity' : 'Incremental capacity'}</dt><dd>{equipmentKw(demand, 'incremental_kw')}</dd></div></dl>{typeof equipmentDemand.next_action === 'string' && equipmentDemand.next_action.trim() && <p className="cod-equipment-next-action"><strong>Equipment next action:</strong> {equipmentDemand.next_action}</p>}</section></details>
       })()}
       <div className="cod-lower">
-        <section className="cod-contacts" aria-label="Decision maker or contact"><h3><UserRound size={13} strokeWidth={1.6}/>Decision Maker / Contact</h3>
+        <section className="cod-contacts" aria-label="Decision maker or contact"><h3><UserRound size={13} strokeWidth={1.6}/>Key Contacts</h3>
           {people.length ? people.map(person => {
             const channels = contactChannels(person.methods ?? [], person.sources ?? [])
+            const primary = prioritizePrimaryChannels(channels)
+            const phone = primary.find(channel => channel.kind === 'phone')
+            const email = primary.find(channel => channel.kind === 'email')
+            const extraSources = (person.sources ?? []).filter(source => !sources.some(itemSource => safeSourceUrl(itemSource.url) && safeSourceUrl(itemSource.url) === safeSourceUrl(source.url)))
+            const note = (channel: typeof primary[number]) => channel.verifiedAt ? `Source checked ${displayDate(channel.verifiedAt)}` : <>Verification not established · <a href={channel.sourceUrl} target="_blank" rel="noreferrer">{channel.sourceTitle}</a></>
             return <article key={person.claim_id}>
-            <strong>{person.name || person.company}</strong><p>{[person.title || person.role, person.name ? person.company : null].filter(Boolean).join(' · ')}</p>
-            {person.responsibility && <p>{person.responsibility}</p>}
-            <p>Purchasing authority: {person.purchasing_authority?.trim() || 'Authority not established'}</p>
-            {prioritizePrimaryChannels(channels).map(channel => <span className="cod-verified-method" key={`${channel.kind}:${channel.value}`}>
-              <a href={channel.href}>{channel.kind === 'email' ? 'Email' : 'Call'} {channel.value}</a>
-              <small>{channel.verifiedAt ? `Source checked ${displayDate(channel.verifiedAt)}` : <>Listed in source: <a href={channel.sourceUrl} target="_blank" rel="noreferrer">{channel.sourceTitle}</a> · verification not established</>}</small>
-            </span>)}
-            {!channels.some(method => method.kind === 'phone') && <small>Phone unavailable in retained contact evidence.</small>}
-            {!channels.some(method => method.kind === 'email') && <small>Email unavailable in retained contact evidence.</small>}
-            {(person.sources ?? []).filter(source => !sources.some(itemSource => safeSourceUrl(itemSource.url) && safeSourceUrl(itemSource.url) === safeSourceUrl(source.url))).map(source => safeSourceUrl(source.url) && <a key={`${source.reference}:${source.url}`} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">Contact source: {source.title}</a>)}
+            <div className="cod-contact-row">
+              <div className="cod-contact-id"><strong>{person.name || person.company}</strong>
+                <p>{[person.title || person.role, person.name ? person.company : null].filter(Boolean).join(' · ')}</p></div>
+              {(phone || email) && <div className="cod-contact-buttons">
+                {phone && <a className="cod-contact-button" href={phone.href} aria-label={`Call ${phone.value}`}><Phone size={14} strokeWidth={1.8} aria-hidden="true"/>Call</a>}
+                {email && <a className="cod-contact-button" href={email.href} aria-label={`Email ${email.value}`}><Mail size={14} strokeWidth={1.8} aria-hidden="true"/>Email</a>}
+              </div>}
+            </div>
+            {(phone || email) ? <ul className="cod-contact-methods">
+              {phone && <li><span>{phone.value}</span><small>{note(phone)}</small></li>}
+              {email && <li><span>{email.value}</span><small>{note(email)}</small></li>}
+            </ul> : <p className="cod-contact-missing">No verified phone or email is available in retained contact evidence.</p>}
+            <details className="cod-contact-more"><summary>{phone || email ? 'More' : 'Inspect contact evidence'}</summary>
+              {person.responsibility && <p>{person.responsibility}</p>}
+              <p>Purchasing authority: {person.purchasing_authority?.trim() || 'Authority not established'}</p>
+              {primary.slice(2).map(channel => <span className="cod-verified-method" key={`${channel.kind}:${channel.value}`}><a href={channel.href}>{channel.kind === 'email' ? 'Email' : 'Call'} {channel.value}</a><small>{note(channel)}</small></span>)}
+              {!phone && <small>Phone unavailable in retained contact evidence.</small>}
+              {!email && <small>Email unavailable in retained contact evidence.</small>}
+              {extraSources.map(source => safeSourceUrl(source.url) && <a key={`${source.reference}:${source.url}`} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">Contact source: {source.title}</a>)}
+            </details>
           </article>}) : <p>No decision-maker or public company contact is available in retained evidence.</p>}
           {(project?.contact ?? []).filter(action => action.route_kind === 'company_route').map(action => {
             const href = safeContactAction(action.kind, action.href)
             const normalizedHref = href ? normalizeContactHref(href) : ''
             if (!href || !normalizedHref || renderedContactHrefs.has(normalizedHref)) return null
             renderedContactHrefs.add(normalizedHref)
-            return <p className="cod-company-route" key={`${action.kind}:${href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact path'}</strong> · {action.responsibility || 'General company contact path'} · <a href={href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a>{action.support && <small>{action.support}</small>}</p>
+            return <p className="cod-company-route" key={`${action.kind}:${href}`} title={[action.responsibility, action.support].filter(Boolean).join(' · ') || undefined}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact path'}</strong> <a href={href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a></p>
           })}
         </section>
         <section className="cod-evidence" aria-label="Recent evidence"><h3><FileText size={13} strokeWidth={1.6}/>Evidence ({sources.length + additionalCardEvidence.length})</h3>
@@ -201,8 +227,9 @@ export function CanonicalOpportunityDetail(props: Props) {
         </section>
       </div>
       <button type="button" className="cod-view-all-evidence" onClick={() => onTab('Evidence')}>View all evidence</button>
-      </div>
       <section className="cod-next-action" aria-label="Recommended next action"><Target size={19} strokeWidth={1.6}/><div><strong>Next Action</strong><p>{nextAction}</p></div><button type="button" onClick={() => onTab('Research')}>View research</button></section>
+      </div>
+      <AddToPursuit key={item.id} needId={item.id}><button type="button" className="cod-action-secondary" onClick={() => onTab('Evidence')}>View Full Details</button></AddToPursuit>
     </>}
 
     {canonicalTab === 'Intelligence' && <section className="cod-tab-content">
@@ -248,6 +275,9 @@ function safeSourceUrl(value: string | null | undefined): string | null {
   } catch { return null }
 }
 
+/** Plain address only: no `%`, `?`, `&`, `=`, separators, whitespace, quotes or angle brackets, so a mailto: href cannot carry headers or encoded line breaks. */
+const STRICT_EMAIL = /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/
+
 function contactChannels(methods: { [key: string]: string }[], sources: NonNullable<NonNullable<Props['item']>['intelligence_card']>['contacts'][number]['sources']) {
   const channels = new Map<string, { kind: 'phone' | 'email'; value: string; href: string; sourceTitle: string; sourceUrl: string; verifiedAt?: string }>()
   for (const method of methods) {
@@ -256,7 +286,7 @@ function contactChannels(methods: { [key: string]: string }[], sources: NonNulla
     if (!kind || !value) continue
     const valid = kind === 'phone'
       ? /^[+()\d][\d\s().-]{5,}$/.test(value) && (value.match(/\d/g)?.length ?? 0) >= 7
-      : /^[^\s@<>]+@[^\s@<>.]+(?:\.[^\s@<>.]+)+$/.test(value)
+      : STRICT_EMAIL.test(value)
     if (!valid) continue
     const sourceUrl = safeSourceUrl(method.source_url)
     const methodSource = (sources ?? []).find(source => source.verification_status === 'Current retained support' && safeSourceUrl(source.url) === sourceUrl)
@@ -274,7 +304,7 @@ function contactChannels(methods: { [key: string]: string }[], sources: NonNulla
 function safeContactAction(kind: string, href: string | null | undefined): string | null {
   if (!href || /[\u0000-\u001f]/.test(href)) return null
   if (kind === 'call' && /^tel:\+?[0-9]{7,15}$/i.test(href)) return href
-  if (kind === 'email' && /^mailto:[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$/i.test(href)) return href
+  if (kind === 'email' && href.length > 7 && STRICT_EMAIL.test(href.slice(7))) return href
   if (kind === 'contact') return safeSourceUrl(href)
   return null
 }

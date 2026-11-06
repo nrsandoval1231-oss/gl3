@@ -16,7 +16,7 @@ test('changing sector clears region and stage filters and their URL state', asyn
     return route.fulfill({ json: { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `sector-${dataCenters ? 'dc' : 'oil'}`, facets: dataCenters ? { regions: ['Austin, TX'], stages: ['Construction notice'] } : { regions: ['Permian Basin, TX'], stages: ['Permit issued'] } } })
   })
 
-  await page.goto('/?view=workspace&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked')
+  await page.goto('/?view=workspace&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked&groupBrowse=1')
   await expect(page.locator('.customer-group')).toHaveCount(1)
   await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue('Permian Basin, TX')
   await expect(page.getByRole('combobox', { name: 'Stage' })).toHaveValue('Permit issued')
@@ -43,7 +43,7 @@ test('URL region and stage stay visibly selected when omitted from returned face
     return route.fulfill({ json: { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'arbitrary-filter-cohort', facets: { regions: ['Austin, TX'], stages: ['Construction notice'] } } })
   })
 
-  await page.goto('/?view=workspace&region=Nonfacet+Region&stage=Nonfacet+Stage')
+  await page.goto('/?view=workspace&region=Nonfacet+Region&stage=Nonfacet+Stage&groupBrowse=1')
   await expect(page.locator('.customer-group')).toHaveCount(1)
   await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue('Nonfacet Region')
   await expect(page.getByRole('combobox', { name: 'Region' }).locator('option', { hasText: 'Nonfacet Region' })).toHaveCount(1)
@@ -71,7 +71,7 @@ test('sector switch immediately announces loading and hides the previous cohort 
     await route.fulfill({ json: { items: [result], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `${sector}-cohort`, facets: { regions: [], stages: [] } } })
   })
 
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'All Sector Group' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
@@ -107,7 +107,7 @@ test('a rapid sector change ignores a late response from the previously requeste
     await route.fulfill({ json: { items: [result], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `${sector}-cohort`, facets: { regions: [], stages: [] } } })
   })
 
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'All Sector Group' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
@@ -143,7 +143,7 @@ test('failed sector results keep retry through no-op filter clicks and reverted 
     await route.fulfill({ json: { items: [result], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `${sector}-retry-cohort`, facets: { regions: [], stages: [] } } })
   })
 
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'All Sector Before Error' })).toBeVisible()
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('Loading Data Centers groups. Previous results are hidden')
@@ -194,7 +194,7 @@ test('responsive sector loading and settled states render at desktop, tablet, an
     const item = sector === 'all' ? { ...fixture('oil_gas'), id: 'visual-all', name: 'All Sector Visual Group' } : fixture(sector)
     await route.fulfill({ json: { items: [item], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `${sector}-visual`, facets: { regions: [], stages: [] } } })
   })
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'All Sector Visual Group' })).toBeVisible()
   const artifactDir = resolve(process.cwd(), '../.artifacts/ui-followup-20261102')
   mkdirSync(artifactDir, { recursive: true })

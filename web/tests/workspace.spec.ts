@@ -27,7 +27,7 @@ test('default workspace shows project results and opens existing need detail wit
   await page.route('**/api/opportunities/projects?need_id=*', route => route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'exact-project-cohort', generation: 1 } }))
   await page.route('**/api/opportunities/workspace?*', route => { workspaceRequests.push(new URL(route.request().url())); return route.fulfill({ json: response() }) })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
-  await page.goto('/')
+  await page.goto('/?groupBrowse=1')
   await expect(page.getByRole('heading', { name: 'Search opportunities' })).toBeVisible()
   await expect(page.getByText('1 group')).toBeVisible()
   await page.getByRole('button', { name: /Example operator/ }).click()
@@ -590,7 +590,7 @@ test('legacy flat project results remain available explicitly and keep routine r
   await expect(page.getByRole('button', { name: 'Notifications' })).toHaveCount(0)
   await expect(page.locator('.wh-tools')).toHaveCount(0)
   await expect(page.locator('.brand-kpi')).toHaveCount(0)
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveText(['Opportunities', 'Intelligence', 'Developers', 'Power Supply', 'Reports'])
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveText(['Opportunities', 'Companies', 'Pursuits', 'Reports'])
   for (const width of [768, 390]) {
     await page.setViewportSize({ width, height: 900 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
