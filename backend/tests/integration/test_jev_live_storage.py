@@ -1,6 +1,7 @@
 """WS2a: live Jev persistence against a disposable `_test` database. No paid provider is called."""
 
 import json
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import httpx
@@ -303,6 +304,11 @@ def _run_worker(factory, monkeypatch, provider, before_worker=None):
         job_id = job.id
     if before_worker:
         before_worker(factory, job_id)
+    # This helper immediately invokes the leased worker, so make the newly-created
+    # job explicitly due despite small DB/application clock skew.
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        job.available_at = datetime.now(UTC) - timedelta(seconds=1)
     assert worker.run_one({}, job_ids=[job_id]) is True
 
 
