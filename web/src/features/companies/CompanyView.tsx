@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { client, OpportunityGroupUnavailableError, type OpportunityGroup, type ProjectResult } from '../../api/client'
 import { usePursuitStore } from '../../state/pursuitStore'
 import { CompanyContacts } from '../workspace/CompanyContacts'
+import { groupDescription } from './groupKind'
 
 const sectorLabel = (value: string) => value === 'oil_gas' ? 'Oil & Gas' : value === 'data_centers' ? 'Data Centers' : value.replaceAll('_', ' ')
 const needHref = (id: string) => `/?${new URLSearchParams({ view: 'workspace', need: id })}`
@@ -16,8 +17,10 @@ export function CompanyView({ groupId, summary, onBack, onNeed }: { groupId: str
   const [more, setMore] = useState<'idle' | 'loading' | 'error'>('idle')
   const [retry, setRetry] = useState(0)
   const pursuits = usePursuitStore()
+  const moreAbort = useRef<AbortController | null>(null)
   useEffect(() => {
     const controller = new AbortController()
+    moreAbort.current?.abort()
     setState('loading'); setProjects([]); setTotal(null); setTokens(null); setMore('idle'); setGroup(summary ?? null)
     client.openOpportunityGroup(groupId, { limit: 25 }, controller.signal).then(value => {
       if (controller.signal.aborted) return
@@ -28,16 +31,19 @@ export function CompanyView({ groupId, summary, onBack, onNeed }: { groupId: str
       if (cause instanceof OpportunityGroupUnavailableError) setState('gone')
       else { setMessage(cause instanceof Error ? cause.message : 'Company projects are unavailable.'); setState('error') }
     })
-    return () => controller.abort()
+    return () => { controller.abort(); moreAbort.current?.abort() }
   }, [groupId, retry])
   async function loadMore() {
     if (!tokens) return
     setMore('loading')
+    moreAbort.current?.abort()
+    const controller = new AbortController(); moreAbort.current = controller
     try {
-      const value = await client.groupProjects(groupId, { limit: 25, offset: projects.length, cohort_token: tokens.cohort, parent_cohort_token: tokens.parent })
+      const value = await client.groupProjects(groupId, { limit: 25, offset: projects.length, cohort_token: tokens.cohort, parent_cohort_token: tokens.parent }, controller.signal)
+      if (controller.signal.aborted) return
       setProjects(current => { const seen = new Set(current.map(item => item.id)); return [...current, ...value.items.filter(item => !seen.has(item.id))] })
       setTotal(value.total); setMore('idle')
-    } catch { setMore('error') }
+    } catch { if (!controller.signal.aborted) setMore('error') }
   }
   const complete = total !== null && projects.length >= total
   const linked = useMemo(() => {
@@ -56,7 +62,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed }: { groupId: str
   return <section className="cmp-company" aria-label={`Company ${name}`}>
     <button type="button" className="cmp-back" onClick={onBack}>← Back to companies</button>
     <h2>{name}</h2>
-    {group && <p className="cmp-meta">{group.role === 'operator' ? 'Operator' : group.role === 'customer' ? 'Customer' : 'Unresolved'} · {group.project_count.toLocaleString()} {group.project_count === 1 ? 'project' : 'projects'} · {group.need_count.toLocaleString()} {group.need_count === 1 ? 'power need' : 'power needs'} · Priority score {group.priority_score == null ? 'unranked' : group.priority_score}{group.sectors.length ? ` · ${group.sectors.map(sectorLabel).join(', ')}` : ''}</p>}
+    {group && <p className="cmp-meta">{(() => { const info = groupDescription(group); return info.kind ? `${info.kind} · ${info.text}${info.identities ? ` · ${info.identities}` : ''}` : info.text })()} · {group.project_count.toLocaleString()} {group.project_count === 1 ? 'project' : 'projects'} · {group.need_count.toLocaleString()} {group.need_count === 1 ? 'power need' : 'power needs'} · Priority score {group.priority_score == null ? 'unranked' : group.priority_score}{group.sectors.length ? ` · ${group.sectors.map(sectorLabel).join(', ')}` : ''}</p>}
     {state === 'loading' && <p role="status">Loading company projects…</p>}
     {state === 'gone' && <p role="alert" className="cmp-error">This company is no longer available in the current results.</p>}
     {state === 'error' && <p role="alert" className="cmp-error">{message} <button type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></p>}

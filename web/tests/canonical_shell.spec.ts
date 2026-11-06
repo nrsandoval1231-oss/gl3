@@ -28,6 +28,11 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
     return route.fulfill({ json: projectResults })
   })
   await page.route('**/api/opportunities/needs/need-shell?**', route => route.fulfill({ json: need }))
+  // Panel endpoints; an unmocked call would surface as a genuine session-ended event.
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g' } }))
+  await page.route(url => url.pathname === '/api/opportunities', route => route.fulfill({ json: [], headers: { 'X-Total-Count': '0', 'X-Group-Total-Count': '0', 'X-Cohort-Token': 't', 'X-Limit': '1', 'X-Offset': '0' } }))
+  await page.route('**/api/commercial-pursuits**', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 } } }))
+  await page.route('**/api/opportunities/workspace/changes**', route => route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 't', token: 't', source_health_exceptions: [] } }))
 
   await page.goto('/?view=workspace&projectBrowse=1')
   const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
@@ -64,6 +69,10 @@ test('companies and reports open as their own page and closing restores the exac
   await page.route('**/api/opportunities/projects?**', route => route.fulfill({ json: projectResults }))
   await page.route('**/api/opportunities/needs/need-shell?**', route => route.fulfill({ json: need }))
   await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g' } }))
+  // Reports panel endpoints; an unmocked call would surface as a genuine session-ended event.
+  await page.route(url => url.pathname === '/api/opportunities', route => route.fulfill({ json: [], headers: { 'X-Total-Count': '0', 'X-Group-Total-Count': '0', 'X-Cohort-Token': 't', 'X-Limit': '1', 'X-Offset': '0' } }))
+  await page.route('**/api/commercial-pursuits**', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 } } }))
+  await page.route('**/api/opportunities/workspace/changes**', route => route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 't', token: 't', source_health_exceptions: [] } }))
   let projectRequests = 0
   page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/projects' && url.searchParams.get('limit') !== '1') projectRequests++ }) // limit=1 is the Companies panel's own count probe
 

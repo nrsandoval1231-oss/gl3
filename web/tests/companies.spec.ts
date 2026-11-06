@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 const groups = [
   { id: 'g-north', name: 'Northstar Energy', role: 'operator', group_kind: 'resolved_identity', project_count: 2, need_count: 3, priority_score: 71, sectors: ['oil_gas'] },
+  { id: 'g-name', name: 'Acme Power', role: 'customer', group_kind: 'same_name_unconfirmed', identity_count: 3, project_count: 4, need_count: 4, priority_score: null, sectors: ['oil_gas'] },
   { id: 'g-cedar', name: 'Cedar Compute', role: 'customer', group_kind: 'resolved_identity', project_count: 1, need_count: 1, priority_score: null, sectors: ['data_centers'] },
 ]
 const project = (id: string, name: string, extra: Record<string, unknown> = {}) => ({ id, project_id: id, name, company: 'Northstar Energy', customer_identity_id: 'company-north', location: 'Midland, TX', sector: 'oil_gas', asset_type: 'Compressor station', priority_score: 71, representative_need_id: `need-${id}`, need_count: 1, needs: [{ id: `need-${id}`, project_id: id, tier: 'Prospect' }], event: null, contact: [], power_summary: null, power_summary_kind: 'unknown', next_action: null, updated_at: null, ...extra })
@@ -37,12 +38,19 @@ test('directory shows only supplied fields, searches, and omits unsupported colu
   const queries = await mock(page)
   await page.goto('/?view=workspace&panel=companies')
   const panel = page.getByRole('region', { name: 'Companies' })
-  await expect(panel.getByRole('status')).toContainText('2 companies · 7 projects')
+  await expect(panel.getByRole('status')).toContainText('3 operator/customer groups · 7 projects')
+  await expect(panel).toContainText('not a count of confirmed companies')
+  await expect(panel.getByRole('heading', { name: 'Companies', level: 1 })).toBeVisible()
   const table = panel.getByRole('table', { name: 'Companies' })
   await expect(table.getByRole('columnheader')).toHaveText(['Company', 'Projects', 'Priority score', 'Open'])
   await expect(table.getByRole('row').nth(1)).toContainText('Northstar Energy')
   await expect(table.getByRole('row').nth(1)).toContainText('71')
-  await expect(table.getByRole('row').nth(2)).toContainText('Unranked')
+  await expect(table.getByRole('row').nth(2)).toContainText('Acme Power')
+  await expect(table.getByRole('row').nth(2)).toContainText('Name group')
+  await expect(table.getByRole('row').nth(2)).toContainText('Same source-reported name; company identities are not linked.')
+  await expect(table.getByRole('row').nth(2)).toContainText('3 separate company identities')
+  await expect(table.getByRole('row').nth(2)).not.toContainText('Customer')
+  await expect(table.getByRole('row').nth(3)).toContainText('Unranked')
   await expect(table).not.toContainText('Total MW')
   await expect(table).not.toContainText(/\b0 MW\b/)
   await expect(panel).toContainText('Total MW and linked pursuits are not part of the company list')
@@ -50,7 +58,7 @@ test('directory shows only supplied fields, searches, and omits unsupported colu
   await expect(page.getByRole('link', { name: 'Browse operator and customer groups' })).toBeVisible()
   await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('cedar')
   await expect(table.getByRole('row')).toHaveCount(2)
-  await expect(panel.getByRole('status')).toContainText('1 company matching search')
+  await expect(panel.getByRole('status')).toContainText('1 operator/customer group matching search')
   expect(queries.some(url => url.searchParams.get('search') === 'cedar')).toBeTruthy()
   await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('')
   await panel.getByRole('button', { name: 'Data Centers' }).click()
@@ -106,7 +114,7 @@ test('directory error offers retry and never shows counts', async ({ page }) => 
   const panel = page.getByRole('region', { name: 'Companies' })
   await expect(panel.getByRole('alert')).toContainText('Could not load operator/customer groups (500)')
   await expect(panel.getByRole('button', { name: 'Retry' })).toBeVisible()
-  await expect(panel.getByRole('status')).toContainText('Company count unavailable')
+  await expect(panel.getByRole('status')).toContainText('Group count unavailable')
 })
 
 test('directory and company view fit 390px without horizontal overflow', async ({ page }) => {
@@ -118,4 +126,41 @@ test('directory and company view fit 390px without horizontal overflow', async (
   await page.getByRole('button', { name: 'Open Northstar Energy' }).click()
   await expect(page.getByRole('heading', { name: 'Northstar Energy', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+})
+
+test('header Companies item while a company is open returns to the directory and Back restores the company', async ({ page }) => {
+  await mock(page)
+  await page.goto('/?view=workspace&panel=companies')
+  await page.getByRole('button', { name: 'Open Northstar Energy' }).click()
+  await expect(page.getByRole('region', { name: 'Company Northstar Energy' })).toBeVisible()
+  await page.getByRole('banner').getByRole('button', { name: 'Companies' }).click()
+  await expect(page.getByRole('region', { name: 'Company Northstar Energy' })).toHaveCount(0)
+  await expect(page.getByRole('searchbox', { name: 'Search companies', exact: true })).toBeVisible()
+  await expect(page).not.toHaveURL(/company=/)
+  await page.goBack()
+  await expect(page).toHaveURL(/company=g-north/)
+  await expect(page.getByRole('region', { name: 'Company Northstar Energy' })).toBeVisible()
+})
+
+test('session end clears company names, projects, contacts and linked pursuits', async ({ page }) => {
+  await mock(page, { pursuits: [pursuit] })
+  await page.goto('/?view=workspace&panel=companies&company=g-north')
+  const company = page.getByRole('region', { name: 'Company Northstar Energy' })
+  await expect(company.getByRole('region', { name: 'Key contacts' })).toContainText('Research Required')
+  await expect(company.getByRole('region', { name: 'Linked pursuits' })).toContainText('Mesa pursuit')
+  await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
+  const panel = page.getByRole('region', { name: 'Companies' })
+  await expect(panel.getByRole('alert')).toContainText('Your session ended. Sign in again.')
+  for (const text of ['Northstar Energy', 'Cedar Compute', 'Mesa pursuit', 'Mesa compressor', 'Research Required', 'Checking your pursuits', '7 projects']) await expect(page.getByText(text)).toHaveCount(0)
+  await expect(page.getByRole('table', { name: 'Companies' })).toHaveCount(0)
+})
+
+test('session end on the directory clears group names and counts', async ({ page }) => {
+  await mock(page)
+  await page.goto('/?view=workspace&panel=companies')
+  await expect(page.getByRole('button', { name: 'Open Northstar Energy' })).toBeVisible()
+  await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
+  await expect(page.getByRole('region', { name: 'Companies' }).getByRole('alert')).toContainText('Your session ended')
+  await expect(page.getByText('Northstar Energy')).toHaveCount(0)
+  await expect(page.getByText(/operator\/customer groups/)).toHaveCount(0)
 })

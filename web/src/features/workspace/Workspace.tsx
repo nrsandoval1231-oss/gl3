@@ -45,7 +45,7 @@ function panelFromUrl(): 'companies' | 'reports' | null {
 function pushPanel(panel: 'companies' | 'reports' | null) {
   const params = getParams(); params.set('view', 'workspace')
   params.delete('company'); if (!panel) { params.delete('cq'); params.delete('cs') } if (panel) params.set('panel', panel); else params.delete('panel')
-  history.pushState({ ...history.state }, '', `/?${params}`)
+  history.pushState({ ...history.state, companyOpened: undefined }, '', `/?${params}`)
   // A mounted panel gets no popstate for this push; let it re-read its selected company.
   dispatchEvent(new Event('gl3-panel-route'))
 }

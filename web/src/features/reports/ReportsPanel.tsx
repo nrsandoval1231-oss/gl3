@@ -31,8 +31,16 @@ function Tile({ title, definition, load, retry, children }: { title: string; def
   </article>
 }
 
+// Unavailable has several causes (bound exceeded, no MW-bearing record); never turn it into "none" unless counts say so.
+function unavailableText(summary: DemandSummary) {
+  if (summary.counts_complete !== true) return 'Record counts are unavailable.'
+  const t = summary.totals
+  if (t.identified_records === 0) return 'No supported equipment demand records are available.'
+  return `${t.identified_records.toLocaleString()} identified ${t.identified_records === 1 ? 'record' : 'records'} · ${t.known_mw_records.toLocaleString()} with MW · ${t.unknown_records.toLocaleString()} unknown · ${t.conflicted_records.toLocaleString()} conflicted. No MW total is available.`
+}
+
 function DemandBody({ summary }: { summary: DemandSummary }) {
-  if (summary.availability !== 'available') return <><strong>Unavailable</strong><small>No supported equipment demand records are available. Unknown is not zero.</small>{summary.limitations.map(item => <small key={item}>{item}</small>)}</>
+  if (summary.availability !== 'available') return <><strong>Unavailable</strong><small>{unavailableText(summary)} Unknown is not zero.</small>{summary.limitations.map(item => <small key={item}>{item}</small>)}</>
   const complete = summary.counts_complete !== false
   return <>
     <strong>{complete ? `${summary.totals.identified_records.toLocaleString()} identified records` : 'Record counts incomplete'}</strong>
@@ -44,8 +52,24 @@ function DemandBody({ summary }: { summary: DemandSummary }) {
 }
 
 const TIERS = ['Signal', 'Prospect', 'Lead'] as const
+async function tierCount(tier: string, signal: AbortSignal) {
+  const page = await client.opportunityPage(tier, '', 'ALL', 1, 0, undefined, {}, signal)
+  if (!page.totalCountKnown) throw new Error('The response did not include a total count.')
+  return page.totalCount
+}
 
 export function ReportsPanel({ onSelectActiveNeed }: { onSelectActiveNeed: (need: { id: string }) => void }) {
+  const [ended, setEnded] = useState(false)
+  useEffect(() => {
+    const onEnded = () => setEnded(true)
+    addEventListener('gl3-clear-continuity', onEnded)
+    return () => removeEventListener('gl3-clear-continuity', onEnded)
+  }, [])
+  // Unmounting the body aborts in-flight requests and drops every loaded figure and change item.
+  return ended ? <div className="rpt"><p role="alert">Your session ended. Sign in again.</p></div> : <ReportsBody onSelectActiveNeed={onSelectActiveNeed}/>
+}
+
+function ReportsBody({ onSelectActiveNeed }: { onSelectActiveNeed: (need: { id: string }) => void }) {
   const pursuits = usePursuitStore()
   useEffect(() => { if (!pursuits.loaded) void refreshPursuits() }, [pursuits.loaded])
   const [projects, retryProjects] = useLoad(signal => client.projectResults({ sector: 'all', limit: 1 }, signal))
@@ -53,7 +77,7 @@ export function ReportsPanel({ onSelectActiveNeed }: { onSelectActiveNeed: (need
   const [demand, retryDemand] = useLoad(signal => client.demandSummary('all', signal))
   const [oil, retryOil] = useLoad(signal => client.demandSummary('oil_gas', signal))
   const [dc, retryDc] = useLoad(signal => client.demandSummary('data_centers', signal))
-  const [tiers, retryTiers] = useLoad(async signal => Promise.all(TIERS.map(async tier => ({ tier, count: (await client.opportunityPage(tier, '', 'ALL', 1, 0, undefined, {}, signal)).totalCount }))))
+  const [tiers, retryTiers] = useLoad(async signal => Promise.all(TIERS.map(async tier => ({ tier, count: await tierCount(tier, signal) }))))
   const pursuitLoad: Load<number> | null = !pursuits.loaded ? { status: 'loading' } : pursuits.error ? { status: 'error', message: pursuits.error } : null
   const max = tiers.status === 'ok' ? Math.max(...tiers.value.map(item => item.count)) : 0
 
@@ -64,7 +88,7 @@ export function ReportsPanel({ onSelectActiveNeed }: { onSelectActiveNeed: (need
       <Tile title="Total Projects" definition={`Projects in the current project results${projects.status === 'ok' && projects.value.results_scope ? ` (${projects.value.results_scope} scope)` : ''}.`} load={projects} retry={retryProjects}>
         {projects.status === 'ok' && <strong>{projects.value.total.toLocaleString()}</strong>}
       </Tile>
-      <Tile title="Companies" definition="Operator and customer groups in the current results." load={companies} retry={retryCompanies}>
+      <Tile title="Operator/customer groups" definition="Groups in the current results. Includes one group per unresolved project and same-name groups, so this is not a count of confirmed companies." load={companies} retry={retryCompanies}>
         {companies.status === 'ok' && <strong>{companies.value.total.toLocaleString()}</strong>}
       </Tile>
       <Tile title="Active Pursuits" definition="Your commercial pursuits that are not Won or Lost." load={pursuitLoad} retry={() => void refreshPursuits(true)}>
@@ -76,7 +100,7 @@ export function ReportsPanel({ onSelectActiveNeed }: { onSelectActiveNeed: (need
     </div>
     <section className="rpt-card" aria-label="Activity and pipeline">
       <h2>Activity &amp; Pipeline</h2>
-      <p className="rpt-def">Records at each qualification level in the current results.</p>
+      <p className="rpt-def">Signal, Prospect and Lead qualification levels of current records, not Pursuit stages.</p>
       {tiers.status === 'loading' && <p role="status">Loading qualification counts…</p>}
       {tiers.status === 'error' && <p role="alert">Qualification counts are unavailable: {tiers.message} <button type="button" onClick={retryTiers}>Retry</button></p>}
       {tiers.status === 'ok' && <ul className="rpt-bars">{tiers.value.map(item => <li key={item.tier}><span>{item.tier}</span><span className="rpt-bar" aria-hidden="true"><i style={{ width: `${max ? Math.round(item.count / max * 100) : 0}%` }}/></span><b>{item.count.toLocaleString()}</b></li>)}</ul>}
@@ -87,7 +111,7 @@ export function ReportsPanel({ onSelectActiveNeed }: { onSelectActiveNeed: (need
       {([['Oil & Gas', oil, retryOil], ['Data Centers', dc, retryDc]] as const).map(([label, load, retry]) => <div key={label} className="rpt-vertical"><h3>{label}</h3>
         {load.status === 'loading' && <p role="status">Loading…</p>}
         {load.status === 'error' && <p role="alert">Unavailable: {load.message} <button type="button" onClick={retry}>Retry</button></p>}
-        {load.status === 'ok' && (load.value.availability === 'available' ? <p>{(['documented', 'calculated', 'estimated'] as const).map(key => `${key[0].toUpperCase() + key.slice(1)} ${classMw(load.value.classes[key])}`).join(' · ')}</p> : <p>Unavailable: no supported equipment demand records.</p>)}
+        {load.status === 'ok' && (load.value.availability === 'available' ? <p>{(['documented', 'calculated', 'estimated'] as const).map(key => `${key[0].toUpperCase() + key.slice(1)} ${classMw(load.value.classes[key])}`).join(' · ')}</p> : <p>Unavailable: {unavailableText(load.value)}{load.value.limitations.map(item => <small key={item}> {item}</small>)}</p>)}
       </div>)}
     </section>
     <section className="rpt-card" aria-label="Not yet available">
@@ -95,8 +119,8 @@ export function ReportsPanel({ onSelectActiveNeed }: { onSelectActiveNeed: (need
       <ul>
         <li><strong>Demand by Vertical chart:</strong> documented, calculated and estimated demand are different evidence classes and the API provides no combined share, so a donut would be invented.</li>
         <li><strong>Total portfolio demand (GW):</strong> the demand summary covers supported equipment records only.</li>
-        <li><strong>High Priority and priority tier counts:</strong> no existing endpoint returns them.</li>
-        <li><strong>New This Week:</strong> creation dates are not available.</li>
+        <li><strong>High Priority and priority counts:</strong> not shown here; this view does not use the priority filters of the opportunity and group endpoints.</li>
+        <li><strong>New This Week:</strong> not shown here; see the recent changes list below.</li>
       </ul>
     </section>
     <section className="rpt-card" aria-label="Export and recent changes">
