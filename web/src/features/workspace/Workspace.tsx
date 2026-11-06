@@ -11,6 +11,8 @@ import { ProjectResults } from './ProjectResults'
 import { CanonicalOpportunityKpis, CanonicalOpportunityResults } from './CanonicalOpportunityResults'
 import { CustomerAccountsQueue } from './CustomerAccountsQueue'
 import { WorkspaceChanges } from './WorkspaceChanges'
+import { CompaniesPanel } from '../companies/CompaniesPanel'
+import { ReportsPanel } from '../reports/ReportsPanel'
 import { OpportunityTable } from './OpportunityTable'
 import { CanonicalHeader, type CanonicalHeaderDestination } from '../../components/CanonicalHeader'
 import { GlobalSearch } from './GlobalSearch'
@@ -42,7 +44,7 @@ function panelFromUrl(): 'companies' | 'reports' | null {
 }
 function pushPanel(panel: 'companies' | 'reports' | null) {
   const params = getParams(); params.set('view', 'workspace')
-  if (panel) params.set('panel', panel); else params.delete('panel')
+  params.delete('company'); if (!panel) { params.delete('cq'); params.delete('cs') } if (panel) params.set('panel', panel); else params.delete('panel')
   history.pushState({ ...history.state }, '', `/?${params}`)
 }
 function currentView(): 'opportunities' | 'pursuits' | 'research' | 'ingestion' | 'signals' {
@@ -384,8 +386,7 @@ export function WorkspaceHome() {
     {researchHost}
     {navigationPanel && <section className="canonical-navigation-panel" aria-label={navigationPanel === 'companies' ? 'Companies' : 'Reports'}>
       <button aria-label="Close navigation panel" onClick={() => { setNavigationPanel(null); pushPanel(null) }}>Close</button>
-      <h1>{navigationPanel === 'companies' ? 'Companies' : 'Reports'}</h1>
-      {navigationPanel === 'companies' ? <><p>Explore evidenced operator and customer relationships, projects, and published business contacts.</p><a href="/?view=workspace&accountBrowse=1">Browse customer accounts</a><span> · </span><a href="/?view=workspace&groupBrowse=1">Browse operator and customer groups</a></> : navigationPanel === 'reports' ? <><p>Export the current results with the table's Export action. Recent source-backed changes appear below.</p><WorkspaceChanges onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/></> : null}
+      {navigationPanel === 'companies' ? <CompaniesPanel onNeed={id => { setNavigationPanel(null); openActiveNeed({ id }) }}/> : <ReportsPanel onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/>}
     </section>}
     <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>

@@ -1,0 +1,82 @@
+import { expect, test, type Page } from '@playwright/test'
+
+const summary = (sector: string, available = true) => ({
+  availability: available ? 'available' : 'unavailable', counts_complete: true, sector, as_of: '2026-11-01T00:00:00Z',
+  totals: { identified_records: available ? 5 : 0, known_mw_records: available ? 3 : 0, unknown_records: available ? 2 : 0, conflicted_records: 0 },
+  classes: { documented: { mw: available ? 40.5 : null, record_count: available ? 3 : 0 }, calculated: { mw: null, record_count: available ? 2 : 0 }, estimated: { mw: null, record_count: 0 } },
+  provenance: { contract: 'equipment-demand-v1', source_count: 2, latest_evidence_at: null }, limitations: ['Synthetic limitation text.'],
+})
+async function mock(page: Page, opts: { demand?: 'ok' | 'unavailable' | 'error'; projects?: 'ok' | 'error'; tiers?: 'ok' | 'error' } = {}) {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route(url => url.pathname.startsWith('/api/'), route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities/demand-summary') {
+      if (opts.demand === 'error') return route.fulfill({ status: 500, json: {} })
+      return route.fulfill({ json: summary(url.searchParams.get('sector') ?? 'all', opts.demand !== 'unavailable') })
+    }
+    if (url.pathname === '/api/opportunities/projects') return opts.projects === 'error' ? route.fulfill({ status: 500, json: {} }) : route.fulfill({ json: { items: [], total: 42, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'p', generation: 'g', results_scope: 'qualified' } })
+    if (url.pathname === '/api/opportunities/groups') return route.fulfill({ json: { items: [], total: 9, count_unit: 'groups', limit: 1, offset: 0, cohort_token: 'c', generation: 'g' } })
+    if (url.pathname === '/api/opportunities') {
+      if (opts.tiers === 'error') return route.fulfill({ status: 500, json: {} })
+      const tier = url.searchParams.get('tier')
+      return route.fulfill({ json: [], headers: { 'X-Total-Count': String(tier === 'Signal' ? 30 : tier === 'Prospect' ? 10 : 5), 'X-Group-Total-Count': '1', 'X-Cohort-Token': 't', 'X-Limit': '1', 'X-Offset': '0' } })
+    }
+    if (url.pathname === '/api/commercial-pursuits') return route.fulfill({ json: { items: [], counts: { total: 4, active: 3, needs_attention: 0 } } })
+    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 't', token: 't', source_health_exceptions: [] } })
+    return route.fulfill({ json: [] })
+  })
+}
+
+test('reports show real supported metrics with definitions and keep existing content', async ({ page }) => {
+  await mock(page)
+  await page.goto('/?view=workspace&panel=reports')
+  const reports = page.getByRole('region', { name: 'Reports' })
+  await expect(reports.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible()
+  await expect(reports.getByRole('article', { name: 'Total Projects' })).toContainText('42')
+  await expect(reports.getByRole('article', { name: 'Total Projects' })).toContainText('qualified scope')
+  await expect(reports.getByRole('article', { name: 'Companies' })).toContainText('9')
+  await expect(reports.getByRole('article', { name: 'Active Pursuits' })).toContainText('3')
+  const demand = reports.getByRole('article', { name: 'Identified Demand' })
+  await expect(demand).toContainText('5 identified records')
+  await expect(demand).toContainText('Documented40.5 MW')
+  await expect(demand).toContainText('Calculated')
+  await expect(demand).toContainText('Unknown · 2 records')
+  await expect(demand).toContainText('not total portfolio demand')
+  await expect(demand).not.toContainText(/\bGW\b/)
+  const bars = reports.getByRole('region', { name: 'Activity and pipeline' })
+  await expect(bars).toContainText('Signal')
+  await expect(bars.getByRole('listitem').nth(0)).toContainText('30')
+  await expect(bars.getByRole('listitem').nth(1)).toContainText('10')
+  await expect(bars.getByRole('listitem').nth(2)).toContainText('5')
+  await expect(reports.getByRole('region', { name: 'Not yet available' })).toContainText('Demand by Vertical chart')
+  await expect(reports.locator('svg circle')).toHaveCount(0)
+  await expect(reports).toContainText("Export the current results with the table's Export action")
+  await expect(reports.getByRole('region', { name: 'Material changes' })).toBeVisible()
+})
+
+test('unavailable demand and failed requests render honest states, not numbers', async ({ page }) => {
+  await mock(page, { demand: 'unavailable', projects: 'error', tiers: 'error' })
+  await page.goto('/?view=workspace&panel=reports')
+  const reports = page.getByRole('region', { name: 'Reports' })
+  const demand = reports.getByRole('article', { name: 'Identified Demand' })
+  await expect(demand).toContainText('Unavailable')
+  await expect(demand).toContainText('Unknown is not zero')
+  await expect(demand).not.toContainText(/\d+ MW/)
+  const projects = reports.getByRole('article', { name: 'Total Projects' })
+  await expect(projects).toContainText('Unavailable')
+  await expect(projects.getByRole('button', { name: 'Retry' })).toBeVisible()
+  await expect(projects).not.toContainText('42')
+  const bars = reports.getByRole('region', { name: 'Activity and pipeline' })
+  await expect(bars.getByRole('alert')).toContainText('Qualification counts are unavailable')
+  await expect(bars.getByRole('listitem')).toHaveCount(0)
+})
+
+test('demand summary error shows retry and reports fit 390px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mock(page, { demand: 'error' })
+  await page.goto('/?view=workspace&panel=reports')
+  const demand = page.getByRole('article', { name: 'Identified Demand' })
+  await expect(demand).toContainText('Unavailable')
+  await expect(demand.getByRole('button', { name: 'Retry' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+})
