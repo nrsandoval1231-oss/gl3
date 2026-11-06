@@ -139,7 +139,7 @@ export function WorkspaceHome() {
   const pageRef = useRef<{ page: WorkspacePage; request: string; revision: number } | null>(null)
   const requestKey = workspaceRequestKey(filters)
   const accountBrowse = getParams().get('accountBrowse') === '1'
-  const groupBrowse = getParams().get('projectBrowse') !== '1'
+  const groupBrowse = getParams().get('groupBrowse') === '1' && getParams().get('projectBrowse') !== '1'
   const pageCurrent = Boolean(page && pageIdentity?.request === requestKey && pageIdentity.revision === revision && !loading && !error)
   const detailCurrent = Boolean(selected && detailIdentity?.id === selected.id && detailIdentity.revision === revision && !detailLoading && !detailError)
   useEffect(() => {
