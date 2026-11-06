@@ -1,6 +1,6 @@
 # Commercial Pursuits workspace and navigation — 2026-11-06
 
-**Status:** CURRENT on branch `feat/commercial-workspace-ux` only. **Not deployed.** Production remains at the [November 2 release](../validation/production-release-20261102.md) (PR165, schema 0049). Migration 0050 has not been applied to any retained database.
+**Status:** CURRENT; merged to `main` in PR #183 (`cbe4aec`) on 2026-11-06. **Not deployed.** Production remains at the [November 2 release](../validation/production-release-20261102.md) (PR165, schema 0049). Migration 0050 has not been applied to any retained database.
 
 ## Owner authorization
 
