@@ -442,46 +442,40 @@ test('a background pursuit 401 leaves Opportunities search and the selected oppo
   await expect(page.getByText('Your session ended. Sign in again.')).toHaveCount(0)
 })
 
-/** Buffers the shared Pursuits list/detail responses in the page and releases them in the same task as the ended event, so they resolve before React commits (and aborts) anything. */
-async function gateInPage(page: Page, pattern: string) {
-  await page.addInitScript(source => {
-    const original = window.fetch.bind(window), matcher = new RegExp(source)
-    let open!: () => void
-    const gate = new Promise<void>(resolve => { open = resolve })
-    ;(window as any).__endThenRelease = (hops = 0) => { open(); let p: Promise<void> = Promise.resolve(); for (let i = 0; i < hops; i += 1) p = p.then(() => {}); void p.then(() => window.dispatchEvent(new Event('gl3-pursuits-session-ended'))) }
-    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (!matcher.test(url) || /need_id=/.test(url)) return original(input, init)
-      return original(input, init).then(async response => { const body = await response.text(), status = response.status; // json() resolves in microtasks only, so nothing yields to React before the callbacks run
-        await gate; return { ok: true, status, json: () => Promise.resolve(JSON.parse(body)) } as unknown as Response })
-    }
-  }, pattern)
+/**
+ * Holds the page's Pursuits list response, then releases it and dispatches the ended event a chosen number of microtask hops apart.
+ * React flushes the ended update in a microtask after the event, so only a response callback already queued ahead of that flush can run before the request is aborted; sweeping the hop count reaches that window regardless of exact promise depth.
+ */
+for (const hops of [3, 4, 5, 6, 7]) {
+  test(`a Pursuits list resolving in the microtask race with the ended event does not restore cards or contacts (${hops} hops)`, async ({ page }) => {
+    await setup(page, [pursuit('p1', 'need-a'), pursuit('p2', 'need-b')])
+    await page.addInitScript(() => {
+      const original = window.fetch.bind(window)
+      let open!: () => void
+      const gate = new Promise<void>(resolve => { open = resolve })
+      ;(window as any).__endThenRelease = (count: number) => {
+        open()
+        let chain: Promise<void> = Promise.resolve()
+        for (let index = 0; index < count; index += 1) chain = chain.then(() => {})
+        void chain.then(() => window.dispatchEvent(new Event('gl3-pursuits-session-ended')))
+      }
+      window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+        if (!/\/api\/commercial-pursuits\?/.test(url) || /need_id=/.test(url)) return original(input, init)
+        // A buffered stand-in whose json() settles in microtasks only, so nothing yields to the renderer before the callbacks.
+        return original(input, init).then(async response => { const body = await response.text(), status = response.status; await gate; return { ok: true, status, json: () => Promise.resolve(JSON.parse(body)) } as unknown as Response })
+      }
+    })
+    await page.goto('/?view=pursuits')
+    await expect(page.getByRole('status', { name: 'Loading pursuits' })).toBeVisible()
+    await page.waitForTimeout(300)
+    await page.evaluate(count => (window as any).__endThenRelease(count), hops)
+    await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+    await page.waitForTimeout(300)
+    for (const text of ['Synthetic Campus P1', 'Synthetic Campus P2', 'Alex Test Contact', 'alex@example.test', '+1 206 555 0184']) await expect(page.getByText(text)).toHaveCount(0)
+    await expect(page.locator('.pu-card')).toHaveCount(0)
+  })
 }
-
-test('a Pursuits list resolving in the same task as the ended event does not restore cards or contacts', async ({ page }) => {
-  await setup(page, [pursuit('p1', 'need-a'), pursuit('p2', 'need-b')])
-  await gateInPage(page, '/api/commercial-pursuits\\?')
-  await page.goto('/?view=pursuits')
-  await expect(page.getByRole('status', { name: 'Loading pursuits' })).toBeVisible()
-  await page.waitForTimeout(300)
-  await page.evaluate(hops => (window as any).__endThenRelease(hops), Number(process.env.HOPS ?? 0))
-  await page.waitForTimeout(300)
-  for (const text of ['Synthetic Campus P1', 'Synthetic Campus P2', 'Alex Test Contact', 'alex@example.test', '+1 206 555 0184']) await expect(page.getByText(text)).toHaveCount(0)
-  await expect(page.locator('.pu-card')).toHaveCount(0)
-  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
-})
-
-test('a Pursuit detail resolving in the same task as the ended event does not restore contact data', async ({ page }) => {
-  await setup(page, [pursuit('p1', 'need-a')])
-  await gateInPage(page, '/api/commercial-pursuits/p1$')
-  await page.goto('/?view=pursuits&pursuit=p1')
-  await expect(page.locator('.pu-card')).toHaveCount(1)
-  await page.waitForTimeout(300)
-  await page.evaluate(hops => (window as any).__endThenRelease(hops), Number(process.env.HOPS ?? 0))
-  await page.waitForTimeout(300)
-  for (const text of ['alex@example.test', '+1 206 555 0184', 'Added to Pursuits']) await expect(page.getByText(text)).toHaveCount(0)
-  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
-})
 
 test('a held Add-to-Pursuit lookup resolving after the session ended does not show In Pursuits', async ({ page }) => {
   let release!: () => void
