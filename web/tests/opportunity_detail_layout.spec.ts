@@ -96,3 +96,40 @@ for (const [width, height] of [[1648, 928], [1440, 900], [1280, 800], [390, 844]
     }
   })
 }
+
+test('email values carrying mailto header parameters are not rendered as links', async ({ page }) => {
+  await open(page, [usable[0], { kind: 'email', value: 'a@b.test?cc=evil@x.test', verified_at: '2026-10-20T10:00:00Z' }])
+  await expect(page.getByRole('link', { name: /^Call / })).toHaveCount(1)
+  await expect(page.getByRole('link', { name: /^Email / })).toHaveCount(0)
+  expect(await page.locator('a[href*="?cc="], a[href*="evil@x.test"]').count()).toBe(0)
+})
+
+for (const [width, height] of [[768, 1024], [820, 1180], [1280, 800], [1648, 928]]) {
+  test(`no horizontal overflow and footer does not cover content at ${width}x${height}`, async ({ page }) => {
+    await open(page, usable, width, height)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+    // Scroll whichever container scrolls (inner body on desktop, page on tablet) to the bottom.
+    await page.evaluate(() => {
+      const body = document.querySelector('.cod-overview-body') as HTMLElement
+      body.scrollTop = body.scrollHeight
+      const panel = document.querySelector('.cod-panel') as HTMLElement
+      panel.scrollTop = panel.scrollHeight
+      window.scrollTo(0, document.documentElement.scrollHeight)
+    })
+    const actions = page.getByRole('group', { name: 'Opportunity actions' })
+    for (const name of ['Add to Pursuit', 'View Full Details']) {
+      const box = await actions.getByText(name).boundingBox()
+      expect(box, name).not.toBeNull()
+      expect(box!.x).toBeGreaterThanOrEqual(0)
+      expect(box!.y).toBeGreaterThanOrEqual(0)
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width)
+      expect(box!.y + box!.height).toBeLessThanOrEqual(height)
+    }
+    const overlap = await page.evaluate(() => {
+      const footer = document.querySelector('.cod-actions')!.getBoundingClientRect()
+      const last = document.querySelector('.cod-overview-body')!.lastElementChild!.getBoundingClientRect()
+      return { footerTop: footer.top, lastBottom: last.bottom }
+    })
+    expect(overlap.footerTop).toBeGreaterThanOrEqual(overlap.lastBottom - 0.5)
+  })
+}

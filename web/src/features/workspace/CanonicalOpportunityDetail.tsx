@@ -128,9 +128,9 @@ export function CanonicalOpportunityDetail(props: Props) {
   const assetType = project?.asset_type?.replaceAll('_', ' ') || field('project_type')?.value || null
   const eyebrow = assetType || item.activity || null
   const currentSources = sources.filter(source => source.assessment_current === true).length
-  const evidenceSummary = sources.length ? `${sources.length} source${sources.length === 1 ? '' : 's'}${currentSources ? ` · ${currentSources} current` : ''}` : null
+  const evidenceSummary = sources.length ? `${sources.length} evidence record${sources.length === 1 ? '' : 's'}${currentSources ? ` · ${currentSources} current` : ''}` : null
   const essentialDetails = [
-    ['Developer / company', company], ['Project type', assetType], ['Project scale', field('site_size')?.value], ['Evidence summary', evidenceSummary],
+    ['Company', company], ['Project type', assetType], ['Project scale', field('site_size')?.value], ['Evidence summary', evidenceSummary],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
   const moreDetails = [
     ['Project', title], ['Location', location],
@@ -203,7 +203,7 @@ export function CanonicalOpportunityDetail(props: Props) {
             {(phone || email) ? <ul className="cod-contact-methods">
               {phone && <li><span>{phone.value}</span><small>{note(phone)}</small></li>}
               {email && <li><span>{email.value}</span><small>{note(email)}</small></li>}
-            </ul> : <p className="cod-contact-missing" role="status">No verified phone or email is available in retained contact evidence.</p>}
+            </ul> : <p className="cod-contact-missing">No verified phone or email is available in retained contact evidence.</p>}
             <details className="cod-contact-more"><summary>{phone || email ? 'More' : 'Inspect contact evidence'}</summary>
               {person.responsibility && <p>{person.responsibility}</p>}
               <p>Purchasing authority: {person.purchasing_authority?.trim() || 'Authority not established'}</p>
@@ -283,7 +283,7 @@ function contactChannels(methods: { [key: string]: string }[], sources: NonNulla
     if (!kind || !value) continue
     const valid = kind === 'phone'
       ? /^[+()\d][\d\s().-]{5,}$/.test(value) && (value.match(/\d/g)?.length ?? 0) >= 7
-      : /^[^\s@<>]+@[^\s@<>.]+(?:\.[^\s@<>.]+)+$/.test(value)
+      : /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/.test(value)
     if (!valid) continue
     const sourceUrl = safeSourceUrl(method.source_url)
     const methodSource = (sources ?? []).find(source => source.verification_status === 'Current retained support' && safeSourceUrl(source.url) === sourceUrl)
