@@ -590,7 +590,7 @@ test('legacy flat project results remain available explicitly and keep routine r
   await expect(page.getByRole('button', { name: 'Notifications' })).toHaveCount(0)
   await expect(page.locator('.wh-tools')).toHaveCount(0)
   await expect(page.locator('.brand-kpi')).toHaveCount(0)
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveText(['Opportunities', 'Intelligence', 'Developers', 'Power Supply', 'Reports'])
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveText(['Opportunities', 'Companies', 'Pursuits', 'Reports'])
   for (const width of [768, 390]) {
     await page.setViewportSize({ width, height: 900 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)

@@ -34,6 +34,15 @@ function workspaceTabFromParams(params: URLSearchParams): Tab {
   const section = params.get('section') ?? legacy[params.get('mode') ?? '']
   return tabs.find(tab => tab.toLowerCase().replaceAll(' ', '-') === section) ?? 'Overview'
 }
+function panelFromUrl(): 'companies' | 'reports' | null {
+  const panel = getParams().get('panel')
+  return panel === 'companies' || panel === 'reports' ? panel : null
+}
+function pushPanel(panel: 'companies' | 'reports' | null) {
+  const params = getParams(); params.set('view', 'workspace')
+  if (panel) params.set('panel', panel); else params.delete('panel')
+  history.pushState({ ...history.state }, '', `/?${params}`)
+}
 function currentView(): 'opportunities' | 'pursuits' | 'ingestion' | 'signals' {
   const params = getParams(), view = params.get('view')
   if (location.pathname === '/environment' || view === 'environment') return params.get('mode') === 'pursuits' ? 'pursuits' : params.get('mode') === 'browse' ? 'signals' : 'opportunities'
@@ -71,7 +80,7 @@ function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push 
 }
 export function WorkspaceHome() {
   const [view, setView] = useState(currentView)
-  const [navigationPanel, setNavigationPanel] = useState<CanonicalHeaderDestination | null>(null)
+  const [navigationPanel, setNavigationPanel] = useState<CanonicalHeaderDestination | null>(panelFromUrl)
   const [signalScope, setSignalScope] = useState<OpportunityNeedScope | null>(null)
   const signalScopeRef = useRef<OpportunityNeedScope | null>(null)
   function updateSignalScope(scope: OpportunityNeedScope | null) {
@@ -217,7 +226,7 @@ export function WorkspaceHome() {
       const p = getParams(); let id = p.get('need')
       pendingHistoryFocus.current = null
       ++selectionSequence.current; setDetailNavigation(value => value + 1)
-      setView(currentView())
+      setView(currentView()); setNavigationPanel(panelFromUrl())
       try { id ||= decodeURIComponent(location.hash.slice(1) || '') } catch { setDetailError('The selected power need link is malformed.'); id = '' }
       updateSelectedNeedContext(id || null)
       const next = currentView() === 'opportunities' ? initialFilters() : filters; pendingRestore.current = null; if (currentView() === 'opportunities') setFilters(next); if (currentView() === 'signals') signalParams.current = getParams()
@@ -314,10 +323,10 @@ export function WorkspaceHome() {
   if (authenticated === null) return <div className="workspace-home"><div inert><CanonicalHeader onNavigate={() => {}}/></div><main className="loading" aria-live="polite" aria-busy="true">Loading your private workspace…</main></div>
   if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); updateSelectedNeedContext(null); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
   const header = <CanonicalHeader
-    activeDestination={navigationPanel ?? (view === 'pursuits' ? 'intelligence' : 'opportunities')}
+    activeDestination={navigationPanel ?? (view === 'pursuits' ? 'pursuits' : 'opportunities')}
     onNavigate={destination => {
-      if (destination === 'opportunities' || destination === 'intelligence') { setNavigationPanel(null); navigate(destination === 'intelligence' ? 'pursuits' : 'opportunities') }
-      else { setNavigationPanel(destination); navigate('opportunities') }
+      if (destination === 'companies' || destination === 'reports') { setNavigationPanel(destination); if (view !== 'opportunities') navigate('opportunities'); pushPanel(destination) }
+      else { setNavigationPanel(null); if (navigationPanel) pushPanel(null); navigate(destination) }
     }}
     search={<GlobalSearch onNeed={id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) }} onCompany={id => { const params = new URLSearchParams({ view: 'workspace', accountBrowse: '1', account: id }); location.assign(`/?${params}`) }}/>}
     profile={<details ref={moreMenu} className="wh-account"><summary aria-label="Account menu"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg></summary><div><span>Private workspace</span><button onClick={() => { setNavigationPanel(null); navigate('pursuits') }}>Research</button><button onClick={() => { setNavigationPanel(null); navigate('signals') }}>Signals</button><button onClick={() => { setNavigationPanel(null); navigate('ingestion') }}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details>}/>
@@ -344,10 +353,10 @@ export function WorkspaceHome() {
   return <div className="workspace-home">
     {header}
     {researchHost}
-    {navigationPanel && <section className="canonical-navigation-panel" aria-label={navigationPanel === 'developers' ? 'Developers' : navigationPanel === 'reports' ? 'Reports' : 'Power Supply'}>
-      <button aria-label="Close navigation panel" onClick={() => setNavigationPanel(null)}>Close</button>
-      <h1>{navigationPanel === 'developers' ? 'Developers' : navigationPanel === 'reports' ? 'Reports' : 'Power Supply'}</h1>
-      {navigationPanel === 'developers' ? <><p>Explore evidenced operator and customer relationships, projects, and published business contacts.</p><a href="/?view=workspace&accountBrowse=1">Browse customer accounts</a><span> · </span><a href="/?view=workspace&groupBrowse=1">Browse operator and customer groups</a></> : navigationPanel === 'reports' ? <><p>Export the current results with the table's Export action. Recent source-backed changes appear below.</p><WorkspaceChanges onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/></> : <><p>Select a project to inspect its activity-specific requirement, available supply, and supported residual power gap.</p>{selected && <button onClick={() => { setNavigationPanel(null); setTab('Power gap') }}>View selected project power supply</button>}</>}
+    {navigationPanel && <section className="canonical-navigation-panel" aria-label={navigationPanel === 'companies' ? 'Companies' : 'Reports'}>
+      <button aria-label="Close navigation panel" onClick={() => { setNavigationPanel(null); pushPanel(null) }}>Close</button>
+      <h1>{navigationPanel === 'companies' ? 'Companies' : 'Reports'}</h1>
+      {navigationPanel === 'companies' ? <><p>Explore evidenced operator and customer relationships, projects, and published business contacts.</p><a href="/?view=workspace&accountBrowse=1">Browse customer accounts</a><span> · </span><a href="/?view=workspace&groupBrowse=1">Browse operator and customer groups</a></> : navigationPanel === 'reports' ? <><p>Export the current results with the table's Export action. Recent source-backed changes appear below.</p><WorkspaceChanges onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/></> : null}
     </section>}
     <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>

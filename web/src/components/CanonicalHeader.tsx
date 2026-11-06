@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import './canonical-header.css'
 
-export type CanonicalHeaderDestination = 'opportunities' | 'intelligence' | 'developers' | 'power-supply' | 'reports'
+export type CanonicalHeaderDestination = 'opportunities' | 'companies' | 'pursuits' | 'reports'
 
 export type CanonicalHeaderProps = {
   activeDestination?: CanonicalHeaderDestination
@@ -17,9 +17,8 @@ export type CanonicalHeaderProps = {
 
 const destinations: { id: CanonicalHeaderDestination; label: string }[] = [
   { id: 'opportunities', label: 'Opportunities' },
-  { id: 'intelligence', label: 'Intelligence' },
-  { id: 'developers', label: 'Developers' },
-  { id: 'power-supply', label: 'Power Supply' },
+  { id: 'companies', label: 'Companies' },
+  { id: 'pursuits', label: 'Pursuits' },
   { id: 'reports', label: 'Reports' },
 ]
 
