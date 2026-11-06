@@ -51,3 +51,8 @@
 .canonical-workspace-main .cod-panel .cod-heading .cod-kicker{display:block}.canonical-workspace-main .cod-panel .cod-heading .cod-location{display:block}
 .cod-panel .cod-lower{grid-template-columns:minmax(0,1fr);gap:8px}
 @media(max-width:760px){.canonical-workspace-main .cod-panel .cod-next-action{flex-direction:row;align-items:center}.canonical-workspace-main .cod-panel .cod-next-action button{width:auto}}
+/* Sticky action footer */
+.canonical-workspace-main .cod-panel.cod-panel:has(.cod-overview-body){height:calc(100vh - 196px);max-height:calc(100vh - 196px);padding-bottom:0}
+.cod-panel .cod-actions{position:sticky;bottom:0;z-index:2;flex:none;margin:0 -16px;padding:10px 16px;background:#fff;border-top:1px solid #dce5ee;box-shadow:0 -4px 8px rgb(16 42 67 / 6%)}
+.cod-panel .cod-overview-body{padding-bottom:12px}
+@media(max-width:760px){.cod-panel .cod-actions{margin:0;padding:10px 0 calc(10px + env(safe-area-inset-bottom))}.canonical-workspace-main .cod-panel.cod-panel:has(.cod-overview-body){height:auto;max-height:none;overflow:visible;display:block;padding-bottom:0}.cod-panel .cod-overview-body{overflow:visible;padding-bottom:16px}}

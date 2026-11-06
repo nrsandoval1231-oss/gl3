@@ -7,9 +7,9 @@ const summary = (sector: string, available = true) => ({
   provenance: { contract: 'equipment-demand-v1', source_count: 2, latest_evidence_at: null }, limitations: ['Synthetic limitation text.'],
 })
 async function mock(page: Page, opts: { demand?: 'ok' | 'unavailable' | 'error'; projects?: 'ok' | 'error'; tiers?: 'ok' | 'error' } = {}) {
-  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route(url => url.pathname.startsWith('/api/'), route => {
     const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
     if (url.pathname === '/api/opportunities/demand-summary') {
       if (opts.demand === 'error') return route.fulfill({ status: 500, json: {} })
       return route.fulfill({ json: summary(url.searchParams.get('sector') ?? 'all', opts.demand !== 'unavailable') })

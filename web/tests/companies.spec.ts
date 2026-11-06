@@ -10,10 +10,10 @@ const pursuit = { id: 'pursuit-1', need_id: 'need-p1', project_id: 'p1', stage: 
 
 async function mock(page: Page, opts: { groupsStatus?: number; pursuits?: unknown[] } = {}) {
   const groupQueries: URL[] = []
-  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await mockDemandSummary(page)
   await page.route(url => url.pathname.startsWith('/api/') && !url.pathname.includes('demand-summary'), route => {
     const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
     if (url.pathname === '/api/opportunities/groups') {
       groupQueries.push(url)
       if (opts.groupsStatus) return route.fulfill({ status: opts.groupsStatus, json: {} })
@@ -48,11 +48,11 @@ test('directory shows only supplied fields, searches, and omits unsupported colu
   await expect(panel).toContainText('Total MW and linked pursuits are not part of the company list')
   await expect(page.getByRole('link', { name: 'Browse customer accounts' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Browse operator and customer groups' })).toBeVisible()
-  await panel.getByRole('searchbox', { name: 'Search companies' }).fill('cedar')
+  await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('cedar')
   await expect(table.getByRole('row')).toHaveCount(2)
   await expect(panel.getByRole('status')).toContainText('1 company matching search')
   expect(queries.some(url => url.searchParams.get('search') === 'cedar')).toBeTruthy()
-  await panel.getByRole('searchbox', { name: 'Search companies' }).fill('')
+  await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('')
   await panel.getByRole('button', { name: 'Data Centers' }).click()
   await expect(table.getByRole('row')).toHaveCount(2)
   await expect(page).toHaveURL(/cs=data_centers/)
@@ -62,7 +62,7 @@ test('opening a company uses panel/company params, keeps context on back/forward
   await mock(page, { pursuits: [pursuit] })
   await page.goto('/?view=workspace&panel=companies')
   const panel = page.getByRole('region', { name: 'Companies' })
-  await panel.getByRole('searchbox', { name: 'Search companies' }).fill('north')
+  await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('north')
   await expect(panel.getByRole('table', { name: 'Companies' }).getByRole('row')).toHaveCount(2)
   await panel.getByRole('button', { name: 'Open Northstar Energy' }).click()
   await expect(page).toHaveURL(/panel=companies/)
@@ -75,10 +75,10 @@ test('opening a company uses panel/company params, keeps context on back/forward
   await expect(company.getByRole('region', { name: 'Linked pursuits' })).toContainText('Mesa pursuit · Engaged')
   await expect(company.getByRole('region', { name: 'Key contacts' })).toContainText('Research Required')
   await expect(company.getByRole('link', { name: /Open opportunity Mesa compressor/ })).toHaveAttribute('href', /need=need-p1/)
-  await expect(page.getByRole('searchbox', { name: 'Search companies' })).toBeHidden()
+  await expect(page.getByRole('searchbox', { name: 'Search companies', exact: true })).toBeHidden()
   await page.goBack()
   await expect(page).not.toHaveURL(/company=/)
-  await expect(page.getByRole('searchbox', { name: 'Search companies' })).toHaveValue('north')
+  await expect(page.getByRole('searchbox', { name: 'Search companies', exact: true })).toHaveValue('north')
   await page.goForward()
   await expect(page.getByRole('heading', { name: 'Northstar Energy' })).toBeVisible()
   await page.getByRole('button', { name: '← Back to companies' }).click()

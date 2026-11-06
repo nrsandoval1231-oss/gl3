@@ -82,3 +82,17 @@ test('390px has no horizontal overflow', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
   await expect.poll(() => page.evaluate(() => { const p = document.querySelector('.cod-panel')!; return p.scrollWidth <= p.clientWidth })).toBeTruthy()
 })
+
+for (const [width, height] of [[1648, 928], [1440, 900], [1280, 800], [390, 844]]) {
+  test(`action buttons are fully inside the viewport at ${width}x${height}`, async ({ page }) => {
+    await open(page, usable, width, height)
+    for (const name of ['Add to Pursuit', 'View Full Details']) {
+      const box = await page.getByRole('group', { name: 'Opportunity actions' }).getByText(name).boundingBox()
+      expect(box, name).not.toBeNull()
+      expect(box!.x).toBeGreaterThanOrEqual(0)
+      expect(box!.y).toBeGreaterThanOrEqual(0)
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width)
+      expect(box!.y + box!.height).toBeLessThanOrEqual(height)
+    }
+  })
+}

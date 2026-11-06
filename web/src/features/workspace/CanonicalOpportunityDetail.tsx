@@ -228,8 +228,8 @@ export function CanonicalOpportunityDetail(props: Props) {
       </div>
       <button type="button" className="cod-view-all-evidence" onClick={() => onTab('Evidence')}>View all evidence</button>
       <section className="cod-next-action" aria-label="Recommended next action"><Target size={19} strokeWidth={1.6}/><div><strong>Next Action</strong><p>{nextAction}</p></div><button type="button" onClick={() => onTab('Research')}>View research</button></section>
-      <AddToPursuit key={item.id} needId={item.id}><button type="button" className="cod-action-secondary" onClick={() => onTab('Evidence')}>View Full Details</button></AddToPursuit>
       </div>
+      <AddToPursuit key={item.id} needId={item.id}><button type="button" className="cod-action-secondary" onClick={() => onTab('Evidence')}>View Full Details</button></AddToPursuit>
     </>}
 
     {canonicalTab === 'Intelligence' && <section className="cod-tab-content">
