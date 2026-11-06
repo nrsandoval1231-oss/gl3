@@ -266,7 +266,7 @@ test('synthetic logout while results are unmounted clears module cache before re
   })
   await page.goto('/?view=workspace&projectBrowse=1')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(2)
-  await page.getByRole('button', { name: 'Intelligence' }).click()
+  await page.getByRole('button', { name: 'Pursuits' }).click()
   await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
   holdNext = true
   await page.getByRole('button', { name: 'Opportunities' }).click()
