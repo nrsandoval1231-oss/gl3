@@ -673,10 +673,11 @@ def test_offline_machine_job_publishes_cited_candidate_without_owner_entry(
     }
     monkeypatch.setattr(
         intelligence_jobs,
-        "call_openai",
+        "call_openai_request",
         lambda **_kwargs: {
             "output": output,
             "model": "test-grounded-model",
+            "service_tier": "default",
             "input_tokens": 23,
             "output_tokens": 29,
             "latency_ms": 7,

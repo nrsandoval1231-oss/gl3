@@ -687,16 +687,18 @@ def test_catalog_quarantines_openai_output_bound_breach_before_semantic_parse(
     provider_calls = []
 
     def fake_response(**_kwargs):
+        assert _kwargs["request"]["service_tier"] == "default"
         provider_calls.append(True)
         return {
             "model": "pinned-openai-fixture",
+            "service_tier": "default",
             "provider_response_id": "fixture-output-bound-breach",
             "input_tokens": 10,
             "output_tokens": 2,
             "output": {"invalid": "must not parse"},
         }
 
-    monkeypatch.setattr(intelligence_jobs, "call_openai", fake_response)
+    monkeypatch.setattr(intelligence_jobs, "call_openai_request", fake_response)
     assert worker.run_one({}, job_ids=[job_id]) is True
     with sessions() as session:
         call = session.scalar(select(LogicalCall))
@@ -1134,6 +1136,7 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
     from pypdf import PdfWriter
 
     from gridlens.intelligence import scanned_pdf_ocr
+    from gridlens.intelligence.ocr_public_pages import page_approval_key, render_page_images
     from gridlens.intelligence.scanned_pdf_ocr import enqueue_scanned_pdf_ocr
     from gridlens.jobs import worker
 
@@ -1142,6 +1145,7 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
     source_url = "https://www.govinfo.gov/content/pkg/FR-2026-09-14/pdf/2026-18765.pdf"
     pdf_buffer = io.BytesIO()
     pdf_writer = PdfWriter()
+    pdf_writer.add_blank_page(width=612, height=792)
     pdf_writer.add_blank_page(width=612, height=792)
     pdf_writer.write(pdf_buffer)
     pdf_bytes = pdf_buffer.getvalue()
@@ -1161,20 +1165,24 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
         "intelligence_ocr_preflight_enabled": True,
         "intelligence_ocr_preflight_cost_bound_verified": True,
         "intelligence_ocr_preflight_cost_reference": "fixture-verified-count-bound",
-        "intelligence_ocr_preflight_max_cost_usd": Decimal("0.01"),
+        "intelligence_ocr_preflight_max_cost_usd": Decimal("0.000001"),
         "intelligence_ocr_retention_source_ids": source_id,
         "intelligence_ocr_retention_reference": "fixture-retention-policy",
-        "intelligence_ocr_model": "pinned-ocr-fixture-model",
-        "intelligence_ocr_priced_model_id": "pinned-ocr-fixture-model",
+        "intelligence_ocr_model": "gpt-6.1-sol",
+        "intelligence_ocr_priced_model_id": "gpt-6.1-sol",
         "intelligence_ocr_pricing_verified": True,
-        "intelligence_ocr_input_usd_per_million": Decimal("1"),
-        "intelligence_ocr_output_usd_per_million": Decimal("1"),
+        "intelligence_ocr_input_usd_per_million": Decimal("2.50"),
+        "intelligence_ocr_output_usd_per_million": Decimal("10"),
         "intelligence_ocr_detail": "low",
         "intelligence_ocr_max_output_tokens": 100,
         "intelligence_ocr_max_call_usd": Decimal("0.1"),
         "intelligence_max_call_usd": Decimal("0.1"),
         "intelligence_max_active_calls": 2,
     }
+    rendered_for_approval = render_page_images(pdf_bytes, local_pages=[1], source_pages=[1])[0]
+    values["intelligence_ocr_reviewed_page_hashes"] = page_approval_key(
+        pdf_hash, 1, rendered_for_approval["pixel_sha256"]
+    )
     for name, value in values.items():
         monkeypatch.setattr(settings, name, value)
     for scope in ("global", "provider", "model", "source", "project"):
@@ -1254,8 +1262,8 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
         return {
             "document_id": document_id,
             "content_hash": pdf_hash,
-            "page_count": 1,
-            "scanned_pages": [1],
+            "page_count": 2,
+            "scanned_pages": [1, 2],
             "data_base64": base64.b64encode(pdf_bytes).decode("ascii"),
             "source_url": source_url,
         }
@@ -1282,7 +1290,7 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
                     .limit(1)
                 )
                 assert preflight is not None
-                assert preflight.max_cost_usd <= Decimal("0.01")
+                assert preflight.max_cost_usd == Decimal("0.000001")
                 assert preflight.result_payload is None
         except Exception as exc:
             count_errors.append(f"{type(exc).__name__}: {exc}")
@@ -1291,14 +1299,17 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
 
     def fake_response(**kwargs):
         request = kwargs["request"]
-        assert request["model"] == "pinned-ocr-fixture-model"
+        assert request["model"] == "gpt-6.1-sol"
         assert request["store"] is False and request["tools"] == []
+        assert request["service_tier"] == "default"
+        assert request["prompt_cache_options"] == {"ttl": "30m"}
         if isinstance(request["input"], str):
             assert "ocr-grounded-followon-v1" in request["input"]
             if failure_case == "semantic_followon":
                 raw = {
                     "status": "incomplete",
-                    "model": "pinned-ocr-fixture-model",
+                    "model": "gpt-6.1-sol",
+                    "service_tier": "default",
                     "usage": {"input_tokens": 26, "output_tokens": 4},
                     "output": [],
                 }
@@ -1313,7 +1324,8 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
                     reported_usage=raw["usage"],
                 )
             return {
-                "model": "pinned-ocr-fixture-model",
+                "model": "gpt-6.1-sol",
+                "service_tier": "default",
                 "provider_response_id": "fixture-grounded-response-id",
                 "input_tokens": 322 if failure_case == "followon_input_overbound" else 26,
                 "output_tokens": 101 if failure_case == "followon_output_overbound" else 4,
@@ -1328,7 +1340,8 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
                 },
             }
         return {
-            "model": "pinned-ocr-fixture-model",
+            "model": "gpt-6.1-sol",
+            "service_tier": "default",
             "provider_response_id": "fixture-response-id",
             "input_tokens": 322 if failure_case == "ocr_input_overbound" else 18,
             "output_tokens": 101 if failure_case == "ocr_output_overbound" else 7,
@@ -1445,12 +1458,14 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
         assert count_call.status == "COMPLETED"
         assert count_call.result_payload["counted_input_tokens"] == 321
         assert count_call.result_payload["counted_input_tokens_are_billable_usage"] is False
-        assert count_call.result_payload["actual_cost_usd"] is None
+        assert count_call.result_payload["actual_cost_usd"] == "0"
         assert response_call.task_type == "OCR_EXTRACTION"
         assert response_call.status == "COMPLETED"
         assert response_call.actual_cost_usd is None
         assert response_call.result_payload["status"] == "OCR_UNVERIFIED"
         assert response_call.result_payload["original_document_hash"] == pdf_hash
+        assert response_call.result_payload["source_pages"] == [1]
+        assert response_call.result_payload["withheld_source_pages"] == [2]
         assert response_call.result_payload["pages"] == [
             {"page": 1, "text": "Fixture scanned page text."}
         ]
@@ -1645,6 +1660,55 @@ def test_match_candidate_change_stales_context_before_provider_dispatch(sessions
         candidate.identity_facts = {"site_address": "201 Test Road"}
     result = intelligence_jobs.process_intelligence_job(job_id, "match-stale-worker", fence)
     assert result["status"] == "stale"
+
+
+def test_historic_grounded_job_with_contact_abstains_before_provider_dispatch(
+    sessions, monkeypatch
+):
+    from gridlens.intelligence import intelligence_jobs
+    from gridlens.jobs.queue import lease_one
+
+    _wire_worker(sessions, monkeypatch)
+    need_id, evidence_id, job_id = _seed_job(
+        sessions, task_type="GROUNDED_DOSSIER", question_id="TEMP_LOAD_MW"
+    )
+    with sessions.begin() as session:
+        job = session.get(Job, job_id)
+        evidence = session.get(Evidence, evidence_id)
+        assert job is not None and evidence is not None
+        checkpoint = json.loads(job.checkpoint or "{}")
+        legacy_payload = checkpoint["payload"]
+        legacy_payload["evidence"][0]["abstract"] = (
+            "The permit gives an electrical contractor phone: 512-555-0147."
+        )
+        checkpoint["payload"] = legacy_payload
+        checkpoint["request_digest"] = intelligence_jobs._digest(legacy_payload)
+        job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+        evidence.abstract = legacy_payload["evidence"][0]["abstract"]
+        job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+        leased, fence = lease_one(session, "privacy-stale-worker", job_ids=[job_id])
+        assert leased is not None and leased.id == job_id
+
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "call_openai_request",
+        lambda **_: pytest.fail("contact-bearing historic request must not dispatch"),
+    )
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "call_typesafe",
+        lambda **_: pytest.fail("contact-bearing historic request must not dispatch"),
+    )
+    result = intelligence_jobs.process_intelligence_job(job_id, "privacy-stale-worker", fence)
+    assert result["status"] == "stale"
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        assert job is not None and job.status == "succeeded"
+        checkpoint = json.loads(job.checkpoint or "{}")
+        assert checkpoint["status"] == "stale"
+        assert checkpoint["validation_reason"] == "PROVIDER_PRIVACY_WITHHELD"
+        assert "512-555-0147" not in json.dumps(checkpoint, ensure_ascii=True)
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
 
 
 def test_authorized_research_priority_changes_only_fresh_queued_job_order(sessions, monkeypatch):
@@ -1873,6 +1937,7 @@ def test_leased_worker_rechecks_grounded_context_after_provider_response(
     }
 
     def fake_openai(**_kwargs):
+        assert _kwargs["request"]["service_tier"] == "default"
         if mid_call_change == "source_permission":
             with sessions.begin() as session:
                 source = session.get(Source, "intelligence-fixture-source")
@@ -1928,6 +1993,7 @@ def test_leased_worker_rechecks_grounded_context_after_provider_response(
                 )
         return {
             "model": "pinned-reasoning-fixture",
+            "service_tier": "default",
             "provider_response_id": "fixture-grounded-response",
             "latency_ms": 19,
             "input_tokens": 300,
@@ -1935,7 +2001,7 @@ def test_leased_worker_rechecks_grounded_context_after_provider_response(
             "output": output,
         }
 
-    monkeypatch.setattr(intelligence_jobs, "call_openai", fake_openai)
+    monkeypatch.setattr(intelligence_jobs, "call_openai_request", fake_openai)
     monkeypatch.setattr(worker, "WORKER_ID", "fixture-openai-worker")
     assert worker.run_one({}, job_ids=[job_id]) is True
     with sessions() as session:

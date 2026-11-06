@@ -99,6 +99,7 @@ class Settings(BaseSettings):
     intelligence_ocr_vision_enabled: bool = False
     intelligence_ocr_retention_source_ids: str = ""
     intelligence_ocr_retention_reference: str = ""
+    intelligence_ocr_reviewed_page_hashes: str = ""
     intelligence_ocr_model: str = ""
     intelligence_ocr_priced_model_id: str = ""
     intelligence_ocr_pricing_verified: bool = False
@@ -174,6 +175,7 @@ class Settings(BaseSettings):
     permit_ocr_allowed_hosts: str = ""
     permit_ocr_max_pages_per_document: int = Field(default=10, ge=1, le=50)
     permit_ocr_rows_feed_demand: bool = False
+    permit_document_stage_source_ids: str = ""
     # WS6 runtime: document extraction as its own leased job (ships off; the listing job then
     # keeps running the stage in-line exactly as before).
     document_extraction_jobs_enabled: bool = False

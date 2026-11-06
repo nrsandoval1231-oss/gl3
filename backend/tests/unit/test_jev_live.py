@@ -579,6 +579,80 @@ def test_full_passages_are_sent_beyond_the_old_character_cuts():
     assert judged["state"]["evidence"]["passage_bounds"]["abstract"]["truncated"] is False
 
 
+def test_typesafe_request_omits_party_graph_and_preserves_source_provenance():
+    evidence = {
+        "id": "evidence-1",
+        "hash": "sha256:abc123",
+        "url": "https://agency.example/permit/42",
+        "abstract": "The facility will install four electric chillers.",
+        "published_at": "2026-10-01",
+    }
+    request = TypesafeEvidenceJudge.build_request(
+        {
+            "project_id": "project-1",
+            "state": {"lifecycle": "planned", "power_need": "unknown"},
+            "organizations_and_roles": [
+                {"person": "Jordan Example", "phone": "512-555-0123"},
+                {"organization": "Northstar Grid LLC"},
+            ],
+        },
+        evidence,
+        [
+            {
+                "project_id": "project-2",
+                "name": "Northstar Grid LLC",
+                "contact_email": "ops@example.com",
+            }
+        ],
+    )
+    serialized = json.dumps(request)
+    for private in ("Jordan Example", "512-555-0123", "ops@example.com", "Northstar Grid LLC"):
+        assert private not in serialized
+    assert request["state"]["evidence"]["hash"] == evidence["hash"]
+    assert request["state"]["evidence"]["url"] == evidence["url"]
+    assert request["state"]["evidence"]["abstract"] == evidence["abstract"]
+    assert request["state"]["candidate_projects"] == [{"project_id": "project-2"}]
+
+
+def test_typesafe_request_fails_closed_on_contact_inside_source_evidence():
+    from gridlens.intelligence.provider_privacy import ProviderPrivacyError
+
+    with pytest.raises(ProviderPrivacyError, match="sensitive or ambiguous"):
+        TypesafeEvidenceJudge.build_request(
+            {}, {"abstract": "Contact: Jordan Example at jordan@example.com."}, []
+        )
+
+
+def test_signal_request_fails_closed_without_rewriting_abstract():
+    from gridlens.intelligence.provider_privacy import ProviderPrivacyError
+
+    state = _signal_state("Contact: Jordan Example at jordan@example.com.")
+    with pytest.raises(ProviderPrivacyError, match="sensitive or ambiguous"):
+        jev_request_payload(state)
+
+
+def test_signal_provider_boundary_withholds_unsafe_queued_evidence(monkeypatch):
+    from gridlens.intelligence import signal_adjudication
+    from gridlens.intelligence.provider_privacy import ProviderPrivacyError
+
+    sent = []
+    monkeypatch.setattr(
+        signal_adjudication.intelligence_provider,
+        "call_typesafe",
+        lambda **kwargs: sent.append(kwargs),
+    )
+    with pytest.raises(ProviderPrivacyError):
+        signal_adjudication._jev_call(
+            _signal_state("Applicant: Jordan Example, jordan@example.com"),
+            "unused-test-key",
+            max_attempts=1,
+        )
+    assert sent == []
+    assert signal_adjudication.failure_status(ProviderPrivacyError("safe generic message")) == (
+        "privacy_withheld"
+    )
+
+
 def test_passages_respect_the_documented_ceiling_and_report_truncation(monkeypatch):
     passage = "Sentence about a new load. " * 2_000
     monkeypatch.setattr(settings, "jev_passage_max_bytes", 5_000)

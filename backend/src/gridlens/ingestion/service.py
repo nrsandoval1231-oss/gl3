@@ -3013,9 +3013,22 @@ def _enrich_with_okdeq_documents(
         _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
         return report
     run_started = datetime.now(UTC)
+    hooks_for_record = _okdeq_document_hooks_for_job(
+        session, source_definition, records, job_id, worker_id, fence
+    )
+    # Hook setup reads only the existing job/project binding. Do not hold its read transaction
+    # across the stage's network or paid-provider calls.
+    if session.in_transaction():
+        session.commit()
     try:
         report = run_stage(
-            records, prior, client=client, config=config, index=index, deadline=deadline
+            records,
+            prior,
+            client=client,
+            config=config,
+            index=index,
+            deadline=deadline,
+            hooks_for_record=hooks_for_record,
         )
         if report.index != index:
             save_index(session, source_definition["id"], report.index)
@@ -3030,6 +3043,121 @@ def _enrich_with_okdeq_documents(
         apply_prior_states(records, prior)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return report
+
+
+def _okdeq_document_hooks_for_job(
+    session: Session,
+    source_definition: dict[str, Any],
+    records: list[dict[str, Any]],
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+) -> Any:
+    """Build optional passes only for a live ingestion lease and an exact source-row project.
+
+    ``ok_deq_documents.run_stage`` invokes the callback only after the memo's quoted permit
+    number exactly joins one non-ambiguous public-review row. The project lookup below adds the
+    other half of the binding: one existing OK DEQ project whose source/external identity is the
+    same row. New or ambiguous project identities therefore stay rule-only until a later run.
+    """
+    source_id = source_definition.get("id")
+    if (
+        source_definition.get("retrieval_method") != "ok-deq-public-review"
+        or source_id != "oklahoma-deq-public-review"
+        or not isinstance(job_id, UUID)
+        or not worker_id
+        or type(fence) is not int
+        or fence <= 0
+    ):
+        return None
+    job = session.get(Job, job_id)
+    if (
+        job is None
+        or job.source_id != source_id
+        or job.kind != "ingestion"
+        or job.status != "running"
+        or job.lease_owner != worker_id
+        or job.fence != fence
+    ):
+        return None
+
+    row_ids: set[str] = set()
+    for record in records:
+        permit = record.get("permit")
+        row_id = record.get("document_number")
+        numbers = permit.get("permit_numbers") if isinstance(permit, dict) else None
+        if (
+            isinstance(permit, dict)
+            and permit.get("source_type") == source_id
+            and isinstance(row_id, str)
+            and permit.get("row_id") == row_id
+            and isinstance(numbers, list)
+            and len(numbers) == 1
+            and isinstance(numbers[0], str)
+        ):
+            row_ids.add(row_id)
+    if not row_ids:
+        return None
+
+    projects: dict[str, list[UUID]] = {}
+    for project_id, external_id in session.execute(
+        select(Project.id, Project.external_id).where(
+            Project.source_id == source_id, Project.external_id.in_(row_ids)
+        )
+    ):
+        projects.setdefault(external_id, []).append(project_id)
+    project_ids = {row_id: ids[0] for row_id, ids in projects.items() if len(ids) == 1}
+    if not project_ids:
+        return None
+
+    def hooks_for_record(record: dict[str, Any], pdf_path: Any, source_url: str, _key: int) -> Any:
+        permit = record.get("permit")
+        row_id = record.get("document_number")
+        if (
+            not isinstance(permit, dict)
+            or not isinstance(row_id, str)
+            or permit.get("source_type") != source_id
+            or permit.get("row_id") != row_id
+        ):
+            return None
+        project_id = project_ids.get(row_id)
+        if project_id is None:
+            return None
+        from gridlens.ingestion.adapters.tceq_application_documents import ExtractionHooks
+        from gridlens.intelligence.equipment_proposer import configured_proposer
+        from gridlens.intelligence.permit_page_ocr import configured_stage_ocr
+
+        proposer = configured_proposer(
+            source_id=source_id,
+            project_id=project_id,
+            job_id=job_id,
+            worker_id=worker_id,
+            fence_token=fence,
+        )
+        ocr = configured_stage_ocr(
+            pdf_path=str(pdf_path),
+            source_url=source_url,
+            source_id=source_id,
+            project_id=project_id,
+            job_id=job_id,
+            worker_id=worker_id,
+            fence_token=fence,
+        )
+        if proposer is None and ocr is None:
+            return None
+
+        def provide_proposer() -> Any:
+            return proposer
+
+        def provide_ocr(_path: str, _url: str) -> Any:
+            return ocr
+
+        return ExtractionHooks(
+            proposer=provide_proposer if proposer is not None else None,
+            ocr=provide_ocr if ocr is not None else None,
+        )
+
+    return hooks_for_record
 
 
 def _record_tdlr_fetch_receipts(

@@ -40,6 +40,11 @@ from gridlens.intelligence.jev_passages import (
     passage_budget_bytes,
     request_bytes,
 )
+from gridlens.intelligence.provider_privacy import (
+    ProviderPrivacyError,
+    contact_free_evidence,
+    require_contact_free,
+)
 
 # Pinned, versioned model; `jev-latest` is never used. Runtime value comes from settings.
 MODEL = "jev-1.13.0"
@@ -277,6 +282,28 @@ class TypesafeEvidenceJudge:
     def build_request(
         state: dict, evidence: dict, candidates: list[dict], *, model: str = MODEL
     ) -> dict:
+        evidence = _json_safe(evidence)
+        safe_evidence = contact_free_evidence([evidence])
+        if not safe_evidence:
+            raise ProviderPrivacyError(
+                "provider input contains sensitive or ambiguous personal data"
+            )
+        # Party and contact records belong in the retained project graph, not in
+        # an external classification request. Candidate identity is represented
+        # by stable IDs only; source evidence remains the authority for matching.
+        safe_state = _json_safe(
+            {
+                "project_id": state.get("project_id"),
+                "state": state.get("state", {}),
+            }
+        )
+        safe_candidates = [
+            _json_safe({"project_id": candidate.get("project_id")})
+            for candidate in candidates[:8]
+            if isinstance(candidate, dict) and candidate.get("project_id") is not None
+        ]
+        require_contact_free({"state": safe_state, "candidate_projects": safe_candidates})
+
         def assemble(evidence_value: dict) -> dict:
             # State projections contain dates and UUIDs in evidence provenance; normalize
             # before the HTTP boundary so serialization failures cannot masquerade as calls.
@@ -285,12 +312,11 @@ class TypesafeEvidenceJudge:
                     "model": model,
                     "state": {
                         "project": {
-                            "project_id": state.get("project_id"),
-                            "state": state.get("state", {}),
-                            "organizations_and_roles": state.get("organizations_and_roles", [])[:8],
+                            "project_id": safe_state["project_id"],
+                            "state": safe_state["state"],
                         },
                         "evidence": evidence_value,
-                        "candidate_projects": candidates[:8],
+                        "candidate_projects": safe_candidates,
                     },
                     "questions": QUESTIONS,
                 }
@@ -298,6 +324,7 @@ class TypesafeEvidenceJudge:
 
         # Measure the request without passage text, then give the passage the remaining
         # budget under the verified total-input ceiling instead of a fixed 1,200-char cut.
+        evidence = safe_evidence[0]
         stripped = {
             k: (None if k in PASSAGE_KEYS else (str(v)[:1200] if v is not None else None))
             for k, v in evidence.items()
@@ -320,6 +347,9 @@ class TypesafeEvidenceJudge:
         if passage_meta:
             evidence_value["passage_bounds"] = passage_meta
         request = assemble(evidence_value)
+        # Static question wording is not source data (and may discuss contacts as
+        # a prohibited category); inspect only the serialized evidence/context.
+        require_contact_free(request["state"])
         json.dumps(request, allow_nan=False)
         return request
 

@@ -32,7 +32,11 @@ This page summarizes defaults defined by `backend/src/gridlens/settings.py`. Tha
 | `AUTONOMOUS_RESEARCH_MAX_COST_USD` | `0` | No paid acquisition allowance by default. A configured provider key alone cannot authorize spend; independent provider/contract/ledger gates remain required. |
 | `BUYING_CHAIN_PUBLIC_RESEARCH_ENABLED` | `false` | Public buying-chain research disabled. |
 | `INTELLIGENCE_OCR_ENABLED` | `false` | OCR path disabled. |
+| `INTELLIGENCE_OCR_REVIEWED_PAGE_HASHES` | empty | Comma-separated exact approvals in `document_sha256:1-based_page:rendered_png_sha256` form. Only raster images for the reviewed document pages and exact pixels can leave the host. |
+| `PERMIT_DOCUMENT_STAGE_SOURCE_IDS` | empty | Optional strict comma-separated allowlist for `texas-tceq-nsr-pending` and/or `oklahoma-deq-public-review`; enables only those existing bounded document stages in processed runtime definitions. Blank keeps the repository registry's stages off. Unknown, duplicate, malformed, or unconfigured source IDs fail closed. |
 | `NTFY_URL` / `NTFY_TOKEN` | empty | No alert destination or token configured by default. |
+
+The source allowlist does not enable paid OCR, model extraction, probes, or arbitrary URLs; those have separate gates and limits. Oklahoma currently has no configured `seed_keys`, and its probe and data-center page remain off. Its optional paid hooks require an active fenced listing job plus a memo permit that joins one listing row and exactly one existing project for that source row; with no seeds or retained indexed keys, the stage performs no document-key requests. OCR stays advisory and is excluded from demand. A scheduled listing job needs both current opt-in and an epoch captured with the stage enabled; older queued scheduled work is not retroactively upgraded. TCEQ leased extraction jobs likewise require the stage permission captured when queued and a current opt-in.
 
 The October 20 host snapshot reported different explicit runtime flags and budget values; those point-in-time settings are recorded in the [observation receipt](observations/2026-10-20-production-readonly.md). Do not infer production configuration from code defaults or this table.
 

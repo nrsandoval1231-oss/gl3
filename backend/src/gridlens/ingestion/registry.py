@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from datetime import time
 from pathlib import Path
 from typing import Any
@@ -6,6 +7,47 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 REGISTRY_PATH = Path(__file__).resolve().parents[4] / "config" / "sources" / "registry.v1.json"
+PERMIT_DOCUMENT_STAGE_SOURCE_IDS = frozenset(
+    {"texas-tceq-nsr-pending", "oklahoma-deq-public-review"}
+)
+
+
+def _apply_permit_document_stage_opt_in(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Apply the narrow runtime opt-in without mutating the repository registry."""
+    from gridlens.settings import settings
+
+    configured = settings.permit_document_stage_source_ids
+    if not isinstance(configured, str):
+        raise ValueError("PERMIT_DOCUMENT_STAGE_SOURCE_IDS must be a comma-separated source list")
+    if configured == "":
+        return sources
+
+    requested = configured.split(",")
+    if any(not source_id for source_id in requested):
+        raise ValueError("PERMIT_DOCUMENT_STAGE_SOURCE_IDS contains an empty source ID")
+    if len(set(requested)) != len(requested):
+        raise ValueError("PERMIT_DOCUMENT_STAGE_SOURCE_IDS contains duplicate source IDs")
+    unknown = set(requested) - PERMIT_DOCUMENT_STAGE_SOURCE_IDS
+    if unknown:
+        raise ValueError("PERMIT_DOCUMENT_STAGE_SOURCE_IDS contains an unapproved source ID")
+
+    by_id = {source["id"]: source for source in sources}
+    for source_id in requested:
+        source = by_id.get(source_id)
+        stage = (source or {}).get("query", {}).get("application_documents")
+        if not isinstance(stage, dict) or type(stage.get("enabled")) is not bool:
+            raise ValueError(
+                "PERMIT_DOCUMENT_STAGE_SOURCE_IDS source is missing its document stage: "
+                f"{source_id}"
+            )
+
+    # Return fresh definitions: runtime consumers and test callers cannot mutate the base
+    # definitions or config/sources/registry.v1.json through the opt-in path.
+    processed = deepcopy(sources)
+    processed_by_id = {source["id"]: source for source in processed}
+    for source_id in requested:
+        processed_by_id[source_id]["query"]["application_documents"]["enabled"] = True
+    return processed
 
 
 def _valid_application_documents(value: Any) -> bool:
@@ -707,4 +749,4 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             bounded = False
         if not valid_window or not bounded:
             raise ValueError("Source query exceeds its bounded collection window")
-    return raw["sources"]
+    return _apply_permit_document_stage_opt_in(raw["sources"])

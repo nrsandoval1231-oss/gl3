@@ -217,6 +217,7 @@ def test_job_extracts_stores_state_and_the_next_listing_folds_it(world):
         job = session.get(Job, job_id)
         assert job.status == "succeeded" and job.lease_owner is None
         body = json.loads(job.checkpoint)
+        assert body["permit_document_stage_enabled"] is True
         assert body["outcome"] == "extracted" and body["content_sha256"]
         extraction = body["state"]["document"]["extraction"]
         assert extraction["verified_rows"] == 1 and extraction["schedule_text"]
@@ -257,6 +258,40 @@ def test_job_extracts_stores_state_and_the_next_listing_folds_it(world):
             ),
         )
     assert how == "existing"
+
+
+def test_leased_document_job_without_captured_stage_permission_does_not_fetch(world):
+    publisher = Publisher(portfolio([ELECTRIC]))
+    use_publisher(world, publisher)
+    discover(world, publisher)
+    (job,) = extraction_jobs(world)
+    with world.factory.begin() as session:
+        queued = session.get(Job, job.id)
+        body = json.loads(queued.checkpoint)
+        body.pop("permit_document_stage_enabled")
+        queued.checkpoint = json.dumps(body)
+    lease(world, job.id)
+    before = len(publisher.requests)
+    djob.process_document_extraction_job(job.id, WORKER, 1, deadline=None)
+    assert len(publisher.requests) == before
+    with world.factory() as session:
+        body = json.loads(session.get(Job, job.id).checkpoint)
+    assert body["outcome"] == "undecided_disabled"
+
+
+def test_current_stage_opt_out_vetoes_a_previously_authorized_leased_job(world):
+    publisher = Publisher(portfolio([ELECTRIC]))
+    use_publisher(world, publisher)
+    discover(world, publisher)
+    (job,) = extraction_jobs(world)
+    world.monkeypatch.setattr(docs, "config_from_source", lambda _source: None)
+    lease(world, job.id)
+    before = len(publisher.requests)
+    djob.process_document_extraction_job(job.id, WORKER, 1, deadline=None)
+    assert len(publisher.requests) == before
+    with world.factory() as session:
+        body = json.loads(session.get(Job, job.id).checkpoint)
+    assert body["outcome"] == "undecided_disabled"
 
 
 class FakeProposer:

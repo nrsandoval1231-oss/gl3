@@ -4,6 +4,10 @@ from pathlib import Path
 import pytest
 
 from gridlens.ingestion.registry import load_registry
+from gridlens.settings import settings
+
+_TCEQ = "texas-tceq-nsr-pending"
+_OK_DEQ = "oklahoma-deq-public-review"
 
 
 def test_registry_is_versioned_and_validated():
@@ -13,6 +17,70 @@ def test_registry_is_versioned_and_validated():
         "seattle-building-permits",
         "chicago-building-permits",
     }
+
+
+def test_document_stage_operator_opt_in_is_default_off_and_source_local(monkeypatch):
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", "")
+    definitions = {row["id"]: row for row in load_registry()}
+    assert definitions[_TCEQ]["query"]["application_documents"]["enabled"] is False
+    assert definitions[_OK_DEQ]["query"]["application_documents"]["enabled"] is False
+
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", _TCEQ)
+    definitions = {row["id"]: row for row in load_registry()}
+    assert definitions[_TCEQ]["query"]["application_documents"]["enabled"] is True
+    assert definitions[_OK_DEQ]["query"]["application_documents"]["enabled"] is False
+
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", f"{_TCEQ},{_OK_DEQ}")
+    definitions = {row["id"]: row for row in load_registry()}
+    assert definitions[_TCEQ]["query"]["application_documents"]["enabled"] is True
+    ok_stage = definitions[_OK_DEQ]["query"]["application_documents"]
+    assert ok_stage["enabled"] is True
+    assert ok_stage["seed_keys"] == []
+    assert ok_stage["probe"]["enabled"] is False
+    assert ok_stage["data_center_page"]["enabled"] is False
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "unknown-source",
+        f"{_TCEQ},{_TCEQ}",
+        f"{_TCEQ},",
+        f"{_TCEQ}, {_OK_DEQ}",
+    ],
+)
+def test_document_stage_operator_opt_in_rejects_unknown_duplicate_and_malformed_ids(
+    monkeypatch, value
+):
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", value)
+    with pytest.raises(ValueError, match="PERMIT_DOCUMENT_STAGE_SOURCE_IDS"):
+        load_registry()
+
+
+def test_document_stage_operator_opt_in_refuses_a_missing_registry_source(tmp_path, monkeypatch):
+    source_path = Path(__file__).parents[3] / "config" / "sources" / "registry.v1.json"
+    payload = json.loads(source_path.read_text(encoding="utf-8"))
+    payload["sources"] = [row for row in payload["sources"] if row["id"] != _OK_DEQ]
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", _OK_DEQ)
+    with pytest.raises(ValueError, match="missing its document stage"):
+        load_registry(_write_registry(tmp_path, payload))
+
+
+@pytest.mark.parametrize(
+    ("source_id", "retrieval_method"),
+    [(_TCEQ, "tceq-nsr-pending"), (_OK_DEQ, "ok-deq-public-review")],
+)
+def test_operator_override_reaches_both_inline_stage_configs(
+    monkeypatch, source_id, retrieval_method
+):
+    monkeypatch.setattr(settings, "permit_document_stage_source_ids", source_id)
+    definition = next(row for row in load_registry() if row["id"] == source_id)
+    assert definition["retrieval_method"] == retrieval_method
+    if source_id == _TCEQ:
+        from gridlens.ingestion.adapters.tceq_application_documents import config_from_source
+    else:
+        from gridlens.ingestion.adapters.ok_deq_documents import config_from_source
+    assert config_from_source(definition) is not None
 
 
 def test_registry_rejects_unbounded_page_query(tmp_path: Path):

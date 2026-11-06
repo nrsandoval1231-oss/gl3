@@ -439,7 +439,17 @@ def test_worker_completes_exact_m4_and_reentry_does_not_dispatch_again(sessions,
     assert call.status == "COMPLETED"
     assert call.result_payload["service_tier"] == "default"
     assert call.result_payload["reported_usage"]["input_tokens"] == 100
-    assert call.result_payload["usage"]["cost_basis"] == "conservative_usage_estimate_not_invoice"
+    assert call.result_payload["usage"]["cost_basis"] == (
+        "cache_aware_conservative_usage_estimate_not_invoice"
+    )
+    assert calls[0]["service_tier"] == "default"
+    assert calls[0]["prompt_cache_options"] == {"ttl": "30m"}
+    assert (
+        call.result_payload["usage"]["cache_cost_estimate_components"][
+            "cached_input_tokens_reported"
+        ]
+        == 0
+    )
     assert (
         call.result_payload["next_question"]
         == "What exact-need evidence establishes temporary electrical load in MW?"

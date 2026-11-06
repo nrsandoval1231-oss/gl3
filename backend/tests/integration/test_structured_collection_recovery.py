@@ -231,7 +231,12 @@ def test_process_job_resumes_modified_history_after_long_outage(structured_db):
         assert progress is not None
         assert progress.status == "complete"
         assert progress.cursor == {}
-        assert progress.completed_through == first_range_end + timedelta(days=7)
+        # These date-only windows use UTC midnight as their TIMESTAMPTZ carrier;
+        # advance the UTC date, not seven local wall-clock days across DST.
+        expected_end = datetime.combine(
+            first_range_end.astimezone(UTC).date() + timedelta(days=7), time.min, UTC
+        )
+        assert progress.completed_through.astimezone(UTC) == expected_end
 
 
 def test_rrc_flare_history_resumes_after_completed_interval(structured_db):

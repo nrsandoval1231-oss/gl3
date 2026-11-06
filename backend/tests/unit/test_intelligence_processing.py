@@ -12,8 +12,11 @@ from gridlens.intelligence.intelligence_jobs import (
     _billing_policy_identity,
     _bound_grounded_payload,
     _cost_bound,
+    _digest,
     _enabled,
+    _grounded_provider_request,
     _provider_error_quarantine_details,
+    _request_payload_matches_checkpoint,
     _type_safe_result,
     legacy_paid_path_block_reason,
 )
@@ -667,8 +670,7 @@ def test_grounding_context_keeps_four_kb_and_marks_bounded_thirty_kb_partial():
 
     large = {
         **base,
-        "evidence": [{**evidence, "abstract": "y" * 30_000}],
-        "need": {"accepted_source_claims": "z" * 20_000},
+        "evidence": [{**evidence, "abstract": "y" * 50_000}],
     }
     bounded = _bound_grounded_payload(large)
     encoded = json.dumps(bounded, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
@@ -676,7 +678,157 @@ def test_grounding_context_keeps_four_kb_and_marks_bounded_thirty_kb_partial():
     assert bounded["evidence"][0]["text_truncated"] is True
     assert bounded["evidence"][0]["retained_text_status"] == "partial_retained_excerpt"
     assert bounded["context_truncation"]["partial"] is True
-    assert 0 < len(bounded["evidence"][0]["abstract"]) < 30_000
+    assert 0 < len(bounded["evidence"][0]["abstract"]) < 50_000
+
+
+def test_grounded_provider_payload_omits_contact_bearing_evidence_as_a_whole(monkeypatch):
+    safe = {
+        "id": "safe-evidence",
+        "content_hash": "a" * 64,
+        "title": "County permit notice",
+        "publisher": "County Filing Office",
+        "abstract": "The notice proposes a 12 MW data center. Quote at offset 29.",
+        "citation": {"field": "abstract", "start": 29, "end": 34},
+    }
+    unsafe = {
+        "id": "contact-evidence",
+        "content_hash": "b" * 64,
+        "title": "Contractor phone list",
+        "abstract": "Permit abstract lists electrical contractor phone 512-555-0147.",
+        "parties": [{"name": "Jordan Example", "phone": "512-555-0147"}],
+    }
+    payload = {
+        "schema_version": "bounded-intelligence-v1",
+        "task_type": "GROUNDED_DOSSIER",
+        "need": {"need_id": "need-fixture"},
+        "question": {"id": "TEMP_LOAD_MW"},
+        "evidence": [safe, unsafe],
+        "questions": {"answer": {"type": "choice"}},
+    }
+    bounded = _bound_grounded_payload(payload)
+    assert bounded["evidence"] == [safe]
+    assert bounded["evidence"][0]["abstract"] == safe["abstract"]
+    assert bounded["evidence"][0]["citation"] == safe["citation"]
+    serialized = json.dumps(bounded, ensure_ascii=True)
+    assert "512-555-0147" not in serialized
+    assert "Jordan Example" not in serialized
+    assert _digest(payload) != _digest(bounded)
+
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_max_output_tokens", 200)
+    outbound = _grounded_provider_request("openai", "GROUNDED_DOSSIER", "fixture-model", bounded)
+    outbound_json = json.dumps(outbound, ensure_ascii=True)
+    assert "512-555-0147" not in outbound_json
+    assert "Jordan Example" not in outbound_json
+    assert "Quote at offset 29" in outbound_json
+    typesafe_outbound = _grounded_provider_request(
+        "typesafe", "GROUNDED_DOSSIER", "fixture-model", bounded
+    )
+    typesafe_json = json.dumps(typesafe_outbound, ensure_ascii=True)
+    assert "512-555-0147" not in typesafe_json
+    assert "Jordan Example" not in typesafe_json
+
+    legacy_queued_payload = payload
+    legacy_digest = _digest(legacy_queued_payload)
+    assert not _request_payload_matches_checkpoint(legacy_queued_payload, bounded, legacy_digest)
+    assert _request_payload_matches_checkpoint(bounded, bounded, _digest(bounded))
+
+
+def test_grounded_view_omits_irrelevant_nested_party_and_operator_state():
+    payload = {
+        "task_type": "GROUNDED_EXTRACTION",
+        "need": {"accepted_source_claims": {"parties": [{"contact_phone": "512-555-0199"}]}},
+        "question": {"id": "TEMP_LOAD_MW"},
+        "evidence": [
+            {
+                "id": "safe-evidence",
+                "content_hash": "c" * 64,
+                "title": "Retained notice",
+                "abstract": "The filing describes a new substation.",
+            }
+        ],
+    }
+    bounded = _bound_grounded_payload(payload)
+    assert bounded["need"] == {}
+    serialized = json.dumps(bounded, ensure_ascii=True)
+    assert "512-555-0199" not in serialized
+    assert "parties" not in serialized
+
+
+def test_openai_grounded_wire_body_and_cache_write_cost_ceiling_are_pinned(monkeypatch):
+    from gridlens.intelligence.intelligence_jobs import _serialized_request_bytes
+    from gridlens.intelligence.provider_cost_bounds import (
+        OPENAI_CACHE_WRITE_USD_PER_MILLION,
+        OPENAI_MAX_INPUT_TOKENS,
+        OPENAI_PROMPT_CACHE_TTL,
+        OPENAI_SERVICE_TIER,
+        openai_cost_ceiling_from_tokens,
+        openai_request_cost_ceiling,
+    )
+
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_model", "gpt-6.1-sol")
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_max_output_tokens", 400)
+    monkeypatch.setattr(
+        settings, "intelligence_openai_reasoning_input_usd_per_million", Decimal("2.00")
+    )
+    monkeypatch.setattr(
+        settings, "intelligence_openai_reasoning_output_usd_per_million", Decimal("10.00")
+    )
+    payload = _bound_grounded_payload(
+        {
+            "task_type": "GROUNDED_DOSSIER",
+            "need": {"need_id": "need-fixture"},
+            "question": {"id": "TEMP_LOAD_MW"},
+            "evidence": [
+                {
+                    "id": "source-fixture",
+                    "content_hash": "d" * 64,
+                    "abstract": "A public filing describes a data center expansion.",
+                }
+            ],
+        }
+    )
+    request = _grounded_provider_request("openai", "GROUNDED_DOSSIER", "gpt-6.1-sol", payload)
+    assert request["service_tier"] == OPENAI_SERVICE_TIER == "default"
+    assert request["prompt_cache_options"] == {"ttl": OPENAI_PROMPT_CACHE_TTL}
+    assert OPENAI_PROMPT_CACHE_TTL == "30m"
+    request_bytes = _serialized_request_bytes(request)
+    expected = (
+        Decimal(request_bytes) * OPENAI_CACHE_WRITE_USD_PER_MILLION + Decimal(400) * Decimal("10")
+    ) / Decimal(1_000_000)
+    assert _cost_bound("openai", "GROUNDED_DOSSIER", payload) == expected
+    assert openai_request_cost_ceiling(OPENAI_MAX_INPUT_TOKENS - 400, 400) > 0
+    assert openai_request_cost_ceiling(OPENAI_MAX_INPUT_TOKENS - 399, 400) == 0
+    assert openai_cost_ceiling_from_tokens(OPENAI_MAX_INPUT_TOKENS - 400, 400) > 0
+    assert openai_cost_ceiling_from_tokens(OPENAI_MAX_INPUT_TOKENS - 399, 400) == 0
+
+
+def test_openai_cached_usage_estimate_preserves_provider_breakdown_without_invoice_claim():
+    from gridlens.intelligence.intelligence_jobs import (
+        _estimated_cost_from_usage,
+        _openai_cache_usage_evidence,
+    )
+
+    raw_usage = {
+        "input_tokens": 1000,
+        "output_tokens": 100,
+        "input_tokens_details": {"cached_tokens": 400},
+    }
+    assert _estimated_cost_from_usage(
+        "openai",
+        "GROUNDED_DOSSIER",
+        1000,
+        100,
+        reported_usage=raw_usage,
+        provider_model="gpt-6.1-sol",
+    ) == Decimal(2540) / Decimal(1_000_000)
+    assert _openai_cache_usage_evidence(1000, raw_usage) == {
+        "uncached_input_tokens_estimated_at_cache_write_ceiling": 600,
+        "cached_input_tokens_reported": 400,
+        "ordinary_input_rate_usd_per_million": "2.00",
+        "uncached_input_rate_usd_per_million_ceiling": "2.50",
+        "cached_input_rate_usd_per_million": "0.10",
+        "output_rate_usd_per_million": "10.00",
+    }
 
 
 def test_grounded_response_schema_requires_explicit_unit_date_and_attribution_fields():
@@ -772,17 +924,17 @@ def test_estimated_signal_policy_is_selected_scoped_and_byte_bounded(monkeypatch
     request_bytes = _serialized_request_bytes(
         jev_request_payload(exact["state"], model="jev-1.13.0")
     )
-    exact["state"]["project_name"] += "x" * (TYPESAFE_SIGNAL_REQUEST_MAX_BYTES - request_bytes)
+    exact["state"]["publisher"] += "x" * (TYPESAFE_SIGNAL_REQUEST_MAX_BYTES - request_bytes)
     assert (
         _serialized_request_bytes(jev_request_payload(exact["state"], model="jev-1.13.0"))
         == TYPESAFE_SIGNAL_REQUEST_MAX_BYTES
     )
     assert _cost_bound("typesafe", "SIGNAL_ADJUDICATION", exact) == Decimal("0.01")
-    exact["state"]["project_name"] += "x"
+    exact["state"]["publisher"] += "x"
     assert _cost_bound("typesafe", "SIGNAL_ADJUDICATION", exact) == 0
 
     unicode_payload = _estimated_signal_payload(observation_id)
-    unicode_payload["state"]["project_name"] = "é" * 8_500
+    unicode_payload["state"]["publisher"] = "é" * 8_500
     assert (
         _serialized_request_bytes(jev_request_payload(unicode_payload["state"], model="jev-1.13.0"))
         > TYPESAFE_SIGNAL_REQUEST_MAX_BYTES

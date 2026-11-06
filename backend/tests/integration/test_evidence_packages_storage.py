@@ -814,7 +814,7 @@ def test_worker_budget_denial_is_blocked_and_never_dispatches(evidence_db, monke
 
     monkeypatch.setattr(legacy_calls, "reserve_call", record_reserve)
     with evidence_db.begin() as session:
-        observation, evidence = seed_evidence(session)
+        observation, evidence = seed_evidence(session, abstract="The facility plans four chillers.")
         package = materialize_package(session, evidence.id)
         package_id = package.id
         source_hash = evidence.content_hash

@@ -223,7 +223,11 @@ def test_cached_price_zero_falls_back_to_the_full_input_price(monkeypatch):
     usage = {
         "input_tokens": 1000,
         "output_tokens": 0,
-        "input_tokens_details": {"cached_tokens": 1000},
+        "input_tokens_details": {
+            "cached_tokens": 1000,
+            "cache_write_tokens": 0,
+            "cache_write_tokens_details": {"ttl_30m_tokens": 0, "ttl_12h_tokens": 0},
+        },
     }
     assert ep.estimated_actual_cost(usage) == Decimal("0.002")
 
