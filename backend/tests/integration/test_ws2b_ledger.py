@@ -653,9 +653,7 @@ def test_oversize_ocr_transcript_is_a_local_rejection_that_does_not_quarantine(
         )
         assert call.status == "FAILED" and "QUARANTINE" not in str(call.blocked_reason)
     # The provider is still usable: a normal page goes through afterwards.
-    again = _stage_ocr(Counter(), OcrCaller(["a normal page"])).ocr_pages(
-        [3], document_hash="f" * 64
-    )
+    again = _stage_ocr(Counter(), OcrCaller(["a normal page"])).ocr_pages([3], document_hash=HASH)
     assert again.status == "ok"
 
 

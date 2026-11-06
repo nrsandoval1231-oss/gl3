@@ -686,6 +686,7 @@ def test_grounded_provider_payload_omits_contact_bearing_evidence_as_a_whole(mon
         "id": "safe-evidence",
         "content_hash": "a" * 64,
         "title": "County permit notice",
+        "publisher": "County Filing Office",
         "abstract": "The notice proposes a 12 MW data center. Quote at offset 29.",
         "citation": {"field": "abstract", "start": 29, "end": 34},
     }
@@ -818,6 +819,7 @@ def test_openai_cached_usage_estimate_preserves_provider_breakdown_without_invoi
         1000,
         100,
         reported_usage=raw_usage,
+        provider_model="gpt-6.1-sol",
     ) == Decimal(2540) / Decimal(1_000_000)
     assert _openai_cache_usage_evidence(1000, raw_usage) == {
         "uncached_input_tokens_estimated_at_cache_write_ceiling": 600,

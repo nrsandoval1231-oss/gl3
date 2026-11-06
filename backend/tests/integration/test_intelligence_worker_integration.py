@@ -687,16 +687,18 @@ def test_catalog_quarantines_openai_output_bound_breach_before_semantic_parse(
     provider_calls = []
 
     def fake_response(**_kwargs):
+        assert _kwargs["request"]["service_tier"] == "default"
         provider_calls.append(True)
         return {
             "model": "pinned-openai-fixture",
+            "service_tier": "default",
             "provider_response_id": "fixture-output-bound-breach",
             "input_tokens": 10,
             "output_tokens": 2,
             "output": {"invalid": "must not parse"},
         }
 
-    monkeypatch.setattr(intelligence_jobs, "call_openai", fake_response)
+    monkeypatch.setattr(intelligence_jobs, "call_openai_request", fake_response)
     assert worker.run_one({}, job_ids=[job_id]) is True
     with sessions() as session:
         call = session.scalar(select(LogicalCall))
@@ -1935,6 +1937,7 @@ def test_leased_worker_rechecks_grounded_context_after_provider_response(
     }
 
     def fake_openai(**_kwargs):
+        assert _kwargs["request"]["service_tier"] == "default"
         if mid_call_change == "source_permission":
             with sessions.begin() as session:
                 source = session.get(Source, "intelligence-fixture-source")
@@ -1990,6 +1993,7 @@ def test_leased_worker_rechecks_grounded_context_after_provider_response(
                 )
         return {
             "model": "pinned-reasoning-fixture",
+            "service_tier": "default",
             "provider_response_id": "fixture-grounded-response",
             "latency_ms": 19,
             "input_tokens": 300,
@@ -1997,7 +2001,7 @@ def test_leased_worker_rechecks_grounded_context_after_provider_response(
             "output": output,
         }
 
-    monkeypatch.setattr(intelligence_jobs, "call_openai", fake_openai)
+    monkeypatch.setattr(intelligence_jobs, "call_openai_request", fake_openai)
     monkeypatch.setattr(worker, "WORKER_ID", "fixture-openai-worker")
     assert worker.run_one({}, job_ids=[job_id]) is True
     with sessions() as session:

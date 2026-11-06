@@ -538,6 +538,7 @@ def _bound_grounded_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "abstract",
         "url",
         "published_at",
+        "publisher",
         "event_date",
         "event_date_label",
         "extraction_location",
@@ -612,7 +613,8 @@ def _grounded_provider_request(
             max_output_tokens=getattr(settings, f"intelligence_openai_{prefix}_max_output_tokens"),
         )
         request["service_tier"] = OPENAI_SERVICE_TIER
-        request["prompt_cache_options"] = {"ttl": OPENAI_PROMPT_CACHE_TTL}
+        if model == "gpt-6.1-sol":
+            request["prompt_cache_options"] = {"ttl": OPENAI_PROMPT_CACHE_TTL}
     else:
         raise ValueError("Unsupported provider for grounded request")
     try:
@@ -1366,8 +1368,14 @@ def _billing_policy_identity(
             **(
                 {
                     "service_tier": OPENAI_SERVICE_TIER,
-                    "prompt_cache_ttl": OPENAI_PROMPT_CACHE_TTL,
                     "max_input_tokens": str(OPENAI_MAX_INPUT_TOKENS),
+                }
+                if task_type in GROUND_TASKS
+                else {}
+            ),
+            **(
+                {
+                    "prompt_cache_ttl": OPENAI_PROMPT_CACHE_TTL,
                     "cache_write_rate_usd_per_million": str(OPENAI_CACHE_WRITE_USD_PER_MILLION),
                     "cache_read_rate_usd_per_million": str(OPENAI_CACHE_READ_USD_PER_MILLION),
                     "ordinary_input_rate_usd_per_million": str(
@@ -1377,7 +1385,7 @@ def _billing_policy_identity(
                         OPENAI_OUTPUT_USD_PER_MILLION
                     ),
                 }
-                if task_type in GROUND_TASKS
+                if model == "gpt-6.1-sol"
                 else {}
             ),
         }
@@ -1608,7 +1616,8 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
             max_output_tokens=output_tokens,
         )
         request["service_tier"] = OPENAI_SERVICE_TIER
-        request["prompt_cache_options"] = {"ttl": OPENAI_PROMPT_CACHE_TTL}
+        if model == "gpt-6.1-sol":
+            request["prompt_cache_options"] = {"ttl": OPENAI_PROMPT_CACHE_TTL}
         request_bytes = _serialized_request_bytes(request)
     else:
         if (
@@ -1656,8 +1665,16 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
     return openai_request_cost_ceiling(
         request_bytes,
         output_tokens,
-        input_rate_usd_per_million=max(input_price, OPENAI_CACHE_WRITE_USD_PER_MILLION),
-        output_rate_usd_per_million=max(output_price, OPENAI_OUTPUT_USD_PER_MILLION),
+        input_rate_usd_per_million=(
+            max(input_price, OPENAI_CACHE_WRITE_USD_PER_MILLION)
+            if model == "gpt-6.1-sol"
+            else input_price
+        ),
+        output_rate_usd_per_million=(
+            max(output_price, OPENAI_OUTPUT_USD_PER_MILLION)
+            if model == "gpt-6.1-sol"
+            else output_price
+        ),
     )
 
 
@@ -1669,6 +1686,7 @@ def _estimated_cost_from_usage(
     *,
     billing_policy: dict[str, str] | None = None,
     reported_usage: dict[str, Any] | None = None,
+    provider_model: str | None = None,
 ) -> Decimal | None:
     estimate_policy = billing_policy is not None and billing_policy.get("cost_basis") == "ESTIMATE"
     if input_tokens is None or (output_tokens is None and not estimate_policy):
@@ -1680,7 +1698,11 @@ def _estimated_cost_from_usage(
     if type(output_tokens) is not int or output_tokens < 0:
         raise ValueError("Provider output token usage is invalid")
     if provider == "openai":
-        if task_type == COMMERCIAL_ASSESSMENT_TASK or task_type in GROUND_TASKS:
+        cache_priced = task_type == COMMERCIAL_ASSESSMENT_TASK or (
+            task_type in GROUND_TASKS
+            and (provider_model == "gpt-6.1-sol" or provider_model is None)
+        )
+        if cache_priced:
             cached_tokens = 0
             details = reported_usage.get("input_tokens_details") if reported_usage else None
             if details is not None:
@@ -2889,6 +2911,10 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 input_tokens,
                 output_tokens,
                 reported_usage=data.get("reported_usage"),
+                provider_model=actual_model,
+            )
+            cache_priced = task_type == COMMERCIAL_ASSESSMENT_TASK or (
+                task_type in GROUND_TASKS and actual_model == "gpt-6.1-sol"
             )
             call_result["usage"] = {
                 "input_tokens": input_tokens,
@@ -2897,17 +2923,13 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "estimated_cost_usd": str(estimated_cost) if estimated_cost is not None else None,
                 "cost_basis": (
                     "cache_aware_conservative_usage_estimate_not_invoice"
-                    if task_type == COMMERCIAL_ASSESSMENT_TASK or task_type in GROUND_TASKS
+                    if cache_priced
                     else "derived_from_verified_usage_and_pinned_rates"
                     if estimated_cost is not None
                     else None
                 ),
             }
-            if (
-                provider == "openai"
-                and (task_type == COMMERCIAL_ASSESSMENT_TASK or task_type in GROUND_TASKS)
-                and type(input_tokens) is int
-            ):
+            if provider == "openai" and cache_priced and type(input_tokens) is int:
                 call_result["usage"]["cache_cost_estimate_components"] = (
                     _openai_cache_usage_evidence(input_tokens, data.get("reported_usage"))
                 )
