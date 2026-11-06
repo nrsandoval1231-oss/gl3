@@ -24,18 +24,30 @@ function pageIsCurrent(page: ProjectResultsPage | null) {
 }
 function readRoute() {
   const params = new URLSearchParams(location.search)
-  return { search: params.get('q') ?? '', sector: (['oil_gas', 'data_centers'].includes(params.get('sector') ?? '') ? params.get('sector') : 'all') as Sector, offset: Math.max(0, Number(params.get('offset') ?? 0) || 0), sort: (['priority_asc', 'company', 'project'].includes(params.get('sort') ?? '') ? params.get('sort') : 'priority') as Sort }
+  const priority = params.get('priority')
+  return { region: params.get('region') ?? '', stage: params.get('stage') ?? '', priority: priority === 'ranked' || priority === 'unranked' ? priority : '', search: params.get('q') ?? '', sector: (['oil_gas', 'data_centers'].includes(params.get('sector') ?? '') ? params.get('sector') : 'all') as Sector, offset: Math.max(0, Number(params.get('offset') ?? 0) || 0), sort: (['priority_asc', 'company', 'project'].includes(params.get('sort') ?? '') ? params.get('sort') : 'priority') as Sort }
 }
-function updateUrl(search: string, sector: Sector, offset: number, sort: Sort, cohort?: string, push = false) {
+type PageFilters = { region: string; stage: string; priority: string }
+const NO_FILTERS: PageFilters = { region: '', stage: '', priority: '' }
+function updateUrl(search: string, sector: Sector, offset: number, sort: Sort, cohort?: string, push = false, filters: PageFilters = NO_FILTERS) {
   const params = new URLSearchParams({ view: 'workspace' })
   if (new URLSearchParams(location.search).get('projectBrowse') === '1') params.set('projectBrowse', '1')
   if (search) params.set('q', search)
   if (sector !== 'all') params.set('sector', sector)
   if (offset) params.set('offset', String(offset))
   if (sort !== 'priority') params.set('sort', sort)
+  if (filters.region) params.set('region', filters.region)
+  if (filters.stage) params.set('stage', filters.stage)
+  if (filters.priority) params.set('priority', filters.priority)
   if (cohort) params.set('cohort_token', cohort)
   if (push) history.pushState(history.state, '', `/?${params}`)
   else history.replaceState(history.state, '', `/?${params}`)
+}
+// Page-local filters change in place so an open selection (`need`, `section`) is kept.
+function setFilterParam(key: keyof PageFilters, value: string) {
+  const params = new URLSearchParams(location.search)
+  if (value) params.set(key, value); else params.delete(key)
+  history.replaceState(history.state, '', `/?${params}`)
 }
 function displayProjectName(project: ProjectResult) {
   return project.company && project.name.startsWith(`${project.company} · `) ? project.name.slice(project.company.length + 3) : project.name
@@ -62,9 +74,10 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [region, setRegion] = useState('')
-  const [stage, setStage] = useState('')
-  const [priority, setPriority] = useState('')
+  const [region, setRegion] = useState(initial.region)
+  const [stage, setStage] = useState(initial.stage)
+  const [priority, setPriority] = useState(initial.priority)
+  const filtersRef = useRef<PageFilters>({ region: initial.region, stage: initial.stage, priority: initial.priority })
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onBrowseChangeRef = useRef(onBrowseChange)
   onBrowseChangeRef.current = onBrowseChange
@@ -76,7 +89,12 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   const [pageErrorNotice, setPageErrorNotice] = useState('')
 
   useEffect(() => {
-    const onPop = () => { const route = readRoute(); setSearchDraft(route.search); setSearch(route.search); setSector(route.sector); setOffset(route.offset); setSort(route.sort); cohortResetUsed.current = false }
+    // Unsupported sort values (for example the legacy `updated`) fall back to priority; drop them from the URL.
+    const params = new URLSearchParams(location.search), raw = params.get('sort')
+    if (raw !== null && readRoute().sort === 'priority') { params.delete('sort'); history.replaceState(history.state, '', `/?${params}`) }
+  }, [])
+  useEffect(() => {
+    const onPop = () => { const route = readRoute(); setSearchDraft(route.search); setSearch(route.search); setSector(route.sector); setOffset(route.offset); setSort(route.sort); setRegion(route.region); setStage(route.stage); setPriority(route.priority); cohortResetUsed.current = false }
     const onClear = () => { requestGeneration.current += 1; requestAbort.current?.abort(); if (retryTimer.current) clearTimeout(retryTimer.current); cacheGeneration += 1; cache.clear(); setPage(null); setError('Your session ended. Sign in again.'); setLoading(false) }
     window.addEventListener('popstate', onPop)
     window.addEventListener('gl3-clear-continuity', onClear)
@@ -119,7 +137,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
         }
         if (cause instanceof OpportunityCohortChangedError) {
           cache.clear(); setPage(null); setLoading(false); setPageErrorNotice('Results changed. Reloaded from the first page.')
-          updateUrl(search, sector, 0, sort)
+          onBrowseChangeRef.current?.(); updateUrl(search, sector, 0, sort, undefined, false, filtersRef.current)
           if (offset) { cohortResetUsed.current = false; setOffset(0); return }
           if (!cohortResetUsed.current) { cohortResetUsed.current = true; setRetryKey(value => value + 1); return }
           setError('Results changed again while reloading. Refresh to try once more.'); return
@@ -140,12 +158,16 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     return () => clearTimeout(timer)
   }, [page?.valid_until, search, sector, offset, sort])
 
+  filtersRef.current = { region, stage, priority }
   const requestedPageKey = cacheKey(search, sector, offset, sort)
   const visiblePage = pageKey === requestedPageKey && pageIsCurrent(page) ? page : null
   const canInteract = Boolean(visiblePage) && !loading && !error && searchDraft === search
   const items = visiblePage?.items ?? EMPTY_PROJECTS
   const regions = [...new Set(items.map(item => item.location).filter((value): value is string => Boolean(value)))].sort()
   const stages = [...new Set(items.map(item => item.event?.kind).filter((value): value is string => Boolean(value)))].sort()
+  // A bookmarked filter value absent from this page stays selectable/visible so the control reflects the URL.
+  const regionOptions = region && !regions.includes(region) ? [...regions, region].sort() : regions
+  const stageOptions = stage && !stages.includes(stage) ? [...stages, stage].sort() : stages
   const visible = useMemo(() => items.filter(item =>
     (!region || item.location === region) && (!stage || item.event?.kind === stage) &&
     (!priority || (priority === 'ranked' ? item.priority_score != null : item.priority_score == null))
@@ -157,10 +179,10 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   }
   const selectSector = (value: Sector) => { if (value === sector) return; onBrowseChangeRef.current?.(); setSector(value); window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: value })); setOffset(0); setRegion(''); setStage(''); setPriority(''); updateUrl(search, value, 0, sort) }
   const clearFilters = () => { onBrowseChangeRef.current?.(); setSearchDraft(''); setSearch(''); setRegion(''); setStage(''); setPriority(''); setSector('all'); window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: 'all' })); setOffset(0); updateUrl('', 'all', 0, sort) }
-  const selectSort = (value: Sort) => { if (value === sort) return; onBrowseChangeRef.current?.(); cohortResetUsed.current = false; setSort(value); setOffset(0); updateUrl(search, sector, 0, value, undefined, true) }
+  const selectSort = (value: Sort) => { if (value === sort) return; onBrowseChangeRef.current?.(); cohortResetUsed.current = false; setSort(value); setOffset(0); updateUrl(search, sector, 0, value, undefined, true, { region, stage, priority }) }
   return <section className="canonical-flat-results" aria-label="Project opportunities" aria-busy={loading || searchDraft !== search}>
     <header className="cfr-heading"><div><h1>Opportunities</h1><p>Commercial projects with material power demand in constrained markets.</p></div><div><span>{visiblePage ? `${visiblePage.total} ${visiblePage.count_unit} · ${visiblePage.results_scope === 'discovery' ? 'Signals included' : 'Qualified projects'}` : 'Unavailable'}<small className="cfr-filter-scope" title="Region, stage and priority filter the current page. Search and project type cover all results.">Page filters</small></span><label className="cfr-sort-label">Sort<select aria-label="Sort opportunities" disabled={!canInteract} value={sort} onChange={event => selectSort(event.target.value as Sort)}><option value="priority">Priority</option><option value="priority_asc">Priority (ascending)</option><option value="company">Company</option><option value="project">Project</option></select></label><button type="button" onClick={exportRows} disabled={!visible.length || !canInteract}><Download size={13} aria-hidden="true"/> Export</button></div></header>
-    <div className="cfr-filters" aria-describedby="canonical-filter-scope"><input aria-label="Search opportunities" placeholder="Search opportunities…" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}/><select aria-label="Region" value={region} onChange={event => setRegion(event.target.value)}><option value="">All Regions</option>{regions.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Project type" value={sector} onChange={event => selectSector(event.target.value as Sector)}><option value="all">All Project Types</option><option value="oil_gas">Oil &amp; Gas</option><option value="data_centers">Data Centers</option></select><select aria-label="Stage" value={stage} onChange={event => setStage(event.target.value)}><option value="">All Stages</option>{stages.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Priority" value={priority} onChange={event => setPriority(event.target.value)}><option value="">All Priorities</option><option value="ranked">Ranked</option><option value="unranked">Unranked</option></select><button type="button" onClick={clearFilters}>Clear</button></div>
+    <div className="cfr-filters" aria-describedby="canonical-filter-scope"><input aria-label="Search opportunities" placeholder="Search opportunities…" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}/><select aria-label="Region" value={region} onChange={event => { setRegion(event.target.value); setFilterParam('region', event.target.value) }}><option value="">All Regions</option>{regionOptions.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Project type" value={sector} onChange={event => selectSector(event.target.value as Sector)}><option value="all">All Project Types</option><option value="oil_gas">Oil &amp; Gas</option><option value="data_centers">Data Centers</option></select><select aria-label="Stage" value={stage} onChange={event => { setStage(event.target.value); setFilterParam('stage', event.target.value) }}><option value="">All Stages</option>{stageOptions.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Priority" value={priority} onChange={event => { setPriority(event.target.value); setFilterParam('priority', event.target.value) }}><option value="">All Priorities</option><option value="ranked">Ranked</option><option value="unranked">Unranked</option></select><button type="button" onClick={clearFilters}>Clear</button></div>
     <p className="cfr-scope" id="canonical-filter-scope">Region, stage and priority filter this page · Search and project type cover all results</p>
     {pageErrorNotice && <p role="status">{pageErrorNotice}</p>}{error && <p role="alert">{error} <button type="button" onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
     {loading && !page && !error && <p role="status">Loading current opportunities…</p>}
@@ -179,7 +201,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
         <td role="cell" data-label="Priority" title="Server priority rank score; not a qualification or confidence rating">{item.priority_score == null ? '—' : item.priority_score}</td><td role="cell" className="cfr-c-open"><button type="button" className="cfr-open" aria-label={`Open ${displayProjectName(item)}`} onClick={() => primaryNeedId && onNeed({ id: primaryNeedId })} disabled={!canInteract || !primaryNeedId}>›</button></td>
       </tr>
     })}</tbody></table></div>}
-    {visiblePage && <footer className="cfr-paging"><span>{visiblePage.items.length ? `${visiblePage.offset + 1}–${visiblePage.offset + visiblePage.items.length} of ${visiblePage.total} projects` : visiblePage.total ? `0 projects on this page · ${visiblePage.total} projects total` : '0 projects'}{(region || stage || priority) && ` · ${visible.length} of ${visiblePage.items.length} projects on this page match filters`}</span><button type="button" disabled={!canInteract || offset === 0} onClick={() => { const next = Math.max(0, offset - visiblePage.limit); setOffset(next); updateUrl(search, sector, next, sort, visiblePage.cohort_token) }}>Previous</button><button type="button" disabled={!canInteract || offset + visiblePage.items.length >= visiblePage.total} onClick={() => { const next = offset + visiblePage.limit; setOffset(next); updateUrl(search, sector, next, sort, visiblePage.cohort_token) }}>Next</button></footer>}
+    {visiblePage && <footer className="cfr-paging"><span>{visiblePage.items.length ? `${visiblePage.offset + 1}–${visiblePage.offset + visiblePage.items.length} of ${visiblePage.total} projects` : visiblePage.total ? `0 projects on this page · ${visiblePage.total} projects total` : '0 projects'}{(region || stage || priority) && ` · ${visible.length} of ${visiblePage.items.length} projects on this page match filters`}</span><button type="button" disabled={!canInteract || offset === 0} onClick={() => { const next = Math.max(0, offset - visiblePage.limit); onBrowseChangeRef.current?.(); setOffset(next); updateUrl(search, sector, next, sort, visiblePage.cohort_token, false, { region, stage, priority }) }}>Previous</button><button type="button" disabled={!canInteract || offset + visiblePage.items.length >= visiblePage.total} onClick={() => { const next = offset + visiblePage.limit; onBrowseChangeRef.current?.(); setOffset(next); updateUrl(search, sector, next, sort, visiblePage.cohort_token, false, { region, stage, priority }) }}>Next</button></footer>}
   </section>
 }
 

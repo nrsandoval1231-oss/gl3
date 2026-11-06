@@ -83,6 +83,8 @@ function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push 
   const signalView = currentView() === 'signals'
   const p = signalView ? getParams() : workspaceParams(filters)
   if (!signalView) for (const key of ['q', 'sector', 'sort', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'projectBrowse', 'region', 'stage', 'priority', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
+  // The flat browse supports no `updated` sort (it falls back to priority); never carry it into selection URLs.
+  if (!signalView && p.get('sort') === 'updated' && (getParams().get('groupBrowse') !== '1' || getParams().get('projectBrowse') === '1')) p.delete('sort')
   if (!signalView && accountContext) { p.set('account', accountContext.accountId); if (accountContext.projectId) p.set('project', accountContext.projectId) }
   if (signalView) { p.set('view', 'signals'); p.delete('need'); p.delete('section') }
   if (id) p.set('need', id)

@@ -387,7 +387,10 @@ test('synthetic stale cohort conflict drops page token and reloads first page wi
   await expect(page.locator('.project-results-count')).toHaveText('50 groups')
   await page.getByRole('button', { name: 'Next' }).click()
   await expect(page.locator('.project-results-count')).toContainText('Results changed')
-  await expect.poll(() => requests.some(url => url.searchParams.get('offset') === '0' && !url.searchParams.has('cohort_token'))).toBeTruthy()
+  // The initial load is also an offset-0 request without a token, so only a request AFTER the conflicting
+  // offset-25 one proves the first-page reload, and only a held handler proves releaseFresh is armed.
+  await expect.poll(() => { const conflictAt = requests.findIndex(url => url.searchParams.get('offset') === '25'); return conflictAt >= 0 && requests.slice(conflictAt + 1).some(url => url.searchParams.get('offset') === '0' && !url.searchParams.has('cohort_token')) }).toBeTruthy()
+  await expect.poll(() => Boolean(releaseFresh)).toBe(true)
   await expect(page.locator('.project-card')).toHaveCount(0)
   expect(new URL(page.url()).searchParams.has('cohort_token')).toBe(false)
   expect(new URL(page.url()).searchParams.has('offset')).toBe(false)
