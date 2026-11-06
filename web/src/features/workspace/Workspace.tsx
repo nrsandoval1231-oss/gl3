@@ -361,10 +361,13 @@ export function WorkspaceHome() {
     if (!target) return
     target.tabIndex = -1; target.focus({ preventScroll: true })
   }, [navigationPanel])
-  pursuitActions.current = {
-    openPursuit: id => { setNavigationPanel(null); navigate('pursuits', id) },
-    openNeed: id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) },
-  }
+  // Assigned after each commit (not during render) so the gl3-open-* listeners never hold closures from a discarded render.
+  useEffect(() => {
+    pursuitActions.current = {
+      openPursuit: id => { setNavigationPanel(null); navigate('pursuits', id) },
+      openNeed: id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) },
+    }
+  })
   if (authenticated === null) return <div className="workspace-home"><div inert><CanonicalHeader onNavigate={() => {}}/></div><main className="loading" aria-live="polite" aria-busy="true">Loading your private workspace…</main></div>
   if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); updateSelectedNeedContext(null); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
   const header = <CanonicalHeader
