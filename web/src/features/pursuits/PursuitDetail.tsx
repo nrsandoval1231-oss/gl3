@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { client, type CommercialPursuit, type PursuitStage, type PursuitTask } from '../../api/client'
 import { applyPursuit } from '../../state/pursuitStore'
-import { FLOW_STAGES, formatDateTime, formatDay, mailHref, powerNeed, powerTiming, telHref } from './pursuitFormat'
+import { FLOW_STAGES, formatDateTime, formatInstantDay, mailHref, powerNeed, powerTiming, telHref } from './pursuitFormat'
 import { inApp, needHref, openNeed } from './pursuitNav'
 
 type Kind = 'call' | 'email' | 'meeting' | 'note'
@@ -17,16 +17,26 @@ export function PursuitDetail({ id, preview, onBack, onChanged }: Props) {
   const [retry, setRetry] = useState(0)
   const [busy, setBusy] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [ended, setEnded] = useState(false)
   const writing = useRef(false)
+  const endedRef = useRef(false)
+
+  // An ended session removes contact data, notes and tasks from the screen immediately.
+  useEffect(() => {
+    const onEnded = () => { endedRef.current = true; setEnded(true); setDetail(null); setErrors({}); setLoadError('') }
+    addEventListener('gl3-clear-continuity', onEnded)
+    return () => removeEventListener('gl3-clear-continuity', onEnded)
+  }, [])
 
   useEffect(() => {
+    if (ended) return
     const controller = new AbortController()
     setLoadError('')
     client.commercialPursuit(id, controller.signal)
       .then(value => { if (!controller.signal.aborted) setDetail(value) })
       .catch(cause => { if (!controller.signal.aborted) setLoadError(message(cause, 'This pursuit is unavailable.')) })
     return () => controller.abort()
-  }, [id, retry])
+  }, [id, retry, ended])
 
   /** One write at a time; resolves true on success so forms clear only then. */
   async function write(section: string, action: () => Promise<CommercialPursuit>): Promise<boolean> {
@@ -34,14 +44,17 @@ export function PursuitDetail({ id, preview, onBack, onChanged }: Props) {
     writing.current = true; setBusy(section); setErrors(current => ({ ...current, [section]: '' }))
     try {
       const updated = await action()
+      if (endedRef.current) return false
       setDetail(updated); applyPursuit(updated); onChanged(updated)
       return true
     } catch (cause) {
+      if (endedRef.current) return false
       setErrors(current => ({ ...current, [section]: message(cause, 'The change could not be saved. Try again.') }))
       return false
     } finally { writing.current = false; setBusy('') }
   }
 
+  if (ended) return <div className="pu-detail"><div className="pu-state" role="alert"><p>Your session ended. Sign in again.</p></div></div>
   const head = detail ?? preview
   if (!head) {
     return <div className="pu-detail">
@@ -107,7 +120,7 @@ export function PursuitDetail({ id, preview, onBack, onChanged }: Props) {
       <div className="pu-stage-foot">
         <button type="button" className="pu-btn pu-lost" aria-pressed={head.stage === 'Lost'} disabled={Boolean(busy) || !detail || head.stage === 'Lost'} onClick={() => setStage('Lost')}>{head.stage === 'Lost' ? 'Closed as Lost' : 'Mark as Lost'}</button>
         {head.stage === 'Lost' && <span className="pu-hint">Choose a status above to reopen this pursuit.</span>}
-        <span className="pu-hint">In stage since {formatDay(head.stage_changed_at.slice(0, 10))}</span>
+        <span className="pu-hint">In stage since {formatInstantDay(head.stage_changed_at)}</span>
       </div>
       {errors.stage && <p className="pu-error" role="alert">{errors.stage}</p>}
     </section>
@@ -123,7 +136,7 @@ export function PursuitDetail({ id, preview, onBack, onChanged }: Props) {
         <div><dt>Opportunity tier</dt><dd>{head.tier || 'Unknown'}</dd></div>
         <div><dt>Power Need</dt><dd>{powerNeed(head.required_mw)}</dd></div>
         <div><dt>Power timing</dt><dd>{powerTiming(head.start_window)}</dd></div>
-        <div><dt>Added to Pursuits</dt><dd>{formatDay(head.created_at.slice(0, 10))}</dd></div>
+        <div><dt>Added to Pursuits</dt><dd>{formatInstantDay(head.created_at)}</dd></div>
       </dl>
       <a className="pu-link" href={needHref(head.need_id)} onClick={event => inApp(event, () => openNeed(head.need_id))}>View opportunity and evidence</a>
     </section>
@@ -131,6 +144,26 @@ export function PursuitDetail({ id, preview, onBack, onChanged }: Props) {
 }
 
 type Write = (action: (id: string) => Promise<CommercialPursuit>) => Promise<boolean>
+
+const validDue = (value: string) => { const year = Number(value.slice(0, 4)); return /^\d{4}-\d{2}-\d{2}$/.test(value) && year >= 2000 && year <= 2100 }
+
+/** Saves on blur or Enter only, so typing a year never saves intermediate values like 0002. */
+function DueDateInput({ task, busy, onWrite }: { task: PursuitTask; busy: string; onWrite: Write }) {
+  const [draft, setDraft] = useState(task.due_date ?? '')
+  const [invalid, setInvalid] = useState(false)
+  useEffect(() => { setDraft(task.due_date ?? ''); setInvalid(false) }, [task.due_date])
+  const commit = () => {
+    if (draft === (task.due_date ?? '')) { setInvalid(false); return }
+    if (draft && !validDue(draft)) { setInvalid(true); return }
+    setInvalid(false)
+    void onWrite(id => client.updatePursuitTask(id, task.id, draft ? { due_date: draft } : { clear_due_date: true }))
+  }
+  return <>
+    <input type="date" value={draft} min="2000-01-01" max="2100-12-31" disabled={Boolean(busy)} aria-label={`Due date for: ${task.description}`} aria-invalid={invalid || undefined}
+      onChange={event => { setDraft(event.target.value); setInvalid(false) }} onBlur={commit} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); commit() } }}/>
+    {invalid && <small className="pu-error" role="alert">Choose a due date between 2000 and 2100.</small>}
+  </>
+}
 
 function TasksCard({ tasks, openTasks, doneTasks, busy, error, onWrite }: { tasks: PursuitTask[] | null; openTasks: PursuitTask[]; doneTasks: PursuitTask[]; busy: string; error: string; onWrite: Write }) {
   const [description, setDescription] = useState('')
@@ -157,8 +190,7 @@ function TasksCard({ tasks, openTasks, doneTasks, busy, error, onWrite }: { task
           : <><span className="pu-task-text">{task.description}</span>
             <button type="button" className="pu-link" aria-label={`Edit follow-up: ${task.description}`} onClick={() => setEditing({ id: task.id, text: task.description })}>Edit</button></>}
         <label className="pu-task-date"><span>Due</span>
-          <input type="date" value={task.due_date ?? ''} disabled={Boolean(busy)} aria-label={`Due date for: ${task.description}`}
-            onChange={event => { const value = event.target.value; void onWrite(id => client.updatePursuitTask(id, task.id, value ? { due_date: value } : { clear_due_date: true })) }}/>
+          <DueDateInput task={task} busy={busy} onWrite={onWrite}/>
           {!task.due_date && <small>No due date</small>}
         </label>
       </div>
@@ -212,7 +244,7 @@ function ActivityCard({ detail, busy, error, onWrite }: { detail: CommercialPurs
     {entries === null ? <p className="pu-hint">Loading activity…</p> : entries.length
       ? <ul className="pu-activity">{entries.map(entry => <li key={entry.id}>
         <span className="pu-activity-kind">{ACTIVITY_LABELS[entry.kind] ?? entry.kind}</span>
-        <div><strong>{entry.summary}</strong>{entry.detail && <p>{entry.detail}</p>}<time dateTime={entry.occurred_at}>{formatDateTime(entry.occurred_at)}</time></div>
+        <div><strong>{entry.summary}</strong>{entry.detail && <p>{entry.detail}</p>}<time dateTime={entry.occurred_at}>Logged {formatDateTime(entry.occurred_at)}</time></div>
       </li>)}</ul>
       : <p className="pu-hint">No activity recorded yet.</p>}
   </section>

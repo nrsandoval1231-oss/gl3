@@ -37,7 +37,7 @@ export function CanonicalHeader({ activeDestination = 'opportunities', onNavigat
           <button key={id} type="button" aria-current={activeDestination === id ? 'page' : undefined}
             className={activeDestination === id ? 'is-active' : undefined} onClick={() => onNavigate(id)}>
             {label}
-            {(badges?.[id] ?? 0) > 0 && <span className="canonical-header__badge" data-testid={`nav-badge-${id}`}>{badges![id]}</span>}
+            {(badges?.[id] ?? 0) > 0 && <><span className="canonical-header__badge" data-testid={`nav-badge-${id}`} aria-hidden="true">{badges![id]}</span><span className="sr-only">{id === 'pursuits' ? ` ${badges![id]} active pursuit${badges![id] === 1 ? '' : 's'}` : ` ${badges![id]}`}</span></>}
           </button>
         ))}
       </nav>

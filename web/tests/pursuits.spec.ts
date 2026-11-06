@@ -28,7 +28,7 @@ const emptyProjects = { items: [project], total: 1, count_unit: 'projects', limi
 const summary = (p: Pursuit) => { const { tasks, activity, ...rest } = p; return { ...rest, next_task: tasks.find(t => !t.completed_at) ?? null } }
 
 type Log = { method: string; path: string; search: string; body: any }
-async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean } = {}) {
+async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; unauthorizedStage?: boolean } = {}) {
   const store = new Map(seed.map(p => [p.id, p]))
   const log: Log[] = []
   let activityFailures = hooks.failActivity ?? 0
@@ -45,6 +45,7 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
     if (path === '/api/commercial-pursuits' && method === 'GET') {
       let items = [...store.values()]
       if (url.searchParams.get('needs_attention') === 'true') items = items.filter(p => p.attention.length)
+      if (url.searchParams.get('active_only') === 'true') items = items.filter(p => !['Won', 'Lost'].includes(p.stage))
       if (url.searchParams.get('need_id')) items = items.filter(p => p.need_id === url.searchParams.get('need_id'))
       return route.fulfill({ json: { items: items.map(summary), counts: counts() } })
     }
@@ -60,6 +61,7 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
     if (match && found) {
       const [, , kind, taskId] = match
       if (!kind && method === 'GET') return route.fulfill({ json: found })
+      if (!kind && method === 'PATCH' && hooks.unauthorizedStage) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
       if (!kind && method === 'PATCH') { found.stage = body.stage; return route.fulfill({ json: found }) }
       if (kind === 'tasks' && method === 'POST') {
         if (hooks.failTask) return route.fulfill({ status: 500, json: { detail: 'Task store unavailable' } })
@@ -154,7 +156,7 @@ test('Pursuits list, counts and the Needs Attention filter use only API fields',
   ])
   await page.goto('/?view=pursuits')
   await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toBeVisible()
-  await expect(page.getByText('2 active pursuits')).toBeVisible()
+  await expect(page.locator('.pu-heading').getByText('2 active pursuits')).toBeVisible()
   await expect(page.getByTestId('attention-count')).toHaveText('2')
   await expect(page.locator('.pu-card')).toHaveCount(3)
   const first = page.locator('.pu-card', { hasText: 'Synthetic Campus P1' })
@@ -168,6 +170,8 @@ test('Pursuits list, counts and the Needs Attention filter use only API fields',
   await page.getByRole('button', { name: /^Active/ }).click()
   await expect(page.locator('.pu-card')).toHaveCount(2)
   await expect(page).toHaveURL(/filter=active/)
+  expect(api.log.some(entry => entry.method === 'GET' && entry.search.includes('active_only=true') && entry.search.includes('limit=200'))).toBe(true)
+  await expect(page.getByRole('button', { name: /Needs Attention/ })).toContainText('2 need attention')
   await page.getByRole('button', { name: /Needs Attention/ }).click()
   await expect(page.locator('.pu-card')).toHaveCount(2)
   await expect(page.locator('.pu-card', { hasText: 'Synthetic Campus P2' })).toHaveCount(0)
@@ -309,4 +313,72 @@ test('phone width has no horizontal overflow in list or detail', async ({ page }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.getByRole('button', { name: '← Pursuits' }).click()
   await expect(page.locator('.pu-card')).toBeVisible()
+})
+
+test('an ended session removes pursuit contact data and shows a session-ended state', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a')], { unauthorizedStage: true })
+  await page.goto('/?view=pursuits&pursuit=p1')
+  await expect(page.getByText('alex@example.test').first()).toBeVisible()
+  await page.getByRole('region', { name: 'Pursuit status' }).getByRole('button', { name: /Engaged/ }).click()
+  await expect(page.getByText('alex@example.test')).toHaveCount(0)
+  await expect(page.getByText('+1 206 555 0184')).toHaveCount(0)
+  await expect(page.locator('.pu-card')).toHaveCount(0)
+  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+})
+
+test('the continuity event clears pursuit data on screen', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a')])
+  await page.goto('/?view=pursuits&pursuit=p1')
+  await expect(page.getByText('alex@example.test').first()).toBeVisible()
+  await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
+  await expect(page.getByText('alex@example.test')).toHaveCount(0)
+  await expect(page.locator('.pu-card')).toHaveCount(0)
+  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+})
+
+test('typing a due date saves only on blur and rejects years outside 2000-2100', async ({ page }) => {
+  const api = await setup(page, [pursuit('p1', 'need-a', { tasks: [{ id: 't1', description: 'Call back', due_date: null, completed_at: null }] })])
+  await page.goto('/?view=pursuits&pursuit=p1')
+  const due = page.getByLabel('Due date for: Call back')
+  await due.fill('0002-03-04')
+  expect(api.writes()).toHaveLength(0)
+  await due.blur()
+  await expect(page.getByText('Choose a due date between 2000 and 2100.')).toBeVisible()
+  expect(api.writes()).toHaveLength(0)
+  await due.fill('2027-03-04')
+  expect(api.writes()).toHaveLength(0)
+  await due.blur()
+  await expect.poll(() => api.writes().length).toBe(1)
+  expect(api.writes()[0].body).toEqual({ due_date: '2027-03-04' })
+})
+
+test('activity times are labelled as logged times', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a')])
+  await page.goto('/?view=pursuits&pursuit=p1')
+  await expect(page.getByRole('region', { name: 'Activity' }).locator('time')).toContainText(/^Logged /)
+})
+
+test('no URL filter means All even after visiting another filter', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a'), pursuit('p2', 'need-b', { stage: 'Won' })])
+  await page.goto('/?view=pursuits&filter=active')
+  await expect(page.locator('.pu-card')).toHaveCount(1)
+  await page.goto('/?view=workspace')
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: /Pursuits/ }).click()
+  await expect(page.getByRole('button', { name: 'All Pursuits' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.pu-card')).toHaveCount(2)
+})
+
+test('header badge and attention count have descriptive accessible names', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a', attention(['Follow-up overdue'])), pursuit('p2', 'need-b')])
+  await page.goto('/?view=pursuits')
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Pursuits 2 active pursuits' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Needs Attention 1 needs attention' })).toBeVisible()
+})
+
+test('legacy view=pursuits links carrying research parameters open Research', async ({ page }) => {
+  await setup(page, [pursuit('p1', 'need-a')])
+  await page.goto('/?view=pursuits&q=Northstar')
+  await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toHaveCount(0)
+  await page.goto('/?view=pursuits&researchNeed=need-1')
+  await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toHaveCount(0)
 })

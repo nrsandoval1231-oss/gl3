@@ -78,7 +78,7 @@ test('account queue uses server grouping, opens paginated projects, and retains 
   await expect(page.locator('.ci-unresolved')).toContainText('Projects needing customer research')
   await page.locator('.ci-unresolved summary').click()
   await expect(page.getByRole('button', { name: 'Review this power need' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Research Electrical subcontractor' })).toHaveAttribute('href', /[?&]q=/)
+  await expect(page.getByRole('link', { name: 'Research Electrical subcontractor' })).toHaveAttribute('href', /[?&]view=research&q=/)
   await expect(page.locator('.ci-unresolved')).toContainText('Customer needs confirmation')
   await page.locator('.ci-unresolved').getByRole('button', { name: 'Next' }).click()
   await expect(page.locator('.ci-unresolved')).not.toContainText('West parcel')

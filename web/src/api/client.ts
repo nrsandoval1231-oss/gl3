@@ -399,10 +399,12 @@ export const client = {
    * `background` reads (nav count, Add-to-Pursuit lookup) never tear down session state on a 401:
    * they are auxiliary and any primary request still detects an ended session.
    */
-  commercialPursuits: (filters: { needsAttention?: boolean; needId?: string; background?: boolean } = {}, signal?: AbortSignal) => {
+  commercialPursuits: (filters: { needsAttention?: boolean; activeOnly?: boolean; needId?: string; background?: boolean; limit?: number } = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams()
     if (filters.needsAttention) params.set('needs_attention', 'true')
+    if (filters.activeOnly) params.set('active_only', 'true')
     if (filters.needId) params.set('need_id', filters.needId)
+    if (filters.limit) params.set('limit', String(filters.limit))
     const path = `/api/commercial-pursuits?${params}`
     const read = filters.background
       ? fetch(path, { credentials: 'same-origin', signal }).then(response => {

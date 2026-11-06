@@ -6,13 +6,13 @@ import './pursuits.css'
 
 type Filter = 'all' | 'active' | 'attention'
 const FILTERS: { id: Filter; label: string }[] = [{ id: 'all', label: 'All Pursuits' }, { id: 'active', label: 'Active' }, { id: 'attention', label: 'Needs Attention' }]
-// Survives unmount so leaving and returning to Pursuits keeps the filter and list scroll.
-let savedFilter: Filter = 'all'
+// Survives unmount so leaving and returning to Pursuits keeps the list scroll.
 const savedScroll = { list: 0, window: 0 }
 
 function readRoute() {
+  // The URL is the source of truth: no filter in the URL means All.
   const params = new URLSearchParams(location.search), filter = params.get('filter')
-  return { filter: (filter === 'all' || filter === 'active' || filter === 'attention' ? filter : savedFilter) as Filter, id: params.get('pursuit') ?? '' }
+  return { filter: (filter === 'active' || filter === 'attention' ? filter : 'all') as Filter, id: params.get('pursuit') ?? '' }
 }
 function routeUrl(filter: Filter, id: string) {
   const params = new URLSearchParams({ view: 'pursuits' })
@@ -23,11 +23,12 @@ function routeUrl(filter: Filter, id: string) {
 
 export function PursuitsPage() {
   const [route, setRoute] = useState(readRoute)
-  const [lists, setLists] = useState<{ all?: CommercialPursuitList; attention?: CommercialPursuitList }>({})
+  const [lists, setLists] = useState<Partial<Record<Filter, CommercialPursuitList>>>({})
+  const [ended, setEnded] = useState(false)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
-  const source = route.filter === 'attention' ? 'attention' : 'all'
+  const source = route.filter
   const data = lists[source]
 
   useEffect(() => {
@@ -35,19 +36,24 @@ export function PursuitsPage() {
     addEventListener('popstate', sync); addEventListener('gl3-pursuits-route', sync)
     return () => { removeEventListener('popstate', sync); removeEventListener('gl3-pursuits-route', sync) }
   }, [])
-  useEffect(() => { savedFilter = route.filter }, [route.filter])
+  useEffect(() => {
+    const onEnded = () => { setEnded(true); setLists({}); setError(''); setRoute(current => ({ ...current, id: '' })) }
+    addEventListener('gl3-clear-continuity', onEnded)
+    return () => removeEventListener('gl3-clear-continuity', onEnded)
+  }, [])
 
   useEffect(() => {
+    if (ended) return
     const controller = new AbortController()
     setError('')
-    client.commercialPursuits({ needsAttention: source === 'attention' }, controller.signal)
+    client.commercialPursuits({ needsAttention: source === 'attention', activeOnly: source === 'active', limit: 200 }, controller.signal)
       .then(list => { if (!controller.signal.aborted) setLists(current => ({ ...current, [source]: list })) })
       .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error && cause.message ? cause.message : 'Pursuits are unavailable.') })
     return () => controller.abort()
-  }, [source, reload])
+  }, [source, reload, ended])
 
-  const counts = data?.counts ?? lists.all?.counts ?? lists.attention?.counts
-  const items = (data?.items ?? []).filter(item => route.filter !== 'active' || (item.stage !== 'Won' && item.stage !== 'Lost'))
+  const counts = data?.counts ?? lists.all?.counts ?? lists.active?.counts ?? lists.attention?.counts
+  const items = data?.items ?? []
 
   // Restore list position after returning from a detail.
   const hadSelection = useRef(Boolean(route.id))
@@ -76,7 +82,7 @@ export function PursuitsPage() {
   const changed = useCallback((updated: CommercialPursuit) => {
     setLists(current => {
       const patch = (list?: CommercialPursuitList) => list && { ...list, items: list.items.map(item => item.id === updated.id ? { ...item, ...updated, tasks: undefined, activity: undefined } : item) }
-      return { all: patch(current.all), attention: patch(current.attention) }
+      return { all: patch(current.all), active: patch(current.active), attention: patch(current.attention) }
     })
     setReload(value => value + 1)
   }, [])
@@ -91,12 +97,13 @@ export function PursuitsPage() {
       <section className="pu-list-panel" aria-label="Pursuit list">
         <div className="pu-filters" role="group" aria-label="Filter pursuits">
           {FILTERS.map(({ id, label }) => <button key={id} type="button" className="pu-chip" aria-pressed={route.filter === id} onClick={() => { if (id !== route.filter) go(id, route.id, true) }}>
-            {label}{id === 'attention' && counts && <span className="pu-count" data-testid="attention-count">{counts.needs_attention}</span>}
+            {label}{id === 'attention' && counts && <><span className="pu-count" data-testid="attention-count" aria-hidden="true">{counts.needs_attention}</span><span className="sr-only">{` ${counts.needs_attention} ${counts.needs_attention === 1 ? 'needs' : 'need'} attention`}</span></>}
           </button>)}
         </div>
         <div className="pu-list" ref={listRef} aria-busy={!data && !error}>
-          {error && <div className="pu-state" role="alert"><p>{error}</p><button type="button" className="pu-btn" onClick={() => setReload(value => value + 1)}>Retry</button></div>}
-          {!data && !error && <div className="pu-skeletons" aria-label="Loading pursuits" role="status">{[0, 1, 2].map(index => <div key={index} className="pu-card pu-skeleton" aria-hidden="true"/>)}</div>}
+          {ended && <div className="pu-state" role="alert"><p>Your session ended. Sign in again.</p></div>}
+          {!ended && error && <div className="pu-state" role="alert"><p>{error}</p><button type="button" className="pu-btn" onClick={() => setReload(value => value + 1)}>Retry</button></div>}
+          {!ended && !data && !error && <div className="pu-skeletons" aria-label="Loading pursuits" role="status">{[0, 1, 2].map(index => <div key={index} className="pu-card pu-skeleton" aria-hidden="true"/>)}</div>}
           {data && !items.length && !error && <div className="pu-state"><p>{route.filter === 'attention' ? 'No pursuits need attention right now.' : route.filter === 'active' ? 'No active pursuits.' : 'No pursuits yet. Use Add to Pursuit on an opportunity to start one.'}</p></div>}
           {items.length > 0 && <ul className="pu-cards">{items.map(item => <li key={item.id}>
             <button type="button" className="pu-card" data-pursuit-card={item.id} aria-current={route.id === item.id ? 'true' : undefined} onClick={() => open(item.id)}>
@@ -113,8 +120,10 @@ export function PursuitsPage() {
         </div>
       </section>
       <section className="pu-detail-panel" aria-label="Pursuit detail">
-        {route.id
-          ? <PursuitDetail key={route.id} id={route.id} preview={(lists.all?.items ?? lists.attention?.items ?? []).find(item => item.id === route.id)} onBack={close} onChanged={changed}/>
+        {ended
+          ? <div className="pu-state pu-placeholder"><p>Your session ended. Sign in again.</p></div>
+          : route.id
+          ? <PursuitDetail key={route.id} id={route.id} preview={(lists.all?.items ?? lists.active?.items ?? lists.attention?.items ?? []).find(item => item.id === route.id)} onBack={close} onChanged={changed}/>
           : <div className="pu-state pu-placeholder"><p>Select a pursuit to see its contact, status, follow-ups and activity.</p></div>}
       </section>
     </div>

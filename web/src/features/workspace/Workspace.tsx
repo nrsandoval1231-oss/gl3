@@ -48,7 +48,8 @@ function pushPanel(panel: 'companies' | 'reports' | null) {
 function currentView(): 'opportunities' | 'pursuits' | 'research' | 'ingestion' | 'signals' {
   const params = getParams(), view = params.get('view')
   if (location.pathname === '/environment' || view === 'environment') return params.get('mode') === 'pursuits' ? 'research' : params.get('mode') === 'browse' ? 'signals' : 'opportunities'
-  if (view === 'pursuits') return 'pursuits'
+  // Legacy bookmarks used view=pursuits for the research page.
+  if (view === 'pursuits') return params.has('researchNeed') || params.has('q') ? 'research' : 'pursuits'
   if (view === 'research') return 'research'
   if (view === 'ingestion') return 'ingestion'
   if (view === 'signals') return 'signals'

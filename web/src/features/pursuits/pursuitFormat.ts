@@ -18,6 +18,12 @@ export function formatDay(value: string | null | undefined) {
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
 }
+/** Calendar day of an instant in the viewer's own time zone (not the UTC date part). */
+export function formatInstantDay(value: string | null | undefined) {
+  if (!value) return 'Unknown'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
+}
 export function formatDateTime(value: string | null | undefined) {
   if (!value) return 'Unknown'
   const date = new Date(value)
