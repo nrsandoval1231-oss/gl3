@@ -93,6 +93,7 @@ function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push 
   const url = `/${p.size ? `?${p}` : ''}`
   if (push) history.pushState({ ...history.state, workspaceSnapshot: null, workspaceDetail: Boolean(id), workspaceTabSteps: 0, workspaceDirectEntry: false }, '', url); else history.replaceState(history.state, '', url)
 }
+/** Keep the selected route while expiring private views and refreshing them after the next sign-in. */
 export function WorkspaceHome() {
   const [view, setView] = useState(currentView)
   const [navigationPanel, setNavigationPanel] = useState<CanonicalHeaderDestination | null>(panelFromUrl)
@@ -234,6 +235,7 @@ export function WorkspaceHome() {
   }, [detailCurrent, detailNavigation, pendingNeedId, selected?.id, view])
   useEffect(() => { void client.session().then(value => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false)) }, [])
   useEffect(() => {
+    // Remove shell-owned result/detail state as child panels clear their own retained data.
     const onSessionEnded = () => {
       ++selectionSequence.current
       pageRef.current = null

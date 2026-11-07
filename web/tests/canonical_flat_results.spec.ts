@@ -129,6 +129,7 @@ test('demand KPI keeps loading, unavailable, and unknown MW distinct from zero',
 
 test('malformed demand summary fails closed while opportunity results remain available', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/demand-summary?*', route => route.fulfill({ json: [] }))
   await page.goto('/?view=workspace&projectBrowse=1')

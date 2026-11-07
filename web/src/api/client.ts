@@ -146,6 +146,7 @@ export type ResearchQuestion = components['schemas']['ResearchQuestionOut']
 export type CompanyGraph = components['schemas']['CompanyGraphOut']
 export type CompanyGraphEvidence = components['schemas']['GraphEvidence']
 
+/** Bind every protected fetch to its starting session; discard late responses and expire only a matching 401. */
 async function sessionFetch(path: string, init?: RequestInit, onUnauthorized: (generation: number) => unknown = expireSession) {
   const generation = currentSessionGeneration()
   const response = await fetch(path, init)
@@ -154,6 +155,7 @@ async function sessionFetch(path: string, init?: RequestInit, onUnauthorized: (g
   return response
 }
 
+/** Decode a protected API response while preventing a late body from repopulating a newer session. */
 async function api<T>(path: string, init?: RequestInit, includeSafeDetail = false): Promise<T> {
   const requestGeneration = currentSessionGeneration()
   const response = await sessionFetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })

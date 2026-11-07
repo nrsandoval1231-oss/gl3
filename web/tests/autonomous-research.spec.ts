@@ -22,7 +22,7 @@ async function install(page: import('@playwright/test').Page) {
   await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: workspace }))
   await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: need }))
-  await page.route('**/api/commercial/triage/need-demo/autonomous-research', route => route.fulfill({ json: { items: [] } }))
+  await page.route('**/api/commercial/triage/*/autonomous-research', route => route.fulfill({ json: { items: [] } }))
 }
 
 test('Research shows source-backed contacts, separate priority and confidence, explicit unknowns, and read-only history on mobile', async ({ page }) => {

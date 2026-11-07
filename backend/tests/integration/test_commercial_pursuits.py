@@ -20,6 +20,7 @@ from gridlens.settings import settings
 
 @pytest.fixture
 def pursuit_env(monkeypatch):
+    """Run API checks in a disposable PostgreSQL schema with isolated route state."""
     if not settings.test_database_url:
         pytest.skip("TEST_DATABASE_URL required for PostgreSQL pursuit tests")
     target = make_url(settings.test_database_url)
@@ -45,6 +46,7 @@ def pursuit_env(monkeypatch):
 
 
 def _need(factory, start_window=None):
+    """Create one synthetic source, project and power need for route assertions."""
     with factory() as session:
         source = Source(
             id=f"s-{uuid4().hex[:8]}",
@@ -191,6 +193,7 @@ def test_tasks_create_edit_reschedule_complete(pursuit_env):
 
 
 def test_task_creation_retries_are_idempotent_and_validate_reused_ids(pursuit_env):
+    """Exact task retries return one row; changed or cross-pursuit reuse conflicts."""
     client = TestClient(app)
     first_pursuit = client.post(
         "/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}

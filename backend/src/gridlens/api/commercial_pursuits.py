@@ -172,6 +172,7 @@ class ActivityIn(BaseModel):
 
 
 def _task_out(task: PursuitTask, description: str | None = None) -> TaskOut:
+    """Project a persisted task while allowing its displayed text to be redacted."""
     return TaskOut(
         id=task.id,
         description=task.description if description is None else description,
@@ -246,6 +247,7 @@ class _Preload:
     """Needs, projects and tasks for a set of pursuits, loaded with a few IN queries."""
 
     def __init__(self, session: Session, rows: list[CommercialPursuit]):
+        """Load related needs, projects and tasks in bounded bulk queries for this page."""
         need_ids = {r.need_id for r in rows}
         project_ids = {r.project_id for r in rows}
         pursuit_ids = [r.id for r in rows]
@@ -273,6 +275,7 @@ class _Preload:
         self.contacts: dict[UUID, tuple[ContactSummary | None, str]] = {}
 
     def contact(self, session: Session, project_id: UUID) -> tuple[ContactSummary | None, str]:
+        """Reuse the contact projection cached for this project's response page."""
         if project_id not in self.contacts:
             self.contacts[project_id] = _contact(session, project_id)
         return self.contacts[project_id]
@@ -286,7 +289,7 @@ def _view(
     pre: _Preload | None = None,
     private: bool = True,
 ) -> PursuitOut:
-    """Build a pursuit response with contact suppression applied to displayed notes."""
+    """Project a pursuit and its bounded history, suppressing contact text on read."""
     pre = pre or _Preload(session, [row])
     need = pre.needs.get(row.need_id)
     project = pre.projects.get(row.project_id)
@@ -520,6 +523,7 @@ def add_task(pursuit_id: UUID, body: TaskIn, response: Response):
         row = _get(session, pursuit_id, lock=True)
 
         def matching_replay() -> PursuitTask | None:
+            """Return an exact retry match or reject reuse of its idempotency key."""
             if body.client_id is None:
                 return None
             existing = session.get(PursuitTask, body.client_id)

@@ -22,6 +22,7 @@ from gridlens.settings import get_settings  # noqa: E402
 
 
 def checked_database_url(value: str) -> str:
+    """Require the one authorized loopback disposable database for this seed."""
     parsed = make_url(value)
     if (parsed.host or "").lower() not in {"127.0.0.1", "localhost", "::1"}:
         raise SystemExit("Refusing to seed a database outside loopback.")
@@ -35,6 +36,7 @@ def checked_database_url(value: str) -> str:
 
 
 def main() -> None:
+    """Validate a pristine migrated database, seed marked test data, and write its manifest."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest-output", required=True, type=Path)
     args = parser.parse_args()

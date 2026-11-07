@@ -67,6 +67,8 @@ test('default root and header navigation browse customer groups with project chi
       cohort_token: parentToken, generation: 'synthetic-default-generation', facets: { regions: ['Permian Basin, TX', 'Austin, TX'], stages: ['Construction notice', 'Permit issued'] },
     } })
   })
+  await page.route(url => new URL(url).pathname === '/api/opportunities', route => route.fulfill({ json: [] }))
+  await page.route('**/api/opportunities?*', route => route.fulfill({ json: [] }))
   await page.route('**/api/opportunities/groups/*/projects?*', route => {
     const url = new URL(route.request().url())
     childRequests.push(url)

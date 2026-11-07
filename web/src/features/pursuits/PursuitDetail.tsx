@@ -165,6 +165,7 @@ function DueDateInput({ task, busy, onWrite }: { task: PursuitTask; busy: string
   </>
 }
 
+/** Keep a task draft's client ID stable across retry, but rotate it when its parent changes or the write succeeds. */
 function TasksCard({ pursuitId, tasks, openTasks, doneTasks, busy, error, onWrite }: { pursuitId: string; tasks: PursuitTask[] | null; openTasks: PursuitTask[]; doneTasks: PursuitTask[]; busy: string; error: string; onWrite: Write }) {
   const [description, setDescription] = useState('')
   const [due, setDue] = useState('')
@@ -172,6 +173,7 @@ function TasksCard({ pursuitId, tasks, openTasks, doneTasks, busy, error, onWrit
   // Keep a request identity until success so a lost response can be retried safely.
   const attempt = useRef<{ signature: string; id: string } | null>(null)
   useEffect(() => { attempt.current = null }, [pursuitId])
+  /** Reuse the draft identity after failure so a lost success response cannot duplicate a follow-up. */
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     const text = description.trim()

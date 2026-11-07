@@ -228,10 +228,10 @@ test('follow-up tasks can be added and completed; a failed add keeps the typed i
   await card.getByLabel('Follow-up due date (optional)').fill('2026-12-01')
   await card.getByRole('button', { name: 'Add follow-up' }).click()
   await expect(card.getByText('Send load letter')).toBeVisible()
-  expect(api.writes()[0]).toMatchObject({ method: 'POST', path: '/api/commercial-pursuits/p1/tasks', body: { description: 'Send load letter', due_date: '2026-12-01' } })
+  expect(api.writes()[0]).toMatchObject({ method: 'POST', path: '/api/commercial-pursuits/p1/tasks', body: { description: 'Send load letter', due_date: '2026-12-01', client_id: expect.stringMatching(/^[0-9a-f-]{36}$/i) } })
   await card.getByLabel('Complete follow-up: Send load letter').click()
   await expect(page.getByText('Completed (1)')).toBeVisible()
-  expect(api.writes()[1]).toMatchObject({ method: 'PATCH', path: '/api/commercial-pursuits/p1/tasks/t1', body: { completed: true } })
+  expect(api.writes()[1]).toMatchObject({ method: 'PATCH', path: `/api/commercial-pursuits/p1/tasks/${api.writes()[0].body.client_id}`, body: { completed: true } })
 })
 
 test('a failed task write shows an error and keeps the typed task', async ({ page }) => {
@@ -353,7 +353,7 @@ test('phone width has no horizontal overflow in list or detail', async ({ page }
   await expect(page.locator('.pu-card')).toBeVisible()
 })
 
-test('an ended session removes pursuit contact data and shows a session-ended state', async ({ page }) => {
+test('an ended session removes pursuit contact data and returns to sign-in', async ({ page }) => {
   await setup(page, [pursuit('p1', 'need-a')], { unauthorizedStage: true })
   await page.goto('/?view=pursuits&pursuit=p1')
   await expect(page.getByText('alex@example.test').first()).toBeVisible()
@@ -361,7 +361,8 @@ test('an ended session removes pursuit contact data and shows a session-ended st
   await expect(page.getByText('alex@example.test')).toHaveCount(0)
   await expect(page.getByText('+1 206 555 0184')).toHaveCount(0)
   await expect(page.locator('.pu-card')).toHaveCount(0)
-  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  await expect(page).toHaveURL(/view=pursuits&pursuit=p1/)
 })
 
 test('the continuity event clears pursuit data on screen', async ({ page }) => {
