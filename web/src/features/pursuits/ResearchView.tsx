@@ -4,6 +4,7 @@ import { projectTitle } from '../opportunities/projectCards'
 import { AutonomousResearch } from './AutonomousResearch'
 import '../../styles/research.css'
 
+/** Describe the remaining gap only when a supported value is available. */
 function gapLabel(item: WorkspaceNeed | Opportunity) {
   const value = item.qualified_remaining_gap
   if (!value || typeof value !== 'object') return 'Not established'
@@ -11,6 +12,7 @@ function gapLabel(item: WorkspaceNeed | Opportunity) {
   return typeof low === 'string' && typeof high === 'string' ? `${low}–${high} MW` : 'Not established'
 }
 
+/** Build a safe contact link only for supported email or phone values. */
 function safeContactHref(method: Record<string, string>) {
   if (!method.href || !method.kind) return undefined
   try {

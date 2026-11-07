@@ -3,6 +3,7 @@ import { client, type IntelligenceOperations as Operations } from '../../api/cli
 
 const stamp = (value: string | null) => value ? new Date(value).toLocaleString() : 'Unknown'
 
+/** Display operational queue and provider status for internal diagnostics. */
 export function IntelligenceOperations() {
   const [data, setData] = useState<Operations | null>(null)
   const [error, setError] = useState('')

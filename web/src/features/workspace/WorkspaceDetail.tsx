@@ -13,6 +13,7 @@ export const workspaceTabs = ['Overview', 'Evidence', 'Buying chain', 'Power gap
 export type WorkspaceTab = typeof workspaceTabs[number]
 type WorkspaceDetailItem = Opportunity & Partial<Pick<WorkspaceNeed, 'commercial_disposition' | 'commercial_reason' | 'commercial_next_question' | 'commercial_next_action' | 'commercial_organization'>>
 type QualifiedGap = { required_mw_min: string; required_mw_max: string; available_mw_min: string; available_mw_max: string; remaining_mw_min: string; remaining_mw_max: string; start_window: string; duration: string; basis_quote: string; value_kind: string; calculation: string; version: string }
+/** Accept a gap projection only when every displayed field is present and typed. */
 function qualifiedGap(value: WorkspaceDetailItem['qualified_remaining_gap']): QualifiedGap | null {
   if (!value || typeof value !== 'object') return null
   const keys = ['required_mw_min', 'required_mw_max', 'available_mw_min', 'available_mw_max', 'remaining_mw_min', 'remaining_mw_max', 'start_window', 'duration', 'basis_quote', 'value_kind', 'calculation', 'version'] as const
@@ -32,11 +33,13 @@ type Props = {
   onBack: () => void
   onRetry: () => void
 }
+/** Explain the retained evidence basis used to associate an account. */
 function associatedAccountBasisLabel(basis: string) {
   return basis === 'typed_rrc_operator_number_v1'
     ? 'Supported by retained RRC operator evidence.'
     : 'Supported by current retained evidence.'
 }
+/** Reduce a source-backed project reason to a compact card summary. */
 function briefProjectReason(value: string | null | undefined) {
   const text = value?.trim()
   if (!text) return 'A retained source identifies this project. Review current evidence for power demand and timing.'
@@ -46,6 +49,7 @@ function briefProjectReason(value: string | null | undefined) {
 }
 
 /** Shows retained project evidence and bounded estimates without promoting uncertainty into a customer rating. */
+/** Render selected opportunity evidence, research, and project actions. */
 export function WorkspaceDetail({ item, pending, loading, error, tab, associationNotice, projectFirst = false, onTab, onBack, onRetry }: Props) {
   const [shareState, setShareState] = useState('')
   const [sourceFilter, setSourceFilter] = useState('All sources')
@@ -279,6 +283,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
   </aside>
 }
 
+/** Show the project-first overview while keeping evidence and unknowns explicit. */
 function PreparedProjectOverview({ item, onBack, onTab }: { item: WorkspaceDetailItem; onBack: () => void; onTab: (tab: WorkspaceTab) => void }) {
   const [retry, setRetry] = useState(0)
   const [state, setState] = useState<{ needId: string; loading: boolean; project: ProjectResult | null; error: string }>({ needId: '', loading: true, project: null, error: '' })
@@ -354,6 +359,7 @@ function PreparedProjectOverview({ item, onBack, onTab }: { item: WorkspaceDetai
   </aside>
 }
 
+/** Summarize whether a displayed power-need fact has current supporting evidence. */
 function factEvidenceState(item: WorkspaceDetailItem, field: 'demand' | 'start' | 'duration' | 'supply') {
   if (field === 'demand' && item.demand_quote) return 'Source-reported'
   if (field === 'supply' && item.supply_quote) return 'Source-reported'

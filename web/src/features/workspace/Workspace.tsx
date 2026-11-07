@@ -80,6 +80,7 @@ function currentAccountContext(): AccountContext | undefined {
   const params = getParams(), accountId = params.get('account')
   return accountId ? { accountId, projectId: params.get('project') ?? undefined } : undefined
 }
+/** Preserve browse context and selected detail state in the workspace URL. */
 function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false, accountContext?: AccountContext) {
   const signalView = currentView() === 'signals'
   const p = signalView ? getParams() : workspaceParams(filters)

@@ -15,6 +15,7 @@ const readUrl = () => {
 const sectorLabel = (value: string) => value === 'oil_gas' ? 'Oil & Gas' : value === 'data_centers' ? 'Data Centers' : value.replaceAll('_', ' ')
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`
 
+/** Browse company groups and open the associated opportunity detail. */
 export function CompaniesPanel({ onNeed }: { onNeed: (needId: string) => void }) {
   const initial = readUrl()
   const [search, setSearch] = useState(initial.search)

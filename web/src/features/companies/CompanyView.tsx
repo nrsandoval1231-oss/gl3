@@ -5,9 +5,11 @@ import { CompanyContacts } from '../workspace/CompanyContacts'
 import { groupDescription } from './groupKind'
 
 const sectorLabel = (value: string) => value === 'oil_gas' ? 'Oil & Gas' : value === 'data_centers' ? 'Data Centers' : value.replaceAll('_', ' ')
+/** Convert the source asset category to concise company-view copy. */
 const assetTypeLabel = (value: string) => value === 'data_center' ? 'Data center' : value === 'oil_gas' ? 'Oil & Gas' : value.replaceAll('_', ' ')
 const needHref = (id: string) => `/?${new URLSearchParams({ view: 'workspace', need: id })}`
 
+/** Show a company's current projects and route selected needs into opportunity detail. */
 export function CompanyView({ groupId, summary, onBack, onNeed }: { groupId: string; summary?: OpportunityGroup; onBack: () => void; onNeed: (needId: string) => void }) {
   const [group, setGroup] = useState<OpportunityGroup | null>(summary ?? null)
   const [projects, setProjects] = useState<ProjectResult[]>([])

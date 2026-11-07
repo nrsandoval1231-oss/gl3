@@ -31,12 +31,14 @@ function displayDate(value: string | null | undefined) {
 
 type EquipmentDemandProjection = Record<string, unknown>
 
+/** Read the equipment-only demand projection from the retained research card. */
 function equipmentDemandProjection(card: NonNullable<Props['item']>['intelligence_card']): EquipmentDemandProjection | null {
   if (!card) return null
   const value = card.equipment_demand
   return value && typeof value === 'object' && !Array.isArray(value) ? value : null
 }
 
+/** Format a supported equipment power value, leaving unknown values explicit. */
 function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_kw' | 'coincident_kw' | 'incremental_kw') {
   const value = demand?.[key]
   const amount = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN
@@ -266,6 +268,7 @@ export function CanonicalOpportunityDetail(props: Props) {
   </aside>
 }
 
+/** Map legacy workspace detail tabs to the canonical detail navigation. */
 function tabForWorkspace(tab: WorkspaceTab): CanonicalTab {
   if (tab === 'Timeline') return 'Timeline'
   if (tab === 'Evidence' || tab === 'Buying chain') return 'Related'
@@ -273,6 +276,7 @@ function tabForWorkspace(tab: WorkspaceTab): CanonicalTab {
   return 'Overview'
 }
 
+/** Map canonical detail tabs back to the workspace detail interface. */
 function workspaceTabFor(tab: CanonicalTab): WorkspaceTab {
   if (tab === 'Timeline') return 'Timeline'
   if (tab === 'Related') return 'Buying chain'

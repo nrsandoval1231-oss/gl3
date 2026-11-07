@@ -48,6 +48,7 @@ export type ShortlistAssessment = { eligible: boolean; reasons: string[]; eviden
 export type ProjectResultsSort = 'priority' | 'priority_asc' | 'company' | 'project' | 'updated'
 export type ProjectResult = { id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null; source_url?: string | null; verified_at?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; shortlist_assessment?: ShortlistAssessment | null; updated_at: string | null }
 export type BrowseGenerationMetadata = { generation_id?: string; as_of?: string; valid_until?: string; qualification_state?: 'current' | string; refresh_state?: 'current' | string }
+/** Reject browse metadata that has expired before the client can display it. */
 function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {
   if ((value.qualification_state && value.qualification_state !== 'current') || (value.refresh_state && value.refresh_state !== 'current')) {
     throw new Error('Current operator/customer results could not be confirmed.')
@@ -59,6 +60,7 @@ function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {
 }
 export type ProjectResultsPage = BrowseGenerationMetadata & { items: ProjectResult[]; total: number; count_unit: 'projects'; limit: number; offset: number; cohort_token: string; generation: string; results_scope?: 'qualified' | 'discovery' }
 export type DemandSummary = { counts_complete?: boolean; availability: 'available' | 'unavailable'; sector: 'all' | 'oil_gas' | 'data_centers'; as_of: string | null; totals: { identified_records: number; known_mw_records: number; unknown_records: number; conflicted_records: number }; classes: { documented: { mw: number | null; record_count: number }; calculated: { mw: number | null; record_count: number }; estimated: { mw: number | null; record_count: number } }; provenance: { contract: string; source_count: number; latest_evidence_at: string | null }; limitations: string[] }
+/** Validate an API demand summary and bind it to the requested sector. */
 function parseDemandSummary(value: unknown, requestedSector: DemandSummary['sector']): DemandSummary {
   const record = (input: unknown): input is Record<string, unknown> => typeof input === 'object' && input !== null && !Array.isArray(input)
   const count = (input: unknown) => Number.isSafeInteger(input) && (input as number) >= 0
@@ -177,6 +179,7 @@ async function api<T>(path: string, init?: RequestInit, includeSafeDetail = fals
   return value
 }
 
+/** Add only populated optional filters to an opportunity browse request. */
 function addBrowseFilters(params: URLSearchParams, filters: OpportunityBrowseFilters = {}) {
   const entries: [string, string | undefined][] = [
     ['geography', filters.geography], ['industry', filters.industry], ['industry_group', filters.industryGroup], ['activity', filters.activity],
@@ -259,6 +262,7 @@ export class OpportunityBrowsePendingError extends Error {
   }
 }
 
+/** Parse and clamp the server retry delay, using a safe fallback when invalid. */
 function parsePendingRetryAfter(value: string | null): number {
   if (!value) return PENDING_RETRY_FALLBACK_MS
   let milliseconds: number
@@ -273,6 +277,7 @@ function parsePendingRetryAfter(value: string | null): number {
   return Math.max(PENDING_RETRY_FALLBACK_MS, Math.min(PENDING_RETRY_MAX_MS, milliseconds))
 }
 
+/** Convert a pending browse response into the client's retry-aware error. */
 function throwIfBrowsePending(response: Response): void {
   if (response.status !== 503 || response.headers.get('X-Qualification-State')?.trim().toLowerCase() !== 'pending') return
   throw new OpportunityBrowsePendingError(parsePendingRetryAfter(response.headers.get('Retry-After')))
@@ -348,6 +353,7 @@ export const client = {
     requireCurrentBrowseGeneration(value.projects)
     return value
   },
+  /** Fetch a bounded project page with optional filters and source shortlist mode. */
   projectResults: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: ProjectResultsSort; need_id?: string; include_signals?: boolean; shortlist?: boolean }, signal?: AbortSignal): Promise<ProjectResultsPage> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))

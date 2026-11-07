@@ -26,6 +26,7 @@ function contactMethodLabel(contact: CardContact, method: ContactMethod) {
   return `${action} ${contact.company} ${route} · ${method.value}`
 }
 
+/** Present retained evidence and research actions for one opportunity. */
 export function IntelligenceCard({ card, opportunityName, customer, location, activity, tier, why, nextAction, onResearch }: {
   card: Card; opportunityName: string; customer: string | null | undefined; location: string | null | undefined; activity: string; tier: string; why: string; nextAction: string; onResearch: () => void
 }) {

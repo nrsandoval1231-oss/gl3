@@ -14,6 +14,7 @@ let cacheGeneration = 0
 if (typeof window !== 'undefined') window.addEventListener('gl3-clear-continuity', () => { cacheGeneration += 1; cache.clear() })
 const EMPTY_PROJECTS: ProjectResult[] = []
 const cacheKey = (search: string, sector: Sector, offset: number, sort: Sort, shortlist: boolean) => JSON.stringify([search, sector, offset, sort, shortlist])
+/** Reject malformed or expired cached result pages before presenting them. */
 function pageIsCurrent(page: ProjectResultsPage | null) {
   if (!page || !Array.isArray(page.items) || !Number.isSafeInteger(page.total) || page.total < 0 || !Number.isSafeInteger(page.limit) || page.limit <= 0 || !Number.isSafeInteger(page.offset) || page.offset < 0 || typeof page.cohort_token !== 'string') return false
   if (page.items.some(item => !item || typeof item.id !== 'string' || typeof item.name !== 'string' || !Array.isArray(item.needs))) return false
@@ -33,6 +34,7 @@ function readRoute() {
 type PageFilters = { region: string; stage: string; priority: string }
 const NO_FILTERS: PageFilters = { region: '', stage: '', priority: '' }
 /** Writes the current project cohort and visible page filters to the URL. */
+/** Persist browse filters and page state in the shareable workspace URL. */
 function updateUrl(search: string, sector: Sector, offset: number, sort: Sort, shortlist: boolean, cohort?: string, push = false, filters: PageFilters = NO_FILTERS) {
   const params = new URLSearchParams({ view: 'workspace' })
   if (new URLSearchParams(location.search).get('projectBrowse') === '1') params.set('projectBrowse', '1')
@@ -49,28 +51,34 @@ function updateUrl(search: string, sector: Sector, offset: number, sort: Sort, s
   else history.replaceState(history.state, '', `/?${params}`)
 }
 // Page-local filters change in place so an open selection (`need`, `section`) is kept.
+/** Update one optional project filter while preserving the current route. */
 function setFilterParam(key: keyof PageFilters, value: string) {
   const params = new URLSearchParams(location.search)
   if (value) params.set(key, value); else params.delete(key)
   history.replaceState(history.state, '', `/?${params}`)
 }
+/** Choose the best available source-backed name for display. */
 function displayProjectName(project: ProjectResult) {
   return project.company && project.name.startsWith(`${project.company} · `) ? project.name.slice(project.company.length + 3) : project.name
 }
 /** Chooses a human-readable project subject while avoiding unsupported identities. */
+/** Build the compact name shown on an opportunity card. */
 function cardProjectName(project: ProjectResult) {
   const subject = project.shortlist_assessment?.source_subject?.trim()
   if (subject && !/^\d+$/.test(subject) && !/\b(?:contractor|applicant)\b/i.test(subject)) return subject
   const name = displayProjectName(project).trim()
   return name && !/\b(?:contractor|applicant)\b/i.test(name) ? name : 'Project name not established'
 }
+/** Return the confirmed remaining-gap display when the source provides one. */
 function gapValue(project: ProjectResult) {
   if (project.power_summary_kind !== 'supported_gap' || !project.power_summary) return 'Unavailable'
   return project.power_summary
 }
+/** Format a project total without changing its underlying count. */
 function projectCount(value: number) {
   return `${value} project${value === 1 ? '' : 's'}`
 }
+/** Render a normalized lifecycle stage as readable UI text. */
 function stageLabel(value: string) {
   const known: Record<string, string> = {
     permit_issued: 'Permit issued', building_permit_issued: 'Building permit issued', electrical_permit_issued: 'Electrical permit issued',
@@ -78,6 +86,7 @@ function stageLabel(value: string) {
   }
   return known[value] ?? value.replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase())
 }
+/** Quote a CSV cell and neutralize spreadsheet formula prefixes. */
 function safeCsvCell(value: string) {
   const safe = /^[\s\t]*[=+@\-]/.test(value) ? `'${value}` : value
   return `"${safe.replaceAll('"', '""')}"`
@@ -236,6 +245,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   </section>
 }
 
+/** Show the sector demand summary while preserving unknown and unavailable states. */
 export function CanonicalOpportunityKpis() {
   const [sector, setSector] = useState<Sector>(() => readRoute().sector)
   const [summary, setSummary] = useState<DemandSummary | null>(null)
