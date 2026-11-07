@@ -1,11 +1,11 @@
 {
   "scope": "Local final candidate; no merge or deployment",
   "base_commit": "fc59eab64306b7bcd0d047a0f5b7b3eb9381b6aa",
-  "source_manifest_sha256": "b407a80b4a4bfc085f77d3882ac44a11c46e813110cdc3cbd257274a83852df0",
+  "source_manifest_sha256": "78a07a38ba898f6644ca3ba6ba1c07337357a43ef40cfc66d31a24f200d04e67",
   "source_manifest_method": "SHA256 of compact sorted JSON mapping changed backend/web paths to SHA256 of raw working-tree bytes",
   "source_files": {
     "backend/src/gridlens/api/app.py": "7e30ab90b28bb9ef7c8e9e68d70964d3d453804bb67e33030499aa111e1d0fab",
-    "backend/src/gridlens/domain/opportunity_shortlist.py": "3ecafb1449b97cbc8c4e53eea552807cdba75f5cb692625e7b6a0729121db5d3",
+    "backend/src/gridlens/domain/opportunity_shortlist.py": "779cf30f3861aec80444fdebd212ad88208ea01e8ec45467530ac0981d2eec43",
     "backend/src/gridlens/domain/pursuit_research.py": "e9231a9d6725171badf00372cc5eeaa0e4e86d29b1c532a77bfe7efa53d6049d",
     "backend/src/gridlens/intelligence/intelligence_jobs.py": "f55de506218ad8f1eb6743afccf8305c6d17bfae314248b509129e8fdccf2eba",
     "backend/src/gridlens/intelligence/project_results.py": "2284926b374b235904dfaa087c57d542863200441a945ede3dd5e57e472e1054",
@@ -18,7 +18,7 @@
     "backend/tests/unit/test_autonomous_resolution.py": "1a63622c102455196659d9e83b6baa5eb088737a550c6377165aed0bceac9c7d",
     "backend/tests/unit/test_evidence_judge.py": "e26dd83be8f16e65da456f68f309cf5dbfbee15d863aab3590e413effae7a2ea",
     "backend/tests/unit/test_intelligence_processing.py": "b73ce4033d9c10f33fb5e66b50ddb04399d51267485f90bc9e85bff52e0d8bb9",
-    "backend/tests/unit/test_opportunity_shortlist_policy.py": "35de17a8f64f5ae4883e850c7965ce0ee771b0bfb33d7ab2c9717734f3b47100",
+    "backend/tests/unit/test_opportunity_shortlist_policy.py": "7596a889a77d271c3e6a29125f63220bb1703d686f02a2a6921df2151aac8099",
     "web/src/api/client.ts": "398e1d52cf992f203c27c738c74919967116821b380a5da05ba3cd4a25dd3103",
     "web/src/api/generated.ts": "c48de56d56934cc747aca30aa344e9361dfd75bb4ce4460d34766bff0c7c7b79",
     "web/src/api/openapi.json": "f21fab1ef140ca6f9b38edd0a5e402b112321248e60800aea433c6801dd14cb5",
@@ -52,7 +52,8 @@
       "result": "PASS",
       "backend": "4957 passed, 3 skipped, 11 warnings, 7 subtests passed",
       "browser": "290 passed",
-      "other": "pip-audit, ruff, format, mypy, Alembic upgrade/check, npm ci/audit, TypeScript, Vite build, Chromium install passed"
+      "other": "pip-audit, ruff, format, mypy, Alembic upgrade/check, npm ci/audit, TypeScript, Vite build, Chromium install passed",
+      "scope": "Preceding full-gate commit 8ef2d616, before the two policy edge-case repairs below"
     },
     {
       "command": "uv run --project backend python scripts/check_docs.py",
@@ -69,6 +70,17 @@
     {
       "command": "Independent rollback-only suppression reproduction",
       "result": "Suppressed-phone leak=False; established projector removal=True"
+    },
+    {
+      "command": "uv run pytest tests/unit/test_opportunity_shortlist_policy.py tests/integration/test_project_results.py -q",
+      "cwd": "backend",
+      "scope": "Final source after review repairs",
+      "result": "97 passed, 1 warning in 8.99s",
+      "policy_regressions": "Ordinary prose colons preserve development scope; negated or excluded electrical drive cannot establish electrical equipment; affirmative sibling/replacement clauses and Applicant/Owner/Contractor/native-identifier metadata guards retained"
+    },
+    {
+      "command": "Frozen production pure-policy and actual project-results SQL replay after review repairs",
+      "result": "48 eligible records, 41 groups, all 2258 retained; unchanged comparison and source-backed card outputs"
     }
   ],
   "full_check_log_sha256": "948df4310d1182cf96ee7d515b8e00e58b15daedf88c97d8db44ec59aa0c15f8",
@@ -88,6 +100,16 @@
     "Local source-copy SQL/UI replay, not deployed API proof",
     "No new live Jev/Sol calls or original-page/PDF research",
     "Calibration and excluded-record audit do not establish population accuracy",
-    "No activity MW established; possible same-site phase/work-package duplicates remain"
-  ]
+    "No activity MW established; possible same-site phase/work-package duplicates remain",
+    "Full local gate and linked completed CI apply to preceding commit 8ef2d616; final policy repairs have focused local checks and final-head CI is reported in the PR"
+  ],
+  "preceding_full_gate_commit": "8ef2d616b35ac74334a9f43000fe9c9d84d47803",
+  "preceding_full_gate_source_manifest_sha256": "b407a80b4a4bfc085f77d3882ac44a11c46e813110cdc3cbd257274a83852df0",
+  "preceding_full_gate_github_ci": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/42350606469",
+  "preceding_full_gate_github_ci_result": "All five jobs passed, including Node22 browser regressions and three real-backend customer-rollup journeys",
+  "preceding_push_ci": {
+    "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/42350593195",
+    "result": "Backend failed one existing publication-diagnostic test with KeyError worker_browse_outcome; PR-triggered run on same commit passed",
+    "test": "test_refresh_outcome_survives_savepoint_and_excludes_private_error[True]"
+  }
 }

@@ -16,7 +16,7 @@
   "cards_with_why_now": 41,
   "cards_with_next_step": 41,
   "retained_required_mw_known": 0,
-  "source_policy_sha256": "3ecafb1449b97cbc8c4e53eea552807cdba75f5cb692625e7b6a0729121db5d3",
+  "source_policy_sha256": "779cf30f3861aec80444fdebd212ad88208ea01e8ec45467530ac0981d2eec43",
   "duplicate_groups": [
     {
       "project_ids": [
@@ -234,6 +234,6 @@
     "Retained adapter snapshots and short RSS excerpts were audited; original public pages were not refreshed.",
     "No new live Jev/Sol research or production writes.",
     "Offline domain SQL replay uses copied source/generation inputs, not a full production contact/suppression database clone.",
-    "Only validated well identity, exact native paired-permit scopes, and identical headline/abstract news are grouped; possible duplicates and phase ambiguity remain in both Shortlist and All Projects."
+    "Only physical well identity, exact native paired-permit scopes, and identical headline/abstract news are grouped; possible same-site phase/work-package duplicates remain in both Shortlist and All Projects."
   ]
 }

@@ -63,6 +63,46 @@ def test_specific_electrical_or_substantial_development_survives_unknown_mw(scop
 @pytest.mark.parametrize(
     "scope",
     [
+        "Install new non-electric compressor at the existing station.",
+        "Install new compressor that is not electrically driven at the existing station.",
+        "Install new compressor with no electric drive at the existing station.",
+        "Install new compressor without electrical drive at the existing station.",
+        "Install new not electric compressor at the existing station.",
+        "Install a new compressor with no electric motor at the existing station.",
+        "Install new not motor-driven pump at the existing station.",
+        "Install new compressor without an electric drive.",
+        "Install new compressor that is not an electric model.",
+        "Install new non-motor-driven pump.",
+        "Install new compressor; electric pump is not included.",
+    ],
+)
+def test_explicitly_non_electric_equipment_does_not_claim_electrical_drive(scope):
+    result = assess(source(scope), required_mw=None)
+    assert result["eligible"] is False
+    assert result["priority"] != 80
+    assert all("electrically driven" not in reason for reason in result["reasons"])
+
+
+def test_non_electric_equipment_does_not_hide_other_industrial_development_or_affirmative_drive():
+    industrial = assess(source("New industrial campus expansion with a non-electric compressor."))
+    assert industrial["eligible"] is True
+    assert industrial["priority"] == 70
+    assert all("electrically driven" not in reason for reason in industrial["reasons"])
+
+    affirmative = assess(source("Install new non-electric compressor; install new electric pump."))
+    assert affirmative["eligible"] is True
+    assert affirmative["priority"] == 80
+    assert any("electrically driven" in reason for reason in affirmative["reasons"])
+
+    replacement = assess(source("Replace non-electric compressor with new electric compressor."))
+    assert replacement["eligible"] is True
+    assert replacement["priority"] == 80
+    assert any("electrically driven" in reason for reason in replacement["reasons"])
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
         "TEMPORARY ELECTRICAL PERMIT - Scope limited to sports light pole foundations and poles.",
         "New chain link fence to serve an existing warehouse.",
         "New dry well for AC condensation drainage at warehouse.",
@@ -123,6 +163,33 @@ def test_retained_news_headline_and_abstract_are_meaningful_events(title, abstra
     assert result["eligible"]
     assert result["why_now"].startswith("Published 2026-10-27:")
     assert result["duplicate_key"]
+
+
+def test_colon_in_unstructured_news_prose_does_not_suppress_scope_fallback():
+    base = {
+        "title": "Example to spend $600M on Texas campus",
+        "source_id": "industry-news",
+        "event_date": None,
+        "published_at": "2026-10-27",
+    }
+    colon = assess(
+        source(
+            "",
+            **base,
+            abstract="Plans include: new manufacturing construction and engineering facilities.",
+        )
+    )
+    plain = assess(
+        source(
+            "",
+            **base,
+            abstract="Plans include new manufacturing construction and engineering facilities.",
+        )
+    )
+    assert colon["eligible"] is True
+    assert colon["eligible"] == plain["eligible"]
+    assert colon["priority"] == plain["priority"]
+    assert colon["reasons"] == plain["reasons"]
 
 
 def test_review_complete_is_not_completed_construction_and_buildings_stay_distinct():
@@ -207,6 +274,67 @@ def test_contact_lines_do_not_supply_scope_or_escape_in_excerpts():
             abstract="Contact: New data center construction\nDescription: Replace fence",
         )
     )["eligible"]
+
+
+def test_address_and_contact_metadata_alone_do_not_become_source_scope():
+    for abstract in (
+        "Address: 100 Example Way, Austin, TX\nContact: New data center construction",
+        "Applicant: New data center construction",
+        "Contractor: New data center construction",
+        "Owner: New data center construction",
+        "Permit number: New data center construction",
+    ):
+        assert not assess(source("", abstract=abstract))["eligible"]
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Project applicant",  # CEQAnet
+        "Lead agency",
+        "Owner of record",  # Fort Worth
+        "Owner contact email",  # TDLR
+        "Design firm",
+        "Primary contact",  # San Antonio
+        "Legal name",  # TCEQ
+        "Physical location",
+        "Permit/status number",  # RRC
+        "API number",
+        "Sponsor as filed",  # FAA
+        "Transmission owner",  # ERCOT
+        "contractor_company_name",  # Socrata
+        "applicant_org",
+        "owner_name",  # El Paso
+    ],
+)
+def test_native_adapter_metadata_cannot_supply_missing_development_scope(label):
+    metadata = f"{label}: New data center construction"
+    missing_scope = assess(source("", abstract=metadata))
+    assert not missing_scope["eligible"]
+    assert missing_scope["evidence_refs"] == []
+    assert missing_scope["why_now"] is None
+
+    # The same metadata must not block real work: only the explicit description
+    # supplies the activity evidence, and metadata is absent from its excerpt.
+    actual_scope = "Install a new electric compressor at the processing station."
+    supported = assess(source("", abstract=f"{metadata}\nDescription: {actual_scope}"))
+    assert supported["eligible"]
+    assert supported["scope"] == actual_scope
+    assert metadata not in supported["why_now"]
+
+
+def test_party_words_in_colon_prose_are_not_treated_as_metadata_labels():
+    result = assess(
+        source(
+            "",
+            title="Example Texas manufacturing campus update",
+            abstract=(
+                "The project applicant confirmed: new manufacturing construction begins this month."
+            ),
+        )
+    )
+    assert result["eligible"]
+    assert "new manufacturing construction" in result["scope"]
 
 
 def test_exact_paired_permit_scope_clusters_without_merging_phase_or_site():

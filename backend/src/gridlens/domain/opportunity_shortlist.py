@@ -52,6 +52,119 @@ def _fields(text: str) -> dict[str, str]:
     }
 
 
+_STRUCTURED_SOURCE_KEYS = {
+    "project",
+    "facility",
+    "scope",
+    "work description",
+    "description",
+    "stated purpose",
+    "type of work",
+    "work",
+    "status",
+    "tabs status",
+    "permit",
+    "permit type",
+    "permit number",
+    "permit no",
+    "permit #",
+    "row",
+    "address",
+    "contact",
+    "applicant",
+    "contractor",
+    "owner",
+    "developer",
+    "phone",
+    "telephone",
+    "email",
+    "applicant email",
+    "applicant_email",
+    "contractor phone",
+    "contractor_phone",
+    "event",
+    "event date",
+    "source",
+    "source id",
+    "source_id",
+    "registration",
+    "parcel",
+    "title",
+    # Native labels emitted by CEQAnet, TDLR, TCEQ, municipal permits,
+    # RRC and utility adapters. Their values identify parties/documents/sites;
+    # they are not project activity prose when a scope field is absent.
+    "project applicant",
+    "project name",
+    "lead agency",
+    "document type",
+    "document",
+    "addresses",
+    "location",
+    "physical location",
+    "site location",
+    "site name",
+    "owner of record",
+    "legal name",
+    "customer",
+    "design firm",
+    "transmission owner",
+    "sponsor as filed",
+    "permittee",
+    "operator",
+    "operator number",
+    "api number",
+    "application number",
+    "control number",
+    "filing number",
+    "interconnection number",
+    "permit numbers",
+    "permit/status number",
+    "lease",
+    "well",
+}
+
+
+def _has_structured_record(fields: dict[str, str]) -> bool:
+    for key in fields:
+        # Socrata and El Paso render underscore keys, while other adapters use
+        # spaced labels. Recognize bounded party/contact variants in either
+        # spelling without treating arbitrary prose before a colon as a key.
+        normalized = " ".join(key.replace("_", " ").split())
+        if normalized in _STRUCTURED_SOURCE_KEYS or re.fullmatch(
+            r"(?:owner|contractor|applicant|developer|operator|primary contact)"
+            r"(?: (?:name|full name|company name|org|trade|address|contact(?: name)?|"
+            r"phone|telephone|email|contact phone|contact email))?",
+            normalized,
+        ):
+            return True
+    return False
+
+
+def _has_affirmative_electrically_driven_equipment(scope: str) -> bool:
+    equipment = r"\b(?:pump|compressor|motor)\b"
+    electric = r"\b(?:electric(?:al)?|motor[- ]driven)\b"
+    negated = (
+        r"\b(?:non[- ](?:electric(?:al)?|motor[- ]driven)|"
+        r"not\b.{0,48}\b(?:electric(?:al)?(?:ly)?|motor[- ]driven|electric model)\b|"
+        r"(?:no|without)\b.{0,48}\b(?:electric(?:al)?|motor[- ]driven)\b|"
+        r"(?:electric(?:al)?|motor[- ]driven)\b.{0,48}\b(?:not included|not provided|not specified|"
+        r"not present|not required|not used|not installed|excluded|absent)\b)"
+    )
+    changed = r"\b(?:new|install\w*|expand\w*|replac\w*|upgrade\w*)\b"
+    clauses = re.split(
+        r"[.,;]|\b(?:but|whereas)\b|\s+and\s+|\bwith\s+(?=a?\s*new\b)",
+        scope,
+        flags=re.I,
+    )
+    return any(
+        _has(equipment, clause)
+        and _has(electric, clause)
+        and _has(changed, clause)
+        and not _has(negated, clause)
+        for clause in clauses
+    )
+
+
 def _clean(value: str) -> str:
     value = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[redacted]", value)
     value = re.sub(
@@ -306,10 +419,8 @@ def _development(title: str, scope: str, fields: dict[str, str]) -> tuple[int, s
         )
     # Equipment evidence can identify a meaningful change even at an existing
     # site. Electrical-drive evidence is required; horsepower alone is not MW.
-    if (
-        _has(r"\b(?:electric(?:al)?|motor[- ]driven)\b", scope)
-        and _has(r"\b(?:pump|compressor|motor)\b", scope)
-        and _has(r"\b(?:new|install\w*|expand\w*|replac\w*)\b", scope)
+    if _has_affirmative_electrically_driven_equipment(scope) and _has(
+        r"\b(?:new|install\w*|expand\w*|replac\w*)\b", scope
     ):
         return (
             80,
@@ -379,7 +490,9 @@ def shortlist_assessment(
             continue
         if planned_event and event_day and (event_day - today).days > 730:
             continue
-        fields = _fields(body)
+        parsed_fields = _fields(body)
+        structured_record = _has_structured_record(parsed_fields)
+        fields = parsed_fields if structured_record else {}
         scope = next(
             (
                 fields[k]
@@ -391,7 +504,7 @@ def shortlist_assessment(
         # Unstructured news abstracts are retained source excerpts. For other
         # structured records, do not classify contact/address/metadata lines.
         if scope is None:
-            scope = body if not fields else ""
+            scope = "" if structured_record else body
         decision = _development(title, scope, fields)
         if decision is None:
             continue
@@ -401,7 +514,7 @@ def shortlist_assessment(
         excerpt = scope or title
         # The headline carries news events such as topped out; abstract alone
         # can omit them. Structured permit explanations use the actual scope.
-        if not fields:
+        if not structured_record:
             excerpt = f"{title}. {scope}"
         schedule = (
             f"; {_clean(event_label)} {event_day.isoformat()} (estimate)"
