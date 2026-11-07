@@ -1062,3 +1062,41 @@ def test_owner_unlimited_requires_explicit_provider_contract_and_authorization(m
     monkeypatch.setattr(settings, "intelligence_financial_authorization_ref", " ")
     assert not _owner_unlimited_allowed("typesafe", "MATERIALITY_V1")
     assert _typesafe_billing_block_reason("jev-1.13.0", "MATERIALITY_V1")
+
+
+def test_jev_grounding_prefers_temporary_load_timing_and_buyer_only_when_enabled():
+    from gridlens.intelligence.intelligence_jobs import _preferred_grounding_question
+
+    categories = {"supply", "timing", "buyer", "load"}
+    enabled = {
+        "UTILITY_ONLINE_DATE",
+        "CONSTRUCTION_START",
+        "DIRECT_BUYER_AUTHORITY",
+        "TEMP_LOAD_MW",
+    }
+    assert _preferred_grounding_question(categories, enabled) == "TEMP_LOAD_MW"
+    assert _preferred_grounding_question(categories - {"load"}, enabled) == "CONSTRUCTION_START"
+    assert (
+        _preferred_grounding_question(categories - {"load", "timing"}, enabled)
+        == "DIRECT_BUYER_AUTHORITY"
+    )
+    assert (
+        _preferred_grounding_question(categories, {"UTILITY_ONLINE_DATE"}) == "UTILITY_ONLINE_DATE"
+    )
+    assert _preferred_grounding_question(categories, set()) is None
+
+
+def test_jev_routing_without_active_approval_has_no_effect():
+    from uuid import uuid4
+
+    from gridlens.intelligence.intelligence_jobs import _apply_bounded_routing_effect
+
+    assert (
+        _apply_bounded_routing_effect(
+            object(),
+            checkpoint={"task_type": "LLM_ROUTE_V1"},
+            result={"answer": {"choice": "DEEP_RESEARCH"}},
+            need_id=uuid4(),
+        )
+        is None
+    )

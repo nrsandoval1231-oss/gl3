@@ -48,6 +48,7 @@ function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_k
 export function CanonicalOpportunityDetail(props: Props) {
   const { item, pending, loading, error, associationNotice, tab, onTab, onBack, onRetry } = props
   const canonicalTab: CanonicalTab = tabForWorkspace(tab)
+  const detailShortlist = new URLSearchParams(window.location.search).get('shortlist') !== '0'
   const [projectState, setProjectState] = useState<{ needId: string | null; project: import('../../api/client').ProjectResult | null }>({ needId: null, project: null })
   const [projectStatus, setProjectStatus] = useState<{ needId: string | null; loading: boolean; error: string }>({ needId: null, loading: false, error: '' })
   // Do not expose metadata from the previous selection during the render before the effect runs.
@@ -63,22 +64,31 @@ export function CanonicalOpportunityDetail(props: Props) {
     }
     const controller = new AbortController()
     const needId = item.id
+    const shortlist = detailShortlist
     setProjectStatus({ needId, loading: true, error: '' })
-    client.projectResults({ need_id: item.id, sector: 'all', limit: 1, offset: 0, sort: 'priority' }, controller.signal)
-      .then(page => {
+    const loadProject = async () => {
+      try {
+        const query = { need_id: needId, sector: 'all' as const, limit: 25, offset: 0, sort: 'priority' as const, shortlist, include_signals: true }
+        let page = await client.projectResults(query, controller.signal)
+        let match = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
+        // A bookmarked legacy need may be outside today's shortlist. Preserve access to its sources.
+        if (!match && shortlist && !controller.signal.aborted) {
+          page = await client.projectResults({ ...query, shortlist: false }, controller.signal)
+          match = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
+        }
         if (controller.signal.aborted) return
-        const match = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
         setProjectState({ needId, project: match ?? null })
         setProjectStatus({ needId, loading: false, error: match ? '' : 'Current project details could not be matched to this opportunity.' })
-      })
-      .catch(cause => {
+      } catch (cause) {
         if (!controller.signal.aborted) {
           setProjectState({ needId, project: null })
           setProjectStatus({ needId, loading: false, error: cause instanceof Error ? cause.message : 'Current project details are unavailable.' })
         }
-      })
+      }
+    }
+    void loadProject()
     return () => controller.abort()
-  }, [item?.id])
+  }, [item?.id, detailShortlist])
 
   if (!item) return <aside className="cod-panel" aria-label="Opportunity detail">
     {(pending || loading || error) && <button type="button" className="cod-back" onClick={onBack}>Opportunities</button>}
@@ -248,7 +258,9 @@ export function CanonicalOpportunityDetail(props: Props) {
 
     {canonicalTab === 'Related' && <section className="cod-tab-content"><h3>Related records</h3>
       {item.project_id ? <BuyingChain projectId={item.project_id} /> : <p>Project identity is not established, so related buying-chain records are unavailable.</p>}
-      <h4>Source records</h4>{sources.length ? sources.map(source => <article className="cod-related-source" key={source.id}>{safeSourceUrl(source.url) ? <a href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{displayDate(source.event_date || source.published_at)} · {source.source_origin}</span><p>{source.abstract || 'No source summary is available.'}</p></article>) : <p>No source records are attached.</p>}
+      {project?.needs.filter(need => need.id !== item.id).length ? <section aria-label="Other source-backed records"><h4>Other source-backed records</h4>{project.needs.filter(need => need.id !== item.id).map(need => <button className="cod-related-need" type="button" key={need.id} onClick={() => dispatchEvent(new CustomEvent('gl3-open-need', { detail: need.id }))}>{need.browse_title || need.name || need.activity || 'Open related source-backed record'}{need.location ? ` · ${need.location}` : ''}</button>)}</section> : null}
+      <h4>Sources</h4>{sources.length ? sources.map(source => <article className="cod-related-source" key={source.id}>{safeSourceUrl(source.url) ? <a href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{displayDate(source.event_date || source.published_at)} · {source.source_origin}</span><p>{source.abstract || 'No source summary is available.'}</p></article>) : <p>No source records are attached.</p>}
+      <section aria-label="What's missing" className="cod-whats-missing"><h4>What’s missing</h4>{card?.research_gaps?.length ? <ul>{card.research_gaps.map(gap => <li key={gap.key}>{gap.label}</li>)}</ul> : item.missing_facts?.length ? <ul>{item.missing_facts.map(gap => <li key={gap}>{gap}</li>)}</ul> : <p>No explicit research gaps are recorded for this opportunity.</p>}</section>
     </section>}
   </aside>
 }

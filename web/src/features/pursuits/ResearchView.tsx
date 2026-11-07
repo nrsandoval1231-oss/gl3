@@ -97,7 +97,7 @@ export function ResearchView() {
 
   return <main className={`research-view ${selectedId ? 'has-selection' : ''}`} aria-label="Automated research">
     <section className="research-list" aria-label="Research opportunities">
-      <header><div><p className="wh-kicker">Autonomous intelligence</p><h1>Research</h1><p>Source-backed research progress, verified buying contacts and known gaps across current opportunities.</p></div></header>
+      <header><div><p className="wh-kicker">Autonomous intelligence</p><h1>Research progress</h1><p>Source-backed research progress, verified buying contacts and known gaps across current opportunities.</p></div></header>
       <label className="research-search">Search opportunities<input aria-label="Search research opportunities" value={search} onChange={event => changeSearch(event.target.value)} placeholder="Company, project or location"/></label>
       {error && <p role="alert">{error} <button onClick={() => setReload(value => value + 1)}>Retry</button></p>}
       {loading && <p role="status">Loading current opportunities…</p>}

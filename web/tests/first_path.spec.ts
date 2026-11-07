@@ -39,7 +39,7 @@ async function signIn(page: import('@playwright/test').Page) {
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
 }
 
-async function openSecondaryRoute(page: import('@playwright/test').Page, name: 'Research' | 'Signals') {
+async function openSecondaryRoute(page: import('@playwright/test').Page, name: 'Research' | 'Research progress' | 'Signals') {
   const menu = page.locator('.wh-account')
   if (await menu.getAttribute('open') === null) await menu.locator('summary').click()
   await menu.getByRole('button', { name, exact: true }).click()
@@ -140,8 +140,8 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
   ])
   await expect(page.locator('.wh-ingestion-row').first()).toContainText(inbox.page.items[0].title)
   await sourceFilter.selectOption('el-paso-new-commercial-permits')
-  await openSecondaryRoute(page, 'Research')
-  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
+  await openSecondaryRoute(page, 'Research progress')
+  await expect(page.getByRole('heading', { name: 'Research progress', exact: true })).toBeVisible()
   await expect(page.getByText(/Source-backed research progress/)).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()

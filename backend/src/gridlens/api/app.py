@@ -651,6 +651,7 @@ def _validate_browse_query(request: Request) -> None:
             "sort",
             "need_id",
             "include_signals",
+            "shortlist",
         }
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
@@ -2100,6 +2101,7 @@ def project_opportunities(
     cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
     sort: Literal["priority", "priority_asc", "company", "project", "updated"] = "priority",
     include_signals: bool = False,
+    shortlist: bool = False,
 ):
     from gridlens.intelligence.project_results import page as project_page
 
@@ -2115,6 +2117,7 @@ def project_opportunities(
             sort=sort,
             need_id=need_id,
             include_signals=include_signals,
+            shortlist=shortlist,
         )
         _bounded_opportunity_payload(payload["items"])
         if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
