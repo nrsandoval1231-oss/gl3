@@ -25,7 +25,7 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
   await expect.poll(() => requests[0]?.searchParams.get('shortlist')).toBe('true')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(2)
-  await expect(page.locator('.cfr-kpis article')).toHaveCount(3)
+  await expect(page.locator('.cfr-kpis article')).toHaveCount(1)
   const demandKpi = page.locator('.cfr-kpis article').first()
   await expect(demandKpi).toContainText('Identified Power Demand (MW)')
   await expect.poll(() => demandKpi.locator('strong').textContent()).toBe('8 MW')
@@ -41,15 +41,17 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await expect(demandKpi).toContainText('3 contributing sources')
   await expect.poll(() => demandRequests.at(-1)?.searchParams.get('sector')).toBe('all')
   await expect(page.locator('.cfr-heading')).toContainText('Shortlist')
-  await expect(page.locator('.cfr-kpis')).toContainText('Priority classification unavailable')
-  await expect(page.locator('.cfr-kpis')).toContainText('Creation date unavailable')
   await expect(page.locator('.cfr-table')).toContainText('Northstar Energy')
   await expect(page.locator('.cfr-table')).toContainText('Mesa Compressor')
   await expect(page.locator('.cfr-table')).toContainText('Permit issued for Mesa Compressor on October 10, 2026.')
   await expect(page.locator('.cfr-table')).toContainText('Confirm the project owner and power timing.')
-  await expect(page.locator('.cfr-table')).toContainText('Activity MW not established')
+  await expect(page.locator('.cfr-table')).toContainText('Power need unknown')
   await expect(page.locator('.cfr-table')).not.toContainText('Qualification: Signal')
-  await expect(page.locator('.cfr-table')).toContainText('Supported gap · 420 MW supported residual gap')
+  await expect(page.locator('.cfr-table')).toContainText('Power need unknown')
+  await expect(page.locator('.cfr-table')).not.toContainText('420 MW supported residual gap')
+  await expect(page.locator('.cfr-table')).not.toContainText('View project')
+  const stageFilter = page.getByRole('combobox', { name: 'Stage' })
+  await expect(stageFilter.locator('option[value="permit_issued"]')).toHaveText('Permit issued')
 
   await page.getByRole('combobox', { name: 'Region' }).selectOption({ label: 'Midland, TX' })
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(1)
@@ -73,9 +75,21 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await page.getByRole('textbox', { name: 'Search opportunities' }).fill('alternate source alias')
   await expect.poll(() => requests.some(url => url.searchParams.get('search') === 'alternate source alias')).toBeTruthy()
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(page.locator('.cfr-kpis article')).toHaveCount(3)
+  await expect(page.locator('.cfr-kpis article')).toHaveCount(1)
   await expect(demandKpi.locator('strong')).toHaveText('8 MW')
+  // A single summary must fill the phone width, not occupy one obsolete KPI column.
+  await expect.poll(async () => (await demandKpi.boundingBox())?.width ?? 0).toBeGreaterThan(300)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+})
+
+test('single-result header and pagination use singular project wording', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: { ...pageFixture, items: [pageFixture.items[0]], total: 1 } }))
+  await page.route('**/api/opportunities/needs/**', route => route.fulfill({ json: { id: 'n1', project_id: 'p1', name: 'Northstar Mesa Compressor', browse_title: 'Northstar Mesa Compressor', location: 'Midland, TX', tier: 'Signal', activity: 'compression', required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Synthetic fixture', workflow_status: 'New' } }))
+  await page.goto('/?view=workspace&projectBrowse=1')
+  await expect(page.locator('.cfr-heading > div').nth(1)).toContainText('1 project · Shortlist')
+  await expect(page.locator('.cfr-paging')).toContainText('1–1 of 1 project')
 })
 
 test('canonical KPI captions stay within their cards and above the opportunities heading', async ({ page }) => {
@@ -87,14 +101,14 @@ test('canonical KPI captions stay within their cards and above the opportunities
 
   const kpis = page.locator('.cfr-kpis')
   const heading = page.getByRole('heading', { name: 'Opportunities' })
-  await expect(kpis.locator('article')).toHaveCount(3)
+  await expect(kpis.locator('article')).toHaveCount(1)
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 })
     await expect.poll(async () => page.evaluate(() => {
       const cards = [...document.querySelectorAll<HTMLElement>('.cfr-kpis article')]
       const heading = document.querySelector<HTMLElement>('.cfr-heading h1')
       const results = document.querySelector<HTMLElement>('.canonical-flat-results')
-      if (cards.length !== 3 || !heading || !results) return false
+      if (cards.length !== 1 || !heading || !results) return false
       const cardContainsText = cards.every(card => {
         const box = card.getBoundingClientRect()
         return [...card.querySelectorAll<HTMLElement>('strong, span, small')].every(text => {
@@ -111,7 +125,7 @@ test('canonical KPI captions stay within their cards and above the opportunities
   }
   await expect(heading).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: 'Mesa Compressor', exact: true }).click()
+  await page.locator('[data-need-row="n1"]').first().click()
   await expect(page.locator('.cfr-kpis')).toBeHidden()
   await page.locator('.cod-back').click()
   await expect(page.locator('.cfr-kpis')).toBeVisible()

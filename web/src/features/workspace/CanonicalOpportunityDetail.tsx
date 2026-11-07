@@ -7,7 +7,7 @@ import { AddToPursuit } from '../pursuits/AddToPursuit'
 import './canonical-opportunity-detail.css'
 
 type Props = Parameters<typeof WorkspaceDetail>[0]
-type CanonicalTab = 'Overview' | 'Intelligence' | 'Timeline' | 'Related'
+type CanonicalTab = 'Overview' | 'Details' | 'Timeline' | 'Related'
 
 function firstSentence(value: string | null | undefined) {
   const text = value?.trim()
@@ -148,7 +148,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     ['Grid proximity', field('grid_proximity')?.value], ['Utility status', field('utility_status')?.value],
     ['Site control', field('site_control')?.value], ['Estimated project value', field('project_value')?.value],
     ['Development partner', field('development_partner')?.value],
-    ['Last intelligence update', card?.last_intelligence_update ? displayDate(card.last_intelligence_update) : null],
+    ['Last updated', card?.last_intelligence_update ? displayDate(card.last_intelligence_update) : null],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
 
   return <aside className="cod-panel" aria-label="Opportunity detail">
@@ -162,7 +162,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     </div>
 
     <nav className="cod-tabs" aria-label="Project detail sections">
-      {(['Overview', 'Intelligence', 'Timeline', 'Related'] as const).map(value => <button key={value} type="button" aria-pressed={canonicalTab === value} className={canonicalTab === value ? 'active' : ''} onClick={() => onTab(workspaceTabFor(value))}>{value}</button>)}
+      {(['Overview', 'Details', 'Timeline', 'Related'] as const).map(value => <button key={value} type="button" aria-pressed={canonicalTab === value} className={canonicalTab === value ? 'active' : ''} onClick={() => onTab(workspaceTabFor(value))}>{value}</button>)}
     </nav>
     {canonicalTab !== 'Overview' && <p className="cod-summary">{summary}</p>}
     {(projectLoading || projectError || associationNotice) && <p className="cod-status" role={projectError ? 'status' : undefined}>{projectLoading ? 'Loading current project details…' : projectError || associationNotice}</p>}
@@ -239,11 +239,11 @@ export function CanonicalOpportunityDetail(props: Props) {
       <button type="button" className="cod-view-all-evidence" onClick={() => onTab('Evidence')}>View all evidence</button>
       <section className="cod-next-action" aria-label="Recommended next action"><Target size={19} strokeWidth={1.6}/><div><strong>Next Action</strong><p>{nextAction}</p></div><button type="button" onClick={() => onTab('Research')}>View research</button></section>
       </div>
-      <AddToPursuit key={item.id} needId={item.id}><button type="button" className="cod-action-secondary" onClick={() => onTab('Evidence')}>View Full Details</button></AddToPursuit>
+      <AddToPursuit key={item.id} needId={item.id}><button type="button" className="cod-action-secondary" onClick={() => onTab('Evidence')}>View Details</button></AddToPursuit>
     </>}
 
-    {canonicalTab === 'Intelligence' && <section className="cod-tab-content">
-      <h3>Commercial intelligence</h3>
+    {canonicalTab === 'Details' && <section className="cod-tab-content">
+      <h3>Project details</h3>
       <p>{summary}</p>
       <dl className="cod-intelligence-facts">{metrics.map(metric => <div key={metric.label}><dt>{metric.label}</dt><dd>{metric.value}<small>{metric.basis}</small></dd></div>)}</dl>
       {card?.fields.filter(value => value.value).map(value => <article className="cod-fact" key={value.key}><strong>{value.label}</strong><p>{value.value}</p><small>{value.status} · {value.basis}</small>{value.sources?.map(source => safeSourceUrl(source.url) && <a key={source.reference} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}{source.source_date ? ` · ${source.source_date}` : ''}</a>)}</article>)}
@@ -268,14 +268,14 @@ export function CanonicalOpportunityDetail(props: Props) {
 function tabForWorkspace(tab: WorkspaceTab): CanonicalTab {
   if (tab === 'Timeline') return 'Timeline'
   if (tab === 'Evidence' || tab === 'Buying chain') return 'Related'
-  if (tab === 'Unknowns' || tab === 'Power gap') return 'Intelligence'
+  if (tab === 'Unknowns' || tab === 'Power gap') return 'Details'
   return 'Overview'
 }
 
 function workspaceTabFor(tab: CanonicalTab): WorkspaceTab {
   if (tab === 'Timeline') return 'Timeline'
   if (tab === 'Related') return 'Buying chain'
-  if (tab === 'Intelligence') return 'Unknowns'
+  if (tab === 'Details') return 'Unknowns'
   return 'Overview'
 }
 

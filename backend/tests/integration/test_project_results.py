@@ -25,6 +25,7 @@ from gridlens.persistence.models import (
     Evidence,
     NeedObservation,
     PersonIdentity,
+    SignalDecision,
 )
 from gridlens.persistence.suppression_models import ContactSuppression
 from gridlens.security import token_for
@@ -387,7 +388,8 @@ def test_source_bound_shortlist_filters_before_counts_and_keeps_all_projects_unc
                 ],
             }
     with saved_db() as session:
-        shortlist = page(session, shortlist=True, limit=1)
+        generation = current_generation(session)
+        shortlist = page(session, shortlist=True, limit=1, selected_generation=generation)
         assert shortlist["total"] == 1
         assert len(shortlist["items"]) == 1
         assessment = shortlist["items"][0]["shortlist_assessment"]
@@ -407,6 +409,43 @@ def test_source_bound_shortlist_filters_before_counts_and_keeps_all_projects_unc
         assert all_projects["total"] == 3
         assert all("shortlist_assessment" not in item for item in all_projects["items"])
         assert shortlist["cohort_token"] != all_projects["cohort_token"]
+
+        # A current, pinned demand decision can veto only its exact retained
+        # source version. Non-Jev/legacy decisions abstain.
+        evidence = session.scalar(
+            select(Evidence).where(Evidence.id == UUID(assessment["evidence_refs"][0]))
+        )
+        decision = SignalDecision(
+            observation_id=evidence.observation_id,
+            content_hash=evidence.content_hash,
+            policy_version="signal-display-v2",
+            decision="HOLD",
+            source="jev",
+            model_version=settings.jev_model,
+            dimensions={"question_set": "demand-v1"},
+            reason="Synthetic source-bound display test",
+        )
+        session.add(decision)
+        session.flush()
+        with pytest.raises(HTTPException) as stale_cohort:
+            page(
+                session,
+                shortlist=True,
+                limit=1,
+                offset=1,
+                token=shortlist["cohort_token"],
+                selected_generation=generation,
+            )
+        assert stale_cohort.value.status_code == 409
+        assert page(session, shortlist=True, limit=1, selected_generation=generation)["total"] == 0
+
+        decision.source = "deterministic"
+        session.flush()
+        assert page(session, shortlist=True, limit=1, selected_generation=generation)["total"] == 1
+        decision.source = "jev"
+        decision.dimensions = {"question_set": "temporary-power-v2"}
+        session.flush()
+        assert page(session, shortlist=True, limit=1, selected_generation=generation)["total"] == 1
 
 
 def test_project_results_route_requires_session(saved_db, monkeypatch):

@@ -20,6 +20,7 @@ class _AcceptedSource(TypedDict):
     date: date
     reason: str
     priority: int
+    jev_show: bool
     subject: str
     scope: str
     label: str
@@ -174,6 +175,23 @@ def _has_affirmative_electrically_driven_equipment(scope: str) -> bool:
     )
 
 
+def _positive_development_scope(scope: str) -> tuple[str, bool]:
+    """Remove explicit negative development clauses without erasing separate work."""
+    denial = re.compile(
+        r"\bno\b.{0,100}\b(?:new\s+)?(?:construction|development|expansion|"
+        r"buildout|electrical work|power work)\b.{0,60}\b(?:proposed|planned|"
+        r"authorized|underway|reported|occurring)\b|"
+        r"\b(?:new\s+)?(?:construction|development|expansion|buildout|"
+        r"electrical work|power work)\b.{0,60}\b(?:is|are|was|were)?\s*"
+        r"(?:not|never)\s+(?:proposed|planned|authorized|underway|reported|occurring)\b",
+        re.I,
+    )
+    clauses = re.split(r"[.;]|\b(?:but|whereas|however)\b", scope, flags=re.I)
+    denied = [clause for clause in clauses if denial.search(clause)]
+    positive = [clause for clause in clauses if not denial.search(clause)]
+    return " ".join(positive), bool(denied)
+
+
 def _clean(value: str) -> str:
     value = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[redacted]", value)
     value = re.sub(
@@ -267,8 +285,23 @@ def _subject(fields: dict[str, str], title: str, reason: str) -> str:
 
 def _development(title: str, scope: str, fields: dict[str, str]) -> tuple[int, str] | None:
     """Interpret bounded source clauses rather than unrelated metadata keywords."""
-    context = f"{title} {fields.get('project', '')} {fields.get('facility', '')}"
-    work = f"{fields.get('type of work', '')} {fields.get('work', '')} {scope}"
+    positive_scope, has_negated_development = _positive_development_scope(scope)
+    context = (
+        ""
+        if has_negated_development
+        else (f"{title} {fields.get('project', '')} {fields.get('facility', '')}")
+    )
+    work = f"{fields.get('type of work', '')} {fields.get('work', '')} {positive_scope}"
+    if (
+        has_negated_development
+        and not _has(
+            r"\b(?:new|install\w*|construct\w*|foundation\w*|expand\w*|expansion|"
+            r"remodel|commission\w*|replac\w*|upgrade\w*)\b",
+            work,
+        )
+        and not _has_affirmative_electrically_driven_equipment(work)
+    ):
+        return None
     text = f"{context} {work}"
     # Structured terminal statuses apply to the permit, not phrases such as
     # TABS 'Review Complete', a complete application, or a completed foundation.
@@ -292,15 +325,6 @@ def _development(title: str, scope: str, fields: dict[str, str]) -> tuple[int, s
     ):
         return None
     if _has(r"\bW-1\b|\bdrilling permit\b", title):
-        return None
-    # Negated scope cannot be rescued by a project category or generic permit.
-    if _has(
-        (
-            r"\b(?:no|not any) (?:new )?(?:construction|electrical work|power "
-            r"work) (?:is )?(?:proposed|authorized|planned)\b"
-        ),
-        scope,
-    ):
         return None
     temporary_negated = _has(
         (
@@ -512,6 +536,13 @@ def shortlist_assessment(
         # structured records, do not classify contact/address/metadata lines.
         if scope is None:
             scope = "" if structured_record else body
+        jev_decision = source.get("jev_decision")
+        # Jev is advisory at source-version granularity: a validated HOLD can
+        # remove this source from triage, while SHOW only breaks ties between
+        # equally strong deterministic source assessments. REVIEW/absence
+        # abstains so sparse model coverage cannot hide a project.
+        if jev_decision == "HOLD":
+            continue
         decision = _development(title, scope, fields)
         if decision is None:
             continue
@@ -534,6 +565,7 @@ def shortlist_assessment(
                 "date": source_day,
                 "reason": reason,
                 "priority": priority,
+                "jev_show": jev_decision == "SHOW",
                 "subject": _clean(subject)[:200],
                 "scope": _clean(excerpt)[:320],
                 "label": _clean(label),
@@ -542,7 +574,10 @@ def shortlist_assessment(
                 "duplicate_key": _duplicate_key(source, fields, scope),
             }
         )
-    accepted.sort(key=lambda item: (item["priority"], item["date"], item["id"]), reverse=True)
+    accepted.sort(
+        key=lambda item: (item["priority"], item["jev_show"], item["date"], item["id"]),
+        reverse=True,
+    )
     chosen = accepted[0] if accepted else None
     reasons = list(dict.fromkeys(item["reason"] for item in accepted))
     if chosen and compact.get("required_mw") is None:

@@ -417,6 +417,78 @@ def test_summary_reasons_and_evidence_count_cannot_self_certify():
     assert not result["eligible"]
 
 
+@pytest.mark.parametrize(
+    "title,scope",
+    [
+        (
+            "Refinery expansion update",
+            "No expansion of the refinery is proposed. Renewal of the existing permit only.",
+        ),
+        (
+            "New data center construction",
+            "New data center construction is not proposed; administrative ownership transfer only.",
+        ),
+    ],
+)
+def test_explicitly_negated_development_does_not_promote_from_title(title, scope):
+    assert not assess(source(scope, title=title))["eligible"]
+
+
+def test_negated_scope_does_not_veto_separate_affirmative_equipment_work():
+    result = assess(
+        source(
+            "No expansion of the refinery is proposed, but install a new electric compressor.",
+            title="Permit update",
+        )
+    )
+    assert result["eligible"]
+    assert any("electrically driven" in reason for reason in result["reasons"])
+
+
+def test_negated_development_title_cannot_be_rescued_by_generic_permit_language():
+    result = assess(
+        source(
+            "New data center construction is not proposed. New permit holder name only.",
+            title="New data center construction",
+        )
+    )
+    assert not result["eligible"]
+
+
+def test_negated_construction_does_not_veto_independent_equipment_work():
+    result = assess(
+        source(
+            "No construction is proposed, but install a new electric compressor.",
+            title="Permit update",
+        )
+    )
+    assert result["eligible"]
+    assert any("electrically driven" in reason for reason in result["reasons"])
+
+
+def test_jev_hold_is_source_bound_and_sparse_coverage_abstains():
+    held = source("New data center construction", id="jev-held", jev_decision="HOLD")
+    unreviewed = source("New data center construction", id="unreviewed")
+    result = assess(held, unreviewed)
+    assert result["eligible"]
+    assert result["evidence_refs"] == ["unreviewed"]
+
+    assert not assess(held)["eligible"]
+    # REVIEW and unknown decisions do not veto source-backed deterministic relevance.
+    reviewed = source("New data center construction", id="reviewed", jev_decision="REVIEW")
+    assert assess(reviewed)["eligible"]
+
+
+def test_jev_show_only_breaks_equal_deterministic_triage_ties():
+    plain = source("New data center construction phase one", id="z-plain")
+    shown = source("New data center construction phase two", id="a-shown", jev_decision="SHOW")
+    result = assess(plain, shown)
+    assert result["eligible"]
+    assert result["why_now"].startswith("Permit issued 2026-10-01:")
+    assert "phase two" in result["why_now"]
+    assert result["evidence_refs"] == ["a-shown", "z-plain"]
+
+
 def test_published_future_developer_milestone_is_retained_as_estimate():
     result = assess(
         source(

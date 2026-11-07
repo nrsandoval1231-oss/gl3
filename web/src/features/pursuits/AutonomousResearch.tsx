@@ -47,7 +47,7 @@ export function AutonomousResearch({ needId }: { needId: string }) {
   }, [needId, reload])
   const pending = data?.items.filter(active) ?? []
   return <section className="commercial-action autonomous-research" aria-label="Autonomous research history" data-context-loading={!data && !error}>
-    <h3>Automated research</h3>
+    <h3>Research history</h3>
     <p>Source discovery, evidence checks and reevaluation run automatically. No commercial outreach occurs.</p>
     {data && <p>Research history for this eligible power need.</p>}
     {!data && error && <p>Research history is unavailable. Research status is unknown.</p>}

@@ -11,12 +11,12 @@ export function IntelligenceOperations() {
     if (!open) return
     const controller = new AbortController()
     void client.intelligenceOperations(controller.signal).then(setData).catch((cause: unknown) => {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Intelligence operations are unavailable.')
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Operations status is unavailable.')
     })
     return () => controller.abort()
   }, [open])
   return <details className="intelligence-operations" onToggle={(event) => setOpen(event.currentTarget.open)}>
-    <summary>Intelligence operations · bounded status</summary>
+    <summary>Research operations · bounded status</summary>
     {!open && <p>Read-only status for saved jobs, source receipts and recorded provider usage.</p>}
     {open && error && <p role="alert">{error}</p>}
     {open && !data && !error && <p role="status">Loading persisted operations summary…</p>}

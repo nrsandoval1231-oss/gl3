@@ -65,7 +65,7 @@ test('action row order and equipment disclosure collapsed by default', async ({ 
   await open(page, usable)
   const actions = page.getByRole('group', { name: 'Opportunity actions' })
   const names = await actions.locator('button, a').allInnerTexts()
-  expect(names.map(n => n.trim())).toEqual(['Add to Pursuit', 'View Full Details'])
+  expect(names.map(n => n.trim())).toEqual(['Add to Pursuit', 'View Details'])
   await expect(page.locator('.cod-equipment-demand')).not.toHaveAttribute('open', '')
   await expect(page.getByRole('region', { name: 'Equipment schedule demand' })).toHaveCount(0)
   await page.locator('.cod-equipment-demand > summary').click()
@@ -86,7 +86,7 @@ test('390px has no horizontal overflow', async ({ page }) => {
 for (const [width, height] of [[1648, 928], [1440, 900], [1280, 800], [390, 844]]) {
   test(`action buttons are fully inside the viewport at ${width}x${height}`, async ({ page }) => {
     await open(page, usable, width, height)
-    for (const name of ['Add to Pursuit', 'View Full Details']) {
+    for (const name of ['Add to Pursuit', 'View Details']) {
       const box = await page.getByRole('group', { name: 'Opportunity actions' }).getByText(name).boundingBox()
       expect(box, name).not.toBeNull()
       expect(box!.x).toBeGreaterThanOrEqual(0)
@@ -117,7 +117,7 @@ for (const [width, height] of [[768, 1024], [820, 1180], [1280, 800], [1648, 928
       window.scrollTo(0, document.documentElement.scrollHeight)
     })
     const actions = page.getByRole('group', { name: 'Opportunity actions' })
-    for (const name of ['Add to Pursuit', 'View Full Details']) {
+    for (const name of ['Add to Pursuit', 'View Details']) {
       const box = await actions.getByText(name).boundingBox()
       expect(box, name).not.toBeNull()
       expect(box!.x).toBeGreaterThanOrEqual(0)

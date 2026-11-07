@@ -5,6 +5,7 @@ import { CompanyContacts } from '../workspace/CompanyContacts'
 import { groupDescription } from './groupKind'
 
 const sectorLabel = (value: string) => value === 'oil_gas' ? 'Oil & Gas' : value === 'data_centers' ? 'Data Centers' : value.replaceAll('_', ' ')
+const assetTypeLabel = (value: string) => value === 'data_center' ? 'Data center' : value === 'oil_gas' ? 'Oil & Gas' : value.replaceAll('_', ' ')
 const needHref = (id: string) => `/?${new URLSearchParams({ view: 'workspace', need: id })}`
 
 export function CompanyView({ groupId, summary, onBack, onNeed }: { groupId: string; summary?: OpportunityGroup; onBack: () => void; onNeed: (needId: string) => void }) {
@@ -85,7 +86,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed }: { groupId: str
           const own = pursuitByProject(project)
           return <li key={project.id}>
             <strong>{project.name}</strong>
-            <span>{project.location ?? 'Location unknown'}{project.asset_type ? ` · ${project.asset_type}` : ''}{project.sector ? ` · ${sectorLabel(project.sector)}` : ''}</span>
+            <span>{project.location ?? 'Location unknown'}{project.asset_type ? ` · ${assetTypeLabel(project.asset_type)}` : ''}{project.sector ? ` · ${sectorLabel(project.sector)}` : ''}</span>
             <span>Power: {project.power_summary ?? 'Unknown'} · Priority score {project.priority_score == null ? 'unranked' : project.priority_score}{project.event?.label ? ` · ${project.event.label}${project.event.date ? ` ${project.event.date}` : ''}` : ''}</span>
             {own.length > 0 && <span className="cmp-badge">Pursuit: {own.map(item => item.stage).join(', ')}</span>}
             {needId ? <a href={needHref(needId)} onClick={event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) return; event.preventDefault(); onNeed(needId) }}>Open opportunity<span className="cmp-sr"> {project.name}</span></a> : <span>No opportunity record is linked.</span>}
