@@ -103,6 +103,56 @@ def test_non_electric_equipment_does_not_hide_other_industrial_development_or_af
 @pytest.mark.parametrize(
     "scope",
     [
+        "Replace pump at El Paso Electric Montana Power Station.",
+        "Electrical contractor to install new pump.",
+        "Install new electrical service for pump station.",
+        "Install new compressor at Example Electric Company.",
+        "Install new pump; electrical contractor will complete the work.",
+        "Install new compressor with electrical service.",
+        "Replace pump at Electric Motor Company.",
+    ],
+)
+def test_electrical_party_or_service_context_does_not_establish_equipment_drive(scope):
+    result = assess(source(scope))
+    assert not result["eligible"]
+    assert not result["evidence_refs"]
+    assert all("electrically driven" not in reason for reason in result["reasons"])
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        "Install a new electric compressor.",
+        "Install a new motor-driven pump.",
+        "Install a new electrically driven pump.",
+        "Install a new electrically-driven centrifugal pump.",
+        "Install a new compressor that is electrically driven.",
+        "Install a new pump driven by an electric motor.",
+        "Install a new compressor with an electric drive.",
+        "Upgrade existing pump to electric drive.",
+        "Electrical contractor to install a new electric pump.",
+    ],
+)
+def test_explicit_equipment_modifier_or_drive_relation_supports_electrical_interpretation(scope):
+    result = assess(source(scope), required_mw=None)
+    assert result["eligible"]
+    assert result["priority"] == 80
+    assert any("electrically driven" in reason for reason in result["reasons"])
+    assert any("MW unknown" in reason for reason in result["reasons"])
+
+
+def test_unproven_pump_drive_does_not_remove_independent_industrial_construction():
+    result = assess(
+        source("New industrial campus construction. Electrical contractor to install new pump.")
+    )
+    assert result["eligible"]
+    assert result["priority"] == 70
+    assert all("electrically driven" not in reason for reason in result["reasons"])
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
         "TEMPORARY ELECTRICAL PERMIT - Scope limited to sports light pole foundations and poles.",
         "New chain link fence to serve an existing warehouse.",
         "New dry well for AC condensation drainage at warehouse.",

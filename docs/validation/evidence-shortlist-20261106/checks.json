@@ -1,11 +1,11 @@
 {
   "scope": "Local final candidate; no merge or deployment",
   "base_commit": "fc59eab64306b7bcd0d047a0f5b7b3eb9381b6aa",
-  "source_manifest_sha256": "78a07a38ba898f6644ca3ba6ba1c07337357a43ef40cfc66d31a24f200d04e67",
+  "source_manifest_sha256": "1c9ef0db536343645d30f8add8be602d42bbfb35b138ab3b21d7a8ac73749e26",
   "source_manifest_method": "SHA256 of compact sorted JSON mapping changed backend/web paths to SHA256 of raw working-tree bytes",
   "source_files": {
     "backend/src/gridlens/api/app.py": "7e30ab90b28bb9ef7c8e9e68d70964d3d453804bb67e33030499aa111e1d0fab",
-    "backend/src/gridlens/domain/opportunity_shortlist.py": "779cf30f3861aec80444fdebd212ad88208ea01e8ec45467530ac0981d2eec43",
+    "backend/src/gridlens/domain/opportunity_shortlist.py": "92baeed5a71d35365dfd557097b000248069eb2c9e8fd4396caf74b70fecf929",
     "backend/src/gridlens/domain/pursuit_research.py": "e9231a9d6725171badf00372cc5eeaa0e4e86d29b1c532a77bfe7efa53d6049d",
     "backend/src/gridlens/intelligence/intelligence_jobs.py": "f55de506218ad8f1eb6743afccf8305c6d17bfae314248b509129e8fdccf2eba",
     "backend/src/gridlens/intelligence/project_results.py": "2284926b374b235904dfaa087c57d542863200441a945ede3dd5e57e472e1054",
@@ -18,7 +18,7 @@
     "backend/tests/unit/test_autonomous_resolution.py": "1a63622c102455196659d9e83b6baa5eb088737a550c6377165aed0bceac9c7d",
     "backend/tests/unit/test_evidence_judge.py": "e26dd83be8f16e65da456f68f309cf5dbfbee15d863aab3590e413effae7a2ea",
     "backend/tests/unit/test_intelligence_processing.py": "b73ce4033d9c10f33fb5e66b50ddb04399d51267485f90bc9e85bff52e0d8bb9",
-    "backend/tests/unit/test_opportunity_shortlist_policy.py": "7596a889a77d271c3e6a29125f63220bb1703d686f02a2a6921df2151aac8099",
+    "backend/tests/unit/test_opportunity_shortlist_policy.py": "a61785a8d2089b8c8ca00bfb0db58cef60c19c1b972b3e0544cb099e94984e7b",
     "web/src/api/client.ts": "398e1d52cf992f203c27c738c74919967116821b380a5da05ba3cd4a25dd3103",
     "web/src/api/generated.ts": "c48de56d56934cc747aca30aa344e9361dfd75bb4ce4460d34766bff0c7c7b79",
     "web/src/api/openapi.json": "f21fab1ef140ca6f9b38edd0a5e402b112321248e60800aea433c6801dd14cb5",
@@ -57,7 +57,7 @@
     },
     {
       "command": "uv run --project backend python scripts/check_docs.py",
-      "result": "PASS: 109 documents, 512 local targets, 18 anchors"
+      "result": "PASS: 109 documents, 513 local targets, 18 anchors"
     },
     {
       "command": "uv run --with-requirements tools/brand/requirements.txt python tools/brand/validate.py",
@@ -75,8 +75,8 @@
       "command": "uv run pytest tests/unit/test_opportunity_shortlist_policy.py tests/integration/test_project_results.py -q",
       "cwd": "backend",
       "scope": "Final source after review repairs",
-      "result": "97 passed, 1 warning in 8.99s",
-      "policy_regressions": "Ordinary prose colons preserve development scope; negated or excluded electrical drive cannot establish electrical equipment; affirmative sibling/replacement clauses and Applicant/Owner/Contractor/native-identifier metadata guards retained"
+      "result": "114 passed, 1 warning in 9.35s",
+      "policy_regressions": "Ordinary prose colons preserve development scope; native metadata cannot establish scope; explicit equipment-drive relationship required, with negation/exclusion abstention and affirmative sibling/replacement controls"
     },
     {
       "command": "Frozen production pure-policy and actual project-results SQL replay after review repairs",
@@ -111,5 +111,12 @@
     "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/42350593195",
     "result": "Backend failed one existing publication-diagnostic test with KeyError worker_browse_outcome; PR-triggered run on same commit passed",
     "test": "test_refresh_outcome_survives_savepoint_and_excludes_private_error[True]"
+  },
+  "preceding_relation_repair_ci": {
+    "commit": "f833a4c8d3c8dfb870b63af9f9cce5eb77314bfd",
+    "pr_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/42352162699",
+    "pr_result": "All five jobs passed: 4989 backend passed, 1 skipped; 290 browser and 3 real-backend rollup journeys passed",
+    "push_run": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/42352159260",
+    "push_result": "Backend failed test_job_mode_and_inline_mode_produce_the_same_evidence_hashes: cumulative inline_docs [1,2,2] versus [1,1,1]; cause unproved; no unrelated fixture edits"
   }
 }

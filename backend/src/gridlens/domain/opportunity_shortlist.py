@@ -141,8 +141,20 @@ def _has_structured_record(fields: dict[str, str]) -> bool:
 
 
 def _has_affirmative_electrically_driven_equipment(scope: str) -> bool:
-    equipment = r"\b(?:pump|compressor|motor)\b"
-    electric = r"\b(?:electric(?:al)?|motor[- ]driven)\b"
+    equipment = r"(?:pumps?|compressors?|motors?)"
+    electric_drive = r"(?:electric(?:al)?(?:[- ]motor[- ]driven)?|electrically[- ]driven)"
+    modifier = rf"(?:{electric_drive}|motor[- ]driven)"
+    # Require the modifier to describe the equipment, or a stated drive/motor
+    # relationship. An electrical contractor, utility name or service elsewhere
+    # in the same clause does not establish how a pump/compressor is driven.
+    relationship = (
+        rf"\b{modifier}[- ]+(?:(?:centrifugal|submersible|reciprocating|rotary|screw)\s+)?"
+        rf"{equipment}\b(?!\s+(?:company|co\b|inc\b|llc\b|contractor|shop))|"
+        rf"\b{equipment}\s+(?:(?:that\s+)?(?:is|are|will be|to be)\s+)?"
+        rf"(?:electrically[- ](?:driven|powered)|motor[- ]driven)\b|"
+        rf"\b{equipment}\s+(?:with|to|driven by|powered by)\s+"
+        r"(?:(?:a|an|the|new)\s+){0,2}electric(?:al)?\s+(?:drive|motor)s?\b"
+    )
     negated = (
         r"\b(?:non[- ](?:electric(?:al)?|motor[- ]driven)|"
         r"not\b.{0,48}\b(?:electric(?:al)?(?:ly)?|motor[- ]driven|electric model)\b|"
@@ -157,10 +169,7 @@ def _has_affirmative_electrically_driven_equipment(scope: str) -> bool:
         flags=re.I,
     )
     return any(
-        _has(equipment, clause)
-        and _has(electric, clause)
-        and _has(changed, clause)
-        and not _has(negated, clause)
+        _has(relationship, clause) and _has(changed, clause) and not _has(negated, clause)
         for clause in clauses
     )
 
@@ -419,9 +428,7 @@ def _development(title: str, scope: str, fields: dict[str, str]) -> tuple[int, s
         )
     # Equipment evidence can identify a meaningful change even at an existing
     # site. Electrical-drive evidence is required; horsepower alone is not MW.
-    if _has_affirmative_electrically_driven_equipment(scope) and _has(
-        r"\b(?:new|install\w*|expand\w*|replac\w*)\b", scope
-    ):
+    if _has_affirmative_electrically_driven_equipment(scope):
         return (
             80,
             (
