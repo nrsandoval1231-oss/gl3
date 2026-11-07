@@ -31,7 +31,7 @@ from gridlens.persistence.commercial_pursuit_models import (
 )
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import PowerNeed, Project
-from gridlens.security import require_session
+from gridlens.security import require_same_origin, require_session
 
 router = APIRouter(
     prefix="/api/commercial-pursuits",
@@ -44,6 +44,7 @@ UserKind = Literal["call", "email", "meeting", "note"]
 
 
 def _today() -> date:
+    """Return the calendar day used by pursuit follow-up attention rules."""
     return datetime.now(UTC).astimezone(ZoneInfo("America/Chicago")).date()
 
 
@@ -114,8 +115,14 @@ class StageIn(BaseModel):
 
 
 class TaskIn(BaseModel):
+    """Follow-up details and an optional stable key for replay-safe submission."""
+
     description: str = Field(min_length=1, max_length=500)
     due_date: date | None = None
+    client_id: UUID | None = Field(
+        default=None,
+        description="Optional retry key; exact replays return the existing task.",
+    )
 
     @field_validator("description")
     @classmethod
@@ -279,6 +286,7 @@ def _view(
     pre: _Preload | None = None,
     private: bool = True,
 ) -> PursuitOut:
+    """Build a pursuit response with contact suppression applied to displayed notes."""
     pre = pre or _Preload(session, [row])
     need = pre.needs.get(row.need_id)
     project = pre.projects.get(row.project_id)
@@ -357,6 +365,7 @@ def _log(
     when: datetime | None = None,
     **extra,
 ):
+    """Stage one immutable activity row in the caller's transaction."""
     session.add(
         PursuitActivity(
             pursuit_id=pursuit_id,
@@ -388,6 +397,7 @@ def list_pursuits(
     limit: int = Query(default=100, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ):
+    """List filtered pursuit projections and counts from persisted owner state."""
     today = _today()
     with SessionLocal() as session:
         # Counts and filters cover every pursuit (single-owner volumes are small); only the
@@ -434,8 +444,11 @@ def list_pursuits(
     )
 
 
-@router.post("", response_model=PursuitOut, status_code=201)
+@router.post(
+    "", response_model=PursuitOut, status_code=201, dependencies=[Depends(require_same_origin)]
+)
 def create_pursuit(body: CreateIn, response: Response):
+    """Create or return the single pursuit attached to an active opportunity."""
     today = _today()
     with SessionLocal() as session:
         need = session.get(PowerNeed, body.need_id)
@@ -468,12 +481,18 @@ def create_pursuit(body: CreateIn, response: Response):
 
 @router.get("/{pursuit_id}", response_model=PursuitOut)
 def pursuit_detail(pursuit_id: UUID):
+    """Return a pursuit and its retained task and activity history."""
     with SessionLocal() as session:
         return _view(session, _get(session, pursuit_id), _today(), detail=True)
 
 
-@router.patch("/{pursuit_id}", response_model=PursuitOut)
+@router.patch(
+    "/{pursuit_id}",
+    response_model=PursuitOut,
+    dependencies=[Depends(require_same_origin)],
+)
 def set_stage(pursuit_id: UUID, body: StageIn):
+    """Persist an owner-selected stage and append its change to the activity history."""
     if not valid_stage(body.stage):
         raise HTTPException(422, "Unknown stage")
     with SessionLocal() as session:
@@ -489,19 +508,61 @@ def set_stage(pursuit_id: UUID, body: StageIn):
         return _view(session, row, _today(), detail=True)
 
 
-@router.post("/{pursuit_id}/tasks", response_model=PursuitOut, status_code=201)
-def add_task(pursuit_id: UUID, body: TaskIn):
+@router.post(
+    "/{pursuit_id}/tasks",
+    response_model=PursuitOut,
+    status_code=201,
+    dependencies=[Depends(require_same_origin)],
+)
+def add_task(pursuit_id: UUID, body: TaskIn, response: Response):
+    """Add a task, or replay the same task when the caller supplies a stable client id."""
     with SessionLocal() as session:
-        row = _get(session, pursuit_id)
+        row = _get(session, pursuit_id, lock=True)
+
+        def matching_replay() -> PursuitTask | None:
+            if body.client_id is None:
+                return None
+            existing = session.get(PursuitTask, body.client_id)
+            if existing is None:
+                return None
+            if (
+                existing.pursuit_id != row.id
+                or existing.description != body.description
+                or existing.due_date != body.due_date
+            ):
+                raise HTTPException(409, "Task idempotency key was already used")
+            return existing
+
+        if matching_replay() is not None:
+            response.status_code = 200
+            return _view(session, row, _today(), detail=True)
+
         session.add(
-            PursuitTask(pursuit_id=row.id, description=body.description, due_date=body.due_date)
+            PursuitTask(
+                id=body.client_id or uuid4(),
+                pursuit_id=row.id,
+                description=body.description,
+                due_date=body.due_date,
+            )
         )
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            if matching_replay() is None:
+                raise
+            row = _get(session, pursuit_id)
+            response.status_code = 200
         return _view(session, row, _today(), detail=True)
 
 
-@router.patch("/{pursuit_id}/tasks/{task_id}", response_model=PursuitOut)
+@router.patch(
+    "/{pursuit_id}/tasks/{task_id}",
+    response_model=PursuitOut,
+    dependencies=[Depends(require_same_origin)],
+)
 def update_task(pursuit_id: UUID, task_id: UUID, body: TaskPatch):
+    """Update task details and log completion in the same database transaction."""
     with SessionLocal() as session:
         row = _get(session, pursuit_id, lock=True)
         task = session.get(PursuitTask, task_id)
@@ -524,8 +585,14 @@ def update_task(pursuit_id: UUID, task_id: UUID, body: TaskPatch):
         return _view(session, row, _today(), detail=True)
 
 
-@router.post("/{pursuit_id}/activity", response_model=PursuitOut, status_code=201)
+@router.post(
+    "/{pursuit_id}/activity",
+    response_model=PursuitOut,
+    status_code=201,
+    dependencies=[Depends(require_same_origin)],
+)
 def log_activity(pursuit_id: UUID, body: ActivityIn, response: Response):
+    """Append confirmed activity once per supplied client id, including retry races."""
     if not body.confirmed:
         raise HTTPException(422, "Activity must be confirmed by the user before it is recorded")
     with SessionLocal() as session:

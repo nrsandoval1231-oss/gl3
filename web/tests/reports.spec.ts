@@ -137,7 +137,7 @@ test('session end clears every report figure and change item', async ({ page }) 
   await expect(reports.getByText('40.5')).toHaveCount(0)
 })
 
-test('a background pursuit 401 from the Active Pursuits retry clears every report figure without a global wipe', async ({ page }) => {
+test('a background pursuit 401 from the Active Pursuits retry returns to sign-in and clears report data', async ({ page }) => {
   await mock(page, { pursuitsFirst: 'error', pursuitsThen: 'unauthorized' })
   await page.addInitScript(() => { (window as any).__continuity = 0; addEventListener('gl3-clear-continuity', () => { (window as any).__continuity += 1 }) })
   await page.goto('/?view=workspace&panel=reports')
@@ -146,8 +146,7 @@ test('a background pursuit 401 from the Active Pursuits retry clears every repor
   await expect(tile.getByRole('button', { name: 'Retry' })).toBeVisible()
   await expect(reports.getByRole('article', { name: 'Total Projects' })).toContainText('42')
   await tile.getByRole('button', { name: 'Retry' }).click()
-  await expect(reports.getByRole('alert')).toContainText('Your session ended. Sign in again.')
-  await expect(reports.getByRole('article')).toHaveCount(0)
-  await expect(reports.getByText('42')).toHaveCount(0)
-  expect(await page.evaluate(() => (window as any).__continuity)).toBe(0)
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  await expect(reports).toHaveCount(0)
+  expect(await page.evaluate(() => (window as any).__continuity)).toBeGreaterThan(0)
 })

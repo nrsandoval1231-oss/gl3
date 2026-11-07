@@ -28,11 +28,15 @@ const emptyProjects = { items: [project], total: 1, count_unit: 'projects', limi
 const summary = (p: Pursuit) => { const { tasks, activity, ...rest } = p; return { ...rest, next_task: tasks.find(t => !t.completed_at) ?? null } }
 
 type Log = { method: string; path: string; search: string; body: any }
-async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; unauthorizedStage?: boolean; listUnauthorizedAfterWrite?: boolean; listUnauthorized?: boolean; holdList?: Promise<void>; holdLookup?: Promise<void>; lookupUnauthorized?: boolean; listFails?: boolean } = {}) {
+async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; failTaskOnce?: boolean; unauthorizedStage?: boolean; unauthorizedNeed?: boolean; listUnauthorizedAfterWrite?: boolean; listUnauthorizedAfterHold?: boolean; listUnauthorized?: boolean; holdList?: Promise<void>; holdLookup?: Promise<void>; lookupUnauthorized?: boolean; listFails?: boolean } = {}) {
   const store = new Map(seed.map(p => [p.id, p]))
   const log: Log[] = []
   let activityFailures = hooks.failActivity ?? 0
+  let taskFailures = hooks.failTaskOnce ? 1 : 0
   let wrote = false
+  let expiredAfterWrite = false
+  let heldListOnce = false
+  let needFailures = hooks.unauthorizedNeed ? 1 : 0
   const counts = () => { const all = [...store.values()]; return { total: all.length, active: all.filter(p => !['Won', 'Lost'].includes(p.stage)).length, needs_attention: all.filter(p => p.attention.length).length } }
   await mockDemandSummary(page)
   await page.route(url => url.pathname.startsWith('/api/'), async (route: Route) => {
@@ -41,15 +45,23 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
     try { body = request.postDataJSON() } catch { /* no body */ }
     if (path.startsWith('/api/commercial-pursuits')) log.push({ method, path, search: url.search, body })
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (path === '/api/opportunities/needs/need-1') return route.fulfill({ json: opportunity })
+    if (path === '/api/auth/login' && method === 'POST') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/needs/need-1') {
+      if (needFailures > 0) { needFailures -= 1; return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } }) }
+      return route.fulfill({ json: opportunity })
+    }
     if (path === '/api/opportunities/projects') return route.fulfill({ json: emptyProjects })
     if (path === '/api/commercial-pursuits' && method === 'GET') {
       const lookup = url.searchParams.has('need_id')
       if (lookup && hooks.lookupUnauthorized) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
       if (lookup && hooks.holdLookup) await hooks.holdLookup
-      if (!lookup && hooks.holdList) await hooks.holdList
+      if (!lookup && hooks.holdList && !heldListOnce) {
+        heldListOnce = true
+        await hooks.holdList
+        if (hooks.listUnauthorizedAfterHold) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
+      }
       if (!lookup && hooks.listFails) return route.fulfill({ status: 500, json: { detail: 'Unavailable' } })
-      if (hooks.listUnauthorized || (hooks.listUnauthorizedAfterWrite && wrote)) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
+      if (hooks.listUnauthorized || (hooks.listUnauthorizedAfterWrite && wrote && !expiredAfterWrite)) { expiredAfterWrite = true; return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } }) }
       let items = [...store.values()]
       if (url.searchParams.get('needs_attention') === 'true') items = items.filter(p => p.attention.length)
       if (url.searchParams.get('active_only') === 'true') items = items.filter(p => !['Won', 'Lost'].includes(p.stage))
@@ -58,6 +70,7 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
     }
     if (path === '/api/commercial-pursuits' && method === 'POST') {
       await new Promise(resolve => setTimeout(resolve, 150))
+      wrote = true
       const created = pursuit('p-new', body.need_id)
       store.set(created.id, created)
       return route.fulfill({ status: 201, json: created })
@@ -72,7 +85,8 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
       if (!kind && method === 'PATCH') { wrote = true; found.stage = body.stage; return route.fulfill({ json: found }) }
       if (kind === 'tasks' && method === 'POST') {
         if (hooks.failTask) return route.fulfill({ status: 500, json: { detail: 'Task store unavailable' } })
-        found.tasks.push({ id: `t${found.tasks.length + 1}`, description: body.description, due_date: body.due_date ?? null, completed_at: null })
+        if (taskFailures > 0) { taskFailures -= 1; return route.fulfill({ status: 500, json: { detail: 'Task store unavailable' } }) }
+        if (!found.tasks.some(task => task.id === body.client_id)) found.tasks.push({ id: body.client_id ?? `t${found.tasks.length + 1}`, description: body.description, due_date: body.due_date ?? null, completed_at: null })
         return route.fulfill({ status: 201, json: found })
       }
       if (kind === 'tasks' && method === 'PATCH') {
@@ -228,6 +242,23 @@ test('a failed task write shows an error and keeps the typed task', async ({ pag
   await card.getByRole('button', { name: 'Add follow-up' }).click()
   await expect(card.getByRole('alert')).toContainText('Task store unavailable')
   await expect(card.getByLabel('Follow-up description')).toHaveValue('Call the utility')
+})
+
+test('retrying a failed follow-up reuses its client id and creates one task', async ({ page }) => {
+  const api = await setup(page, [pursuit('p1', 'need-a')], { failTaskOnce: true })
+  await page.goto('/?view=pursuits&pursuit=p1')
+  const card = page.getByRole('region', { name: 'Next Action' })
+  await card.getByLabel('Follow-up description').fill('Confirm the review date')
+  await card.getByLabel('Follow-up due date (optional)').fill('2026-12-10')
+  await card.getByRole('button', { name: 'Add follow-up' }).click()
+  await expect(card.getByRole('alert')).toContainText('Task store unavailable')
+  await card.getByRole('button', { name: 'Add follow-up' }).click()
+  await expect(card.getByText('Confirm the review date')).toBeVisible()
+  const posts = api.writes().filter(entry => entry.method === 'POST' && entry.path.endsWith('/tasks'))
+  expect(posts).toHaveLength(2)
+  expect(posts[0].body.client_id).toMatch(/^[0-9a-f-]{36}$/i)
+  expect(posts[1].body.client_id).toBe(posts[0].body.client_id)
+  expect(api.store.get('p1')?.tasks).toHaveLength(1)
 })
 
 test('activity is only recorded after the explicit confirm action and survives a failed write', async ({ page }) => {
@@ -390,16 +421,16 @@ test('legacy view=pursuits links carrying research parameters open Research', as
   await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toHaveCount(0)
 })
 
-/** Counts the two session events in the page so a test can tell a narrow pursuit-session end from a global continuity wipe. */
+/** Counts session events to verify an API 401 clears continuity and expires the authenticated shell. */
 async function countSessionEvents(page: Page) {
   await page.addInitScript(() => {
-    const seen = { continuity: 0, pursuits: 0 }; (window as any).__sessionEvents = seen
-    addEventListener('gl3-clear-continuity', () => { seen.continuity += 1 }); addEventListener('gl3-pursuits-session-ended', () => { seen.pursuits += 1 })
+    const seen = { continuity: 0, pursuits: 0, auth: 0 }; (window as any).__sessionEvents = seen
+    addEventListener('gl3-clear-continuity', () => { seen.continuity += 1 }); addEventListener('gl3-pursuits-session-ended', () => { seen.pursuits += 1 }); addEventListener('gl3-auth-session-ended', () => { seen.auth += 1 })
   })
   return () => page.evaluate(() => ({ ...(window as any).__sessionEvents }))
 }
 
-test('a background 401 empties the open Pursuits list and detail without a global continuity wipe', async ({ page }) => {
+test('a background 401 returns to sign-in and removes the open Pursuits data', async ({ page }) => {
   await setup(page, [pursuit('p1', 'need-a', { tasks: [{ id: 't1', description: 'Send synthetic follow-up', due_date: null, completed_at: null }] }), pursuit('p2', 'need-b')], { listUnauthorizedAfterWrite: true })
   const events = await countSessionEvents(page)
   await page.goto('/?view=pursuits&pursuit=p1')
@@ -409,12 +440,17 @@ test('a background 401 empties the open Pursuits list and detail without a globa
   await expect(page.getByText('Added to Pursuits').first()).toBeVisible()
   // The write succeeds; its follow-up store refresh is a background read that now returns 401.
   await page.getByRole('region', { name: 'Pursuit status' }).getByRole('button', { name: /Engaged/ }).click()
-  await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   for (const text of ['alex@example.test', '+1 206 555 0184', 'Send synthetic follow-up', 'Added to Pursuits', 'Synthetic Campus P1', 'Synthetic Campus P2']) await expect(page.getByText(text)).toHaveCount(0)
-  await expect(page.locator('.pu-card')).toHaveCount(0)
+  expect(page.url()).toContain('view=pursuits&pursuit=p1')
   const seen = await events()
   expect(seen.pursuits).toBeGreaterThan(0)
-  expect(seen.continuity).toBe(0)
+  expect(seen.continuity).toBeGreaterThan(0)
+  expect(seen.auth).toBeGreaterThan(0)
+  await page.getByRole('textbox', { name: 'Password' }).fill('synthetic-password')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByText('Synthetic Campus P1').first()).toBeVisible()
+  await expect(page).toHaveURL(/view=pursuits&pursuit=p1/)
 })
 
 test('a background 401 on the nav-count read ends an open Pursuits list', async ({ page }) => {
@@ -427,19 +463,20 @@ test('a background 401 on the nav-count read ends an open Pursuits list', async 
   await expect(page.getByText('Your session ended. Sign in again.').first()).toBeVisible()
 })
 
-test('a background pursuit 401 leaves Opportunities search and the selected opportunity intact', async ({ page }) => {
-  await setup(page, [], { listUnauthorized: true })
+test('a background pursuit 401 expires the session and clears selected opportunity data', async ({ page }) => {
+  await setup(page, [], { listUnauthorizedAfterWrite: true })
   const events = await countSessionEvents(page)
   await page.goto('/?view=workspace&projectBrowse=1&need=need-1')
   await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
   const search = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
   await search.fill('synthetic query')
-  await expect.poll(async () => (await events()).pursuits).toBeGreaterThan(0)
-  expect((await events()).continuity).toBe(0)
-  await expect(search).toHaveValue('synthetic query')
-  await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
+  await page.getByRole('button', { name: 'Add to Pursuit' }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  await expect.poll(async () => (await events()).auth).toBeGreaterThan(0)
+  expect((await events()).continuity).toBeGreaterThan(0)
+  await expect(page.getByRole('button', { name: 'View Full Details' })).toHaveCount(0)
   await expect(page).toHaveURL(/need=need-1/)
-  await expect(page.getByText('Your session ended. Sign in again.')).toHaveCount(0)
+  await expect(search).toHaveCount(0)
 })
 
 /**
@@ -490,16 +527,37 @@ test('a held Add-to-Pursuit lookup resolving after the session ended does not sh
   await expect(page.getByRole('button', { name: 'Add to Pursuit' })).toBeEnabled()
 })
 
-test('a background 401 on the lookup invalidates an earlier shared list read even when the store is empty', async ({ page }) => {
+test('a background 401 on the lookup expires the session and removes opportunity data', async ({ page }) => {
   let release!: () => void
   const held = new Promise<void>(resolve => { release = resolve })
   await setup(page, [pursuit('p1', 'need-1')], { holdList: held, lookupUnauthorized: true })
   const events = await countSessionEvents(page)
   await page.goto('/?view=workspace&projectBrowse=1&need=need-1')
   await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
-  await expect.poll(async () => (await events()).pursuits).toBeGreaterThan(0)
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  await expect.poll(async () => (await events()).auth).toBeGreaterThan(0)
   release()
   await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 300)))
-  await expect(page.getByRole('link', { name: 'In Pursuits' })).toHaveCount(0)
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: /Pursuits \d+ active/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add to Pursuit' })).toHaveCount(0)
+  await expect(page).toHaveURL(/need=need-1/)
+})
+
+test('a delayed 401 from the previous session cannot expire the session after re-login', async ({ page }) => {
+  let release!: () => void
+  const heldList = new Promise<void>(resolve => { release = resolve })
+  await setup(page, [], { holdList: heldList, listUnauthorizedAfterHold: true, unauthorizedNeed: true })
+  const events = await countSessionEvents(page)
+  await page.goto('/?view=workspace&projectBrowse=1&need=need-1')
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  const endedBeforeLogin = (await events()).auth
+  expect(endedBeforeLogin).toBeGreaterThan(0)
+  await page.getByRole('textbox', { name: 'Password' }).fill('synthetic-password')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
+  const endedAfterLogin = (await events()).auth
+  release()
+  await page.waitForTimeout(150)
+  await expect(page.getByRole('button', { name: 'View Full Details' })).toBeVisible()
+  expect((await events()).auth).toBe(endedAfterLogin)
+  await expect(page).toHaveURL(/need=need-1/)
 })

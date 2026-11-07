@@ -1,4 +1,4 @@
-import { clearContinuity, endPursuitsSession } from '../state/sessionState'
+import { authenticatedSessionStarted, clearContinuity, currentSessionGeneration, endPursuitsSession, expireSession } from '../state/sessionState'
 import type { components } from './generated'
 
 export type EvidenceContent = {
@@ -146,9 +146,18 @@ export type ResearchQuestion = components['schemas']['ResearchQuestionOut']
 export type CompanyGraph = components['schemas']['CompanyGraphOut']
 export type CompanyGraphEvidence = components['schemas']['GraphEvidence']
 
+async function sessionFetch(path: string, init?: RequestInit, onUnauthorized: (generation: number) => unknown = expireSession) {
+  const generation = currentSessionGeneration()
+  const response = await fetch(path, init)
+  if (generation !== currentSessionGeneration()) throw new DOMException('Request belongs to an earlier session.', 'AbortError')
+  if (response.status === 401) onUnauthorized(generation)
+  return response
+}
+
 async function api<T>(path: string, init?: RequestInit, includeSafeDetail = false): Promise<T> {
-  const response = await fetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })
-  if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+  const requestGeneration = currentSessionGeneration()
+  const response = await sessionFetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })
+  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
   if (!response.ok) {
     if (includeSafeDetail) {
       try {
@@ -160,7 +169,9 @@ async function api<T>(path: string, init?: RequestInit, includeSafeDetail = fals
     }
     throw new Error(`GridLens could not complete this request (${response.status}).`)
   }
-  return response.json() as Promise<T>
+  const value = await response.json() as T
+  if (currentSessionGeneration() !== requestGeneration) throw new DOMException('Request belongs to an earlier session.', 'AbortError')
+  return value
 }
 
 function addBrowseFilters(params: URLSearchParams, filters: OpportunityBrowseFilters = {}) {
@@ -177,8 +188,8 @@ async function opportunityPage(tier: string, search: string, decision: string, l
   if (cohortToken) params.set('cohort_token', cohortToken)
   if (sort) params.set('sort', sort)
   addBrowseFilters(params, filters)
-  const response = await fetch(`/api/opportunities?${params}`, { credentials: 'same-origin', signal })
-  if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+  const response = await sessionFetch(`/api/opportunities?${params}`, { credentials: 'same-origin', signal })
+  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
   if (response.status === 409) throw new OpportunityCohortChangedError()
   if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
   const items = await response.json() as Opportunity[]
@@ -207,8 +218,8 @@ async function opportunityPage(tier: string, search: string, decision: string, l
 async function opportunityMapWindow(tier: string, search: string, filters: OpportunityBrowseFilters = {}, signal?: AbortSignal): Promise<OpportunityMapWindow> {
   const params = new URLSearchParams({ tier, search, decision: 'ALL' })
   addBrowseFilters(params, filters)
-  const response = await fetch(`/api/opportunities/map-window?${params}`, { credentials: 'same-origin', signal })
-  if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+  const response = await sessionFetch(`/api/opportunities/map-window?${params}`, { credentials: 'same-origin', signal })
+  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
   if (response.status === 409) throw new OpportunityCohortChangedError()
   if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
   const result = await response.json() as components['schemas']['OpportunityMapWindowOut']
@@ -279,11 +290,11 @@ async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, sig
     ...(scope.cohortToken ? { cohort_token: scope.cohortToken } : {}),
   } : {})
   addBrowseFilters(params, scope?.filters)
-  const response = await fetch(`/api/opportunities/needs/${encodeURIComponent(needId)}?${params}`, {
+  const response = await sessionFetch(`/api/opportunities/needs/${encodeURIComponent(needId)}?${params}`, {
     credentials: 'same-origin',
     signal,
   })
-  if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
   if (response.status === 409) throw new OpportunityCohortChangedError()
   if (response.status === 404) throw new OpportunityNeedUnavailableError()
   if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
@@ -292,28 +303,28 @@ async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, sig
 
 export const client = {
   demandSummary: async (sector: 'all' | 'oil_gas' | 'data_centers', signal?: AbortSignal): Promise<DemandSummary> => {
-    const response = await fetch(`/api/opportunities/demand-summary?${new URLSearchParams({ sector })}`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/opportunities/demand-summary?${new URLSearchParams({ sector })}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (!response.ok) throw new Error(`Could not load identified power demand (${response.status}).`)
     return parseDemandSummary(await response.json() as unknown, sector)
   },
   opportunityGroups: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<OpportunityGroupsPage> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
-    const response = await fetch(`/api/opportunities/groups?${params}`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/opportunities/groups?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (response.status === 409) throw new OpportunityCohortChangedError()
     throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not load operator/customer groups (${response.status}).`)
     const value = await response.json() as OpportunityGroupsPage
     requireCurrentBrowseGeneration(value)
-    return value
+  return value
   },
   groupProjects: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; parent_cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
-    const response = await fetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/projects?${params}`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/projects?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (response.status === 409) throw new OpportunityCohortChangedError()
     throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not load projects (${response.status}).`)
@@ -324,8 +335,8 @@ export const client = {
   openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
-    const response = await fetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/open?${params}`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/open?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (response.status === 404) throw new OpportunityGroupUnavailableError()
     throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not open current operator/customer results (${response.status}).`)
@@ -337,8 +348,8 @@ export const client = {
   projectResults: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: ProjectResultsSort; need_id?: string; include_signals?: boolean }, signal?: AbortSignal): Promise<ProjectResultsPage> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
-    const response = await fetch(`/api/opportunities/projects?${params}`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/opportunities/projects?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (response.status === 409) throw new OpportunityCohortChangedError()
     if (!response.ok) throw new Error(`Could not load projects (${response.status}).`)
     return response.json() as Promise<ProjectResultsPage>
@@ -348,36 +359,36 @@ export const client = {
     const params = new URLSearchParams({ limit: '25' })
     params.set('group_by', 'account')
     for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key, String(value))
-    const response = await fetch(`/api/opportunities/workspace?${params}`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/opportunities/workspace?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (response.status === 409) throw new OpportunityCohortChangedError()
     if (!response.ok) throw new Error(response.status === 503 ? 'The workspace cohort is unavailable. Retry to reload current opportunities.' : `GridLens could not complete this request (${response.status}).`)
     return response.json() as Promise<WorkspacePage>
   },
   companyContacts: async (companyIdentityId: string, signal?: AbortSignal): Promise<components['schemas']['CompanyContacts']> => {
-    const response = await fetch(`/api/customer-accounts/${encodeURIComponent(companyIdentityId)}/contacts`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/customer-accounts/${encodeURIComponent(companyIdentityId)}/contacts`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (!response.ok) throw new Error(`Could not load contacts (${response.status}).`)
     return response.json()
   },
   companyGraph: async (companyIdentityId: string, signal?: AbortSignal): Promise<CompanyGraph> => {
-    const response = await fetch(`/api/companies/${encodeURIComponent(companyIdentityId)}/graph`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/companies/${encodeURIComponent(companyIdentityId)}/graph`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (!response.ok) throw new Error(`Could not load company intelligence (${response.status}).`)
     return response.json() as Promise<CompanyGraph>
   },
   customerAccountProjects: async (companyIdentityId: string, offset = 0, needOffset = 0, signal?: AbortSignal): Promise<CustomerProjectsPage> => {
     const params = new URLSearchParams({ limit: '25', offset: String(offset), need_limit: '25', need_offset: String(needOffset) })
-    const response = await fetch(`/api/customer-accounts/${encodeURIComponent(companyIdentityId)}/projects?${params}`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/customer-accounts/${encodeURIComponent(companyIdentityId)}/projects?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (!response.ok) throw new Error(`GridLens could not load this account's projects (${response.status}).`)
     return response.json() as Promise<CustomerProjectsPage>
   },
   unresolvedCustomerProjects: async (search = '', offset = 0, signal?: AbortSignal): Promise<UnresolvedCustomerProjectsPage> => {
     const params = new URLSearchParams({ limit: '25', offset: String(offset) })
     if (search) params.set('search', search)
-    const response = await fetch(`/api/customer-accounts/unresolved?${params}`, { credentials: 'same-origin', signal })
-    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    const response = await sessionFetch(`/api/customer-accounts/unresolved?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (!response.ok) throw new Error(`GridLens could not load unresolved customer projects (${response.status}).`)
     return response.json() as Promise<UnresolvedCustomerProjectsPage>
   },
@@ -399,10 +410,7 @@ export const client = {
     if (!session.authenticated) clearContinuity()
     return session
   }),
-  /**
-   * `background` reads (nav count, Add-to-Pursuit lookup) never call `clearContinuity` on a 401 (that would wipe
-   * opportunity state); they announce `gl3-pursuits-session-ended` so every pursuit-derived view clears itself.
-   */
+  /** Background reads also expire the shell on a current-session 401; old responses are ignored by generation. */
   commercialPursuits: (filters: { needsAttention?: boolean; activeOnly?: boolean; needId?: string; background?: boolean; limit?: number; offset?: number } = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams()
     if (filters.needsAttention) params.set('needs_attention', 'true')
@@ -412,8 +420,7 @@ export const client = {
     if (filters.offset) params.set('offset', String(filters.offset))
     const path = `/api/commercial-pursuits?${params}`
     const read = filters.background
-      ? fetch(path, { credentials: 'same-origin', signal }).then(response => {
-        if (response.status === 401) endPursuitsSession()
+      ? sessionFetch(path, { credentials: 'same-origin', signal }, endPursuitsSession).then(response => {
         if (!response.ok) throw new Error(response.status === 401 ? 'Your session ended. Sign in again.' : `GridLens could not complete this request (${response.status}).`)
         return response.json() as Promise<CommercialPursuitList>
       })
@@ -426,10 +433,10 @@ export const client = {
   commercialPursuit: (id: string, signal?: AbortSignal) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}`, { signal }),
   createCommercialPursuit: (needId: string) => api<CommercialPursuit>('/api/commercial-pursuits', { method: 'POST', body: JSON.stringify({ need_id: needId }) }, true),
   setPursuitStage: (id: string, stage: PursuitStage) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ stage }) }, true),
-  addPursuitTask: (id: string, task: { description: string; due_date?: string | null }) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}/tasks`, { method: 'POST', body: JSON.stringify(task) }, true),
+  addPursuitTask: (id: string, task: { description: string; due_date?: string | null; client_id?: string }) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}/tasks`, { method: 'POST', body: JSON.stringify(task) }, true),
   updatePursuitTask: (id: string, taskId: string, patch: { description?: string; due_date?: string | null; clear_due_date?: boolean; completed?: boolean }) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}/tasks/${encodeURIComponent(taskId)}`, { method: 'PATCH', body: JSON.stringify(patch) }, true),
   logPursuitActivity: (id: string, entry: { kind: 'call' | 'email' | 'meeting' | 'note'; summary: string; detail?: string | null; client_id: string }) => api<CommercialPursuit>(`/api/commercial-pursuits/${encodeURIComponent(id)}/activity`, { method: 'POST', body: JSON.stringify({ ...entry, confirmed: true }) }, true),
-  login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
+  login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }).then(session => { if (session.authenticated) authenticatedSessionStarted(); return session }),
   logout: () => api('/api/auth/logout', { method: 'POST' }).finally(clearContinuity),
   opportunityPage,
   opportunityMapWindow,

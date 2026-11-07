@@ -17,6 +17,7 @@ import { OpportunityTable } from './OpportunityTable'
 import { CanonicalHeader, type CanonicalHeaderDestination } from '../../components/CanonicalHeader'
 import { GlobalSearch } from './GlobalSearch'
 import { CanonicalOpportunityDetail } from './CanonicalOpportunityDetail'
+import { AUTH_SESSION_ENDED } from '../../state/sessionState'
 import '../../styles/workspace.css'
 import '../../styles/canonical-workspace.css'
 const tabs = workspaceTabs
@@ -232,6 +233,19 @@ export function WorkspaceHome() {
     return () => window.removeEventListener('resize', focusBack)
   }, [detailCurrent, detailNavigation, pendingNeedId, selected?.id, view])
   useEffect(() => { void client.session().then(value => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false)) }, [])
+  useEffect(() => {
+    const onSessionEnded = () => {
+      ++selectionSequence.current
+      pageRef.current = null
+      updateSelectedNeedContext(null)
+      setPage(null); setPageIdentity(null); setSelected(null); setDetailIdentity(null)
+      setDetailLoading(false); setDetailError(''); setAccountAssociationNotice('')
+      setLoading(false); setError(''); setPendingNeedId(getParams().get('need'))
+      setAuthenticated(false)
+    }
+    addEventListener(AUTH_SESSION_ENDED, onSessionEnded)
+    return () => removeEventListener(AUTH_SESSION_ENDED, onSessionEnded)
+  }, [])
   // Account browsing remains available as an explicit secondary route. Ordinary
   // opportunities use the project projection in ProjectResults.
   useEffect(() => {
@@ -371,7 +385,7 @@ export function WorkspaceHome() {
     }
   })
   if (authenticated === null) return <div className="workspace-home"><div inert><CanonicalHeader onNavigate={() => {}}/></div><main className="loading" aria-live="polite" aria-busy="true">Loading your private workspace…</main></div>
-  if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); updateSelectedNeedContext(null); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
+  if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); updateSelectedNeedContext(null); pageRef.current = null; setPage(null); setPageIdentity(null); setError(''); setSelected(null); setDetailIdentity(null); setPendingNeedId(getParams().get('need')); setRevision(value => value + 1); setAuthenticated(true) }}/>
   const header = <CanonicalHeader
     activeDestination={navigationPanel ?? (view === 'pursuits' ? 'pursuits' : 'opportunities')}
     badges={{ pursuits: pursuitStore.counts.active }}
