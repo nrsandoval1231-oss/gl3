@@ -1,0 +1,1100 @@
+{
+  "baseline_generation": "d77dc446-f1a9-42c1-ab2b-ec169115de97",
+  "baseline_sha256": "ffdebd7cc74568714b7a19a7e0d0a51fbf493fe9dc45a8d24c47537d84c22ed5",
+  "source_export_sha256": "acfc0aaea7666c88bf7ad7647292124e472ab3934d86529e4fb1bfe771d47358",
+  "method": "Independent purposive cohort selected before implementation review; checked against immutable retained Evidence versions, not refreshed original pages. No population-wide precision/recall claim.",
+  "cases": [
+    {
+      "project_id": "d3176b9a-704d-4308-b494-2e13038b7592",
+      "need_id": "c6cc3dea-b32f-4a4a-b3e3-0b381ddac281",
+      "name": "EG AI RICE CAMPUS DATA CENTER",
+      "expected": "retain",
+      "independent_reason": "Strong planned data-center construction; dated registrant schedule is an estimate, not confirmed start. Unknown MW is not exclusion.",
+      "source_references": [
+        {
+          "id": "6aceb0f9-684c-4145-ba24-6a7c7aeb8556",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "document_number": "TABS-TABS2027002808",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "6aceb0f9-684c-4145-ba24-6a7c7aeb8556",
+          "content_hash": "7198be8e2d55df6992c275e13282391113552cd4191aa3f2fddadb353a7517d1",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002808",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "external_id": "TABS-TABS2027002808",
+          "published_at": null,
+          "event_date": "2026-10-05",
+          "event_date_label": "Registered with TDLR (Architectural Barriers)"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "d3176b9a-704d-4308-b494-2e13038b7592",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "981e550c-ca57-4db3-b1b0-cbdb6f9b2a80",
+      "need_id": "a172f722-710d-421c-b6dc-d83b52108d5e",
+      "name": "DAL130 - Data Center",
+      "expected": "retain",
+      "independent_reason": "Named data-center new construction, owner and future estimated schedule; do not require MW or utility shortage.",
+      "source_references": [
+        {
+          "id": "a31d14b9-b21c-4579-bd83-bc1888683959",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "document_number": "TABS-TABS2027002672",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "a31d14b9-b21c-4579-bd83-bc1888683959",
+          "content_hash": "84428f039c89912b641cab72fd996bbefb40a5d9a890b76e6549e5bb2f9509e5",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027002672",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "external_id": "TABS-TABS2027002672",
+          "published_at": null,
+          "event_date": "2026-10-02",
+          "event_date_label": "Registered with TDLR (Architectural Barriers)"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "981e550c-ca57-4db3-b1b0-cbdb6f9b2a80",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "d55d90bc-866a-4b8d-b4ae-913bf288c36e",
+      "need_id": "8200bb22-c658-4db6-a766-a072c7032587",
+      "name": "Beacon Point Data Center Project",
+      "expected": "retain",
+      "independent_reason": "Named data-center construction with estimated timeline; no confirmed rental requirement.",
+      "source_references": [
+        {
+          "id": "eb393f81-785e-47e3-9692-9aed3fe890f4",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "document_number": "TABS-TABS2027000611",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "eb393f81-785e-47e3-9692-9aed3fe890f4",
+          "content_hash": "a5c523322299054443ff735ca45a50ae80ec36980e4b6b2cf03b1e84a77ce189",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2027000611",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "external_id": "TABS-TABS2027000611",
+          "published_at": null,
+          "event_date": "2026-09-09",
+          "event_date_label": "Registered with TDLR (Architectural Barriers)"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "d55d90bc-866a-4b8d-b4ae-913bf288c36e",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "52d55047-cc62-49b9-8b67-c58cb327b220",
+      "need_id": "c4de4b9b-e1e1-4a01-8716-9ace73d3e909",
+      "name": "Project Jupiter data center campus",
+      "expected": "retain",
+      "independent_reason": "Recent named campus topped-out milestone in retained source URL; activity MW remains unknown; full source needed to confirm event.",
+      "source_references": [
+        {
+          "id": "7d736253-1099-4070-8401-e45008d761b3",
+          "source_id": "dcd-news",
+          "document_number": "https://www.datacenterdynamics.com/en/news/first-building-at-project-jupiter-data-center-campus-in-new-mexico-topped-out/",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "7d736253-1099-4070-8401-e45008d761b3",
+          "content_hash": "4c0bee8ea8c2cd53eeef2b14dbd82d8ece6f86f732219a1f369dd85b2e85807a",
+          "url": "https://www.datacenterdynamics.com/en/news/first-building-at-project-jupiter-data-center-campus-in-new-mexico-topped-out/",
+          "source_id": "dcd-news",
+          "external_id": "https://www.datacenterdynamics.com/en/news/first-building-at-project-jupiter-data-center-campus-in-new-mexico-topped-out/",
+          "published_at": "2026-10-27",
+          "event_date": null,
+          "event_date_label": null
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "52d55047-cc62-49b9-8b67-c58cb327b220",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "3235b960-e79d-4980-bb7a-f66f1c92e46e",
+      "need_id": "c65fa132-797d-43ce-a347-1d58ac8e97c4",
+      "name": "Soluna\u2019s Dorothy 3 site",
+      "expected": "retain",
+      "independent_reason": "Recent named planned data-center build; headline 50 MW cannot become activity-specific rental need.",
+      "source_references": [
+        {
+          "id": "81bcb3f6-eebe-4aa3-99b3-d5a78b092c11",
+          "source_id": "dcd-news",
+          "document_number": "https://www.datacenterdynamics.com/en/news/soluna-and-applied-digital-to-build-50mw-data-center-in-texas/",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "81bcb3f6-eebe-4aa3-99b3-d5a78b092c11",
+          "content_hash": "538cff7d19234f131003f2f98bdbdc349debc1f5262f93f7d495987bf815a9a2",
+          "url": "https://www.datacenterdynamics.com/en/news/soluna-and-applied-digital-to-build-50mw-data-center-in-texas/",
+          "source_id": "dcd-news",
+          "external_id": "https://www.datacenterdynamics.com/en/news/soluna-and-applied-digital-to-build-50mw-data-center-in-texas/",
+          "published_at": "2026-10-22",
+          "event_date": null,
+          "event_date_label": null
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "3235b960-e79d-4980-bb7a-f66f1c92e46e",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "9abc9bbe-019a-4aa1-abc0-6fa19eae6f98",
+      "need_id": "ed104dbb-ae9d-4cde-bdd6-015ec1caf7c6",
+      "name": "Edged Energy Outpost Building 2",
+      "expected": "retain",
+      "independent_reason": "Concrete new 488628 SF data-center building in plan review; 196 MW is reported facility scale, not activity demand or gap.",
+      "source_references": [
+        {
+          "id": "7df83ec9-3ccf-4afd-ba24-49e80c5e4a6c",
+          "source_id": "fort-worth-development-permits",
+          "document_number": "FTW-PB26-11109",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "7df83ec9-3ccf-4afd-ba24-49e80c5e4a6c",
+          "content_hash": "d8a3b5d50b58267754c55a5be4bc19017f53883debb9dc0531858f868d24d990",
+          "url": "https://data.fortworthtexas.gov/datasets/cfw-development-permits-table/about",
+          "source_id": "fort-worth-development-permits",
+          "external_id": "FTW-PB26-11109",
+          "published_at": null,
+          "event_date": "2026-08-03",
+          "event_date_label": "Permit application filed (Fort Worth Development Services)"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "9abc9bbe-019a-4aa1-abc0-6fa19eae6f98",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "4dc39dac-7925-4b6a-ab23-e392e4a43a12",
+      "need_id": "2a133586-db46-46ef-8343-a658ca8004ab",
+      "name": "ACS Data Center Phase I Substation",
+      "expected": "retain",
+      "independent_reason": "Named data-center substation is direct electrical infrastructure evidence; awaiting client reply is not construction started.",
+      "source_references": [
+        {
+          "id": "01a04768-bc55-48aa-8d72-d8a8bb763f50",
+          "source_id": "fort-worth-development-permits",
+          "document_number": "FTW-PB26-11057",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Control House Permit Related to PB26-06650 under a named data-center substation. Useful electrical-buildout scope, not full substation permit or energization proof.",
+      "sources": [
+        {
+          "id": "01a04768-bc55-48aa-8d72-d8a8bb763f50",
+          "content_hash": "a006db0bc1305019db2d926ee6585965c95331838da20d76d08a5df22de76ac4",
+          "url": "https://data.fortworthtexas.gov/datasets/cfw-development-permits-table/about",
+          "source_id": "fort-worth-development-permits",
+          "external_id": "FTW-PB26-11057",
+          "published_at": null,
+          "event_date": "2026-08-03",
+          "event_date_label": "Permit application filed (Fort Worth Development Services)"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "4dc39dac-7925-4b6a-ab23-e392e4a43a12",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "de3790fc-bdcb-438b-87d1-acaa422706da",
+      "need_id": "8381ca9f-f0bb-4b12-bebb-ed96f7e04386",
+      "name": "AUSTIN permit 2026-127435 BP",
+      "expected": "retain",
+      "independent_reason": "Hospital generator/fuel-tank replacement in seven electrical phases maintaining emergency power is substantive continuity-power relevance; MW unknown.",
+      "source_references": [
+        {
+          "id": "f2b56d24-0627-4ef2-b98b-563377689252",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-127435 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "f2b56d24-0627-4ef2-b98b-563377689252",
+          "content_hash": "81b88b7d58b6fa4a15d94639dbcff657309dad76ef0ebd8c098ca92362b0b727",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779915",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-127435 BP",
+          "published_at": "2026-09-29",
+          "event_date": "2026-09-29",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "de3790fc-bdcb-438b-87d1-acaa422706da",
+      "shortlist_reason": [
+        "Source describes generator or transfer-switch replacement; continuity needs require confirmation",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the generator transfer or outage schedule and whether temporary continuity power is needed."
+    },
+    {
+      "project_id": "585a46d6-4a6e-4e30-973c-7cae6d0fb102",
+      "need_id": "727e6676-f55c-40b9-86f0-8f3e844b1ae5",
+      "name": "AUSTIN permit 2026-109172 EP",
+      "expected": "retain",
+      "independent_reason": "Explicit construction electrical service with site/crane/hoist loads; amperage is not MW and temporary utility service is not rental shortage.",
+      "source_references": [
+        {
+          "id": "6b15cc89-069a-49cf-8e61-15acb80d7857",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-109172 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "6b15cc89-069a-49cf-8e61-15acb80d7857",
+          "content_hash": "7ec045a8fff3db4b505d0f358a6f96c23f3932c12ad78f9b6132314d92cb20cf",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13759135",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-109172 EP",
+          "published_at": "2026-08-31",
+          "event_date": "2026-08-31",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "585a46d6-4a6e-4e30-973c-7cae6d0fb102",
+      "shortlist_reason": [
+        "Source describes construction electrical service or specific temporary loads; rental need remains unconfirmed",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the construction load schedule and whether the cited service is utility supplied or requires temporary generation."
+    },
+    {
+      "project_id": "d37e3192-56bd-4325-a9d1-81929fa1e086",
+      "need_id": "ea3671aa-7ea1-4859-99b1-a3fcb8ec0c80",
+      "name": "AUSTIN permit 2026-129288 EP",
+      "expected": "retain",
+      "independent_reason": "Explicit emergency temporary wiring to restore occupied spaces until permanent repairs; completion/freshness needs checking.",
+      "source_references": [
+        {
+          "id": "dbfcbc25-59f3-47a0-8f0d-dfdb0acdec1e",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-129288 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "dbfcbc25-59f3-47a0-8f0d-dfdb0acdec1e",
+          "content_hash": "b6065cf4e1244f5c1fd86c9e2136de74a55583bad669c91188885aca6006dd39",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13782067",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-129288 EP",
+          "published_at": "2026-10-05",
+          "event_date": "2026-10-05",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "d37e3192-56bd-4325-a9d1-81929fa1e086",
+      "shortlist_reason": [
+        "Source describes temporary electrical restoration pending permanent repairs",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm whether occupied-space repairs remain open and the temporary electrical service window."
+    },
+    {
+      "project_id": "fdd81857-8c36-466b-a359-47df23f52698",
+      "need_id": "44491fd0-8ae2-4e0a-8ccf-cf6e4ec5a8b4",
+      "name": "AUSTIN permit 2026-137750 EP",
+      "expected": "retain",
+      "independent_reason": "Explicit 600 A 480 V temporary electrical service supports demand investigation without conversion or rental assertion.",
+      "source_references": [
+        {
+          "id": "64dd18f8-9c4f-494e-88b6-4f9ba972ba1a",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-137750 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "64dd18f8-9c4f-494e-88b6-4f9ba972ba1a",
+          "content_hash": "9fae48b15f53db90eedeac4e9bba48807f6a723f55e56c1d48fe02c5b7994c0f",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13791825",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-137750 EP",
+          "published_at": "2026-10-22",
+          "event_date": "2026-10-22",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "fdd81857-8c36-466b-a359-47df23f52698",
+      "shortlist_reason": [
+        "Source describes construction electrical service or specific temporary loads; rental need remains unconfirmed",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the construction load schedule and whether the cited service is utility supplied or requires temporary generation."
+    },
+    {
+      "project_id": "79162cd1-4ac4-4dc1-8ff5-6f3e12aec653",
+      "need_id": "fc0c5a6b-d27a-4e36-903a-34ccb92f2f5a",
+      "name": "AUSTIN permit 2026-135208 EP",
+      "expected": "retain",
+      "independent_reason": "Explicit 400 A temporary meter loop for school construction; approved service is not power shortage.",
+      "source_references": [
+        {
+          "id": "4c81689e-2bfd-49b0-ac30-e7de1ca1055f",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-135208 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "4c81689e-2bfd-49b0-ac30-e7de1ca1055f",
+          "content_hash": "c118a9844443b7df57e0c4ed9adbf5177ebcedda72841f7aea3a11191531ffcf",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13788842",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-135208 EP",
+          "published_at": "2026-10-21",
+          "event_date": "2026-10-21",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "79162cd1-4ac4-4dc1-8ff5-6f3e12aec653",
+      "shortlist_reason": [
+        "Source describes construction electrical service or specific temporary loads; rental need remains unconfirmed",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the construction load schedule and whether the cited service is utility supplied or requires temporary generation."
+    },
+    {
+      "project_id": "7a6aa1df-d37f-4bed-b161-5acecf84ca92",
+      "need_id": "32d9408b-c8d8-4971-8a5d-3b205c2dd2e1",
+      "name": "Carrier Global",
+      "expected": "retain_duplicate_cluster",
+      "independent_reason": "Recent Carrier manufacturing campus expansion; paired syndicated article should not count as two independent developments.",
+      "source_references": [
+        {
+          "id": "a3dc437c-f06c-4e74-a822-b8f3dcc1f4c6",
+          "source_id": "construction-dive-news",
+          "document_number": "https://www.constructiondive.com/news/carrier-600m-ft-worth-manufacturing-campus-HVAC/873003/",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain_duplicate_cluster",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "a3dc437c-f06c-4e74-a822-b8f3dcc1f4c6",
+          "content_hash": "c39aa783424ac92fe2fe9d33b96c83590046298cb7c6e1f2ea414c040e0566bf",
+          "url": "https://www.constructiondive.com/news/carrier-600m-ft-worth-manufacturing-campus-HVAC/873003/",
+          "source_id": "construction-dive-news",
+          "external_id": "https://www.constructiondive.com/news/carrier-600m-ft-worth-manufacturing-campus-HVAC/873003/",
+          "published_at": "2026-10-28",
+          "event_date": null,
+          "event_date_label": null
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "7a6aa1df-d37f-4bed-b161-5acecf84ca92",
+      "shortlist_reason": [
+        "Source describes industrial construction, expansion or equipment work; electrical requirements remain to be established",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm equipment ratings, electrical drive, installation timing and the organization responsible for the work."
+    },
+    {
+      "project_id": "9f402644-b5a8-4ba3-8774-ffb90a4ac57c",
+      "need_id": "e0b0680e-851a-45e5-ad88-def0e7786ed4",
+      "name": "Carrier Global",
+      "expected": "retain_duplicate_cluster",
+      "independent_reason": "Same Carrier campus development as Construction Dive article; retain sources while avoiding duplicated opportunity count.",
+      "source_references": [
+        {
+          "id": "7a768257-7439-4205-8942-e008e135ad95",
+          "source_id": "manufacturing-dive-news",
+          "document_number": "https://www.manufacturingdive.com/news/carrier-600m-ft-worth-manufacturing-campus-HVAC/872800/",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain_duplicate_cluster",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "7a768257-7439-4205-8942-e008e135ad95",
+          "content_hash": "65dac169c859aad806e951d106f60a4a1f3b3b7b21ce083354299503b04e471b",
+          "url": "https://www.manufacturingdive.com/news/carrier-600m-ft-worth-manufacturing-campus-HVAC/872800/",
+          "source_id": "manufacturing-dive-news",
+          "external_id": "https://www.manufacturingdive.com/news/carrier-600m-ft-worth-manufacturing-campus-HVAC/872800/",
+          "published_at": "2026-10-27",
+          "event_date": null,
+          "event_date_label": null
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "7a6aa1df-d37f-4bed-b161-5acecf84ca92",
+      "shortlist_reason": [
+        "Source describes industrial construction, expansion or equipment work; electrical requirements remain to be established",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm equipment ratings, electrical drive, installation timing and the organization responsible for the work."
+    },
+    {
+      "project_id": "41464fca-c60f-4228-9f5b-1f4890f56f33",
+      "need_id": "4a7f8f59-fa54-47e2-9786-55d5df874916",
+      "name": "PECOS COUNTY DATA CENTER",
+      "expected": "uncertain_duplicate_scope",
+      "independent_reason": "Pecos same address/owner/name/date as two registrations; inspect scope before merging physically distinct buildings or counting independent developments.",
+      "source_references": [
+        {
+          "id": "ea3d243b-b2f3-41aa-ad58-c38a3f6aa7d1",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "document_number": "TABS-TABS2026026955",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain_distinct_scope",
+      "source_review_note": "Retained TABS abstract explicitly identifies Building B. Keep distinct from Buildings A/C; same-site alone is not duplication.",
+      "sources": [
+        {
+          "id": "ea3d243b-b2f3-41aa-ad58-c38a3f6aa7d1",
+          "content_hash": "621e699ebed5a4446df61c63d168943d015f058a56ee35dde880ab50e0716248",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026955",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "external_id": "TABS-TABS2026026955",
+          "published_at": null,
+          "event_date": "2026-08-04",
+          "event_date_label": "Registered with TDLR (Architectural Barriers)"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "41464fca-c60f-4228-9f5b-1f4890f56f33",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "058d1e30-412e-4ec5-a10b-5cae86d956c2",
+      "need_id": "7eb41c5c-b980-4d86-b3ad-d90fec84bc43",
+      "name": "PECOS COUNTY DATA CENTER",
+      "expected": "uncertain_duplicate_scope",
+      "independent_reason": "Pecos same-site TABS sibling; project phase/building scope is missing from compact narrative.",
+      "source_references": [
+        {
+          "id": "25d035b7-f605-4000-81f2-ba4730a71b97",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "document_number": "TABS-TABS2026026959",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain_distinct_scope",
+      "source_review_note": "Retained TABS abstract explicitly identifies Building C. Keep distinct from Buildings A/B.",
+      "sources": [
+        {
+          "id": "25d035b7-f605-4000-81f2-ba4730a71b97",
+          "content_hash": "49891d3dcbc9ba407419cc27d47061b0bd7934e2d54872cab6fe895300771b77",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026959",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "external_id": "TABS-TABS2026026959",
+          "published_at": null,
+          "event_date": "2026-08-04",
+          "event_date_label": "Registered with TDLR (Architectural Barriers)"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "058d1e30-412e-4ec5-a10b-5cae86d956c2",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "db9c9b05-233c-4d8a-bbde-1f27427ba0ad",
+      "need_id": "9e5adb91-e126-46d1-af47-afb7f681f652",
+      "name": "PECOS COUNTY DATA CENTER",
+      "expected": "uncertain_duplicate_scope",
+      "independent_reason": "Pecos same-site TABS sibling; preserve all references and resolve exact scope.",
+      "source_references": [
+        {
+          "id": "44098a9f-2e89-475f-b1b5-cddcf22452ee",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "document_number": "TABS-TABS2026026954",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain_distinct_scope",
+      "source_review_note": "Retained TABS abstract explicitly identifies Building A. Keep distinct from Buildings B/C.",
+      "sources": [
+        {
+          "id": "44098a9f-2e89-475f-b1b5-cddcf22452ee",
+          "content_hash": "64269d4760ad4a239c1ca6610711354ce895b05b0baf7c2e930f1d41ef83f8db",
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Project/TABS2026026954",
+          "source_id": "texas-tdlr-tabs-data-centers",
+          "external_id": "TABS-TABS2026026954",
+          "published_at": null,
+          "event_date": "2026-08-04",
+          "event_date_label": "Registered with TDLR (Architectural Barriers)"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "db9c9b05-233c-4d8a-bbde-1f27427ba0ad",
+      "shortlist_reason": [
+        "Source describes a specific data-center construction or electrical-buildout development",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the current construction milestone and identify the EPC or organization procuring construction and commissioning power."
+    },
+    {
+      "project_id": "0a809071-96d4-4967-b1e6-aba3acc13d60",
+      "need_id": "7c8096a0-c303-43ba-9584-fb601dde2bea",
+      "name": "AUSTIN permit 2026-097374 BP",
+      "expected": "retain_duplicate_cluster",
+      "independent_reason": "Generator/ATS replacement supports bounded continuity investigation; paired EP same base permit and scope should not multiply project.",
+      "source_references": [
+        {
+          "id": "061bbab4-ac92-4383-acf2-9dbbef5de359",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-097374 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain_duplicate_cluster",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "061bbab4-ac92-4383-acf2-9dbbef5de359",
+          "content_hash": "5b56921c93a2b15029a259ee8c75101447d52f26e3294826809b77a08b8bb6cc",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13745507",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-097374 BP",
+          "published_at": "2026-09-01",
+          "event_date": "2026-09-01",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "0a809071-96d4-4967-b1e6-aba3acc13d60",
+      "shortlist_reason": [
+        "Source describes generator or transfer-switch replacement; continuity needs require confirmation",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the generator transfer or outage schedule and whether temporary continuity power is needed."
+    },
+    {
+      "project_id": "95be6874-ebd5-45b3-8cef-cc43452409ef",
+      "need_id": "ee042e21-e085-4a70-af6d-4bcda0cc71de",
+      "name": "AUSTIN permit 2026-097374 EP",
+      "expected": "retain_duplicate_cluster",
+      "independent_reason": "EP paired with BP 2026-097374, same generator/ATS scope; maintain permit evidence, one physical work scope.",
+      "source_references": [
+        {
+          "id": "e1d1d09a-9439-43b4-a737-06ccdefff221",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-097374 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain_duplicate_cluster",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "e1d1d09a-9439-43b4-a737-06ccdefff221",
+          "content_hash": "a06c38ff3926397821432d866b4aa8537c5b5419dd450787bbb84df97d6819b9",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13745514",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-097374 EP",
+          "published_at": "2026-09-04",
+          "event_date": "2026-09-04",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "0a809071-96d4-4967-b1e6-aba3acc13d60",
+      "shortlist_reason": [
+        "Source describes generator or transfer-switch replacement; continuity needs require confirmation",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm the generator transfer or outage schedule and whether temporary continuity power is needed."
+    },
+    {
+      "project_id": "b820a18c-7b7e-418f-8332-872a68e91a7e",
+      "need_id": "14f8a020-f840-4a2a-a3b3-4906abd9a679",
+      "name": "AUSTIN permit 2026-120890 EP",
+      "expected": "uncertain",
+      "independent_reason": "Project Toaster factory foundations show substantive construction; TEMPORARY ELECTRICAL PERMIT does not itself mean temporary power. Retain only with truthful construction rationale.",
+      "source_references": [
+        {
+          "id": "c0ac0aa4-5abb-4369-b7cf-ff16b4da72f1",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-120890 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "retain",
+      "source_review_note": "Active factory electrical foundations work, retained area 1226459, supports substantial industrial construction. Rationale must say electrical buildout, not temporary power just because the permit is temporary.",
+      "sources": [
+        {
+          "id": "c0ac0aa4-5abb-4369-b7cf-ff16b4da72f1",
+          "content_hash": "a5bc536bd8450f494190e939ab64a29b37667d202462d5f0802252fffb9d85b6",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13772373",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-120890 EP",
+          "published_at": "2026-10-08",
+          "event_date": "2026-10-08",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": true,
+      "shortlist_group_id": "b820a18c-7b7e-418f-8332-872a68e91a7e",
+      "shortlist_reason": [
+        "Source describes industrial construction, expansion or equipment work; electrical requirements remain to be established",
+        "MW unknown; source-backed development is retained without an inferred load or supply gap"
+      ],
+      "next_step": "Confirm equipment ratings, electrical drive, installation timing and the organization responsible for the work."
+    },
+    {
+      "project_id": "b495fdec-10f2-49bc-8503-192683846912",
+      "need_id": "a8e9ddbd-2449-47a2-9e76-1b20e7613459",
+      "name": "AUSTIN permit 2026-143145 EP",
+      "expected": "uncertain",
+      "independent_reason": "Temp-loop inspection readiness and approved ESPA; actual electrical activity, size and procurement readiness unknown; contractor contact is not buyer proof.",
+      "source_references": [
+        {
+          "id": "7a70ad90-d3cd-4001-bca5-bb91ba74743c",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-143145 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "uncertain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "7a70ad90-d3cd-4001-bca5-bb91ba74743c",
+          "content_hash": "56bc808f822c46052ac1254c9ba8b995e30208dd7fcce3a5a77db85ebf641e1e",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13797895",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-143145 EP",
+          "published_at": "2026-11-04",
+          "event_date": "2026-11-04",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "bd8f14ec-9cc1-41bb-8e3e-724acb483e7e",
+      "need_id": "da1bc542-489c-408a-8afe-f29fe2ec18de",
+      "name": "Vantage Data Centers Tx301, LLC",
+      "expected": "uncertain",
+      "independent_reason": "Existing EGU registration names data-center operator but supplies no incremental load, new phase or unmet requirement; source needs closer inspection.",
+      "source_references": [
+        {
+          "id": "0062d147-43ca-4a22-87da-797b08f01faf",
+          "source_id": "texas-tceq-egu-registrations",
+          "document_number": "TCEQ-EGU-182627",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "uncertain",
+      "source_review_note": "Existing engines/turbines registration, rule 106.511, updated report does not establish new electrical demand, runtime hours or project construction stage.",
+      "sources": [
+        {
+          "id": "0062d147-43ca-4a22-87da-797b08f01faf",
+          "content_hash": "ed5624f1c1147860ba6ffe88c2961c7f78ac63ca037e81c3741248d1aad48104",
+          "url": "https://www2.tceq.texas.gov/airperm/index.cfm",
+          "source_id": "texas-tceq-egu-registrations",
+          "external_id": "TCEQ-EGU-182627",
+          "published_at": null,
+          "event_date": "2026-10-08",
+          "event_date_label": "TCEQ received date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "76646919-0dff-41b3-b981-59d0c0a9e0a8",
+      "need_id": "20d4d59a-ecb8-4fc8-a018-c48d43e9213c",
+      "name": "DPR DATA CENTER TEMPORARY BATCH PLANT",
+      "expected": "uncertain",
+      "independent_reason": "Pending batch plant indicates planned site construction only; supplier is not DC owner, construction start and temporary load unproven.",
+      "source_references": [
+        {
+          "id": "24684950-d4a9-4f97-9af8-09525dd943d6",
+          "source_id": "texas-tceq-temporary-batch-plants",
+          "document_number": "TCEQ-CBP-409487",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "uncertain",
+      "source_review_note": "Retained notice establishes a proposed construction batch plant and source facility label names DC; no electrical-drive/load evidence, developer/buyer, or construction commencement.",
+      "sources": [
+        {
+          "id": "24684950-d4a9-4f97-9af8-09525dd943d6",
+          "content_hash": "db195b01f4410f319e7382a82a8b0a402583606da10838441f88a70c09fc3e37",
+          "url": "https://www.tceq.texas.gov/downloads/permitting/air/bilingual/pending-permit-notices/173154l003-napd-english.pdf",
+          "source_id": "texas-tceq-temporary-batch-plants",
+          "external_id": "TCEQ-CBP-409487",
+          "published_at": "2026-05-28",
+          "event_date": "2026-05-14",
+          "event_date_label": "Application submitted (TCEQ notice)"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "98af1327-9ea2-4032-976e-6872e68a27bb",
+      "need_id": "25b6b9e3-c595-4f45-a29a-419c9a9e2c20",
+      "name": "CRUSOE ENERGY SYSTEMS LLC",
+      "expected": "uncertain",
+      "independent_reason": "Older pending onsite-generation application is proposed supply, not demand amount or supply adequacy; current project stage needs corroboration.",
+      "source_references": [
+        {
+          "id": "915c47ee-b69b-468a-a9a9-119aa43e9cf7",
+          "source_id": "texas-tceq-nsr-pending",
+          "document_number": "TCEQ-400428",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "uncertain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "915c47ee-b69b-468a-a9a9-119aa43e9cf7",
+          "content_hash": "93602af8e8c8c7008e9975e71cc89d814060764456f8a8ce07c82a6abf7585f2",
+          "url": "https://www.tceq.texas.gov/permitting/air/newsourcereview/airpermits-pendingpermit-apps#400428",
+          "source_id": "texas-tceq-nsr-pending",
+          "external_id": "TCEQ-400428",
+          "published_at": null,
+          "event_date": "2025-11-07",
+          "event_date_label": "Application received (TCEQ listing)"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "f1834649-d2fa-4df3-9b26-7955de01eb0c",
+      "need_id": "3701d41c-34ba-42d8-b1f3-8970f5844ee0",
+      "name": "(Building Commercial) Commercial - New Construction (Complete)  : Requesting FasTrax expedited plan review.  Construct new 98,695 sf data center.  Scope includes site work, archite",
+      "expected": "uncertain",
+      "independent_reason": "Substantive new DC scope but 2024 date; Complete appears in permit type and must not be misread as project completed. Needs current status.",
+      "source_references": [
+        {
+          "id": "c4ed53cf-b9f7-404b-be85-5e8a4b00b4d6",
+          "source_id": "albuquerque-building-permits",
+          "document_number": "CABQ-BP-2024-36995",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "exclude_default",
+      "source_review_note": "Original retained record also has Status: Complete, beyond parenthetical work type. Issued 2024-12-30, with no current expansion evidence. Preserve archive and avoid current-opportunity promotion.",
+      "sources": [
+        {
+          "id": "c4ed53cf-b9f7-404b-be85-5e8a4b00b4d6",
+          "content_hash": "4072f2991d6a7f2281c033f0e4c15a4879ff6224319342c936f3b7d4923dffdf",
+          "url": "https://data.cabq.gov/business/buildingpermits/BuildingPermitsCABQ-en-us.csv",
+          "source_id": "albuquerque-building-permits",
+          "external_id": "CABQ-BP-2024-36995",
+          "published_at": null,
+          "event_date": "2024-12-30",
+          "event_date_label": "Permit issued (City of Albuquerque building permits)"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "63679a01-690c-400e-95b1-fd763c888bf2",
+      "need_id": "00030e1c-29c5-46b2-acee-b609166e29a3",
+      "name": "Texas W-1 permit 0919317",
+      "expected": "exclude_default",
+      "independent_reason": "W-1 drilling permission alone lacks electrical drive/equipment/production activity evidence; keep accessible in broader universe without spud or production inference.",
+      "source_references": [
+        {
+          "id": "0f9c672d-4b55-4f36-8fc5-17f95fad382f",
+          "source_id": "texas-rrc-drilling-permits",
+          "document_number": "0919317",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "exclude_default",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "0f9c672d-4b55-4f36-8fc5-17f95fad382f",
+          "content_hash": "64eac9ab0959f8a4e4beb8a9daab3d8235838c24e28cc056e9535df076c64b4c",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "source_id": "texas-rrc-drilling-permits",
+          "external_id": "0919317",
+          "published_at": "2026-10-23",
+          "event_date": "2026-10-23",
+          "event_date_label": "Reported original permit issue date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "9e81ed2c-bbef-4e63-aea4-ed6d39b73580",
+      "need_id": "002843ba-d061-4261-80e0-0461f6a2fcaa",
+      "name": "Texas W-1 permit 0919702",
+      "expected": "exclude_default",
+      "independent_reason": "Recent W-1 permit still only drilling permission. Recency and operator identity alone do not establish electrical demand.",
+      "source_references": [
+        {
+          "id": "74ed82d0-c465-44e2-9458-a42a48792636",
+          "source_id": "texas-rrc-drilling-permits",
+          "document_number": "0919702",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "exclude_default",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "74ed82d0-c465-44e2-9458-a42a48792636",
+          "content_hash": "2d443a71aebf2d09161d41a9e3ed11f9e0b7181f4453d8b724144359984761ca",
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "source_id": "texas-rrc-drilling-permits",
+          "external_id": "0919702",
+          "published_at": "2026-10-29",
+          "event_date": "2026-10-29",
+          "event_date_label": "Reported original permit issue date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "1dddad5a-ab54-41e9-869d-532bbc599332",
+      "need_id": "4b6572a2-2469-4d29-a5f3-7812a5778e59",
+      "name": "AUSTIN permit 2025-123879 BP",
+      "expected": "exclude_default",
+      "independent_reason": "Warehouse fence and access gate only; warehouse keyword is not demand or powered construction scope.",
+      "source_references": [
+        {
+          "id": "0018a70f-e8c7-4a16-88d7-b01016655c8f",
+          "source_id": "austin-building-permits",
+          "document_number": "2025-123879 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "exclude_default",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "0018a70f-e8c7-4a16-88d7-b01016655c8f",
+          "content_hash": "26599836ed2e2018900ad1242be41a4529514f81668b4694c0c08dff6f25c1fb",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13589774",
+          "source_id": "austin-building-permits",
+          "external_id": "2025-123879 BP",
+          "published_at": "2026-01-05",
+          "event_date": "2026-01-05",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "f8ee9d0f-78f7-44a5-81ca-d5d38481cc4d",
+      "need_id": "a69c9c55-9e92-44ba-bfb5-6ca29ebdf48a",
+      "name": "AUSTIN permit 2025-123876 BP",
+      "expected": "exclude_default",
+      "independent_reason": "Dry well for existing HVAC condensate drainage is civil maintenance, not new HVAC or supported electrical load.",
+      "source_references": [
+        {
+          "id": "99c0c392-1aa1-452b-95f2-f37fd0c21045",
+          "source_id": "austin-building-permits",
+          "document_number": "2025-123876 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "exclude_default",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "99c0c392-1aa1-452b-95f2-f37fd0c21045",
+          "content_hash": "59d761f2bd0204de4121d5b9c4d5c6f35c0d0d559c782971b5b93b1a2ce0a109",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13589771",
+          "source_id": "austin-building-permits",
+          "external_id": "2025-123876 BP",
+          "published_at": "2026-01-05",
+          "event_date": "2026-01-05",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "a8b464f3-a18a-4ad7-93b6-17bf11c2fe7b",
+      "need_id": "9b1b0208-01f2-417d-8b62-4c4683d5ceca",
+      "name": "AUSTIN permit 2026-127102 EP",
+      "expected": "exclude_default",
+      "independent_reason": "Temporary electrical permit limited to sports pole foundations/poles; no temporary-power requirement or substantial commercial opportunity evidenced.",
+      "source_references": [
+        {
+          "id": "df0a5320-d1bd-451d-875f-8ff22b7b7662",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-127102 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "exclude_default",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "df0a5320-d1bd-451d-875f-8ff22b7b7662",
+          "content_hash": "e0b95d96f4c39f211125d080296199351ee3aadbaeea6af88b0460c241439cdc",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779509",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-127102 EP",
+          "published_at": "2026-10-06",
+          "event_date": "2026-10-06",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "cd772c34-8bd9-4ce1-a8af-d03ae70cad90",
+      "need_id": "0828c22b-3b32-41ba-a878-25b4673c66cc",
+      "name": "AUSTIN permit 2026-142403 BP",
+      "expected": "exclude_default",
+      "independent_reason": "Small tent/product event with lighting/screens; a future date alone cannot establish industrial-scale commercial relevance.",
+      "source_references": [
+        {
+          "id": "b6c20aac-083b-438a-99af-bc120143d78b",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-142403 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "exclude_default",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "b6c20aac-083b-438a-99af-bc120143d78b",
+          "content_hash": "33b172ad1ee7a892d09ea681941b95cf63ddd0a8d7212a90d7133f1552cad9b9",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13797025",
+          "source_id": "austin-building-permits",
+          "external_id": "2026-142403 BP",
+          "published_at": "2026-10-28",
+          "event_date": "2026-10-28",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    },
+    {
+      "project_id": "e241f857-5fdc-467b-8317-b98aa5059d8b",
+      "need_id": "f0ef0f22-cbef-48b0-8c60-ba4d1923c36e",
+      "name": "AUSTIN permit 2025-123882 BP",
+      "expected": "uncertain",
+      "independent_reason": "New packaged HVAC is real equipment demand unlike fence/drain records; age/load/size unknown, must not blanket-exclude as warehouse maintenance.",
+      "source_references": [
+        {
+          "id": "b66f3312-1841-488b-96cd-0833d25b46f9",
+          "source_id": "austin-building-permits",
+          "document_number": "2025-123882 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_review_expected": "uncertain",
+      "source_review_note": "Retained source title/abstract supports initial bounded interpretation. No activity MW, buyer authority or rental shortage established.",
+      "sources": [
+        {
+          "id": "b66f3312-1841-488b-96cd-0833d25b46f9",
+          "content_hash": "34f1581b2829c9ce0219d2d7fd22435a35c6f6ebe33de0af175b293509c18e78",
+          "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13589777",
+          "source_id": "austin-building-permits",
+          "external_id": "2025-123882 BP",
+          "published_at": "2026-01-05",
+          "event_date": "2026-01-05",
+          "event_date_label": "Permit issue date"
+        }
+      ],
+      "shortlist_retained": false,
+      "shortlist_group_id": null
+    }
+  ]
+}

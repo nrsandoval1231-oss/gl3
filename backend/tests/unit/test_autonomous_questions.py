@@ -12,6 +12,7 @@ def card(**overrides):
         "facts": [],
         "stage": {"stage": "unknown"},
         "contacts": [],
+        "owner_organizations": ["Fixture source-backed owner"],
         "activity": "construction",
         "supply": "Unknown",
         **overrides,
@@ -28,6 +29,11 @@ def test_planner_prioritizes_two_commercial_blockers_and_replays_without_mutatin
     assert item == before
 
 
+def test_unknown_identity_is_prioritized_before_other_unresolved_dimensions():
+    result = plan_questions(card(owner_organizations=[]), limit=1)
+    assert [question["category"] for question in result] == ["identity"]
+
+
 def test_full_plan_exposes_later_questions_after_early_categories_are_fresh():
     item = card()
     assert [q["category"] for q in plan_questions(item)] == ["power_need", "phase"]
@@ -36,7 +42,7 @@ def test_full_plan_exposes_later_questions_after_early_categories_are_fresh():
         resolved_categories={"power_need", "phase"},
         limit=None,
     )
-    assert [q["category"] for q in available] == ["buyer", "timing", "load", "supply"]
+    assert [q["category"] for q in available] == ["timing", "buyer", "load", "supply"]
 
 
 @pytest.mark.parametrize("disposition", ["ACTION NOW", "REJECT"])

@@ -10,12 +10,22 @@ from sqlalchemy import select
 
 from gridlens.intelligence.contact_suppressions import (
     company_suppression_key,
+    global_method_suppression_key,
+    global_person_suppression_key,
     method_suppression_key,
     person_suppression_key,
 )
 from gridlens.intelligence.project_results import page
 from gridlens.intelligence.saved_browse import current_generation, rebuild
-from gridlens.persistence.models import BrowseRow
+from gridlens.persistence.models import (
+    BrowseRow,
+    BuyingChainClaim,
+    BuyingChainEvidence,
+    BuyingChainIdentityLink,
+    Evidence,
+    NeedObservation,
+    PersonIdentity,
+)
 from gridlens.persistence.suppression_models import ContactSuppression
 from gridlens.security import token_for
 from gridlens.settings import settings
@@ -219,6 +229,186 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         assert company_suppressed["items"][0]["contact_people"] == []
 
 
+def test_source_bound_shortlist_filters_before_counts_and_keeps_all_projects_unchanged(saved_db):
+    from test_saved_browse import seed
+
+    need_ids = seed(saved_db, count=3, histories=1)
+    with saved_db.begin() as session:
+        abstracts = {
+            need_ids[0]: (
+                "Project: North Campus\nScope: A new data center campus is under construction "
+                "and commissioning is planned. Jane Doe can be reached at +44 20 7946 0958 "
+                "or +49 30 901820."
+            ),
+            need_ids[
+                1
+            ]: "Project: Permit site\nScope: TEMPORARY ELECTRICAL PERMIT for fence and drainage.",
+            need_ids[
+                2
+            ]: "Project: Old campus\nStatus: Complete\nScope: Data center construction finished.",
+        }
+        linked = session.execute(
+            select(NeedObservation.need_id, Evidence).join(
+                Evidence, Evidence.observation_id == NeedObservation.observation_id
+            )
+        ).all()
+        for need_id, evidence in linked:
+            if need_id in abstracts:
+                evidence.title = f"Project update {need_id}"
+                evidence.abstract = abstracts[need_id]
+    rebuild(saved_db)
+    with saved_db.begin() as session:
+        browse_rows = session.scalars(select(BrowseRow)).all()
+        evidence_by_observation = {
+            evidence.observation_id: evidence
+            for evidence in session.scalars(select(Evidence)).all()
+        }
+        for row in browse_rows:
+            evidence = next(
+                evidence
+                for evidence in evidence_by_observation.values()
+                if session.scalar(
+                    select(NeedObservation.need_id).where(
+                        NeedObservation.observation_id == evidence.observation_id,
+                        NeedObservation.need_id == row.need_id,
+                    )
+                )
+            )
+            row.summary = {
+                **(row.summary or {}),
+                "evidence": [
+                    {
+                        "id": str(evidence.id),
+                        "source_id": "synthetic-permits",
+                        "assessment_current": True,
+                    }
+                ],
+            }
+        selected = next(row for row in browse_rows if row.need_id == need_ids[0])
+        person = PersonIdentity()
+        session.add(person)
+        session.flush()
+        now = datetime.now(UTC)
+        claim = BuyingChainClaim(
+            project_id=selected.project_id,
+            entity_key="shortlist-subject-jane-doe",
+            fingerprint="d" * 64,
+            policy_version="shortlist-privacy-test",
+            organization="Synthetic campus owner",
+            person_name="Jane Doe",
+            title="Project contact",
+            category="owner",
+            organization_relationship="owner",
+            person_organization_relationship="employee",
+            person_project_relationship="project_contact",
+            evidence_strength="high",
+            reason="Synthetic privacy regression fixture",
+            citations=[],
+            public_contacts=[],
+            observed_at=now,
+        )
+        session.add(claim)
+        session.flush()
+        identity_evidence = BuyingChainEvidence(
+            project_id=selected.project_id,
+            url="https://example.test/shortlist-identity",
+            title="Synthetic identity source",
+            excerpt="Jane Doe is associated with this synthetic project.",
+            content_hash="e" * 64,
+            extraction_location="fixture",
+            observed_at=now,
+            last_seen_at=now,
+            project_match_reason="Synthetic shortlist privacy fixture",
+        )
+        session.add(identity_evidence)
+        session.flush()
+        session.add_all(
+            [
+                BuyingChainIdentityLink(
+                    claim_id=claim.id,
+                    entity_type="person",
+                    person_identity_id=person.id,
+                    reason="Synthetic identity fixture",
+                    basis="strong_identifier",
+                    source_evidence_id=identity_evidence.id,
+                    source_version_hash="f" * 64,
+                    state="current",
+                ),
+                ContactSuppression(
+                    scope="person",
+                    subject_key=global_person_suppression_key(person.id),
+                    expected_version=0,
+                    version=1,
+                    action="suppress",
+                    reason="Synthetic shortlist privacy regression",
+                    actor="test",
+                    idempotency_key="shortlist-person-privacy",
+                ),
+                ContactSuppression(
+                    scope="method",
+                    subject_key=global_method_suppression_key("phone", "+44 20 7946 0958"),
+                    expected_version=0,
+                    version=1,
+                    action="suppress",
+                    reason="Synthetic shortlist privacy regression",
+                    actor="test",
+                    idempotency_key="shortlist-phone-privacy",
+                ),
+            ]
+        )
+    # The retained-claim insertion invalidates the derived browse generation;
+    # rebuild after it, then restore its bounded source refs for this fixture.
+    rebuild(saved_db)
+    with saved_db.begin() as session:
+        browse_rows = session.scalars(select(BrowseRow)).all()
+        evidence_by_observation = {
+            evidence.observation_id: evidence
+            for evidence in session.scalars(select(Evidence)).all()
+        }
+        for row in browse_rows:
+            evidence = next(
+                evidence
+                for evidence in evidence_by_observation.values()
+                if session.scalar(
+                    select(NeedObservation.need_id).where(
+                        NeedObservation.observation_id == evidence.observation_id,
+                        NeedObservation.need_id == row.need_id,
+                    )
+                )
+            )
+            row.summary = {
+                **(row.summary or {}),
+                "evidence": [
+                    {
+                        "id": str(evidence.id),
+                        "source_id": "synthetic-permits",
+                        "assessment_current": True,
+                    }
+                ],
+            }
+    with saved_db() as session:
+        shortlist = page(session, shortlist=True, limit=1)
+        assert shortlist["total"] == 1
+        assert len(shortlist["items"]) == 1
+        assessment = shortlist["items"][0]["shortlist_assessment"]
+        assert assessment["eligible"] is True
+        assert assessment["evidence_refs"]
+        assert "under construction" in assessment["why_now"].lower()
+        assert "Jane Doe" not in repr(assessment)
+        assert "+44 20 7946 0958" not in repr(assessment)
+        assert "+49 30 901820" not in repr(assessment)
+        detail = page(session, shortlist=True, need_id=need_ids[0])
+        assert detail["total"] == 1
+        assert (
+            detail["items"][0]["shortlist_assessment"]["evidence_refs"]
+            == assessment["evidence_refs"]
+        )
+        all_projects = page(session, shortlist=False, include_signals=True)
+        assert all_projects["total"] == 3
+        assert all("shortlist_assessment" not in item for item in all_projects["items"])
+        assert shortlist["cohort_token"] != all_projects["cohort_token"]
+
+
 def test_project_results_route_requires_session(saved_db, monkeypatch):
     _seed_project_metadata(saved_db)
     monkeypatch.setattr(settings, "saved_browse_enabled", True)
@@ -240,6 +430,12 @@ def test_project_results_route_requires_session(saved_db, monkeypatch):
         assert discovery_page["results_scope"] == "discovery"
         assert discovery_page["total"] > 0
         assert discovery_page["items"]
+        shortlist_response = client.get(
+            "/api/opportunities/projects", params={"shortlist": "true", "limit": 1}
+        )
+        assert shortlist_response.status_code == 200, shortlist_response.text
+        assert shortlist_response.json()["total"] == 0
+        assert shortlist_response.json()["cohort_token"] != discovery_page["cohort_token"]
         for sort in ("priority", "priority_asc", "company", "project", "updated"):
             sorted_response = client.get(
                 "/api/opportunities/projects",

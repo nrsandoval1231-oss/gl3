@@ -5311,6 +5311,7 @@ export interface operations {
                 cohort_token?: string | null;
                 sort?: "priority" | "priority_asc" | "company" | "project" | "updated";
                 include_signals?: boolean;
+                shortlist?: boolean;
             };
             header?: never;
             path?: never;

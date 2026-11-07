@@ -1,0 +1,93 @@
+{
+  "scope": "Local final candidate; no merge or deployment",
+  "base_commit": "fc59eab64306b7bcd0d047a0f5b7b3eb9381b6aa",
+  "source_manifest_sha256": "b407a80b4a4bfc085f77d3882ac44a11c46e813110cdc3cbd257274a83852df0",
+  "source_manifest_method": "SHA256 of compact sorted JSON mapping changed backend/web paths to SHA256 of raw working-tree bytes",
+  "source_files": {
+    "backend/src/gridlens/api/app.py": "7e30ab90b28bb9ef7c8e9e68d70964d3d453804bb67e33030499aa111e1d0fab",
+    "backend/src/gridlens/domain/opportunity_shortlist.py": "3ecafb1449b97cbc8c4e53eea552807cdba75f5cb692625e7b6a0729121db5d3",
+    "backend/src/gridlens/domain/pursuit_research.py": "e9231a9d6725171badf00372cc5eeaa0e4e86d29b1c532a77bfe7efa53d6049d",
+    "backend/src/gridlens/intelligence/intelligence_jobs.py": "f55de506218ad8f1eb6743afccf8305c6d17bfae314248b509129e8fdccf2eba",
+    "backend/src/gridlens/intelligence/project_results.py": "2284926b374b235904dfaa087c57d542863200441a945ede3dd5e57e472e1054",
+    "backend/src/gridlens/intelligence/research_recommendation.py": "02b1b2c90718e3929fd72833468c102c6c5516251736c97e6071214ff19cc75d",
+    "backend/tests/integration/test_evidence_shadow_privacy.py": "0f95e94537dd39b19945832d6d43fb4644ea7c15358b1edfcbfc9b2551f31f47",
+    "backend/tests/integration/test_project_results.py": "7a3c00e5c59d2641fc184dacb034d29b7068d93cac118e16c669f034b3f87fc7",
+    "backend/tests/integration/test_project_state_changes.py": "4db5bf48c2df39ebcb51b46d299390e89384f973295004e0e03ebfc952fa2dfd",
+    "backend/tests/integration/test_research_transitions.py": "a85bca37c71fa3ebb567da1475de057d5365a5ae652e2ed9ac5a273542e5d562",
+    "backend/tests/unit/test_autonomous_questions.py": "7d7464293555900e2da3fe1e714757035598340a44bc3e5c0ce48bc648c76254",
+    "backend/tests/unit/test_autonomous_resolution.py": "1a63622c102455196659d9e83b6baa5eb088737a550c6377165aed0bceac9c7d",
+    "backend/tests/unit/test_evidence_judge.py": "e26dd83be8f16e65da456f68f309cf5dbfbee15d863aab3590e413effae7a2ea",
+    "backend/tests/unit/test_intelligence_processing.py": "b73ce4033d9c10f33fb5e66b50ddb04399d51267485f90bc9e85bff52e0d8bb9",
+    "backend/tests/unit/test_opportunity_shortlist_policy.py": "35de17a8f64f5ae4883e850c7965ce0ee771b0bfb33d7ab2c9717734f3b47100",
+    "web/src/api/client.ts": "398e1d52cf992f203c27c738c74919967116821b380a5da05ba3cd4a25dd3103",
+    "web/src/api/generated.ts": "c48de56d56934cc747aca30aa344e9361dfd75bb4ce4460d34766bff0c7c7b79",
+    "web/src/api/openapi.json": "f21fab1ef140ca6f9b38edd0a5e402b112321248e60800aea433c6801dd14cb5",
+    "web/src/features/buyingChain/BuyingChain.tsx": "2b185289d55b68cd8e63c25fb79a839393fdee67ce77c888e5dc082e55012268",
+    "web/src/features/pursuits/AddToPursuit.tsx": "3187606a9d70b3908a2460c293d0e0bb04c98461d27d0f7cc2f1dc483eefed25",
+    "web/src/features/pursuits/ResearchView.tsx": "63cad26c43569cc61ef7b7b8988679ba854712d6fc6fb00d2bd7f677d79407b3",
+    "web/src/features/workspace/CanonicalOpportunityDetail.tsx": "e182cb37830382f9ff1514b29da09cc0426f1a1d5b52fbe3d32eef4d3115a781",
+    "web/src/features/workspace/CanonicalOpportunityResults.tsx": "dac2529424b9a16016704ffb4acfb83f4c1f2baa607afc944fb098f0e21e68a6",
+    "web/src/features/workspace/Workspace.tsx": "5cc8018928b169331e61212bfa2fd748feb5a46df845a6983a2ef752464d3e15",
+    "web/src/features/workspace/canonical-opportunity-detail.css": "d270cda0db33b179b95f8bfa51716d246096e9113aceca7d81601ad5b18be52c",
+    "web/src/features/workspace/canonical-opportunity-results.css": "c5d7d05e070722a335a367110b9d1be0b544cd8d76e9d0ed28dc4f2dbe7cb040",
+    "web/tests/approved_workspace.spec.ts": "45836d121e3946a05c9d563ad3a637cdfab3414bcfa9f669fb9f59026c1a7c9b",
+    "web/tests/autonomous-research.spec.ts": "17847d75d44cff27690147e574b5ed60cf61c5e20b7bcf97e12c6995d118da45",
+    "web/tests/buying_chain.spec.ts": "6e67aebe840c64ce879b465cf35c14c66b4e5b53e95b653269e8365f7417aae5",
+    "web/tests/canonical_all_signals.spec.ts": "40366ddfe524cf756748179c06a32580fe92402f56d3b8bf7c9179ffd50779cc",
+    "web/tests/canonical_flat_results.spec.ts": "bb3f8e8febb16308de9006e9792703bb8af74c5556623851f12941256120265c",
+    "web/tests/customer-accounts.spec.ts": "5cd2b27393e0c93115e6662dbae98e973604fb3061bb330242c0b08d06b7184a",
+    "web/tests/environment.spec.ts": "f31324e6fae44a65a98d539f17ee58893bfae867c98159529c8aab5fd46f155c",
+    "web/tests/first_path.spec.ts": "2a23a9c03dc0daa758ef9ee3db4f51663b7ffe3ad5cd4f752df25af9bcc7e10a",
+    "web/tests/project_cards.spec.ts": "58f10417f8d45ca66f79edafe6e57d9225d974937d5c6afa1cd3032a4f224ea1",
+    "web/tests/project_results.spec.ts": "949b14e0fcd8332fde400f5e3b5fd5e35570099a6c37b4ca8158e5cc5cf0cf80",
+    "web/tests/pursuit_default_flow.spec.ts": "c494c03cce4095c03e48ab4aee11eb6e614dd970c462bd05d6fb26717b0e1f05",
+    "web/tests/pursuits.spec.ts": "68e2e11c13c06d8cd7fb37b7413199f63c73a9ee4d52a2e691180673cbab7dc7"
+  },
+  "production_baseline_sha256": "ffdebd7cc74568714b7a19a7e0d0a51fbf493fe9dc45a8d24c47537d84c22ed5",
+  "retained_source_export_sha256": "acfc0aaea7666c88bf7ad7647292124e472ab3934d86529e4fb1bfe771d47358",
+  "checks": [
+    {
+      "command": "pwsh -NoProfile -File scripts/check.ps1",
+      "environment": "Owned disposable PostgreSQL; PYTEST_ADDOPTS=-n 4 -vv --tb=short; CI=true; provider keys empty",
+      "result": "PASS",
+      "backend": "4957 passed, 3 skipped, 11 warnings, 7 subtests passed",
+      "browser": "290 passed",
+      "other": "pip-audit, ruff, format, mypy, Alembic upgrade/check, npm ci/audit, TypeScript, Vite build, Chromium install passed"
+    },
+    {
+      "command": "uv run --project backend python scripts/check_docs.py",
+      "result": "PASS: 109 documents, 512 local targets, 18 anchors"
+    },
+    {
+      "command": "uv run --with-requirements tools/brand/requirements.txt python tools/brand/validate.py",
+      "result": "PASS: 216 assets and 8 semantic AA pairs"
+    },
+    {
+      "command": "Independent actual project-results SQL replay matrix",
+      "result": "33 assertions passed; 41 shortlist groups and 2258 All Projects records"
+    },
+    {
+      "command": "Independent rollback-only suppression reproduction",
+      "result": "Suppressed-phone leak=False; established projector removal=True"
+    }
+  ],
+  "full_check_log_sha256": "948df4310d1182cf96ee7d515b8e00e58b15daedf88c97d8db44ec59aa0c15f8",
+  "screenshots": {
+    "ui-after-1280x800.png": "58f7f24ef838802df3b3030d2bd8b62c73a5236a9e627b7eaa5cc665550f7158",
+    "ui-after-1440x900.png": "8b2b71851de8c91c6d1172e4c7db284a940597e572f8c9b31c38092e2a0105e3",
+    "ui-after-1648x928.png": "f31453bbee73148f9574e5e2c72363c9d379a3ee7ff7ed44c70aea2e3b9e554e",
+    "ui-after-390x844.png": "1de9427b2feadca4e8847fa59f47271cda0aa15701252c088d6233cf59f5ce0e",
+    "ui-after-768x1024.png": "2004438ed925ac58f56175458cbd4e7e9c5f9bd3716b6e80ce8f6522e6581f65",
+    "ui-before-1280x800.png": "21f054f19ee4e2592f09b5fb848e43adf3d56e2fcc2099ef4a38ffd0ad1dba0c",
+    "ui-before-1440x900.png": "c226625155a4219b238fa6a5e75695df9db3c48b20a9bbed362f7b8807b2dfe5",
+    "ui-before-1648x928.png": "c17e712307683d45b0d27f6a3408a15edee4d44f5a1383ffa4af25ba25287deb",
+    "ui-before-390x844.png": "8d3ae12a2c2b5b6067ee39720be33470c1d3971159b0e7e2574e7092d4c2ee9a",
+    "ui-before-768x1024.png": "7d30f277a8fa3691a36693710338882a20268b9b482993f3c836d59282c5312f"
+  },
+  "limitations": [
+    "Local source-copy SQL/UI replay, not deployed API proof",
+    "No new live Jev/Sol calls or original-page/PDF research",
+    "Calibration and excluded-record audit do not establish population accuracy",
+    "No activity MW established; possible same-site phase/work-package duplicates remain"
+  ]
+}

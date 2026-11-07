@@ -65,7 +65,7 @@ test('approved intelligence workspace preserves evidence, research status, selec
     await expect(account).toHaveAttribute('open', '')
     await expect(signOut).toBeVisible()
     await page.keyboard.press('Tab')
-    await expect(page.getByRole('button', { name: 'Research' })).toBeFocused()
+    await expect(page.getByRole('button', { name: 'Research progress' })).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(page.getByRole('button', { name: 'Signals' })).toBeFocused()
     await page.keyboard.press('Tab')

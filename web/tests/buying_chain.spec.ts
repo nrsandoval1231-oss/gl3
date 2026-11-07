@@ -74,6 +74,16 @@ test('mobile buying chain keeps unknown and empty results readable', async ({ pa
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
 })
 
+test('malformed buying-chain responses fail closed without crashing the detail view', async ({ page }) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', error => pageErrors.push(error.message))
+  await shell(page, async route => {
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ project_id: 'one', candidates: [], unresolved: [], runs: [] }) })
+  })
+  await expect(page.getByRole('alert')).toContainText('Buying-chain response did not match this project')
+  expect(pageErrors).toEqual([])
+})
+
 test('retained permit fields are useful before enrichment and preserve source roles', async ({ page }) => {
   const result = chain('one')
   result.permit_summaries = [{

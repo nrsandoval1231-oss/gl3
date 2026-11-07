@@ -19,7 +19,7 @@ function time(value: string | null | undefined) {
 }
 
 function checkedResult(data: BuyingChainResult, projectId: string) {
-  if (!data || data.project_id !== projectId || !Array.isArray(data.candidates)
+  if (!data || data.project_id !== projectId || typeof data.status !== 'string' || !Array.isArray(data.candidates)
     || !Array.isArray(data.unresolved) || !Array.isArray(data.runs)) {
     throw new Error('Buying-chain response did not match this project. Please retry.')
   }

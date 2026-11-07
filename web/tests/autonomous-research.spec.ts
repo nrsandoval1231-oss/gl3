@@ -51,7 +51,7 @@ test('Research shows source-backed contacts, separate priority and freshness, ex
     await route.fallback()
   })
   await page.goto('/?view=research')
-  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Research progress', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /Northstar/ }).click()
   await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
   await expect(page.getByRole('link', { name: longEmail })).toHaveAttribute('href', `mailto:${longEmail}`)

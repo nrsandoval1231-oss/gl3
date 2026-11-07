@@ -2314,31 +2314,16 @@ def _enqueue_routed_grounding(
         else []
     )
     categories = {
-        item.get("category")
+        category
         for item in unresolved
-        if isinstance(item, dict) and item.get("category")
+        if isinstance(item, dict) and isinstance(category := item.get("category"), str) and category
     }
     configured = {
         value.strip()
         for value in settings.intelligence_enabled_contracts.split(",")
         if value.strip()
     }
-    ordered_questions = (
-        "TEMP_LOAD_MW",
-        "UTILITY_ONLINE_DATE",
-        "COMMISSIONING_WINDOW",
-        "CONSTRUCTION_START",
-        "DIRECT_BUYER_AUTHORITY",
-        "NATURAL_GAS_AVAILABILITY",
-    )
-    question_id = next(
-        (
-            candidate
-            for candidate in ordered_questions
-            if candidate in configured and QUESTION_CONTRACTS[candidate]["category"] in categories
-        ),
-        None,
-    )
+    question_id = _preferred_grounding_question(categories, configured)
     if question_id is None:
         return {
             "status": "NO_AUTHORIZED_UNRESOLVED_QUESTION",
@@ -2403,6 +2388,26 @@ def _enqueue_routed_grounding(
         "question_id": question_id,
         "policy_id": reference["policy_id"],
     }
+
+
+def _preferred_grounding_question(categories: set[str], configured: set[str]) -> str | None:
+    """Select only an enabled, unresolved grounded question in targeted priority order."""
+    ordered_questions = (
+        "TEMP_LOAD_MW",
+        "CONSTRUCTION_START",
+        "DIRECT_BUYER_AUTHORITY",
+        "COMMISSIONING_WINDOW",
+        "UTILITY_ONLINE_DATE",
+        "NATURAL_GAS_AVAILABILITY",
+    )
+    return next(
+        (
+            candidate
+            for candidate in ordered_questions
+            if candidate in configured and QUESTION_CONTRACTS[candidate]["category"] in categories
+        ),
+        None,
+    )
 
 
 def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> dict[str, Any]:

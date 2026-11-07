@@ -113,7 +113,7 @@ test('account deep links reload profile and filters remain server-side', async (
   await expect.poll(() => queries.at(-1)?.get('search')).toBe('Northstar')
   expect(queries.at(-1)?.get('group_by')).toBe('account')
   await page.locator('.wh-account summary').click()
-  await expect(page.locator('.wh-account').getByRole('button', { name: 'Research' })).toBeVisible()
+  await expect(page.locator('.wh-account').getByRole('button', { name: 'Research progress' })).toBeVisible()
   await expect(page).toHaveURL(/account=company-1/)
 })
 

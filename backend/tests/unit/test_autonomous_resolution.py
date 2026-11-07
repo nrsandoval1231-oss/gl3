@@ -86,6 +86,7 @@ def test_reported_exact_load_excludes_answered_question_without_writing_power_ne
         "facts": [{"text": "Temporary power", "evidence_id": "citation"}],
         "stage": {"stage": "construction_active", "evidence_id": "phase"},
         "contacts": [{"kind": "public project phone", "value": "5550100"}],
+        "owner_organizations": ["Fixture source-backed owner"],
         "start_window": "2026-11-01",
         "supply": "Unknown",
     }

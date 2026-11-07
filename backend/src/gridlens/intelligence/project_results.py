@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from fastapi import HTTPException
 from sqlalchemy import text
 
+from gridlens.domain.opportunity_shortlist import POLICY_VERSION, shortlist_assessment
 from gridlens.intelligence.saved_browse import current_generation
+from gridlens.intelligence.saved_history_privacy import (
+    _redact_all_contact_tokens,
+    project_saved_history_privacy,
+)
 
 
 def page(
@@ -24,6 +30,7 @@ def page(
     sort: str = "priority",
     need_id: UUID | None = None,
     include_signals: bool = False,
+    shortlist: bool = False,
     project_ids: list[UUID] | None = None,
     selected_generation=None,
 ) -> dict[str, Any]:
@@ -42,6 +49,9 @@ def page(
         term,
         str(need_id or ""),
         include_signals,
+        shortlist,
+        POLICY_VERSION if shortlist else None,
+        date.today().isoformat() if shortlist else None,
         sorted(str(value) for value in project_ids or []),
     ]
     cohort_digest = hashlib.sha256(
@@ -61,7 +71,7 @@ def page(
         "offset": min(offset, generation.row_count),
         "selected_need": need_id,
     }
-    if need_id is not None:
+    if need_id is not None and not shortlist:
         filters.append("need_id = :need_id")
         params["need_id"] = need_id
     if project_ids:
@@ -77,21 +87,176 @@ def page(
         filters.append("compact #>> '{project_metadata,sector}' = 'oil_gas'")
     elif sector == "data_centers":
         filters.append("compact #>> '{project_metadata,sector}' = 'data_centers'")
-    discovery = bool(term or sector != "all" or need_id is not None or include_signals)
+    discovery = bool(term or sector != "all" or need_id is not None or include_signals or shortlist)
     if not discovery:
         # A useful contact route does not qualify an unsupported permit Signal.
         # Search and explicit sector exploration retain those early discoveries.
         filters.append("tier IN ('Prospect', 'Lead')")
+    if shortlist:
+        # Source assessment runs over the entire filtered generation below;
+        # eligible need ids then constrain this SQL cohort before counting/page.
+        pass
     where = " AND ".join(filters)
+    eligible_need_ids: list[UUID] = []
+    shortlist_by_need: dict[str, dict[str, Any]] = {}
+    shortlist_priority_by_need: dict[UUID, int] = {}
+    source_by_id: dict[str, dict[str, Any]] = {}
+    if shortlist:
+        # Build eligibility and duplicate lineage against the full generation,
+        # so search/sector/detail filters cannot split one physical project into
+        # unstable public groups or omit its other source references.
+        source_rows = (
+            session.execute(
+                text(
+                    "SELECT need_id, project_id, summary, compact "
+                    "FROM browse_rows WHERE generation_id = :generation"
+                ),
+                {"generation": generation.id},
+            )
+            .mappings()
+            .all()
+        )
+        evidence_ids = sorted(
+            {
+                str(evidence.get("id"))
+                for row in source_rows
+                for evidence in (row["summary"] or {}).get("evidence", [])
+                if evidence.get("assessment_current") is True and evidence.get("id")
+            }
+        )
+        if evidence_ids:
+            evidence_rows = (
+                session.execute(
+                    text("""SELECT e.id, e.title, e.abstract, e.url, e.published_at, e.event_date,
+                              e.event_date_label, o.source_id
+                       FROM evidence e JOIN observations o ON o.id = e.observation_id
+                       WHERE e.id = ANY(CAST(:evidence_ids AS uuid[]))"""),
+                    {"evidence_ids": evidence_ids},
+                )
+                .mappings()
+                .all()
+            )
+            source_by_id = {
+                str(row["id"]): {**dict(row), "id": str(row["id"]), "text": row["abstract"]}
+                for row in evidence_rows
+            }
+        for row in source_rows:
+            summary = row["summary"] or {}
+            refs = []
+            for evidence in summary.get("evidence", []):
+                source = source_by_id.get(str(evidence.get("id")))
+                if (
+                    source
+                    and evidence.get("assessment_current") is True
+                    and evidence.get("source_id") == source.get("source_id")
+                ):
+                    refs.append({**source, "assessment_current": True})
+            assessment = shortlist_assessment({**summary, **(row["compact"] or {})}, refs)
+            shortlist_by_need[str(row["need_id"])] = assessment
+            if assessment["eligible"]:
+                eligible_need_ids.append(row["need_id"])
+                shortlist_priority_by_need[row["need_id"]] = int(assessment.get("priority") or 0)
+        filters.append("need_id = ANY(CAST(:shortlist_need_ids AS uuid[]))")
+        params["shortlist_need_ids"] = eligible_need_ids
+        params["eligible_need_ids"] = eligible_need_ids
+        if need_id is not None:
+            target = next((row for row in source_rows if row["need_id"] == need_id), None)
+            if target is None:
+                params["shortlist_scope_project_ids"] = []
+            else:
+                target_project = target["project_id"]
+                target_duplicate = shortlist_by_need[str(need_id)].get("duplicate_key")
+                scope_projects = {
+                    row["project_id"]
+                    for row in source_rows
+                    if row["project_id"] == target_project
+                    or (
+                        target_duplicate
+                        and shortlist_by_need[str(row["need_id"])].get("duplicate_key")
+                        == target_duplicate
+                    )
+                }
+                params["shortlist_scope_project_ids"] = sorted(scope_projects, key=str)
+            filters.append("project_id = ANY(CAST(:shortlist_scope_project_ids AS uuid[]))")
+        where = " AND ".join(filters)
+    # Exact retained-source duplicate groups are only applied in shortlist mode;
+    # the full All Projects view keeps every canonical project unchanged.
+    duplicate_project_map: dict[UUID, UUID] = {}
+    if shortlist:
+        duplicate_groups: dict[str, set[UUID]] = {}
+        for row in source_rows:
+            duplicate_key = shortlist_by_need[str(row["need_id"])].get("duplicate_key")
+            if duplicate_key:
+                duplicate_groups.setdefault(duplicate_key, set()).add(row["project_id"])
+        components: list[set[UUID]] = []
+        for project_set in duplicate_groups.values():
+            if len(project_set) < 2:
+                continue
+            overlapping = [component for component in components if component & project_set]
+            merged = set(project_set)
+            for component in overlapping:
+                merged.update(component)
+                components.remove(component)
+            components.append(merged)
+        for component in components:
+            canonical = min(component, key=str)
+            duplicate_project_map.update({project_id: canonical for project_id in component})
+        params["shortlist_dup_ids"] = list(duplicate_project_map)
     # Only a validated, canonical U.S. well API number may consolidate separate
     # permit Projects. Every other row retains its own canonical project id.
-    asset_key = """CASE
+    duplicate_case = (
+        "CASE "
+        + " ".join(
+            f"WHEN project_id = :duplicate_{index} "
+            f"THEN 'shortlist:' || CAST(:canonical_{index} AS text)"
+            for index, (project_id, canonical) in enumerate(duplicate_project_map.items())
+        )
+        + " ELSE NULL END"
+    )
+    for index, (project_id, canonical) in enumerate(duplicate_project_map.items()):
+        params[f"duplicate_{index}"] = project_id
+        params[f"canonical_{index}"] = str(canonical)
+    asset_key = (
+        """CASE
+        WHEN :shortlist_dedupe_enabled AND project_id = ANY(CAST(:shortlist_dup_ids AS uuid[]))
+         THEN """
+        + duplicate_case
+        + """
+        WHEN compact #>> '{project_metadata,asset_identity,kind}' = 'us_well_api'
+         AND compact #>> '{project_metadata,asset_identity,identity_validated}' = 'true'
+         AND compact #>> '{project_metadata,asset_identity,value}' ~ '^[0-9]{10}([0-9]{2}){0,2}$'
+        THEN 'api:' || (compact #>> '{project_metadata,asset_identity,value}')
+        ELSE 'project:' || project_id::text END"""
+    )
+    params["shortlist_dedupe_enabled"] = bool(shortlist and duplicate_project_map)
+    if not shortlist or not duplicate_project_map:
+        # Avoid array bind or generated CASE references in the compatibility path.
+        asset_key = """CASE
         WHEN compact #>> '{project_metadata,asset_identity,kind}' = 'us_well_api'
          AND compact #>> '{project_metadata,asset_identity,identity_validated}' = 'true'
          AND compact #>> '{project_metadata,asset_identity,value}' ~ '^[0-9]{10}([0-9]{2}){0,2}$'
         THEN 'api:' || (compact #>> '{project_metadata,asset_identity,value}')
         ELSE 'project:' || project_id::text END"""
     asset_key_b = asset_key.replace("compact", "b.compact").replace("project_id", "b.project_id")
+    if shortlist and shortlist_priority_by_need:
+        priority_case = (
+            "CASE "
+            + " ".join(
+                f"WHEN b.need_id = :shortlist_priority_{index} THEN {score}"
+                for index, (need_id, score) in enumerate(shortlist_priority_by_need.items())
+            )
+            + " ELSE 0 END"
+        )
+        for index, need_id in enumerate(shortlist_priority_by_need):
+            params[f"shortlist_priority_{index}"] = need_id
+        priority_projection = f"max({priority_case})::integer AS priority_score"
+        representative_priority = f"{priority_case} DESC, "
+    elif shortlist:
+        priority_projection = "0::integer AS priority_score"
+        representative_priority = ""
+    else:
+        priority_projection = "max(b.rank_score)::integer AS priority_score"
+        representative_priority = ""
     order = {
         "priority": "priority_score DESC NULLS LAST, updated_at DESC NULLS LAST, asset_key",
         "priority_asc": "priority_score ASC NULLS LAST, updated_at DESC NULLS LAST, asset_key",
@@ -103,7 +268,9 @@ def page(
     # them across the full cohort keeps pagination global without changing which
     # physical project/need represents an asset or building all its JSON eagerly.
     representative_order = (
-        "(b.need_id = :selected_need) DESC NULLS LAST, "
+        ("(b.need_id = ANY(CAST(:eligible_need_ids AS uuid[]))) DESC, " if shortlist else "")
+        + representative_priority
+        + "(b.need_id = :selected_need) DESC NULLS LAST, "
         "b.rank_score DESC, b.updated_at DESC, b.need_id"
     )
     company_name = (
@@ -145,7 +312,7 @@ def page(
             ), ranked_assets AS (
               SELECT {asset_key_b} AS asset_key,
                      array_agg(DISTINCT b.project_id ORDER BY b.project_id) AS project_ids,
-                     max(b.rank_score)::integer AS priority_score,
+                     {priority_projection},
                      max(b.updated_at) AS updated_at,
                      {company_sort} AS company_sort,
                      {project_sort} AS project_sort
@@ -157,9 +324,10 @@ def page(
               ORDER BY {order} LIMIT :limit OFFSET :offset
             )
             SELECT p.asset_key, p.project_ids,
-              (array_agg(b.compact ORDER BY (b.need_id = :selected_need) DESC NULLS LAST,
-                        b.rank_score DESC, b.updated_at DESC, b.need_id))[1]
+              (array_agg(b.compact ORDER BY {representative_order}))[1]
                   AS representative,
+              (array_agg(b.summary ORDER BY {representative_order}))[1]
+                  AS representative_summary,
               jsonb_agg(
                 b.compact ORDER BY b.rank_score DESC, b.updated_at DESC, b.need_id
               ) AS needs,
@@ -194,6 +362,7 @@ def page(
     items = []
     for row in rows:
         compact = row["representative"] or {}
+        summary = row["representative_summary"] or {}
         meta = compact.get("project_metadata") or {}
         name = (
             meta.get("title")
@@ -266,6 +435,35 @@ def page(
             if row["asset_key"].startswith("api:")
             else asset_project_ids[0]
         )
+        shortlist_result = None
+        if shortlist:
+            assessment = shortlist_by_need.get(str(compact.get("id")), {})
+            grouped_assessments = [
+                shortlist_by_need[str(need["id"])]
+                for need in row["needs"] or []
+                if need.get("id") in shortlist_by_need
+                and shortlist_by_need[str(need["id"])].get("eligible")
+            ]
+            if grouped_assessments:
+                assessment = {
+                    **assessment,
+                    "eligible": True,
+                    "reasons": list(
+                        dict.fromkeys(
+                            reason
+                            for grouped in grouped_assessments
+                            for reason in grouped.get("reasons") or []
+                        )
+                    ),
+                    "evidence_refs": sorted(
+                        {
+                            reference
+                            for grouped in grouped_assessments
+                            for reference in grouped.get("evidence_refs") or []
+                        }
+                    ),
+                }
+            shortlist_result = assessment
         items.append(
             {
                 "id": public_id,
@@ -287,9 +485,34 @@ def page(
                 "power_summary": meta.get("power_summary") or compact.get("power_summary"),
                 "power_summary_kind": meta.get("power_summary_kind") or "unknown",
                 "next_action": (compact.get("commercial_preview") or {}).get("next_action"),
+                **({"shortlist_assessment": shortlist_result} if shortlist else {}),
                 "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
             }
         )
+
+    if shortlist and items:
+        # Batch assessments through the established saved-history privacy
+        # projection. Each synthetic saved card carries only its own project
+        # lineage, preventing unrelated page items from cross-redacting.
+        scoped = project_saved_history_privacy(
+            session,
+            {
+                "versions": [
+                    {
+                        "saved_card": {
+                            "project_id": item["project_id"],
+                            "related_project_ids": item["project_ids"],
+                            "shortlist_assessment": item["shortlist_assessment"],
+                        }
+                    }
+                    for item in items
+                ]
+            },
+        )
+        for item, version in zip(items, scoped["versions"], strict=True):
+            item["shortlist_assessment"] = _redact_all_contact_tokens(
+                version["saved_card"]["shortlist_assessment"]
+            )
 
     # Recheck cached actions and named people against current suppressions. A
     # later privacy suppression takes effect without waiting for a new snapshot.

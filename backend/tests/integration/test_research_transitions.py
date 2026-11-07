@@ -517,14 +517,19 @@ def test_effective_qualification_ages_out_lead_without_mutating_retained_history
 
 
 def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_runtime, monkeypatch):
+    from gridlens.domain.pursuit_research import blocker_resolved
     from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
     from gridlens.intelligence.research_evidence import retain_research_document
     from gridlens.persistence.models import Project
 
     factory, source, worker, seed_job = canonical_runtime
-    today = date(2026, 10, 1)
+    today = date.today()
     url = "https://www.datacenterdynamics.com/en/news/synthetic-clayton-update/"
-    initial_description = "Construct new data center."
+    # Establish power relevance in the actual source-backed action, without
+    # claiming an owner or active construction phase before the worker checks.
+    initial_description = (
+        "Temporary power is required for this construction activity. Construct new data center."
+    )
     with factory.begin() as session:
         process_records(
             session,
@@ -540,19 +545,32 @@ def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_run
         need_id = need.id
         project = session.get(Project, need.project_id)
         project_name = project.name
-        initial_document = PublicDocument(
-            url,
-            project_name + " project update",
-            project_name + " at 811 Clayton Ln, Austin, TX construction requires 400 kW.",
-            today,
-            datetime.now(UTC),
+        initial_public_text = (
+            "Construct new data center at 811 Clayton Ln, Austin, TX. "
+            f"{project_name} at 811 Clayton Ln, Austin, TX "
+            "construction power requires 400 kW."
         )
-        receipt = retain_research_document(session, project, need, initial_document)
+        receipt = retain_research_document(
+            session,
+            project,
+            need,
+            PublicDocument(
+                url, project_name + " project update", initial_public_text, today, datetime.now(UTC)
+            ),
+        )
         assert receipt["disposition"] == "ACCEPTED", str(receipt)
         enrich_buying_chain(session, project.id, retained_only=True)
     with factory.begin() as session:
         card = evaluate_target(session, need_id)
+        assert blocker_resolved("power_need", card)
+        assert not blocker_resolved("identity", card)
+        assert not blocker_resolved("phase", card)
         rows = schedule_questions(session, [card])
+        assert [row.category for row in rows] == ["identity", "phase"], {
+            "facts": card.get("facts"),
+            "stage": card.get("stage"),
+            "questions": [row.category for row in rows],
+        }
         parent = next(row for row in rows if row.category == "phase")
         question_id = parent.id
         job = session.scalar(select(Job).where(Job.target_id == question_id))
@@ -571,8 +589,7 @@ def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_run
         return PublicDocument(
             url,
             project_name + " project update",
-            project_name + " at 811 Clayton Ln, Austin, TX construction requires 400 kW. "
-            "811 Clayton Ln, Austin, TX construction is underway.",
+            initial_public_text + " 811 Clayton Ln, Austin, TX construction is underway.",
             today,
             datetime.now(UTC),
         )
@@ -589,7 +606,7 @@ def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_run
         ).all()
         assert len(children) == 1
         child = children[0]
-        assert child.category == "buyer"
+        assert child.category == "timing"
         active = session.scalars(
             select(PursuitResearchQuestion).where(
                 PursuitResearchQuestion.status.in_(["QUEUED", "SEARCHING", "REVIEWING_EVIDENCE"])
@@ -597,6 +614,8 @@ def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_run
         ).all()
         assert len(active) <= 2
         card = evaluate_target(session, need_id)
+        assert blocker_resolved("phase", card)
+        assert not blocker_resolved("identity", card)
         assert schedule_questions(session, [card], parent_id=question_id, force=True) == []
         assert schedule_questions(session, [card], parent_id=child.id, force=True) == []
         assert session.get(PowerNeed, need_id).tier == "Signal"
@@ -690,7 +709,8 @@ def test_worker_public_adverse_report_vetoes_only_supported_exact_activity(
         card = evaluate_target(session, need_id)
         rows = schedule_questions(session, [card])
         assert rows, card
-        question_id = rows[0].id
+        question = next(row for row in rows if row.category == "power_need")
+        question_id = question.id
         job = session.scalar(select(Job).where(Job.target_id == question_id))
         job.available_at = datetime.now(UTC) - timedelta(seconds=1)
         leased = lease_one(session, "veto-test", lease_seconds=600, job_ids=[job.id])

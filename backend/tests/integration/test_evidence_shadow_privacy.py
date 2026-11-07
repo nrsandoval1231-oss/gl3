@@ -1,6 +1,7 @@
 """Historical unsafe evidence jobs withhold before reserving provider work."""
 
 import json
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from test_evidence_shadow_storage import seed_accepted, shadow_db  # noqa: F401
@@ -49,9 +50,19 @@ def test_queued_historical_contact_evidence_abstains_without_call_or_evidence_mu
         assert queued["attempted"] == 1
         job = session.scalar(select(Job).where(Job.kind == "evidence_shadow"))
         assert job is not None
+        # The production queue relies on PostgreSQL's server-side default. Set
+        # an explicit due time using the lease owner's clock for this fixture.
+        job.available_at = datetime.now(UTC) - timedelta(seconds=1)
         queued_id = job.id
         checkpoint = json.loads(job.checkpoint)
         assert "jordan@example.com" in checkpoint["request_context"]["evidence"]["abstract"]
+        session.commit()
+
+    with shadow_db() as session:
+        job = session.get(Job, queued_id)
+        assert job is not None
+        assert job.status == "queued" and job.attempts == 0
+        assert job.available_at <= datetime.now(UTC)
 
     from test_intelligence_worker_integration import _wire_worker
 

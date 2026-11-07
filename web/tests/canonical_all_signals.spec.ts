@@ -51,23 +51,24 @@ test('synthetic All view requests discovery so Signals render, and pagination an
     return route.fulfill({ json: pageFor(url) })
   })
 
-  await page.goto('/?view=workspace&projectBrowse=1')
+  await page.goto('/?view=workspace&projectBrowse=1&shortlist=0')
   await expect(page.getByRole('heading', { name: 'Opportunities' })).toBeVisible()
   await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
-  await expect(page.locator('.cfr-table tbody tr').first()).toContainText('Qualification: Signal')
+  await expect(page.locator('.cfr-table tbody tr').first()).toContainText('Sourced project 1')
+  await expect(page.locator('.cfr-table tbody tr').first()).not.toContainText('Qualification: Signal')
   await expect(page.locator('.cfr-heading')).toContainText('Signals included')
 
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('25')
   await expect.poll(() => requests.at(-1)?.searchParams.get('include_signals')).toBe('true')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(1)
-  await expect(page.locator('.cfr-table tbody tr').first()).toContainText('Qualification: Signal')
+  await expect(page.locator('.cfr-table tbody tr').first()).toContainText('Sourced project 26')
 
   await page.getByRole('combobox', { name: 'Project type' }).selectOption('data_centers')
   await expect.poll(() => requests.at(-1)?.searchParams.get('sector')).toBe('data_centers')
   await expect.poll(() => requests.at(-1)?.searchParams.get('include_signals')).toBe('true')
-  await expect(page.locator('.cfr-table tbody tr').first()).toContainText('Qualification: Signal')
+  await expect(page.locator('.cfr-table tbody tr').first()).toContainText('Sourced project 1')
 
   await page.getByRole('textbox', { name: 'Search opportunities' }).fill('Mesa')
   await expect.poll(() => requests.some(url => url.searchParams.get('search') === 'Mesa' && url.searchParams.get('include_signals') === 'true')).toBeTruthy()

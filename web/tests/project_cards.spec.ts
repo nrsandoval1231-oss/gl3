@@ -770,7 +770,7 @@ test('technical diagnostics are secondary to the commercial navigation and load 
     await page.goto('/?view=ingestion')
     await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveText(['Opportunities', 'Companies', 'Pursuits', 'Reports'])
     await page.locator('.wh-account summary').click()
-    await expect(page.locator('.wh-account').getByRole('button', { name: 'Research' })).toBeVisible()
+    await expect(page.locator('.wh-account').getByRole('button', { name: 'Research progress' })).toBeVisible()
     await expect(page.locator('.wh-account').getByRole('button', { name: 'Signals' })).toBeVisible()
     await expect.poll(() => requestStarted).toBe(true)
     await page.getByRole('button', { name: 'Technical diagnostics' }).click()
