@@ -36,7 +36,7 @@ async function mock(page: Page) {
 }
 const params = (page: Page) => new URL(page.url()).searchParams
 const rows = (page: Page) => page.locator('.cfr-table tbody tr')
-const bookmark = '/?view=workspace&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked&sort=updated'
+const bookmark = '/?view=workspace&shortlist=0&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked&sort=updated'
 
 test('an old bookmark seeds region, stage and priority, filters the page, and drops the unsupported sort', async ({ page }) => {
   await mock(page)
@@ -84,13 +84,22 @@ test('changing and clearing page filters writes and removes their URL params', a
 
 test('a bookmarked filter value absent from the page shows the empty page-filter state and Clear recovers', async ({ page }) => {
   await mock(page)
-  await page.goto('/?view=workspace&region=Nowhere%2C+ZZ&priority=bogus')
+  await page.goto('/?view=workspace&shortlist=0&region=Nowhere%2C+ZZ&priority=bogus')
   await expect(page.getByText('No projects match these page filters.')).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Region', exact: true })).toHaveValue('Nowhere, ZZ')
   await expect(page.getByRole('combobox', { name: 'Priority', exact: true })).toHaveValue('')
   await page.getByRole('button', { name: 'Clear', exact: true }).click()
   await expect(rows(page)).toHaveCount(3)
   expect(params(page).has('region')).toBe(false)
+})
+
+test('a stale Priority bookmark is ignored and removed in Shortlist view', async ({ page }) => {
+  await mock(page)
+  await page.goto('/?view=workspace&shortlist=1&priority=unranked')
+  await expect(rows(page)).toHaveCount(3)
+  await expect(page.getByRole('combobox', { name: 'Priority', exact: true })).toHaveCount(0)
+  await expect.poll(() => params(page).has('priority')).toBe(false)
+  await expect(rows(page)).toHaveCount(3)
 })
 
 test('paging with a selected need clears the selection and URL consistently, and reload does not resurrect it', async ({ page }) => {

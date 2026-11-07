@@ -34,11 +34,11 @@ async function mock(page: Page) {
 
 const params = (page: Page) => new URL(page.url()).searchParams
 
-test('the bare default renders flat project cards, three KPI cards and the restyled detail with Add to Pursuit', async ({ page }) => {
+test('the bare default renders flat project cards, one KPI card and the restyled detail with Add to Pursuit', async ({ page }) => {
   await mock(page)
   await page.goto('/?view=workspace')
   await expect(page.locator('.cfr-table tbody tr')).toHaveCount(1)
-  await expect(page.locator('.cfr-kpis article')).toHaveCount(3)
+  await expect(page.locator('.cfr-kpis article')).toHaveCount(1)
   await expect(page.locator('.customer-group')).toHaveCount(0)
   await page.locator('[data-need-row="need-1"]').click()
   await expect(page.locator('.cod-panel')).toBeVisible()

@@ -1,16 +1,36 @@
-"""Deterministic, advisory research routing seam; never queues work or changes tiers."""
+"""Deterministic advisory routing from current, source-bound project state."""
 
 _NEED_FIELDS = ("activity", "tier", "mw", "timing", "duration", "supply")
 
 
-def _missing_facts(fields: dict) -> list[str]:
+def _supported(claim: object) -> bool:
+    """A projected value counts as known only when current evidence backs it."""
+    evidence = claim.get("evidence") if isinstance(claim, dict) else None
+    return bool(
+        isinstance(claim, dict)
+        and claim.get("status") == "SUPPORTED"
+        and claim.get("value") not in (None, "", [])
+        and isinstance(evidence, list)
+        and evidence
+        and all(
+            isinstance(item, dict)
+            and item.get("id")
+            and item.get("url")
+            and item.get("support") == "accepted interpretation"
+            for item in evidence
+        )
+    )
+
+
+def _missing_facts(fields: dict, organizations: list[dict] | None = None) -> list[str]:
+    """List unsupported project, power-need, company, and buyer facts."""
     missing = [
         key
-        for key in ("power_need", "utility_service", "lifecycle", "activity")
-        if fields.get(key, {}).get("status") != "SUPPORTED"
+        for key in ("identity", "site", "lifecycle", "activity", "power_need", "utility_service")
+        if not _supported(fields.get(key))
     ]
     power_need = fields.get("power_need", {})
-    if power_need.get("status") == "SUPPORTED" and isinstance(power_need.get("value"), list):
+    if isinstance(power_need, dict) and isinstance(power_need.get("value"), list):
         nested = set()
         for need in power_need["value"]:
             if not isinstance(need, dict):
@@ -20,11 +40,53 @@ def _missing_facts(fields: dict) -> list[str]:
             activity_value = activity.get("value") if isinstance(activity, dict) else None
             label = activity_value.strip() if isinstance(activity_value, str) else "unknown"
             for field in _NEED_FIELDS:
-                claim = need.get(field, {})
-                if not isinstance(claim, dict) or claim.get("status") != "SUPPORTED":
+                if not _supported(need.get(field)):
                     nested.add(f"power_need[{label}].{field}")
         missing.extend(sorted(nested))
+    organizations = organizations or []
+    grounded_parties = [
+        item
+        for item in organizations
+        if item.get("organization")
+        and any(
+            isinstance(citation, dict)
+            and citation.get("id")
+            and citation.get("url")
+            and citation.get("quote")
+            for citation in item.get("citations", [])
+        )
+    ]
+    if not any(
+        any(
+            token in str(item.get(key, "")).casefold()
+            for token in ("owner", "operator", "developer")
+        )
+        for item in grounded_parties
+        for key in ("category", "organization_relationship", "person_project_relationship")
+    ):
+        missing.append("company")
+    if not _buyer_accessible(grounded_parties):
+        missing.append("buyer")
     return missing
+
+
+def _buyer_accessible(organizations: list[dict]) -> bool:
+    """Check for a cited buyer-side organization with public contact details."""
+    return any(
+        bool(item.get("public_contacts"))
+        and bool(item.get("citations"))
+        and any(
+            keyword in str(item.get(field, "")).lower()
+            for field in (
+                "category",
+                "organization_relationship",
+                "person_project_relationship",
+                "title",
+            )
+            for keyword in ("buyer", "procurement", "owner", "operator")
+        )
+        for item in organizations
+    )
 
 
 def research_recommended(
@@ -36,48 +98,27 @@ def research_recommended(
     timing_known: bool,
     buyer_accessible: bool,
 ) -> bool:
+    """Return true only for material, relevant evidence with actionable gaps."""
+    # The parameters remain part of the public seam for legacy evaluators;
+    # routing is strictly gated by Jev's labels and current grounded gaps.
     return bool(
         material_change
         and relevant == "YES"
         and power_relevance in {"MEDIUM", "HIGH"}
         and missing_facts
-        and (not timing_known or not buyer_accessible)
     )
 
 
 def recommend_from_context(judgment: dict, state: dict) -> bool:
-    """Apply deterministic routing to a bounded state and a validated shadow judgment."""
+    """Apply deterministic routing to validated Jev labels and grounded state."""
     fields = state.get("state", {})
-    missing_facts = _missing_facts(fields)
-    utility = fields.get("utility_service", {})
-    utility_known = utility.get("status") == "SUPPORTED" and bool(utility.get("value"))
-    power_need = fields.get("power_need", {})
-    power_need_rows = power_need.get("value") if power_need.get("status") == "SUPPORTED" else []
-    timing_known = utility_known or any(
-        isinstance(need, dict)
-        and need.get("timing", {}).get("status") == "SUPPORTED"
-        and bool(need.get("timing", {}).get("value"))
-        for need in (power_need_rows or [])
-    )
-    buyer_accessible = any(
-        bool(item.get("public_contacts"))
-        and any(
-            keyword in str(item.get(field, "")).lower()
-            for field in (
-                "category",
-                "organization_relationship",
-                "person_project_relationship",
-                "title",
-            )
-            for keyword in ("buyer", "procurement", "owner", "operator")
-        )
-        for item in state.get("organizations_and_roles", [])
-    )
+    organizations = state.get("organizations_and_roles", [])
+    missing_facts = _missing_facts(fields, organizations)
     return research_recommended(
         material_change=judgment.get("material_change") == "YES",
         relevant=judgment.get("relevant", "UNKNOWN"),
         power_relevance=judgment.get("power_relevance", "UNKNOWN"),
         missing_facts=missing_facts,
-        timing_known=timing_known,
-        buyer_accessible=buyer_accessible,
+        timing_known=False,
+        buyer_accessible=False,
     )

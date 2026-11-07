@@ -199,7 +199,7 @@ for (const item of cases) {
     }
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-${browseView}-desktop.png`), fullPage: true })
     await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-    const citations = page.getByRole('region', { name: 'Intelligence card sources' }).locator(`a[href="${item.source_url}"]`)
+    const citations = page.getByRole('region', { name: 'Research sources' }).locator(`a[href="${item.source_url}"]`)
     await expect(citations.first()).toHaveAttribute('href', item.source_url)
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-evidence-desktop.png`), fullPage: true })
 
@@ -224,7 +224,7 @@ for (const item of cases) {
     }
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-opportunities-desktop.png`), fullPage: true })
     await page.goto(`/?view=research&researchNeed=${encodeURIComponent(item.need_id)}`)
-    await expect(page.getByRole('heading', { level: 1, name: 'Research', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'Research progress', exact: true })).toBeVisible()
     if (item.expected_research_project_heading !== false) {
       await expect(page.getByRole('heading', { level: 2, name: item.expected_research_project_heading ?? item.project_name, exact: false })).toBeVisible()
     }
@@ -240,7 +240,7 @@ for (const item of cases) {
       await expect(researchRepresentative).toHaveCount(1)
       await expect(researchRepresentative.locator('a[href^="tel:"]'), 'Research does not infer a personal phone line').toHaveCount(0)
     }
-    const researchDetail = page.getByRole('region', { name: 'Selected automated research' })
+    const researchDetail = page.getByRole('region', { name: 'Selected research' })
     for (const text of item.expected_research_text ?? []) await expect(researchDetail).toContainText(text)
     await page.screenshot({ path: testInfo.outputPath(`${item.case_id}-research-desktop.png`), fullPage: true })
 

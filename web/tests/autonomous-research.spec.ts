@@ -42,7 +42,7 @@ test('Research shows source-backed contacts, separate priority and freshness, ex
       })),
     },
   }
-  const longThinNeed = { ...longNeed, title_company: longCompany, intelligence_card: undefined }
+  const longThinNeed = { ...longNeed, title_company: undefined, intelligence_card: undefined }
   await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: { ...workspace, items: [longThinNeed] } }))
   await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: longNeed }))
   const writes: string[] = []
@@ -51,8 +51,10 @@ test('Research shows source-backed contacts, separate priority and freshness, ex
     await route.fallback()
   })
   await page.goto('/?view=research')
-  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: /Northstar/ }).click()
+  await expect(page.getByRole('heading', { name: 'Research progress', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Ridgeview commissioning/ })).toBeVisible()
+  await expect(page.locator('.research-view')).not.toContainText(/\bintelligence\b/i)
+  await page.getByRole('button', { name: /Ridgeview commissioning/ }).click()
   await expect(page.getByRole('heading', { name: 'Ridgeview commissioning' })).toBeVisible()
   await expect(page.getByRole('link', { name: longEmail })).toHaveAttribute('href', `mailto:${longEmail}`)
   await expect(page.locator('.research-detail-heading').getByText(longCompany)).toBeVisible()
@@ -60,7 +62,7 @@ test('Research shows source-backed contacts, separate priority and freshness, ex
   await expect(page.locator('body')).not.toContainText(/confidence/i)
   await expect(page.getByText(/Temporary demand: Unknown/)).toBeVisible()
   await expect(page.locator('.research-gaps li').filter({ hasText: /^Temporary demand$/ })).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Automated research' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Research history' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Business contacts' })).toBeVisible()
   await expect(page.getByText('Evidence assessed 10/25/2026')).toBeVisible()
   await expect(page.getByRole('button', { name: /call|fact|workflow|enrich|correct|retract|research this question|save/i })).toHaveCount(0)
@@ -198,7 +200,7 @@ test('project search surfaces matching project cards and opens a matching need',
   await expect(page.locator('.canonical-flat-results')).toContainText(longCompany)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: test.info().outputPath('mobile-search.png'), fullPage: true })
-  await page.getByRole('button', { name: 'Open Ridgeview commissioning', exact: true }).click()
+  await page.getByRole('button', { name: 'Ridgeview commissioning', exact: true }).click()
   await expect(page.locator('.cod-panel').getByRole('heading', { name: `${longCompany} — Ridgeview commissioning` })).toBeVisible()
   await expect(page.locator('.cod-contacts a')).toHaveAttribute('href', `mailto:${longEmail}`)
 })
@@ -217,7 +219,7 @@ test('project search drops prior results after a failed query', async ({ page })
   const search = page.getByLabel('Search opportunities')
   await search.fill('Ridgeview')
   await expect.poll(() => projectQueries).toContain('Ridgeview')
-  const hit = page.getByRole('button', { name: 'Open Ridgeview commissioning', exact: true })
+  const hit = page.getByRole('button', { name: 'Ridgeview commissioning', exact: true })
   await expect(hit).toBeEnabled()
   await hit.click()
   await expect(page.locator('.cod-panel').getByRole('heading', { name: 'Ridgeview Energy — Ridgeview commissioning' })).toBeVisible()

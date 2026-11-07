@@ -11,6 +11,7 @@ const pursuit = { id: 'pursuit-1', need_id: 'need-p1', project_id: 'p1', stage: 
 
 async function mock(page: Page, opts: { groupsStatus?: number; pursuits?: unknown[] } = {}) {
   const groupQueries: URL[] = []
+  const projectQueries: URL[] = []
   await mockDemandSummary(page)
   await page.route(url => url.pathname.startsWith('/api/') && !url.pathname.includes('demand-summary'), route => {
     const url = new URL(route.request().url())
@@ -22,7 +23,7 @@ async function mock(page: Page, opts: { groupsStatus?: number; pursuits?: unknow
       const items = groups.filter(g => (!q || g.name.toLowerCase().includes(q)) && (!sector || sector === 'all' || g.sectors.includes(sector)))
       return route.fulfill({ json: { items, total: items.length, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'c1', generation: 'g' } })
     }
-    if (url.pathname === '/api/opportunities/projects') return route.fulfill({ json: { items: [], total: 7, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'p', generation: 'g' } })
+    if (url.pathname === '/api/opportunities/projects') { projectQueries.push(url); return route.fulfill({ json: { items: [], total: 7, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'p', generation: 'g' } }) }
     if (url.pathname === '/api/opportunities/groups/g-north/open') return route.fulfill({ json: { group: groups[0], parent_cohort_token: 'c1', generation: 'g', projects: { items: [project('p1', 'Mesa compressor', { power_summary: '12 MW reported' }), project('p2', 'Basin plant')], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'cp', generation: 'g' } } })
     if (url.pathname === '/api/opportunities/groups/g-gone/open') return route.fulfill({ status: 404, json: {} })
     if (url.pathname === '/api/commercial-pursuits') {
@@ -36,7 +37,7 @@ async function mock(page: Page, opts: { groupsStatus?: number; pursuits?: unknow
     if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 't', token: 't', source_health_exceptions: [] } })
     return route.fulfill({ json: [] })
   })
-  return groupQueries
+  return { groupQueries, projectQueries }
 }
 
 test('directory shows only supplied fields, searches, and omits unsupported columns', async ({ page }) => {
@@ -44,6 +45,8 @@ test('directory shows only supplied fields, searches, and omits unsupported colu
   await page.goto('/?view=workspace&panel=companies')
   const panel = page.getByRole('region', { name: 'Companies' })
   await expect(panel.getByRole('status')).toContainText('3 operator/customer groups · 7 projects')
+  await expect(panel.getByRole('status')).not.toContainText('0 projects')
+  await expect(queries.projectQueries[0]?.searchParams.get('include_signals')).toBe('true')
   await expect(panel).toContainText('not a count of confirmed companies')
   await expect(panel.getByRole('heading', { name: 'Companies', level: 1 })).toBeVisible()
   const table = panel.getByRole('table', { name: 'Companies' })
@@ -64,7 +67,7 @@ test('directory shows only supplied fields, searches, and omits unsupported colu
   await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('cedar')
   await expect(table.getByRole('row')).toHaveCount(2)
   await expect(panel.getByRole('status')).toContainText('1 operator/customer group matching search')
-  expect(queries.some(url => url.searchParams.get('search') === 'cedar')).toBeTruthy()
+  expect(queries.groupQueries.some(url => url.searchParams.get('search') === 'cedar')).toBeTruthy()
   await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('')
   await panel.getByRole('button', { name: 'Data Centers' }).click()
   await expect(table.getByRole('row')).toHaveCount(2)
@@ -126,11 +129,19 @@ test('directory and company view fit 390px without horizontal overflow', async (
   await page.setViewportSize({ width: 390, height: 844 })
   await mock(page, { pursuits: [pursuit] })
   await page.goto('/?view=workspace&panel=companies')
+  const brand = page.locator('.canonical-header__brand')
+  await expect(brand).toHaveAttribute('aria-label', 'GridLens — Power demand and project activity')
+  expect(await page.locator('.canonical-header__brand-art').evaluate(element => getComputedStyle(element).height)).toBe('15px')
+  await page.screenshot({ path: test.info().outputPath('mobile-header.png'), fullPage: true })
   await expect(page.getByRole('button', { name: 'Open Northstar Energy' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
   await page.getByRole('button', { name: 'Open Northstar Energy' }).click()
   await expect(page.getByRole('heading', { name: 'Northstar Energy', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+  await page.setViewportSize({ width: 1440, height: 900 })
+  expect(await page.locator('.canonical-header__brand-art').evaluate(element => getComputedStyle(element).height)).toBe('30px')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
+  await page.screenshot({ path: test.info().outputPath('desktop-header.png'), fullPage: true })
 })
 
 test('header Companies item while a company is open returns to the directory and Back restores the company', async ({ page }) => {

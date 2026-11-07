@@ -15,6 +15,7 @@ const readUrl = () => {
 const sectorLabel = (value: string) => value === 'oil_gas' ? 'Oil & Gas' : value === 'data_centers' ? 'Data Centers' : value.replaceAll('_', ' ')
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`
 
+/** Browse company groups and open the associated opportunity detail. */
 export function CompaniesPanel({ onNeed }: { onNeed: (needId: string) => void }) {
   const initial = readUrl()
   const [search, setSearch] = useState(initial.search)
@@ -85,11 +86,12 @@ export function CompaniesPanel({ onNeed }: { onNeed: (needId: string) => void })
     return () => controller.abort()
   }, [query, sector, offset, retry, ended])
   useEffect(() => {
-    // Project total is only shown for the unfiltered-by-search directory; search semantics differ between endpoints.
+    // Match the directory's all-project cohort, including Signals, so this number
+    // describes the same projects represented by the company groups below.
     const controller = new AbortController()
     setProjectTotal(null)
     if (query || ended) return () => controller.abort()
-    client.projectResults({ sector, limit: 1 }, controller.signal).then(value => { if (!controller.signal.aborted && !endedRef.current) setProjectTotal(value.total) }).catch(() => {})
+    client.projectResults({ sector, limit: 1, include_signals: true, shortlist: false }, controller.signal).then(value => { if (!controller.signal.aborted && !endedRef.current) setProjectTotal(value.total) }).catch(() => {})
     return () => controller.abort()
   }, [query, sector, retry, ended])
   // Restore list scroll and focus after returning from a company.

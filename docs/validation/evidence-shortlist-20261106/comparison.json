@@ -1,0 +1,239 @@
+{
+  "baseline_generation": "d77dc446-f1a9-42c1-ab2b-ec169115de97",
+  "baseline_projects": 2258,
+  "eligible_before_deduplication": 48,
+  "shortlist_projects": 41,
+  "reduction_percent": 98.18,
+  "duplicate_records_grouped": 7,
+  "all_projects_retained": 2258,
+  "sample_cases": 32,
+  "source_reviewed_positive_records": 20,
+  "positive_records_retained": 20,
+  "source_reviewed_negative_records": 7,
+  "negative_records_excluded": 7,
+  "uncertain_cases": 5,
+  "cards_with_source_refs": 41,
+  "cards_with_why_now": 41,
+  "cards_with_next_step": 41,
+  "retained_required_mw_known": 0,
+  "source_policy_sha256": "92baeed5a71d35365dfd557097b000248069eb2c9e8fd4396caf74b70fecf929",
+  "duplicate_groups": [
+    {
+      "project_ids": [
+        "0a809071-96d4-4967-b1e6-aba3acc13d60",
+        "95be6874-ebd5-45b3-8cef-cc43452409ef"
+      ],
+      "need_ids": [
+        "7c8096a0-c303-43ba-9584-fb601dde2bea",
+        "ee042e21-e085-4a70-af6d-4bcda0cc71de"
+      ],
+      "sources": [
+        {
+          "id": "061bbab4-ac92-4383-acf2-9dbbef5de359",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-097374 BP",
+          "assessment_current": true
+        },
+        {
+          "id": "e1d1d09a-9439-43b4-a737-06ccdefff221",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-097374 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_subject": "Generator/transfer-switch replacement"
+    },
+    {
+      "project_ids": [
+        "2ac4a727-c0b8-49df-a6dd-ba54651880f6",
+        "7ba10257-5843-4293-a8f2-ca52b70bf44d"
+      ],
+      "need_ids": [
+        "2e19e4dc-2ac9-4486-a851-f1c54937b2be",
+        "7ae6889d-83e3-41f7-8b39-e51c2fdc4c7f"
+      ],
+      "sources": [
+        {
+          "id": "896b3ad6-3a71-4a0a-9425-061f588ccf6a",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-036762 BP",
+          "assessment_current": true
+        },
+        {
+          "id": "8552b524-eb76-4556-8d30-69a37f7715ee",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-036762 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_subject": "Data center buildout"
+    },
+    {
+      "project_ids": [
+        "148b464a-db71-479c-87a8-39026613af51",
+        "1f306408-7709-49c8-af54-c19b73c41d9e"
+      ],
+      "need_ids": [
+        "a60ea66a-4431-46c2-97d3-a89a06a85900",
+        "ec0a14de-805b-4ee2-9306-0268bfaddfdb"
+      ],
+      "sources": [
+        {
+          "id": "007f3a9c-39e4-4ff9-855e-107417e3015f",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-119402 BP",
+          "assessment_current": true
+        },
+        {
+          "id": "fadb11f1-fcc8-4706-8956-95c89eab92d9",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-119402 EP",
+          "assessment_current": true
+        }
+      ],
+      "source_subject": "Industrial construction"
+    },
+    {
+      "project_ids": [
+        "26a84773-fbd1-40fb-8a71-fcdec20df4ba",
+        "dc57e935-22cf-4d98-8ded-7e83ed9d4d37"
+      ],
+      "need_ids": [
+        "567cb900-432f-40b1-bcce-27302f5f9e53",
+        "fb056205-7bd7-49c1-b16a-c01b0634fb18"
+      ],
+      "sources": [
+        {
+          "id": "f8cdd036-3e7a-4c79-a2f2-23e4e269ceef",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-084908 EP",
+          "assessment_current": true
+        },
+        {
+          "id": "9c842b37-ca8c-4954-8afc-17d2eeda4ab2",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-084908 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_subject": "Industrial construction"
+    },
+    {
+      "project_ids": [
+        "7a6aa1df-d37f-4bed-b161-5acecf84ca92",
+        "9f402644-b5a8-4ba3-8774-ffb90a4ac57c"
+      ],
+      "need_ids": [
+        "e0b0680e-851a-45e5-ad88-def0e7786ed4",
+        "32d9408b-c8d8-4971-8a5d-3b205c2dd2e1"
+      ],
+      "sources": [
+        {
+          "id": "7a768257-7439-4205-8942-e008e135ad95",
+          "source_id": "manufacturing-dive-news",
+          "document_number": "https://www.manufacturingdive.com/news/carrier-600m-ft-worth-manufacturing-campus-HVAC/872800/",
+          "assessment_current": true
+        },
+        {
+          "id": "a3dc437c-f06c-4e74-a822-b8f3dcc1f4c6",
+          "source_id": "construction-dive-news",
+          "document_number": "https://www.constructiondive.com/news/carrier-600m-ft-worth-manufacturing-campus-HVAC/873003/",
+          "assessment_current": true
+        }
+      ],
+      "source_subject": "Carrier Global to spend more than $600M on campus in Fort Worth, Texas"
+    },
+    {
+      "project_ids": [
+        "306e2013-deec-475e-b4c6-c8fcd1a2454c",
+        "4f48a540-eeaa-4ce8-9d35-7d6f3098217d"
+      ],
+      "need_ids": [
+        "1c697e9b-8f68-4428-9153-af6f0e6ba550",
+        "a1d1a025-2c0d-4816-900e-4bd282d64526"
+      ],
+      "sources": [
+        {
+          "id": "260cbf8c-8944-433f-bf60-e9618f9fa69d",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-131366 EP",
+          "assessment_current": true
+        },
+        {
+          "id": "2a8a48f4-2350-4aae-ad8d-ce62dbe7be5b",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-131366 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_subject": "Industrial construction"
+    },
+    {
+      "project_ids": [
+        "85ff4c9e-9f83-4bae-b2bc-f58c34cdb207",
+        "9a705660-a311-4a8a-828f-defed1812b54"
+      ],
+      "need_ids": [
+        "0ea4f261-d867-454b-87bb-2a02b158b6ab",
+        "94b6c88d-cbc5-4391-918d-4c89297eecae"
+      ],
+      "sources": [
+        {
+          "id": "7e9d1b9f-b025-45b7-bddc-87d7b8921957",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-131365 EP",
+          "assessment_current": true
+        },
+        {
+          "id": "1adc5eb6-90c7-4bd0-a4b6-f6ee1be98d3a",
+          "source_id": "austin-building-permits",
+          "document_number": "2026-131365 BP",
+          "assessment_current": true
+        }
+      ],
+      "source_subject": "Industrial construction"
+    }
+  ],
+  "independent_excluded_audit": {
+    "records_reviewed": 81,
+    "definite_misses_found_and_repaired": 4,
+    "method": "Separate critic inspected all initially excluded non-W1 retained-source excerpts after calibration. These four cases informed a general electrical-buildout repair; they are not held-out after repair.",
+    "repaired_cases": [
+      {
+        "project_id": "ef0a8306-aa43-4b1c-b954-105f9bf6091b",
+        "need_id": "4048fe0c-c66a-4ddf-a066-fdb46540291e",
+        "source_id": "austin-building-permits",
+        "title": "Austin building permit 2026-111869 EP \u2014 Electrical Permit",
+        "date": "2026-10-20"
+      },
+      {
+        "project_id": "8f2394fc-5ccf-4528-aa59-10fa6e4e7341",
+        "need_id": "6295be11-69a2-4bd9-9f0f-aa133d13eb63",
+        "source_id": "austin-building-permits",
+        "title": "Austin building permit 2026-128222 EP \u2014 Electrical Permit",
+        "date": "2026-10-27"
+      },
+      {
+        "project_id": "0de78080-7996-499b-8a63-9d5efab140e3",
+        "need_id": "482f719f-be07-4f55-80d7-a966120de0b5",
+        "source_id": "austin-building-permits",
+        "title": "Austin building permit 2021-125161 EP \u2014 Electrical Permit",
+        "date": "2026-04-01"
+      },
+      {
+        "project_id": "312141a1-e8a6-435c-93af-7c019cc1a23e",
+        "need_id": "7b333065-cbff-4221-9237-02ca68e1ed6e",
+        "source_id": "austin-building-permits",
+        "title": "Austin building permit 2026-019572 EP \u2014 Electrical Permit",
+        "date": "2026-03-27"
+      }
+    ]
+  },
+  "limitations": [
+    "Calibration and subsequent audit informed policy repairs; neither proves population-wide accuracy.",
+    "Retained adapter snapshots and short RSS excerpts were audited; original public pages were not refreshed.",
+    "No new live Jev/Sol research or production writes.",
+    "Offline domain SQL replay uses copied source/generation inputs, not a full production contact/suppression database clone.",
+    "Only physical well identity, exact native paired-permit scopes, and identical headline/abstract news are grouped; possible same-site phase/work-package duplicates remain in both Shortlist and All Projects."
+  ]
+}

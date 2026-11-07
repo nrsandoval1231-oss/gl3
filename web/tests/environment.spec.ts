@@ -20,7 +20,7 @@ const opportunity = (id: string, location: string | null): Opportunity => ({
   missing_facts: ['Activity-specific load (MW)'], asset_type: 'data_center', evidence: [evidence(1), evidence(2)],
 } as Opportunity)
 
-async function openSecondaryRoute(page: Page, name: 'Research' | 'Signals') {
+async function openSecondaryRoute(page: Page, name: 'Research' | 'Research progress' | 'Signals') {
   const menu = page.locator('.wh-account')
   if (await menu.getAttribute('open') === null) await menu.locator('summary').click()
   await menu.getByRole('button', { name, exact: true }).click()
@@ -118,7 +118,7 @@ test('legacy action deep link restores selected need without retired call prepar
   await page.goto('/environment?view=environment&mode=action&state=Texas&need=a&groupBrowse=1')
   await expect(page.locator('.project-first-detail h2')).toHaveText('Test project a')
   await page.locator('.wh-account summary').click()
-  await expect(page.getByRole('button', { name: 'Research', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Research progress', exact: true }).first()).toBeVisible()
   await expect(page.getByLabel('Call note')).toHaveCount(0)
   expect(writes).toEqual([])
 })
@@ -231,8 +231,8 @@ test('Research navigation keeps Opportunities search and selection state indepen
   await mock(page, [opportunity('a', 'Austin, TX')])
   await mockDemandSummary(page)
   await page.goto('/?view=workspace&q=a&groupBrowse=1')
-  await openSecondaryRoute(page, 'Research')
-  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
+  await openSecondaryRoute(page, 'Research progress')
+  await expect(page.getByRole('heading', { name: 'Research progress', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /WATCH|ACTION NOW|REJECT/i })).toHaveCount(0)
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('a')
@@ -241,7 +241,7 @@ test('Research navigation keeps Opportunities search and selection state indepen
   await page.reload()
   await expect(page.getByRole('navigation', { name: 'Project type' }).getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.goBack()
-  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Research progress', exact: true })).toBeVisible()
   await page.goForward()
   await expect(page.getByRole('textbox', { name: 'Search opportunities' })).toHaveValue('a')
   expect(new URL(page.url()).searchParams.has('disposition')).toBe(false)

@@ -26,13 +26,14 @@ function contactMethodLabel(contact: CardContact, method: ContactMethod) {
   return `${action} ${contact.company} ${route} · ${method.value}`
 }
 
+/** Present retained evidence and research actions for one opportunity. */
 export function IntelligenceCard({ card, opportunityName, customer, location, activity, tier, why, nextAction, onResearch }: {
   card: Card; opportunityName: string; customer: string | null | undefined; location: string | null | undefined; activity: string; tier: string; why: string; nextAction: string; onResearch: () => void
 }) {
   const known = card.fields.filter(field => field.value !== null)
   const projectFields = known.filter(field => field.section === 'identity' || field.section === 'power')
   const commercialFields = known.filter(field => field.section === 'commercial')
-  return <section className="intelligence-card" aria-label="Commercial intelligence card">
+  return <section className="intelligence-card" aria-label="Commercial research summary">
     <div className="ic-dashboard">
       <section className="ic-project" aria-label="Project and customer details">
         <h3>Project &amp; customer details</h3>
@@ -52,7 +53,7 @@ export function IntelligenceCard({ card, opportunityName, customer, location, ac
         {card.research_gaps.length > 0 && <p className="ic-gap-summary">{card.research_gaps.length} research {card.research_gaps.length === 1 ? 'gap' : 'gaps'} remain.</p>}
         {commercialFields.length > 0 && <ul className="ic-commercial-list">{commercialFields.slice(0, 3).map(field => <li key={field.key}>{field.label}: {field.value}</li>)}</ul>}
       </section>
-      <section className="ic-next" aria-label="Recommended next action"><h3>Recommended next action</h3><p>{nextAction}</p><button onClick={onResearch}>View automated research</button></section>
+      <section className="ic-next" aria-label="Recommended next action"><h3>Recommended next action</h3><p>{nextAction}</p><button onClick={onResearch}>View research progress</button></section>
       </div>
     </div>
   </section>

@@ -1078,8 +1078,8 @@ test('leaving opportunities during atomic-open wait cancels the retry timer', as
   // SPA navigation unmounts ProjectResults while preserving the browser realm
   // and the pending fake-clock timer.
   await page.locator('.wh-account summary').click()
-  await page.getByRole('button', { name: 'Research', exact: true }).click()
-  await expect(page.getByRole('main', { name: 'Automated research' })).toBeVisible()
+  await page.getByRole('button', { name: 'Research progress', exact: true }).click()
+  await expect(page.getByRole('main', { name: 'Research progress' })).toBeVisible()
   await page.clock.fastForward(5000)
   expect(openReads).toBe(1)
 })

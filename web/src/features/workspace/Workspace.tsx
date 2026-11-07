@@ -80,10 +80,11 @@ function currentAccountContext(): AccountContext | undefined {
   const params = getParams(), accountId = params.get('account')
   return accountId ? { accountId, projectId: params.get('project') ?? undefined } : undefined
 }
+/** Preserve browse context and selected detail state in the workspace URL. */
 function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false, accountContext?: AccountContext) {
   const signalView = currentView() === 'signals'
   const p = signalView ? getParams() : workspaceParams(filters)
-  if (!signalView) for (const key of ['q', 'sector', 'sort', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'projectBrowse', 'region', 'stage', 'priority', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
+  if (!signalView) for (const key of ['q', 'sector', 'sort', 'offset', 'cohort_token', 'accountBrowse', 'groupBrowse', 'projectBrowse', 'shortlist', 'region', 'stage', 'priority', 'account', 'project']) { const value = getParams().get(key); if (value) p.set(key, value) }
   // The flat browse supports no `updated` sort (it falls back to priority); never carry it into selection URLs.
   if (!signalView && p.get('sort') === 'updated' && (getParams().get('groupBrowse') !== '1' || getParams().get('projectBrowse') === '1')) p.delete('sort')
   if (!signalView && accountContext) { p.set('account', accountContext.accountId); if (accountContext.projectId) p.set('project', accountContext.projectId) }
@@ -347,7 +348,7 @@ export function WorkspaceHome() {
     if (view === 'signals') signalParams.current = getParams()
     const currentBrowse = getParams()
     const savedBrowse: Record<string, string> = view === 'opportunities'
-      ? Object.fromEntries(['q', 'sector', 'sort', 'offset', 'cohort_token', 'groupBrowse', 'projectBrowse', 'region', 'stage', 'priority'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
+      ? Object.fromEntries(['q', 'sector', 'sort', 'offset', 'cohort_token', 'groupBrowse', 'projectBrowse', 'shortlist', 'region', 'stage', 'priority'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
       : (history.state?.workspaceBrowse as Record<string, string> | undefined) ?? {}
     const params = nextView === 'opportunities' ? workspaceParams(filters)
       : nextView === 'signals' ? new URLSearchParams(signalParams.current ?? { view: 'signals', tier: 'Signals' })
@@ -396,7 +397,7 @@ export function WorkspaceHome() {
       else { setNavigationPanel(null); if (navigationPanel) pushPanel(null); navigate(destination) }
     }}
     search={<GlobalSearch onNeed={id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) }} onCompany={id => { const params = new URLSearchParams({ view: 'workspace', accountBrowse: '1', account: id }); location.assign(`/?${params}`) }}/>}
-    profile={<details ref={moreMenu} className="wh-account"><summary aria-label="Account menu"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg></summary><div><span>Private workspace</span><button onClick={() => { setNavigationPanel(null); navigate('research') }}>Research</button><button onClick={() => { setNavigationPanel(null); navigate('signals') }}>Signals</button><button onClick={() => { setNavigationPanel(null); navigate('ingestion') }}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details>}/>
+    profile={<details ref={moreMenu} className="wh-account"><summary aria-label="Account menu"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg></summary><div><span>Private workspace</span><button onClick={() => { setNavigationPanel(null); navigate('research') }}>Research progress</button><button onClick={() => { setNavigationPanel(null); navigate('signals') }}>Signals</button><button onClick={() => { setNavigationPanel(null); navigate('ingestion') }}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details>}/>
   const researchHost = <main className="wh-single-view" hidden={view !== 'research'}>{view === 'research' && <ResearchView/>}</main>
   if (view === 'research') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'pursuits') return <div className="workspace-home">{header}<main className="pu-main"><PursuitsPage/></main></div>

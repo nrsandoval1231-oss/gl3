@@ -1026,6 +1026,16 @@
               "default": false,
               "title": "Include Signals"
             }
+          },
+          {
+            "name": "shortlist",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Shortlist"
+            }
           }
         ],
         "responses": {

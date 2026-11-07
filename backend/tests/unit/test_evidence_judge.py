@@ -247,7 +247,7 @@ def test_research_recommendation_is_deterministic_and_advisory():
     assert research_recommended(**{**inputs, "missing_facts": []}) is False
 
 
-def test_recommendation_requires_nested_timing_and_a_public_buyer_contact():
+def test_recommendation_only_flags_missing_source_grounded_dimensions():
     from gridlens.intelligence.research_recommendation import recommend_from_context
 
     judgment = {
@@ -255,29 +255,43 @@ def test_recommendation_requires_nested_timing_and_a_public_buyer_contact():
         "relevant": "YES",
         "power_relevance": "HIGH",
     }
+    provenance = [
+        {
+            "id": "evidence-1",
+            "url": "https://example.test/evidence",
+            "support": "accepted interpretation",
+        }
+    ]
+    supported = {"status": "SUPPORTED", "value": "known", "evidence": provenance}
     state = {
         "state": {
+            "identity": supported,
+            "site": supported,
             "power_need": {
                 "status": "SUPPORTED",
+                "evidence": provenance,
                 "value": [
                     {
-                        "activity": {"status": "SUPPORTED", "value": "construction"},
-                        "tier": {"status": "SUPPORTED", "value": "Prospect"},
-                        "mw": {"status": "SUPPORTED", "value": "42 MW"},
+                        "activity": {**supported, "value": "construction"},
+                        "tier": {**supported, "value": "Prospect"},
+                        "mw": {**supported, "value": "42 MW"},
                         "timing": {"status": "UNKNOWN", "value": None},
-                        "duration": {"status": "SUPPORTED", "value": "6 months"},
-                        "supply": {"status": "SUPPORTED", "value": "Reported constraint"},
+                        "duration": {**supported, "value": "6 months"},
+                        "supply": {**supported, "value": "Reported constraint"},
                     }
                 ],
             },
             "utility_service": {"status": "UNKNOWN", "value": None},
-            "lifecycle": {"status": "SUPPORTED"},
-            "activity": {"status": "SUPPORTED"},
+            "lifecycle": supported,
+            "activity": supported,
         },
         "organizations_and_roles": [
             {
                 "category": "owner",
                 "organization": "Atlas Owner LLC",
+                "citations": [
+                    {"id": "citation-1", "url": "https://example.test", "quote": "owner"}
+                ],
                 "public_contacts": [],
             }
         ],
@@ -286,19 +300,78 @@ def test_recommendation_requires_nested_timing_and_a_public_buyer_contact():
     state["organizations_and_roles"][0]["public_contacts"] = [
         {"kind": "email", "value": "buyer@example.test"}
     ]
+    state["organizations_and_roles"][0]["citations"] = [
+        {"id": "citation-1", "url": "https://example.test", "quote": "owner"}
+    ]
     state["state"]["power_need"]["value"][0]["timing"] = {
         "status": "SUPPORTED",
         "value": "Q2 2027",
+        "evidence": provenance,
     }
+    state["state"]["utility_service"] = {**supported, "value": "energized"}
     assert recommend_from_context(judgment, state) is False
+
+
+def test_recommendation_requires_source_provenance_and_keeps_scope_unknown():
+    from gridlens.intelligence.research_recommendation import recommend_from_context
+
+    judgment = {"material_change": "YES", "relevant": "YES", "power_relevance": "HIGH"}
+    generated = {"status": "SUPPORTED", "value": "summary says 42 MW"}
+    state = {
+        "state": {
+            "identity": generated,
+            "site": generated,
+            "lifecycle": generated,
+            "activity": generated,
+            "utility_service": generated,
+            "power_need": generated,
+        },
+        "organizations_and_roles": [],
+    }
+    assert recommend_from_context(judgment, state) is True
+
+
+def test_targeted_question_priority_starts_with_identity_temporary_use_development():
+    from gridlens.domain.pursuit_research import plan_questions
+
+    card = {
+        "disposition": "RESEARCH",
+        "conflict_state": "Not assessed",
+        "facts": [],
+        "stage": {"stage": "unknown"},
+        "contacts": [],
+        "activity": "temporary power",
+        "start_window": None,
+        "required_mw": None,
+        "supply": "Unknown",
+        "research_state": {},
+    }
+    planned = plan_questions(card, enrich=False, limit=5)
+    assert [item["category"] for item in planned] == [
+        "identity",
+        "power_need",
+        "phase",
+        "timing",
+        "buyer",
+    ]
 
 
 def test_research_missing_fact_labels_are_stable_across_multiple_needs():
     from gridlens.intelligence.research_recommendation import _missing_facts
 
-    supported = {"status": "SUPPORTED", "value": "known"}
+    supported = {
+        "status": "SUPPORTED",
+        "value": "known",
+        "evidence": [
+            {
+                "id": "e1",
+                "url": "https://example.test/evidence",
+                "support": "accepted interpretation",
+            }
+        ],
+    }
     construction = {
-        "activity": {"status": "SUPPORTED", "value": "construction"},
+        "activity": {**supported, "value": "construction"},
         "tier": supported,
         "mw": {"status": "CONFLICT", "value": None},
         "timing": supported,
@@ -306,7 +379,7 @@ def test_research_missing_fact_labels_are_stable_across_multiple_needs():
         "supply": supported,
     }
     temporary = {
-        "activity": {"status": "SUPPORTED", "value": "temporary-power"},
+        "activity": {**supported, "value": "temporary-power"},
         "tier": supported,
         "mw": supported,
         "timing": {"status": "UNKNOWN", "value": None},
@@ -314,7 +387,13 @@ def test_research_missing_fact_labels_are_stable_across_multiple_needs():
         "supply": supported,
     }
     fields = {
-        "power_need": {"status": "SUPPORTED", "value": [temporary, construction]},
+        "identity": supported,
+        "site": supported,
+        "power_need": {
+            "status": "SUPPORTED",
+            "value": [temporary, construction],
+            "evidence": supported["evidence"],
+        },
         "utility_service": supported,
         "lifecycle": supported,
         "activity": supported,
@@ -324,9 +403,17 @@ def test_research_missing_fact_labels_are_stable_across_multiple_needs():
         "power_need[temporary-power].duration",
         "power_need[temporary-power].timing",
     ]
-    assert _missing_facts(fields) == expected
+    parties = [
+        {
+            "organization": "Atlas Owner LLC",
+            "category": "owner",
+            "citations": [{"id": "c1", "url": "https://example.test", "quote": "owner"}],
+            "public_contacts": [{"kind": "email", "value": "owner@example.test"}],
+        }
+    ]
+    assert _missing_facts(fields, parties) == expected
     fields["power_need"]["value"] = [construction, temporary]
-    assert _missing_facts(fields) == expected
+    assert _missing_facts(fields, parties) == expected
 
 
 def test_benchmark_persists_pending_attempt_and_resume_does_not_repeat(tmp_path: Path):

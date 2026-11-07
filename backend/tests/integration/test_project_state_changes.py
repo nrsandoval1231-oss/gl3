@@ -120,6 +120,74 @@ def seed(
     return project, observation, evidence
 
 
+def add_source_backed_owner_contact(session, project, evidence):
+    """Bind an owner and public contact to one exact accepted evidence version."""
+    quote = (
+        "Acme Development is the owner and developer of Orion Data Center in Austin, TX. "
+        "Public contact: owner@acme.example."
+    )
+    source = BuyingChainEvidence(
+        project_id=project.id,
+        retained_evidence_id=evidence.id,
+        url=evidence.url,
+        title=evidence.title,
+        excerpt=quote,
+        content_hash=evidence.content_hash,
+        extraction_location="abstract",
+        published_at=evidence.published_at,
+        observed_at=evidence.observed_at,
+        last_seen_at=evidence.observed_at,
+        project_match_reason="Explicit exact-project owner statement.",
+    )
+    session.add(source)
+    session.flush()
+    claim = BuyingChainClaim(
+        project_id=project.id,
+        entity_key="acme-development",
+        fingerprint=f"owner-contact-{evidence.id}",
+        policy_version="test",
+        organization="Acme Development",
+        person_name=None,
+        title=None,
+        category="owner_developer",
+        organization_relationship="DIRECT",
+        person_organization_relationship="UNKNOWN",
+        person_project_relationship="UNKNOWN",
+        evidence_strength="High",
+        reason="Current cited owner and project contact.",
+        citations=[
+            {
+                "evidence_id": str(source.id),
+                "url": source.url,
+                "quote": quote,
+                "supports": "organization_category",
+            }
+        ],
+        public_contacts=[{"kind": "email", "value": "owner@acme.example"}],
+        observed_at=evidence.observed_at,
+    )
+    session.add(claim)
+    session.flush()
+    session.add(
+        BuyingChainRun(
+            project_id=project.id,
+            input_hash=f"owner-contact-run-{evidence.id}",
+            evidence_ids=[str(source.id)],
+            claim_ids=[str(claim.id)],
+            policy_version="test",
+            status="complete",
+            documents_checked=1,
+            candidates_added=1,
+            unresolved=[],
+        )
+    )
+    session.flush()
+    assert any(
+        item.get("organization") == "Acme Development"
+        for item in buying_chain_view(session, project.id)["candidates"]
+    )
+
+
 def linked_official_need_evidence(
     session,
     project,
@@ -133,6 +201,7 @@ def linked_official_need_evidence(
     start_window: str = "2026 Q4",
     duration: str = "6 months",
     official: bool = True,
+    owner_evidence: bool = False,
 ):
     source_id = f"need-{key}"
     session.add(
@@ -154,7 +223,15 @@ def linked_official_need_evidence(
         source_id=source_id,
         external_id=key,
         title="Orion Data Center construction permit",
-        abstract="Orion Data Center construction in Austin, TX.",
+        abstract=(
+            "Orion Data Center construction in Austin, TX. "
+            + (
+                "Acme Development is the owner and developer of Orion Data Center in Austin, TX."
+                " Public contact: owner@acme.example."
+                if owner_evidence
+                else ""
+            )
+        ),
         url=f"https://permits.example/{key}",
         published_at=date(2026, 9, 20),
         content_hash=semantic_hash,
@@ -1619,9 +1696,10 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
         )
         session.add(need)
         session.flush()
-        _, _, interpretation = linked_official_need_evidence(
-            session, project, need, key=f"advisory-{nested_field}"
+        owner_evidence, _, interpretation = linked_official_need_evidence(
+            session, project, need, key=f"advisory-{nested_field}", owner_evidence=True
         )
+        add_source_backed_owner_contact(session, project, owner_evidence)
         complete_assessment = dict(interpretation.assessment)
         interpretation.assessment = {
             key: value

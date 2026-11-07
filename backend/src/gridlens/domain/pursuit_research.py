@@ -165,6 +165,7 @@ FRESHNESS_HOURS = {
 
 
 def fingerprint(value: Any) -> str:
+    """Hash canonical JSON so equivalent question context has a stable identity."""
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
 
 
@@ -210,6 +211,7 @@ def blocker_resolved(category: str, card: dict, context: dict | None = None) -> 
     state = card.get("research_state", {})
 
     def supported(field: str) -> bool:
+        """Treat a research field as resolved only when it has supported claims."""
         item = state.get(field, {})
         return item.get("status") == "SUPPORTED" and bool(item.get("claims"))
 
@@ -308,7 +310,7 @@ def plan_questions(
     categories = []
     if card.get("conflict_state") in {"CONFLICT", "conflict", "unresolved conflict"}:
         categories.append("conflict")
-    if enrich and not blocker_resolved("identity", card):
+    if not blocker_resolved("identity", card):
         categories.append("identity")
     if not explicit_temporary_scope(card.get("facts", [])):
         categories.append("power_need")
@@ -348,31 +350,30 @@ def plan_questions(
                 categories.append(category)
     if enrich and not card.get("duration"):
         categories.append("duration")
-    if enrich:
-        priority = {
-            name: rank
-            for rank, name in enumerate(
-                (
-                    "conflict",
-                    "identity",
-                    "power_need",
-                    "load",
-                    "facility_demand",
-                    "timing",
-                    "buyer",
-                    "supply",
-                    "duration",
-                    "commissioning",
-                    "phase",
-                    "utility_obstacle",
-                    "procurement",
-                    "fuel",
-                    "voltage",
-                    "load_profile",
-                )
+    priority = {
+        name: rank
+        for rank, name in enumerate(
+            (
+                "conflict",
+                "identity",
+                "power_need",
+                "phase",
+                "timing",
+                "buyer",
+                "load",
+                "facility_demand",
+                "supply",
+                "duration",
+                "commissioning",
+                "utility_obstacle",
+                "procurement",
+                "fuel",
+                "voltage",
+                "load_profile",
             )
-        }
-        categories.sort(key=lambda category: priority[category])
+        )
+    }
+    categories.sort(key=lambda category: priority[category])
     categories = [
         category
         for category in categories

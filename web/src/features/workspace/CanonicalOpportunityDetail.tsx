@@ -7,7 +7,7 @@ import { AddToPursuit } from '../pursuits/AddToPursuit'
 import './canonical-opportunity-detail.css'
 
 type Props = Parameters<typeof WorkspaceDetail>[0]
-type CanonicalTab = 'Overview' | 'Intelligence' | 'Timeline' | 'Related'
+type CanonicalTab = 'Overview' | 'Details' | 'Timeline' | 'Related'
 
 function firstSentence(value: string | null | undefined) {
   const text = value?.trim()
@@ -31,12 +31,14 @@ function displayDate(value: string | null | undefined) {
 
 type EquipmentDemandProjection = Record<string, unknown>
 
+/** Read the equipment-only demand projection from the retained research card. */
 function equipmentDemandProjection(card: NonNullable<Props['item']>['intelligence_card']): EquipmentDemandProjection | null {
   if (!card) return null
   const value = card.equipment_demand
   return value && typeof value === 'object' && !Array.isArray(value) ? value : null
 }
 
+/** Format a supported equipment power value, leaving unknown values explicit. */
 function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_kw' | 'coincident_kw' | 'incremental_kw') {
   const value = demand?.[key]
   const amount = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN
@@ -45,9 +47,11 @@ function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_k
   return `${amount.toLocaleString(undefined, { maximumFractionDigits: 1 })} kW`
 }
 
+/** Load and render selected opportunity detail using the active shortlist query mode. */
 export function CanonicalOpportunityDetail(props: Props) {
   const { item, pending, loading, error, associationNotice, tab, onTab, onBack, onRetry } = props
   const canonicalTab: CanonicalTab = tabForWorkspace(tab)
+  const detailShortlist = new URLSearchParams(window.location.search).get('shortlist') !== '0'
   const [projectState, setProjectState] = useState<{ needId: string | null; project: import('../../api/client').ProjectResult | null }>({ needId: null, project: null })
   const [projectStatus, setProjectStatus] = useState<{ needId: string | null; loading: boolean; error: string }>({ needId: null, loading: false, error: '' })
   // Do not expose metadata from the previous selection during the render before the effect runs.
@@ -63,22 +67,31 @@ export function CanonicalOpportunityDetail(props: Props) {
     }
     const controller = new AbortController()
     const needId = item.id
+    const shortlist = detailShortlist
     setProjectStatus({ needId, loading: true, error: '' })
-    client.projectResults({ need_id: item.id, sector: 'all', limit: 1, offset: 0, sort: 'priority' }, controller.signal)
-      .then(page => {
+    const loadProject = async () => {
+      try {
+        const query = { need_id: needId, sector: 'all' as const, limit: 25, offset: 0, sort: 'priority' as const, shortlist, include_signals: true }
+        let page = await client.projectResults(query, controller.signal)
+        let match = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
+        // A bookmarked legacy need may be outside today's shortlist. Preserve access to its sources.
+        if (!match && shortlist && !controller.signal.aborted) {
+          page = await client.projectResults({ ...query, shortlist: false }, controller.signal)
+          match = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
+        }
         if (controller.signal.aborted) return
-        const match = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
         setProjectState({ needId, project: match ?? null })
         setProjectStatus({ needId, loading: false, error: match ? '' : 'Current project details could not be matched to this opportunity.' })
-      })
-      .catch(cause => {
+      } catch (cause) {
         if (!controller.signal.aborted) {
           setProjectState({ needId, project: null })
           setProjectStatus({ needId, loading: false, error: cause instanceof Error ? cause.message : 'Current project details are unavailable.' })
         }
-      })
+      }
+    }
+    void loadProject()
     return () => controller.abort()
-  }, [item?.id])
+  }, [item?.id, detailShortlist])
 
   if (!item) return <aside className="cod-panel" aria-label="Opportunity detail">
     {(pending || loading || error) && <button type="button" className="cod-back" onClick={onBack}>Opportunities</button>}
@@ -138,7 +151,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     ['Grid proximity', field('grid_proximity')?.value], ['Utility status', field('utility_status')?.value],
     ['Site control', field('site_control')?.value], ['Estimated project value', field('project_value')?.value],
     ['Development partner', field('development_partner')?.value],
-    ['Last intelligence update', card?.last_intelligence_update ? displayDate(card.last_intelligence_update) : null],
+    ['Last updated', card?.last_intelligence_update ? displayDate(card.last_intelligence_update) : null],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
 
   return <aside className="cod-panel" aria-label="Opportunity detail">
@@ -152,7 +165,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     </div>
 
     <nav className="cod-tabs" aria-label="Project detail sections">
-      {(['Overview', 'Intelligence', 'Timeline', 'Related'] as const).map(value => <button key={value} type="button" aria-pressed={canonicalTab === value} className={canonicalTab === value ? 'active' : ''} onClick={() => onTab(workspaceTabFor(value))}>{value}</button>)}
+      {(['Overview', 'Details', 'Timeline', 'Related'] as const).map(value => <button key={value} type="button" aria-pressed={canonicalTab === value} className={canonicalTab === value ? 'active' : ''} onClick={() => onTab(workspaceTabFor(value))}>{value}</button>)}
     </nav>
     {canonicalTab !== 'Overview' && <p className="cod-summary">{summary}</p>}
     {(projectLoading || projectError || associationNotice) && <p className="cod-status" role={projectError ? 'status' : undefined}>{projectLoading ? 'Loading current project details…' : projectError || associationNotice}</p>}
@@ -229,11 +242,11 @@ export function CanonicalOpportunityDetail(props: Props) {
       <button type="button" className="cod-view-all-evidence" onClick={() => onTab('Evidence')}>View all evidence</button>
       <section className="cod-next-action" aria-label="Recommended next action"><Target size={19} strokeWidth={1.6}/><div><strong>Next Action</strong><p>{nextAction}</p></div><button type="button" onClick={() => onTab('Research')}>View research</button></section>
       </div>
-      <AddToPursuit key={item.id} needId={item.id}><button type="button" className="cod-action-secondary" onClick={() => onTab('Evidence')}>View Full Details</button></AddToPursuit>
+      <AddToPursuit key={item.id} needId={item.id}><button type="button" className="cod-action-secondary" onClick={() => onTab('Evidence')}>View Details</button></AddToPursuit>
     </>}
 
-    {canonicalTab === 'Intelligence' && <section className="cod-tab-content">
-      <h3>Commercial intelligence</h3>
+    {canonicalTab === 'Details' && <section className="cod-tab-content">
+      <h3>Project details</h3>
       <p>{summary}</p>
       <dl className="cod-intelligence-facts">{metrics.map(metric => <div key={metric.label}><dt>{metric.label}</dt><dd>{metric.value}<small>{metric.basis}</small></dd></div>)}</dl>
       {card?.fields.filter(value => value.value).map(value => <article className="cod-fact" key={value.key}><strong>{value.label}</strong><p>{value.value}</p><small>{value.status} · {value.basis}</small>{value.sources?.map(source => safeSourceUrl(source.url) && <a key={source.reference} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}{source.source_date ? ` · ${source.source_date}` : ''}</a>)}</article>)}
@@ -248,22 +261,26 @@ export function CanonicalOpportunityDetail(props: Props) {
 
     {canonicalTab === 'Related' && <section className="cod-tab-content"><h3>Related records</h3>
       {item.project_id ? <BuyingChain projectId={item.project_id} /> : <p>Project identity is not established, so related buying-chain records are unavailable.</p>}
-      <h4>Source records</h4>{sources.length ? sources.map(source => <article className="cod-related-source" key={source.id}>{safeSourceUrl(source.url) ? <a href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{displayDate(source.event_date || source.published_at)} · {source.source_origin}</span><p>{source.abstract || 'No source summary is available.'}</p></article>) : <p>No source records are attached.</p>}
+      {project?.needs.filter(need => need.id !== item.id).length ? <section aria-label="Other source-backed records"><h4>Other source-backed records</h4>{project.needs.filter(need => need.id !== item.id).map(need => <button className="cod-related-need" type="button" key={need.id} onClick={() => dispatchEvent(new CustomEvent('gl3-open-need', { detail: need.id }))}>{need.browse_title || need.name || need.activity || 'Open related source-backed record'}{need.location ? ` · ${need.location}` : ''}</button>)}</section> : null}
+      <h4>Sources</h4>{sources.length ? sources.map(source => <article className="cod-related-source" key={source.id}>{safeSourceUrl(source.url) ? <a href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{displayDate(source.event_date || source.published_at)} · {source.source_origin}</span><p>{source.abstract || 'No source summary is available.'}</p></article>) : <p>No source records are attached.</p>}
+      <section aria-label="What's missing" className="cod-whats-missing"><h4>What’s missing</h4>{card?.research_gaps?.length ? <ul>{card.research_gaps.map(gap => <li key={gap.key}>{gap.label}</li>)}</ul> : item.missing_facts?.length ? <ul>{item.missing_facts.map(gap => <li key={gap}>{gap}</li>)}</ul> : <p>No explicit research gaps are recorded for this opportunity.</p>}</section>
     </section>}
   </aside>
 }
 
+/** Map legacy workspace detail tabs to the canonical detail navigation. */
 function tabForWorkspace(tab: WorkspaceTab): CanonicalTab {
   if (tab === 'Timeline') return 'Timeline'
   if (tab === 'Evidence' || tab === 'Buying chain') return 'Related'
-  if (tab === 'Unknowns' || tab === 'Power gap') return 'Intelligence'
+  if (tab === 'Unknowns' || tab === 'Power gap') return 'Details'
   return 'Overview'
 }
 
+/** Map canonical detail tabs back to the workspace detail interface. */
 function workspaceTabFor(tab: CanonicalTab): WorkspaceTab {
   if (tab === 'Timeline') return 'Timeline'
   if (tab === 'Related') return 'Buying chain'
-  if (tab === 'Intelligence') return 'Unknowns'
+  if (tab === 'Details') return 'Unknowns'
   return 'Overview'
 }
 

@@ -4,6 +4,7 @@ import { projectTitle } from '../opportunities/projectCards'
 import { AutonomousResearch } from './AutonomousResearch'
 import '../../styles/research.css'
 
+/** Describe the remaining gap only when a supported value is available. */
 function gapLabel(item: WorkspaceNeed | Opportunity) {
   const value = item.qualified_remaining_gap
   if (!value || typeof value !== 'object') return 'Not established'
@@ -11,6 +12,7 @@ function gapLabel(item: WorkspaceNeed | Opportunity) {
   return typeof low === 'string' && typeof high === 'string' ? `${low}–${high} MW` : 'Not established'
 }
 
+/** Build a safe contact link only for supported email or phone values. */
 function safeContactHref(method: Record<string, string>) {
   if (!method.href || !method.kind) return undefined
   try {
@@ -65,7 +67,7 @@ export function ResearchView() {
   const selectedDetail = detail?.needId === selectedId ? detail : null
   const selected = selectedDetail?.value ?? listedSelection
   const selectedDetailLoading = Boolean(selectedId) && (!selectedDetail || selectedDetail.loading)
-  const selectedDetailError = selectedDetail?.error ?? (selectedDetail?.value && !selectedDetail.value.intelligence_card ? 'The selected detail did not include retained intelligence.' : undefined)
+  const selectedDetailError = selectedDetail?.error ?? (selectedDetail?.value && !selectedDetail.value.intelligence_card ? 'The selected detail did not include retained research.' : undefined)
   const selectedDetailUnavailable = Boolean(selectedDetailError)
   const selectedCompany = selected?.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? (selected && 'commercial_organization' in selected && typeof selected.commercial_organization === 'string' ? selected.commercial_organization : undefined) ?? selected?.title_company
   const gapLabels = new Set((selected?.intelligence_card?.research_gaps ?? []).map(field => field.label.trim().toLocaleLowerCase()))
@@ -95,26 +97,29 @@ export function ResearchView() {
     history.replaceState(history.state, '', `/?${params}`)
   }
 
-  return <main className={`research-view ${selectedId ? 'has-selection' : ''}`} aria-label="Automated research">
+  return <main className={`research-view ${selectedId ? 'has-selection' : ''}`} aria-label="Research progress">
     <section className="research-list" aria-label="Research opportunities">
-      <header><div><p className="wh-kicker">Autonomous intelligence</p><h1>Research</h1><p>Source-backed research progress, verified buying contacts and known gaps across current opportunities.</p></div></header>
+      <header><div><p className="wh-kicker">Project follow-through</p><h1>Research progress</h1><p>See what has been checked, which sources support it, and what remains unknown.</p></div></header>
       <label className="research-search">Search opportunities<input aria-label="Search research opportunities" value={search} onChange={event => changeSearch(event.target.value)} placeholder="Company, project or location"/></label>
       {error && <p role="alert">{error} <button onClick={() => setReload(value => value + 1)}>Retry</button></p>}
       {loading && <p role="status">Loading current opportunities…</p>}
       {!loading && !error && items.length === 0 && <p>No opportunities match this search.</p>}
       <ul className="research-opportunity-list">{items.map(item => {
         const title = projectTitle(item)
-        const company = item.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? item.title_company ?? 'Company unknown'
+        const detailCompany = selectedId === item.id && selectedDetail?.value
+          ? (selectedDetail.value.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? ('commercial_organization' in selectedDetail.value && typeof selectedDetail.value.commercial_organization === 'string' ? selectedDetail.value.commercial_organization : undefined))
+          : undefined
+        const company = item.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? item.title_company ?? detailCompany
         const freshness = item.intelligence_card?.last_intelligence_update
         return <li key={item.id}><button type="button" aria-current={selectedId === item.id ? 'true' : undefined} onClick={() => choose(item.id)}>
-          <span className="research-row-heading"><strong>{company}</strong><span>{item.rank_score == null ? 'Priority unavailable' : `Priority ${item.rank_score}`}</span></span>
+          <span className="research-row-heading">{company && <strong>{company}</strong>}<span>{item.rank_score == null ? 'Priority unavailable' : `Priority ${item.rank_score}`}</span></span>
           <span>{title}</span><small>{item.location ?? 'Location unknown'} · {item.activity.replaceAll('-', ' ')} · {gapLabel(item)}</small>
           <small>{freshness ? `Research updated ${new Date(freshness).toLocaleDateString()}` : 'Research freshness unknown'}</small>
         </button></li>
       })}</ul>
       <footer><span>{page ? `${page.offset + 1}–${page.offset + items.length} of ${page.total}` : '—'}</span><button disabled={!page?.offset || loading} onClick={() => changeOffset(Math.max(0, offset - 25))}>Previous</button><button disabled={!page?.next_offset || loading} onClick={() => changeOffset(page?.next_offset ?? 0)}>Next</button></footer>
     </section>
-    <section className="research-detail" aria-label="Selected automated research">
+    <section className="research-detail" aria-label="Selected research">
       {selected || selectedId ? <>
         {!selected && <button className="research-back" type="button" onClick={clearSelection}>Back to opportunities</button>}
         {!selected && selectedDetailLoading && <p role="status">Loading selected opportunity detail…</p>}
@@ -122,7 +127,7 @@ export function ResearchView() {
         {selected && <>
         <button className="research-back" type="button" onClick={clearSelection}>Back to opportunities</button>
         <div className="research-detail-heading"><p className="wh-kicker">{selected.location ?? 'Location unknown'}</p><h2>{selected.intelligence_card?.fields.find(field => field.key === 'project' && field.value)?.value ?? projectTitle(selected)}</h2><p><strong>Company:</strong> {selectedCompany ?? 'Unknown'}</p><p>{selected.activity.replaceAll('-', ' ')} · {gapLabel(selected)} potential remaining gap · {selected.start_window ?? 'Timing unknown'} · {selected.duration ?? 'Duration unknown'}</p>
-          <dl><div><dt>Priority</dt><dd>{selected.rank_score == null ? 'Not available' : selected.rank_score}</dd></div><div><dt>Last intelligence update</dt><dd>{selected.intelligence_card?.last_intelligence_update ? new Date(selected.intelligence_card.last_intelligence_update).toLocaleString() : 'Unknown'}</dd></div></dl>
+          <dl><div><dt>Priority</dt><dd>{selected.rank_score == null ? 'Not available' : selected.rank_score}</dd></div><div><dt>Last research update</dt><dd>{selected.intelligence_card?.last_intelligence_update ? new Date(selected.intelligence_card.last_intelligence_update).toLocaleString() : 'Unknown'}</dd></div></dl>
         </div>
         <section className="research-contacts" aria-label="Business contacts"><h3>Business contacts</h3>
           {selectedDetailLoading && <p role="status">Loading retained contact and source details…</p>}

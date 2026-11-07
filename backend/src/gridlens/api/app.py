@@ -640,6 +640,7 @@ def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
 
 
 def _validate_browse_query(request: Request) -> None:
+    """Validate the route-specific browse query allowlist before reading a cohort."""
     allowed = _BROWSE_QUERY_NAMES
     if request.url.path == "/api/opportunities/projects":
         allowed = {
@@ -651,6 +652,7 @@ def _validate_browse_query(request: Request) -> None:
             "sort",
             "need_id",
             "include_signals",
+            "shortlist",
         }
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
@@ -2100,7 +2102,9 @@ def project_opportunities(
     cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
     sort: Literal["priority", "priority_asc", "company", "project", "updated"] = "priority",
     include_signals: bool = False,
+    shortlist: bool = False,
 ):
+    """Serve one bounded opportunity page, optionally filtered to the evidence shortlist."""
     from gridlens.intelligence.project_results import page as project_page
 
     with SessionLocal() as session:
@@ -2115,6 +2119,7 @@ def project_opportunities(
             sort=sort,
             need_id=need_id,
             include_signals=include_signals,
+            shortlist=shortlist,
         )
         _bounded_opportunity_payload(payload["items"])
         if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
