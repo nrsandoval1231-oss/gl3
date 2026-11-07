@@ -300,6 +300,7 @@
           "commercial-pursuits"
         ],
         "summary": "List Pursuits",
+        "description": "List filtered pursuit projections and counts from persisted owner state.",
         "operationId": "list_pursuits_api_commercial_pursuits_get",
         "parameters": [
           {
@@ -391,6 +392,7 @@
           "commercial-pursuits"
         ],
         "summary": "Create Pursuit",
+        "description": "Create or return the single pursuit attached to an active opportunity.",
         "operationId": "create_pursuit_api_commercial_pursuits_post",
         "requestBody": {
           "required": true,
@@ -432,6 +434,7 @@
           "commercial-pursuits"
         ],
         "summary": "Pursuit Detail",
+        "description": "Return a pursuit and its retained task and activity history.",
         "operationId": "pursuit_detail_api_commercial_pursuits__pursuit_id__get",
         "parameters": [
           {
@@ -473,6 +476,7 @@
           "commercial-pursuits"
         ],
         "summary": "Set Stage",
+        "description": "Persist an owner-selected stage and append its change to the activity history.",
         "operationId": "set_stage_api_commercial_pursuits__pursuit_id__patch",
         "parameters": [
           {
@@ -526,6 +530,7 @@
           "commercial-pursuits"
         ],
         "summary": "Add Task",
+        "description": "Add a task, or replay the same task when the caller supplies a stable client id.",
         "operationId": "add_task_api_commercial_pursuits__pursuit_id__tasks_post",
         "parameters": [
           {
@@ -579,6 +584,7 @@
           "commercial-pursuits"
         ],
         "summary": "Update Task",
+        "description": "Update task details and log completion in the same database transaction.",
         "operationId": "update_task_api_commercial_pursuits__pursuit_id__tasks__task_id__patch",
         "parameters": [
           {
@@ -642,6 +648,7 @@
           "commercial-pursuits"
         ],
         "summary": "Log Activity",
+        "description": "Append confirmed activity once per supplied client id, including retry races.",
         "operationId": "log_activity_api_commercial_pursuits__pursuit_id__activity_post",
         "parameters": [
           {
@@ -13609,13 +13616,27 @@
               }
             ],
             "title": "Due Date"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id",
+            "description": "Optional retry key; exact replays return the existing task."
           }
         },
         "type": "object",
         "required": [
           "description"
         ],
-        "title": "TaskIn"
+        "title": "TaskIn",
+        "description": "Follow-up details and an optional stable key for replay-safe submission."
       },
       "TaskOut": {
         "properties": {

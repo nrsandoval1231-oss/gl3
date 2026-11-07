@@ -21,6 +21,7 @@ function safeContactHref(method: Record<string, string>) {
   return undefined
 }
 
+/** Presents source-backed research status without manufacturing missing quality ratings. */
 export function ResearchView() {
   const [page, setPage] = useState<WorkspacePage | null>(null)
   const [selectedId, setSelectedId] = useState(() => new URLSearchParams(location.search).get('researchNeed') ?? '')
@@ -108,7 +109,7 @@ export function ResearchView() {
         return <li key={item.id}><button type="button" aria-current={selectedId === item.id ? 'true' : undefined} onClick={() => choose(item.id)}>
           <span className="research-row-heading"><strong>{company}</strong><span>{item.rank_score == null ? 'Priority unavailable' : `Priority ${item.rank_score}`}</span></span>
           <span>{title}</span><small>{item.location ?? 'Location unknown'} · {item.activity.replaceAll('-', ' ')} · {gapLabel(item)}</small>
-          <small>{freshness ? `Research updated ${new Date(freshness).toLocaleDateString()}` : 'Research freshness unknown'} · Confidence: not provided</small>
+          <small>{freshness ? `Research updated ${new Date(freshness).toLocaleDateString()}` : 'Research freshness unknown'}</small>
         </button></li>
       })}</ul>
       <footer><span>{page ? `${page.offset + 1}–${page.offset + items.length} of ${page.total}` : '—'}</span><button disabled={!page?.offset || loading} onClick={() => changeOffset(Math.max(0, offset - 25))}>Previous</button><button disabled={!page?.next_offset || loading} onClick={() => changeOffset(page?.next_offset ?? 0)}>Next</button></footer>
@@ -121,7 +122,7 @@ export function ResearchView() {
         {selected && <>
         <button className="research-back" type="button" onClick={clearSelection}>Back to opportunities</button>
         <div className="research-detail-heading"><p className="wh-kicker">{selected.location ?? 'Location unknown'}</p><h2>{selected.intelligence_card?.fields.find(field => field.key === 'project' && field.value)?.value ?? projectTitle(selected)}</h2><p><strong>Company:</strong> {selectedCompany ?? 'Unknown'}</p><p>{selected.activity.replaceAll('-', ' ')} · {gapLabel(selected)} potential remaining gap · {selected.start_window ?? 'Timing unknown'} · {selected.duration ?? 'Duration unknown'}</p>
-          <dl><div><dt>Priority</dt><dd>{selected.rank_score == null ? 'Not available' : selected.rank_score}</dd></div><div><dt>Confidence</dt><dd>Not provided</dd></div><div><dt>Last intelligence update</dt><dd>{selected.intelligence_card?.last_intelligence_update ? new Date(selected.intelligence_card.last_intelligence_update).toLocaleString() : 'Unknown'}</dd></div></dl>
+          <dl><div><dt>Priority</dt><dd>{selected.rank_score == null ? 'Not available' : selected.rank_score}</dd></div><div><dt>Last intelligence update</dt><dd>{selected.intelligence_card?.last_intelligence_update ? new Date(selected.intelligence_card.last_intelligence_update).toLocaleString() : 'Unknown'}</dd></div></dl>
         </div>
         <section className="research-contacts" aria-label="Business contacts"><h3>Business contacts</h3>
           {selectedDetailLoading && <p role="status">Loading retained contact and source details…</p>}

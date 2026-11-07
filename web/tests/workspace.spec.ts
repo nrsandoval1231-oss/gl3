@@ -182,6 +182,32 @@ test('workspace selection switches to a full detail view on mobile and has a cle
   await expect(page.getByRole('heading', { name: 'Opportunities', exact: true })).toBeVisible()
 })
 
+test('legacy selected detail and lifecycle copy do not expose confidence labels', async ({ page }) => {
+  const lifecycleNeed = { ...need, estimate_version: 'lifecycle-v1', estimate_basis: { confidence: 'high' }, lifecycle_state: 'operational' }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([lifecycleNeed]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: lifecycleNeed }))
+  await page.goto('/?view=workspace&accountBrowse=1&need=need-a')
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await page.locator('.wh-provenance-disclosure summary').click()
+  await expect(page.locator('.wh-customer-metrics')).not.toContainText(/confidence/i)
+  await expect(page.locator('body')).not.toContainText(/confidence/i)
+  await expect(page.getByText('Derived lifecycle estimate · lifecycle-v1.')).toBeVisible()
+})
+
+test('groupBrowse selected detail omits confidence even when source data contains it', async ({ page }) => {
+  const lifecycleNeed = { ...need, estimate_version: 'lifecycle-v1', estimate_basis: { confidence: 'high' }, lifecycle_state: 'operational' }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'group-empty', generation: 'fixture' } }))
+  await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: { items: [{ id: 'project-a', project_id: 'project-a', name: 'Example operator · Test data center', company: 'Example operator', location: 'Austin, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: null, representative_need_id: 'need-a', need_count: 1, needs: [{ ...lifecycleNeed, tier: 'Signal' }], event: null, contact: [], contact_people: [], power_summary: null, power_summary_kind: 'unknown', next_action: null, updated_at: null }], total: 1, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'selected-project', generation: 'fixture' } }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: lifecycleNeed }))
+  await page.goto('/?view=workspace&groupBrowse=1&need=need-a')
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.locator('.wh-detail')).not.toContainText(/confidence/i)
+})
+
 
 
 test('mobile history Back keeps the selected shell through delayed readback and focuses Back', async ({ page }) => {

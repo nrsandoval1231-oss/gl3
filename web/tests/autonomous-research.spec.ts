@@ -22,10 +22,10 @@ async function install(page: import('@playwright/test').Page) {
   await mockDemandSummary(page)
   await page.route('**/api/opportunities/workspace?**', route => route.fulfill({ json: workspace }))
   await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: need }))
-  await page.route('**/api/commercial/triage/need-demo/autonomous-research', route => route.fulfill({ json: { items: [] } }))
+  await page.route('**/api/commercial/triage/*/autonomous-research', route => route.fulfill({ json: { items: [] } }))
 }
 
-test('Research shows source-backed contacts, separate priority and confidence, explicit unknowns, and read-only history on mobile', async ({ page }) => {
+test('Research shows source-backed contacts, separate priority and freshness, explicit unknowns, and read-only history on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await install(page)
   const longCompany = `Northstar${'Compute'.repeat(14)}`
@@ -57,8 +57,7 @@ test('Research shows source-backed contacts, separate priority and confidence, e
   await expect(page.getByRole('link', { name: longEmail })).toHaveAttribute('href', `mailto:${longEmail}`)
   await expect(page.locator('.research-detail-heading').getByText(longCompany)).toBeVisible()
   await expect(page.getByText('Purchasing authority requires confirmation')).toBeVisible()
-  await expect(page.getByText('Confidence', { exact: true })).toBeVisible()
-  await expect(page.locator('.research-detail-heading dd').filter({ hasText: 'Not provided' })).toBeVisible()
+  await expect(page.locator('body')).not.toContainText(/confidence/i)
   await expect(page.getByText(/Temporary demand: Unknown/)).toBeVisible()
   await expect(page.locator('.research-gaps li').filter({ hasText: /^Temporary demand$/ })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Automated research' })).toBeVisible()

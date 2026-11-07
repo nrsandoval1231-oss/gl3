@@ -157,10 +157,10 @@ test('approved intelligence workspace preserves evidence, research status, selec
     }
     return layout.cardCount
   }
-  expect(await assertContainedMetrics('.wh-customer-metrics')).toBe(3)
+  expect(await assertContainedMetrics('.wh-customer-metrics')).toBe(2)
   await expect(page.locator('.wh-customer-metrics')).toContainText('3.25–6.75 MW of potential residual bridge power during phase one construction')
   await expect(page.locator('.wh-customer-metrics')).toContainText('Q3 2027 after substation feeder acceptance')
-  await expect(page.locator('.wh-customer-metrics')).toContainText('Unavailable')
+  await expect(page.locator('.wh-customer-metrics')).not.toContainText('Confidence')
   await page.getByRole('button', { name: 'Power Analysis', exact: true }).click()
   const powerAnalysis = page.locator('.wh-metrics')
   await expect(powerAnalysis.locator('.wh-metric')).toHaveCount(5)
@@ -169,7 +169,7 @@ test('approved intelligence workspace preserves evidence, research status, selec
   expect(await assertContainedMetrics('.wh-metrics')).toBe(5)
   await page.screenshot({ path: testInfo.outputPath('selected-detail-1280x800.png'), fullPage: false })
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await assertContainedMetrics('.wh-customer-metrics')).toBe(3)
+  expect(await assertContainedMetrics('.wh-customer-metrics')).toBe(2)
   expect(await assertContainedMetrics('.wh-metrics')).toBe(5)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await page.screenshot({ path: testInfo.outputPath('selected-detail-390x844.png'), fullPage: false })

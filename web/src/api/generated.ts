@@ -130,10 +130,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Pursuits */
+        /**
+         * List Pursuits
+         * @description List filtered pursuit projections and counts from persisted owner state.
+         */
         get: operations["list_pursuits_api_commercial_pursuits_get"];
         put?: never;
-        /** Create Pursuit */
+        /**
+         * Create Pursuit
+         * @description Create or return the single pursuit attached to an active opportunity.
+         */
         post: operations["create_pursuit_api_commercial_pursuits_post"];
         delete?: never;
         options?: never;
@@ -148,14 +154,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Pursuit Detail */
+        /**
+         * Pursuit Detail
+         * @description Return a pursuit and its retained task and activity history.
+         */
         get: operations["pursuit_detail_api_commercial_pursuits__pursuit_id__get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Set Stage */
+        /**
+         * Set Stage
+         * @description Persist an owner-selected stage and append its change to the activity history.
+         */
         patch: operations["set_stage_api_commercial_pursuits__pursuit_id__patch"];
         trace?: never;
     };
@@ -168,7 +180,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add Task */
+        /**
+         * Add Task
+         * @description Add a task, or replay the same task when the caller supplies a stable client id.
+         */
         post: operations["add_task_api_commercial_pursuits__pursuit_id__tasks_post"];
         delete?: never;
         options?: never;
@@ -189,7 +204,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Task */
+        /**
+         * Update Task
+         * @description Update task details and log completion in the same database transaction.
+         */
         patch: operations["update_task_api_commercial_pursuits__pursuit_id__tasks__task_id__patch"];
         trace?: never;
     };
@@ -202,7 +220,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Log Activity */
+        /**
+         * Log Activity
+         * @description Append confirmed activity once per supplied client id, including retry races.
+         */
         post: operations["log_activity_api_commercial_pursuits__pursuit_id__activity_post"];
         delete?: never;
         options?: never;
@@ -4060,12 +4081,20 @@ export interface components {
              */
             stage: "New" | "Contacted" | "Engaged" | "Proposal" | "Won" | "Lost";
         };
-        /** TaskIn */
+        /**
+         * TaskIn
+         * @description Follow-up details and an optional stable key for replay-safe submission.
+         */
         TaskIn: {
             /** Description */
             description: string;
             /** Due Date */
             due_date?: string | null;
+            /**
+             * Client Id
+             * @description Optional retry key; exact replays return the existing task.
+             */
+            client_id?: string | null;
         };
         /** TaskOut */
         TaskOut: {

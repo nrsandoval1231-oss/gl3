@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,6 +20,7 @@ from gridlens.settings import settings
 
 @pytest.fixture
 def pursuit_env(monkeypatch):
+    """Run API checks in a disposable PostgreSQL schema with isolated route state."""
     if not settings.test_database_url:
         pytest.skip("TEST_DATABASE_URL required for PostgreSQL pursuit tests")
     target = make_url(settings.test_database_url)
@@ -45,6 +46,7 @@ def pursuit_env(monkeypatch):
 
 
 def _need(factory, start_window=None):
+    """Create one synthetic source, project and power need for route assertions."""
     with factory() as session:
         source = Source(
             id=f"s-{uuid4().hex[:8]}",
@@ -83,6 +85,55 @@ def test_routes_require_authentication():
     client = TestClient(app)
     assert client.get("/api/commercial-pursuits").status_code == 401
     assert client.post("/api/commercial-pursuits", json={}).status_code == 401
+
+
+def test_mutations_reject_foreign_origins_without_blocking_reads(pursuit_env):
+    """Cross-origin requests cannot create or change the owner-managed record."""
+    client = TestClient(app)
+    need_id = _need(pursuit_env)
+    pursuit = client.post(
+        "/api/commercial-pursuits",
+        headers={"Origin": "http://testserver"},
+        json={"need_id": need_id},
+    ).json()
+    base = f"/api/commercial-pursuits/{pursuit['id']}"
+    foreign = {"Origin": "https://attacker.example"}
+
+    assert client.get("/api/commercial-pursuits", headers=foreign).status_code == 200
+    assert (
+        client.post(
+            "/api/commercial-pursuits", headers=foreign, json={"need_id": need_id}
+        ).status_code
+        == 403
+    )
+    assert client.patch(base, headers=foreign, json={"stage": "Engaged"}).status_code == 403
+    assert (
+        client.post(f"{base}/tasks", headers=foreign, json={"description": "blocked"}).status_code
+        == 403
+    )
+
+    task_response = client.post(f"{base}/tasks", json={"description": "Call contact"})
+    assert task_response.status_code == 201
+    task_id = task_response.json()["tasks"][0]["id"]
+    assert (
+        client.patch(
+            f"{base}/tasks/{task_id}", headers=foreign, json={"description": "blocked"}
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            f"{base}/activity",
+            headers=foreign,
+            json={"kind": "note", "summary": "blocked", "confirmed": True},
+        ).status_code
+        == 403
+    )
+
+    detail = client.get(base).json()
+    assert detail["stage"] == "New"
+    assert [task["description"] for task in detail["tasks"]] == ["Call contact"]
+    assert [item["kind"] for item in detail["activity"]] == ["created"]
 
 
 def test_create_is_idempotent_per_opportunity(pursuit_env):
@@ -139,6 +190,42 @@ def test_tasks_create_edit_reschedule_complete(pursuit_env):
     assert done["tasks"][0]["completed_at"] and done["next_task"] is None
     assert done["activity"][0]["kind"] == "task_completed"
     assert client.post(f"{base}/tasks", json={"description": "   "}).status_code == 422
+
+
+def test_task_creation_retries_are_idempotent_and_validate_reused_ids(pursuit_env):
+    """Exact task retries return one row; changed or cross-pursuit reuse conflicts."""
+    client = TestClient(app)
+    first_pursuit = client.post(
+        "/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}
+    ).json()
+    second_pursuit = client.post(
+        "/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}
+    ).json()
+    client_id = str(uuid4())
+    payload = {
+        "description": "Call about the project",
+        "due_date": "2026-12-01",
+        "client_id": client_id,
+    }
+    url = f"/api/commercial-pursuits/{first_pursuit['id']}/tasks"
+
+    first = client.post(url, json=payload)
+    replay = client.post(url, json=payload)
+    assert first.status_code == 201 and replay.status_code == 200
+    assert [task["id"] for task in replay.json()["tasks"]] == [client_id]
+    assert [task["description"] for task in replay.json()["tasks"]] == ["Call about the project"]
+    assert client.post(url, json={**payload, "description": "Changed on retry"}).status_code == 409
+    assert (
+        client.post(
+            f"/api/commercial-pursuits/{second_pursuit['id']}/tasks", json=payload
+        ).status_code
+        == 409
+    )
+
+    with pursuit_env() as session:
+        from gridlens.persistence.commercial_pursuit_models import PursuitTask
+
+        assert session.get(PursuitTask, UUID(client_id)).description == "Call about the project"
 
 
 def test_activity_requires_confirmation_and_is_idempotent(pursuit_env):

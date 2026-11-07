@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Opportunity } from '../src/api/client'
+import { mockDemandSummary } from './mock-demand-summary'
 
 function record(id: string, name: string, decision: 'SHOW' | 'REVIEW' | 'HOLD', projectId = ''): Opportunity {
   return {
@@ -53,6 +54,7 @@ function serverOpportunityResponse(records: Opportunity[], selectedDecision = 'A
 test('source-sector groups preserve the oil and gas URL alias and send canonical filter values', async ({ page }) => {
   const filters: Array<string | null> = []
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/opportunities**', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
@@ -76,6 +78,7 @@ test('source-sector groups preserve the oil and gas URL alias and send canonical
 test('source filters list authenticated health sources and send their actual source IDs', async ({ page }) => {
   const selectedSources: Array<string | null> = []
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/health', (route) => route.fulfill({ json: {
     sources: [
       { id: 'texas-rrc-drilling-permits', status: 'Checked', family: 'oil-and-gas', geography: 'Texas', enabled: true },
@@ -108,6 +111,7 @@ test('All Signals labels cards and every member of a mixed decision group', asyn
     record('hold-card', 'Held project', 'HOLD'),
   ]
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/opportunities**', (route) => {

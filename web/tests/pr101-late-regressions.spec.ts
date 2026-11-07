@@ -34,6 +34,7 @@ test('server-filtered SHOW group remains visible when only a REVIEW member is lo
 
 test('active Opportunities navigation preserves its selected need and section after reload', async ({ page }) => {
   await authenticated(page)
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic' } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: {
     items: [{ ...need, signal_display_decision: 'SHOW', commercial_disposition: 'RESEARCH' }], total: 1,
     counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null,

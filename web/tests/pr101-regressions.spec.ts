@@ -31,6 +31,7 @@ function opportunityHeaders(token: string, offset: number, nextOffset: number | 
 
 test('legacy environment links preserve supported tab, lens, tier, and grouped browse offset', async ({ page }) => {
   await authenticated(page)
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic' } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: workspaceResponse() }))
   let detailReads = 0
   await page.route('**/api/opportunities/needs/need-a*', route => { detailReads += 1; return route.fulfill({ json: need }) })

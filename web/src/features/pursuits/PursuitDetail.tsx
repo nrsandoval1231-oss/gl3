@@ -125,7 +125,7 @@ export function PursuitDetail({ id, preview, onBack, onChanged }: Props) {
       {errors.stage && <p className="pu-error" role="alert">{errors.stage}</p>}
     </section>
 
-    <TasksCard tasks={tasks} openTasks={openTasks} doneTasks={doneTasks} busy={busy} error={errors.task ?? ''} onWrite={action => write('task', () => action(head.id))}/>
+    <TasksCard pursuitId={head.id} tasks={tasks} openTasks={openTasks} doneTasks={doneTasks} busy={busy} error={errors.task ?? ''} onWrite={action => write('task', () => action(head.id))}/>
     <ActivityCard detail={detail} busy={busy} error={errors.activity ?? ''} onWrite={action => write('activity', () => action(head.id))}/>
 
     <section className="pu-box" aria-label="Project details">
@@ -165,15 +165,25 @@ function DueDateInput({ task, busy, onWrite }: { task: PursuitTask; busy: string
   </>
 }
 
-function TasksCard({ tasks, openTasks, doneTasks, busy, error, onWrite }: { tasks: PursuitTask[] | null; openTasks: PursuitTask[]; doneTasks: PursuitTask[]; busy: string; error: string; onWrite: Write }) {
+/** Keep a task draft's client ID stable across retry, but rotate it when its parent changes or the write succeeds. */
+function TasksCard({ pursuitId, tasks, openTasks, doneTasks, busy, error, onWrite }: { pursuitId: string; tasks: PursuitTask[] | null; openTasks: PursuitTask[]; doneTasks: PursuitTask[]; busy: string; error: string; onWrite: Write }) {
   const [description, setDescription] = useState('')
   const [due, setDue] = useState('')
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null)
+  // Keep a request identity until success so a lost response can be retried safely.
+  const attempt = useRef<{ signature: string; id: string } | null>(null)
+  useEffect(() => { attempt.current = null }, [pursuitId])
+  /** Reuse the draft identity after failure so a lost success response cannot duplicate a follow-up. */
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     const text = description.trim()
     if (!text) return
-    if (await onWrite(id => client.addPursuitTask(id, { description: text, due_date: due || null }))) { setDescription(''); setDue('') }
+    const signature = JSON.stringify([text, due || null])
+    if (attempt.current?.signature !== signature) attempt.current = { signature, id: crypto.randomUUID() }
+    const clientId = attempt.current.id
+    if (await onWrite(id => client.addPursuitTask(id, { description: text, due_date: due || null, client_id: clientId }))) {
+      attempt.current = null; setDescription(''); setDue('')
+    }
   }
   const row = (task: PursuitTask) => {
     const done = Boolean(task.completed_at)

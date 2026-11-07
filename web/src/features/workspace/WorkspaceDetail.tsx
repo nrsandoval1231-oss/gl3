@@ -45,6 +45,7 @@ function briefProjectReason(value: string | null | undefined) {
   return brief.length > 240 ? `${brief.slice(0, 237).trimEnd()}…` : brief
 }
 
+/** Shows retained project evidence and bounded estimates without promoting uncertainty into a customer rating. */
 export function WorkspaceDetail({ item, pending, loading, error, tab, associationNotice, projectFirst = false, onTab, onBack, onRetry }: Props) {
   const [shareState, setShareState] = useState('')
   const [sourceFilter, setSourceFilter] = useState('All sources')
@@ -186,7 +187,6 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
     {!projectFirst && <section className="wh-customer-metrics" aria-label="Customer intelligence metrics">
       <div><strong>{metrics[1].value}</strong><span>Estimated Power Gap</span><small>{metrics[1].basis}</small></div>
       <div><strong>{metrics[2].value}</strong><span>Target Need Date</span></div>
-      <div><strong>Unavailable</strong><span>Confidence Score</span></div>
     </section>}
     <nav ref={tabsRef} className="wh-tabs" aria-label="Opportunity detail">
       {(projectFirst ? ([['Overview', 'Overview'], ['Buying chain', 'Buying Chain'], ['Evidence', 'Evidence'], ['Power gap', 'Power Analysis']] as const) : ([['Overview', 'Overview'], ['Buying chain', 'Buying Chain'], ['Evidence', 'Evidence'], ['Power gap', 'Power Analysis'], ['Research', 'Research']] as const)).map(([value, label]) => <button key={value} aria-label={label} aria-pressed={value === tab} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{label}</button>)}
@@ -225,7 +225,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
           {item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}
           {item.reported_power_facts?.length ? <><strong>Reported power figures (source claims, not rental requirements)</strong><ul>{item.reported_power_facts.map((fact, i) => <li key={`${i}-${fact}`}>{fact}</li>)}</ul></> : null}
           {item.lifecycle_state && <p>Asset lifecycle: {item.asset_type?.replaceAll('_', ' ') ?? 'Unknown'} · {item.lifecycle_state.replaceAll('_', ' ')}. Expected next milestone: {item.expected_next_milestone ?? 'Unknown'}; expected power event: {item.expected_power_event ?? 'Unknown'}; estimated window: {item.time_to_power_window ?? 'Unknown'}.</p>}
-          {item.estimate_version && <p>Derived lifecycle estimate · {item.estimate_version} · {String(item.estimate_basis?.confidence ?? 'confidence unknown')}. This is not a reported date, power requirement, or power gap.</p>}
+          {item.estimate_version && <p>Derived lifecycle estimate · {item.estimate_version}. This is not a reported date, power requirement, or power gap.</p>}
           {item.lifecycle_timeline?.length ? <ol>{item.lifecycle_timeline.map((event, i) => <li key={`${event.event_type}-${i}`}><a href={event.evidence_url} target="_blank" rel="noreferrer">{event.date ?? 'Date unknown'} · {event.state.replaceAll('_', ' ')}</a> ({event.value_kind}{event.current ? '' : ', superseded'}{event.published_at ? ` · published ${event.published_at}` : ''})</li>)}</ol> : null}
           {item.monitoring_requirements?.length ? <p>Monitoring: {item.monitoring_requirements.join(' · ')}</p> : null}
           {item.lifecycle_open_questions?.length ? <p>Lifecycle evidence still missing: {item.lifecycle_open_questions.join(' · ')}</p> : null}
@@ -238,7 +238,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, associatio
       {tab === 'Overview' && item.intelligence_card && <>
         {(item.lifecycle_state || item.lifecycle_timeline?.length || item.lifecycle_open_questions?.length) && <details className="wh-provenance-disclosure"><summary>Asset lifecycle and monitoring</summary>
           {item.lifecycle_state && <p>Asset lifecycle: {item.asset_type?.replaceAll('_', ' ') ?? 'Unknown'} · {item.lifecycle_state.replaceAll('_', ' ')}. Expected next milestone: {item.expected_next_milestone ?? 'Unknown'}; expected power event: {item.expected_power_event ?? 'Unknown'}; estimated window: {item.time_to_power_window ?? 'Unknown'}.</p>}
-          {item.estimate_version && <p>Derived lifecycle estimate · {item.estimate_version} · {String(item.estimate_basis?.confidence ?? 'confidence unknown')}. This is not a reported date, power requirement, or power gap.</p>}
+          {item.estimate_version && <p>Derived lifecycle estimate · {item.estimate_version}. This is not a reported date, power requirement, or power gap.</p>}
           {item.lifecycle_timeline?.length ? <ol>{item.lifecycle_timeline.map((event, i) => <li key={`${event.event_type}-${i}`}><a href={event.evidence_url} target="_blank" rel="noreferrer">{event.date ?? 'Date unknown'} · {event.state.replaceAll('_', ' ')}</a> ({event.value_kind}{event.current ? '' : ', superseded'}{event.published_at ? ` · published ${event.published_at}` : ''})</li>)}</ol> : null}
           {item.monitoring_requirements?.length ? <p>Monitoring: {item.monitoring_requirements.join(' · ')}</p> : null}
           {item.lifecycle_open_questions?.length ? <p>Lifecycle evidence still missing: {item.lifecycle_open_questions.join(' · ')}</p> : null}
