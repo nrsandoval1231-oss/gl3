@@ -135,6 +135,7 @@ def _digest(value: Any) -> str:
 def _retained_context(
     session: Session, need_id: UUID
 ) -> tuple[PowerNeed, Project, Source, list[dict[str, Any]]]:
+    """Load an active need and bounded evidence from its enabled source for grounding."""
     need = session.get(PowerNeed, need_id)
     if need is None or not need.active:
         raise ValueError("Active power need is required")
@@ -2307,6 +2308,7 @@ def _enqueue_routed_grounding(
     route: str,
     reference: dict[str, Any],
 ) -> dict[str, Any]:
+    """Queue an allowed, evidence-grounded follow-on for the selected route."""
     payload = checkpoint.get("payload")
     unresolved = (
         payload.get("task_context", {}).get("unresolved_questions", [])

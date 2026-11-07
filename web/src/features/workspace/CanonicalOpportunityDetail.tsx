@@ -45,6 +45,7 @@ function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_k
   return `${amount.toLocaleString(undefined, { maximumFractionDigits: 1 })} kW`
 }
 
+/** Load and render selected opportunity detail using the active shortlist query mode. */
 export function CanonicalOpportunityDetail(props: Props) {
   const { item, pending, loading, error, associationNotice, tab, onTab, onBack, onRetry } = props
   const canonicalTab: CanonicalTab = tabForWorkspace(tab)

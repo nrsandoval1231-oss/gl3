@@ -165,6 +165,7 @@ FRESHNESS_HOURS = {
 
 
 def fingerprint(value: Any) -> str:
+    """Hash canonical JSON so equivalent question context has a stable identity."""
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
 
 
@@ -210,6 +211,7 @@ def blocker_resolved(category: str, card: dict, context: dict | None = None) -> 
     state = card.get("research_state", {})
 
     def supported(field: str) -> bool:
+        """Treat a research field as resolved only when it has supported claims."""
         item = state.get(field, {})
         return item.get("status") == "SUPPORTED" and bool(item.get("claims"))
 

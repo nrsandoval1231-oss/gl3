@@ -38,11 +38,16 @@ def _current_jev_decisions(session, evidence_ids: list[str]) -> dict[str, str]:
                WHERE e.id = ANY(CAST(:evidence_ids AS uuid[]))
                  AND e.content_hash = o.content_hash
                  AND sd.policy_version = :policy_version
+                 AND sd.source = 'jev'
+                 AND sd.model_version = :model_version
+                 AND sd.dimensions->>'question_set' = 'demand-v1'
+                 AND sd.decision IN ('SHOW', 'HOLD', 'REVIEW')
                ORDER BY e.id, sd.id DESC"""
             ),
             {
                 "evidence_ids": evidence_ids,
                 "policy_version": SIGNAL_POLICY_VERSION,
+                "model_version": settings.jev_model,
             },
         )
         .mappings()
@@ -50,14 +55,7 @@ def _current_jev_decisions(session, evidence_ids: list[str]) -> dict[str, str]:
     )
     decisions: dict[str, str] = {}
     for row in rows:
-        dimensions = row["dimensions"] or {}
-        if (
-            row["source"] == "jev"
-            and row["model_version"] == settings.jev_model
-            and dimensions.get("question_set") == "demand-v1"
-            and row["decision"] in {"SHOW", "HOLD", "REVIEW"}
-        ):
-            decisions[str(row["id"])] = row["decision"]
+        decisions[str(row["id"])] = row["decision"]
     return decisions
 
 

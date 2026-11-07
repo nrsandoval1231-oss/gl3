@@ -5,7 +5,7 @@ import type { BuyingChainResult } from '../src/api/client'
 const pageFixture = {
   items: [
     { id: 'p1', project_id: 'p1', name: 'Northstar Energy · Mesa Compressor', company: 'Northstar Energy', location: 'Midland, TX', sector: 'oil_gas', asset_type: 'Compressor station', priority_score: 42, representative_need_id: 'n1', need_count: 2, needs: [{ id: 'n1', tier: 'Signal', activity: 'compression' }, { id: 'n2', tier: 'Prospect', activity: 'construction power' }], event: { kind: 'permit_issued', label: 'Permit issued', date: '2026-10-10' }, contact: [], power_summary: null, power_summary_kind: 'unknown', next_action: null, shortlist_assessment: { eligible: true, reasons: [], evidence_refs: ['source-1'], why_now: 'Permit issued for Mesa Compressor on October 10, 2026.', next_step: 'Confirm the project owner and power timing.', source_subject: 'Mesa Compressor' }, updated_at: '2026-10-28T00:00:00Z' },
-    { id: 'p2', project_id: 'p2', name: 'Copperline Data · Mesa Campus', company: 'Copperline Data', location: 'Phoenix, AZ', sector: 'data_centers', asset_type: 'Campus', priority_score: null, representative_need_id: 'n3', need_count: 1, needs: [{ id: 'n3', tier: 'Lead' }], event: null, contact: [], power_summary: '420 MW supported residual gap', power_summary_kind: 'supported_gap', next_action: null, shortlist_assessment: { eligible: true, reasons: [], evidence_refs: [], why_now: null, next_step: null, source_subject: 'Mesa Campus' }, updated_at: '2026-10-28T00:00:00Z' },
+    { id: 'p2', project_id: 'p2', name: 'Copperline Data · Mesa Campus', company: 'Copperline Data', location: 'Phoenix, AZ', sector: 'data_centers', asset_type: 'Campus', priority_score: null, representative_need_id: 'n3', need_count: 1, needs: [{ id: 'n3', tier: 'Lead' }], event: null, contact: [], power_summary: '420 MW supported residual gap', power_summary_kind: 'supported_gap', next_action: 'Review the project filing', shortlist_assessment: { eligible: true, reasons: [], evidence_refs: [], why_now: null, next_step: null, source_subject: 'Mesa Campus' }, updated_at: '2026-10-28T00:00:00Z' },
   ], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic-flat', generation: 'synthetic', results_scope: 'discovery',
 }
 const buyingChainFixture = { project_id: 'p1', status: 'complete', candidates: [], unresolved: [], runs: [], policy_version: 'buying-chain-v2-permits' } satisfies BuyingChainResult
@@ -19,7 +19,7 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await page.route('**/api/opportunities/demand-summary?*', route => { demandRequests.push(new URL(route.request().url())); return route.fulfill({ json: { availability: 'available', sector: new URL(route.request().url()).searchParams.get('sector'), as_of: '2026-10-31T00:00:00Z', totals: { identified_records: 5, known_mw_records: 3, unknown_records: 2, conflicted_records: 1 }, classes: { documented: { mw: 8, record_count: 2 }, calculated: { mw: 4.5, record_count: 1 }, estimated: { mw: 6, record_count: 1 } }, provenance: { contract: 'equipment-demand-v1', source_count: 3, latest_evidence_at: '2026-10-30T00:00:00Z' }, limitations: [] } }) })
   await page.route('**/api/opportunities/projects?*', route => { const url = new URL(route.request().url()); requests.push(url); const response = url.searchParams.get('shortlist') === 'false' ? { ...pageFixture, items: pageFixture.items.map(({ shortlist_assessment: _assessment, ...item }) => item) } : pageFixture; return route.fulfill({ json: response }) })
   await page.route('**/api/opportunities/needs/n1*', route => route.fulfill({ json: { id: 'n1', project_id: 'p1', name: 'Northstar Mesa Compressor', browse_title: 'Mesa Compressor', location: 'Midland, TX', tier: 'Signal', activity: 'compression', required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Source fixture', workflow_status: 'New', evidence: [], missing_facts: [] } }))
-  await page.goto('/?view=workspace&projectBrowse=1')
+  await page.goto('/?view=workspace&projectBrowse=1&priority=unranked')
 
   await expect(page.getByRole('heading', { name: 'Opportunities' })).toBeVisible()
   await expect.poll(() => requests[0]?.searchParams.get('include_signals')).toBe('true')
@@ -50,6 +50,7 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await expect(page.locator('.cfr-table')).toContainText('Power need unknown')
   await expect(page.locator('.cfr-table')).not.toContainText('420 MW supported residual gap')
   await expect(page.locator('.cfr-table')).not.toContainText('View project')
+  await expect(page.getByRole('combobox', { name: 'Priority' })).toHaveCount(0)
   const stageFilter = page.getByRole('combobox', { name: 'Stage' })
   await expect(stageFilter.locator('option[value="permit_issued"]')).toHaveText('Permit issued')
 
@@ -62,8 +63,11 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await expect(page.locator('.cfr-table')).not.toContainText('No contact on file')
   await page.getByRole('button', { name: 'All Projects' }).click()
   await expect.poll(() => requests.at(-1)?.searchParams.get('shortlist')).toBe('false')
+  await expect(page).not.toHaveURL(/priority=unranked/)
+  await expect(page.getByRole('combobox', { name: 'Priority' })).toBeVisible()
   await expect(page.locator('.cfr-heading')).toContainText('Signals included')
   await expect(page.locator('[data-label="Why now"]').first()).toContainText('Permit issued · 2026-10-10')
+  await expect(page.locator('[data-label="Next step"]').nth(1)).toContainText('Review the project filing')
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.locator('[data-need-row="n1"]').first().click()
   await expect(page).toHaveURL(/shortlist=0/)

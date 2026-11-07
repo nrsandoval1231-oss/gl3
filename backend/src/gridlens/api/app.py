@@ -640,6 +640,7 @@ def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
 
 
 def _validate_browse_query(request: Request) -> None:
+    """Validate the route-specific browse query allowlist before reading a cohort."""
     allowed = _BROWSE_QUERY_NAMES
     if request.url.path == "/api/opportunities/projects":
         allowed = {
@@ -2103,6 +2104,7 @@ def project_opportunities(
     include_signals: bool = False,
     shortlist: bool = False,
 ):
+    """Serve one bounded opportunity page, optionally filtered to the evidence shortlist."""
     from gridlens.intelligence.project_results import page as project_page
 
     with SessionLocal() as session:

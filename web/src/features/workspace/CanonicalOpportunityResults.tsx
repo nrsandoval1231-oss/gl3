@@ -23,13 +23,16 @@ function pageIsCurrent(page: ProjectResultsPage | null) {
   const expires = Date.parse(page.valid_until)
   return Number.isFinite(expires) && Date.now() < expires
 }
+/** Reads the supported workspace view and filter state from the current URL. */
 function readRoute() {
   const params = new URLSearchParams(location.search)
   const priority = params.get('priority')
-  return { region: params.get('region') ?? '', stage: params.get('stage') ?? '', priority: priority === 'ranked' || priority === 'unranked' ? priority : '', search: params.get('q') ?? '', sector: (['oil_gas', 'data_centers'].includes(params.get('sector') ?? '') ? params.get('sector') : 'all') as Sector, offset: Math.max(0, Number(params.get('offset') ?? 0) || 0), sort: (['priority_asc', 'company', 'project'].includes(params.get('sort') ?? '') ? params.get('sort') : 'priority') as Sort, shortlist: params.get('shortlist') !== '0' }
+  const shortlist = params.get('shortlist') !== '0'
+  return { region: params.get('region') ?? '', stage: params.get('stage') ?? '', priority: !shortlist && (priority === 'ranked' || priority === 'unranked') ? priority : '', search: params.get('q') ?? '', sector: (['oil_gas', 'data_centers'].includes(params.get('sector') ?? '') ? params.get('sector') : 'all') as Sector, offset: Math.max(0, Number(params.get('offset') ?? 0) || 0), sort: (['priority_asc', 'company', 'project'].includes(params.get('sort') ?? '') ? params.get('sort') : 'priority') as Sort, shortlist }
 }
 type PageFilters = { region: string; stage: string; priority: string }
 const NO_FILTERS: PageFilters = { region: '', stage: '', priority: '' }
+/** Writes the current project cohort and visible page filters to the URL. */
 function updateUrl(search: string, sector: Sector, offset: number, sort: Sort, shortlist: boolean, cohort?: string, push = false, filters: PageFilters = NO_FILTERS) {
   const params = new URLSearchParams({ view: 'workspace' })
   if (new URLSearchParams(location.search).get('projectBrowse') === '1') params.set('projectBrowse', '1')
@@ -54,6 +57,7 @@ function setFilterParam(key: keyof PageFilters, value: string) {
 function displayProjectName(project: ProjectResult) {
   return project.company && project.name.startsWith(`${project.company} · `) ? project.name.slice(project.company.length + 3) : project.name
 }
+/** Chooses a human-readable project subject while avoiding unsupported identities. */
 function cardProjectName(project: ProjectResult) {
   const subject = project.shortlist_assessment?.source_subject?.trim()
   if (subject && !/^\d+$/.test(subject) && !/\b(?:contractor|applicant)\b/i.test(subject)) return subject
@@ -110,7 +114,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   useEffect(() => {
     // Unsupported sort values (for example the legacy `updated`) fall back to priority; drop them from the URL.
     const params = new URLSearchParams(location.search), raw = params.get('sort')
-    if (raw !== null && readRoute().sort === 'priority') { params.delete('sort'); history.replaceState(history.state, '', `/?${params}`) }
+    if ((raw !== null && readRoute().sort === 'priority') || (params.has('priority') && readRoute().shortlist)) { if (readRoute().sort === 'priority') params.delete('sort'); if (readRoute().shortlist) params.delete('priority'); history.replaceState(history.state, '', `/?${params}`) }
   }, [])
   useEffect(() => {
     const onPop = () => { const route = readRoute(); setSearchDraft(route.search); setSearch(route.search); setSector(route.sector); setOffset(route.offset); setSort(route.sort); setShortlist(route.shortlist); setRegion(route.region); setStage(route.stage); setPriority(route.priority); cohortResetUsed.current = false }
@@ -189,21 +193,23 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
   const stageOptions = stage && !stages.includes(stage) ? [...stages, stage].sort() : stages
   const visible = useMemo(() => items.filter(item =>
     (!region || item.location === region) && (!stage || item.event?.kind === stage) &&
-    (!priority || (priority === 'ranked' ? item.priority_score != null : item.priority_score == null))
-  ), [items, region, stage, priority])
+    (shortlist || !priority || (priority === 'ranked' ? item.priority_score != null : item.priority_score == null))
+  ), [items, region, stage, priority, shortlist])
+  /** Exports the visible page, omitting the shortlist ordering value from score fields. */
   const exportRows = () => {
-    const rows = [['Company', 'Project', 'Region', 'Power gap', 'Timing', 'Lifecycle event', 'Qualification', 'Priority score']]
-    for (const item of visible) rows.push([item.company ?? 'Unavailable', displayProjectName(item), item.location ?? 'Unavailable', gapValue(item), item.event?.date ?? 'Unavailable', item.event?.label ?? 'Unavailable', item.needs.find(need => need.id === item.representative_need_id)?.tier ?? 'Unavailable', item.priority_score == null ? 'Unavailable' : String(item.priority_score)])
+    const rows = [['Company', 'Project', 'Region', 'Power gap', 'Timing', 'Lifecycle event', 'Qualification', ...(!shortlist ? ['Priority score'] : [])]]
+    for (const item of visible) rows.push([item.company ?? 'Unavailable', displayProjectName(item), item.location ?? 'Unavailable', gapValue(item), item.event?.date ?? 'Unavailable', item.event?.label ?? 'Unavailable', item.needs.find(need => need.id === item.representative_need_id)?.tier ?? 'Unavailable', ...(!shortlist ? [item.priority_score == null ? 'Unavailable' : String(item.priority_score)] : [])])
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([rows.map(row => row.map(safeCsvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })); link.download = 'gridlens-opportunities.csv'; link.click(); URL.revokeObjectURL(link.href)
   }
   const selectSector = (value: Sector) => { if (value === sector) return; onBrowseChangeRef.current?.(); setSector(value); window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: value })); setOffset(0); setRegion(''); setStage(''); setPriority(''); updateUrl(search, value, 0, sort, shortlist) }
   const clearFilters = () => { onBrowseChangeRef.current?.(); setSearchDraft(''); setSearch(''); setRegion(''); setStage(''); setPriority(''); setSector('all'); window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: 'all' })); setOffset(0); updateUrl('', 'all', 0, sort, shortlist) }
   const selectSort = (value: Sort) => { if (value === sort) return; onBrowseChangeRef.current?.(); cohortResetUsed.current = false; setSort(value); setOffset(0); updateUrl(search, sector, 0, value, shortlist, undefined, true, { region, stage, priority }) }
+  /** Switches project views and clears page filters that do not carry across cohorts. */
   const selectShortlist = (value: boolean) => { if (value === shortlist) return; onBrowseChangeRef.current?.(); setShortlist(value); setOffset(0); setRegion(''); setStage(''); setPriority(''); updateUrl(search, sector, 0, sort, value, undefined, true) }
   return <section className="canonical-flat-results" aria-label="Project opportunities" aria-busy={loading || searchDraft !== search}>
     <header className="cfr-heading"><div><h1>Opportunities</h1><p>{shortlist ? 'Source-backed development and power activity for review.' : 'All source-backed project records, including Signals.'}</p></div><div><span>{visiblePage ? `${projectCount(visiblePage.total)} · ${shortlist ? 'Shortlist' : visiblePage.results_scope === 'discovery' ? 'All projects · Signals included' : 'All qualified projects'}` : 'Unavailable'}<small className="cfr-filter-scope" title="Region, stage and priority filter the current page. Search and project type cover all results.">Page filters</small></span><label className="cfr-sort-label">Sort<select aria-label="Sort opportunities" disabled={!canInteract} value={sort} onChange={event => selectSort(event.target.value as Sort)}><option value="priority">Priority</option><option value="priority_asc">Priority (ascending)</option><option value="company">Company</option><option value="project">Project</option></select></label><button type="button" onClick={exportRows} disabled={!visible.length || !canInteract}><Download size={13} aria-hidden="true"/> Export</button></div></header>
-    <div className="cfr-filters" aria-describedby="canonical-filter-scope"><div className="cfr-view-switch" role="group" aria-label="Opportunity view"><button type="button" aria-pressed={shortlist} onClick={() => selectShortlist(true)}>Shortlist</button><button type="button" aria-pressed={!shortlist} onClick={() => selectShortlist(false)}>All Projects</button></div><input aria-label="Search opportunities" placeholder="Search opportunities…" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}/><select aria-label="Region" value={region} onChange={event => { setRegion(event.target.value); setFilterParam('region', event.target.value) }}><option value="">All Regions</option>{regionOptions.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Project type" value={sector} onChange={event => selectSector(event.target.value as Sector)}><option value="all">All Project Types</option><option value="oil_gas">Oil &amp; Gas</option><option value="data_centers">Data Centers</option></select><select aria-label="Stage" value={stage} onChange={event => { setStage(event.target.value); setFilterParam('stage', event.target.value) }}><option value="">All Stages</option>{stageOptions.map(value => <option key={value} value={value}>{stageLabel(value)}</option>)}</select><select aria-label="Priority" value={priority} onChange={event => { setPriority(event.target.value); setFilterParam('priority', event.target.value) }}><option value="">All Priorities</option><option value="ranked">Ranked</option><option value="unranked">Unranked</option></select><button type="button" onClick={clearFilters}>Clear</button></div>
-    <p className="cfr-scope" id="canonical-filter-scope">Region, stage and priority filter this page · Search and project type cover all results</p>
+    <div className="cfr-filters" aria-describedby="canonical-filter-scope"><div className="cfr-view-switch" role="group" aria-label="Opportunity view"><button type="button" aria-pressed={shortlist} onClick={() => selectShortlist(true)}>Shortlist</button><button type="button" aria-pressed={!shortlist} onClick={() => selectShortlist(false)}>All Projects</button></div><input aria-label="Search opportunities" placeholder="Search opportunities…" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}/><select aria-label="Region" value={region} onChange={event => { setRegion(event.target.value); setFilterParam('region', event.target.value) }}><option value="">All Regions</option>{regionOptions.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Project type" value={sector} onChange={event => selectSector(event.target.value as Sector)}><option value="all">All Project Types</option><option value="oil_gas">Oil &amp; Gas</option><option value="data_centers">Data Centers</option></select><select aria-label="Stage" value={stage} onChange={event => { setStage(event.target.value); setFilterParam('stage', event.target.value) }}><option value="">All Stages</option>{stageOptions.map(value => <option key={value} value={value}>{stageLabel(value)}</option>)}</select>{!shortlist && <select aria-label="Priority" value={priority} onChange={event => { setPriority(event.target.value); setFilterParam('priority', event.target.value) }}><option value="">All Priorities</option><option value="ranked">Ranked</option><option value="unranked">Unranked</option></select>}<button type="button" onClick={clearFilters}>Clear</button></div>
+    <p className="cfr-scope" id="canonical-filter-scope">Region and stage filter this page · Search and project type cover all results{!shortlist && ' · Priority filters this page'}</p>
     {pageErrorNotice && <p role="status">{pageErrorNotice}</p>}{error && <p role="alert">{error} <button type="button" onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
     {loading && !page && !error && <p role="status">Loading current opportunities…</p>}
     {!loading && visiblePage && !visible.length && (shortlist && visiblePage.total === 0
@@ -222,7 +228,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
         <td role="cell" data-label="What" className="cfr-c-project"><span className="cfr-company-project">{item.company && <strong>{item.company}</strong>}<button type="button" data-need-row={primaryNeedId} onClick={() => primaryNeedId && onNeed({ id: primaryNeedId })} disabled={!canInteract || !primaryNeedId}>{cardProjectName(item)}</button>{item.location && <small>{item.location}</small>}</span></td>
         <td role="cell" data-label="Why now" className="cfr-card-why">{assessment?.why_now ?? (item.event?.date && item.event.label ? `${item.event.label} · ${item.event.date}` : 'No dated development established.')}</td>
         <td role="cell" data-label="Power need" className="cfr-power">{powerLabel}</td>
-        <td role="cell" data-label="Next step" className="cfr-card-next">{assessment?.next_step ?? 'Confirm project scope and timing from sources.'}</td>
+        <td role="cell" data-label="Next step" className="cfr-card-next">{assessment?.next_step ?? (!shortlist ? item.next_action : null) ?? 'Confirm project scope and timing from sources.'}</td>
         <td role="cell" className="cfr-card-action">{primaryNeedId && <AddToPursuit key={primaryNeedId} needId={primaryNeedId} disabled={!canInteract} deferLookup/>}</td>
       </tr>
     })}</tbody></table></div>}

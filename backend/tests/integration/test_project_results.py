@@ -443,7 +443,31 @@ def test_source_bound_shortlist_filters_before_counts_and_keeps_all_projects_unc
         session.flush()
         assert page(session, shortlist=True, limit=1, selected_generation=generation)["total"] == 1
         decision.source = "jev"
-        decision.dimensions = {"question_set": "temporary-power-v2"}
+        session.flush()
+        legacy_decision = SignalDecision(
+            observation_id=evidence.observation_id,
+            content_hash=evidence.content_hash,
+            policy_version="signal-display-v2",
+            decision="SHOW",
+            source="jev",
+            model_version=settings.jev_model,
+            dimensions={"question_set": "temporary-power-v2"},
+            reason="Later legacy question set must not replace demand-v1 hold",
+        )
+        session.add(legacy_decision)
+        session.flush()
+        assert page(session, shortlist=True, limit=1, selected_generation=generation)["total"] == 0
+        later_review = SignalDecision(
+            observation_id=evidence.observation_id,
+            content_hash=evidence.content_hash,
+            policy_version="signal-display-v2",
+            decision="REVIEW",
+            source="jev",
+            model_version=settings.jev_model,
+            dimensions={"question_set": "demand-v1"},
+            reason="Later review supersedes the earlier hold",
+        )
+        session.add(later_review)
         session.flush()
         assert page(session, shortlist=True, limit=1, selected_generation=generation)["total"] == 1
 

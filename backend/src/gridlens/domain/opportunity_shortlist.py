@@ -30,10 +30,12 @@ class _AcceptedSource(TypedDict):
 
 
 def _has(pattern: str, text: str) -> bool:
+    """Match a policy expression against source text without case sensitivity."""
     return bool(re.search(pattern, text, re.I))
 
 
 def _day(value: Any) -> date | None:
+    """Parse date-like source values, returning ``None`` for invalid dates."""
     if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
@@ -45,6 +47,7 @@ def _day(value: Any) -> date | None:
 
 
 def _fields(text: str) -> dict[str, str]:
+    """Extract normalized ``key: value`` fields from adapter-rendered text."""
     return {
         key.strip().casefold(): value.strip()
         for line in text.splitlines()
@@ -126,6 +129,7 @@ _STRUCTURED_SOURCE_KEYS = {
 
 
 def _has_structured_record(fields: dict[str, str]) -> bool:
+    """Recognize source-native record fields that identify a real project record."""
     for key in fields:
         # Socrata and El Paso render underscore keys, while other adapters use
         # spaced labels. Recognize bounded party/contact variants in either
@@ -142,6 +146,7 @@ def _has_structured_record(fields: dict[str, str]) -> bool:
 
 
 def _has_affirmative_electrically_driven_equipment(scope: str) -> bool:
+    """Require affirmative, changed scope naming electrically driven equipment."""
     equipment = r"(?:pumps?|compressors?|motors?)"
     electric_drive = r"(?:electric(?:al)?(?:[- ]motor[- ]driven)?|electrically[- ]driven)"
     modifier = rf"(?:{electric_drive}|motor[- ]driven)"
@@ -193,6 +198,7 @@ def _positive_development_scope(scope: str) -> tuple[str, bool]:
 
 
 def _clean(value: str) -> str:
+    """Redact contact details and normalize whitespace before displaying source text."""
     value = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[redacted]", value)
     value = re.sub(
         r"(?<!\d)(?:\+?1[ .-]?)?(?:\(\d{3}\)|\d{3})[ .-]?\d{3}[ .-]?\d{4}(?!\d)",
@@ -203,10 +209,12 @@ def _clean(value: str) -> str:
 
 
 def _norm(value: str) -> str:
+    """Normalize text for case-insensitive comparisons and deduplication."""
     return " ".join(value.casefold().split())
 
 
 def _next_step(reason: str) -> str:
+    """Map a shortlist reason to a focused human follow-up question."""
     if "commercial electrical buildout" in reason:
         return (
             "Confirm the electrical service installation phase, energization schedule "
@@ -250,6 +258,7 @@ def _next_step(reason: str) -> str:
 
 
 def _subject(fields: dict[str, str], title: str, reason: str) -> str:
+    """Choose a concise source-backed project subject for the shortlist entry."""
     """Prefer source names; never promote permit system identifiers to titles."""
     for candidate in (fields.get("project"), fields.get("facility")):
         if not candidate:
@@ -284,6 +293,7 @@ def _subject(fields: dict[str, str], title: str, reason: str) -> str:
 
 
 def _development(title: str, scope: str, fields: dict[str, str]) -> tuple[int, str] | None:
+    """Classify supported development activity and return priority plus rationale."""
     """Interpret bounded source clauses rather than unrelated metadata keywords."""
     positive_scope, has_negated_development = _positive_development_scope(scope)
     context = (
@@ -464,6 +474,7 @@ def _development(title: str, scope: str, fields: dict[str, str]) -> tuple[int, s
 
 
 def _duplicate_key(source: dict[str, Any], fields: dict[str, str], scope: str) -> str | None:
+    """Build a stable key for collapsing duplicate source records when possible."""
     """Only exact native paired-permit scope or identical news coverage clusters."""
     source_id = str(source["source_id"])
     permit = fields.get("row", "")

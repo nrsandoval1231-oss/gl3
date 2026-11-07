@@ -23,6 +23,7 @@ def _supported(claim: object) -> bool:
 
 
 def _missing_facts(fields: dict, organizations: list[dict] | None = None) -> list[str]:
+    """List unsupported project, power-need, company, and buyer facts."""
     missing = [
         key
         for key in ("identity", "site", "lifecycle", "activity", "power_need", "utility_service")
@@ -70,6 +71,7 @@ def _missing_facts(fields: dict, organizations: list[dict] | None = None) -> lis
 
 
 def _buyer_accessible(organizations: list[dict]) -> bool:
+    """Check for a cited buyer-side organization with public contact details."""
     return any(
         bool(item.get("public_contacts"))
         and bool(item.get("citations"))

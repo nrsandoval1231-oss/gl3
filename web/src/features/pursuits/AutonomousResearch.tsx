@@ -22,6 +22,7 @@ function readOnlyResearch(needId: string): Promise<ResearchResponse> {
   return request
 }
 
+/** Show read-only research progress and evidence for one selected need. */
 export function AutonomousResearch({ needId }: { needId: string }) {
   const [data, setData] = useState<ResearchResponse | null>(null)
   const [error, setError] = useState('')
