@@ -21,7 +21,7 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   await page.route('**/api/search?**', route => {
     const url = new URL(route.request().url())
     searchQueries.push(url.searchParams.get('q') ?? '')
-    return route.fulfill({ json: { query: url.searchParams.get('q'), companies: [], projects: [], contacts: [], opportunities: [{ id: 'need-shell', name: 'Mesa compressor project', organization: 'Northstar Energy', location: 'Midland, TX', tier: 'Signal' }] } })
+    return route.fulfill({ json: { query: url.searchParams.get('q'), companies: [], projects: [], contacts: [], opportunities: [{ id: 'need-shell', name: 'Mesa compressor project', organization: 'Northstar Energy', location: 'Midland, TX', tier: 'Signal', confidence: 'High' }] } })
   })
   await page.route('**/api/opportunities/projects?**', route => {
     projectQueries.push(new URL(route.request().url()))
@@ -39,6 +39,7 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   await search.fill('Mesa')
   await expect.poll(() => searchQueries).toContain('Mesa')
   await expect(page.getByRole('region', { name: 'Search results' }).getByRole('button', { name: /Mesa compressor project/ })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Search results' })).not.toContainText(/confidence/i)
   await page.getByRole('region', { name: 'Search results' }).getByRole('button', { name: /Mesa compressor project/ }).click()
   await expect(page).toHaveURL(/need=need-shell/)
   await expect(page.getByRole('heading', { name: /Mesa compressor project/ })).toBeVisible()
