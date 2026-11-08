@@ -43,8 +43,10 @@ def _host(value: str) -> str | None:
         or "*" in normalized
         or len(normalized) > 253
         or not re.fullmatch(r"[a-z0-9.-]+", normalized)
-        or any(not label or len(label) > 63 or label.startswith("-") or label.endswith("-")
-               for label in normalized.split("."))
+        or any(
+            not label or len(label) > 63 or label.startswith("-") or label.endswith("-")
+            for label in normalized.split(".")
+        )
     ):
         return None
     return normalized
@@ -66,7 +68,12 @@ def _approval_record(value: object) -> HostApproval | None:
     if not isinstance(value, dict):
         return None
     if set(value) - {
-        "hostname", "terms_review_ref", "reviewed_at", "expires_at", "modes", "revoked_at"
+        "hostname",
+        "terms_review_ref",
+        "reviewed_at",
+        "expires_at",
+        "modes",
+        "revoked_at",
     }:
         return None
     hostname = value.get("hostname")
@@ -181,8 +188,7 @@ def evaluate_host_approval(
         or (
             approval.revoked_at is not None
             and (
-                not isinstance(approval.revoked_at, datetime)
-                or approval.revoked_at.tzinfo is None
+                not isinstance(approval.revoked_at, datetime) or approval.revoked_at.tzinfo is None
             )
         )
     ):
@@ -301,6 +307,4 @@ def resolve_site_policy(
     host_decision = evaluate_host_approval(url, approval, mode=mode, now=now)
     if not host_decision.allowed:
         return host_decision
-    return evaluate_robots_policy(
-        robots_txt, url, robots_status=robots_status
-    )
+    return evaluate_robots_policy(robots_txt, url, robots_status=robots_status)
