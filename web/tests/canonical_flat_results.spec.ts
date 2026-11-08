@@ -92,23 +92,24 @@ test('optional commercial brief leads cards, keeps unknown power unknown, and pr
   await mockDemandSummary(page)
   const brief = {
     version: 'synthetic-v1',
-    why_now: { text: 'Synthetic source-bound compressor expansion is scheduled.', source_date: '2026-10-10', scope: 'Mesa Compressor project only', sources: [] },
-    power_need: { amount_class: 'unknown', scope: 'Temporary rental requirement', value: null, unit: null, status: 'Not established', limitations: ['Facility capacity is not rental demand.'] },
-    best_contact: { contact: '+15555550333', kind: 'call', route_kind: 'company_route', authority: 'Not established', deliverability: 'Unknown', sources: [] },
+    why_now: { text: null, source_date: null, scope: null, sources: [] },
+    power_need: { amount_class: 'documented', scope: 'Temporary compressor package', value: '500', unit: 'kW', status: 'supported', limitations: [] },
+    best_contact: { contact: 'Jordan Fixture', href: 'tel:+15555550333', kind: 'call', route_kind: 'person_method', authority: 'Not established', deliverability: 'Unknown', sources: [] },
     next_action: { text: 'Confirm the temporary power scope for this project.', kind: 'confirm_scope', source: null },
-    freshness: { as_of: '2026-10-30T00:00:00Z', status: 'Current source support', source_date: '2026-10-10' },
-    limitations: ['Synthetic browser fixture.'],
+    freshness: { as_of: '2026-10-30T00:00:00Z', status: 'current_source', source_date: null },
+    limitations: ['No current source citation is available for a why-now statement.', 'Synthetic browser fixture.'],
     sources: [],
   }
   const briefProject = { ...pageFixture.items[0], commercial_brief: brief }
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: { ...pageFixture, items: [briefProject, pageFixture.items[1]] } }))
   await page.goto('/?view=workspace&projectBrowse=1&shortlist=0')
   const rows = page.locator('.cfr-table tbody tr')
-  await expect(rows.first().locator('[data-label="Why now"]')).toContainText(brief.why_now.text)
-  await expect(rows.first().locator('[data-label="Power need"]')).toContainText('Power need unknown')
-  await expect(rows.first().locator('[data-label="Power need"]')).not.toContainText('MW')
+  await expect(rows.first().locator('[data-label="Why now"]')).toContainText('Why now is not established from current evidence.')
+  await expect(rows.first().locator('[data-label="Why now"]')).not.toContainText('Permit issued for Mesa Compressor')
+  await expect(rows.first().locator('[data-label="Power need"]')).toContainText('500 kW')
+  await expect(rows.first().locator('[data-label="Power need"]')).not.toContainText('500 kW kW')
   await expect(rows.first().locator('[data-label="Next step"]')).toContainText(brief.next_action.text)
-  await expect(rows.first().getByRole('link', { name: /Best contact \+15555550333/ })).toHaveAttribute('href', 'tel:+15555550333')
+  await expect(rows.first().getByRole('link', { name: /Best contact Jordan Fixture/ })).toHaveAttribute('href', 'tel:+15555550333')
   await expect(rows.first().getByText(/Authority: Not established · Deliverability: Unknown/)).toBeVisible()
   await expect(rows.nth(1).locator('[data-label="Next step"]')).toContainText('Review the project filing')
 })

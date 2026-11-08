@@ -32,7 +32,7 @@ export type CommercialBrief = {
   version: string
   why_now: { text: string | null; source_date: string | null; scope: string | null; sources: CommercialBriefSource[] }
   power_need: { amount_class: 'documented' | 'calculated' | 'estimated' | 'inferred' | 'unknown'; scope: string | null; value: string | null; unit: string | null; status: string; limitations: string[] }
-  best_contact: { contact: string; kind: 'call' | 'email' | 'contact'; route_kind: 'person_method' | 'company_route'; authority: string; deliverability: string; sources: CommercialBriefSource[] } | null
+  best_contact: { contact: string; href?: string | null; kind: 'call' | 'email' | 'contact'; route_kind: 'person_method' | 'company_route'; authority: string; deliverability: string; sources: CommercialBriefSource[] } | null
   next_action: { text: string; kind: string; source: CommercialBriefSource | null }
   freshness: { as_of: string | null; status: string; source_date: string | null }
   limitations: string[]
