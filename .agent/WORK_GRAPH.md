@@ -29,3 +29,7 @@ Next: confirm final-head CI and the last scoped review, merge 180 before 181, th
 ## November 7 account-first Slice 1
 
 Implemented and locally verified from `3e1982ce`: [bounded implementation and acceptance](../docs/engineering/account-first-slice-20261107.md). Six Luna lanes completed; independent Astra reviewed frozen source `5c4bfd9e` with no remaining material findings. Final local backend 5,055/browser 317 gates and real acceptance passed. [Draft PR #187](https://github.com/nrsandoval1231-oss/gl3/pull/187) owns final evidence-head attestation/CI and owner review. Lead runtime model identity is not certified. No merge/deployment/provider authority. Older NEXT/PR statuses above are dated history, not current GitHub/runtime observations.
+
+## November 8 PR187 review and merge gate
+
+Owner now authorizes review of comments, validation and merge when ready for PR187 only. READY review packet: historical alias privacy, account child order and header restoration. Repairs and regression coverage are implemented; independent scoped review passes, including its additional delayed-membership privacy finding. Full local gates and exact-head CI are the remaining merge gate. [Receipt](../docs/validation/pr187-review-20261108.md) and the current PR record own final outcomes. No deployment/provider/production authority is added.

@@ -325,6 +325,7 @@ export function WorkspaceHome() {
       pageRef.current = null
       updateSelectedNeedContext(null)
       setPage(null); setPageIdentity(null); setSelected(null); setDetailIdentity(null)
+      setValidatedAccountContext(null)
       setDetailLoading(false); setDetailError(''); setAccountAssociationNotice('')
       setLoading(false); setError(''); setPendingNeedId(getParams().get('need'))
       setAuthenticated(false)
@@ -355,6 +356,7 @@ export function WorkspaceHome() {
       const next = currentView() === 'opportunities' ? initialFilters() : filters; pendingRestore.current = null; if (currentView() === 'opportunities') setFilters(next); if (currentView() === 'signals') signalParams.current = getParams()
       setTab(workspaceTabFromParams(p))
       setDetailIdentity(null)
+      setValidatedAccountContext(null)
       if (!id) { ++selectionSequence.current; setDetailLoading(false); setSelected(null); setPendingNeedId(null); if (currentView() === 'opportunities') { const snapshot = history.state?.workspaceSnapshot ?? { ...savedScroll.current, focus: lastSelected.current }; pendingRestore.current = { ...snapshot, key: workspaceRequestKey(next) } } else requestAnimationFrame(() => { if (lastSelected.current) document.querySelector<HTMLElement>(`[data-opportunity-id="${CSS.escape(lastSelected.current)}"]`)?.focus() }); return }
       if (currentView() === 'opportunities' && window.matchMedia('(max-width: 1050px)').matches) pendingHistoryFocus.current = { id, sequence: ++historyFocusSequence.current, focused: false, origin: document.activeElement }
       const row = page?.items.find(item => item.id === id)
@@ -375,6 +377,7 @@ export function WorkspaceHome() {
     if (!needId || !authenticated || (view === 'signals' && !signalScope)) return
     const sequence = ++selectionSequence.current, controller = new AbortController()
     setDetailLoading(true); setDetailError('')
+    setValidatedAccountContext(null)
     void client.opportunityNeed(needId, view === 'signals' ? signalScope ?? undefined : undefined, controller.signal).then(value => {
       if (controller.signal.aborted || sequence !== selectionSequence.current) return
       const currentPageRef = pageRef.current
@@ -426,7 +429,7 @@ export function WorkspaceHome() {
     if (nextView === 'ingestion' && view === 'ingestion') return
     if (nextView === 'opportunities' && view === 'opportunities') return
     if (nextView === 'signals' && view === 'signals') { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError(''); dispatchEvent(new Event('gridlens:signals-reset')); return }
-    if (nextView !== view) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError('') }
+    if (nextView !== view) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setValidatedAccountContext(null); setDetailLoading(false); setDetailError('') }
     setView(nextView)
     if (view === 'signals') signalParams.current = getParams()
     const currentBrowse = getParams()
@@ -441,7 +444,13 @@ export function WorkspaceHome() {
     if (nextView === 'opportunities') for (const [key, value] of Object.entries(savedBrowse)) params.set(key, value)
     if (panel) params.set('panel', panel)
     if (nextView === 'signals') { params.set('view', 'signals'); params.delete('need'); params.delete('section') }
-    history.pushState({ ...history.state, workspaceBrowse: savedBrowse }, '', `/?${params}`)
+    history.pushState({ ...history.state, workspaceBrowse: savedBrowse, workspaceDirectEntry: nextView === 'opportunities' && params.has('need') }, '', `/?${params}`)
+    if (nextView === 'opportunities') {
+      const restoredNeed = params.get('need')
+      updateSelectedNeedContext(restoredNeed)
+      setPendingNeedId(restoredNeed)
+      setTab(workspaceTabFromParams(params))
+    }
   }
   const openActiveNeed = (need: { id: string }, accountContext?: AccountContext) => {
     lastSelected.current = need.id

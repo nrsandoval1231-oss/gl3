@@ -76,6 +76,23 @@ test('loaded account pages survive pending account verification, reload, and Bac
   resolveAssociation()
   await expect(browser.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('heading', { name: 'Synthetic Project 26' })).toBeVisible()
 
+  const navigation = browser.getByRole('navigation', { name: 'Primary navigation' })
+  for (let roundtrip = 0; roundtrip < 2; roundtrip += 1) {
+    await navigation.getByRole('button', { name: 'Pursuits', exact: true }).click()
+    await expect(browser).toHaveURL(/view=pursuits/)
+    await navigation.getByRole('button', { name: 'Opportunities', exact: true }).click()
+    await expect(browser).toHaveURL(/need=need-26/)
+    await expect(browser.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('heading', { name: 'Synthetic Project 26' })).toBeVisible()
+  }
+  await browser.goBack()
+  await expect(browser).toHaveURL(/view=pursuits/)
+  await browser.goForward()
+  await expect(browser.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('heading', { name: 'Synthetic Project 26' })).toBeVisible()
+  await browser.getByRole('button', { name: /Back to account$/ }).click()
+  await expect(browser.getByRole('region', { name: `Company ${company}` }).getByRole('region', { name: 'Account projects' }).getByRole('listitem')).toHaveCount(48)
+  await browser.getByRole('button', { name: 'Open project detail Synthetic Project 26' }).click()
+  await expect(browser.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('heading', { name: 'Synthetic Project 26' })).toBeVisible()
+
   await browser.reload()
   await expect(browser.getByRole('complementary', { name: 'Opportunity detail' }).getByRole('heading', { name: 'Synthetic Project 26' })).toBeVisible()
   await browser.getByRole('button', { name: '← Back to account' }).click()

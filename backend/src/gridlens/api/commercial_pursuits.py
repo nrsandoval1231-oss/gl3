@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -35,7 +35,7 @@ from gridlens.persistence.commercial_pursuit_models import (
     PursuitTask,
 )
 from gridlens.persistence.database import SessionLocal
-from gridlens.persistence.models import PowerNeed, Project
+from gridlens.persistence.models import NeedAliasAssertion, PowerNeed, Project
 from gridlens.security import require_same_origin, require_session
 
 router = APIRouter(
@@ -190,9 +190,16 @@ def _task_out(task: PursuitTask, description: str | None = None) -> TaskOut:
 
 
 _WITHHELD = "[redacted]"
+_MAX_PRIVACY_NEEDS = 64
+_MAX_PRIVACY_ALIAS_ASSERTIONS = 256
 
 
-def _private_text(session: Session, project_id: UUID, texts: dict[str, str | None]):
+def _private_text(
+    session: Session,
+    project_id: UUID,
+    texts: dict[str, str | None],
+    related_project_ids: list[UUID] | None = None,
+):
     """Read-time suppression of saved free text; stored rows are never modified.
 
     Reuses the saved-history projection that protects commercial call notes: the text is
@@ -207,7 +214,7 @@ def _private_text(session: Session, project_id: UUID, texts: dict[str, str | Non
 
     item = {
         "project_id": str(project_id),
-        "related_project_ids": [],
+        "related_project_ids": [str(value) for value in (related_project_ids or [])],
         "notes": [{"key": k, "text": v} for k, v in present.items()],
     }
     try:
@@ -217,6 +224,73 @@ def _private_text(session: Session, project_id: UUID, texts: dict[str, str | Non
     except Exception:
         out = {k: _WITHHELD for k in present}
     return {k: out.get(k, _WITHHELD) if v else v for k, v in texts.items()}
+
+
+def _privacy_project_ids(session: Session, row: CommercialPursuit) -> list[UUID] | None:
+    """Include every historical alias project in the text suppression cohort.
+
+    Alias retractions do not erase the identity/history connection for privacy purposes.
+    Return None on malformed/oversized history so callers can withhold text fail-closed.
+    """
+    try:
+        # Bound both the component and retained assertion history. Query only the
+        # frontier, never the whole alias table. State/evidence validity deliberately
+        # do not filter historical privacy scope, even after a link is retracted.
+        with session.begin_nested():
+            related_needs = {row.need_id}
+            frontier = related_needs.copy()
+            assertion_ids = set()
+            while frontier:
+                edges = session.execute(
+                    select(
+                        NeedAliasAssertion.id,
+                        NeedAliasAssertion.alias_need_id,
+                        NeedAliasAssertion.canonical_need_id,
+                    )
+                    .where(
+                        or_(
+                            NeedAliasAssertion.alias_need_id.in_(frontier),
+                            NeedAliasAssertion.canonical_need_id.in_(frontier),
+                        )
+                    )
+                    .limit(_MAX_PRIVACY_ALIAS_ASSERTIONS + 1)
+                ).all()
+                discovered: set[UUID] = set()
+                for assertion_id, alias_id, canonical_id in edges:
+                    assertion_ids.add(assertion_id)
+                    discovered.update((alias_id, canonical_id))
+                if len(assertion_ids) > _MAX_PRIVACY_ALIAS_ASSERTIONS:
+                    return None
+                frontier = discovered - related_needs
+                related_needs.update(frontier)
+                if len(related_needs) > _MAX_PRIVACY_NEEDS:
+                    return None
+            projects_by_need: dict[UUID, UUID] = {
+                need_id: project_id
+                for need_id, project_id in session.execute(
+                    select(PowerNeed.id, PowerNeed.project_id).where(
+                        PowerNeed.id.in_(related_needs)
+                    )
+                ).all()
+            }
+            if set(projects_by_need) != related_needs or None in projects_by_need.values():
+                return None
+            project_ids = set(projects_by_need.values()) | {row.project_id}
+            if len(project_ids) > _MAX_PRIVACY_NEEDS:
+                return None
+            return sorted(project_ids, key=str)
+    except Exception:
+        return None
+
+
+def _private_pursuit_text(session: Session, row: CommercialPursuit, texts: dict[str, str | None]):
+    """Apply the same fail-closed historical privacy scope to every pursuit response."""
+    if not any(texts.values()):
+        return texts
+    privacy_projects = _privacy_project_ids(session, row)
+    if privacy_projects is None:
+        return {key: _WITHHELD if value else value for key, value in texts.items()}
+    return _private_text(session, row.project_id, texts, privacy_projects)
 
 
 def _contact(session: Session, project_id: UUID) -> tuple[ContactSummary | None, str]:
@@ -374,7 +448,7 @@ def _view(
     for a in activities:
         texts[f"s{a.id}"] = a.summary
         texts[f"d{a.id}"] = a.detail
-    safe = _private_text(session, row.project_id, texts) if private else texts
+    safe = _private_pursuit_text(session, row, texts) if private else texts
     if nxt:
         out.next_task = _task_out(nxt, safe[f"t{nxt.id}"])
     if detail:
@@ -461,11 +535,14 @@ def list_pursuits(
         and (need_id is None or v.need_id == need_id or need_id in v.need_alias_ids)
     ]
     items = matching[offset : offset + limit]
+    rows_by_id = {row.id: row for row in rows}
     with SessionLocal() as session:
         for item in items:
             if item.next_task is not None:
                 item.next_task.description = (
-                    _private_text(session, item.project_id, {"t": item.next_task.description})["t"]
+                    _private_pursuit_text(
+                        session, rows_by_id[item.id], {"t": item.next_task.description}
+                    )["t"]
                     or ""
                 )
     end = offset + len(items)

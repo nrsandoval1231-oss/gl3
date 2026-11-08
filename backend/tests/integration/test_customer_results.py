@@ -1011,3 +1011,72 @@ def test_customer_shortlist_is_bound_into_account_cohort(saved_db, monkeypatch):
         assert {action["href"] for action in featured_actions} == {
             "mailto:operator@example.invalid"
         }, repr((primary_identity_id, expected_contact_identity_id, featured))
+
+        # Cross persisted legacy rank against shortlist priority. The first child
+        # page must honor priority 99 before 91, even though legacy rank prefers 91.
+        for index, chosen in enumerate(chosen_rows):
+            for projection in session.scalars(
+                select(BrowseRow).where(
+                    BrowseRow.generation_id == generation.id,
+                    BrowseRow.project_id == chosen["project_id"],
+                )
+            ):
+                projection.rank_score = index * 1000
+        session.flush()
+        crossed = group_open(session, chosen_group["id"], sector="oil_gas", shortlist=True, limit=2)
+        assert [item["project_id"] for item in crossed["projects"]["items"]] == [
+            str(row["project_id"]) for row in chosen_rows
+        ]
+
+        # Keep the actual serializer and its full project shape, but deliberately
+        # reverse its result to model a legacy rank order that disagrees with
+        # the generation-bound account query. Singleton featured-contact reads
+        # are unaffected.
+        from gridlens.intelligence import customer_results as customer_module
+
+        serialize = customer_module.project_page
+        selected_pages = []
+
+        def reversed_serialization(*args, **kwargs):
+            selected_ids = [str(value) for value in kwargs["project_ids"]]
+            if len(selected_ids) > 1:
+                selected_pages.append(selected_ids)
+            result = serialize(*args, **kwargs)
+            by_project = {
+                project_id: item for item in result["items"] for project_id in item["project_ids"]
+            }
+            result["items"] = [by_project[value] for value in reversed(selected_ids)]
+            return result
+
+        monkeypatch.setattr(customer_module, "project_page", reversed_serialization)
+        for child_sort in ("priority", "priority_asc", "company", "updated"):
+            first_page = group_open(
+                session,
+                chosen_group["id"],
+                sector="oil_gas",
+                shortlist=True,
+                sort=child_sort,
+                limit=2,
+            )
+            assert [item["project_id"] for item in first_page["projects"]["items"]] == (
+                selected_pages[-1]
+            )
+            if child_sort == "priority":
+                assert selected_pages[-1] == [str(row["project_id"]) for row in chosen_rows]
+            parent = groups(session, sector="oil_gas", shortlist=True, sort=child_sort)
+            child_token = None
+            for offset in (0, 2):
+                child_page = group_projects(
+                    session,
+                    chosen_group["id"],
+                    sector="oil_gas",
+                    shortlist=True,
+                    sort=child_sort,
+                    limit=2,
+                    offset=offset,
+                    token=child_token,
+                    parent_token=parent["cohort_token"],
+                )
+                child_token = child_page["cohort_token"]
+                assert len(child_page["items"]) == 2
+                assert [item["project_id"] for item in child_page["items"]] == (selected_pages[-1])

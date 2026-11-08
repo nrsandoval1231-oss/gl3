@@ -733,6 +733,27 @@ def _primary_contact_identity(row) -> str | None:
     return str(row["company_id"]) if row.get("company_id") is not None else None
 
 
+def _preserve_asset_order(items, rows):
+    """Keep the generation-bound account ordering after shared serialization.
+
+    ``project_page`` applies its own legacy rank ordering. Account child pages
+    have already selected and ordered their page using assigned relevance and
+    the requested account sort, so that second ordering must not leak through.
+    """
+    order = {str(row["anchor_project_id"]): index for index, row in enumerate(rows)}
+    return sorted(
+        items,
+        key=lambda item: min(
+            (
+                order[project_id]
+                for project_id in item.get("project_ids", [])
+                if project_id in order
+            ),
+            default=len(order),
+        ),
+    )
+
+
 def _account_contact_projects(
     session,
     *,
@@ -1448,6 +1469,7 @@ def group_projects(
         else {"items": [], "generation": str(generation.id)}
     )
     customer_identity_by_anchor = {str(row["anchor_project_id"]): row["company_id"] for row in rows}
+    serialized["items"] = _preserve_asset_order(serialized["items"], rows)
     eligible_ids_by_project: dict[str, list[str]] = {}
     if shortlist_state["data"]:
         eligible_set = {str(need_id) for need_id in shortlist_state["eligible_need_ids"]}
@@ -1619,6 +1641,7 @@ def group_open(
         primary_customer_ids_by_project=primary_ids_by_project,
     )
     customer_identity_by_anchor = {str(row["anchor_project_id"]): row["company_id"] for row in rows}
+    serialized["items"] = _preserve_asset_order(serialized["items"], rows)
     eligible_ids_by_project: dict[str, list[str]] = {}
     if shortlist_state["data"]:
         eligible_set = {str(need_id) for need_id in shortlist_state["eligible_need_ids"]}
