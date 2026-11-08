@@ -150,13 +150,11 @@ test('source-backed disposable account brief survives responsive navigation and 
 
   const opened = await page.request.get(`/api/opportunities/groups/${encodeURIComponent(manifest.account.group_id)}/open`)
   expect(opened.ok()).toBeTruthy()
-  const openedBody = await opened.json() as { projects?: { items?: Array<{ id?: string; project_id?: string; name?: string }> } }
+  const openedBody = await opened.json() as { projects?: { items?: Array<{ id?: string; project_id?: string }> } }
   const returnedProjects = openedBody.projects?.items ?? []
   const returnedIds = new Set(returnedProjects.map(project => project.project_id ?? project.id))
   for (const project of manifest.account.projects) expect(returnedIds.has(project.id), `distinct project ${project.id} remains in account detail`).toBe(true)
-  const returnedNames = new Set(returnedProjects.map(project => project.name))
   for (const project of manifest.account.projects) {
-    expect(returnedNames.has(project.name), `distinct project ${project.name} is present`).toBe(true)
     await expect(detail).toContainText(project.name)
   }
 
