@@ -28,7 +28,10 @@ from gridlens.intelligence.commercial_evaluation import (
     evaluate_targets,
     save_evaluations,
 )
-from gridlens.intelligence.pursuit_questions import RETRY_BACKOFF_HOURS
+from gridlens.intelligence.pursuit_questions import (
+    RETRY_BACKOFF_HOURS,
+    buyer_contact_company_coverage,
+)
 from gridlens.intelligence.research_evidence import (
     replay_retained_research,
     retain_registered_record,
@@ -244,6 +247,13 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
         "RESOLVED" if resolved else "CHECKED",
         reason="Checked current canonical evidence and retained buying-chain relationships.",
     )
+    if not resolved and context["category"] == "buyer":
+        with SessionLocal.begin() as session:
+            company_coverage = buyer_contact_company_coverage(session, project.id)
+        if company_coverage is not None:
+            run.defer_to_company_contacts(company_coverage)
+            _finish(job_id, worker_id, fence, question_id, "UNRESOLVED", started)
+            return
     known_urls: set[str] = set()
     try:
         # Authoritative adapters precede known public pages; discovery is last.
@@ -870,8 +880,7 @@ class QuestionRun:
                         and call.result_payload is not None
                         and call.result_digest == _digest(call.result_payload)
                         and (
-                            source_version is None
-                            or call.task_key.startswith(current_task_prefix)
+                            source_version is None or call.task_key.startswith(current_task_prefix)
                         )
                     ),
                     None,
@@ -884,8 +893,7 @@ class QuestionRun:
                                 isinstance(urls, list)
                                 and len(urls) <= 10
                                 and all(
-                                    isinstance(value, str)
-                                    and validate_public_url(value) == value
+                                    isinstance(value, str) and validate_public_url(value) == value
                                     for value in urls
                                 )
                                 and len(urls) == len(set(urls))
@@ -1042,6 +1050,34 @@ class QuestionRun:
             row = self.row(session)
             row.receipt = {
                 **row.receipt,
+                "acquisition_limitations": list(
+                    dict.fromkeys([*row.receipt.get("acquisition_limitations", []), message])
+                ),
+            }
+
+    def defer_to_company_contacts(self, coverage: dict) -> None:
+        """Keep a visible need-scoped deferral while company research is current."""
+        with SessionLocal.begin() as session:
+            row = self.row(session)
+            routes = [
+                item
+                for item in row.receipt.get("route_results", [])
+                if item.get("kind") != "company_contact"
+            ]
+            routes.append(
+                {
+                    "kind": "company_contact",
+                    "status": "DEFERRED",
+                    "reason": "Canonical company contact research covers this buyer-method gap.",
+                }
+            )
+            message = (
+                "Need-scoped buyer lookup deferred to the current canonical company contact pass."
+            )
+            row.receipt = {
+                **row.receipt,
+                "company_contact_research": coverage,
+                "route_results": routes,
                 "acquisition_limitations": list(
                     dict.fromkeys([*row.receipt.get("acquisition_limitations", []), message])
                 ),
@@ -1294,6 +1330,19 @@ def _finish(
             row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects")
         )
         retry_after = _retry_deadline(row, now) if retryable else None
+        company_window = row.receipt.get("company_contact_research")
+        if status == "UNRESOLVED" and isinstance(company_window, dict):
+            try:
+                deferred_until = datetime.fromisoformat(company_window["retry_after"])
+                deferred_until = (
+                    deferred_until.replace(tzinfo=UTC)
+                    if deferred_until.tzinfo is None
+                    else deferred_until.astimezone(UTC)
+                )
+                if deferred_until > now:
+                    retry_after = deferred_until
+            except (KeyError, TypeError, ValueError):
+                pass
         row.retry_after = retry_after or now + timedelta(hours=row.context["freshness_hours"])
         retry_class = (
             "UNKNOWN_EFFECT"

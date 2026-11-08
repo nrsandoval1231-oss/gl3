@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, union
 from sqlalchemy.orm import Session
 
 from gridlens.domain.pursuit_research import (
@@ -22,6 +22,9 @@ from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_
 from gridlens.intelligence.commercial_evaluation import evaluate_targets, save_evaluations
 from gridlens.intelligence.research_routing import routing_context, selected_sources
 from gridlens.persistence.models import (
+    BuyingChainClaim,
+    BuyingChainIdentityLink,
+    CompanyProjectMembership,
     Job,
     PowerNeed,
     Project,
@@ -39,6 +42,113 @@ BUDGET = {
     "timeout_seconds": 180,
     "max_cost_usd": "0",
 }
+
+
+def buyer_contact_company_coverage(
+    session: Session, project_id: UUID, *, now: datetime | None = None
+) -> dict[str, Any] | None:
+    """Return a current company-contact pass window for every missing company method.
+
+    The need-scoped buyer question remains durable. Its worker defers public lookup
+    only while each current canonical company gap is owned by a scheduled, active,
+    or not-yet-due company pass; an absent/due pass never starves the need.
+    """
+    from gridlens.intelligence.company_contact_discovery import (
+        JOB_KIND,
+        _contact_planner_due,
+        _contact_research_gaps,
+        _planner_retry_after,
+        discover_company_contacts,
+    )
+
+    now = now or datetime.now(UTC)
+    now = now.replace(tzinfo=UTC) if now.tzinfo is None else now.astimezone(UTC)
+    if not settings.company_contact_discovery_enabled:
+        return None
+    eligible_project = session.scalar(
+        select(Project.id).where(
+            Project.id == project_id,
+            Project.region_status == "ELIGIBLE",
+            select(PowerNeed.id)
+            .where(PowerNeed.project_id == Project.id, PowerNeed.active.is_(True))
+            .exists(),
+        )
+    )
+    if eligible_project is None:
+        return None
+    membership_ids = select(CompanyProjectMembership.company_identity_id.label("company_id")).where(
+        CompanyProjectMembership.project_id == project_id,
+        CompanyProjectMembership.state == "current",
+    )
+    claim_ids = (
+        select(BuyingChainIdentityLink.company_identity_id.label("company_id"))
+        .join(BuyingChainClaim, BuyingChainClaim.id == BuyingChainIdentityLink.claim_id)
+        .where(
+            BuyingChainIdentityLink.entity_type == "company",
+            BuyingChainIdentityLink.state == "current",
+            BuyingChainIdentityLink.company_identity_id.is_not(None),
+            BuyingChainClaim.project_id == project_id,
+        )
+    )
+    company_ids = list(session.scalars(union(membership_ids, claim_ids)))
+    gaps: list[UUID] = []
+    due_times: list[datetime] = []
+
+    def active_retry_after(job: Job) -> datetime:
+        if job.status == "queued":
+            return (job.available_at or job.created_at or now) + timedelta(hours=1)
+        return job.lease_until or now + timedelta(hours=1)
+
+    for company_id in company_ids:
+        buyer_role_gap, named_method_gap = _contact_research_gaps(session, company_id)
+        if not (buyer_role_gap or named_method_gap):
+            continue
+        gaps.append(company_id)
+        history_query = (
+            select(Job)
+            .where(Job.kind == JOB_KIND, Job.target_id == company_id)
+            .order_by(Job.created_at.desc(), Job.id.desc())
+            .limit(30)
+        )
+        history = list(session.scalars(history_query))
+        active = [
+            job
+            for job in history
+            if job.status == "queued"
+            or job.status == "running"
+            and job.lease_until is not None
+            and job.lease_until > now
+        ]
+        if not active and (not history or _contact_planner_due(history, now)):
+            # Do not enqueue another generation when the canonical planner has
+            # already scheduled a current company pass, even if its route digest
+            # differs from this question's enqueue intent.
+            discover_company_contacts(session, company_id, now=now)
+            history = list(session.scalars(history_query))
+            active = [
+                job
+                for job in history
+                if job.status == "queued"
+                or job.status == "running"
+                and job.lease_until is not None
+                and job.lease_until > now
+            ]
+        if active:
+            due_times.append(min(active_retry_after(job) for job in active))
+            continue
+        if not history or _contact_planner_due(history, now):
+            return None
+        due_at = _planner_retry_after(history, now)
+        if due_at <= now:
+            return None
+        due_times.append(due_at)
+    if not gaps or len(due_times) != len(gaps):
+        return None
+    return {
+        "company_identity_ids": sorted(map(str, gaps)),
+        "retry_after": min(due_times).isoformat(),
+    }
+
 
 # Retry unavailable/transient routes on a short bounded schedule. Successful
 # checked negatives retain their category freshness window instead.
