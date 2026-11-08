@@ -3,92 +3,99 @@
   "corpus_rows": 2098,
   "run_count": 1,
   "repeated_read_only_iterations": 10,
-  "persistedJourneyElapsedMs": 5759,
-  "journeyPlusBenchmarkElapsedMs": 35165,
+  "persistedJourneyElapsedMs": 9828,
+  "journeyPlusBenchmarkElapsedMs": 40770,
   "coldScope": "first full shortlist render after authenticated session in a fresh browser context; server/PostgreSQL cache state unknown",
   "warmScope": "10 read-only account and Companies interaction repeats in the same browser context and backend process",
   "interaction_samples": {
     "loginToFirstShortlistReadyMs": {
-      "initial_journey_ms": 686,
+      "initial_journey_ms": 800,
       "warm_n": 0,
       "warm_p50_ms": null,
       "warm_p95_ms": null,
       "warm_samples_ms": []
     },
     "searchUntilAccountResultMs": {
-      "initial_journey_ms": 475,
+      "initial_journey_ms": 501,
       "warm_n": 10,
-      "warm_p50_ms": 439,
-      "warm_p95_ms": 454,
+      "warm_p50_ms": 462,
+      "warm_p95_ms": 472,
       "warm_samples_ms": [
-        435,
-        436,
-        438,
-        438,
-        439,
-        440,
-        441,
-        442,
-        444,
-        454
+        459,
+        459,
+        461,
+        461,
+        462,
+        462,
+        464,
+        467,
+        468,
+        472
       ]
     },
     "accountOpenReadyMs": {
-      "initial_journey_ms": 253,
+      "initial_journey_ms": 277,
       "warm_n": 10,
-      "warm_p50_ms": 255,
-      "warm_p95_ms": 268,
+      "warm_p50_ms": 266,
+      "warm_p95_ms": 269,
       "warm_samples_ms": [
-        243,
-        251,
-        252,
-        253,
-        255,
         256,
-        259,
-        260,
-        260,
-        268
+        261,
+        264,
+        266,
+        266,
+        267,
+        268,
+        268,
+        269,
+        269
       ]
     },
     "nestedPaginationReadyMs": {
-      "initial_journey_ms": 149,
+      "initial_journey_ms": 156,
       "warm_n": 10,
-      "warm_p50_ms": 138,
-      "warm_p95_ms": 232,
+      "warm_p50_ms": 153,
+      "warm_p95_ms": 154,
       "warm_samples_ms": [
-        125,
-        134,
-        136,
-        137,
-        138,
-        138,
-        139,
-        140,
-        140,
-        232
+        150,
+        152,
+        152,
+        153,
+        153,
+        153,
+        153,
+        153,
+        153,
+        154
       ]
     },
     "projectDetailReadyMs": {
-      "initial_journey_ms": 266,
+      "initial_journey_ms": 257,
       "warm_n": 10,
-      "warm_p50_ms": 184,
-      "warm_p95_ms": 275,
+      "warm_p50_ms": 180,
+      "warm_p95_ms": 194,
       "warm_samples_ms": [
-        152,
-        168,
-        173,
+        150,
+        162,
+        167,
+        169,
         180,
-        184,
-        187,
-        205,
-        213,
-        223,
-        275
+        183,
+        185,
+        186,
+        189,
+        194
       ]
     },
     "companiesSameAccountReadyMs": {
-      "initial_journey_ms": 795,
+      "initial_journey_ms": 837,
+      "warm_n": 0,
+      "warm_p50_ms": null,
+      "warm_p95_ms": null,
+      "warm_samples_ms": []
+    },
+    "pursuitNavigationReadyMs": {
+      "initial_journey_ms": 348,
       "warm_n": 0,
       "warm_p50_ms": null,
       "warm_p95_ms": null,
@@ -97,279 +104,182 @@
     "companiesNavigationReadyMs": {
       "initial_journey_ms": null,
       "warm_n": 1,
-      "warm_p50_ms": 37,
-      "warm_p95_ms": 37,
+      "warm_p50_ms": 44,
+      "warm_p95_ms": 44,
       "warm_samples_ms": [
-        37
+        44
       ]
     },
     "companiesSearchReadyMs": {
       "initial_journey_ms": null,
       "warm_n": 10,
-      "warm_p50_ms": 390,
-      "warm_p95_ms": 400,
+      "warm_p50_ms": 408,
+      "warm_p95_ms": 416,
       "warm_samples_ms": [
-        377,
-        378,
-        387,
-        389,
-        390,
-        390,
-        392,
-        396,
         397,
-        400
+        404,
+        404,
+        406,
+        408,
+        408,
+        408,
+        411,
+        413,
+        416
       ]
     },
     "companiesAccountOpenReadyMs": {
       "initial_journey_ms": null,
       "warm_n": 10,
-      "warm_p50_ms": 129,
-      "warm_p95_ms": 254,
+      "warm_p50_ms": 246,
+      "warm_p95_ms": 260,
       "warm_samples_ms": [
-        124,
-        124,
-        127,
-        127,
-        129,
-        130,
-        235,
-        240,
-        242,
-        254
+        232,
+        239,
+        243,
+        245,
+        246,
+        247,
+        253,
+        260,
+        260,
+        260
       ]
-    },
-    "pursuitNavigationReadyMs": {
-      "initial_journey_ms": 139,
-      "warm_n": 0,
-      "warm_p50_ms": null,
-      "warm_p95_ms": null,
-      "warm_samples_ms": []
     }
   },
   "initial_interaction_ms": {
-    "loginToFirstShortlistReadyMs": 686,
-    "searchUntilAccountResultMs": 475,
-    "accountOpenReadyMs": 253,
-    "nestedPaginationReadyMs": 149,
-    "projectDetailReadyMs": 266,
-    "companiesSameAccountReadyMs": 795,
-    "pursuitNavigationReadyMs": 139
+    "loginToFirstShortlistReadyMs": 800,
+    "searchUntilAccountResultMs": 501,
+    "accountOpenReadyMs": 277,
+    "nestedPaginationReadyMs": 156,
+    "projectDetailReadyMs": 257,
+    "companiesSameAccountReadyMs": 837,
+    "pursuitNavigationReadyMs": 348
   },
   "api_sample_count": 150,
-  "api_p50_ms": 81,
-  "api_p95_ms": 147,
+  "api_p50_ms": 92,
+  "api_p95_ms": 318,
   "api_status_failures": [],
   "api_samples": [
     {
       "path": "/api/auth/session",
       "method": "GET",
       "status": 200,
-      "ms": 38
+      "ms": 37
     },
     {
       "path": "/api/auth/session",
       "method": "GET",
       "status": 200,
-      "ms": 94
+      "ms": 101
     },
     {
       "path": "/api/auth/login",
       "method": "POST",
       "status": 200,
-      "ms": 369
+      "ms": 373
     },
     {
       "path": "/api/commercial-pursuits?limit=200",
       "method": "GET",
       "status": 200,
-      "ms": 21
+      "ms": 20
     },
     {
       "path": "/api/auth/session",
       "method": "GET",
       "status": 200,
-      "ms": 38
+      "ms": 31
     },
     {
       "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 246
+      "ms": 266
     },
     {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 138
+      "ms": 164
     },
     {
       "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 145
+      "ms": 155
     },
     {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 76
+      "ms": 55
     },
     {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
       "method": "GET",
       "status": 200,
       "ms": 171
     },
     {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
       "method": "GET",
       "status": 200,
       "ms": 22
     },
     {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 48
-    },
-    {
-      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 28
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
       "method": "GET",
       "status": 200,
       "ms": 54
     },
     {
+      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 21
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 80
+    },
+    {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 91
+      "ms": 124
     },
     {
       "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 110
+      "ms": 113
     },
     {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_56037ad338348186ec942a5b279035cc85e181b54995035a25820c610d0a7082.group.c7f6114a9b528c82&parent_cohort_token=p1_56037ad338348186ec942a5b279035cc85e181b54995035a25820c610d0a7082&sort=priority&shortlist=false",
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_e0c76e4f53f94d3fe14ebfc3c2f1ae754c1b1cdc834318eed77eaeb91a9378e8.group.c7f6114a9b528c82&parent_cohort_token=p1_e0c76e4f53f94d3fe14ebfc3c2f1ae754c1b1cdc834318eed77eaeb91a9378e8&sort=priority&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 75
+      "ms": 54
     },
     {
       "path": "/api/commercial-pursuits",
       "method": "POST",
       "status": 201,
-      "ms": 94
+      "ms": 311
     },
     {
       "path": "/api/commercial-pursuits?limit=200",
       "method": "GET",
       "status": 200,
-      "ms": 85
+      "ms": 291
     },
     {
       "path": "/api/commercial-pursuits?limit=200",
       "method": "GET",
       "status": 200,
-      "ms": 77
-    },
-    {
-      "path": "/api/auth/session",
-      "method": "GET",
-      "status": 200,
-      "ms": 18
-    },
-    {
-      "path": "/api/auth/session",
-      "method": "GET",
-      "status": 200,
-      "ms": 17
-    },
-    {
-      "path": "/api/commercial-pursuits?limit=200",
-      "method": "GET",
-      "status": 200,
-      "ms": 83
-    },
-    {
-      "path": "/api/commercial-pursuits?limit=200",
-      "method": "GET",
-      "status": 200,
-      "ms": 86
-    },
-    {
-      "path": "/api/commercial-pursuits?limit=200",
-      "method": "GET",
-      "status": 200,
-      "ms": 171
-    },
-    {
-      "path": "/api/commercial-pursuits",
-      "method": "POST",
-      "status": 200,
-      "ms": 71
-    },
-    {
-      "path": "/api/auth/session",
-      "method": "GET",
-      "status": 200,
-      "ms": 20
-    },
-    {
-      "path": "/api/auth/session",
-      "method": "GET",
-      "status": 200,
-      "ms": 20
-    },
-    {
-      "path": "/api/commercial-pursuits/445cae66-2ec3-4e0f-9d30-caa9862df222",
-      "method": "GET",
-      "status": 200,
-      "ms": 89
-    },
-    {
-      "path": "/api/commercial-pursuits?limit=200",
-      "method": "GET",
-      "status": 200,
-      "ms": 112
-    },
-    {
-      "path": "/api/commercial-pursuits?limit=200",
-      "method": "GET",
-      "status": 200,
-      "ms": 113
-    },
-    {
-      "path": "/api/commercial-pursuits/445cae66-2ec3-4e0f-9d30-caa9862df222/tasks",
-      "method": "POST",
-      "status": 503,
-      "ms": 83
-    },
-    {
-      "path": "/api/commercial-pursuits/445cae66-2ec3-4e0f-9d30-caa9862df222/tasks",
-      "method": "POST",
-      "status": 200,
-      "ms": 73
-    },
-    {
-      "path": "/api/commercial-pursuits?limit=200",
-      "method": "GET",
-      "status": 200,
-      "ms": 75
-    },
-    {
-      "path": "/api/commercial-pursuits?limit=200",
-      "method": "GET",
-      "status": 200,
-      "ms": 80
+      "ms": 298
     },
     {
       "path": "/api/auth/session",
@@ -381,94 +291,226 @@
       "path": "/api/auth/session",
       "method": "GET",
       "status": 200,
-      "ms": 17
+      "ms": 16
     },
     {
       "path": "/api/commercial-pursuits?limit=200",
       "method": "GET",
       "status": 200,
-      "ms": 81
+      "ms": 311
+    },
+    {
+      "path": "/api/commercial-pursuits?limit=200",
+      "method": "GET",
+      "status": 200,
+      "ms": 320
+    },
+    {
+      "path": "/api/commercial-pursuits?limit=200",
+      "method": "GET",
+      "status": 200,
+      "ms": 363
+    },
+    {
+      "path": "/api/commercial-pursuits",
+      "method": "POST",
+      "status": 200,
+      "ms": 343
+    },
+    {
+      "path": "/api/auth/session",
+      "method": "GET",
+      "status": 200,
+      "ms": 31
+    },
+    {
+      "path": "/api/auth/session",
+      "method": "GET",
+      "status": 200,
+      "ms": 35
+    },
+    {
+      "path": "/api/commercial-pursuits?limit=200",
+      "method": "GET",
+      "status": 200,
+      "ms": 307
+    },
+    {
+      "path": "/api/commercial-pursuits/79908248-d807-426a-a8c3-99fff46df21e",
+      "method": "GET",
+      "status": 200,
+      "ms": 328
+    },
+    {
+      "path": "/api/commercial-pursuits?limit=200",
+      "method": "GET",
+      "status": 200,
+      "ms": 328
+    },
+    {
+      "path": "/api/commercial-pursuits/79908248-d807-426a-a8c3-99fff46df21e/tasks",
+      "method": "POST",
+      "status": 503,
+      "ms": 318
+    },
+    {
+      "path": "/api/commercial-pursuits/79908248-d807-426a-a8c3-99fff46df21e/tasks",
+      "method": "POST",
+      "status": 200,
+      "ms": 313
+    },
+    {
+      "path": "/api/commercial-pursuits?limit=200",
+      "method": "GET",
+      "status": 200,
+      "ms": 312
+    },
+    {
+      "path": "/api/commercial-pursuits?limit=200",
+      "method": "GET",
+      "status": 200,
+      "ms": 318
+    },
+    {
+      "path": "/api/auth/session",
+      "method": "GET",
+      "status": 200,
+      "ms": 15
+    },
+    {
+      "path": "/api/auth/session",
+      "method": "GET",
+      "status": 200,
+      "ms": 15
     },
     {
       "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 95
+      "ms": 120
+    },
+    {
+      "path": "/api/commercial-pursuits?limit=200",
+      "method": "GET",
+      "status": 200,
+      "ms": 295
     },
     {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 137
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 146
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 56
+    },
+    {
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
+      "method": "GET",
+      "status": 200,
+      "ms": 83
+    },
+    {
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 20
+    },
+    {
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
+      "method": "GET",
+      "status": 200,
+      "ms": 42
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 160
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 140
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 153
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 54
+    },
+    {
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
+      "method": "GET",
+      "status": 200,
+      "ms": 92
+    },
+    {
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 21
+    },
+    {
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
+      "method": "GET",
+      "status": 200,
+      "ms": 44
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
       "ms": 113
     },
     {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 149
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 77
-    },
-    {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
-      "method": "GET",
-      "status": 200,
-      "ms": 144
-    },
-    {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 23
-    },
-    {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 40
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 81
-    },
-    {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 116
+      "ms": 136
     },
     {
       "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 147
+      "ms": 150
     },
     {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 77
+      "ms": 54
     },
     {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
       "method": "GET",
       "status": 200,
-      "ms": 94
+      "ms": 76
     },
     {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
       "method": "GET",
       "status": 200,
-      "ms": 24
+      "ms": 21
     },
     {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
       "method": "GET",
       "status": 200,
       "ms": 41
@@ -477,417 +519,327 @@
       "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 81
+      "ms": 109
     },
     {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 114
+      "ms": 145
     },
     {
       "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 147
+      "ms": 155
     },
     {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 55
+    },
+    {
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
       "method": "GET",
       "status": 200,
       "ms": 78
     },
     {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
       "method": "GET",
       "status": 200,
-      "ms": 98
+      "ms": 22
     },
     {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
       "method": "GET",
       "status": 200,
-      "ms": 24
-    },
-    {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 42
+      "ms": 45
     },
     {
       "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 84
+      "ms": 111
     },
     {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 113
+      "ms": 143
     },
     {
       "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 152
+      "ms": 154
     },
     {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 97
-    },
-    {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
-      "method": "GET",
-      "status": 200,
-      "ms": 82
-    },
-    {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 27
-    },
-    {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 42
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 87
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 118
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 130
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 61
-    },
-    {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
-      "method": "GET",
-      "status": 200,
-      "ms": 84
-    },
-    {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 23
-    },
-    {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 42
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 87
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 120
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 130
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 57
-    },
-    {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
-      "method": "GET",
-      "status": 200,
-      "ms": 101
-    },
-    {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 23
-    },
-    {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 42
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 78
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 112
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 126
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
       "ms": 56
     },
     {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
       "method": "GET",
       "status": 200,
-      "ms": 76
+      "ms": 92
     },
     {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
       "method": "GET",
       "status": 200,
       "ms": 22
     },
     {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
       "method": "GET",
       "status": 200,
-      "ms": 44
+      "ms": 43
     },
     {
       "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 85
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 110
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 123
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 57
-    },
-    {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
-      "method": "GET",
-      "status": 200,
-      "ms": 79
-    },
-    {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 21
-    },
-    {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 44
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 85
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 119
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 124
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 57
-    },
-    {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
-      "method": "GET",
-      "status": 200,
-      "ms": 84
-    },
-    {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 25
-    },
-    {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 46
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 83
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 119
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 128
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241.group.c7f6114a9b528c82&parent_cohort_token=p1_5ee591c89dd117617a3ea69f0e02c13e9bcd8c2246594dc5a2816282460be241&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 60
-    },
-    {
-      "path": "/api/opportunities/needs/e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
-      "method": "GET",
-      "status": 200,
-      "ms": 77
-    },
-    {
-      "path": "/api/opportunities/projects?need_id=e871bdbe-5ba3-40b2-a91e-b7df4d842d70&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 21
-    },
-    {
-      "path": "/api/projects/8d569766-9734-4373-87f9-35ca448f095a/account",
-      "method": "GET",
-      "status": 200,
-      "ms": 44
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
-      "method": "GET",
-      "status": 200,
-      "ms": 83
-    },
-    {
-      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 31
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 57
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
       "method": "GET",
       "status": 200,
       "ms": 109
     },
     {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 102
+      "ms": 138
     },
     {
-      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
-      "ms": 22
+      "ms": 153
     },
     {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
       "method": "GET",
       "status": 200,
       "ms": 54
     },
     {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 97
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 87
-    },
-    {
-      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 20
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 48
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 96
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
       "method": "GET",
       "status": 200,
       "ms": 86
     },
     {
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 23
+    },
+    {
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
+      "method": "GET",
+      "status": 200,
+      "ms": 45
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 110
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 138
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 150
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 56
+    },
+    {
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
+      "method": "GET",
+      "status": 200,
+      "ms": 74
+    },
+    {
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 21
+    },
+    {
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
+      "method": "GET",
+      "status": 200,
+      "ms": 41
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 111
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 134
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 149
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 56
+    },
+    {
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
+      "method": "GET",
+      "status": 200,
+      "ms": 82
+    },
+    {
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 21
+    },
+    {
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
+      "method": "GET",
+      "status": 200,
+      "ms": 44
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 112
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 138
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 155
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 57
+    },
+    {
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
+      "method": "GET",
+      "status": 200,
+      "ms": 74
+    },
+    {
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 21
+    },
+    {
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
+      "method": "GET",
+      "status": 200,
+      "ms": 44
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 112
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 136
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 155
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e.group.c7f6114a9b528c82&parent_cohort_token=p1_0bd03c4e677b10975e1783b8aafa7bbc4f3748f2d3d143e61de45b12bb641b4e&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 52
+    },
+    {
+      "path": "/api/opportunities/needs/5790a189-7969-44f2-a393-021c3b728e3d",
+      "method": "GET",
+      "status": 200,
+      "ms": 71
+    },
+    {
+      "path": "/api/opportunities/projects?need_id=5790a189-7969-44f2-a393-021c3b728e3d&sector=all&limit=25&offset=0&sort=priority&shortlist=true&include_signals=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 22
+    },
+    {
+      "path": "/api/projects/48fa067b-c69a-45af-a4bf-9aa32c43022e/account",
+      "method": "GET",
+      "status": 200,
+      "ms": 43
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "method": "GET",
+      "status": 200,
+      "ms": 107
+    },
+    {
+      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 30
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 85
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 124
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 115
+    },
+    {
       "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
       "method": "GET",
       "status": 200,
@@ -897,67 +849,19 @@
       "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 49
+      "ms": 77
     },
     {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 97
+      "ms": 122
     },
     {
       "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 89
-    },
-    {
-      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 20
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 49
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 97
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 87
-    },
-    {
-      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 20
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 49
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 99
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 89
+      "ms": 109
     },
     {
       "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
@@ -969,19 +873,163 @@
       "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 50
+      "ms": 74
     },
     {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 96
+      "ms": 123
     },
     {
       "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 83
+      "ms": 113
+    },
+    {
+      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 19
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 77
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 123
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 112
+    },
+    {
+      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 18
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 77
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 122
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 115
+    },
+    {
+      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 18
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 75
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 122
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 111
+    },
+    {
+      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 18
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 76
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 123
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 115
+    },
+    {
+      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 17
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 75
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 121
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 113
+    },
+    {
+      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 19
+    },
+    {
+      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 77
+    },
+    {
+      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 131
+    },
+    {
+      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
+      "method": "GET",
+      "status": 200,
+      "ms": 118
     },
     {
       "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
@@ -993,74 +1041,25 @@
       "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 48
+      "ms": 78
     },
     {
       "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 102
+      "ms": 122
     },
     {
       "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 89
+      "ms": 112
     },
     {
       "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
       "method": "GET",
       "status": 200,
-      "ms": 21
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 52
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 105
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 89
-    },
-    {
-      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 22
-    },
-    {
-      "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 50
-    },
-    {
-      "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 95
-    },
-    {
-      "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=priority&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 90
-    },
-    {
-      "path": "/api/opportunities/projects?sector=all&limit=1&include_signals=true&shortlist=false",
-      "method": "GET",
-      "status": 200,
-      "ms": 20
+      "ms": 18
     }
-  ],
-  "metric_label_correction": "The original 139ms sample measures navigation into Pursuits before a later reload; the corrected key preserves the sample and identifies it as pursuitNavigationReadyMs. It is not a reload measurement."
+  ]
 }

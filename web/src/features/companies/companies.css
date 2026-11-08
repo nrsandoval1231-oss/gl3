@@ -19,6 +19,8 @@
 @media(max-width:720px){.cmp-row{grid-template-columns:minmax(0,1fr) 56px 70px 14px;gap:6px;padding:10px 8px}.cmp-head{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.cmp *{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 /* Companies/Reports page chrome: the panel is its own page and Opportunities unmounts while it is active. */
+.cmp-company [aria-label="Best available contact"]>span:first-child{display:block;margin-bottom:4px}
+.cmp-company [aria-label="Best available contact"]>p:not(.cmp-note){display:flex;flex-wrap:wrap;gap:8px 16px}
 .wh-main[hidden]{display:none!important}
 main.canonical-navigation-page{display:block;padding:10px 26px 20px;background:#f5f7fa;min-height:calc(100vh - 54px);min-width:0}
 main.canonical-navigation-page>.canonical-navigation-panel{margin:0;padding:0;border:0;border-radius:0;background:transparent;font-size:12px;min-width:0}
