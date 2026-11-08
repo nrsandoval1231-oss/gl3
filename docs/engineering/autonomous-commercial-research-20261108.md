@@ -40,3 +40,9 @@ Optional public-page automation now requires exact-host dated terms permission i
 ## Current acceptance state
 
 Implementation is in progress. Independent review found material A recovery and C contact-attribution/cache defects; the [current checkpoint](../../.agent/CURRENT_STATE.md) records them and the required repair/review sequence. Scoped B producer, privacy and temporal tests are passing, but neither those nor mocked UI checks constitute final integrated acceptance. Failed fixture attempts are preserved as failures. Real native-source contact acceptance, the five viewport journey, matched baseline/candidate metrics, final independent review, broad gates and exact-head CI remain required before the draft PR handoff.
+
+## Optional provider capability boundary
+
+Apollo is an always-blocked, no-network interface (`apollo_contacts.py`); it is not a working licensed connector or an environment flag that activates one. Account access, licensing, endpoint entitlement, credits, price and permitted use remain unverified. A future activation requires a separately reviewed governed implementation that supplies authorization, bounded spend accounting, identity/employer matching, response validation and recovery before any live smoke; changing a module constant is not an activation procedure.
+
+Firecrawl metadata-only search and HTML extraction are distinct capabilities. Search's current contract is fixture-tested without target-page scraping; no live/paid result is claimed. Remote HTML extraction remains capability-blocked where target redirect/private-network guarantees cannot be established. The provider/source permission and robots guards do not turn a post-fetch URL check into prevention of remote target redirects.
