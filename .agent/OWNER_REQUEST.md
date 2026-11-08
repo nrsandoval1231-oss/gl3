@@ -1,6 +1,6 @@
 # Current owner request — autonomous commercial research Phase 2
 
-November 8 authority: implement scheduled research and grounded commercial briefs on the existing canonical account foundation, verify with disposable PostgreSQL and disabled/mock providers, independently review, and publish ONE draft PR. No merge, deployment, paid-provider calls, source activation, production/retained writes or credential changes. Preserve the existing UI brand/navigation and owner-managed need-scoped Commercial Pursuits. [Contracts and acceptance](../docs/engineering/autonomous-commercial-research-20261108.md) and [checkpoint](CURRENT_STATE.md) govern current work.
+November 8 authority: implement scheduled research and grounded commercial briefs on the existing canonical account foundation, verify with disposable PostgreSQL and disabled/mock providers, independently review, and publish ONE draft PR. No merge, deployment, paid-provider calls, source activation, mutations of retained operational or production data or credential changes. Preserve the existing UI brand/navigation and owner-managed need-scoped Commercial Pursuits. [Contracts and acceptance](../docs/engineering/autonomous-commercial-research-20261108.md) and [checkpoint](CURRENT_STATE.md) govern current work.
 
 ## Historical November 3 ingestion strategy request
 

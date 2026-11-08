@@ -2,7 +2,7 @@
 
 ## Authorized scope and delivery
 
-Owner authorizes full local implementation and verification through one independently reviewed draft PR, based on `bc433650ce4706dddfb5b30d78a502e3b528f54e` (merged PR187). No merge, deployment, retained/production writes, credential changes, paid provider calls or source activation. All tests use new disposable databases and disabled providers. Dated receipts remain historical.
+Owner authorizes full local implementation and verification through one independently reviewed draft PR, based on `bc433650ce4706dddfb5b30d78a502e3b528f54e` (merged PR187). No merge, deployment, mutations of retained operational or production data, credential changes, paid provider calls or source activation. All tests use new disposable databases and disabled providers. Writing retained evidence and findings into those new disposable databases is required acceptance work; existing operational/retained datasets are never test targets. Dated receipts remain historical.
 
 ## Contracts and ownership
 
@@ -14,12 +14,12 @@ The commercial projection adds an optional `commercial_brief` object to existing
 |---|---|---|
 | A acquisition/planning | autonomous_research.py, pursuit_questions.py, research_routing.py, ingestion/adapters/pursuit_acquisition.py and their focused tests | Existing question/job APIs, source/ledger controls; no settings/models/worker writes |
 | B commercial interpretation | new domain/commercial_brief.py, project_results.py, commercial_evaluation.py, customer_accounts.py, pursuit_workspace.py and focused tests | `build_commercial_brief(item: dict, *, now=None) -> dict`; existing payload plus optional brief |
-| C public/optional contacts | company_contact_discovery.py, company_contacts.py, enrichment_planner.py, optional Apollo adapter, public_site_policy.py, buying_chain_public.py, two budgeted buying_chain.py callsites and focused tests | Existing company jobs and contact persistence; Apollo disabled/activation blocked unless separately authorized |
+| C public/optional contacts | company_contact_discovery.py, company_contacts.py, enrichment_planner.py, optional Apollo adapter, public_site_policy.py, buying_chain_public.py, budgeted buying_chain.py callsites/contact projection, company_contact_attribution.py, any explicitly leased project_contact_actions.py read guard and focused tests | Existing company jobs and contact persistence; Apollo disabled/activation blocked unless separately authorized |
 | D product | web source/client types and browser tests, except generated API artifacts | Render optional brief; preserve old payload fallback and privacy cleanup; add fixture acceptance |
 | E acceptance | new scripts/phase2* and backend/tests/integration/test_phase2_acceptance.py in the primary worktree | Real persisted worker-to-projection fixture and same-fixture baseline/candidate receipts |
 | Coordinator | worker/settings/API/models/generated artifacts/integration and maintained docs | Lease shared files explicitly; integrate and run final gates |
 
-Implementation builders A–D use separate managed worktrees from the same base and commit only owned files; builder E writes exclusively owned new acceptance files in the primary worktree. Shared-file leases above were extended explicitly as integration needs became concrete. The lead integrates commits sequentially. Five exact Luna/low builders (four implementation lanes and one cross-lane acceptance lane) and independent Astra/high final review are required and supported by runtime metadata. Root handles owner updates and bounded verification assistance.
+Implementation builders A–D use separate managed worktrees from the same base and commit only owned files; builder E writes exclusively owned new acceptance files in the primary worktree. D's dedicated CI workflow and C's annotation-only mode repair used explicit exclusive primary-worktree leases; those exceptions did not share concurrent file writers. Shared-file leases above were extended explicitly as integration needs became concrete. The lead integrates commits sequentially. Five exact Luna/low builders (four implementation lanes and one cross-lane acceptance lane) and independent Astra/high final review are required and supported by runtime metadata. Root handles owner updates and bounded verification assistance.
 
 ## Acceptance and next steps
 
