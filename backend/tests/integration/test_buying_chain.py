@@ -1670,7 +1670,10 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
         before_projection = company_contacts(session, company_id)
         assert all(not item.methods for item in before_projection.contacts)
         initial_company_claims = {
-            item.id
+            str(item.id): {
+                column.name: deepcopy(getattr(item, column.name))
+                for column in BuyingChainClaim.__table__.columns
+            }
             for item in session.scalars(
                 select(BuyingChainClaim)
                 .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
@@ -1682,6 +1685,18 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
             )
         }
         assert initial_company_claims
+        initial_company_claim_evidence = {
+            str(claim.id): [deepcopy(citation) for citation in claim.citations]
+            for claim in session.scalars(
+                select(BuyingChainClaim)
+                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .where(
+                    BuyingChainIdentityLink.company_identity_id == company_id,
+                    BuyingChainIdentityLink.state == "current",
+                    BuyingChainClaim.person_name.is_(None),
+                )
+            )
+        }
         old_run_rows = [
             {
                 column.name: deepcopy(getattr(run, column.name))
@@ -1749,7 +1764,37 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
             if candidate.get("company_identity_id") == str(company_id)
             and not candidate.get("person_name")
         ]
-        assert {candidate["id"] for candidate in current_company_claims} == initial_company_claims
+        current_company_claim_snapshots = {
+            str(candidate.id): {
+                column.name: deepcopy(getattr(candidate, column.name))
+                for column in BuyingChainClaim.__table__.columns
+            }
+            for candidate in session.scalars(
+                select(BuyingChainClaim)
+                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .where(
+                    BuyingChainIdentityLink.company_identity_id == company_id,
+                    BuyingChainIdentityLink.state == "current",
+                    BuyingChainClaim.person_name.is_(None),
+                )
+            )
+        }
+        assert {str(candidate["id"]) for candidate in current_company_claims} == set(
+            initial_company_claims
+        )
+        assert current_company_claim_snapshots == initial_company_claims
+        assert {
+            str(candidate.id): [deepcopy(citation) for citation in candidate.citations]
+            for candidate in session.scalars(
+                select(BuyingChainClaim)
+                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .where(
+                    BuyingChainIdentityLink.company_identity_id == company_id,
+                    BuyingChainIdentityLink.state == "current",
+                    BuyingChainClaim.person_name.is_(None),
+                )
+            )
+        } == initial_company_claim_evidence
         assert all(
             candidate["person_project_relationship"] != "DIRECT"
             for candidate in company_view["candidates"]
@@ -1787,6 +1832,34 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
         )
         assert [run.id for run in session.scalars(select(BuyingChainRun))] == run_ids_after
         assert company_contacts(session, company_id).model_dump(mode="json") == projection_after
+        replayed_company_claims = {
+            str(candidate.id): {
+                column.name: deepcopy(getattr(candidate, column.name))
+                for column in BuyingChainClaim.__table__.columns
+            }
+            for candidate in session.scalars(
+                select(BuyingChainClaim)
+                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .where(
+                    BuyingChainIdentityLink.company_identity_id == company_id,
+                    BuyingChainIdentityLink.state == "current",
+                    BuyingChainClaim.person_name.is_(None),
+                )
+            )
+        }
+        assert replayed_company_claims == initial_company_claims
+        assert {
+            str(candidate.id): [deepcopy(citation) for citation in candidate.citations]
+            for candidate in session.scalars(
+                select(BuyingChainClaim)
+                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .where(
+                    BuyingChainIdentityLink.company_identity_id == company_id,
+                    BuyingChainIdentityLink.state == "current",
+                    BuyingChainClaim.person_name.is_(None),
+                )
+            )
+        } == initial_company_claim_evidence
 
     # A stable replay generation must not hide a changed business need.
     with db.begin() as session:
@@ -2258,7 +2331,7 @@ def test_unverified_public_contact_is_never_projected_but_company_relationship_s
             assert refreshed_projection.research_required is True
             assert all(not contact.methods for contact in refreshed_projection.contacts)
             discovery_urls = _known_contact_urls(session, link.company_identity_id, [project])
-        assert isinstance(discovery_urls, list)
+        assert discovery_urls == [URL]
 
 
 def test_contact_anchor_skips_stale_member_project_for_current_later_source(db):
@@ -3262,6 +3335,10 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         assert current_claim_identity_links(session, {claims[0].id})[claims[0].id] == {
             "person_identity_id": person_a_id
         }
+        public_claim_snapshot = {
+            column.name: deepcopy(getattr(claims[0], column.name))
+            for column in BuyingChainClaim.__table__.columns
+        }
         candidate = next(
             item
             for item in buying_chain_view(session, project_a.id)["candidates"]
@@ -3269,7 +3346,18 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         )
         assert not candidate["stale"]
         assert "company_identity_id" not in candidate
-        assert candidate["person_identity_id"] == person_a_id
+        assert candidate.get("person_identity_id") is None
+        assert candidate.get("person_name") is None
+        assert candidate.get("title") is None
+        assert candidate["public_contacts"] == []
+        assert candidate["organization"] == "Acme"
+        assert {
+            column.name: deepcopy(getattr(session.get(BuyingChainClaim, claims[0].id), column.name))
+            for column in BuyingChainClaim.__table__.columns
+        } == public_claim_snapshot
+        assert current_claim_identity_links(session, {claims[0].id})[claims[0].id] == {
+            "person_identity_id": person_a_id
+        }
 
 
 def test_batched_buying_chain_view_matches_single_project_projection(db):
@@ -4767,6 +4855,21 @@ def test_deduplicated_claim_drops_unverified_contact_after_retained_reassignment
                 "decision": "rejected",
             }
         session.flush()
+        claim_before_projection = {
+            column.name: deepcopy(getattr(stored_claim, column.name))
+            for column in BuyingChainClaim.__table__.columns
+        }
+        evidence_before_projection = {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        }
         current = buying_chain_view(session, project.id, now=NOW + timedelta(minutes=1))
         assert [row["id"] for row in current["candidates"]] == [claim_id]
         survivor = current["candidates"][0]
@@ -4778,6 +4881,22 @@ def test_deduplicated_claim_drops_unverified_contact_after_retained_reassignment
         assert survivor["public_contacts"] == []
         survivor_source = session.get(BuyingChainEvidence, survivor["evidence"][0]["id"])
         assert survivor_source is not None and survivor_source.retained_evidence_id is None
+        assert {
+            column.name: deepcopy(getattr(session.get(BuyingChainClaim, claim_id), column.name))
+            for column in BuyingChainClaim.__table__.columns
+        } == claim_before_projection
+        evidence_after_projection = {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        }
+        assert evidence_after_projection == evidence_before_projection
         assert record_material_diff(session, project, retained, baseline) == []
         history = buying_chain_view(session, project.id, now=NOW, history=True)["candidates"]
         assert any(row["id"] == claim_id for row in history)
@@ -5178,7 +5297,7 @@ def test_unverified_carried_assignment_does_not_create_current_person_role(db):
 
 
 @pytest.mark.parametrize("old_invalid", ["aged", "superseded"])
-def test_unverified_roster_citation_does_not_create_current_person_role(db, old_invalid):
+def test_private_role_freshness_survives_unverified_public_abstention(db, old_invalid):
     with db.begin() as session:
         project = seed(session)
         org_quote = "Acme is the general contractor for Orion Data Center in Austin, TX."
@@ -5193,6 +5312,20 @@ def test_unverified_roster_citation_does_not_create_current_person_role(db, old_
         assert not any(row["person_name"] for row in current["candidates"])
         organization = next(row for row in current["candidates"] if row["organization"] == "Acme")
         assert organization["organization_relationship"] == "DIRECT"
+        raw_claim = session.scalar(
+            select(BuyingChainClaim).where(
+                BuyingChainClaim.project_id == project.id,
+                BuyingChainClaim.person_name == "Alice Smith",
+            )
+        )
+        assert raw_claim is not None
+        original_role = next(
+            citation
+            for citation in raw_claim.citations
+            if citation["supports"] == "organization_person_role"
+        )
+        old_source = session.get(BuyingChainEvidence, original_role["evidence_id"])
+        assert old_source is not None
         later = NOW + timedelta(days=370)
         independent = BuyingChainEvidence(
             project_id=project.id,
@@ -5208,11 +5341,20 @@ def test_unverified_roster_citation_does_not_create_current_person_role(db, old_
         )
         session.add(independent)
         session.flush()
+        raw_claim.citations = [
+            *raw_claim.citations,
+            {
+                "evidence_id": str(independent.id),
+                "url": independent.url,
+                "quote": role_quote,
+                "supports": "organization_person_role",
+            },
+        ]
         if old_invalid == "superseded":
             session.add(
                 BuyingChainEvidence(
                     project_id=project.id,
-                    url=URL,
+                    url=old_source.url,
                     title="Old page correction",
                     excerpt=org_quote,
                     content_hash="old-role-withdrawn",
@@ -5224,10 +5366,53 @@ def test_unverified_roster_citation_does_not_create_current_person_role(db, old_
                 )
             )
         session.flush()
+        raw_claim_snapshot = {
+            column.name: deepcopy(getattr(raw_claim, column.name))
+            for column in BuyingChainClaim.__table__.columns
+        }
+        evidence_snapshot = {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        }
         after_update = buying_chain_view(session, project.id, now=later)
-        assert not any(row["person_name"] for row in after_update["candidates"])
         organization = next(row for row in after_update["candidates"] if row["organization"] == "Acme")
         assert organization["organization_relationship"] == "DIRECT"
+        private_after_update = buying_chain_view(
+            session,
+            project.id,
+            now=later,
+            include_identity_ids=False,
+            _apply_privacy=False,
+        )
+        person = next(
+            row for row in private_after_update["candidates"] if row["person_name"] == "Alice Smith"
+        )
+        assert person["person_organization_relationship"] == "CURRENT"
+        assert person["stale"] is False
+        assert {row["id"] for row in person["evidence"]} >= {old_source.id, independent.id}
+        assert {
+            column.name: deepcopy(getattr(session.get(BuyingChainClaim, raw_claim.id), column.name))
+            for column in BuyingChainClaim.__table__.columns
+        } == raw_claim_snapshot
+        assert {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        } == evidence_snapshot
+        assert not any(row["person_name"] for row in after_update["candidates"])
 
         # A newer self-asserted page remains insufficient to bind a person.
         session.add(
@@ -5245,14 +5430,55 @@ def test_unverified_roster_citation_does_not_create_current_person_role(db, old_
             )
         )
         session.flush()
+        correction_snapshot = {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        }
         after_correction = buying_chain_view(
             session, project.id, now=later + timedelta(minutes=1)
         )
-        assert not any(row["person_name"] for row in after_correction["candidates"])
         organization = next(
             row for row in after_correction["candidates"] if row["organization"] == "Acme"
         )
         assert organization["organization_relationship"] == "DIRECT"
+        private_after_correction = buying_chain_view(
+            session,
+            project.id,
+            now=later + timedelta(minutes=1),
+            include_identity_ids=False,
+            _apply_privacy=False,
+        )
+        private_person = next(
+            row
+            for row in private_after_correction["candidates"]
+            if row["person_name"] == "Alice Smith"
+        )
+        assert private_person["person_organization_relationship"] == "UNKNOWN"
+        assert private_person["stale"] is True
+        assert {
+            column.name: deepcopy(getattr(session.get(BuyingChainClaim, raw_claim.id), column.name))
+            for column in BuyingChainClaim.__table__.columns
+        } == raw_claim_snapshot
+        evidence_after_views = {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        }
+        assert evidence_after_views == correction_snapshot
+        assert not any(row["person_name"] for row in after_correction["candidates"])
 
 
 def test_boston_retained_applicant_facts_are_cited_without_creating_buyer(db):
