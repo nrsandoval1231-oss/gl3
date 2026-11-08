@@ -101,7 +101,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   // Open account detail, verify separate projects, and exercise browser history.
   await account.getByRole('button', { name: /Choose opportunity|View account details/ }).click()
   await expect(page).toHaveURL(new RegExp(`[?&]account=${escapeRegExp(manifest.account.group_id)}(?:&|$)`))
-  const detail = page.locator('.cod-account-first-detail')
+  const detail = page.getByRole('region', { name: 'Account projects' })
   for (const projectName of manifest.account.project_names) await expect(detail).toContainText(projectName)
   await page.goBack()
   await expect(page).toHaveURL(/groupBrowse=1/)
