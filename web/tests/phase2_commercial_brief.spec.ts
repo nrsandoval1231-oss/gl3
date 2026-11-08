@@ -8,15 +8,26 @@ type Manifest = {
   db_name: string
   fixture_input_sha256: string
   source_commit: string
-  account: { company_identity_id: string; name: string; group_id: string; project_ids: string[]; project_names: string[]; need_ids: string[] }
+  account: { company_identity_id: string; name: string; group_id: string; projects: Array<{ id: string; name: string }>; need_ids: string[] }
   lookalike_account: { company_identity_id: string; name: string }
-  expected: {
-    why_now: string
-    contact_label: string
-    contact_href: string
-    next_action: string
+  source: { title: string; url: string; evidence_id: string; content_hash: string; event_date: string | null }
+  brief: {
+    why_now_text: string
+    why_now_source_date: string | null
+    why_now_scope: string | null
     power_amount_class: string
-    power_scope: string
+    power_value: string | null
+    power_unit: string | null
+    power_scope: string | null
+    power_status: string
+    best_contact_label: string
+    best_contact_href: string
+    best_contact_kind: string
+    best_contact_route_kind: string
+    best_contact_authority: string
+    best_contact_deliverability: string
+    next_action: string
+    freshness_status: string
   }
 }
 
@@ -30,9 +41,11 @@ function loadManifest(): Manifest {
   expect(manifest.synthetic_fixture).toBe(true)
   expect(manifest.db_name).toMatch(/^gl3_phase2_browser_fixture_test$/)
   expect(manifest.fixture_input_sha256).toMatch(/^[a-f0-9]{64}$/i)
-  expect(manifest.account.project_ids.length).toBeGreaterThanOrEqual(3)
-  expect(manifest.account.project_names.length).toBe(manifest.account.project_ids.length)
+  expect(manifest.account.projects.length).toBeGreaterThanOrEqual(3)
   expect(manifest.account.need_ids.length).toBeGreaterThanOrEqual(4)
+  expect(manifest.brief.why_now_text).toBeTruthy()
+  expect(manifest.brief.best_contact_href).toBeTruthy()
+  expect(manifest.brief.next_action).toBeTruthy()
   return manifest
 }
 
@@ -61,27 +74,37 @@ test('source-backed disposable account brief survives responsive navigation and 
   await search.fill(manifest.account.name)
   const account = page.getByRole('region', { name: new RegExp(`${escapeRegExp(manifest.account.name)} customer group`, 'i') })
   await expect(account).toBeVisible()
-  await expect(account).toContainText(manifest.expected.why_now)
-  await expect(account).toContainText(manifest.expected.contact_label)
-  await expect(account).toContainText(manifest.expected.next_action)
+  await expect(account).toContainText(manifest.brief.why_now_text)
+  await expect(account).toContainText(manifest.brief.best_contact_label)
+  await expect(account).toContainText(manifest.brief.next_action)
   const brief = account.locator('.customer-commercial-brief')
-  await expect(brief.getByRole('link', { name: new RegExp(escapeRegExp(manifest.expected.contact_label), 'i') })).toHaveAttribute('href', manifest.expected.contact_href)
+  await expect(brief.getByRole('link', { name: new RegExp(escapeRegExp(manifest.brief.best_contact_label), 'i') })).toHaveAttribute('href', manifest.brief.best_contact_href)
   await expect(brief.getByRole('heading', { name: 'Best contact' })).toHaveCount(0)
   await expect(brief.locator('details.customer-brief-sources')).not.toHaveAttribute('open', '')
   const sourceDisclosure = brief.locator('details.customer-brief-sources')
-  await expect(sourceDisclosure).toContainText(/Sources \(\d+\)/)
+  await expect(sourceDisclosure).toContainText(manifest.source.title)
   await sourceDisclosure.locator('summary').click()
   const sourceLinks = sourceDisclosure.getByRole('link')
-  await expect(sourceLinks.first()).toBeVisible()
+  const retainedSource = sourceLinks.getByText(manifest.source.title, { exact: true })
+  await expect(retainedSource).toHaveAttribute('href', manifest.source.url)
   for (const href of await sourceLinks.evaluateAll(links => links.map(link => (link as HTMLAnchorElement).href))) {
     expect(new URL(href).protocol).toMatch(/^https?:$/)
   }
   await sourceDisclosure.locator('summary').click()
   await expect(sourceDisclosure).not.toHaveAttribute('open', '')
-  expect(manifest.expected.power_amount_class).toBeTruthy()
-  expect(manifest.expected.power_scope).toBeTruthy()
-  await expect(brief).toContainText(manifest.expected.power_scope)
-  await expect(brief).toContainText(/documented|calculated|estimated|inferred|unknown/i)
+  const powerClaim = brief.locator('.customer-brief-claim').filter({ hasText: 'Power need' })
+  expect(manifest.brief.power_scope, 'featured power projection retains a scope').toBeTruthy()
+  await expect(powerClaim).toContainText(manifest.brief.power_scope!)
+  if (manifest.brief.power_amount_class === 'unknown' || !manifest.brief.power_value) {
+    await expect(powerClaim).toContainText('Amount unknown; not zero.')
+    await expect(powerClaim).not.toContainText('40 MW')
+  } else {
+    const amount = manifest.brief.power_unit ? `${manifest.brief.power_value} ${manifest.brief.power_unit}` : manifest.brief.power_value
+    await expect(powerClaim).toContainText(amount)
+    const classLabel = manifest.brief.power_amount_class.replaceAll('_', ' ').replace(/\b[a-z]/g, character => character.toUpperCase())
+    const statusLabel = manifest.brief.power_status.replaceAll('_', ' ').replace(/\b[a-z]/g, character => character.toUpperCase())
+    await expect(powerClaim).toContainText(`${classLabel} · ${statusLabel}`)
+  }
 
   // Capture the same real API-backed customer card at the five agreed viewports.
   const viewports = [
@@ -102,7 +125,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   await account.getByRole('button', { name: /Choose opportunity|View account details/ }).click()
   await expect(page).toHaveURL(new RegExp(`[?&]account=${escapeRegExp(manifest.account.group_id)}(?:&|$)`))
   const detail = page.getByRole('region', { name: 'Account projects' })
-  for (const projectName of manifest.account.project_names) await expect(detail).toContainText(projectName)
+  for (const project of manifest.account.projects) await expect(detail).toContainText(project.name)
   await page.goBack()
   await expect(page).toHaveURL(/groupBrowse=1/)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue(manifest.account.name)
@@ -114,9 +137,12 @@ test('source-backed disposable account brief survives responsive navigation and 
   const openedBody = await opened.json() as { projects?: { items?: Array<{ id?: string; project_id?: string; name?: string }> } }
   const returnedProjects = openedBody.projects?.items ?? []
   const returnedIds = new Set(returnedProjects.map(project => project.project_id ?? project.id))
-  for (const projectId of manifest.account.project_ids) expect(returnedIds.has(projectId), `distinct project ${projectId} remains in account detail`).toBe(true)
+  for (const project of manifest.account.projects) expect(returnedIds.has(project.id), `distinct project ${project.id} remains in account detail`).toBe(true)
   const returnedNames = new Set(returnedProjects.map(project => project.name))
-  for (const projectName of manifest.account.project_names) expect(returnedNames.has(projectName), `distinct project ${projectName} is present`).toBe(true)
+  for (const project of manifest.account.projects) {
+    expect(returnedNames.has(project.name), `distinct project ${project.name} is present`).toBe(true)
+    await expect(detail).toContainText(project.name)
+  }
 
   const readSamples: { status: number; elapsed_ms: number }[] = []
   for (let i = 0; i < 5; i += 1) {
@@ -127,7 +153,7 @@ test('source-backed disposable account brief survives responsive navigation and 
     const body = await response.json() as { items: Array<{ id: string; name: string; featured_project?: { commercial_brief?: { why_now?: { text?: string | null } } | null } }> }
     const found = body.items.find(item => item.id === manifest.account.group_id)
     expect(found, 'account group is present in live API response').toBeTruthy()
-    expect(found?.featured_project?.commercial_brief?.why_now?.text).toBe(manifest.expected.why_now)
+    expect(found?.featured_project?.commercial_brief?.why_now?.text).toBe(manifest.brief.why_now_text)
   }
   await testInfo.attach('phase2-read-latency.json', { body: JSON.stringify({ read_count: readSamples.length, reads: readSamples }, null, 2), contentType: 'application/json' })
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Pursuits' }).click()
