@@ -2,10 +2,12 @@
 
 import json
 from datetime import UTC, datetime
+from importlib import import_module
 from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -33,6 +35,7 @@ from gridlens.persistence.models import (
     Source,
 )
 from gridlens.persistence.suppression_models import ContactSuppression
+from gridlens.security import token_for
 from gridlens.settings import settings
 
 
@@ -57,7 +60,9 @@ def search_db():
     admin.dispose()
 
 
-def test_company_search_matches_membership_alias_and_preserves_account_totals(search_db):
+def test_company_search_matches_membership_alias_and_preserves_account_totals(
+    search_db, monkeypatch
+):
     now = datetime.now(UTC)
     generation_id, identity_id = uuid4(), uuid4()
     project_ids, need_ids = [uuid4(), uuid4()], [uuid4(), uuid4(), uuid4()]
@@ -321,3 +326,12 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
             ),
         ):
             assert hidden_name not in repr(projection["commercial_brief"])
+
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", search_db)
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    endpoint = client.get("/api/customer-accounts", params={"search": "aoh"})
+    assert endpoint.status_code == 200, endpoint.text
+    account = endpoint.json()["items"][0]
+    assert hidden_name not in repr(account["highest_priority_need"]["commercial_brief"])
