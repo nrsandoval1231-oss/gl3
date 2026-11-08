@@ -189,6 +189,10 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   await page.goto('/?view=workspace&groupBrowse=1')
   await page.getByRole('button', { name: /Synthetic Grid Operator/ }).click()
   const account = page.getByRole('region', { name: `Company ${company}` })
+  const overview = account.getByRole('region', { name: 'Account overview' })
+  await expect(overview.getByText('Confirm Synthetic Compressor Station scope from sources.')).toBeVisible()
+  await expect(overview.getByText('Synthetic construction is planned at this site.')).toHaveCount(0)
+  await expect(overview.getByText('Confirm the temporary power scope.')).toHaveCount(0)
   const row = account.locator(`[data-project-id="${firstProject.project_id}"]`)
   await row.getByRole('button', { name: /Open project detail/ }).click()
 
