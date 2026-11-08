@@ -923,6 +923,29 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
             )
         )
         assert evidence is not None
+        from gridlens.intelligence.company_contact_attribution import _exact_native_rrc_contact
+
+        assert (
+            _exact_native_rrc_contact(evidence, "102606", "DE V Operating, LLC")
+            == "Phone: 8179283260"
+        )
+        wrong_directory = SimpleNamespace(
+            **{
+                key: getattr(evidence, key)
+                for key in (
+                    "project_match_reason",
+                    "url",
+                    "title",
+                    "excerpt",
+                    "content_hash",
+                    "extraction_location",
+                    "published_at",
+                    "observed_at",
+                )
+            }
+        )
+        wrong_directory.url = "https://lookalike.rrc.texas.gov/other.xlsx"
+        assert _exact_native_rrc_contact(wrong_directory, "102606", "DE V Operating, LLC") is None
         assert evidence.observed_at == observed_at
         assert evidence.last_seen_at == observed_at  # Cache replay did not refresh provenance.
         assert evidence.published_at == date(2026, 10, 27)
@@ -5584,6 +5607,40 @@ def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_pr
         assert calls == [("26051624", "Building Pmt", "2026-09-02", "8930 GULF FWY A")]
         candidate = next(
             item for item in result["candidates"] if item["organization"] == "ACME LLC"
+        )
+        from gridlens.intelligence.company_contact_attribution import (
+            _exact_houston_project_contact,
+        )
+
+        detail_source = session.scalar(
+            select(BuyingChainEvidence).where(BuyingChainEvidence.url == detail_url)
+        )
+        assert detail_source is not None
+        assert _exact_houston_project_contact(detail_source, project, organization="ACME LLC")
+        wrong_path = SimpleNamespace(
+            **{
+                key: getattr(detail_source, key)
+                for key in (
+                    "project_match_reason",
+                    "url",
+                    "excerpt",
+                    "title",
+                    "content_hash",
+                    "extraction_location",
+                    "published_at",
+                    "observed_at",
+                )
+            }
+        )
+        wrong_path.url = detail_url.replace("/WFServlet.ibfs", "/other")
+        assert not _exact_houston_project_contact(wrong_path, project, organization="ACME LLC")
+        empty_site_project = SimpleNamespace(
+            source_id=project.source_id,
+            external_id=project.external_id,
+            location="",
+        )
+        assert not _exact_houston_project_contact(
+            detail_source, empty_site_project, organization="ACME LLC"
         )
         assert candidate["organization_relationship"] == "ROLE_SUPPORTED"
         assert candidate["person_project_relationship"] == "UNKNOWN"

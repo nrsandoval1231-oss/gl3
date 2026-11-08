@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.ingestion.adapters.buying_chain_public import (
+    PublicDocument,
     validate_public_url,
 )
 from gridlens.persistence.models import (
@@ -124,7 +125,12 @@ def document_claims_operator_identity(
     return scoped_numbers == {operator_number}
 
 
-def _exact_houston_project_contact(source: BuyingChainEvidence, project: Project | None) -> bool:
+def _exact_houston_project_contact(
+    source: BuyingChainEvidence,
+    project: Project | None,
+    *,
+    organization: str,
+) -> bool:
     if source.project_match_reason.casefold() not in _PROJECT_SCOPED_NATIVE_SOURCE_REASONS:
         return False
     try:
@@ -132,24 +138,45 @@ def _exact_houston_project_contact(source: BuyingChainEvidence, project: Project
     except ValueError:
         return False
     parsed_url = urlsplit(url)
-    if (parsed_url.hostname or "").casefold() != "cohtora.houstontx.gov":
+    if (
+        parsed_url.hostname or ""
+    ).casefold() != "cohtora.houstontx.gov" or parsed_url.path != "/ibi_apps/WFServlet.ibfs":
         return False
     if project is None or project.source_id != "houston-weekly-permits":
         return False
     parts = project.external_id.split(":")
     if len(parts) != 3 or not parts[0].isdigit():
         return False
+    from urllib.parse import parse_qs
+
+    query = parse_qs(parsed_url.query, strict_parsing=True)
+    from gridlens.ingestion.adapters.houston_permit_details import (
+        SUPPORTED_TYPES,
+        response_type_code,
+    )
+
+    expected_type_code = SUPPORTED_TYPES.get(parts[1])
+    if (
+        expected_type_code is None
+        or query.get("PN") != [parts[0]]
+        or query.get("PT") != [expected_type_code]
+    ):
+        return False
     fields = dict(re.findall(r"(?m)^([a-z_]+):\s*(.*?)\s*$", source.excerpt))
-    if fields.get("detail_project") != parts[0] or fields.get("detail_date") != parts[2]:
+    if (
+        fields.get("detail_project") != parts[0]
+        or fields.get("detail_date") != parts[2]
+        or response_type_code(fields.get("detail_permit_type", "")) != expected_type_code
+        or _brand_key(fields.get("detail_buyer", "")) != _brand_key(organization)
+    ):
         return False
     site = re.sub(r"\s+", " ", fields.get("detail_site_address", "")).casefold()
     expected = re.sub(r"\s+", " ", (project.location or "").split(", Houston", 1)[0]).casefold()
-    if not site.startswith(expected):
+    if not site or not expected or not site.startswith(expected):
         return False
-    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
     from gridlens.intelligence.buying_chain import document_content_hash
 
-    return source.content_hash == document_content_hash(
+    computed = document_content_hash(
         PublicDocument(
             source.url,
             source.title,
@@ -159,9 +186,10 @@ def _exact_houston_project_contact(source: BuyingChainEvidence, project: Project
             observed_at=source.observed_at,
         )
     )
+    return source.content_hash == computed
 
 
-def source_is_identity_bound(
+def supported_contact_facts(
     session: Session,
     source: BuyingChainEvidence,
     *,
@@ -169,15 +197,28 @@ def source_is_identity_bound(
     identity: CompanyIdentity | None,
     project: Project | None,
     retained_context: tuple[Evidence, Observation, Interpretation, Source] | None,
-) -> bool:
-    """Check one current contact/role source against its canonical company ID."""
+    person_name: str | None,
+) -> set[tuple[str, str]]:
+    """Return only exact contact/role facts revalidated by native parsers."""
     if identity is None:
-        return False
-    if _exact_houston_project_contact(source, project):
-        return True
+        return set()
+    if source.project_match_reason.casefold() in _PROJECT_SCOPED_NATIVE_SOURCE_REASONS:
+        if not _exact_houston_project_contact(source, project, organization=organization):
+            return set()
+        fields = dict(re.findall(r"(?m)^([a-z_]+):\s*(.*?)\s*$", source.excerpt))
+        quote = f"detail_buyer_phone: {fields.get('detail_buyer_phone', '')}"
+        return {("permit_listed_contact", quote)} if fields.get("detail_buyer_phone") else set()
     if source.project_match_reason.casefold() in _NATIVE_IDENTITY_SOURCE_REASONS:
-        return _exact_native_rrc_contact(source, identity.rrc_operator_number, organization)
-    return _current_project_native_source(session, source, project, retained_context)
+        quote = _exact_native_rrc_contact(source, identity.rrc_operator_number, organization)
+        return {("public_contact", quote)} if quote else set()
+    return _current_project_native_source(
+        session,
+        source,
+        project,
+        retained_context,
+        organization=organization,
+        person_name=person_name,
+    )
 
 
 def _source_hash_is_current(
@@ -199,12 +240,14 @@ def _source_hash_is_current(
 
 
 def _exact_native_rrc_contact(
-    source: BuyingChainEvidence, operator_number: str | None, organization: str
-) -> bool:
+    source: BuyingChainEvidence,
+    operator_number: str | None,
+    organization: str,
+) -> str | None:
     if not operator_number or not re.fullmatch(r"\d{6}", operator_number):
-        return False
+        return None
     if not _source_hash_is_current(source):
-        return False
+        return None
     lines = [line.strip() for line in source.excerpt.splitlines()]
     if (
         source.project_match_reason.casefold()
@@ -217,7 +260,7 @@ def _exact_native_rrc_contact(
         if source.url != expected_url or not any(
             re.fullmatch(r"Organization\s+Operator\s+Query\s+Results", line, re.I) for line in lines
         ):
-            return False
+            return None
         numbers = re.findall(
             r"^Operator\s*(?:Number|No\.?|#):\s*(\d{6})\s*$",
             source.excerpt,
@@ -229,20 +272,31 @@ def _exact_native_rrc_contact(
             for line in lines
             if re.fullmatch(r"Organization\s+Phone\s+No\.?:\s*[+()0-9 .-]{10,24}", line, re.I)
         ]
-        return (
+        valid = (
             numbers == [operator_number]
             and len(names) == 1
             and _brand_key(names[0]) == _brand_key(organization)
             and len(phones) == 1
+            and re.fullmatch(
+                r"(?:\+?1[ .-]?)?(?:\(?[2-9]\d{2}\)?[ .-]?){2}\d{4}",
+                phones[0].split(":", 1)[1].strip(),
+            )
+            is not None
         )
+        return phones[0] if valid else None
 
     try:
         url = validate_public_url(source.url)
     except ValueError:
-        return False
+        return None
     fields = dict(re.findall(r"(?m)^([^:\r\n]+):\s*(.*?)\s*$", source.excerpt))
-    return (
+    from gridlens.ingestion.adapters.rrc_operator_directory import is_rrc_directory_workbook_url
+
+    valid = (
         (urlsplit(url).hostname or "").casefold() == "www.rrc.texas.gov"
+        and is_rrc_directory_workbook_url(url)
+        and source.title == "RRC Oil & Gas P5 directory organization phone"
+        and re.fullmatch(r"RRC P5 directory worksheet row [1-9]\d*", source.extraction_location)
         and "Oil & Gas P5 directory row" in source.excerpt
         and fields.get("Org Number") == operator_number
         and fields.get("Org Name") is not None
@@ -251,6 +305,7 @@ def _exact_native_rrc_contact(
         and fields.get("Phone") is not None
         and re.fullmatch(r"[0-9a-f]{64}", fields.get("Workbook SHA-256", "")) is not None
     )
+    return f"Phone: {fields['Phone']}" if valid else None
 
 
 def _current_project_native_source(
@@ -258,13 +313,46 @@ def _current_project_native_source(
     source: BuyingChainEvidence,
     project: Project | None,
     retained_context: tuple[Evidence, Observation, Interpretation, Source] | None,
-) -> bool:
+    *,
+    organization: str,
+    person_name: str | None,
+) -> set[tuple[str, str]]:
     if source.retained_evidence_id is None or project is None or retained_context is None:
-        return False
+        return set()
     evidence, observation, interpretation, native_source = retained_context
     from gridlens.intelligence.buying_chain import _retained_evidence_current_for_project
+    from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
 
-    return bool(
+    if source.excerpt != f"{evidence.title}\n{evidence.abstract or ''}":
+        return set()
+    document = PublicDocument(
+        evidence.url,
+        evidence.title,
+        source.excerpt,
+        evidence.published_at,
+        evidence.observed_at,
+        evidence.extraction_location,
+        retained_version=evidence.content_hash,
+    )
+    parsed_claims = extract_retained_permit_organizations(
+        document, native_source.id, project=project
+    )
+    supported = {
+        (str(citation.get("supports")), str(citation.get("quote")))
+        for parsed in parsed_claims
+        if _brand_key(parsed.organization) == _brand_key(organization)
+        and (not person_name or parsed.person_name == person_name)
+        for citation in parsed.citations
+        if citation.get("url") == source.url
+        and citation.get("supports")
+        in {
+            "public_contact",
+            "organization_person_role",
+            "person_project_assignment",
+            "permit_listed_contact",
+        }
+    }
+    current = bool(
         source.project_id == project.id
         and source.url == evidence.url
         and _source_hash_is_current(source, retained_version=evidence.content_hash)
@@ -278,6 +366,9 @@ def _current_project_native_source(
             preloaded=True,
         )
     )
+    if not current:
+        return set()
+    return supported
 
 
 def document_matches_company_identity(
@@ -406,18 +497,22 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                 )
                 if source is None:
                     continue
-                if not source_is_identity_bound(
+                facts = supported_contact_facts(
                     session,
                     source,
                     organization=organization,
                     identity=identities.get(str(company_id)),
                     project=project,
+                    person_name=(
+                        str(candidate.get("person_name")) if candidate.get("person_name") else None
+                    ),
                     retained_context=(
                         retained_contexts.get(source.retained_evidence_id)
                         if source.retained_evidence_id
                         else None
                     ),
-                ):
+                )
+                if (str(support), str(citation.get("quote") or "")) not in facts:
                     continue
                 if source.retained_evidence_id is None and support not in {
                     "public_contact",
