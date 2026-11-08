@@ -192,6 +192,61 @@ def test_company_reuse_changed_inputs_active_dedupe_and_stale_boundary(db, monke
         assert len(session.scalars(select(Job).where(Job.kind == JOB_KIND)).all()) == 3
 
 
+def test_same_name_companies_with_conflicting_stable_ids_keep_separate_jobs(db):
+    from gridlens.intelligence.company_contact_discovery import (
+        JOB_KIND,
+        plan_company_contact_jobs,
+    )
+
+    with db.begin() as session:
+        first = CompanyIdentity(rrc_operator_number="000001")
+        second = CompanyIdentity(rrc_operator_number="000002")
+        session.add_all([first, second])
+        session.flush()
+        _project(session, "same-name-one", company=first)
+        _project(session, "same-name-two", company=second)
+
+        assert plan_company_contact_jobs(session, limit=10) == 2
+        jobs = session.scalars(select(Job).where(Job.kind == JOB_KIND)).all()
+        assert len(jobs) == 2
+        assert {job.target_id for job in jobs} == {first.id, second.id}
+        assert len({json.loads(job.checkpoint)["research_digest"] for job in jobs}) == 2
+
+
+def test_company_suppression_remains_effective_after_contact_job_replay(db):
+    from gridlens.intelligence.company_contact_discovery import plan_company_contact_jobs
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.intelligence.contact_suppressions import (
+        company_suppression_key,
+        record_contact_suppression,
+    )
+
+    with db.begin() as session:
+        company, _projects = _fixture_company(session)
+        key = company_suppression_key(company.id)
+        record_contact_suppression(
+            session,
+            scope="company",
+            subject_key=key,
+            action="suppress",
+            expected_version=0,
+            reason="synthetic privacy regression",
+            actor="test",
+            idempotency_key="company-suppress-1",
+        )
+        assert company_contacts(session, company.id).contacts == []
+        first = plan_company_contact_jobs(session, limit=10)
+        assert first == 1
+        # Durable completed history cannot clear a newer privacy state.
+        job = session.scalar(select(Job).where(Job.kind == "company_contact_discovery"))
+        checkpoint = json.loads(job.checkpoint)
+        checkpoint.update(status="complete", completed_at=datetime.now(UTC).isoformat())
+        job.checkpoint = json.dumps(checkpoint)
+        job.status = "succeeded"
+        assert plan_company_contact_jobs(session, limit=10) == 0
+        assert company_contacts(session, company.id).contacts == []
+
+
 def test_refresh_request_fingerprint_is_stable_across_failed_retries(db):
     from gridlens.intelligence.company_contact_discovery import discover_company_contacts
 

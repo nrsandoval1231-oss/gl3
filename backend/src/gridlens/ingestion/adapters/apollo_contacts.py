@@ -29,7 +29,7 @@ class ApolloContactRequest:
 class ApolloContactResult:
     status: Literal["activation_blocked", "no_result"]
     reason: str
-    contacts: tuple[()] = ()
+    contacts: tuple[object, ...] = ()
 
 
 def enrich_contact(request: ApolloContactRequest) -> ApolloContactResult:

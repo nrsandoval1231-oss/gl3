@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import math
 import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from gridlens.domain.pursuit_research import fingerprint
@@ -30,16 +30,8 @@ class ResearchCandidate:
 
 
 def _missing(need: Any) -> list[str]:
-    result = []
-    for name, value in (
-        ("required_mw", need.required_mw),
-        ("start_window", need.start_window),
-        ("duration", need.duration),
-        ("supply", None if need.supply == "Unknown" else need.supply),
-    ):
-        if not value:
-            result.append(name)
-    return result
+    """Only actionable contact gaps affect company-contact research depth."""
+    return []
 
 
 def _supported_start(value: Any) -> date | None:
@@ -60,14 +52,17 @@ def _supported_start(value: Any) -> date | None:
     return None
 
 
-def _demand_mw(value: Any) -> float | None:
-    """Read explicit MW bounds/values; leave unsupported units and prose unknown."""
+def _demand_mw(value: Any) -> Decimal | None:
+    """Read explicit MW values for explanation only; never infer rental priority."""
     text = str(value or "").strip()
     matches = re.findall(r"(?<![\w.])(\d+(?:\.\d+)?)\s*MW\b", text, re.I)
     if not matches:
         return None
-    values = [value for number in matches if math.isfinite(value := float(number))]
-    return max(values) if values else None
+    try:
+        values = [Decimal(number) for number in matches]
+    except InvalidOperation:
+        return None
+    return max(values) if all(value.is_finite() for value in values) else None
 
 
 def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, Any]:
@@ -80,26 +75,16 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
             "reasons": ["no_active_power_need"],
             "missing_facts": [],
         }
+    # Facility demand, timing and supply are not commercial utility for a
+    # company-contact pass. Contact depth is justified only by observed gaps.
     demand_values = [value for n in needs if (value := _demand_mw(n.required_mw)) is not None]
-    commercial = int(min(20, max(demand_values, default=0) * 2))
+    commercial = 0
     missing = sorted({fact for need in needs for fact in _missing(need)})
     starts = [start for n in needs if (start := _supported_start(n.start_window)) is not None]
     days_to_start = min(((start - now.date()).days for start in starts), default=None)
-    if days_to_start is None or days_to_start < 0:
-        urgency = 0
-    elif days_to_start <= 30:
-        urgency = 18
-    elif days_to_start <= 90:
-        urgency = 12
-    elif days_to_start <= 180:
-        urgency = 6
-    else:
-        urgency = 0
-    # Research priority reflects the value of closing material information
-    # gaps, not the number of rows attached to an account. Count distinct
-    # missing facts once and cap their contribution so a large portfolio
-    # cannot swamp urgency or a supported contact gap.
-    utility = min(20, len(missing) * 5)
+    urgency = 0
+    # Contact research utility is represented once by contact_gap below.
+    utility = 0
     resolvability = 8 if candidate.projects and candidate.source_digest else 0
     cost = -5  # Existing capped public retrieval remains the only planned action.
     freshness = (
@@ -134,8 +119,12 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         f"stable_contact_depth_score:{contact_depth_score}",
         f"bounded_public_research_cost:{cost}",
         f"freshness:{freshness}",
-        f"known_demand_mw:{format(max(demand_values), 'g') if demand_values else 'unknown'}",
-        f"days_to_supported_start:{days_to_start if days_to_start is not None else 'unknown'}",
+        "known_demand_mw:unknown" if not demand_values else "known_demand_mw:observed_not_scored",
+        (
+            "days_to_supported_start:unknown"
+            if days_to_start is None
+            else "days_to_supported_start:observed_not_scored"
+        ),
     ]
     if missing:
         reasons.append("missing_facts:" + ",".join(missing))
