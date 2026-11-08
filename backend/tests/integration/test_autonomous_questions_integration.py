@@ -1774,11 +1774,12 @@ def test_process_restart_after_question_reservation_before_dispatch_is_idempoten
     assert calls == [query]
     with factory() as session:
         question = session.get(PursuitResearchQuestion, question_id)
-        call_after = session.scalar(
+        calls_after = session.scalars(
             select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
-        )
+        ).all()
         after_budgets = session.scalars(select(LogicalCallBudget)).all()
-        assert call_after is not None
+        assert len(calls_after) == 1
+        call_after = calls_after[0]
         assert call_after.id == call_id and call_after.status == "COMPLETED"
         assert len(after_budgets) == len(before_counts)
         after_counts = [
