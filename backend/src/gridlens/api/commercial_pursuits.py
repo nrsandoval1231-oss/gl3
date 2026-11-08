@@ -357,14 +357,21 @@ class _Preload:
         self.contacts: dict[UUID, tuple[ContactSummary | None, str]] = {}
         from gridlens.intelligence.need_aliases import need_alias_members
 
-        self.need_aliases = need_alias_members(session, need_ids)
+        # Current identity is supplementary to saved owner state. Retain an
+        # explicit unknown sentinel on malformed graphs, not an empty mapping:
+        # alias-dependent filtering must fail rather than hide an existing row.
+        self.need_aliases: dict[UUID, tuple[UUID, ...]] | None
+        try:
+            self.need_aliases = need_alias_members(session, need_ids)
+        except NeedAliasError:
+            self.need_aliases = None
         # Resolve the exact account group once for the page. This is supplementary
         # context; an unavailable current snapshot leaves the pursuit list usable.
         from gridlens.intelligence.account_identity import account_identity_for_projects
 
         try:
             account_rows = account_identity_for_projects(session, project_ids)
-        except HTTPException:
+        except (HTTPException, NeedAliasError):
             account_rows = {}
         self.accounts = {
             project_id: (account["id"], account["name"])
@@ -403,14 +410,14 @@ def _view(
         today=today,
     )
     nxt = min(open_tasks, key=lambda t: (t.due_date is None, t.due_date or date.max), default=None)
+    # Emit only verified aliases as supplementary display context. An empty
+    # display list is not proof of no aliases: targeted list lookups below use
+    # the preload's unknown state, and creation still resolves identity strictly.
+    alias_ids = pre.need_aliases.get(row.need_id, ()) if pre.need_aliases is not None else ()
     out = PursuitOut(
         id=row.id,
         need_id=row.need_id,
-        need_alias_ids=[
-            need_id
-            for need_id in pre.need_aliases.get(row.need_id, (row.need_id,))
-            if need_id != row.need_id
-        ],
+        need_alias_ids=[need_id for need_id in alias_ids if need_id != row.need_id],
         project_id=row.project_id,
         account_id=pre.accounts.get(row.project_id, (None, None))[0],
         account_name=pre.accounts.get(row.project_id, (None, None))[1],
@@ -520,6 +527,11 @@ def list_pursuits(
             )
         )
         pre = _Preload(session, rows)
+        if need_id is not None and pre.need_aliases is None:
+            # Even an exact match cannot establish the complete filtered set
+            # when other saved rows may be aliases. Never report a false empty
+            # or incomplete success that a caller could interpret as safe to add.
+            raise HTTPException(409, "Opportunity identity is ambiguous")
         # Free text is projected only for the returned page (below), not for every row.
         views = [_view(session, row, today, detail=False, pre=pre, private=False) for row in rows]
     counts = PursuitCounts(
