@@ -411,13 +411,12 @@ function CommercialBriefSummary({ project }: { project: ProjectResult }) {
     if (!url || !title) continue
     sourceRows.set(`${url}:${source.evidence_id ?? source.date ?? title}`, { title, url, date: source.date })
   }
-  const bestContactDetails = best && (best.authority || best.deliverability)
   return <div className="customer-commercial-brief">
     <div className="customer-brief-claim"><strong>Why now</strong><p>{brief.why_now.text ?? 'Why now is not established from current evidence.'}</p></div>
     {showPowerNeed && <div className="customer-brief-claim"><strong>Power need</strong><p>{powerText}</p>{hasDocumentedAmount && <small>{humanizeBriefStatus(brief.power_need.amount_class)}</small>}{powerLimitations.map((limitation, index) => <small key={`${index}:${limitation}`}>{limitation}</small>)}</div>}
-    {best && <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <><a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>{bestContactDetails && <details className="customer-brief-contact-confidence"><summary>Contact confidence</summary>{best.authority && <small>Authority: {best.authority}</small>}{best.deliverability && <small>Deliverability: {best.deliverability}</small>}</details>}</>}</div>}
+    {best && <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div>}
     <div className="customer-brief-claim"><strong>Next action</strong><p>{brief.next_action.text}</p></div>
-    <details className="customer-brief-sources"><summary>Sources</summary>{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
+    <details className="customer-brief-sources"><summary>Sources</summary>{best?.authority && <p>Contact authority: {best.authority}</p>}{best?.deliverability && <p>Contact deliverability: {best.deliverability}</p>}{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
   </div>
 }
 
