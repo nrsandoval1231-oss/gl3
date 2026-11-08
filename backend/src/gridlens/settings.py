@@ -201,6 +201,9 @@ class Settings(BaseSettings):
     power_need_titles_enabled: bool = False
     autonomous_research_enabled: bool = True
     buying_chain_public_research_enabled: bool = False
+    # Exact-host, dated terms permissions for optional public-page automation.
+    # Empty ships fail closed; reviewed native API adapters keep their own policy.
+    public_research_site_permissions: str = Field(default="[]", max_length=65_536)
     # Enable source-verified public business contact refresh by default. Provider
     # search still requires the independent intelligence ledger authorization.
     company_contact_discovery_enabled: bool = True
