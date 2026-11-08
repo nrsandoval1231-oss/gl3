@@ -186,8 +186,9 @@ export function CanonicalOpportunityDetail(props: Props) {
   const title = company && fullTitle.startsWith(`${company} · `) ? fullTitle.slice(company.length + 3) : fullTitle
   const location = project?.location || item.location || field('location')?.value || null
   const accountSummarySource = item.commercial_reason || item.assessment_reason
+  const commercialBrief = project?.commercial_brief ?? item.commercial_brief ?? null
   const summary = accountFirst
-    ? project && accountSummarySource ? firstSentence(accountSummarySource) : null
+    ? commercialBrief?.why_now.text || (project && accountSummarySource ? firstSentence(accountSummarySource) : null)
     : firstSentence(item.commercial_reason || item.assessment_reason || item.rationale)
   const facilityDemand = field('facility_demand')
   const rawDemand = item.required_mw || facilityDemand?.value
@@ -277,13 +278,19 @@ export function CanonicalOpportunityDetail(props: Props) {
       {(projectError || error) && <p className="cod-status" role="alert">{projectError || error} <button type="button" onClick={retryProject}>Retry</button></p>}
       {associationNotice && <p className="cod-status" role="status">{associationNotice}</p>}
       {projectQualification && <p className="cod-status" role="status">{projectQualification}</p>}
-      {summary && <section className="cod-why" aria-label="Why this project matters"><p>{summary}</p></section>}
-      {project && (item.commercial_next_action || item.next_action) ? <section className="cod-next-action" aria-label="Recommended next action"><Target size={17} aria-hidden="true"/><div><strong>Next step</strong><p>{item.commercial_next_action || item.next_action}</p></div></section> : null}
-      {project && (supportedPower || facilityDemandValue || timing) && <section className="cod-details cod-account-power" aria-label="Supported power and timing">
+      {summary && <section className="cod-why" aria-label="Why this project matters"><p>{summary}</p>{commercialBrief?.why_now.scope && <small>Scope: {commercialBrief.why_now.scope}</small>}{commercialBrief?.why_now.source_date && <small>Source date: {displayDate(commercialBrief.why_now.source_date)}</small>}{commercialBrief?.freshness.status && <small>{commercialBrief.freshness.status}</small>}</section>}
+      {project && (commercialBrief?.next_action.text || item.commercial_next_action || item.next_action) ? <section className="cod-next-action" aria-label="Recommended next action"><Target size={17} aria-hidden="true"/><div><strong>Next step</strong><p>{commercialBrief?.next_action.text || item.commercial_next_action || item.next_action}</p>{commercialBrief?.freshness.status && <small>Evidence status: {commercialBrief.freshness.status}{commercialBrief.freshness.source_date ? ` · source date ${displayDate(commercialBrief.freshness.source_date)}` : ''}</small>}</div></section> : null}
+      {project && commercialBrief?.best_contact && briefContactHref(commercialBrief.best_contact.kind, commercialBrief.best_contact.contact) && <section className="cod-contacts" aria-label="Best contact">
+        <h3><UserRound size={14} aria-hidden="true"/>Best contact</h3>
+        <p><a href={briefContactHref(commercialBrief.best_contact.kind, commercialBrief.best_contact.contact)!}>{commercialBrief.best_contact.kind === 'call' ? 'Call' : commercialBrief.best_contact.kind === 'email' ? 'Email' : 'Contact'} {commercialBrief.best_contact.contact}</a></p>
+        <p className="cod-contact-missing">Authority: {commercialBrief.best_contact.authority}. Deliverability: {commercialBrief.best_contact.deliverability}.</p>
+      </section>}
+      {project && (commercialBrief || supportedPower || facilityDemandValue || timing) && <section className="cod-details cod-account-power" aria-label="Supported power and timing">
         <h3>Project scope</h3>
-        <dl>{supportedPower && <div><dt>Activity-specific power need</dt><dd>{supportedPower}</dd></div>}
-          {!supportedPower && facilityDemandValue && <div><dt>Facility demand · source reported</dt><dd>{facilityDemandValue}{facilityDemand?.status ? ` · ${facilityDemand.status}` : ''}</dd></div>}
+        <dl>{commercialBrief ? <div><dt>Power need</dt><dd>{commercialBrief.power_need.amount_class === 'unknown' || !commercialBrief.power_need.value ? 'Power need unknown' : `${commercialBrief.power_need.value}${commercialBrief.power_need.unit ? ` ${commercialBrief.power_need.unit}` : ''}${commercialBrief.power_need.scope ? ` · ${commercialBrief.power_need.scope}` : ''}`}<small>{commercialBrief.power_need.status}{commercialBrief.power_need.limitations.length ? ` · ${commercialBrief.power_need.limitations.join('; ')}` : ''}</small></dd></div> : supportedPower && <div><dt>Activity-specific power need</dt><dd>{supportedPower}</dd></div>}
+          {!commercialBrief && !supportedPower && facilityDemandValue && <div><dt>Facility demand · source reported</dt><dd>{facilityDemandValue}{facilityDemand?.status ? ` · ${facilityDemand.status}` : ''}</dd></div>}
           {timing && <div><dt>Power timing</dt><dd>{timing}</dd></div>}
+          {commercialBrief?.freshness && <div><dt>Freshness</dt><dd>{commercialBrief.freshness.status}{commercialBrief.freshness.as_of ? ` · checked ${displayDate(commercialBrief.freshness.as_of)}` : ''}</dd></div>}
         </dl>
       </section>}
       {project && <section className="cod-contacts" aria-label="Project contact">
@@ -453,6 +460,15 @@ function safeSourceUrl(value: string | null | undefined): string | null {
   } catch { return null }
 }
 
+/** Only render contact routes that match their declared channel. */
+function briefContactHref(kind: string, value: string): string | null {
+  const contact = value.trim()
+  if (kind === 'call' && /^[+()\d][\d\s().-]{5,}$/.test(contact) && (contact.match(/\d/g)?.length ?? 0) >= 7) return `tel:${contact.replace(/[^+\d]/g, '')}`
+  if (kind === 'email' && STRICT_EMAIL.test(contact)) return `mailto:${contact}`
+  if (kind === 'contact') return safeSourceUrl(contact)
+  return null
+}
+
 /** Plain address only: no `%`, `?`, `&`, `=`, separators, whitespace, quotes or angle brackets, so a mailto: href cannot carry headers or encoded line breaks. */
 const STRICT_EMAIL = /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/
 
@@ -531,6 +547,7 @@ function accountDetailSources(
     title?: string | null
     url?: string | null
     source_date?: string | null
+    date?: string | null
     published_at?: string | null
     event_date?: string | null
     assessment_current?: boolean | null
@@ -542,7 +559,7 @@ function accountDetailSources(
     const title = source.title?.trim()
     if (!title) return
     const url = safeSourceUrl(source.url)
-    const date = source.event_date || source.source_date || source.published_at || null
+    const date = source.event_date || source.source_date || source.date || source.published_at || null
     const status = source.assessment_current === true
       ? 'Current support'
       : source.assessment_current === false
@@ -569,6 +586,14 @@ function accountDetailSources(
   for (const contact of item.intelligence_card?.contacts ?? []) {
     for (const source of contact.sources ?? []) add(source)
   }
+  const brief = project?.commercial_brief ?? item.commercial_brief
+  const addBriefSource = (source: NonNullable<typeof brief>['sources'][number]) => {
+    const url = safeSourceUrl(source.url)
+    if (!url || ![...sources.values()].some(existing => existing.url === url)) add(source)
+  }
+  for (const source of brief?.sources ?? []) addBriefSource(source)
+  for (const source of brief?.why_now.sources ?? []) addBriefSource(source)
+  for (const source of brief?.best_contact?.sources ?? []) addBriefSource(source)
   if (project?.event?.source) {
     add({
       reference: `project-event:${project.event.kind}:${project.event.date ?? ''}`,

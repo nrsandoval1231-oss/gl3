@@ -44,6 +44,16 @@ function fixtureProject(id: string, needId: string, name: string) {
     contact_people: [],
     power_summary: 'Source-reported facility demand of 840 MW',
     power_summary_kind: 'facility_demand',
+    commercial_brief: {
+      version: 'synthetic-v1',
+      why_now: { text: `Synthetic ${name} construction activity is planned.`, source_date: '2026-10-18', scope: 'This project only', sources: [{ title: 'Synthetic construction notice', url: sources[0].url, evidence_id: 'fixture-e-current', date: '2026-10-18' }] },
+      power_need: { amount_class: 'unknown', scope: 'Temporary rental requirement', value: null, unit: null, status: 'Not established', limitations: ['Facility demand is not a rental requirement.'] },
+      best_contact: { contact: 'Unsafe route', kind: 'contact', route_kind: 'company_route', authority: 'Unknown', deliverability: 'Unknown', sources: [] },
+      next_action: { text: `Confirm ${name} scope from sources.`, kind: 'review', source: null },
+      freshness: { as_of: '2026-10-21T00:00:00Z', status: 'Current source support', source_date: '2026-10-18' },
+      limitations: ['Synthetic fixture only.'],
+      sources: [{ title: 'Synthetic construction notice', url: sources[0].url, evidence_id: 'fixture-e-current', date: '2026-10-18' }],
+    },
     next_action: 'Confirm the equipment package and timing from current sources.',
     shortlist_assessment: { eligible: true, reasons: [], evidence_refs: [], why_now: 'Synthetic construction is planned at this site.', next_step: 'Confirm the temporary power scope.' },
     updated_at: null,
@@ -181,8 +191,10 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   await expect(detail.getByRole('heading', { name: 'Synthetic Compressor Station', exact: true })).toBeVisible()
   await expect(detail.getByRole('button', { name: '← Back to account' })).toBeVisible()
   await expect(detail.getByText(/Current evidence is conflicting/)).toBeVisible()
-  await expect(detail.getByText('Facility demand · source reported')).toBeVisible()
-  await expect(detail.getByText('840 MW · Source-reported')).toBeVisible()
+  await expect(detail.getByText('Power need unknown')).toBeVisible()
+  await expect(detail.getByText(/Facility demand is not a rental requirement/)).toBeVisible()
+  await expect(detail.getByText(/Synthetic Synthetic Compressor Station construction activity is planned/)).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Unsafe route' })).toHaveCount(0)
   await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toHaveAttribute('href', 'tel:+15555550111')
   await expect(detail.getByRole('link', { name: 'Email jordan@synthetic.example.test' })).toHaveAttribute('href', 'mailto:jordan@synthetic.example.test')
   await expect(detail.getByRole('link', { name: /bad%0d%0a|Injected contact|Unsafe contact page/ })).toHaveCount(0)
@@ -193,7 +205,8 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   const sourcesDisclosure = detail.locator('details.cod-account-sources')
   await expect(sourcesDisclosure).toBeVisible()
   await expect(sourcesDisclosure).not.toHaveAttribute('open', '')
-  await expect(sourcesDisclosure.getByText('Synthetic construction notice')).not.toBeVisible()
+  await expect(sourcesDisclosure.getByText('Synthetic construction notice').first()).not.toBeVisible()
+  await expect(detail.getByText(/Confirm Synthetic Compressor Station scope from sources/)).toBeVisible()
   await expect(detail.getByRole('button', { name: 'Add to Pursuit' })).toBeVisible()
   expect(mutations()).toBe(0)
 
@@ -222,10 +235,12 @@ test('switching a delayed project never leaves the previous project contact visi
   await account.locator(`[data-project-id="${secondProject.project_id}"]`).getByRole('button', { name: /Open project detail/ }).click()
   const loadingDetail = page.getByRole('complementary', { name: 'Opportunity detail' })
   await expect(loadingDetail).toContainText('Loading verified opportunity detail')
+  await expect(loadingDetail.getByText(/Synthetic Compressor Station construction activity is planned/)).toHaveCount(0)
   await expect(loadingDetail.getByText('Jordan Fixture')).toHaveCount(0)
   await expect(loadingDetail.getByRole('link', { name: 'Call +15555550111' })).toHaveCount(0)
   releaseSecondNeed()
   await expect(loadingDetail.getByRole('heading', { name: 'Synthetic Processing Site', exact: true })).toBeVisible()
+  await expect(loadingDetail.getByText(/Synthetic Synthetic Processing Site construction activity is planned/)).toBeVisible()
   await expect(loadingDetail.getByRole('link', { name: 'Call +15555550222' })).toBeVisible()
   await expect(loadingDetail.getByText('Jordan Fixture')).toHaveCount(0)
 })

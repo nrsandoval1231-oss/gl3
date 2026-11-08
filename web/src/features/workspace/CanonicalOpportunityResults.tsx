@@ -216,22 +216,39 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     {visiblePage && <div className="cfr-table-wrap"><table className="cfr-table" role="table"><thead className="cfr-thead"><tr role="row"><th>What</th><th>Why now</th><th>Power need</th><th>Next step</th><th>Actions</th></tr></thead><tbody>{visible.map(item => {
       const primaryNeedId = item.representative_need_id ?? item.needs[0]?.id
       const selected = selectedNeedId && item.needs.some(need => need.id === selectedNeedId)
+      const brief = item.commercial_brief ?? item.needs.find(need => need.id === primaryNeedId)?.commercial_brief ?? null
       const powerKind = item.power_summary_kind ?? 'unknown'
       const powerText = item.power_summary?.trim()
-      const powerLabel = powerText && (powerKind === 'facility_demand' || powerKind === 'activity_requirement')
-        ? `${powerKind === 'facility_demand' ? 'Facility demand' : 'Power need'} · ${powerText}`
-        : 'Power need unknown'
+      const briefPower = brief?.power_need
+      const powerLabel = brief
+        ? briefPower?.amount_class !== 'unknown' && briefPower?.value?.trim()
+          ? `${briefPower.value}${briefPower.unit ? ` ${briefPower.unit}` : ''}${briefPower.scope ? ` · ${briefPower.scope}` : ''}`
+          : 'Power need unknown'
+        : powerText && (powerKind === 'facility_demand' || powerKind === 'activity_requirement')
+          ? `${powerKind === 'facility_demand' ? 'Facility demand' : 'Power need'} · ${powerText}`
+          : 'Power need unknown'
       const assessment = item.shortlist_assessment
       return <tr role="row" key={item.id} aria-selected={selected ? true : undefined} className={selected ? 'cfr-selected' : undefined}>
         <td role="cell" data-label="What" className="cfr-c-project"><span className="cfr-company-project">{item.company && <strong>{item.company}</strong>}<button type="button" data-need-row={primaryNeedId} onClick={() => primaryNeedId && onNeed({ id: primaryNeedId })} disabled={!canInteract || !primaryNeedId}>{cardProjectName(item)}</button>{item.location && <small>{item.location}</small>}</span></td>
-        <td role="cell" data-label="Why now" className="cfr-card-why">{assessment?.why_now ?? (item.event?.date && item.event.label ? `${item.event.label} · ${item.event.date}` : 'No dated development established.')}</td>
-        <td role="cell" data-label="Power need" className="cfr-power">{powerLabel}</td>
-        <td role="cell" data-label="Next step" className="cfr-card-next">{assessment?.next_step ?? (!shortlist ? item.next_action : null) ?? 'Confirm project scope and timing from sources.'}</td>
-        <td role="cell" className="cfr-card-action">{primaryNeedId && <AddToPursuit key={primaryNeedId} needId={primaryNeedId} disabled={!canInteract} deferLookup/>}</td>
+        <td role="cell" data-label="Why now" className="cfr-card-why">{brief?.why_now.text ?? assessment?.why_now ?? (item.event?.date && item.event.label ? `${item.event.label} · ${item.event.date}` : 'No dated development established.')}{brief?.why_now.scope && <small>Scope: {brief.why_now.scope}</small>}{brief?.why_now.source_date && <small>Source date: {brief.why_now.source_date}</small>}</td>
+        <td role="cell" data-label="Power need" className="cfr-power">{powerLabel}{briefPower && <small>{briefPower.amount_class === 'unknown' ? 'Amount unknown' : `${briefPower.amount_class} · ${briefPower.status}`}{briefPower.limitations.length > 0 && ` · ${briefPower.limitations.join('; ')}`}</small>}</td>
+        <td role="cell" data-label="Next step" className="cfr-card-next">{brief?.next_action.text ?? assessment?.next_step ?? (!shortlist ? item.next_action : null) ?? 'Confirm project scope and timing from sources.'}{brief?.freshness.status && <small>{brief.freshness.status}{brief.freshness.source_date ? ` · source date ${brief.freshness.source_date}` : ''}</small>}</td>
+        <td role="cell" className="cfr-card-action">{brief?.best_contact && safeBriefContactHref(brief.best_contact.kind, brief.best_contact.contact) && <a className="cfr-contact-route" aria-label={`Best contact ${brief.best_contact.contact}. Authority: ${brief.best_contact.authority}. Deliverability: ${brief.best_contact.deliverability}.`} href={safeBriefContactHref(brief.best_contact.kind, brief.best_contact.contact)!}>Best contact · {brief.best_contact.contact}<small>Authority: {brief.best_contact.authority} · Deliverability: {brief.best_contact.deliverability}</small></a>}{primaryNeedId && <AddToPursuit key={primaryNeedId} needId={primaryNeedId} disabled={!canInteract} deferLookup/>}</td>
       </tr>
     })}</tbody></table></div>}
     {visiblePage && <footer className="cfr-paging"><span>{visiblePage.items.length ? `${visiblePage.offset + 1}–${visiblePage.offset + visiblePage.items.length} of ${projectCount(visiblePage.total)}` : visiblePage.total ? `0 projects on this page · ${projectCount(visiblePage.total)} total` : '0 projects'}{(region || stage || priority) && ` · ${visible.length} of ${visiblePage.items.length} projects on this page match filters`}</span><button type="button" disabled={!canInteract || offset === 0} onClick={() => { const next = Math.max(0, offset - visiblePage.limit); onBrowseChangeRef.current?.(); setOffset(next); updateUrl(search, sector, next, sort, shortlist, visiblePage.cohort_token, false, { region, stage, priority }) }}>Previous</button><button type="button" disabled={!canInteract || offset + visiblePage.items.length >= visiblePage.total} onClick={() => { const next = offset + visiblePage.limit; onBrowseChangeRef.current?.(); setOffset(next); updateUrl(search, sector, next, sort, shortlist, visiblePage.cohort_token, false, { region, stage, priority }) }}>Next</button></footer>}
   </section>
+}
+
+const STRICT_EMAIL = /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/
+function safeBriefContactHref(kind: string, value: string): string | null {
+  const contact = value.trim()
+  if (kind === 'call' && /^[+()\d][\d\s().-]{5,}$/.test(contact) && (contact.match(/\d/g)?.length ?? 0) >= 7) return `tel:${contact.replace(/[^+\d]/g, '')}`
+  if (kind === 'email' && STRICT_EMAIL.test(contact)) return `mailto:${contact}`
+  if (kind === 'contact') {
+    try { const url = new URL(contact); return ['https:', 'http:'].includes(url.protocol) ? url.href : null } catch { return null }
+  }
+  return null
 }
 
 /** Show the sector demand summary while preserving unknown and unavailable states. */
