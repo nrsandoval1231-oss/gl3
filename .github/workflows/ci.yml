@@ -367,6 +367,79 @@ jobs:
           TYPESAFE_API_KEY: ""
           BRIEFS_DAILY_REQUEST_LIMIT: "0"
           PURSUITS_DAILY_MODEL_LIMIT: "0"
+      - name: Source-backed phase 2 commercial brief browser journey
+        run: |
+          set -euo pipefail
+          docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gl3_phase2_browser_fixture_test'
+          docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gl3_phase2_browser_backend_test'
+          export DATABASE_URL="postgresql+psycopg://gridlens:${POSTGRES_PASSWORD}@127.0.0.1:5432/gl3_phase2_browser_fixture_test"
+          export TEST_DATABASE_URL="postgresql+psycopg://gridlens:${POSTGRES_PASSWORD}@127.0.0.1:5432/gl3_phase2_browser_backend_test"
+          export GRIDLENS_PHASE2_MANIFEST="${RUNNER_TEMP}/phase2-browser-manifest.json"
+          export GRIDLENS_TEST_PASSWORD="${GRIDLENS_TEST_PASSWORD}"
+          export GRIDLENS_API_PORT=8152
+          export GRIDLENS_WEB_PORT=5179
+          export TRUSTED_ORIGINS=http://127.0.0.1:5179
+          export COOKIE_SECURE=false
+          export WORKER_AUTO_REFRESH=false
+          export OPENAI_API_KEY=""
+          export TYPESAFE_API_KEY=""
+          export FIRECRAWL_API_KEY=""
+          export INTELLIGENCE_ENABLED=false
+          export INTELLIGENCE_MODE=disabled
+          export INTELLIGENCE_MAX_CALL_USD=0
+          export INTELLIGENCE_GLOBAL_MONTHLY_CALLS=0
+          export INTELLIGENCE_GLOBAL_MONTHLY_USD=0
+          export INTELLIGENCE_PROVIDER_MONTHLY_CALLS=0
+          export INTELLIGENCE_PROVIDER_MONTHLY_USD=0
+          export INTELLIGENCE_MODEL_DAILY_CALLS=0
+          export INTELLIGENCE_MODEL_MONTHLY_CALLS=0
+          export INTELLIGENCE_MODEL_DAILY_USD=0
+          export INTELLIGENCE_MODEL_MONTHLY_USD=0
+          export INTELLIGENCE_OCR_MAX_CALL_USD=0
+          export INTELLIGENCE_FINANCIAL_BUDGET_MODE=finite
+          export INTELLIGENCE_SOURCE_MONTHLY_CALLS=0
+          export INTELLIGENCE_SOURCE_MONTHLY_USD=0
+          export INTELLIGENCE_PROJECT_MONTHLY_CALLS=0
+          export INTELLIGENCE_PROJECT_MONTHLY_USD=0
+          export BRIEFS_DAILY_REQUEST_LIMIT=0
+          export PURSUITS_DAILY_MODEL_LIMIT=0
+          export AUTONOMOUS_RESEARCH_MAX_COST_USD=0
+          (cd backend && uv run alembic upgrade head)
+          uv run --project backend python scripts/phase2_metrics.py seed-browser \
+            --database gl3_phase2_browser_fixture_test \
+            --manifest-output "${GRIDLENS_PHASE2_MANIFEST}" \
+            --source-root "${GITHUB_WORKSPACE}/backend/src"
+          mkdir -p "${RUNNER_TEMP}/phase2-playwright"
+          (cd web && npx playwright test -c playwright.phase2.config.ts --output "${RUNNER_TEMP}/phase2-playwright")
+        env:
+          COOKIE_SECURE: "false"
+          WORKER_AUTO_REFRESH: "false"
+          OPENAI_API_KEY: ""
+          TYPESAFE_API_KEY: ""
+          FIRECRAWL_API_KEY: ""
+          INTELLIGENCE_ENABLED: "false"
+          INTELLIGENCE_MODE: "disabled"
+          INTELLIGENCE_MAX_CALL_USD: "0"
+          INTELLIGENCE_GLOBAL_MONTHLY_CALLS: "0"
+          INTELLIGENCE_GLOBAL_MONTHLY_USD: "0"
+          INTELLIGENCE_PROVIDER_MONTHLY_CALLS: "0"
+          INTELLIGENCE_PROVIDER_MONTHLY_USD: "0"
+          INTELLIGENCE_MODEL_DAILY_CALLS: "0"
+          INTELLIGENCE_MODEL_MONTHLY_CALLS: "0"
+          INTELLIGENCE_MODEL_DAILY_USD: "0"
+          INTELLIGENCE_MODEL_MONTHLY_USD: "0"
+          INTELLIGENCE_OCR_MAX_CALL_USD: "0"
+          INTELLIGENCE_FINANCIAL_BUDGET_MODE: finite
+          INTELLIGENCE_SOURCE_MONTHLY_CALLS: "0"
+          INTELLIGENCE_SOURCE_MONTHLY_USD: "0"
+          INTELLIGENCE_PROJECT_MONTHLY_CALLS: "0"
+          INTELLIGENCE_PROJECT_MONTHLY_USD: "0"
+          BRIEFS_DAILY_REQUEST_LIMIT: "0"
+          PURSUITS_DAILY_MODEL_LIMIT: "0"
+          AUTONOMOUS_RESEARCH_MAX_COST_USD: "0"
+          GRIDLENS_API_PORT: "8152"
+          GRIDLENS_WEB_PORT: "5179"
+          TRUSTED_ORIGINS: http://127.0.0.1:5179
       - name: Retain synthetic acceptance screenshots and measurements
         if: success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -376,6 +449,9 @@ jobs:
             ${{ runner.temp }}/pursuits-playwright/**/screenshots/*.png
             ${{ runner.temp }}/pursuits-playwright/performance.json
             ${{ runner.temp }}/rollup-scale-playwright/customer-rollup-report.json
+            ${{ runner.temp }}/phase2-playwright/**/phase2-viewports/*.png
+            ${{ runner.temp }}/phase2-playwright/**/phase2-read-latency.json
+            ${{ runner.temp }}/phase2-playwright/**/attachments/**
           retention-days: 7
           if-no-files-found: error
       - name: Retain browser failure diagnostics
@@ -388,6 +464,8 @@ jobs:
             web/test-results/
             ${{ runner.temp }}/rollup-scale-playwright/
             ${{ runner.temp }}/pursuits-playwright/
+            ${{ runner.temp }}/phase2-playwright/
+            ${{ runner.temp }}/phase2-browser-manifest.json
           retention-days: 7
           if-no-files-found: ignore
 
