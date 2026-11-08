@@ -4,6 +4,7 @@ const apiPort = process.env.GRIDLENS_API_PORT ?? '8000'
 const webPort = process.env.GRIDLENS_WEB_PORT ?? '5173'
 const liveAcceptance = ['**/first_path.spec.ts']
 const commercialRealCases = ['**/commercial_real_cases.spec.ts']
+const phase2RealCases = ['**/phase2_commercial_brief.spec.ts']
 
 export default defineConfig({
   testDir: './tests',
@@ -17,7 +18,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['line'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1280, height: 900 }, locale: 'en-US', timezoneId: 'UTC', trace: 'retain-on-failure' },
   projects: [
-    { name: 'regression', testIgnore: [...liveAcceptance, ...commercialRealCases] },
+    { name: 'regression', testIgnore: [...liveAcceptance, ...commercialRealCases, ...phase2RealCases] },
     // These checks require retained real-source records and an active worker.
     { name: 'live-acceptance', testMatch: liveAcceptance },
     // Read-only checks for persisted source-backed commercial case manifests.

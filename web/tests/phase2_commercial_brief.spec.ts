@@ -76,6 +76,8 @@ test('source-backed disposable account brief survives responsive navigation and 
   for (const href of await sourceLinks.evaluateAll(links => links.map(link => (link as HTMLAnchorElement).href))) {
     expect(new URL(href).protocol).toMatch(/^https?:$/)
   }
+  await sourceDisclosure.locator('summary').click()
+  await expect(sourceDisclosure).not.toHaveAttribute('open', '')
   expect(manifest.expected.power_amount_class).toBeTruthy()
   expect(manifest.expected.power_scope).toBeTruthy()
   await expect(brief).toContainText(manifest.expected.power_scope)
@@ -100,7 +102,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   await account.getByRole('button', { name: /Choose opportunity|View account details/ }).click()
   await expect(page).toHaveURL(new RegExp(`[?&]account=${escapeRegExp(manifest.account.group_id)}(?:&|$)`))
   const detail = page.locator('.cod-account-first-detail')
-  for (const projectId of manifest.account.project_ids) await expect(detail).toContainText(projectId)
+  for (const projectName of manifest.account.project_names) await expect(detail).toContainText(projectName)
   await page.goBack()
   await expect(page).toHaveURL(/groupBrowse=1/)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue(manifest.account.name)

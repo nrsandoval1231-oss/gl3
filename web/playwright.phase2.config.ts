@@ -30,6 +30,7 @@ export default defineConfig({
       port: Number(webPort),
       reuseExistingServer: false,
       timeout: 60_000,
+      env: { ...process.env, GRIDLENS_API_PORT: apiPort, GRIDLENS_WEB_PORT: webPort },
     },
   ],
 })
