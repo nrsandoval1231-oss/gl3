@@ -156,15 +156,20 @@ test('account cards prefer an optional brief, keep abstained claims withheld, an
   await expect(card.getByText('Why now is not established from current evidence.')).toBeVisible()
   await expect(card.getByText('Synthetic construction activity is planned.')).toHaveCount(0)
   await expect(card.getByText('Temporary package', { exact: true })).toBeVisible()
-  await expect(card.getByText('Amount unknown; not zero.', { exact: true })).toBeVisible()
+  await expect(card.getByText('Amount unknown; not zero.', { exact: true })).toHaveCount(0)
   await expect(card.getByText(/unknown is not zero/)).toHaveCount(0)
   await expect(card.getByText(/40 MW figure is campus nameplate and does not establish rental load/)).toBeVisible()
   await expect(card.getByRole('link', { name: /Call Jordan Fixture/ })).toHaveAttribute('href', 'tel:+15125550123')
-  await expect(card.getByText(/Authority: Unknown; confirm for this need/)).toBeVisible()
+  const contactConfidence = card.locator('details.customer-brief-contact-confidence')
+  await expect(contactConfidence).not.toHaveAttribute('open', '')
+  await expect(contactConfidence.getByText(/Authority: Unknown; confirm for this need/)).toBeHidden()
+  await contactConfidence.locator('summary').click()
+  await expect(contactConfidence.getByText(/Authority: Unknown; confirm for this need/)).toBeVisible()
   await expect(card.getByText(brief.next_action.text, { exact: true })).toBeVisible()
-  await expect(card.getByText('Current Source', { exact: true })).toBeVisible()
+  await expect(card.getByText('Current Source', { exact: true })).toHaveCount(0)
   const sources = card.locator('details.customer-brief-sources')
   await expect(sources).not.toHaveAttribute('open', '')
+  await expect(sources.locator('summary')).toHaveText('Sources')
   await expect(sources.getByRole('link', { name: 'Synthetic accepted source' })).toHaveCount(0)
   await sources.locator('summary').click()
   await expect(sources.getByRole('link', { name: 'Synthetic accepted source' })).toHaveAttribute('href', 'https://example.invalid/synthetic-source')
@@ -187,8 +192,47 @@ test('a brief with no best contact does not repeat an unavailable-contact block 
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
   const card = page.getByRole('region', { name: /Northstar Compute customer group/ })
   await expect(card.locator('[aria-label="Best contact"]')).toHaveCount(0)
+  await expect(card.locator('.customer-brief-claim').filter({ hasText: 'Power need' })).toHaveCount(0)
   await expect(card.getByText('Suppressed Contact')).toHaveCount(0)
   await expect(card.getByText(brief.next_action.text, { exact: true })).toBeVisible()
+})
+
+test('account cards use only the exact representative need contact when the project brief omits it', async ({ page }) => {
+  const brief = {
+    version: 'synthetic-v1',
+    why_now: { text: 'A synthetic retained source documents the representative project milestone.', source_date: null, scope: null, sources: [] },
+    power_need: { amount_class: 'unknown' as const, scope: null, value: null, unit: null, status: 'unknown', limitations: [] },
+    best_contact: null,
+    next_action: { text: 'Review the retained project source before deciding on follow-up.', kind: 'review_source', source: null },
+    freshness: { as_of: null, status: 'unknown', source_date: null },
+    limitations: [],
+    sources: [],
+  }
+  const makeContact = (contact: string, href: string) => ({
+    contact, href, kind: 'call' as const, route_kind: 'person_method' as const,
+    authority: 'Unknown; confirm for this need.', deliverability: 'Unverified public route.', sources: [],
+  })
+  const representativeNeed = { ...project(1).needs[0], commercial_brief: { ...brief, best_contact: makeContact('Jordan Representative', 'tel:+15125550124') } }
+  const otherNeed = { ...project(2).needs[0], commercial_brief: { ...brief, best_contact: makeContact('Wrong Other Need', 'tel:+15125550125') } }
+  const featured = {
+    ...project(1), commercial_brief: brief, representative_need_id: representativeNeed.id,
+    needs: [representativeNeed, otherNeed],
+  }
+  const noExactRepresentative = {
+    ...project(2), commercial_brief: brief, representative_need_id: 'need-does-not-exist',
+    needs: [otherNeed],
+  }
+  const groups = [
+    { ...accountGroup(), featured_project: featured },
+    { ...accountGroup('cg_other_operator', 'Other Operator'), featured_project: noExactRepresentative },
+  ]
+  await installAccountFirst(page, { groups })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
+  const primaryCard = page.getByRole('region', { name: /Northstar Compute customer group/ })
+  await expect(primaryCard.getByRole('link', { name: /Call Jordan Representative/ })).toHaveAttribute('href', 'tel:+15125550124')
+  await expect(primaryCard.getByRole('link', { name: /Wrong Other Need/ })).toHaveCount(0)
+  const noMatchCard = page.getByRole('region', { name: /Other Operator customer group/ })
+  await expect(noMatchCard.locator('[aria-label="Best contact"]')).toHaveCount(0)
 })
 
 test('legacy company UUID links resolve to the canonical account and reload in the shared detail', async ({ page }) => {

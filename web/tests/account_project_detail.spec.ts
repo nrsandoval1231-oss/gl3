@@ -131,7 +131,7 @@ const group = {
 }
 const projectPage = { items: [firstProject, secondProject], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic-child-cohort', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' }
 
-async function install(page: Page, options: { delaySecondNeed?: () => Promise<void>; delayNeedRead?: (needId: string, count: number) => Promise<void>; projectValidUntil?: string[]; onProjectRead?: () => void; onNeedRead?: (needId: string, count: number) => void; suppressContacts?: () => boolean } = {}) {
+async function install(page: Page, options: { delaySecondNeed?: () => Promise<void>; delayNeedRead?: (needId: string, count: number) => Promise<void>; projectValidUntil?: string[]; onProjectRead?: () => void; onNeedRead?: (needId: string, count: number) => void; suppressContacts?: () => boolean; needCommercialBrief?: boolean } = {}) {
   let mutations = 0
   let projectReadCount = 0
   const needReadCounts: Record<string, number> = {}
@@ -150,6 +150,11 @@ async function install(page: Page, options: { delaySecondNeed?: () => Promise<vo
       await options.delayNeedRead?.('need-synthetic-one', count)
       const value = structuredClone(needs['need-synthetic-one'])
       if (options.suppressContacts?.()) value.intelligence_card.contacts = []
+      if (options.needCommercialBrief) Object.assign(value, { commercial_brief: {
+        ...firstProject.commercial_brief,
+        why_now: { ...firstProject.commercial_brief.why_now, text: 'This selected need has its own source-bound commissioning milestone.' },
+        best_contact: { ...firstProject.commercial_brief.best_contact, contact: 'Need-Specific Jordan', href: 'tel:+15555550113' },
+      } })
       return route.fulfill({ json: value })
     }
     if (url.pathname === '/api/opportunities/needs/need-synthetic-two') {
@@ -191,14 +196,19 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   await expect(detail.getByRole('heading', { name: 'Synthetic Compressor Station', exact: true })).toBeVisible()
   await expect(detail.getByRole('button', { name: '← Back to account' })).toBeVisible()
   await expect(detail.getByText(/Current evidence is conflicting/)).toBeVisible()
-  await expect(detail.getByText('Power need unknown')).toBeVisible()
+  await expect(detail.locator('.cod-account-power')).toContainText('Temporary rental requirement')
+  await expect(detail.getByText(/Amount unknown|unknown is not zero/)).toHaveCount(0)
   await expect(detail.getByText(/Facility demand is not a rental requirement/)).toBeVisible()
   await expect(detail.getByText('Why now is not established from current evidence.')).toBeVisible()
   await expect(detail.getByText(/Synthetic construction is planned at this site/)).toHaveCount(0)
   await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveAttribute('href', 'tel:+15555550111')
-  await expect(detail).toContainText('Current Source')
+  await expect(detail).not.toContainText('Current Source')
   await expect(detail).not.toContainText('current_source')
-  await expect(detail.getByText('Authority: Requires confirmation for this project. Deliverability: Not established.')).toBeVisible()
+  const contactConfidence = detail.locator('details.cod-contact-confidence')
+  await expect(contactConfidence).not.toHaveAttribute('open', '')
+  await expect(contactConfidence.getByText('Authority: Requires confirmation for this project. Deliverability: Not established.')).toBeHidden()
+  await contactConfidence.locator('summary').click()
+  await expect(contactConfidence.getByText('Authority: Requires confirmation for this project. Deliverability: Not established.')).toBeVisible()
   await expect(detail.getByRole('link', { name: 'Email jordan@synthetic.example.test' })).toHaveCount(0)
   await expect(detail.getByRole('link', { name: /bad%0d%0a|Injected contact|Unsafe contact page/ })).toHaveCount(0)
   await expect(detail.getByRole('button', { name: /Lead|Signal/ })).toHaveCount(0)
@@ -208,6 +218,7 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   const sourcesDisclosure = detail.locator('details.cod-account-sources')
   await expect(sourcesDisclosure).toBeVisible()
   await expect(sourcesDisclosure).not.toHaveAttribute('open', '')
+  await expect(sourcesDisclosure.locator('summary')).toHaveText('Sources')
   await expect(sourcesDisclosure.getByText('Synthetic construction notice').first()).not.toBeVisible()
   await expect(detail.getByText(/Confirm Synthetic Compressor Station scope from sources/)).toBeVisible()
   await expect(detail.getByRole('button', { name: 'Add to Pursuit' })).toBeVisible()
@@ -223,6 +234,18 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   await detail.getByRole('button', { name: '← Back to account' }).click()
   await expect(page.getByRole('region', { name: `Company ${company}` })).toBeVisible()
   expect(mutations()).toBe(0)
+})
+
+test('selected need brief takes precedence over its project summary in account detail', async ({ page }) => {
+  await install(page, { needCommercialBrief: true })
+  await page.goto('/?view=workspace&groupBrowse=1')
+  await page.getByRole('button', { name: /Synthetic Grid Operator/ }).click()
+  const account = page.getByRole('region', { name: `Company ${company}` })
+  await account.getByRole('button', { name: /Open project detail/ }).first().click()
+  const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
+  await expect(detail).toContainText('This selected need has its own source-bound commissioning milestone.')
+  await expect(detail.getByRole('link', { name: 'Call Need-Specific Jordan' })).toHaveAttribute('href', 'tel:+15555550113')
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveCount(0)
 })
 
 test('switching a delayed project never leaves the previous project contact visible', async ({ page }) => {
@@ -312,7 +335,7 @@ test('expiry requires a fresh exact need and project projection before contacts 
   await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveCount(0)
   await expect(detail.getByText('Jordan Fixture')).toHaveCount(0)
   releaseNeedRefresh()
-  await expect(detail.getByText('No permitted contact route is available in current evidence.')).toBeVisible()
+  await expect(detail.locator('[aria-label="Best contact"]')).toHaveCount(0)
   expect(needReads).toBeGreaterThan(initialNeedReads)
   expect(projectReads).toBeGreaterThanOrEqual(2)
   await expect(detail.getByText('Jordan Fixture')).toHaveCount(0)

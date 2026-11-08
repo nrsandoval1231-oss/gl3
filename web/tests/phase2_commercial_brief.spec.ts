@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
+import type { OpportunityGroup } from '../src/api/client'
 
 type Manifest = {
   schema_version: 'phase2-browser-v1'
@@ -10,6 +11,8 @@ type Manifest = {
   source_commit: string
   account: { company_identity_id: string; name: string; group_id: string; projects: Array<{ id: string; name: string }>; need_ids: string[] }
   lookalike_account: { company_identity_id: string; name: string }
+  featured: { project_id: string; need_id: string }
+  contact_source_need_id?: string | null
   source: { title: string; url: string; evidence_id: string; content_hash: string; event_date: string | null }
   brief: {
     why_now_text: string
@@ -19,7 +22,7 @@ type Manifest = {
     power_value: string | null
     power_unit: string | null
     power_scope: string | null
-    power_status: string
+    power_limitations?: string[]
     best_contact_label: string
     best_contact_href: string
     best_contact_kind: string
@@ -46,6 +49,10 @@ function loadManifest(): Manifest {
   expect(manifest.brief.why_now_text).toBeTruthy()
   expect(manifest.brief.best_contact_href).toBeTruthy()
   expect(manifest.brief.next_action).toBeTruthy()
+  if (manifest.contact_source_need_id != null) {
+    expect(manifest.contact_source_need_id).toBe(manifest.featured.need_id)
+    expect(manifest.account.need_ids).toContain(manifest.contact_source_need_id)
+  }
   return manifest
 }
 
@@ -93,17 +100,26 @@ test('source-backed disposable account brief survives responsive navigation and 
   await sourceDisclosure.locator('summary').click()
   await expect(sourceDisclosure).not.toHaveAttribute('open', '')
   const powerClaim = brief.locator('.customer-brief-claim').filter({ hasText: 'Power need' })
-  expect(manifest.brief.power_scope, 'featured power projection retains a scope').toBeTruthy()
-  await expect(powerClaim).toContainText(manifest.brief.power_scope!)
+  const informativePowerLimitations = (manifest.brief.power_limitations ?? []).filter(value => !/unknown is not zero|unknown does not mean zero|power need is unknown|power amount is unknown/i.test(value))
   if (manifest.brief.power_amount_class === 'unknown' || !manifest.brief.power_value) {
-    await expect(powerClaim).toContainText('Amount unknown; not zero.')
-    await expect(powerClaim).not.toContainText('40 MW')
+    if (manifest.brief.power_scope && informativePowerLimitations.length) {
+      await expect(powerClaim).toContainText(manifest.brief.power_scope)
+      for (const limitation of informativePowerLimitations) await expect(powerClaim).toContainText(limitation)
+      const visiblePowerText = await powerClaim.innerText()
+      if (/\b40\s*MW\b/i.test(visiblePowerText)) {
+        expect(visiblePowerText).toMatch(/40\s*MW.{0,100}campus nameplate/i)
+        expect(visiblePowerText).toMatch(/(?:not|does not|doesn't).{0,40}rental load/i)
+      }
+    } else {
+      await expect(powerClaim).toHaveCount(0)
+    }
   } else {
+    expect(manifest.brief.power_scope, 'quantified power retains a scoped basis').toBeTruthy()
+    await expect(powerClaim).toContainText(manifest.brief.power_scope!)
     const amount = manifest.brief.power_unit ? `${manifest.brief.power_value} ${manifest.brief.power_unit}` : manifest.brief.power_value
     await expect(powerClaim).toContainText(amount)
     const classLabel = manifest.brief.power_amount_class.replaceAll('_', ' ').replace(/\b[a-z]/g, character => character.toUpperCase())
-    const statusLabel = manifest.brief.power_status.replaceAll('_', ' ').replace(/\b[a-z]/g, character => character.toUpperCase())
-    await expect(powerClaim).toContainText(`${classLabel} · ${statusLabel}`)
+    await expect(powerClaim).toContainText(classLabel)
   }
 
   // Capture the same real API-backed customer card at the five agreed viewports.
@@ -150,10 +166,18 @@ test('source-backed disposable account brief survives responsive navigation and 
     const response = await page.request.get('/api/opportunities/groups?sector=all&search=' + encodeURIComponent(manifest.account.name) + '&limit=25&offset=0')
     readSamples.push({ status: response.status(), elapsed_ms: Math.round((performance.now() - start) * 100) / 100 })
     expect(response.ok()).toBeTruthy()
-    const body = await response.json() as { items: Array<{ id: string; name: string; featured_project?: { commercial_brief?: { why_now?: { text?: string | null } } | null } }> }
+    const body = await response.json() as { items: OpportunityGroup[] }
     const found = body.items.find(item => item.id === manifest.account.group_id)
     expect(found, 'account group is present in live API response').toBeTruthy()
     expect(found?.featured_project?.commercial_brief?.why_now?.text).toBe(manifest.brief.why_now_text)
+    expect(found?.featured_project?.commercial_brief?.power_need?.scope ?? null).toBe(manifest.brief.power_scope)
+    expect(found?.featured_project?.commercial_brief?.power_need?.value ?? null).toBe(manifest.brief.power_value)
+    if (manifest.contact_source_need_id) {
+      const selectedNeed = found?.featured_project?.needs?.find(need => need.id === manifest.contact_source_need_id)
+      expect(selectedNeed?.commercial_brief?.best_contact?.href).toBe(manifest.brief.best_contact_href)
+    } else {
+      expect(found?.featured_project?.commercial_brief?.best_contact?.href).toBe(manifest.brief.best_contact_href)
+    }
   }
   await testInfo.attach('phase2-read-latency.json', { body: JSON.stringify({ read_count: readSamples.length, reads: readSamples }, null, 2), contentType: 'application/json' })
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Pursuits' }).click()
