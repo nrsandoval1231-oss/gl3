@@ -158,6 +158,13 @@ test('source-backed disposable account brief survives responsive navigation and 
   await testInfo.attach('phase2-read-latency.json', { body: JSON.stringify({ read_count: readSamples.length, reads: readSamples }, null, 2), contentType: 'application/json' })
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Pursuits' }).click()
   await expect(page.getByRole('heading', { name: 'Pursuits', exact: true })).toBeVisible()
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Opportunities' }).click()
+  await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toBeVisible()
+  await page.locator('.wh-account > summary').click()
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  expect(await (await page.request.get('/api/auth/session')).json()).toEqual({ authenticated: false })
+  await expect(page.getByText(manifest.brief.why_now_text, { exact: true })).toHaveCount(0)
   expect(browserWrites).toEqual([])
 })
 
