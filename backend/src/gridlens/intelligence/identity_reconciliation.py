@@ -113,7 +113,12 @@ def _validate_claim_evidence(
         current = next(
             (
                 item
-                for item in buying_chain_view(session, claim.project_id)["candidates"]
+                for item in buying_chain_view(
+                    session,
+                    claim.project_id,
+                    include_identity_ids=False,
+                    _apply_privacy=False,
+                )["candidates"]
                 if item["id"] == claim.id
             ),
             None,
@@ -301,7 +306,11 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
             )
         ).all()
     }
-    views = buying_chain_views(session, {claim.project_id for claim in claims.values()})
+    views = buying_chain_views(
+        session,
+        {claim.project_id for claim in claims.values()},
+        _identity_validation=True,
+    )
     current_by_claim = {
         item["id"]: item
         for view in views.values()
@@ -747,7 +756,11 @@ def current_claim_identity_links(
         ).all()
     }
     current_candidates: dict[UUID, dict[str, Any]] = {}
-    views = buying_chain_views(session, {claim.project_id for claim in claims.values()})
+    views = buying_chain_views(
+        session,
+        {claim.project_id for claim in claims.values()},
+        _identity_validation=True,
+    )
     for view in views.values():
         for candidate in view["candidates"]:
             current_candidates[candidate["id"]] = candidate

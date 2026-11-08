@@ -2304,6 +2304,7 @@ def buying_chain_views(
     *,
     now: datetime | None = None,
     history: bool = False,
+    _identity_validation: bool = False,
 ) -> dict[str, dict]:
     """Bulk-load the canonical selected-project buying-chain projections."""
     if not project_ids:
@@ -2470,6 +2471,12 @@ def buying_chain_views(
         for project_id in project_ids
         if project_id in projects
     }
+    if _identity_validation:
+        # Internal source identity checks require current claim/evidence
+        # provenance, but must not depend on public contact attribution or
+        # suppression projections. The default public path below stays intact.
+        _attach_identity_ids(session, list(views.values()))
+        return views
     _apply_contact_privacy(
         session,
         [candidate for view in views.values() for candidate in view.get("candidates", [])],
@@ -2820,8 +2827,9 @@ def buying_chain_view(
         "permit_summaries": _permit_summaries(session, project_id, preload=preload),
         "policy_version": POLICY_VERSION,
     }
-    if not history and include_identity_ids:
+    if include_identity_ids:
         _attach_identity_ids(session, [result])
+    if include_identity_ids or _apply_privacy:
         from gridlens.intelligence.company_contact_attribution import (
             filter_unbound_company_contacts,
         )

@@ -8,6 +8,7 @@ from gridlens.intelligence.buying_chain import document_content_hash
 from gridlens.intelligence.company_contact_attribution import (
     _exact_houston_project_contact,
     _fact_matches_method,
+    filter_unbound_company_contacts,
     supported_contact_facts,
 )
 
@@ -138,3 +139,105 @@ def test_houston_binding_requires_exact_https_origin_and_native_form_parameters(
         altered = SimpleNamespace(**source.__dict__)
         altered.url = altered_url
         assert not _exact_houston_project_contact(altered, project, organization="ACME LLC")
+
+
+def test_unlinked_site_person_is_dropped_but_company_project_claim_remains():
+    person = {
+        "company_identity_id": None,
+        "organization": "Acme LLC",
+        "person_name": "Alice Smith",
+        "title": "Project Director",
+        "public_contacts": [
+            {
+                "kind": "email",
+                "value": "alice@acme.example",
+                "source_url": "https://acme.example/team",
+                "quote": "Alice Smith email: alice@acme.example",
+            }
+        ],
+        "evidence": [
+            {
+                "supports": "organization_person_role",
+                "quote": "Alice Smith is Project Director at Acme LLC.",
+            },
+            {
+                "supports": "public_contact",
+                "quote": "Alice Smith email: alice@acme.example",
+            },
+        ],
+    }
+    organization = {
+        "company_identity_id": None,
+        "organization": "Acme LLC",
+        "person_name": None,
+        "person_identity_id": "unverified-person-id",
+        "title": "Project Director",
+        "organization_relationship": "DIRECT",
+        "person_organization_relationship": "DIRECT",
+        "person_project_relationship": "DIRECT",
+        "public_contacts": [
+            {
+                "kind": "email",
+                "value": "office@acme.example",
+                "source_url": "https://acme.example/contact",
+                "quote": "Email: office@acme.example",
+            }
+        ],
+        "evidence": [
+            {"supports": "project_organization", "quote": "Acme LLC is the project developer."},
+            {"supports": "public_contact", "quote": "Email: office@acme.example"},
+        ],
+    }
+    view = {"candidates": [person, organization]}
+
+    filter_unbound_company_contacts(None, [view])
+
+    assert view["candidates"] == [organization]
+    assert organization["organization_relationship"] == "DIRECT"
+    assert organization["person_identity_id"] is None
+    assert organization["title"] is None
+    assert organization["person_organization_relationship"] == "UNKNOWN"
+    assert organization["person_project_relationship"] == "UNKNOWN"
+    assert organization["public_contacts"] == []
+    assert [row["supports"] for row in organization["evidence"]] == ["project_organization"]
+
+
+def test_unlinked_person_candidate_keeps_only_its_current_project_organization_facet():
+    combined = {
+        "company_identity_id": None,
+        "organization": "Acme LLC",
+        "person_name": "Alice Smith",
+        "person_identity_id": "unverified-person-id",
+        "title": "Project Director",
+        "category": "owner_developer",
+        "organization_relationship": "DIRECT",
+        "person_organization_relationship": "DIRECT",
+        "person_project_relationship": "DIRECT",
+        "public_contacts": [{"kind": "phone", "value": "(555) 010-0000"}],
+        "evidence": [
+            {
+                "supports": "project_organization",
+                "quote": "Acme LLC is the project developer.",
+                "current_support": True,
+            },
+            {
+                "supports": "organization_person_role",
+                "quote": "Alice Smith is Project Director at Acme LLC.",
+                "current_support": True,
+            },
+            {"supports": "public_contact", "quote": "Phone: (555) 010-0000"},
+        ],
+    }
+    view = {"candidates": [combined]}
+
+    filter_unbound_company_contacts(None, [view])
+
+    assert view["candidates"] == [combined]
+    assert combined["person_name"] is None
+    assert combined["person_identity_id"] is None
+    assert combined["title"] is None
+    assert combined["organization_relationship"] == "DIRECT"
+    assert combined["person_organization_relationship"] == "UNKNOWN"
+    assert combined["person_project_relationship"] == "UNKNOWN"
+    assert combined["public_contacts"] == []
+    assert [row["supports"] for row in combined["evidence"]] == ["project_organization"]

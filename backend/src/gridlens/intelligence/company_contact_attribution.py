@@ -588,6 +588,8 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
     ]
     evidence_ids: set[object] = set()
     for candidate in candidates:
+        if not candidate.get("company_identity_id"):
+            continue
         for citation in candidate.get("evidence", []):
             evidence_ids.add(citation.get("id"))
             evidence_ids.add(citation.get("current_source_version_id"))
@@ -644,23 +646,86 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
             .join(
                 Interpretation,
                 (Interpretation.observation_id == Observation.id)
-                & (Interpretation.content_hash == Evidence.content_hash),
+                & (Interpretation.content_hash == Observation.content_hash),
             )
             .join(Source, Source.id == Observation.source_id)
             .where(Evidence.id.in_(retained_ids))
         ).all()
-        retained_contexts = {
-            evidence.id: (evidence, observation, interpretation, source)
-            for evidence, observation, interpretation, source in rows
-        }
+        retained_contexts = {}
+        for evidence, observation, interpretation, source in rows:
+            assessment = interpretation.assessment or {}
+            if (
+                interpretation.content_hash != observation.content_hash
+                or assessment.get("semantic_hash") != observation.content_hash
+                or assessment.get("evidence_hash") != evidence.content_hash
+            ):
+                continue
+            retained_contexts[evidence.id] = (evidence, observation, interpretation, source)
 
     for view in views:
         project_id = str(view.get("project_id") or "")
         project = projects.get(project_id)
+        existing_project_organizations = {
+            _brand_key(str(candidate.get("organization") or ""))
+            for candidate in view.get("candidates", [])
+            if not candidate.get("person_name")
+            and any(
+                citation.get("supports") == "project_organization"
+                and citation.get("current_support")
+                for citation in candidate.get("evidence", [])
+            )
+        }
         kept = []
         for candidate in view.get("candidates", []):
             company_id = candidate.get("company_identity_id")
             if not company_id:
+                if candidate.get("person_name"):
+                    organization_evidence = [
+                        citation
+                        for citation in candidate.get("evidence", [])
+                        if citation.get("supports") == "project_organization"
+                        and citation.get("current_support")
+                    ]
+                    if not organization_evidence:
+                        continue
+                    if _brand_key(str(candidate.get("organization") or "")) in (
+                        existing_project_organizations
+                    ):
+                        continue
+                    # Preserve the supported project-organization facet, but
+                    # do not publish an unbound person, title, role or method.
+                    candidate["person_name"] = None
+                    candidate["person_identity_id"] = None
+                    candidate["title"] = None
+                    candidate["person_organization_relationship"] = "UNKNOWN"
+                    candidate["person_project_relationship"] = "UNKNOWN"
+                    candidate["public_contacts"] = []
+                    candidate["reason"] = (
+                        "Project organization relationship is source-supported; "
+                        "named-person attribution is unavailable."
+                    )
+                    candidate["evidence"] = organization_evidence
+                    existing_project_organizations.add(
+                        _brand_key(str(candidate.get("organization") or ""))
+                    )
+                    kept.append(candidate)
+                    continue
+                candidate["public_contacts"] = []
+                candidate["evidence"] = [
+                    citation
+                    for citation in candidate.get("evidence", [])
+                    if citation.get("supports")
+                    not in {
+                        "public_contact",
+                        "permit_listed_contact",
+                        "organization_person_role",
+                        "person_project_assignment",
+                    }
+                ]
+                candidate["person_identity_id"] = None
+                candidate["title"] = None
+                candidate["person_organization_relationship"] = "UNKNOWN"
+                candidate["person_project_relationship"] = "UNKNOWN"
                 kept.append(candidate)
                 continue
             organization = str(candidate.get("organization") or "")
