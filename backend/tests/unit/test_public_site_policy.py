@@ -141,6 +141,22 @@ def test_robots_exact_user_agent_group_precedes_wildcard_and_allow_wins_equal_pr
     assert not evaluate_robots_policy(
         partial_match, "https://example.test/blocked/contact"
     ).allowed
+    mixed_specificity = (
+        "User-agent: Grid\nAllow: /private\n\n"
+        "User-agent: GridLens\nDisallow: /private\n"
+    )
+    assert not evaluate_robots_policy(
+        mixed_specificity, "https://example.test/private/contact"
+    ).allowed
+    longest_path = (
+        "User-agent: GridLens\nDisallow: /private\nAllow: /private/public\n"
+    )
+    assert not evaluate_robots_policy(
+        longest_path, "https://example.test/private/contact"
+    ).allowed
+    assert evaluate_robots_policy(
+        longest_path, "https://example.test/private/public/contact"
+    ).allowed
 
 
 @pytest.mark.parametrize("status", [302, 401, 403, 429, 503])

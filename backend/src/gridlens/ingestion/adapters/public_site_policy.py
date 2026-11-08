@@ -278,8 +278,16 @@ def evaluate_robots_policy(
         saw_rule = True
     flush()
     agent = user_agent.casefold()
-    selected = [group for group in groups if any(name in agent for name in group[0] if name != "*")]
-    if not selected:
+    matched_agents = [
+        (len(name), group)
+        for group in groups
+        for name in group[0]
+        if name != "*" and name in agent
+    ]
+    if matched_agents:
+        specificity = max(length for length, _ in matched_agents)
+        selected = [group for length, group in matched_agents if length == specificity]
+    else:
         selected = [group for group in groups if "*" in group[0]]
     matches = [
         (len(pattern), directive == "allow")
