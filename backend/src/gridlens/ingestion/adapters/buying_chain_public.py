@@ -33,6 +33,7 @@ from gridlens.ingestion.adapters.bounded_http import (
 from gridlens.ingestion.adapters.public_site_policy import (
     HostApproval,
     PolicyDecision,
+    PolicyMode,
     evaluate_host_approval,
     load_host_approval,
     resolve_site_policy,
@@ -425,7 +426,7 @@ def retrieve(
     deadline: float | None = None,
     max_bytes: int = MAX_BYTES,
     approval: HostApproval | None = None,
-    mode: str = "direct",
+    mode: PolicyMode = "direct",
     before_request: Callable[[str], None] | None = None,
 ) -> PublicDocument:
     shared_deadline = deadline if deadline is not None else time.monotonic() + 30
@@ -460,7 +461,7 @@ def check_public_site_access(
     url: str,
     *,
     approval: HostApproval | None = None,
-    mode: str = "direct",
+    mode: PolicyMode = "direct",
     deadline: float | None = None,
     before_request: Callable[[str], None] | None = None,
 ) -> PolicyDecision:
