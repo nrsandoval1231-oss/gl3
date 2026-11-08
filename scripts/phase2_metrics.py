@@ -31,6 +31,49 @@ BROWSER_TEST_DATABASE = "gl3_phase2_browser_backend_test"
 BASE_COMMIT = "bc433650ce4706dddfb5b30d78a502e3b528f54e"
 
 
+def _assert_source_checkout_matches_head(source_root: Path) -> str:
+    source_root = source_root.resolve()
+    checkout = source_root.parents[1]
+    expected_root = (checkout / "backend" / "src").resolve()
+    if source_root != expected_root:
+        raise ValueError("Selected source root is not this checkout's backend/src")
+
+    source_commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=checkout, text=True
+    ).strip()
+    tracked = subprocess.run(
+        ["git", "diff", "--quiet", "HEAD", "--", "backend/src"],
+        cwd=checkout,
+        check=False,
+    )
+    if tracked.returncode:
+        raise ValueError("Selected backend/src has tracked changes beyond HEAD")
+
+    untracked = subprocess.check_output(
+        [
+            "git",
+            "ls-files",
+            "--others",
+            "--",
+            "backend/src",
+        ],
+        cwd=checkout,
+        text=True,
+    ).splitlines()
+    source_files = [
+        item
+        for item in untracked
+        if Path(item).suffix.lower() in {".py", ".pyi"}
+        and "__pycache__" not in Path(item).parts
+    ]
+    if source_files:
+        raise ValueError(
+            "Selected backend/src contains untracked Python source: "
+            + ", ".join(sorted(source_files))
+        )
+    return source_commit
+
+
 def _database(url: str, *, label: str, allowed: set[str]) -> str:
     parsed = make_url(url)
     if parsed.drivername not in {"postgresql", "postgresql+psycopg"}:
@@ -238,6 +281,21 @@ def capture(args: argparse.Namespace) -> int:
         raise ValueError(
             "The selected database does not match the explicit baseline/candidate mode"
         )
+    source_root = args.source_root.resolve()
+    if (
+        source_root.name != "src"
+        or not (source_root / "gridlens" / "__init__.py").is_file()
+    ):
+        raise ValueError(
+            "--source-root must be the selected checkout's backend/src directory"
+        )
+    source_commit = _assert_source_checkout_matches_head(source_root)
+    if args.mode == "baseline" and source_commit != BASE_COMMIT:
+        raise ValueError(
+            "Baseline mode requires exact base bc433650ce4706dddfb5b30d78a502e3b528f54e"
+        )
+    if args.mode == "candidate" and source_commit == BASE_COMMIT:
+        raise ValueError("Candidate mode cannot use the baseline source checkout")
     probe = create_engine(test_url, pool_size=1)
     try:
         if inspect(probe).get_table_names(schema="public"):
@@ -253,24 +311,6 @@ def capture(args: argparse.Namespace) -> int:
             )
     finally:
         probe.dispose()
-    source_root = args.source_root.resolve()
-    if (
-        source_root.name != "src"
-        or not (source_root / "gridlens" / "__init__.py").is_file()
-    ):
-        raise ValueError(
-            "--source-root must be the selected checkout's backend/src directory"
-        )
-    checkout = source_root.parents[1]
-    source_commit = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=checkout, text=True
-    ).strip()
-    if args.mode == "baseline" and source_commit != BASE_COMMIT:
-        raise ValueError(
-            "Baseline mode requires exact base bc433650ce4706dddfb5b30d78a502e3b528f54e"
-        )
-    if args.mode == "candidate" and source_commit == BASE_COMMIT:
-        raise ValueError("Candidate mode cannot use the baseline source checkout")
     output = args.output.resolve()
     if output.exists():
         raise ValueError(f"Refusing to overwrite existing receipt: {output}")
@@ -295,6 +335,8 @@ def capture(args: argparse.Namespace) -> int:
     result = subprocess.run(command, cwd=ROOT / "backend", env=env, check=False)
     if result.returncode:
         return result.returncode
+    if _assert_source_checkout_matches_head(source_root) != source_commit:
+        raise RuntimeError("Selected source checkout changed during acceptance capture")
     if not output.is_file():
         raise RuntimeError("Acceptance test passed without writing its metrics receipt")
     return 0
@@ -310,7 +352,10 @@ def _read_snapshot(path: Path, expected_mode: str) -> dict:
         raise ValueError(f"{path}: baseline receipt is not from the exact base commit")
     if expected_mode == "candidate" and value.get("source_commit") == BASE_COMMIT:
         raise ValueError(f"{path}: candidate receipt resolves to the base commit")
-    fixture_sha = value.get("commercial", {}).get("fixture_input_sha256")
+    commercial = value.get("commercial")
+    if not isinstance(commercial, dict):
+        raise ValueError(f"{path}: commercial metrics are required")
+    fixture_sha = commercial.get("fixture_input_sha256")
     if (
         not isinstance(fixture_sha, str)
         or len(fixture_sha) != 64
@@ -319,6 +364,9 @@ def _read_snapshot(path: Path, expected_mode: str) -> dict:
         raise ValueError(
             f"{path}: fixture_id does not bind the full fixture input SHA-256"
         )
+    evaluator_sha = commercial.get("evaluator_sha256")
+    if not isinstance(evaluator_sha, str) or len(evaluator_sha) != 64:
+        raise ValueError(f"{path}: commercial evaluator SHA-256 is required")
     if not value.get("source_modules"):
         raise ValueError(f"{path}: imported source module hashes are required")
     imported_root = Path(value.get("imported_source_root", "")).resolve()
@@ -346,7 +394,9 @@ def compare(args: argparse.Namespace) -> int:
     if baseline["fixture_id"] != candidate["fixture_id"]:
         raise ValueError("Baseline and candidate must use the same fixture_id")
     for key in ("fixture_input_sha256", "evaluator_sha256"):
-        if not baseline.get(key) or baseline.get(key) != candidate.get(key):
+        baseline_value = baseline["commercial"].get(key)
+        candidate_value = candidate["commercial"].get(key)
+        if not baseline_value or baseline_value != candidate_value:
             raise ValueError(f"Baseline and candidate must have identical {key}")
     for snapshot in (baseline, candidate):
         if snapshot.get("data_kind") != "SYNTHETIC fixture only":
@@ -399,8 +449,8 @@ def compare(args: argparse.Namespace) -> int:
     report = {
         "title": "Synthetic Phase 2 same-fixture baseline/candidate comparison",
         "fixture_id": baseline["fixture_id"],
-        "fixture_input_sha256": baseline["fixture_input_sha256"],
-        "evaluator_sha256": baseline["evaluator_sha256"],
+        "fixture_input_sha256": baseline["commercial"]["fixture_input_sha256"],
+        "evaluator_sha256": baseline["commercial"]["evaluator_sha256"],
         "baseline_source_commit": baseline.get("source_commit"),
         "candidate_source_commit": candidate.get("source_commit"),
         "data_kind": "SYNTHETIC fixture only; not production coverage or lead metrics",
