@@ -16,8 +16,10 @@ from urllib.parse import urlsplit
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gridlens.ingestion.adapters.buying_chain_public import validate_public_url
-from gridlens.persistence.models import BuyingChainEvidence, CompanyIdentity
+from gridlens.ingestion.adapters.buying_chain_public import (
+    validate_public_url,
+)
+from gridlens.persistence.models import BuyingChainEvidence, CompanyIdentity, Project
 
 _NATIVE_IDENTITY_SOURCE_REASONS = {
     "exact-number public rrc operator registry organization phone.",
@@ -121,21 +123,61 @@ def document_declares_operator_identity(
     return scoped_numbers == {operator_number}
 
 
+def _exact_houston_project_contact(
+    session: Session, source: BuyingChainEvidence, project_id: str
+) -> bool:
+    if source.project_match_reason.casefold() not in _PROJECT_SCOPED_NATIVE_SOURCE_REASONS:
+        return False
+    try:
+        url = validate_public_url(source.url)
+    except ValueError:
+        return False
+    parsed_url = urlsplit(url)
+    if (parsed_url.hostname or "").casefold() != "cohtora.houstontx.gov":
+        return False
+    project = session.get(Project, UUID(project_id))
+    if project is None or project.source_id != "houston-weekly-permits":
+        return False
+    parts = project.external_id.split(":")
+    if len(parts) != 3 or not parts[0].isdigit():
+        return False
+    fields = dict(
+        re.findall(r"(?m)^([a-z_]+):\s*(.*?)\s*$", source.excerpt)
+    )
+    if fields.get("detail_project") != parts[0] or fields.get("detail_date") != parts[2]:
+        return False
+    site = re.sub(r"\s+", " ", fields.get("detail_site_address", "")).casefold()
+    expected = re.sub(r"\s+", " ", (project.location or "").split(", Houston", 1)[0]).casefold()
+    if not site.startswith(expected):
+        return False
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.intelligence.buying_chain import document_content_hash
+
+    return source.content_hash == document_content_hash(
+        PublicDocument(
+            source.url,
+            source.title,
+            source.excerpt,
+            extraction_location=source.extraction_location,
+            published_at=source.published_at,
+            observed_at=source.observed_at,
+        )
+    )
+
+
 def source_is_identity_bound(
     session: Session,
     source: BuyingChainEvidence,
     *,
     company_id: str,
     organization: str,
+    project_id: str,
 ) -> bool:
     """Check one current contact/role source against its canonical company ID."""
     identity = session.get(CompanyIdentity, company_id)
     if identity is None:
         return False
-    if source.project_match_reason.casefold() in _PROJECT_SCOPED_NATIVE_SOURCE_REASONS:
-        # The Houston parser binds these buyer facts to a retained permit row
-        # with exact project, type, date, and site matching. It is narrower
-        # evidence than a company website and does not depend on name matching.
+    if _exact_houston_project_contact(session, source, project_id):
         return True
     if source.project_match_reason.casefold() in _NATIVE_IDENTITY_SOURCE_REASONS:
         # These source records are produced only by exact-number native parsers.
@@ -207,6 +249,7 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
     } if parsed_ids else {}
 
     for view in views:
+        project_id = str(view.get("project_id") or "")
         kept = []
         for candidate in view.get("candidates", []):
             company_id = candidate.get("company_identity_id")
@@ -247,6 +290,7 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                     source,
                     company_id=str(company_id),
                     organization=organization,
+                    project_id=project_id,
                 ):
                     continue
                 url = str(citation.get("url") or "")
