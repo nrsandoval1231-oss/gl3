@@ -302,6 +302,7 @@ def schedule_questions(
             ),
             "selected_sources": sources,
             "origin": "follow_up" if parent_id else origin,
+            "grouped_planner": grouped,
             "enrichment_requested": enrich,
             "known_facts": card.get("facts", []),
             "unknowns": card.get("unknowns", []),

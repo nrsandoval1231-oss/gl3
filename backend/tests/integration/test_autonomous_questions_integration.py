@@ -1102,6 +1102,11 @@ def test_worker_changed_input_fails_before_acquisition_and_preserves_original_co
     factory, worker, _, card = runtime
     question_id = schedule(factory, card)[0]
     original_hash = card["input_hash"]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        legacy_context = dict(question.context)
+        legacy_context.pop("grouped_planner", None)
+        question.context = legacy_context
     card["input_hash"] = "new-evidence-arrived-after-queue"
     job_id, fence = lease_question(factory, question_id)
 
@@ -2397,7 +2402,10 @@ def test_planning_discovers_supported_need_beyond_shortlist_without_splitting_gr
         assert len(list(session.scalars(select(PursuitResearchQuestion)))) == 1
 
 
-def test_real_projection_groups_outside_shortlist_before_research_planning(runtime, monkeypatch):
+@pytest.mark.parametrize("change_group_after_schedule", [False, True])
+def test_real_projection_groups_outside_shortlist_before_research_planning(
+    runtime, monkeypatch, change_group_after_schedule
+):
     import hashlib
 
     factory, worker, api, _ = runtime
@@ -2602,6 +2610,7 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
         )
         assert len(pair_questions) == 1
         assert pair_questions[0].need_id == UUID(pair_card["id"])
+        question_id = pair_questions[0].id
         assert set(pair_questions[0].context["before"]["related_need_ids"]) == pair_ids
         pair_states = pair_questions[0].context["before"]["related_need_states"]
         assert {state["held"] for state in pair_states} == {False, True}
@@ -2610,6 +2619,36 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
             schedule_questions(session, [pair_card, nearby_cards[0]], grouped=True, now=first_day)
             == []
         )
+
+    if change_group_after_schedule:
+        with factory.begin() as session:
+            sibling_need_id = next(
+                UUID(need_id) for need_id in pair_ids if need_id != pair_card["id"]
+            )
+            session.get(PowerNeed, sibling_need_id).active = False
+    monkeypatch.setattr(worker, "acquire_registered_record", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        worker,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("Grouped fingerprint checks must precede retrieval"),
+    )
+    grouped_job_id, grouped_fence = lease_question(factory, question_id)
+    worker.process_question_job(grouped_job_id, "question-test", grouped_fence)
+    with factory() as session:
+        grouped_question = session.get(PursuitResearchQuestion, question_id)
+        if change_group_after_schedule:
+            assert grouped_question.status == "FAILED"
+            assert grouped_question.receipt["error"] == "input_changed_before_research"
+            assert all(
+                route["status"] == "NOT_REACHED"
+                for route in grouped_question.receipt["route_results"]
+            )
+        else:
+            assert grouped_question.receipt.get("error") != "input_changed_before_research"
+            assert (
+                grouped_question.receipt["after_input_hash"]
+                == grouped_question.context["before"]["input_hash"]
+            )
 
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
     second_day = first_day + timedelta(days=1)

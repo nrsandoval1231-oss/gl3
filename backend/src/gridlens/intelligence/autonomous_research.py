@@ -118,8 +118,10 @@ def planning_cards() -> list[dict]:
         return cards + list(additional.values())
 
 
-def current_card(need_id: UUID) -> dict | None:
+def current_card(need_id: UUID, *, grouped: bool = False) -> dict | None:
     with SessionLocal() as session:
+        if grouped:
+            return evaluate_targets(session, [need_id], grouped=True).get(str(need_id))
         return evaluate_target(session, need_id)
 
 
@@ -204,7 +206,8 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
         )
         return
     run = QuestionRun(job_id, worker_id, fence, question_id, started, budget)
-    card = current_card(need_id)
+    grouped_card = bool(context.get("grouped_planner", False))
+    card = current_card(need_id, grouped=grouped_card)
     with SessionLocal() as session:
         row = session.get(PursuitResearchQuestion, question_id)
         assert row is not None
@@ -242,7 +245,9 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
         enrich_buying_chain(session, row.project_id, retained_only=True)
     for retained_result in retained_results:
         run.record(retained_result)
-    resolved = blocker_resolved(context["category"], current_card(need_id) or card, context)
+    resolved = blocker_resolved(
+        context["category"], current_card(need_id, grouped=grouped_card) or card, context
+    )
     run.route(
         "retained",
         "RESOLVED" if resolved else "CHECKED",
@@ -272,7 +277,9 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
                     _research_public_url(run, url)
                     run.route("public", "CHECKED", url=url)
                     resolved = blocker_resolved(
-                        context["category"], current_card(need_id) or card, context
+                        context["category"],
+                        current_card(need_id, grouped=grouped_card) or card,
+                        context,
                     )
                     if resolved:
                         break
@@ -341,7 +348,9 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
                             }
                         )
             run.route("registered", "CHECKED", source_id=source_id, external_id=external_id)
-            resolved = blocker_resolved(context["category"], current_card(need_id) or card, context)
+            resolved = blocker_resolved(
+                context["category"], current_card(need_id, grouped=grouped_card) or card, context
+            )
             if resolved:
                 break
         # Discovery is URL-only; snippets are never submitted for evidence admission.
@@ -386,7 +395,9 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
                         known_urls.add(url)
                         _research_public_url(run, url)
                         resolved = blocker_resolved(
-                            context["category"], current_card(need_id) or card, context
+                            context["category"],
+                            current_card(need_id, grouped=grouped_card) or card,
+                            context,
                         )
                         if resolved:
                             break
@@ -1229,7 +1240,7 @@ class QuestionRun:
             assert row is not None
             checks = row.receipt.get("source_checks", [])
             category, context, need_id = row.category, row.context, row.need_id
-        after = current_card(need_id)
+        after = current_card(need_id, grouped=bool(context.get("grouped_planner", False)))
         if after and _question_partial_progress(
             category, context.get("before", {}), after, context
         ):
@@ -1339,7 +1350,12 @@ def _finish(
         job = assert_fence(session, job_id, worker_id, fence)
         row = session.get(PursuitResearchQuestion, question_id)
         assert row is not None
-        card = evaluate_target(session, row.need_id)
+        grouped = bool(row.context.get("grouped_planner", False))
+        card = (
+            evaluate_targets(session, [row.need_id], grouped=True).get(str(row.need_id))
+            if grouped
+            else evaluate_target(session, row.need_id)
+        )
         if card:
             save_evaluations(session, [card])
         now = datetime.now(UTC)
