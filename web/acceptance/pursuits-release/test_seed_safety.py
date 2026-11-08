@@ -41,7 +41,7 @@ def test_accepts_pinned_disposable_database_url():
 
 @pytest.mark.parametrize("checker, database", [
     (seed.checked_database_url, "ui_pursuits_real_test"),
-    (seed.checked_database_url, "ui_pursuits_real_slice1m_test"),
+    (seed.checked_database_url, "ui_pursuits_real_slice1n_test"),
     (rollup_seed.checked_database_url, "gl3_rollup_scale_test"),
 ])
 @pytest.mark.parametrize("override", ["host=remote.example", "port=5432", "dbname=elsewhere", "host%61ddr=192.0.2.1"])

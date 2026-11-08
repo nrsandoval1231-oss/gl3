@@ -96,3 +96,63 @@ test('same-name contacts in conflicting roles do not share contact methods', asy
   await expect(card.getByRole('link', { name: 'Call John Smith' })).toHaveAttribute('href', 'tel:+15555550111')
   await expect(card.getByRole('link', { name: 'Email John Smith' })).toHaveCount(0)
 })
+
+test('account contact can come from a permitted project beyond page one with its project scope and source retained', async ({ page }) => {
+  const contactProject = {
+    ...targetProject,
+    contact: [{ kind: 'call', label: 'Call Jordan Lee', href: 'tel:+15555550126', name: 'Jordan Lee', title: 'Facilities Director', company, responsibility: 'Facilities project contact', route_kind: 'named_contact', source_url: 'https://sources.example.test/contact-26', verified_at: '2026-11-07T00:00:00Z' }],
+  }
+  const featured = { ...firstPage[0], contact: [] }
+  const account = { ...group, featured_project: featured, account_contact_project: contactProject }
+  const firstPageOnly = { ...currentProjectPage, items: firstPage, total: 26 }
+  const childReads: string[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [account] } }))
+  await page.route(`**/api/opportunities/groups/${accountId}/open?*`, route => route.fulfill({ json: { group: account, projects: firstPageOnly, parent_cohort_token: 'account-search-cohort', valid_until: '2099-01-01T00:00:00Z' } }))
+  await page.route(`**/api/opportunities/groups/${accountId}/projects?*`, route => { childReads.push(route.request().url()); return route.fulfill({ json: { ...firstPageOnly, items: [targetProject], offset: 25 } }) })
+  await page.route('**/api/commercial-pursuits*', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } }))
+
+  await page.goto('/?groupBrowse=1&shortlist=1')
+  const card = page.getByRole('region', { name: `${company} customer group` })
+  await expect(card.getByText('Contact associated with Synthetic Project 26')).toBeVisible()
+  await expect(card.getByText('Facilities Director')).toBeVisible()
+  await expect(card.getByText(/Facilities project contact/)).toBeVisible()
+  await expect(card.getByRole('link', { name: 'Call Jordan Lee' })).toHaveAttribute('href', 'tel:+15555550126')
+  await card.getByText('Contact source', { exact: true }).click()
+  await expect(card.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://sources.example.test/contact-26')
+  await card.getByRole('button', { name: 'Choose opportunity' }).click()
+  const detail = page.getByRole('region', { name: `Company ${company}` })
+  const overview = detail.getByRole('region', { name: 'Account overview' })
+  await expect(overview.getByText('Contact associated with Synthetic Project 26')).toBeVisible()
+  await expect(overview.getByRole('link', { name: 'Call Jordan Lee' })).toHaveAttribute('href', 'tel:+15555550126')
+  await expect(overview.getByText(/Facilities project contact/)).toContainText('does not confirm purchasing authority')
+  await overview.getByText('Contact source', { exact: true }).click()
+  await expect(overview.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://sources.example.test/contact-26')
+  await expect.poll(() => childReads).toHaveLength(0)
+})
+
+test('an explicit null or malformed account contact selection does not fall back to featured project routes', async ({ page }) => {
+  const featured = { ...firstPage[0], contact: [{ kind: 'call', label: 'Call legacy featured contact', href: 'tel:+15555550100', name: 'Legacy Contact', title: 'Site Manager', company, route_kind: 'named_contact' }] }
+  let account = { ...group, featured_project: featured, account_contact_project: null as unknown }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [account] } }))
+  await page.route(`**/api/opportunities/groups/${accountId}/open?*`, route => route.fulfill({ json: { group: account, projects: currentProjectPage, parent_cohort_token: 'account-search-cohort', valid_until: '2099-01-01T00:00:00Z' } }))
+  await page.route('**/api/commercial-pursuits*', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } }))
+
+  await page.goto('/?groupBrowse=1&shortlist=1')
+  const card = page.getByRole('region', { name: `${company} customer group` })
+  await expect(card.getByRole('link', { name: 'Call Legacy Contact' })).toHaveCount(0)
+  await card.getByRole('button', { name: 'Choose opportunity' }).click()
+  const detail = page.getByRole('region', { name: `Company ${company}` })
+  const overview = detail.getByRole('region', { name: 'Account overview' })
+  await expect(overview.getByText('No current business contact route is available.')).toBeVisible()
+  await expect(overview.getByRole('link', { name: 'Call Legacy Contact' })).toHaveCount(0)
+
+  account = { ...account, account_contact_project: { project_id: 'malformed', name: 'Malformed contact project', contact: [null] } }
+  await page.reload()
+  const refreshedOverview = page.getByRole('region', { name: `Company ${company}` }).getByRole('region', { name: 'Account overview' })
+  await expect(refreshedOverview.getByText('No current business contact route is available.')).toBeVisible()
+  await expect(refreshedOverview.getByRole('link', { name: 'Call Legacy Contact' })).toHaveCount(0)
+})

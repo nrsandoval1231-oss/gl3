@@ -456,6 +456,52 @@ def page(
                     ),
                 }
             )
+        if primary_customer_ids_by_project is not None:
+            # A project's header can use a current primary-account contact
+            # attached to any need on that physical project.
+            known_actions = {
+                (
+                    str(action.get("company_identity_id") or ""),
+                    str(action.get("person_identity_id") or ""),
+                    str(action.get("kind") or ""),
+                    str(action.get("href") or ""),
+                )
+                for action in contact
+            }
+            for need_item in needs:
+                for action in need_item.get("contact_actions") or []:
+                    key = (
+                        str(action.get("company_identity_id") or ""),
+                        str(action.get("person_identity_id") or ""),
+                        str(action.get("kind") or ""),
+                        str(action.get("href") or ""),
+                    )
+                    kind = action.get("kind")
+                    if key in known_actions or kind not in {"call", "email", "contact"}:
+                        continue
+                    known_actions.add(key)
+                    contact.append(
+                        {
+                            **action,
+                            "label": {
+                                "call": "Call",
+                                "email": "Email",
+                                "contact": "Company contact page",
+                            }[kind]
+                            + (
+                                f" {action.get('name') or action.get('company')}"
+                                if kind in {"call", "email"}
+                                and (action.get("name") or action.get("company"))
+                                else ""
+                            ),
+                            "route_kind": (
+                                "person_method"
+                                if action.get("name")
+                                and action.get("responsibility") != "General company contact path"
+                                else "company_route"
+                            ),
+                        }
+                    )
         asset_project_ids = [str(project_id) for project_id in row["project_ids"]]
         if representative_project_id not in asset_project_ids:
             representative_project_id = asset_project_ids[0]

@@ -682,7 +682,10 @@ def _ctes(where: str, shortlist_data=None) -> str:
         )::integer AS eligible_need_count,
         count(DISTINCT ar.canonical_need_id) FILTER (
           WHERE ar.canonical_need_id = ANY(CAST(:pursued_need_ids AS uuid[]))
-        )::integer AS pursued_eligible_need_count
+        )::integer AS pursued_eligible_need_count,
+        bool_or(CASE WHEN jsonb_typeof(ar.compact->'contact_actions')='array'
+          THEN jsonb_array_length(ar.compact->'contact_actions') > 0 ELSE false END)
+          AS has_contact_actions
       FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key
       GROUP BY a.group_key
     ), grouped AS (
@@ -699,6 +702,7 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(priority_score)::integer AS priority_score,
         count(*)::integer AS project_count,
         gnc.need_count, gnc.eligible_need_count, gnc.pursued_eligible_need_count,
+        gnc.has_contact_actions,
         count(*) FILTER (
           WHERE asset_key IN (SELECT asset_key FROM eligible_assets)
         )::integer AS relevant_project_count,
@@ -706,7 +710,7 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(updated_at) AS updated_at
       FROM assigned JOIN grouped_need_counts gnc USING (group_key)
       GROUP BY group_key, gnc.need_count, gnc.eligible_need_count,
-               gnc.pursued_eligible_need_count
+               gnc.pursued_eligible_need_count, gnc.has_contact_actions
     )
     """.replace("%%ASSET%%", asset_expr)
         .replace("%%WHERE%%", where)
@@ -727,6 +731,166 @@ def _primary_contact_identity(row) -> str | None:
     }:
         return None
     return str(row["company_id"]) if row.get("company_id") is not None else None
+
+
+def _account_contact_projects(
+    session,
+    *,
+    generation,
+    where: str,
+    params: dict,
+    shortlist_data,
+    group_keys: list[str],
+    sector: str,
+    sort: str,
+) -> dict[str, dict]:
+    """Choose one live, primary-identity project contact for each resolved group.
+
+    The scan is limited to retained project contact actions whose company UUID
+    equals the assigned primary account identity. Suppression is rechecked in
+    one batch before deterministic contact ranking; serialization rechecks it
+    again at the response boundary.
+    """
+    if not group_keys:
+        return {}
+    shortlist_state = shortlist_data
+    sql = _ctes(where, shortlist_state)
+    candidate_rows = (
+        session.execute(
+            text(
+                sql
+                + """
+              SELECT a.group_key, a.asset_key, a.company_id, a.group_kind,
+                     a.priority_score, b.project_id, b.updated_at, b.compact,
+                     ARRAY(SELECT ar2.project_id FROM all_rows ar2
+                           WHERE ar2.asset_key=a.asset_key GROUP BY ar2.project_id
+                           ORDER BY ar2.project_id) AS asset_project_ids
+              FROM assigned a
+              JOIN all_rows ar ON ar.asset_key=a.asset_key
+              JOIN browse_rows b ON b.generation_id=:generation
+                AND b.project_id=ar.project_id AND b.need_id=ar.need_id
+              WHERE a.group_key = ANY(CAST(:contact_group_keys AS text[]))
+                AND a.group_kind='resolved_identity' AND a.company_id IS NOT NULL
+                AND jsonb_typeof(b.compact->'contact_actions')='array'
+                AND EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(b.compact->'contact_actions') action
+                  WHERE action->>'company_identity_id'=a.company_id
+                    AND action->>'kind' IN ('email','call')
+                )
+              ORDER BY a.group_key, a.asset_key, b.rank_score DESC,
+                       b.updated_at DESC, b.project_id, b.need_id
+            """
+            ),
+            {**params, "contact_group_keys": group_keys, "generation": generation.id},
+        )
+        .mappings()
+        .all()
+    )
+    if not candidate_rows:
+        return {}
+
+    candidates: dict[int, dict] = {}
+    contact_records: list[dict] = []
+    for row in candidate_rows:
+        primary_id = str(row["company_id"])
+        actions = [
+            action
+            for action in ((row["compact"] or {}).get("contact_actions") or [])
+            if str(action.get("company_identity_id") or "") == primary_id
+            and action.get("kind") in {"email", "call"}
+        ]
+        if not actions:
+            continue
+        candidates[id(row)] = {"row": row, "actions": actions}
+        contact_records.extend(actions)
+    if not candidates:
+        return {}
+
+    from gridlens.intelligence.project_contact_actions import filter_project_contact_records
+
+    allowed_ids = {
+        id(record) for record in filter_project_contact_records(session, contact_records)
+    }
+    by_asset: dict[tuple[str, str], dict] = {}
+    for candidate in candidates.values():
+        row = candidate["row"]
+        actions = [action for action in candidate["actions"] if id(action) in allowed_ids]
+        if not actions:
+            continue
+        for action in actions:
+            kind = str(action.get("kind") or "")
+            href = str(action.get("href") or "")
+            try:
+                from gridlens.intelligence.project_contact_actions import _safe_href
+
+                safe_href = _safe_href(href, kind)
+            except (TypeError, ValueError):
+                safe_href = None
+            if not safe_href:
+                continue
+            responsibility = action.get("responsibility")
+            responsibility_rank = {
+                "Verified project responsibility": 0,
+                "Verified organizational responsibility": 1,
+                "Inferred likely role": 2,
+                "General company contact path": 3,
+            }.get(responsibility, 4)
+            quality = (
+                not bool(action.get("name")),
+                not bool(action.get("title")),
+                responsibility_rank,
+                0 if kind == "email" else 1,
+                -int(row["priority_score"] or 0),
+                -(row["updated_at"].timestamp() if row["updated_at"] else 0),
+                str(row["project_id"]),
+            )
+            key = (str(row["group_key"]), str(row["asset_key"]))
+            prior = by_asset.get(key)
+            if prior is None or quality < prior["quality"]:
+                by_asset[key] = {"row": row, "quality": quality}
+
+    best_by_group: dict[str, dict] = {}
+    for (group_key, _asset_key), candidate in by_asset.items():
+        prior = best_by_group.get(group_key)
+        if prior is None or candidate["quality"] < prior["quality"]:
+            best_by_group[group_key] = candidate
+    if not best_by_group:
+        return {}
+
+    chosen = {key: value["row"] for key, value in best_by_group.items()}
+    project_ids = list(dict.fromkeys(row["project_id"] for row in chosen.values()))
+    primary_ids_by_project: dict[str, str | None] = {
+        str(project_id): str(row["company_id"])
+        for row in chosen.values()
+        for project_id in row["asset_project_ids"]
+    }
+    page = project_page(
+        session,
+        sector=sector,
+        limit=max(1, len(project_ids)),
+        offset=0,
+        sort={"priority_asc": "priority_asc", "company": "company", "updated": "updated"}.get(
+            sort, "priority"
+        ),
+        include_signals=True,
+        project_ids=project_ids,
+        selected_generation=generation,
+        primary_customer_ids_by_project=primary_ids_by_project,
+    )
+    result: dict[str, dict] = {}
+    for item in page["items"]:
+        candidate_group = next(
+            (
+                group_key
+                for group_key, row in chosen.items()
+                if str(row["project_id"]) in item["project_ids"]
+            ),
+            None,
+        )
+        if candidate_group and item.get("contact"):
+            item["customer_identity_id"] = str(chosen[candidate_group]["company_id"])
+            result[candidate_group] = item
+    return result
 
 
 def _validate_token(token: str | None, expected: str, offset: int) -> None:
@@ -1023,6 +1187,22 @@ def groups(
             if item is not None:
                 item["matched_project_id"] = str(match["project_id"])
                 item["matched_need_id"] = str(match["need_id"])
+    account_contact_by_group = (
+        _account_contact_projects(
+            session,
+            generation=generation,
+            where=where,
+            params=params,
+            shortlist_data=shortlist_state["data"],
+            group_keys=[row["group_key"] for row in rows],
+            sector=sector,
+            sort=sort,
+        )
+        if any(row["has_contact_actions"] for row in rows)
+        else {}
+    )
+    for item, row in zip(items, rows, strict=True):
+        item["account_contact_project"] = account_contact_by_group.get(row["group_key"])
     return {
         "items": items,
         "count_unit": "groups",
@@ -1389,7 +1569,7 @@ def group_open(
           SELECT g.group_key, g.name, g.role, g.group_kind, g.identity_count,
                  g.project_count, g.relevant_project_count, g.eligible_need_count,
                  g.pursued_eligible_need_count,
-                 g.need_count,
+                 g.need_count, g.has_contact_actions,
                  g.priority_score, g.sectors,
                  a.anchor_project_id, a.asset_key, a.company_id, a.group_name,
                  ARRAY(SELECT ar2.project_id FROM all_rows ar2
@@ -1562,6 +1742,21 @@ def group_open(
     }
     if shortlist:
         group["featured_project"] = featured_project
+    contact_projects = (
+        _account_contact_projects(
+            session,
+            generation=generation,
+            where=where,
+            params=params,
+            shortlist_data=shortlist_state["data"],
+            group_keys=[first["group_key"]],
+            sector=sector,
+            sort=sort,
+        )
+        if first["has_contact_actions"]
+        else {}
+    )
+    group["account_contact_project"] = contact_projects.get(first["group_key"])
     group_token = cohort + ".group." + hashlib.sha256(group_id.encode()).hexdigest()[:16]
     projects = {
         "items": serialized["items"],

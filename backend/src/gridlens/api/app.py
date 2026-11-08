@@ -2205,7 +2205,12 @@ def customer_opportunity_groups(
         )
 
         _bounded_opportunity_payload(
-            [item["featured_project"] for item in payload["items"] if item.get("featured_project")]
+            [
+                item[field]
+                for item in payload["items"]
+                for field in ("featured_project", "account_contact_project")
+                if item.get(field)
+            ]
         )
         if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
             raise HTTPException(413, "Account results exceed the response byte budget")
@@ -2287,7 +2292,14 @@ def customer_group_open(
             shortlist=shortlist,
             selected_generation=generation,
         )
-        _bounded_opportunity_payload(payload["projects"]["items"])
+        _bounded_opportunity_payload(
+            payload["projects"]["items"]
+            + (
+                [payload["group"]["account_contact_project"]]
+                if payload["group"].get("account_contact_project")
+                else []
+            )
+        )
         if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
             raise HTTPException(413, "Project results exceed the response byte budget")
         return payload

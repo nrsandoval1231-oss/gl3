@@ -198,10 +198,22 @@ test('real account-first pursuit journey persists through navigation, reload, an
     return body.items.some(group => group.name === manifest.account_name)
   })
   await companySearch.fill(manifest.account_name)
-  expect((await companyResult).status()).toBe(200)
+  const companyGroupsResponse = await companyResult
+  expect(companyGroupsResponse.status()).toBe(200)
+  const companyGroupsBody = await companyGroupsResponse.json() as { items: Array<{ id: string; name: string; account_contact_project?: { project_id: string; name: string; contact: Array<{ href?: string | null; name?: string | null }> } | null }> }
+  const companyGroup = companyGroupsBody.items.find(group => group.name === manifest.account_name)
+  expect(companyGroup, 'Companies search must return the synthetic account').toBeTruthy()
+  const companyContactProject = companyGroup?.account_contact_project
+  expect(companyContactProject, 'Companies account contact selection must be available from the real API').toMatchObject({ project_id: manifest.contact_project_id })
+  expect(companyContactProject?.contact.map(contact => contact.href)).toEqual(expect.arrayContaining(['mailto:buyer@example.invalid', 'tel:+15555550101']))
   await page.getByRole('button', { name: new RegExp(`Open ${manifest.account_name}`) }).click()
   const companyDetail = page.getByRole('region', { name: new RegExp(`(?:Company|Group) ${manifest.account_name}`) })
   await expect(companyDetail.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  const companyOverview = companyDetail.getByRole('region', { name: 'Account overview' })
+  await expect(companyOverview.getByText(`Contact associated with ${companyContactProject!.name}`, { exact: true })).toBeVisible()
+  await expect(companyOverview.getByRole('link', { name: 'Email Synthetic Buyer' })).toHaveAttribute('href', 'mailto:buyer@example.invalid')
+  await expect(companyOverview.getByRole('link', { name: 'Call Synthetic Buyer' })).toHaveAttribute('href', 'tel:+15555550101')
+  expect(writes).toEqual([]) // Viewing an account contact must not create activity or send outreach.
   const chosenProject = companyDetail.locator(`[data-project-id="${manifest.second_page_project_id}"]`)
   if (await chosenProject.count() === 0) await companyDetail.getByRole('button', { name: 'Load more projects' }).click()
   await expect(chosenProject).toBeVisible()

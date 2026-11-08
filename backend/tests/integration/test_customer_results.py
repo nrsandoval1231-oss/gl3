@@ -570,6 +570,121 @@ def test_account_contacts_are_scoped_to_selected_primary_identity(saved_db, monk
         assert all(not need["contact_actions"] for need in rrc_project["needs"])
 
 
+def test_account_contact_project_is_selected_beyond_child_page(saved_db):
+    generation_id = _seed_group_cohort(saved_db)
+    from gridlens.intelligence.contact_suppressions import (
+        method_suppression_key,
+        record_contact_suppression,
+    )
+
+    with saved_db.begin() as session:
+        generation = current_generation(session)
+        rows = session.scalars(
+            select(BrowseRow)
+            .join(Project, BrowseRow.project_id == Project.id)
+            .where(BrowseRow.generation_id == generation.id)
+            .order_by(func.length(Project.external_id), Project.external_id)
+        ).all()
+        primary_id = session.scalar(
+            select(BrowseCustomerMembership.company_identity_id).where(
+                BrowseCustomerMembership.generation_id == generation.id,
+                BrowseCustomerMembership.project_id == rows[0].project_id,
+            )
+        )
+        secondary_id = uuid4()
+        target = rows[61]
+        suppressed = rows[60]
+        for row in (target, suppressed):
+            session.add(
+                BrowseCustomerMembership(
+                    generation_id=generation.id,
+                    company_identity_id=primary_id,
+                    project_id=row.project_id,
+                    organization_name="Selected Operator",
+                    role="asset_operator",
+                )
+            )
+        target.compact = {
+            **target.compact,
+            "contact_actions": [
+                {
+                    "kind": "email",
+                    "href": "mailto:best@example.invalid",
+                    "name": "Primary Contact",
+                    "title": "Project Director",
+                    "responsibility": "Verified project responsibility",
+                    "company_identity_id": str(primary_id),
+                },
+                {
+                    "kind": "email",
+                    "href": "mailto:secondary@example.invalid",
+                    "name": "Other Company Contact",
+                    "title": "Project Director",
+                    "responsibility": "Verified project responsibility",
+                    "company_identity_id": str(secondary_id),
+                },
+            ],
+        }
+        suppressed_href = "mailto:suppressed@example.invalid"
+        suppressed.compact = {
+            **suppressed.compact,
+            "contact_actions": [
+                {
+                    "kind": "email",
+                    "href": suppressed_href,
+                    "name": "Suppressed Primary Contact",
+                    "responsibility": "Verified project responsibility",
+                    "company_identity_id": str(primary_id),
+                }
+            ],
+        }
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=method_suppression_key(
+                primary_id, "Suppressed Primary Contact", "email", suppressed_href
+            ),
+            action="suppress",
+            expected_version=0,
+            reason="Regression fixture suppression",
+            actor="test",
+            idempotency_key="account-contact-best-project-suppression",
+        )
+
+    with saved_db() as session:
+        generation = current_generation(session)
+        assert str(generation.id) == str(generation_id)
+        account_page = groups(session, search="12345", sector="oil_gas", limit=25)
+        operator = next(item for item in account_page["items"] if item["project_count"] == 62)
+        account_contact = operator["account_contact_project"]
+        assert account_contact is not None
+        assert str(target.project_id) in account_contact["project_ids"]
+        assert {action["href"] for action in account_contact["contact"]} == {
+            "mailto:best@example.invalid"
+        }
+
+        opened = group_open(
+            session,
+            operator["id"],
+            search="12345",
+            sector="oil_gas",
+            limit=25,
+        )
+        assert (
+            opened["group"]["account_contact_project"]["project_ids"]
+            == account_contact["project_ids"]
+        )
+        assert str(target.project_id) not in {
+            project_id
+            for child in opened["projects"]["items"]
+            for project_id in child["project_ids"]
+        }
+        serialized = opened["group"]["account_contact_project"]
+        assert {action["href"] for action in serialized["contact"]} == {
+            "mailto:best@example.invalid"
+        }
+
+
 def test_tdlr_bucket_excludes_entire_identity_with_ineligible_sibling(saved_db):
     identity_ids, exact_name = _seed_tdlr_name_bucket(saved_db)
     with saved_db.begin() as session:

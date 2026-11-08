@@ -118,18 +118,33 @@ export function generalCompanyContactRoutes(contacts: ProjectResult['contact'], 
   return valid.filter(({ href }) => !primaryProtocols.has(href.toLowerCase().startsWith('mailto:') ? 'mailto:' : 'tel:'))
 }
 
+function validAccountContactProject(value: unknown): value is ProjectResult {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as { project_id?: unknown; name?: unknown; contact?: unknown }
+  return typeof candidate.project_id === 'string' && typeof candidate.name === 'string' && Array.isArray(candidate.contact) && candidate.contact.every((contact: unknown) => Boolean(contact && typeof contact === 'object' && typeof (contact as { kind?: unknown }).kind === 'string' && typeof (contact as { label?: unknown }).label === 'string'))
+}
+
+/** An explicit null/malformed API selection is authoritative; only older responses may fall back. */
+export function selectAccountContactProject(group: OpportunityGroup, fallback: ProjectResult | null): ProjectResult | null {
+  if (!Object.prototype.hasOwnProperty.call(group, 'account_contact_project')) return fallback
+  return validAccountContactProject(group.account_contact_project) ? group.account_contact_project : null
+}
+
 function AccountContacts({ project }: { project: ProjectResult | null }) {
   const contacts = bestProjectContactRoutes(project?.contact ?? [])
   if (!contacts.length) return <p className="cmp-note">No current business contact route is available.</p>
   const best = contacts[0].contact
   const generalRoutes = generalCompanyContactRoutes(project?.contact ?? [], contacts)
   const companyLine = /general|main line|switchboard|company/i.test(`${best.label} ${best.route_kind ?? ''}`)
+  const contactSource = safeContactSourceUrl(best.source_url)
   return <div aria-label="Best available contact">
+    {project && <span>Contact associated with {project.name}</span>}
     <strong>{best.name ?? best.company ?? (companyLine ? 'Company line' : best.label)}</strong>
     {best.title && <span> · {best.title}</span>}
     {companyLine && <span> · General company route</span>}
     {best.responsibility && <p className="cmp-note">{best.responsibility}. Public-source attribution does not confirm purchasing authority.</p>}
     <p>{contacts.map(({ contact, href }) => <a key={`${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} {contact.name ?? (contact.route_kind === 'company_route' ? 'company' : 'contact')}</a>)}</p>
+    {contactSource && <details><summary>Contact source</summary><a href={contactSource} target="_blank" rel="noreferrer">Open source</a></details>}
     {generalRoutes.length > 0 && <p><span>General company route · </span>{generalRoutes.map(({ contact, href }) => <a key={`general:${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} company</a>)}</p>}
   </div>
 }
@@ -164,6 +179,7 @@ function sourceUrl(value?: string | null) {
   if (!value) return null
   try { const url = new URL(value); return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null } catch { return null }
 }
+export function safeContactSourceUrl(value?: string | null) { return sourceUrl(value) }
 
 function earliestValidUntil(...values: (string | undefined)[]) {
   const dates = values.map(value => value ? Date.parse(value) : NaN).filter(Number.isFinite)
@@ -317,6 +333,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
   }, [current, projects, pursuits.items])
   const pursuitByProject = (project: ProjectResult) => linked.filter(item => item.project_id === project.project_id || project.project_ids?.includes(item.project_id) || project.needs.some(need => need.id === item.need_id))
   const featured = group?.featured_project ?? projects[0] ?? null
+  const accountContactProject = group ? selectAccountContactProject(group, featured) : featured
   const whyNow = featured?.shortlist_assessment?.why_now
   const nextStep = featured?.shortlist_assessment?.next_step ?? featured?.next_action
   const isGroup = group ? group.group_kind === 'same_name_unconfirmed' || group.group_kind === 'unresolved' : false
@@ -393,7 +410,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
       <section className="cmp-block" aria-label="Account overview">
         {whyNow && <p>{whyNow}</p>}
         {nextStep && <p>{nextStep}</p>}
-        {(!group?.group_kind || group.group_kind === 'resolved_identity') ? <AccountContacts project={featured}/> : <p className="cmp-note">Select a project to see its supported business contact.</p>}
+        {(!group?.group_kind || group.group_kind === 'resolved_identity') ? <AccountContacts project={accountContactProject}/> : <p className="cmp-note">Select a project to see its supported business contact.</p>}
       </section>
       <section aria-label="Linked pursuits" className="cmp-block">
         <h3>Linked pursuits</h3>

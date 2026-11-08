@@ -49,7 +49,7 @@ def checked_database_url(value: str) -> str:
         raise SystemExit("Refusing database URL without an explicit valid port.")
     if parsed.database not in {
         "ui_pursuits_real_test",
-        "ui_pursuits_real_slice1m_test",
+        "ui_pursuits_real_slice1n_test",
     }:
         raise SystemExit("Refusing unexpected database; expected an explicitly named disposable pursuits test database.")
     if parsed.drivername not in {"postgres", "postgresql", "postgresql+psycopg"}:

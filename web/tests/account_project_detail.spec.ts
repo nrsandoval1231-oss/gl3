@@ -232,10 +232,11 @@ test('switching a delayed project never leaves the previous project contact visi
 
 test('expired project detail hides contacts and actions, then offers a bounded retry after an expired refresh', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-11-07T00:00:00Z') })
+  // Leave setup time for slower CI browsers; fastForward below triggers expiry deterministically.
   await install(page, { projectValidUntil: [
-    '2026-11-07T00:00:01Z',
-    '2026-11-07T00:00:00Z',
     '2026-11-07T00:01:00Z',
+    '2026-11-07T00:00:00Z',
+    '2026-11-07T00:02:00Z',
   ] })
   await page.goto('/?view=workspace&groupBrowse=1')
   await page.getByRole('button', { name: /Synthetic Grid Operator/ }).click()
@@ -245,7 +246,7 @@ test('expired project detail hides contacts and actions, then offers a bounded r
   await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toBeVisible()
   await expect(detail.getByRole('button', { name: 'Add to Pursuit' })).toBeVisible()
 
-  await page.clock.fastForward(1100)
+  await page.clock.fastForward(61_000)
   await expect(detail.getByRole('alert')).toContainText('expired before it could be displayed')
   await expect(detail.getByText('Jordan Fixture')).toHaveCount(0)
   await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toHaveCount(0)
@@ -269,7 +270,8 @@ test('expiry requires a fresh exact need and project projection before contacts 
   let needReads = 0
   let projectReads = 0
   await install(page, {
-    projectValidUntil: ['2026-11-07T00:00:01Z', '2026-11-07T00:01:00Z'],
+    // Keep initial support current until contacts are observed, then fastForward past this lease.
+    projectValidUntil: ['2026-11-07T00:01:00Z', '2026-11-07T00:02:00Z'],
     onNeedRead: id => { if (id === 'need-synthetic-one') needReads += 1 },
     delayNeedRead: id => id === 'need-synthetic-one' && holdNeedRefresh ? needRefreshWait : Promise.resolve(),
     onProjectRead: () => { projectReads += 1 },
@@ -285,7 +287,7 @@ test('expiry requires a fresh exact need and project projection before contacts 
   suppressContacts = true
   holdNeedRefresh = true
 
-  await page.clock.fastForward(1100)
+  await page.clock.fastForward(61_000)
   await expect.poll(() => needReads).toBeGreaterThan(initialNeedReads)
   await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toHaveCount(0)
   await expect(detail.getByText('Jordan Fixture')).toHaveCount(0)
