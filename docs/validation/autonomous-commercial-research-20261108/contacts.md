@@ -2,6 +2,8 @@
 
 Scope: bounded company contact discovery, planner ranking, and Apollo activation boundary. Synthetic fixtures and a disposable test database only; no live providers, credentials, retained/production data, or deployments were used.
 
+Current status: the runs below are earlier scoped lane evidence, not final contact acceptance. Independent review of the later attribution repair found native publisher/path/parser and cached-contact authority defects, including same-host unrelated documents and self-asserted identifiers. A closed native-parser contact-fact repair and independent frozen-source re-review are pending. Unverified website/domain hints do not establish canonical employer identity; acquisition can continue while contact publication abstains. Final integrated checks and a draft PR remain pending.
+
 ## Implementation
 
 - Company planning is keyed by canonical `CompanyIdentity`; active current memberships and current linked claims for multiple eligible projects are collected into one company candidate. The existing persistence test creates two projects with separate active needs and source-versioned membership evidence, then confirms one durable job for that company, replay deduplication, a new job after a material need change, and 30-day refresh.
