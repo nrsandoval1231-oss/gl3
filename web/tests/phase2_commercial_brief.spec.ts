@@ -85,6 +85,8 @@ test('source-backed disposable account brief survives responsive navigation and 
   await expect(account).toContainText(manifest.brief.best_contact_label)
   await expect(account).toContainText(manifest.brief.next_action)
   const brief = account.locator('.customer-commercial-brief')
+  const nextActionClaim = brief.locator('.customer-brief-claim').filter({ hasText: 'Next action' })
+  await expect(nextActionClaim).not.toContainText(/\[redacted\]|https?:\/\//i)
   await expect(brief.getByRole('link', { name: new RegExp(escapeRegExp(manifest.brief.best_contact_label), 'i') })).toHaveAttribute('href', manifest.brief.best_contact_href)
   await expect(brief.getByRole('heading', { name: 'Best contact' })).toHaveCount(0)
   await expect(brief.locator('details.customer-brief-sources')).not.toHaveAttribute('open', '')
@@ -161,7 +163,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   const readSamples: { status: number; elapsed_ms: number }[] = []
   for (let i = 0; i < 5; i += 1) {
     const start = performance.now()
-    const response = await page.request.get('/api/opportunities/groups?sector=all&search=' + encodeURIComponent(manifest.account.name) + '&limit=25&offset=0')
+    const response = await page.request.get('/api/opportunities/groups?sector=all&search=' + encodeURIComponent(manifest.account.name) + '&limit=25&offset=0&sort=priority&shortlist=true')
     readSamples.push({ status: response.status(), elapsed_ms: Math.round((performance.now() - start) * 100) / 100 })
     expect(response.ok()).toBeTruthy()
     const body = await response.json() as { items: OpportunityGroup[] }
