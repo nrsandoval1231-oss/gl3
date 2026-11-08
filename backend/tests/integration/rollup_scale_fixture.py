@@ -13,7 +13,8 @@ from uuid import uuid4
 from sqlalchemy import insert
 
 from gridlens.domain.regional_scope import classify_project_region
-from gridlens.intelligence.saved_browse import POLICY_VERSION
+from gridlens.intelligence.opportunity_browse import opportunity_group_id, opportunity_group_key
+from gridlens.intelligence.saved_browse import POLICY_VERSION, _publish_group_metadata
 from gridlens.persistence.models import (
     BrowseCustomerMembership,
     BrowseGeneration,
@@ -316,7 +317,7 @@ def seed_scale_corpus(factory, total_rows: int = 2098) -> dict:
                 valid_until=now + timedelta(days=1),
                 row_count=total_rows,
                 digest=hashlib.sha256(f"synthetic-rollup-{generation_id}".encode()).hexdigest(),
-                counts={"synthetic": True, "rows": total_rows},
+                counts={},
             )
         )
         state.generation_id = generation_id
@@ -327,6 +328,11 @@ def seed_scale_corpus(factory, total_rows: int = 2098) -> dict:
             zip(project_ids, need_ids, definitions, strict=True)
         ):
             row_tier = "Signal" if item["kind"] == "de_central" else "Lead"
+            grouping_input = {
+                "id": str(need_id),
+                "project_id": str(project_id),
+                "tier": row_tier,
+            }
             metadata = {
                 "sector": item["sector"],
                 "title": item["title"],
@@ -393,8 +399,12 @@ def seed_scale_corpus(factory, total_rows: int = 2098) -> dict:
                     "priority_segment": 0,
                     "workflow_status": "open",
                     "signal_decision": "yes",
-                    "project_group": "0" * 43,
-                    "single_group": "0" * 43,
+                    "project_group": opportunity_group_id(
+                        opportunity_group_key(grouping_input, shared_project=True)
+                    ),
+                    "single_group": opportunity_group_id(
+                        opportunity_group_key(grouping_input, shared_project=False)
+                    ),
                     "rank_score": item["rank"],
                     "updated_at": now - timedelta(minutes=index),
                     "search_text": f"{item['title']} {item['operator'] or ''}".casefold(),
@@ -410,6 +420,29 @@ def seed_scale_corpus(factory, total_rows: int = 2098) -> dict:
         session.execute(insert(BrowseRow.__table__), browse_rows)
         if memberships:
             session.execute(insert(BrowseCustomerMembership.__table__), memberships)
+        generation = session.get(BrowseGeneration, generation_id)
+        if generation is None:
+            raise AssertionError("Synthetic browse generation was not persisted.")
+        generation.counts = _publish_group_metadata(session, generation_id)
+        expected_count_keys = {"ALL", "Signal", "Prospect", "Lead"}
+        if set(generation.counts) != expected_count_keys:
+            raise AssertionError(
+                "Synthetic saved-browse counts do not match the current API schema."
+            )
+        if generation.counts["ALL"].get("total") != total_rows:
+            raise AssertionError("Synthetic saved-browse ALL count differs from seeded rows.")
+        if (
+            sum(generation.counts[tier].get("total", 0) for tier in expected_count_keys - {"ALL"})
+            != total_rows
+        ):
+            raise AssertionError("Synthetic saved-browse tier counts do not sum to seeded rows.")
+        if any(
+            generation.counts[tier].get("groups") != generation.counts[tier].get("total")
+            for tier in expected_count_keys
+        ):
+            raise AssertionError(
+                "Synthetic project-level browse group counts are not one per project."
+            )
 
     de_ids = project_ids[:48]
     diamond_ids = project_ids[48 : 48 + 159]
