@@ -372,9 +372,11 @@ jobs:
           set -euo pipefail
           docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gl3_phase2_browser_fixture_test'
           docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gl3_phase2_browser_backend_test'
-          export DATABASE_URL="postgresql+psycopg://gridlens:${POSTGRES_PASSWORD}@127.0.0.1:5432/gl3_phase2_browser_fixture_test"
-          export TEST_DATABASE_URL="postgresql+psycopg://gridlens:${POSTGRES_PASSWORD}@127.0.0.1:5432/gl3_phase2_browser_backend_test"
+          export PGPASSWORD="${POSTGRES_PASSWORD}"
+          export DATABASE_URL="postgresql+psycopg://gridlens@127.0.0.1:5432/gl3_phase2_browser_fixture_test"
+          export TEST_DATABASE_URL="postgresql+psycopg://gridlens@127.0.0.1:5432/gl3_phase2_browser_backend_test"
           export GRIDLENS_PHASE2_MANIFEST="${RUNNER_TEMP}/phase2-browser-manifest.json"
+          (cd backend && DATABASE_URL="$TEST_DATABASE_URL" uv run alembic upgrade head)
           (cd backend && uv run alembic upgrade head)
           uv run --project backend python scripts/phase2_metrics.py seed-browser \
             --database gl3_phase2_browser_fixture_test \
