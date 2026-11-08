@@ -174,8 +174,10 @@ def _exact_houston_project_contact(
         return False
     parsed_url = urlsplit(url)
     if (
-        parsed_url.hostname or ""
-    ).casefold() != "cohtora.houstontx.gov" or parsed_url.path != "/ibi_apps/WFServlet.ibfs":
+        parsed_url.scheme != "https"
+        or parsed_url.netloc != "cohtora.houstontx.gov"
+        or parsed_url.path != "/ibi_apps/WFServlet.ibfs"
+    ):
         return False
     if project is None or project.source_id != "houston-weekly-permits":
         return False
@@ -287,15 +289,18 @@ def supported_contact_facts(
         native_method = _exact_native_rrc_contact(
             source, identity.rrc_operator_number, organization
         )
+        normalized_method = (
+            _normalized_method(native_method[0], native_method[1]) if native_method else None
+        )
         return (
             {
                 fact(
                     "public_contact",
                     native_method[2],
-                    method=(native_method[0], native_method[1]),
+                    method=normalized_method,
                 )
             }
-            if native_method
+            if native_method and normalized_method
             else set()
         )
     return _current_project_native_source(
@@ -553,6 +558,21 @@ def _fact_matches_candidate(fact: NativeContactFact, candidate: dict, company_id
     )
 
 
+def _fact_matches_method(
+    fact: NativeContactFact, method_record: dict, candidate: dict, company_id: str
+) -> bool:
+    normalized = _normalized_method(method_record.get("kind"), method_record.get("value"))
+    return bool(
+        normalized
+        and fact.support in {"public_contact", "permit_listed_contact"}
+        and fact.source_url == str(method_record.get("source_url") or "")
+        and fact.quote == str(method_record.get("quote") or "")
+        and fact.method_kind == normalized[0]
+        and fact.method_value == normalized[1]
+        and _fact_matches_candidate(fact, candidate, company_id)
+    )
+
+
 def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> None:
     """Hide website contacts/roles lacking identity proof from current projections.
 
@@ -709,14 +729,7 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                 contact
                 for contact in candidate.get("public_contacts", [])
                 if any(
-                    fact.support in {"public_contact", "permit_listed_contact"}
-                    and fact.source_url == str(contact.get("source_url") or "")
-                    and fact.quote == str(contact.get("quote") or "")
-                    and (method := _normalized_method(contact.get("kind"), contact.get("value")))
-                    is not None
-                    and fact.method_kind == method[0]
-                    and fact.method_value == method[1]
-                    and _fact_matches_candidate(fact, candidate, str(company_id))
+                    _fact_matches_method(fact, contact, candidate, str(company_id))
                     for fact in verified_method_facts
                 )
             ]
