@@ -836,9 +836,9 @@ def _account_contact_projects(
                 "General company contact path": 3,
             }.get(responsibility, 4)
             quality = (
+                responsibility_rank,
                 not bool(action.get("name")),
                 not bool(action.get("title")),
-                responsibility_rank,
                 0 if kind == "email" else 1,
                 -int(row["priority_score"] or 0),
                 -(row["updated_at"].timestamp() if row["updated_at"] else 0),

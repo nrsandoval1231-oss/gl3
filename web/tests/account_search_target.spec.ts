@@ -97,6 +97,26 @@ test('same-name contacts in conflicting roles do not share contact methods', asy
   await expect(card.getByRole('link', { name: 'Email John Smith' })).toHaveCount(0)
 })
 
+test('same-project contact ranking prefers verified responsibility without mixing another person’s methods', async ({ page }) => {
+  const project = {
+    ...firstPage[0],
+    contact: [
+      { kind: 'call', label: 'Call Inferred Person', href: 'tel:+15555550001', name: 'Inferred Person', title: 'Project Advisor', company, responsibility: 'Inferred likely role', route_kind: 'named_contact', source_url: 'https://sources.example.test/inferred' },
+      { kind: 'call', label: 'Call Verified Person', href: 'tel:+15555550002', name: 'Verified Person', title: 'Facilities Director', company, responsibility: 'Verified project responsibility', route_kind: 'named_contact', source_url: 'https://sources.example.test/verified' },
+      { kind: 'email', label: 'Email Verified Person', href: 'mailto:verified@example.test', name: 'Verified Person', title: 'Facilities Director', company, responsibility: 'Verified project responsibility', route_kind: 'named_contact', source_url: 'https://sources.example.test/verified' },
+    ],
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, items: [{ ...group, featured_project: project, matched_project_id: null, matched_need_id: null }] } }))
+  await page.goto('/?groupBrowse=1&shortlist=1')
+  const card = page.getByRole('region', { name: `${company} customer group` })
+  await expect(card.getByRole('link', { name: 'Call Verified Person' })).toHaveAttribute('href', 'tel:+15555550002')
+  await expect(card.getByRole('link', { name: 'Email Verified Person' })).toHaveAttribute('href', 'mailto:verified@example.test')
+  await expect(card.getByRole('link', { name: /Inferred Person/ })).toHaveCount(0)
+  await expect(card).toContainText('Verified project responsibility')
+})
+
 test('account contact can come from a permitted project beyond page one with its project scope and source retained', async ({ page }) => {
   const contactProject = {
     ...targetProject,
@@ -155,4 +175,10 @@ test('an explicit null or malformed account contact selection does not fall back
   const refreshedOverview = page.getByRole('region', { name: `Company ${company}` }).getByRole('region', { name: 'Account overview' })
   await expect(refreshedOverview.getByText('No current business contact route is available.')).toBeVisible()
   await expect(refreshedOverview.getByRole('link', { name: 'Call Legacy Contact' })).toHaveCount(0)
+
+  account = { ...account, account_contact_project: { project_id: 'malformed-name', name: 'Malformed contact project', contact: [{ kind: 'email', label: 'Email', href: 'mailto:bad@example.test', name: { unexpected: true } }] } }
+  await page.reload()
+  const malformedOverview = page.getByRole('region', { name: `Company ${company}` }).getByRole('region', { name: 'Account overview' })
+  await expect(malformedOverview.getByText('No current business contact route is available.')).toBeVisible()
+  await expect(malformedOverview.getByRole('link', { name: 'Email' })).toHaveCount(0)
 })

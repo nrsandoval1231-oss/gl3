@@ -68,7 +68,12 @@ function safeContactHref(href?: string | null) {
 function contactOrder(contact: ProjectResult['contact'][number]) {
   const label = `${contact.label} ${contact.route_kind ?? ''} ${contact.responsibility ?? ''}`.toLowerCase()
   const general = /general|main line|switchboard|company/.test(label)
-  return Number(!contact.name) * 4 + Number(!contact.title) * 2 + Number(general)
+  const responsibility = contact.responsibility?.trim().toLowerCase()
+  const responsibilityRank = responsibility === 'verified project responsibility' ? 0
+    : responsibility === 'verified organizational responsibility' ? 1
+      : responsibility === 'inferred likely role' ? 2
+        : responsibility === 'general company contact path' ? 3 : 4
+  return responsibilityRank * 100 + Number(!contact.name) * 4 + Number(!contact.title) * 2 + Number(general)
 }
 
 export function bestProjectContactRoutes(contacts: ProjectResult['contact']) {
@@ -121,7 +126,13 @@ export function generalCompanyContactRoutes(contacts: ProjectResult['contact'], 
 function validAccountContactProject(value: unknown): value is ProjectResult {
   if (!value || typeof value !== 'object') return false
   const candidate = value as { project_id?: unknown; name?: unknown; contact?: unknown }
-  return typeof candidate.project_id === 'string' && typeof candidate.name === 'string' && Array.isArray(candidate.contact) && candidate.contact.every((contact: unknown) => Boolean(contact && typeof contact === 'object' && typeof (contact as { kind?: unknown }).kind === 'string' && typeof (contact as { label?: unknown }).label === 'string'))
+  if (typeof candidate.project_id !== 'string' || typeof candidate.name !== 'string' || !Array.isArray(candidate.contact)) return false
+  const stringFields = ['href', 'name', 'title', 'company', 'route_kind', 'responsibility', 'support', 'source_url', 'verified_at', 'person_identity_id', 'company_identity_id', 'role'] as const
+  return candidate.contact.every((contact: unknown) => {
+    if (!contact || typeof contact !== 'object') return false
+    const action = contact as Record<string, unknown>
+    return typeof action.kind === 'string' && typeof action.label === 'string' && stringFields.every(field => action[field] == null || typeof action[field] === 'string')
+  })
 }
 
 /** An explicit null/malformed API selection is authoritative; only older responses may fall back. */

@@ -592,9 +592,10 @@ def test_account_contact_project_is_selected_beyond_child_page(saved_db):
             )
         )
         secondary_id = uuid4()
+        inferred_candidate = rows[59]
         target = rows[61]
         suppressed = rows[60]
-        for row in (target, suppressed):
+        for row in (inferred_candidate, target, suppressed):
             session.add(
                 BrowseCustomerMembership(
                     generation_id=generation.id,
@@ -604,14 +605,33 @@ def test_account_contact_project_is_selected_beyond_child_page(saved_db):
                     role="asset_operator",
                 )
             )
+        inferred_candidate.compact = {
+            **inferred_candidate.compact,
+            "contact_actions": [
+                {
+                    "kind": "email",
+                    "href": "mailto:inferred@example.invalid",
+                    "name": "Named Inferred Contact",
+                    "title": "Project Director",
+                    "responsibility": "Inferred likely role",
+                    "company_identity_id": str(primary_id),
+                }
+            ],
+        }
         target.compact = {
             **target.compact,
             "contact_actions": [
                 {
                     "kind": "email",
-                    "href": "mailto:best@example.invalid",
-                    "name": "Primary Contact",
+                    "href": "mailto:target-inferred@example.invalid",
+                    "name": "Named Inferred Contact",
                     "title": "Project Director",
+                    "responsibility": "Inferred likely role",
+                    "company_identity_id": str(primary_id),
+                },
+                {
+                    "kind": "email",
+                    "href": "mailto:best@example.invalid",
                     "responsibility": "Verified project responsibility",
                     "company_identity_id": str(primary_id),
                 },
@@ -659,8 +679,12 @@ def test_account_contact_project_is_selected_beyond_child_page(saved_db):
         account_contact = operator["account_contact_project"]
         assert account_contact is not None
         assert str(target.project_id) in account_contact["project_ids"]
-        assert {action["href"] for action in account_contact["contact"]} == {
-            "mailto:best@example.invalid"
+        assert str(inferred_candidate.project_id) not in account_contact["project_ids"]
+        assert {
+            (action["href"], action.get("responsibility")) for action in account_contact["contact"]
+        } == {
+            ("mailto:target-inferred@example.invalid", "Inferred likely role"),
+            ("mailto:best@example.invalid", "Verified project responsibility"),
         }
 
         opened = group_open(
@@ -680,8 +704,11 @@ def test_account_contact_project_is_selected_beyond_child_page(saved_db):
             for project_id in child["project_ids"]
         }
         serialized = opened["group"]["account_contact_project"]
-        assert {action["href"] for action in serialized["contact"]} == {
-            "mailto:best@example.invalid"
+        assert {
+            (action["href"], action.get("responsibility")) for action in serialized["contact"]
+        } == {
+            ("mailto:target-inferred@example.invalid", "Inferred likely role"),
+            ("mailto:best@example.invalid", "Verified project responsibility"),
         }
 
 
