@@ -86,7 +86,7 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
 })
 
-test('optional commercial brief leads cards, keeps unknown power unknown, and preserves the legacy fallback payload', async ({ page }) => {
+test('optional brief honors abstention, formats scoped power and contacts safely, and preserves legacy fallback', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/commercial-pursuits**', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } }))
   await mockDemandSummary(page)
