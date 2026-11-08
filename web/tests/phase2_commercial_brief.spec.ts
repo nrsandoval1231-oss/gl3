@@ -91,6 +91,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   await expect(brief.getByRole('heading', { name: 'Best contact' })).toHaveCount(0)
   await expect(brief.locator('details.customer-brief-sources')).not.toHaveAttribute('open', '')
   const sourceDisclosure = brief.locator('details.customer-brief-sources')
+  await expect(sourceDisclosure.locator('summary')).toHaveText('Sources')
   await expect(brief).not.toContainText(manifest.brief.best_contact_authority)
   await expect(brief).not.toContainText(manifest.brief.best_contact_deliverability)
   await expect(sourceDisclosure).toContainText(manifest.source.title)
