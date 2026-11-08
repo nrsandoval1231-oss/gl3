@@ -232,6 +232,7 @@ def test_native_split_semantic_and_evidence_hash_still_resolves_source(
     retained_db, monkeypatch
 ):
     import hashlib
+    import json
 
     from test_retained_document_import import (
         SOURCES,
@@ -239,9 +240,17 @@ def test_native_split_semantic_and_evidence_hash_still_resolves_source(
         _synthetic_tx_record,
     )
 
+    from gridlens.intelligence.customer_accounts import _account_need, _current_brief_sources
     from gridlens.intelligence.project_results import page as project_result_page
+    from gridlens.intelligence.pursuit_workspace import page as pursuit_workspace_page
     from gridlens.intelligence.saved_browse import rebuild
-    from gridlens.persistence.models import Evidence, Interpretation, NeedObservation, Observation
+    from gridlens.persistence.models import (
+        BrowseRow,
+        Evidence,
+        Interpretation,
+        NeedObservation,
+        Observation,
+    )
 
     factory, _definitions, _synthetic_text = retained_db
     source_id = "test-retained-tx-a"
@@ -292,6 +301,41 @@ def test_native_split_semantic_and_evidence_hash_still_resolves_source(
         and source_ref["url"] == revised["html_url"]
         for source_ref in brief["sources"]
     )
+
+    with factory() as session:
+        account_sources = _current_brief_sources(session, [str(need_id)])[str(need_id)]
+        assert any(source["id"] == str(current_evidence.id) for source in account_sources)
+        compact = session.scalar(select(BrowseRow.compact).where(BrowseRow.need_id == need_id))
+        assert compact is not None
+        account_need = _account_need(json.dumps(compact), evidence=account_sources)
+        assert account_need is not None
+        assert any(
+            source_ref["evidence_id"] == str(current_evidence.id)
+            and source_ref["url"] == revised["html_url"]
+            for source_ref in account_need["commercial_brief"]["sources"]
+        )
+
+        workspace = pursuit_workspace_page(
+            session, {"sort": "priority"}, limit=50, offset=0, token=None
+        )
+        workspace_need = next(item for item in workspace["items"] if item["id"] == str(need_id))
+        assert any(
+            source_ref["evidence_id"] == str(current_evidence.id)
+            and source_ref["url"] == revised["html_url"]
+            for source_ref in workspace_need["commercial_brief"]["sources"]
+        )
+
+    # A stale Interpretation version whose evidence hash no longer binds to
+    # this current Evidence row must abstain in every resolver.
+    with factory.begin() as session:
+        current_interpretation = session.get(Interpretation, interpretation.id)
+        current_interpretation.assessment = {
+            **current_interpretation.assessment,
+            "evidence_hash": "0" * 64,
+        }
+        session.flush()
+        assert not _current_brief_sources(session, [str(need_id)])[str(need_id)]
+
 
 
 def test_failed_research_refresh_retains_last_good_commercial_brief(canonical_runtime, monkeypatch):

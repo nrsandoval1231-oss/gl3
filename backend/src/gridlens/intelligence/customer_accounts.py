@@ -1194,7 +1194,9 @@ def _current_brief_sources(session, need_ids: list[str | None]) -> dict[str, lis
                JOIN power_needs pn ON pn.id=no.need_id
                JOIN projects p ON p.id=pn.project_id
                WHERE no.need_id=ANY(CAST(:need_ids AS uuid[]))
-                 AND e.content_hash=o.content_hash AND i.content_hash=o.content_hash
+                 AND i.content_hash=o.content_hash
+                 AND i.assessment->>'semantic_hash'=o.content_hash
+                 AND i.assessment->>'evidence_hash'=e.content_hash
                  AND i.status='accepted'
                  AND coalesce(i.assessment->>'decision','accepted')='accepted'
                ORDER BY no.need_id,e.id,i.id DESC
