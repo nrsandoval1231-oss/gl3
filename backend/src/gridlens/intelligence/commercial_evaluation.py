@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from gridlens.domain.commercial_triage import surfaced_on as commercial_surfaced_on
+from gridlens.domain.commercial_brief import build_optional_commercial_brief
 from gridlens.domain.pursuits import CommercialTriageCard
 from gridlens.persistence.models import Pursuit
 
@@ -54,6 +55,13 @@ def evaluate_targets(
         exact_items = {str(item["id"]): item for item in items if str(item["id"]) in wanted}
         for need_id, item in exact_items.items():
             card = build_card(item, chains.get(str(item["project_id"])), today)
+            card["commercial_brief"] = build_optional_commercial_brief(
+                {
+                    **item,
+                    "contact_actions": [],
+                    "evidence": item.get("evidence", []),
+                }
+            )
             from gridlens.domain.opportunity_intelligence import assemble_card
             from gridlens.settings import settings
 
@@ -137,6 +145,7 @@ def evaluate_targets(
         if str(project.id) not in chains:
             chains[str(project.id)] = buying_chain_view(session, project.id)
         card = build_card(item, chains.get(str(project.id)), today)
+        card["commercial_brief"] = build_optional_commercial_brief(item)
         card["related_need_ids"] = [str(need.id)]
         card["related_need_states"] = []
         found[str(need.id)] = card

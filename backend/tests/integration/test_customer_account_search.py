@@ -175,6 +175,8 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
         assert browse["items"][0]["need_count"] == 3
         assert browse["items"][0]["matching_project_count"] == 2
         assert browse["items"][0]["matching_need_count"] == 3
+        assert browse["items"][0]["commercial_brief"]["best_contact"] is None
+        assert browse["items"][0]["commercial_brief"]["power_need"]["value"] is None
         assert browse["counts"]["action_now"] == 1
         assert browse["counts"]["research"] == 2
 
@@ -187,7 +189,10 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
         assert alias_queue["items"][0]["last_evidence_update"] == now
         assert alias_queue["items"][0]["qualification_tiers"] == ["Lead"]
         assert alias_queue["items"][0]["highest_priority_need"]["id"] == str(need_ids[0])
-        assert account_queue(session, search=None, limit=25, offset=0) == alias_queue
+        assert alias_queue["items"][0]["highest_priority_need"]["commercial_brief"]["best_contact"] is None
+        all_accounts = account_queue(session, search=None, limit=25, offset=0)
+        assert all_accounts["total"] == alias_queue["total"]
+        assert all_accounts["items"][0]["company_identity_id"] == alias_queue["items"][0]["company_identity_id"]
         assert account_queue(session, search="missing", limit=25, offset=0)["total"] == 0
         assert account_queue(session, search=None, limit=25, offset=1)["items"] == []
 

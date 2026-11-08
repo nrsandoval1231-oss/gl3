@@ -126,6 +126,48 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
         .all()
     )
     items = []
+    from gridlens.domain.commercial_brief import build_optional_commercial_brief
+    from gridlens.intelligence.saved_history_privacy import (
+        _redact_all_contact_tokens,
+        project_saved_history_privacy,
+    )
+
+    need_ids = [compact.get("id") for compact in rows if compact.get("id")]
+    evidence_by_need: dict[str, list[dict[str, Any]]] = {str(identity): [] for identity in need_ids}
+    if need_ids:
+        source_rows = session.execute(
+            text(
+                """SELECT DISTINCT ON (no.need_id, e.id)
+                          no.need_id, e.id, e.title, e.url, e.event_date,
+                          e.event_date_label, e.published_at, e.content_hash,
+                          e.extraction_location
+                   FROM need_observations no
+                   JOIN observations o ON o.id=no.observation_id
+                   JOIN evidence e ON e.observation_id=o.id
+                   JOIN interpretations i ON i.observation_id=o.id
+                   WHERE no.need_id=ANY(CAST(:need_ids AS uuid[]))
+                     AND e.content_hash=o.content_hash AND i.content_hash=o.content_hash
+                     AND i.status='accepted'
+                     AND coalesce(i.assessment->>'decision','accepted')='accepted'
+                   ORDER BY no.need_id,e.id,i.id DESC"""
+            ),
+            {"need_ids": need_ids},
+        ).mappings().all()
+        for source in source_rows:
+            evidence_by_need[str(source["need_id"])].append(
+                {
+                    "id": str(source["id"]),
+                    "title": source["title"],
+                    "url": source["url"],
+                    "event_date": source["event_date"],
+                    "event_date_label": source["event_date_label"],
+                    "published_at": source["published_at"],
+                    "content_hash": source["content_hash"],
+                    "extraction_location": source["extraction_location"],
+                    "current": True,
+                }
+            )
+
     for compact in rows:
         preview = compact.pop("commercial_preview", {})
         if (
@@ -143,8 +185,7 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
                 "Commercial workspace preview unavailable; saved browse generation needs rebuild",
                 headers={"Retry-After": "5", "X-Qualification-State": "pending"},
             )
-        items.append(
-            {
+        item = {
                 **compact,
                 "commercial_disposition": preview["disposition"],
                 "commercial_reason": preview["reason"],
@@ -152,7 +193,37 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
                 "commercial_next_action": preview["next_action"],
                 "commercial_organization": preview.get("organization"),
             }
+        item["commercial_brief"] = build_optional_commercial_brief(
+            {
+                **item,
+                "commercial_preview": preview,
+                # Workspace contact actions are generation-bound. They are
+                # privacy-filtered again by project result routes only, so do
+                # not elevate a cached route into this compact need brief.
+                "contact_actions": [],
+                "evidence": evidence_by_need.get(str(item.get("id")), []),
+            }
         )
+        items.append(item)
+    if items:
+        projected = project_saved_history_privacy(
+            session,
+            {
+                "versions": [
+                    {
+                        "saved_card": {
+                            "project_id": item.get("project_id"),
+                            "commercial_brief": item["commercial_brief"],
+                        }
+                    }
+                    for item in items
+                ]
+            },
+        )["versions"]
+        for item, version in zip(items, projected, strict=True):
+            item["commercial_brief"] = _redact_all_contact_tokens(
+                version["saved_card"]["commercial_brief"]
+            )
     next_offset = offset + len(items) if offset + len(items) < total else None
     return {
         "items": items,

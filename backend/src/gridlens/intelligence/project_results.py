@@ -556,6 +556,7 @@ def page(
                 "needs": needs,
                 "need_count": row["need_count"],
                 "event": meta.get("event"),
+                "_representative_metadata": meta,
                 "contact": contact,
                 "contact_people": project_contact_people,
                 "power_summary": meta.get("power_summary") or compact.get("power_summary"),
@@ -601,6 +602,7 @@ def page(
     from gridlens.intelligence.project_contact_actions import filter_project_contact_records
 
     records = []
+    brief_cards = []
     for item in items:
         records.extend(item["contact"])
         records.extend(item["contact_people"])
@@ -633,6 +635,143 @@ def page(
                 record.pop("person_identity_id", None)
                 record.pop("record_type", None)
                 record.pop("claim_id", None)
+
+    # Resolve only exact current evidence versions for the bounded page's need
+    # ids. This keeps saved compact JSON small and avoids treating an old
+    # generation reference as current source support.
+    visible_need_ids = {
+        UUID(str(need["id"]))
+        for item in items
+        for need in item["needs"]
+        if need.get("id")
+    }
+    evidence_by_need: dict[str, list[dict[str, Any]]] = {
+        str(identity): [] for identity in visible_need_ids
+    }
+    if visible_need_ids:
+        source_rows = session.execute(
+            text(
+                """SELECT DISTINCT ON (no.need_id, e.id)
+                          no.need_id, e.id, e.title, e.url, e.event_date,
+                          e.published_at, e.content_hash, e.extraction_location,
+                          e.event_date_label, i.status
+                   FROM need_observations no
+                   JOIN observations o ON o.id=no.observation_id
+                   JOIN evidence e ON e.observation_id=o.id
+                   JOIN interpretations i ON i.observation_id=o.id
+                   WHERE no.need_id = ANY(CAST(:need_ids AS uuid[]))
+                     AND e.content_hash=o.content_hash
+                     AND i.content_hash=o.content_hash
+                     AND i.status='accepted'
+                     AND coalesce(i.assessment->>'decision','accepted')='accepted'
+                   ORDER BY no.need_id, e.id, i.id DESC"""
+            ),
+            {"need_ids": list(visible_need_ids)},
+        ).mappings().all()
+        for source in source_rows:
+            payload = {
+                "id": str(source["id"]),
+                "title": source["title"],
+                "url": source["url"],
+                "event_date": source["event_date"],
+                "event_date_label": source["event_date_label"],
+                "published_at": source["published_at"],
+                "content_hash": source["content_hash"],
+                "extraction_location": source["extraction_location"],
+                "current": True,
+            }
+            evidence_by_need[str(source["need_id"])].append(payload)
+
+    # Briefs are derived after suppression and primary-account filtering so a
+    # stale or cross-account contact route cannot be promoted into a summary.
+    from gridlens.domain.commercial_brief import build_optional_commercial_brief
+
+    for item in items:
+        representative = next(
+            (need for need in item["needs"] if str(need.get("id")) == str(item.get("representative_need_id"))),
+            item["needs"][0] if item["needs"] else {},
+        )
+        assessment = (
+            shortlist_by_need.get(str(representative.get("id")), {}) if shortlist else {}
+        )
+        representative_evidence = evidence_by_need.get(str(representative.get("id")), [])
+        brief_input = {
+            **representative,
+            "id": representative.get("id"),
+            "name": item.get("name"),
+            "event": item.get("event"),
+            "project_metadata": item.get("_representative_metadata"),
+            "power_summary": item.get("power_summary"),
+            "power_amount_class": item.get("power_amount_class"),
+            "contact_actions": representative.get("contact_actions") or [],
+            "shortlist_assessment": assessment,
+            "evidence": representative_evidence,
+        }
+        item["commercial_brief"] = build_optional_commercial_brief(brief_input)
+        item["commercial_brief"]["best_contact"] = None
+        brief_cards.append((item, [(item["commercial_brief"], None)]))
+        need_brief_inputs = []
+        for need in item["needs"]:
+            need_input = {
+                **need,
+                "shortlist_assessment": (
+                    shortlist_by_need.get(str(need.get("id")), {}) if shortlist else {}
+                ),
+                "evidence": evidence_by_need.get(str(need.get("id")), []),
+                "contact_actions": need.get("contact_actions") or [],
+            }
+            need_brief_inputs.append((need, need_input))
+        for need, need_input in need_brief_inputs:
+            need["commercial_brief"] = build_optional_commercial_brief(need_input)
+        brief_cards[-1][1].extend(
+            (need["commercial_brief"], need) for need, _need_input in need_brief_inputs
+        )
+        item.pop("_representative_metadata", None)
+
+    privacy_versions = []
+    for item, briefs in brief_cards:
+        privacy_versions.extend(
+            {
+                "saved_card": {
+                    "project_id": item["project_id"],
+                    "related_project_ids": item["project_ids"],
+                    "commercial_brief": brief,
+                }
+            }
+            for brief, _need in briefs
+        )
+    if privacy_versions:
+        privacy_projected = project_saved_history_privacy(
+            session, {"versions": privacy_versions}
+        )["versions"]
+        offset = 0
+        for _item, briefs in brief_cards:
+            for brief, need in briefs:
+                safe = _redact_all_contact_tokens(
+                    privacy_projected[offset]["saved_card"]["commercial_brief"]
+                )
+                if need is None:
+                    _item["commercial_brief"] = safe
+                else:
+                    need["commercial_brief"] = safe
+                offset += 1
+    # The contact action has already passed primary-account and live
+    # suppression filtering. Reattach that one permitted route after the
+    # history sanitizer, which intentionally redacts all method tokens.
+    # (Need-specific briefs likewise use their own filtered action list.)
+    for item in items:
+        representative = next(
+            (need for need in item["needs"] if str(need.get("id")) == str(item.get("representative_need_id"))),
+            item["needs"][0] if item["needs"] else {},
+        )
+        action_brief = build_optional_commercial_brief(
+            {"contact_actions": representative.get("contact_actions") or []}
+        ).get("best_contact")
+        item["commercial_brief"]["best_contact"] = action_brief
+        for need in item["needs"]:
+            need["commercial_brief"]["best_contact"] = build_optional_commercial_brief(
+                {"contact_actions": need.get("contact_actions") or []}
+            ).get("best_contact")
 
     return {
         "items": items,

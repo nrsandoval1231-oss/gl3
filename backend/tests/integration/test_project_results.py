@@ -143,6 +143,9 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         assert selected["event"] == lower_need["project_metadata"]["event"]
         assert selected["power_summary"] == lower_need["project_metadata"]["power_summary"]
         assert selected["next_action"] == lower_need["commercial_preview"]["next_action"]
+        assert grouped["commercial_brief"]["version"]
+        assert grouped["needs"][0]["commercial_brief"]["power_need"]["value"] is None
+        assert grouped["commercial_brief"]["best_contact"]["href"] == "mailto:private@example.invalid"
         assert "contacts" not in grouped["needs"][0]
         assert "suppressed@example.invalid" not in repr(full["items"])
         second = page(
@@ -228,6 +231,7 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         company_suppressed = page(session, sector="oil_gas")
         assert company_suppressed["items"][0]["contact"] == []
         assert company_suppressed["items"][0]["contact_people"] == []
+        assert company_suppressed["items"][0]["commercial_brief"]["best_contact"] is None
 
 
 def test_source_bound_shortlist_filters_before_counts_and_keeps_all_projects_unchanged(saved_db):
@@ -399,6 +403,10 @@ def test_source_bound_shortlist_filters_before_counts_and_keeps_all_projects_unc
         assert "Jane Doe" not in repr(assessment)
         assert "+44 20 7946 0958" not in repr(assessment)
         assert "+49 30 901820" not in repr(assessment)
+        brief_text = repr(shortlist["items"][0]["commercial_brief"])
+        assert "Jane Doe" not in brief_text
+        assert "+44 20 7946 0958" not in brief_text
+        assert "+49 30 901820" not in brief_text
         detail = page(session, shortlist=True, need_id=need_ids[0])
         assert detail["total"] == 1
         assert (
