@@ -30,3 +30,9 @@ Builders use separate managed worktrees from the same base and commit only owned
 5. Full local gates, five viewport browser evidence, exact-head independent review and full CI; publish one draft PR, never merge/deploy.
 
 Metrics distinguish synthetic fixtures from retained/production coverage, and mock provider dollars from unknown actual cost. No authorized sanitized retained snapshot has been identified yet; prior production replay is not reused as fresh evidence.
+
+## Runtime and rollback boundary
+
+This candidate does not authorize runtime activation. No schema migration is planned; exact final source and migration checks must confirm that at handoff. Existing immutable evidence, company/project identity, saved Pursuits and provider ledgers remain in place. Application rollback retains forward schema and history; stop/reconcile fenced in-flight jobs using the existing recovery procedure before any separately authorized worker version change. Do not downgrade/delete evidence or restore old data as an automatic rollback action.
+
+Optional public-page automation now requires exact-host dated terms permission in addition to public-network and robots checks. No actual approved hosts are shipped. Unknown permission is an internal blocked outcome, preserving retained/native results. Metadata-only Firecrawl search is distinct from remote HTML extraction; post-fetch URL checks do not prove remote redirect prevention. Where provider target-network capability cannot be evidenced, live extraction stays blocked, with only deterministic parser/contract fixtures exercised. Apollo access, licensing, entitlement and live connector remain unavailable; its disabled interface does not imply vendor activation or usable contacts.

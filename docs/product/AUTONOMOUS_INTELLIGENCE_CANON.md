@@ -1,5 +1,9 @@
 # GridLens — Autonomous Power Demand Intelligence Canon
 
+## Current execution scope — Phase 2, November 8, 2026
+
+The owner authorizes scheduled autonomous commercial research on the existing account-first foundation, through one tested, independently reviewed draft PR. Cards show source-backed Why now, useful scoped Power need, permitted Best contact and one justified Next action; evidence stays on demand. Shared canonical-company research must preserve distinct projects and needs. Existing owner-managed need-scoped Commercial Pursuits is the only manual execution workspace; research never creates its stages, tasks or activity. Existing Jev authority is unchanged. No merge, deployment, production writes, credential changes, paid-provider calls or source activation is authorized. [Current contracts and acceptance](../engineering/autonomous-commercial-research-20261108.md) distinguish disabled/mock validation from live operation; older release permissions below are historical.
+
 ## Current owner amendment — account-first Slice 1, November 7, 2026
 
 One canonical customer/operator account. Distinct physical projects and power needs underneath. Curated commercial relevance upfront. Contacts and a justified action within easy reach. Evidence on demand; research/process machinery behind the scenes. This owner decision supersedes flat-project defaults, mandatory KPI tiles and historical evidence-heavy layouts. Preserve the existing logo, navy header, palette, typography and exact primary navigation: Opportunities | Companies | Pursuits | Reports. Keep All | Oil & Gas | Data Centers with their actual sector semantics.

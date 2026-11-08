@@ -31,6 +31,7 @@ This page summarizes defaults defined by `backend/src/gridlens/settings.py`. Tha
 | `COMPANY_CONTACT_DISCOVERY_ENABLED` | `true` | Bounded source-backed contact discovery/refresh is part of the autonomous worker loop. Retained/public retrieval may run; paid search still requires independent ledger authorization, configured pricing and budget. |
 | `AUTONOMOUS_RESEARCH_MAX_COST_USD` | `0` | No paid acquisition allowance by default. A configured provider key alone cannot authorize spend; independent provider/contract/ledger gates remain required. |
 | `BUYING_CHAIN_PUBLIC_RESEARCH_ENABLED` | `false` | Public buying-chain research disabled. |
+| `PUBLIC_RESEARCH_SITE_PERMISSIONS` | `[]` | Exact-host dated terms permissions for optional public-page automation; unknown, expired or revoked approval fails closed. It does not enable a source or provider. |
 | `INTELLIGENCE_OCR_ENABLED` | `false` | OCR path disabled. |
 | `INTELLIGENCE_OCR_REVIEWED_PAGE_HASHES` | empty | Comma-separated exact approvals in `document_sha256:1-based_page:rendered_png_sha256` form. Only raster images for the reviewed document pages and exact pixels can leave the host. |
 | `PERMIT_DOCUMENT_STAGE_SOURCE_IDS` | empty | Optional strict comma-separated allowlist for `texas-tceq-nsr-pending` and/or `oklahoma-deq-public-review`; enables only those existing bounded document stages in processed runtime definitions. Blank keeps the repository registry's stages off. Unknown, duplicate, malformed, or unconfigured source IDs fail closed. |
@@ -51,3 +52,9 @@ Current code defaults are not deployment instructions. The old `deploy/digitaloc
 ## Autonomous defaults and observed operation
 
 The default-on opportunity/contact planning paths implement the [Autonomous Intelligence Canon](../product/AUTONOMOUS_INTELLIGENCE_CANON.md); they do not enable model dispatch or paid discovery. Missing provider/contract/budget configuration must produce explicit unresolved diagnostics while preserving current accepted evidence. `BUYING_CHAIN_PUBLIC_RESEARCH_ENABLED`, model routing and intelligence contracts remain separately disabled by default. Environment overrides can change all these values, so this table does not certify deployed features, current provider availability, contact coverage, spending or scheduled PC-off operation.
+
+## Phase 2 candidate public-page permissions
+
+The [Phase 2 candidate](../engineering/autonomous-commercial-research-20261108.md) adds an empty-by-default JSON permission setting, not a production configuration change. Each exact hostname approval records a human terms-review reference, review/expiry timestamps and allowed retrieval modes; robots rules impose additional machine-readable restrictions and never grant access rights. No approved host is shipped. Native registered exact API adapters keep their separately reviewed source policy. Retained evidence remains readable when optional retrieval is blocked.
+
+A future authorized activation must establish the actual source permission, applicable terms and robots policy, current provider capability, explicit budget and credentials through the protected operating process. A Firecrawl response URL check is evidence admission after retrieval, not proof that remote redirects were prevented. Metadata-only URL discovery and HTML extraction have separate capability boundaries. No live provider or source acceptance is established by disabled/mock tests.
