@@ -161,8 +161,31 @@ test('source-backed disposable account brief survives responsive navigation and 
   const returnedIds = new Set(returnedProjects.map(project => project.project_id ?? project.id))
   for (const project of manifest.account.projects) expect(returnedIds.has(project.id), `distinct project ${project.id} remains in account detail`).toBe(true)
   for (const project of manifest.account.projects) {
-    await expect(detail).toContainText(project.name)
+    const projectRow = detail.locator(`[data-project-id="${project.id}"]`)
+    await expect(projectRow.locator(':scope > strong')).toHaveText(project.name)
   }
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    await expect(detail).toBeVisible()
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    expect(overflow, `account detail has horizontal overflow at ${viewport.width}px`).toBe(false)
+    await page.screenshot({ path: resolve(screenshotDir, `account-detail-${viewport.width}x${viewport.height}.png`), fullPage: true })
+  }
+  const featuredProject = manifest.account.projects.find(project => project.id === manifest.featured.project_id)
+  expect(featuredProject, 'featured representative need maps to an account project').toBeTruthy()
+  const needReads: string[] = []
+  page.on('request', request => {
+    const match = new URL(request.url()).pathname.match(/^\/api\/opportunities\/needs\/([^/]+)$/)
+    if (match) needReads.push(decodeURIComponent(match[1]))
+  })
+  await detail.locator(`[data-project-id="${manifest.featured.project_id}"]`).getByRole('button', { name: /Open project detail/ }).click()
+  const needDetail = page.getByRole('complementary', { name: 'Opportunity detail' })
+  const bestContact = needDetail.getByRole('region', { name: 'Best contact' })
+  await expect(bestContact.getByRole('link')).toHaveAttribute('href', manifest.brief.best_contact_href)
+  const recommendedAction = needDetail.getByRole('region', { name: 'Recommended next action' })
+  await expect(recommendedAction).toContainText(manifest.brief.next_action)
+  await expect(recommendedAction).not.toContainText(/\[redacted\]|https?:\/\//i)
+  await expect.poll(() => needReads).toContain(manifest.featured.need_id)
 
   const readSamples: { status: number; elapsed_ms: number }[] = []
   for (let i = 0; i < 5; i += 1) {
