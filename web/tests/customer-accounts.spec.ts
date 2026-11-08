@@ -132,6 +132,43 @@ test('account-first browse opens distinct projects, selected need and unresolved
   expect(browse.parentQueries.some(url => url.searchParams.get('group_by') === null)).toBeTruthy()
 })
 
+test('account cards prefer an optional brief, keep abstained claims withheld, and expose only its permitted contact route', async ({ page }) => {
+  const brief = {
+    version: 'synthetic-v1',
+    why_now: { text: null, source_date: null, scope: null, sources: [] },
+    power_need: { amount_class: 'unknown' as const, scope: 'Temporary package', value: null, unit: null, status: 'unknown', limitations: ['Activity-specific power need is unknown; unknown is not zero.'] },
+    best_contact: { contact: 'Jordan Fixture', href: 'tel:+15125550123', kind: 'call' as const, route_kind: 'person_method' as const, authority: 'Unknown; confirm for this need.', deliverability: 'Unknown; route has not been verified for delivery.', sources: [] },
+    next_action: { text: 'Confirm the temporary package scope from source evidence.', kind: 'confirm_need', source: null },
+    freshness: { as_of: '2026-11-08T00:00:00Z', status: 'current_source', source_date: null },
+    limitations: ['No current source citation is available for a why-now statement.'],
+    sources: [{ title: 'Synthetic accepted source', url: 'https://example.invalid/synthetic-source', evidence_id: 'synthetic-source-1', date: '2026-11-04' }],
+  }
+  const featured = { ...project(1), commercial_brief: brief }
+  const group = { ...accountGroup(), featured_project: featured }
+  const writes: string[] = []
+  await installAccountFirst(page, { groups: [group] })
+  page.on('request', request => {
+    const url = new URL(request.url())
+    if (url.pathname.startsWith('/api/') && request.method() !== 'GET') writes.push(`${request.method()} ${url.pathname}`)
+  })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
+  const card = page.getByRole('region', { name: /Northstar Compute customer group/ })
+  await expect(card.getByText('Why now is not established from current evidence.')).toBeVisible()
+  await expect(card.getByText('Synthetic construction activity is planned.')).toHaveCount(0)
+  await expect(card.getByText('Power need unknown')).toBeVisible()
+  await expect(card.getByText(/unknown is not zero/)).toBeVisible()
+  await expect(card.getByRole('link', { name: /Call Jordan Fixture/ })).toHaveAttribute('href', 'tel:+15125550123')
+  await expect(card.getByText(/Authority: Unknown; confirm for this need/)).toBeVisible()
+  await expect(card.getByText(brief.next_action.text, { exact: true })).toBeVisible()
+  await expect(card.getByText('Current Source', { exact: true })).toBeVisible()
+  const sources = card.locator('details.customer-brief-sources')
+  await expect(sources).not.toHaveAttribute('open', '')
+  await expect(sources.getByRole('link', { name: 'Synthetic accepted source' })).toHaveCount(0)
+  await sources.locator('summary').click()
+  await expect(sources.getByRole('link', { name: 'Synthetic accepted source' })).toHaveAttribute('href', 'https://example.invalid/synthetic-source')
+  expect(writes).toEqual([])
+})
+
 test('legacy company UUID links resolve to the canonical account and reload in the shared detail', async ({ page }) => {
   const browse = await installAccountFirst(page)
   await page.goto('/?view=workspace&accountBrowse=1&account=company-1')

@@ -344,7 +344,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
         <span className="customer-group-count">{displayedGroup.project_count} {displayedGroup.project_count === 1 ? 'project' : 'projects'}</span>
         <svg className="customer-group-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 18 6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button></h2>
-      {displayedGroup.featured_project && <div className="customer-group-featured"><p>{displayedGroup.featured_project.name}</p>{displayedGroup.featured_project.event?.date && <small>Evidence event · {displayedGroup.featured_project.event.date}</small>}{displayedGroup.featured_project.shortlist_assessment?.why_now && <p>{displayedGroup.featured_project.shortlist_assessment.why_now}</p>}{displayedGroup.featured_project.shortlist_assessment?.next_step && <p>{displayedGroup.featured_project.shortlist_assessment.next_step}</p>}{group.pursued_eligible_need_count != null && group.eligible_need_count != null && group.pursued_eligible_need_count > 0 && <small>{group.pursued_eligible_need_count === group.eligible_need_count ? `All ${group.eligible_need_count} opportunities in Pursuits` : `${group.pursued_eligible_need_count} of ${group.eligible_need_count} opportunities in Pursuits`}</small>}<FeaturedContact project={displayedGroup.featured_project} contactProject={accountContactProject}/>{group.eligible_need_count === 1 && displayedGroup.featured_project.representative_need_id && <AddToPursuit key={displayedGroup.featured_project.representative_need_id} needId={displayedGroup.featured_project.representative_need_id} deferLookup>for {displayedGroup.featured_project.name}</AddToPursuit>}{projectSpecificMatch(group, search) && <button type="button" onClick={() => openAccount(group.id, group.matched_project_id, group.matched_need_id)}>View account with matching opportunity</button>}<button type="button" onClick={() => openAccount(group.id, projectSpecificMatch(group, search) ? group.matched_project_id : null, projectSpecificMatch(group, search) ? group.matched_need_id : null)}>{(group.eligible_need_count ?? 0) > 1 ? `Choose opportunity` : `View account details`}</button></div>}
+      {displayedGroup.featured_project && <div className="customer-group-featured"><p>{displayedGroup.featured_project.name}</p>{displayedGroup.featured_project.commercial_brief ? <CommercialBriefSummary project={displayedGroup.featured_project}/> : <>{displayedGroup.featured_project.event?.date && <small>Evidence event · {displayedGroup.featured_project.event.date}</small>}{displayedGroup.featured_project.shortlist_assessment?.why_now && <p>{displayedGroup.featured_project.shortlist_assessment.why_now}</p>}{displayedGroup.featured_project.shortlist_assessment?.next_step && <p>{displayedGroup.featured_project.shortlist_assessment.next_step}</p>}<FeaturedContact project={displayedGroup.featured_project} contactProject={accountContactProject}/></>}{group.pursued_eligible_need_count != null && group.eligible_need_count != null && group.pursued_eligible_need_count > 0 && <small>{group.pursued_eligible_need_count === group.eligible_need_count ? `All ${group.eligible_need_count} opportunities in Pursuits` : `${group.pursued_eligible_need_count} of ${group.eligible_need_count} opportunities in Pursuits`}</small>}{group.eligible_need_count === 1 && displayedGroup.featured_project.representative_need_id && <AddToPursuit key={displayedGroup.featured_project.representative_need_id} needId={displayedGroup.featured_project.representative_need_id} deferLookup>for {displayedGroup.featured_project.name}</AddToPursuit>}{projectSpecificMatch(group, search) && <button type="button" onClick={() => openAccount(group.id, group.matched_project_id, group.matched_need_id)}>View account with matching opportunity</button>}<button type="button" onClick={() => openAccount(group.id, projectSpecificMatch(group, search) ? group.matched_project_id : null, projectSpecificMatch(group, search) ? group.matched_need_id : null)}>{(group.eligible_need_count ?? 0) > 1 ? `Choose opportunity` : `View account details`}</button></div>}
       {canUseChildren && childPageCurrent && expanded[group.id] && <div className="customer-group-projects">
         {childNotices[group.id] && <p role="status" className="project-results-notice">{childNotices[group.id]}</p>}
         {childErrors[group.id] && <p role="alert">{childErrors[group.id]} <button type="button" onClick={() => loadGroupProjects(group, 0)}>Reload projects</button></p>}
@@ -367,9 +367,11 @@ function ProjectCard({ project, selectedNeedId, onNeed, nested = false }: { proj
   return <article className="project-card" aria-current={selectedNeedId && project.needs.some(need => need.id === selectedNeedId) ? 'true' : undefined}>
     <div className="project-card-top"><span>{project.asset_type?.replaceAll('_', ' ') ?? 'Project'}</span>{project.sector && <span>{project.sector === 'oil_gas' ? 'Oil & Gas' : 'Data Centers'}</span>}</div>
     {nested ? <h3>{displayName}</h3> : <h2>{displayName}</h2>}{(project.company || project.location) && <p className="project-company">{[project.company, project.location].filter(Boolean).join(' · ')}</p>}
-    {assessment?.why_now && <p className="project-next">{assessment.why_now}</p>}
-    {assessment?.next_step && <p>{assessment.next_step}</p>}
-    <div className="project-card-actions">{contacts.map((contact, index) => <a key={`${contact.kind}-${contact.href}-${index}`} href={contact.href!}>{contact.label}</a>)}{contacts.length === 0 && <span>Contact method not verified</span>}{primary && <><button type="button" onClick={() => onNeed({ id: primary })}>Project details</button><AddToPursuit key={primary} needId={primary} deferLookup/></>}</div>
+    {project.commercial_brief ? <CommercialBriefSummary project={project}/> : <>
+      {assessment?.why_now && <p className="project-next">{assessment.why_now}</p>}
+      {assessment?.next_step && <p>{assessment.next_step}</p>}
+    </>}
+    <div className="project-card-actions">{project.commercial_brief ? null : contacts.map((contact, index) => <a key={`${contact.kind}-${contact.href}-${index}`} href={contact.href!}>{contact.label}</a>)}{!project.commercial_brief && contacts.length === 0 && <span>Contact method not verified</span>}{primary && <><button type="button" onClick={() => onNeed({ id: primary })}>Project details</button><AddToPursuit key={primary} needId={primary} deferLookup/></>}</div>
     {project.need_count > 1 && <details className="project-needs"><summary>Related power needs ({project.need_count})</summary><ul>{project.needs.map(need => <li key={need.id}><button type="button" onClick={() => onNeed({ id: need.id })}>{String(need.activity ?? need.browse_title ?? 'Related project detail')}{need.location ? ` · ${String(need.location)}` : ''}</button></li>)}</ul></details>}
     {(assessment?.evidence_refs.length || eventUrl) ? <details className="project-needs"><summary>Sources</summary>{eventUrl && <p><a href={eventUrl} target="_blank" rel="noreferrer">{project.event?.label ?? 'Open source'}</a></p>}{assessment?.evidence_refs.length && <><p>Supporting evidence is available in project detail.</p>{primary && <button type="button" onClick={() => onNeed({ id: primary })}>Open project evidence</button>}</>}</details> : null}
   </article>
@@ -384,4 +386,49 @@ function FeaturedContact({ project, contactProject }: { project: ProjectResult; 
   const companyLine = best.route_kind === 'company_route'
   const contactSource = safeContactSourceUrl(best.source_url)
   return <div className="customer-group-contact">{contactProject.project_id !== project.project_id && <small>Contact associated with {contactProject.name}</small>}<strong>{best.name ?? best.company ?? 'Business contact'}</strong>{best.title && <span> · {best.title}</span>}{best.responsibility && <small>{best.responsibility}. Authority needs confirmation.</small>}{companyLine && <span> · General company route</span>}{contacts.length > 0 && <span>{contacts.map(({ contact, href }) => <a key={`${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} {contact.name ?? (contact.route_kind === 'company_route' ? 'company' : 'contact')}</a>)}</span>}{general.length > 0 && <span>General company route · {general.map(({ contact, href }) => <a key={`general:${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} company</a>)}</span>}{contactSource && <details><summary>Contact source</summary><a href={contactSource} target="_blank" rel="noreferrer">Open source</a></details>}</div>
+}
+
+function CommercialBriefSummary({ project }: { project: ProjectResult }) {
+  const brief = project.commercial_brief
+  if (!brief) return null
+  const best = brief.best_contact
+  const contactHref = best?.href ? safeBriefHref(best.kind, best.href) : null
+  const powerText = brief.power_need.amount_class === 'unknown' || !brief.power_need.value
+    ? 'Power need unknown'
+    : `${briefPowerAmount(brief.power_need.value, brief.power_need.unit)}${brief.power_need.scope ? ` · ${brief.power_need.scope}` : ''}`
+  const whySources = brief.why_now.sources ?? []
+  const sourceRows = new Map<string, { title: string; url: string; date: string | null }>()
+  for (const source of [...brief.sources, ...whySources, ...(brief.next_action.source ? [brief.next_action.source] : []), ...(best?.sources ?? [])]) {
+    const url = safeContactSourceUrl(source.url)
+    const title = source.title?.trim()
+    if (!url || !title) continue
+    sourceRows.set(`${url}:${source.evidence_id ?? source.date ?? title}`, { title, url, date: source.date })
+  }
+  const whyLimitations = !brief.why_now.text
+    ? brief.limitations.filter(value => /why.now|source citation|source.backed event/i.test(value))
+    : []
+  return <div className="customer-commercial-brief">
+    <div className="customer-brief-claim"><strong>Why now</strong><p>{brief.why_now.text ?? 'Why now is not established from current evidence.'}</p>{brief.why_now.scope && <small>Scope: {brief.why_now.scope}</small>}{brief.why_now.source_date && <small>Source date: {brief.why_now.source_date}</small>}{brief.freshness.status && <small>{humanizeBriefStatus(brief.freshness.status)}</small>}{whyLimitations.map(value => <small key={value}>{value}</small>)}</div>
+    <div className="customer-brief-claim"><strong>Power need</strong><p>{powerText}</p><small>{brief.power_need.amount_class === 'unknown' ? 'Amount unknown' : `${humanizeBriefStatus(brief.power_need.amount_class)} · ${humanizeBriefStatus(brief.power_need.status)}`}{brief.power_need.limitations.length ? ` · ${brief.power_need.limitations.join('; ')}` : ''}</small></div>
+    <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{best && contactHref ? <><a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a><small>Authority: {best.authority} · Deliverability: {best.deliverability}</small></> : <small>No permitted contact route is available in current evidence.</small>}</div>
+    <div className="customer-brief-claim"><strong>Next action</strong><p>{brief.next_action.text}</p></div>
+    <details className="customer-brief-sources"><summary>Sources ({sourceRows.size})</summary>{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
+  </div>
+}
+
+function safeBriefHref(kind: string, value: string): string | null {
+  const href = value.trim()
+  if (kind === 'call' && /^tel:\+?[0-9]{7,15}$/i.test(href)) return href
+  if (kind === 'email' && href.toLowerCase().startsWith('mailto:') && /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/.test(href.slice(7))) return `mailto:${href.slice(7)}`
+  if (kind === 'contact') return safeContactSourceUrl(href)
+  return null
+}
+
+function briefPowerAmount(value: string, unit: string | null): string {
+  const amount = value.trim()
+  return unit && !new RegExp(`\\b${unit}\\s*$`, 'i').test(amount) ? `${amount} ${unit}` : amount
+}
+
+function humanizeBriefStatus(value: string): string {
+  return value.replaceAll('_', ' ').replace(/\b[a-z]/g, character => character.toUpperCase())
 }
