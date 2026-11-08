@@ -42,7 +42,7 @@ def test_rank_explains_commercial_urgency_missingness_and_cost():
     assert rank["score"] > 0
     assert "urgency:0" in rank["reasons"]
     assert "known_demand_mw:unknown" in rank["reasons"]
-    assert "project_need_coverage:7" in rank["reasons"]
+    assert "missing_fact_utility:15" in rank["reasons"]
     assert "bounded_public_research_cost:-5" in rank["reasons"]
     assert rank["missing_facts"] == ["duration", "required_mw", "supply"]
 
@@ -71,6 +71,26 @@ def test_contact_priority_uses_observable_power_opportunity_values():
     assert "known_demand_mw:80" in large["reasons"]
 
 
+def test_project_and_need_volume_does_not_increase_research_utility():
+    from dataclasses import replace
+
+    single = _candidate(mw=None)
+    large = replace(
+        single,
+        projects=single.projects + tuple(SimpleNamespace(id=uuid4()) for _ in range(12)),
+        needs=single.needs
+        + tuple(
+            SimpleNamespace(
+                id=uuid4(), tier="Signal", start_window=None, required_mw=None,
+                duration=None, supply="Unknown", active=True,
+            )
+            for _ in range(30)
+        ),
+    )
+    assert rank_candidate(large, now=NOW)["score"] == rank_candidate(single, now=NOW)["score"]
+    assert "missing_fact_utility:20" in rank_candidate(large, now=NOW)["reasons"]
+
+
 def test_depth_profile_is_stable_across_clock_changes_and_tracks_opportunity_evidence():
     from dataclasses import replace
 
@@ -96,7 +116,7 @@ def test_depth_profile_is_stable_across_clock_changes_and_tracks_opportunity_evi
         "source-backed",
         missing_buyer_relevant_method=True,
     )
-    assert select_research_profile(low, now=NOW) == "contact-depth-v1:standard"
+    assert select_research_profile(low, now=NOW) == "contact-depth-v1:deep"
     assert select_research_profile(high, now=NOW) == "contact-depth-v1:deep"
     assert select_research_profile(high, now=NOW + timedelta(days=365)) == ("contact-depth-v1:deep")
     deep = replace(high, research_profile="contact-depth-v1:deep")

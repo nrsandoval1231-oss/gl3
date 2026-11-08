@@ -95,7 +95,11 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         urgency = 6
     else:
         urgency = 0
-    evidence = min(20, len(candidate.projects) * 4 + len(needs) * 3)
+    # Research priority reflects the value of closing material information
+    # gaps, not the number of rows attached to an account. Count distinct
+    # missing facts once and cap their contribution so a large portfolio
+    # cannot swamp urgency or a supported contact gap.
+    utility = min(20, len(missing) * 5)
     resolvability = 8 if candidate.projects and candidate.source_digest else 0
     cost = -5  # Existing capped public retrieval remains the only planned action.
     freshness = (
@@ -111,22 +115,21 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         else 0
     )
     contact_depth_score = (
-        commercial + evidence + resolvability + min(8, len(missing) * 2) + contact_gap
+        commercial + utility + resolvability + contact_gap
     )
     score = (
         commercial
         + urgency
-        + evidence
+        + utility
         + resolvability
         + cost
         + freshness
-        + min(8, len(missing) * 2)
         + contact_gap
     )
     reasons = [
         f"commercial_value:{commercial}",
         f"urgency:{urgency}",
-        f"project_need_coverage:{evidence}",
+        f"missing_fact_utility:{utility}",
         f"resolvability:{resolvability}",
         f"stable_contact_depth_score:{contact_depth_score}",
         f"bounded_public_research_cost:{cost}",
