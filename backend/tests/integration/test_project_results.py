@@ -145,9 +145,11 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         assert selected["next_action"] == lower_need["commercial_preview"]["next_action"]
         assert grouped["commercial_brief"]["version"]
         assert grouped["needs"][0]["commercial_brief"]["power_need"]["value"] is None
-        assert (
-            grouped["commercial_brief"]["best_contact"]["href"] == "mailto:private@example.invalid"
-        )
+        # This fixture has fabricated claim IDs, so neither the legacy cache
+        # nor the new brief may turn its copied email into an authorized route.
+        # The native positive-to-suppressed path is tested separately in
+        # test_phase2_native_contact_privacy.py.
+        assert grouped["commercial_brief"]["best_contact"] is None
         assert "contacts" not in grouped["needs"][0]
         assert "suppressed@example.invalid" not in repr(full["items"])
         second = page(
@@ -173,8 +175,8 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         # current canonical buying-chain projection after a restart or refresh.
         assert before_suppression["items"][0]["contact"] == []
         assert before_suppression["items"][0]["contact_people"] == []
-    # Method suppression added after snapshot creation removes call/email routes
-    # while preserving a separately supported named person without a method.
+    # Later suppressions must not resurrect these unresolvable cached records.
+    # This exercises refusal stability; it is not a positive suppression proof.
     with saved_db.begin() as writer:
         writer.add(
             ContactSuppression(
