@@ -151,6 +151,43 @@ def test_extraction_byte_deadline_and_budget_prevent_unbounded_request():
         assert len(calls) == 1
 
 
+def test_extraction_rejects_private_final_url_and_never_follows_provider_redirect():
+    data = payload()
+    data["data"]["metadata"]["url"] = "https://127.0.0.1/private"
+    with httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=data))
+    ) as client:
+        with pytest.raises(ValueError, match="Private destinations"):
+            extract_public_document(
+                URL,
+                api_key="test",
+                deadline=time.monotonic() + 5,
+                before_request=lambda _: None,
+                client=client,
+            )
+
+    requests = []
+
+    def redirect(request):
+        requests.append(request)
+        return httpx.Response(
+            302,
+            headers={"location": "https://127.0.0.1/private"},
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(redirect)) as client:
+        with pytest.raises(httpx.HTTPStatusError):
+            extract_public_document(
+                URL,
+                api_key="test",
+                deadline=time.monotonic() + 5,
+                before_request=lambda _: None,
+                client=client,
+            )
+    assert len(requests) == 1
+    assert str(requests[0].url) == "https://api.firecrawl.dev/v2/scrape"
+
+
 @pytest.mark.parametrize(
     "error,code",
     [
