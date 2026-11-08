@@ -279,10 +279,7 @@ def evaluate_robots_policy(
     flush()
     agent = user_agent.casefold()
     matched_agents = [
-        (len(name), group)
-        for group in groups
-        for name in group[0]
-        if name != "*" and name in agent
+        (len(name), group) for group in groups for name in group[0] if name != "*" and name in agent
     ]
     if matched_agents:
         specificity = max(length for length, _ in matched_agents)
