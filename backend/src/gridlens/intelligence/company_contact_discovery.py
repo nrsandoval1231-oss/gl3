@@ -34,6 +34,10 @@ from gridlens.intelligence.buying_chain import (
     _store_document,
     buying_chain_view,
 )
+from gridlens.intelligence.company_contact_attribution import (
+    document_declares_operator_identity,
+    document_matches_company_identity,
+)
 from gridlens.intelligence.buying_chain_extraction import (
     Extracted,
     extract_company_contacts,
@@ -1406,7 +1410,16 @@ def process_company_contact_discovery(
             if organization and _self_identified_company_site(document, organization):
                 path = urlsplit(document.url).path.casefold()
                 if re.search(r"(?:contact|team|leadership|management|about)", path):
-                    page_yield = _contact_yield_keys(document, organization, anchor, now)
+                    page_yield = (
+                        _contact_yield_keys(document, organization, anchor, now)
+                        if operator_number
+                        and document_declares_operator_identity(
+                            document,
+                            organization=organization,
+                            operator_number=operator_number,
+                        )
+                        else set()
+                    )
                     new_yield = page_yield - seen_yield_keys
                     seen_yield_keys.update(page_yield)
                     if new_yield:
@@ -1466,6 +1479,12 @@ def process_company_contact_discovery(
         organization
         and any(
             _self_identified_company_site(doc, organization)
+            and operator_number
+            and document_declares_operator_identity(
+                doc,
+                organization=organization,
+                operator_number=operator_number,
+            )
             and re.search(
                 r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}|"
                 r"^(?:Phone|Telephone|Tel|Toll Free)\s*:\s*[+()0-9 .-]{10,24}$",
@@ -1980,7 +1999,9 @@ def _discover_anchor(
     org = old.organization
     documents = []
     for doc in fetched.values():
-        if not _self_identified_company_site(doc, org):
+        if not _self_identified_company_site(doc, org) or not document_matches_company_identity(
+            session, doc, company_id=company_id, organization=org
+        ):
             continue
         documents.append(doc)
     identity = session.get(CompanyIdentity, company_id)

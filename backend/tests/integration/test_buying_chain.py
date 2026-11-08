@@ -18,7 +18,11 @@ from sqlalchemy.orm import sessionmaker
 
 from gridlens.domain.evaluation_clock import evaluate_at
 from gridlens.domain.opportunity_intelligence import contact_projection
-from gridlens.ingestion.adapters.buying_chain_public import PublicDocument, parse_document
+from gridlens.ingestion.adapters.buying_chain_public import (
+    PublicDocument,
+    PublicPersonCard,
+    parse_document,
+)
 from gridlens.intelligence.buying_chain import (
     _attach_identity_ids,
     buying_chain_view,
@@ -156,6 +160,363 @@ def counts(session):
         session.scalar(select(func.count()).select_from(model))
         for model in (BuyingChainClaim, BuyingChainEvidence, BuyingChainRun, PowerNeed, Project)
     ]
+
+
+def _seed_contact_operator(session, *, external_id, operator_number, organization):
+    from gridlens.persistence.models import CompanyProjectMembership
+
+    project = seed(
+        session,
+        external_id=external_id,
+        identity_key=f"contact-identity:{external_id}",
+        name=organization,
+    )
+    project.region_status = "ELIGIBLE"
+    evidence = session.scalar(
+        select(Evidence).join(Observation).where(Observation.external_id == external_id)
+    )
+    assert evidence is not None
+    interpretation = session.scalar(
+        select(Interpretation).where(Interpretation.observation_id == evidence.observation_id)
+    )
+    assert interpretation is not None
+    interpretation.assessment = {
+        **interpretation.assessment,
+        "project_identity_key": project.identity_key,
+    }
+    identity = CompanyIdentity(rrc_operator_number=operator_number)
+    session.add(identity)
+    session.flush()
+    session.add(
+        CompanyProjectMembership(
+            company_identity_id=identity.id,
+            project_id=project.id,
+            role="asset_operator",
+            organization_name=organization,
+            source_id="test",
+            source_evidence_id=evidence.id,
+            source_version_hash=evidence.content_hash,
+            decision_basis="typed_rrc_operator_number_v1",
+            operator_number=operator_number,
+            state="current",
+        )
+    )
+    session.flush()
+    return project, identity
+
+
+def _add_active_company_domain_hint(session, *, company_id, organization, domain, row_number):
+    from gridlens.persistence.models import (
+        ExternalImportActivation,
+        ExternalImportBatch,
+        ExternalImportRow,
+    )
+
+    batch = session.scalar(
+        select(ExternalImportBatch).where(
+            ExternalImportBatch.filename == "contact-identity-hints.xlsx"
+        )
+    )
+    if batch is None:
+        batch = ExternalImportBatch(
+            filename="contact-identity-hints.xlsx",
+            content_hash=sha256(b"contact-identity-hints.xlsx").hexdigest(),
+            report={},
+            metrics={},
+            actor="synthetic-test",
+        )
+        session.add(batch)
+        session.flush()
+    row = ExternalImportRow(
+        batch_id=batch.id,
+        sheet="Accounts",
+        row_number=row_number,
+        row_kind="company",
+        raw={"Company": organization, "Domain": domain},
+        normalized={"company_name": organization, "domain": domain},
+        errors=[],
+        match_status="matched",
+        company_match={"status": "matched", "candidate_id": str(company_id)},
+        project_match={"status": "unmatched", "candidate_id": None},
+    )
+    session.add(row)
+    session.flush()
+    session.add(
+        ExternalImportActivation(row_id=row.id, active=True, changed_by="synthetic-test")
+    )
+
+
+def _queue_contact_job(session, company_id):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.persistence.models import Job
+
+    queued = discovery.discover_company_contacts(session, company_id, now=NOW)
+    job_id = queued["job_id"]
+    job = session.get(Job, job_id if isinstance(job_id, UUID) else UUID(job_id))
+    assert job is not None
+    job.status, job.lease_owner, job.fence = "running", "contact-test", 1
+    job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+    return job.id
+
+
+def test_imported_domain_and_matching_footer_do_not_attribute_contacts(db, monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    with db.begin() as session:
+        _project_a, identity_a = _seed_contact_operator(
+            session,
+            external_id="same-name-op-a",
+            operator_number="000001",
+            organization="Acme Incorporated",
+        )
+        _project_b, identity_b = _seed_contact_operator(
+            session,
+            external_id="same-name-op-b",
+            operator_number="000002",
+            organization="Acme Incorporated",
+        )
+        _project_unique, identity_unique = _seed_contact_operator(
+            session,
+            external_id="unique-import-hint",
+            operator_number="000003",
+            organization="Unique Fixture Corp",
+        )
+        _add_active_company_domain_hint(
+            session,
+            company_id=identity_a.id,
+            organization="Acme Incorporated",
+            domain="shared-acme.example",
+            row_number=2,
+        )
+        _add_active_company_domain_hint(
+            session,
+            company_id=identity_b.id,
+            organization="Acme Incorporated",
+            domain="shared-acme.example",
+            row_number=3,
+        )
+        _add_active_company_domain_hint(
+            session,
+            company_id=identity_unique.id,
+            organization="Unique Fixture Corp",
+            domain="unique-hint.example",
+            row_number=4,
+        )
+        job_a = _queue_contact_job(session, identity_a.id)
+        job_b = _queue_contact_job(session, identity_b.id)
+        job_unique = _queue_contact_job(session, identity_unique.id)
+        ids = (identity_a.id, identity_b.id, identity_unique.id)
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    requested = []
+
+    def matching_footer_only(url, **_kwargs):
+        requested.append(url)
+        organization = "Unique Fixture Corp" if "unique-hint" in url else "Acme Incorporated"
+        return PublicDocument(
+            url,
+            organization,
+            f"{organization}\nPhone: +1 (312) 555-0142\n"
+            f"Email: contact@example.test\n© 2026 {organization} All rights reserved.",
+            observed_at=NOW,
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", matching_footer_only)
+    results = []
+    for job_id in (job_a, job_b, job_unique):
+        results.append(
+            discovery.process_company_contact_discovery(
+                job_id, "contact-test", 1, now=NOW, deadline=time.monotonic() + 5
+            )
+        )
+
+    with db.begin() as session:
+        assert all(not company_contacts(session, identity_id).contacts for identity_id in ids)
+        assert any(url == "https://shared-acme.example/" for url in requested), results
+        assert all(result["status"] == "unresolved" for result in results), results
+
+
+def test_shared_domain_contact_requires_exact_publisher_operator_binding(db, monkeypatch):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    with db.begin() as session:
+        _project_a, identity_a = _seed_contact_operator(
+            session,
+            external_id="shared-domain-op-a",
+            operator_number="000011",
+            organization="Shared Brand Incorporated",
+        )
+        _project_b, identity_b = _seed_contact_operator(
+            session,
+            external_id="shared-domain-op-b",
+            operator_number="000022",
+            organization="Shared Brand Incorporated",
+        )
+        for row_number, identity in ((2, identity_a), (3, identity_b)):
+            _add_active_company_domain_hint(
+                session,
+                company_id=identity.id,
+                organization="Shared Brand Incorporated",
+                domain="shared-brand.example",
+                row_number=row_number,
+            )
+        job_a = _queue_contact_job(session, identity_a.id)
+        job_b = _queue_contact_job(session, identity_b.id)
+        company_a, company_b = identity_a.id, identity_b.id
+
+    monkeypatch.setattr(discovery, "SessionLocal", db)
+    page = (
+        "Company: Shared Brand Incorporated\n"
+        "RRC Operator Number: 000011\n"
+        "Jane Example, Power Procurement Manager\n"
+        "Contact Jane by Email jane@example.test\n"
+        "Email: jane@example.test\nPhone: +1 (312) 555-0142\n"
+        "© 2026 Shared Brand Incorporated All rights reserved."
+    )
+    def shared_brand_page(url, **_kwargs):
+        links = ("https://shared-brand.example/team",) if url.endswith("/") else ()
+        return PublicDocument(
+            url,
+            "Shared Brand Incorporated",
+            page,
+            observed_at=NOW,
+            links=links,
+            person_cards=(
+                PublicPersonCard(
+                    heading_text="Jane Example, Power Procurement Manager",
+                    contact_text="Contact Jane by Email jane@example.test",
+                    href="mailto:jane@example.test",
+                    name="Jane Example",
+                    title="Power Procurement Manager",
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(discovery, "retrieve", shared_brand_page)
+    first = discovery.process_company_contact_discovery(
+        job_a, "contact-test", 1, now=NOW, deadline=time.monotonic() + 5
+    )
+    assert first["status"] == "complete", first
+    with db.begin() as session:
+        accepted = company_contacts(session, company_a).contacts
+        assert any(contact.methods for contact in accepted)
+        assert any(
+            contact.name == "Jane Example"
+            and contact.role == "procurement"
+            and contact.methods
+            for contact in accepted
+        )
+        assert not company_contacts(session, company_b).contacts
+
+    second = discovery.process_company_contact_discovery(
+        job_b, "contact-test", 1, now=NOW, deadline=time.monotonic() + 5
+    )
+    assert second["status"] == "unresolved", second
+    with db.begin() as session:
+        assert company_contacts(session, company_b).contacts == []
+
+
+def test_late_same_name_identity_conflict_hides_legacy_site_contact_but_keeps_history(
+    db, monkeypatch
+):
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+
+    page_url = "https://legacy-acme.example/contact"
+    legacy_page = PublicDocument(
+        page_url,
+        "Acme Incorporated Contact",
+        "Acme Incorporated\nPhone: +1 (312) 555-0142\n"
+        "© 2026 Acme Incorporated All rights reserved.",
+        observed_at=NOW,
+    )
+    with db.begin() as session:
+        project_a, identity_a = _seed_contact_operator(
+            session,
+            external_id="late-conflict-op-a",
+            operator_number="000101",
+            organization="Acme Incorporated",
+        )
+        # Model a retained legacy claim made before strict site identity checks
+        # existed. The evidence is append-only; the current read must reassess it.
+        monkeypatch.setattr(
+            discovery,
+            "document_matches_company_identity",
+            lambda *_args, **_kwargs: True,
+        )
+        result = discovery._discover_anchor(
+            session,
+            project_a,
+            identity_a.id,
+            {page_url: legacy_page},
+            NOW,
+        )
+        assert result["status"] == "complete", result
+        legacy_claim_ids = list(
+            session.scalars(
+                select(BuyingChainClaim.id).where(
+                    BuyingChainClaim.project_id == project_a.id,
+                    BuyingChainClaim.public_contacts != [],
+                )
+            )
+        )
+        assert legacy_claim_ids
+
+    with db.begin() as session:
+        _project_b, identity_b = _seed_contact_operator(
+            session,
+            external_id="late-conflict-op-b",
+            operator_number="000202",
+            organization="Acme Incorporated",
+        )
+        _add_active_company_domain_hint(
+            session,
+            company_id=identity_a.id,
+            organization="Acme Incorporated",
+            domain="legacy-acme.example",
+            row_number=2,
+        )
+        _add_active_company_domain_hint(
+            session,
+            company_id=identity_b.id,
+            organization="Acme Incorporated",
+            domain="legacy-acme.example",
+            row_number=3,
+        )
+
+    with db.begin() as session:
+        current = company_contacts(session, identity_a.id)
+        assert current.contacts == []
+        current_view = buying_chain_view(session, project_a.id, now=NOW)
+        assert not any(
+            candidate.get("public_contacts") for candidate in current_view["candidates"]
+        )
+        from gridlens.intelligence.company_contacts import project_contacts
+        from gridlens.intelligence.project_contact_actions import project_contact_actions
+
+        actions = project_contact_actions(
+            {
+                "contacts": [
+                    contact.model_dump(mode="json")
+                    for contact in project_contacts(
+                        identity_a.id, {project_a.id: current_view}
+                    ).contacts
+                ]
+            }
+        )
+        assert actions == []
+        assert all(
+            session.get(BuyingChainClaim, claim_id).public_contacts
+            for claim_id in legacy_claim_ids
+        )
+        history = buying_chain_view(session, project_a.id, now=NOW, history=True)
+        assert any(
+            candidate.get("public_contacts")
+            for candidate in history["candidates"]
+            if candidate["id"] in legacy_claim_ids
+        )
 
 
 def test_membership_only_company_contact_job_persists_canonical_method(db, monkeypatch):

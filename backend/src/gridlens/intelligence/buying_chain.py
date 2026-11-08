@@ -2475,6 +2475,9 @@ def buying_chain_views(
         [candidate for view in views.values() for candidate in view.get("candidates", [])],
     )
     _attach_identity_ids(session, list(views.values()))
+    from gridlens.intelligence.company_contact_attribution import filter_unbound_company_contacts
+
+    filter_unbound_company_contacts(session, views.values())
     for view in views.values():
         _apply_permit_summary_privacy(session, view)
     return views
@@ -2819,6 +2822,11 @@ def buying_chain_view(
     }
     if not history and include_identity_ids:
         _attach_identity_ids(session, [result])
+        from gridlens.intelligence.company_contact_attribution import (
+            filter_unbound_company_contacts,
+        )
+
+        filter_unbound_company_contacts(session, [result])
     if _apply_privacy:
         _apply_permit_summary_privacy(session, result)
     return result
