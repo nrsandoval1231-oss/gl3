@@ -687,6 +687,12 @@ def test_project_sort_uses_visible_name_without_exact_company_prefix(
     from test_saved_browse import seed
 
     seed(saved_db, count=2, histories=1)
+    from gridlens.persistence.models import PowerNeed, Project
+
+    with saved_db.begin() as session:
+        needs = session.scalars(select(PowerNeed).order_by(PowerNeed.id)).all()
+        for need, title in zip(needs, (first_title, "Alpha · Beta Asset"), strict=True):
+            session.get(Project, need.project_id).name = title
     rebuild(saved_db)
     with saved_db.begin() as session:
         generation = current_generation(session)

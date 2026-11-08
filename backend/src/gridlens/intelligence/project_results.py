@@ -273,7 +273,8 @@ def page(
         "nullif(b.compact #>> '{project_metadata,owner}', ''))"
     )
     project_name = (
-        "coalesce(nullif(b.compact #>> '{project_metadata,title}', ''), "
+        "coalesce(nullif(canonical_project.name, ''), "
+        "nullif(b.compact #>> '{project_metadata,title}', ''), "
         "nullif(b.compact #>> '{project_metadata,name}', ''), "
         "nullif(b.compact->>'browse_title', ''), nullif(b.compact->>'name', ''))"
     )
@@ -312,6 +313,7 @@ def page(
                      {company_sort} AS company_sort,
                      {project_sort} AS project_sort
               FROM browse_rows b JOIN candidate_assets c ON c.asset_key = {asset_key_b}
+              LEFT JOIN projects canonical_project ON canonical_project.id = b.project_id
               WHERE b.generation_id = :generation
               GROUP BY 1
             ), page_assets AS (
@@ -354,12 +356,34 @@ def page(
             or 0
         )
 
+    # Use the same physical-project label as account_projects, rather than a
+    # permit's full source title or the selected need's activity name. Batch
+    # only the exact representative IDs after selecting the bounded page.
+    representative_ids = list(
+        {
+            str((row["representative"] or {}).get("project_id"))
+            for row in rows
+            if (row["representative"] or {}).get("project_id")
+        }
+    )
+    canonical_names = (
+        {
+            str(project_id): project_name
+            for project_id, project_name in session.execute(
+                text("SELECT id, name FROM projects WHERE id = ANY(CAST(:ids AS uuid[]))"),
+                {"ids": representative_ids},
+            )
+        }
+        if representative_ids
+        else {}
+    )
     items = []
     for row in rows:
         compact = row["representative"] or {}
         meta = compact.get("project_metadata") or {}
         name = (
-            meta.get("title")
+            canonical_names.get(str(compact.get("project_id")))
+            or meta.get("title")
             or meta.get("name")
             or compact.get("browse_title")
             or compact.get("name")
